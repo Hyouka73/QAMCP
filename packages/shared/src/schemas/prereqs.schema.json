@@ -1,0 +1,97 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "qap://schemas/prereqs.schema.json",
+  "title": "Prerequisites Configuration",
+  "description": "Schema for prereqs.yaml - module prerequisites including auth requirements, state setup, timeouts, and teardown stubs",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["_version", "module", "requires"],
+  "properties": {
+    "_version": {
+      "type": "string",
+      "description": "Schema version for evolution tracking"
+    },
+    "module": {
+      "type": "string",
+      "description": "Name or identifier of the module these prerequisites belong to"
+    },
+    "requires": {
+      "type": "object",
+      "description": "Requirements for module execution",
+      "additionalProperties": false,
+      "required": ["auth"],
+      "properties": {
+        "auth": {
+          "type": "object",
+          "description": "Authentication requirements",
+          "additionalProperties": false,
+          "required": ["primary"],
+          "properties": {
+            "primary": {
+              "type": "string",
+              "description": "Primary authentication profile ID required"
+            },
+            "available": {
+              "type": "array",
+              "description": "List of alternative authentication profile IDs available",
+              "items": {
+                "type": "string"
+              },
+              "default": []
+            }
+          }
+        },
+        "state": {
+          "type": "array",
+          "description": "List of state prerequisites that must be set up before execution",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["description", "setup"],
+            "properties": {
+              "description": {
+                "type": "string",
+                "description": "Description of the required state"
+              },
+              "setup": {
+                "type": "string",
+                "description": "Instructions or command to set up this state"
+              }
+            }
+          },
+          "default": []
+        }
+      }
+    },
+    "execution_timeout_ms": {
+      "type": "integer",
+      "description": "Maximum execution time in milliseconds before timeout",
+      "minimum": 0,
+      "default": 300000
+    },
+    "teardown": {
+      "type": "object",
+      "description": "Teardown stub configuration for cleanup after execution",
+      "additionalProperties": false,
+      "default": {},
+      "properties": {
+        "on_completion": {
+          "type": "array",
+          "description": "Actions to perform on successful completion",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "on_failure": {
+          "type": "array",
+          "description": "Actions to perform on execution failure",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        }
+      }
+    }
+  }
+}
