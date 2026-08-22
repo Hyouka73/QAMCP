@@ -9,6 +9,8 @@
     "build": "tsup src/index.ts --format esm --dts",
     "dev": "tsup src/index.ts --format esm --dts --watch"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@qap/shared": "workspace:*"
+  },
   "devDependencies": {}
 }
