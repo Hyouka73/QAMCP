@@ -1,0 +1,60 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "qap://schemas/rules.schema.json",
+  "title": "Module Rules Configuration",
+  "description": "Schema for rules.yaml of a module - defines validation or business rules with manual edit tracking",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["_version", "manually_edited"],
+  "properties": {
+    "_version": {
+      "type": "string",
+      "description": "Schema version for evolution tracking"
+    },
+    "manually_edited": {
+      "type": "boolean",
+      "description": "Indicates if this rules file has been manually edited by a human"
+    },
+    "rules": {
+      "type": "array",
+      "description": "List of rules defined for this module",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "description"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the rule"
+          },
+          "description": {
+            "type": "string",
+            "description": "Human-readable description of the rule"
+          },
+          "condition": {
+            "type": "string",
+            "description": "Condition expression for the rule"
+          },
+          "action": {
+            "type": "string",
+            "description": "Action to take when rule is triggered"
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["low", "medium", "high", "critical"],
+            "description": "Severity level of the rule"
+          },
+          "tags": {
+            "type": "array",
+            "description": "Tags associated with the rule",
+            "items": {
+              "type": "string"
+            },
+            "default": []
+          }
+        }
+      },
+      "default": []
+    }
+  }
+}
