@@ -48,3 +48,20 @@ export type { Selectors, SelectorsMetadata } from './selectors.type.js';
 
 // Semantic Hash
 export type { SemanticHash } from './semantic-hash.type.js';
+
+// Engine Ports - Module Discovery
+export type { ModuleSpec } from './module-spec.type.js';
+export type { Module } from './module.type.js';
+
+// Engine Ports - Test Execution
+export type { TestPlan } from './test-plan.type.js';
+export type { TestOptions } from './test-options.type.js';
+
+// Engine Ports - Reporting
+export type { ReportOptions } from './report-options.type.js';
+export type { Report } from './report.type.js';
+
+// Engine Ports - Flow Execution
+export type { FlowDefinition, FlowModuleRef, ContextSharingDef } from './flow-definition.type.js';
+export type { FlowOptions } from './flow-options.type.js';
+export type { FlowExecutionResult, ModuleExecutionResult, ExecutionResultSummary } from './flow-execution-result.type.js';
