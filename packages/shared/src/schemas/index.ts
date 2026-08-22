@@ -30,18 +30,20 @@
  * 3. No hay riesgo de tener datos "huérfanos" de versiones anteriores
  */
 
-export { default as authProfilesSchema } from './auth-profiles.schema.json';
-export { default as environmentsSchema } from './environments.schema.json';
-export { default as executionResultSchema } from './execution-result.schema.json';
-export { default as moduleContextSchema } from './module-context.schema.json';
-export { default as prereqsSchema } from './prereqs.schema.json';
-export { default as projectInitSchema } from './project-init.schema.json';
-export { default as rulesSchema } from './rules.schema.json';
-export { default as moduleFlowsSchema } from './module-flows.schema.json';
-export { default as flowSchema } from './flow.schema.json';
-export { default as tcCaseSchema } from './tc-case.schema.json';
-export { default as selectorsSchema } from './selectors.schema.json';
-export { default as semanticHashSchema } from './semantic-hash.schema.json';
+import authProfilesSchema from './auth-profiles.schema.json' with { type: 'json' };
+import environmentsSchema from './environments.schema.json' with { type: 'json' };
+import executionResultSchema from './execution-result.schema.json' with { type: 'json' };
+import moduleContextSchema from './module-context.schema.json' with { type: 'json' };
+import prereqsSchema from './prereqs.schema.json' with { type: 'json' };
+import projectInitSchema from './project-init.schema.json' with { type: 'json' };
+import rulesSchema from './rules.schema.json' with { type: 'json' };
+import moduleFlowsSchema from './module-flows.schema.json' with { type: 'json' };
+import flowSchema from './flow.schema.json' with { type: 'json' };
+import tcCaseSchema from './tc-case.schema.json' with { type: 'json' };
+import selectorsSchema from './selectors.schema.json' with { type: 'json' };
+import semanticHashSchema from './semantic-hash.schema.json' with { type: 'json' };
+
+export { authProfilesSchema, environmentsSchema, executionResultSchema, moduleContextSchema, prereqsSchema, projectInitSchema, rulesSchema, moduleFlowsSchema, flowSchema, tcCaseSchema, selectorsSchema, semanticHashSchema };
 
 // Export all schemas as a record for dynamic access
 export const schemas = {
