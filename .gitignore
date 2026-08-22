@@ -8,46 +8,49 @@ dist/
 build/
 target/
 
-# Cache directories
-.cache/
-.nyc_output/
-coverage/
-.htmlcov/
+# Logs and temp files
+*.log
+*.tmp
+*.swp
 
-# Environment variables
+# Environment
 .env
 .env.local
-.env.*
+*.env.*
 
-# Logs
-*.log
-
-# Temporary files
-*.tmp
-*.temp
-.DS_Store
-Thumbs.db
-
-# IDE specific
+# Editors
 .vscode/
 .idea/
-*.swp
-*.swo
 
-# Python specific
+# Python
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-.Python
-*.so
 
-# Node.js specific
+# Java
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+.gradle/
+build/
+
+# C/C++
+*.o
+*.obj
+*.so
+*.a
+*.dll
+*.exe
+*.out
+
+# Node.js
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# TypeScript/JavaScript build output
+# TypeScript
 *.tsbuildinfo
-.out/
 ```
