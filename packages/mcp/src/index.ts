@@ -1,0 +1,1 @@
+// @qap/mcp - Module placeholder

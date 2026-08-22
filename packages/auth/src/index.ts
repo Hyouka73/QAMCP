@@ -1,0 +1,1 @@
+// @qap/auth - Module placeholder

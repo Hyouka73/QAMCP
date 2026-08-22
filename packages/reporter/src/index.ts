@@ -1,0 +1,1 @@
+// @qap/reporter - Module placeholder

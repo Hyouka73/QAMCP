@@ -1,0 +1,1 @@
+// @qap/cli - Module placeholder
