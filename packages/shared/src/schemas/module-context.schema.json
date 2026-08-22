@@ -1,0 +1,66 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "qap://schemas/module-context.schema.json",
+  "title": "Module Context Configuration",
+  "description": "Schema for context.yaml of a module - objective, users, routes, risks, notes, sensitive selectors, and PRD source",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["_version", "objective", "manually_edited"],
+  "properties": {
+    "_version": {
+      "type": "string",
+      "description": "Schema version for evolution tracking"
+    },
+    "objective": {
+      "type": "string",
+      "description": "Primary objective or goal of this module",
+      "minLength": 1
+    },
+    "users": {
+      "type": "array",
+      "description": "List of user types or roles involved in this module",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "routes": {
+      "type": "array",
+      "description": "List of routes or paths covered by this module",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "risks": {
+      "type": "array",
+      "description": "List of identified risks for this module",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional notes or context for this module",
+      "default": ""
+    },
+    "sensitive_selectors": {
+      "type": "array",
+      "description": "List of CSS selectors that target sensitive data (passwords, PII, etc.)",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "manually_edited": {
+      "type": "boolean",
+      "description": "Indicates if this context file has been manually edited by a human"
+    },
+    "prd_source": {
+      "type": "string",
+      "description": "Optional reference to the Product Requirements Document source",
+      "default": ""
+    }
+  }
+}
