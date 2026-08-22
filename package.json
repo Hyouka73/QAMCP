@@ -1,0 +1,25 @@
+{
+  "name": "@qap/monorepo",
+  "version": "2.1.0",
+  "private": true,
+  "description": "QA Agent Platform v2.1 - Monorepo modular con pnpm workspaces",
+  "scripts": {
+    "build": "pnpm run -r build",
+    "lint": "eslint packages/*/src/**/*.ts"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.67.0",
+    "@typescript-eslint/parser": "^8.67.0",
+    "eslint": "^10.9.0",
+    "eslint-plugin-import": "^2.32.0",
+    "tsup": "^8.5.1",
+    "typescript": "^7.0.2"
+  },
+  "keywords": [
+    "qa",
+    "testing",
+    "automation"
+  ],
+  "author": "",
+  "license": "ISC"
+}

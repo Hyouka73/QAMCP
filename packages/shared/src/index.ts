@@ -1,0 +1,1 @@
+// @qap/shared - Module placeholder
