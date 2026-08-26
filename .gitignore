@@ -1,12 +1,14 @@
-```
-# Build artifacts
-dist/
-build/
-*.js
-
 # Dependencies
 node_modules/
+.pnpm-store/
 .pnpm-workspace-state-v1.json
+
+# Build artifacts and caches
+dist/
+build/
+*.tsbuildinfo
+.turbo/
+coverage/
 
 # Logs and temp files
 *.log
@@ -21,4 +23,4 @@ node_modules/
 # Editors
 .vscode/
 .idea/
-```
+.DS_Store
