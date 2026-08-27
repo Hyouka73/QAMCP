@@ -1,0 +1,5 @@
+# Generado automáticamente por QAP CLI
+logs/
+*.tmp
+cache/
+secrets.*.json
