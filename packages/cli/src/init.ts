@@ -13,7 +13,14 @@ export async function handleInitCommand(options: InitOptions): Promise<void> {
       throw new Error(`El archivo de configuración no existe en: ${configPath}`);
     }
     const rawContent = readFileSync(configPath, 'utf-8');
-    config = JSON.parse(rawContent) as QapConfig;
+    const parsed = JSON.parse(rawContent);
+
+    // Mapeo defensivo: Acepta tanto "projectName" como "name"
+    config = {
+      projectName: parsed.projectName || parsed.name || 'my-qap-project',
+      environments: parsed.environments || ['local', 'staging', 'prod'],
+      createdAt: parsed.createdAt || new Date().toISOString(),
+    };
   } 
   // 2. Modo Interactivo (Wizard)
   else {
