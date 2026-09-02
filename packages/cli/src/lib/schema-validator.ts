@@ -3,6 +3,8 @@ import type { ErrorObject } from 'ajv';
 import addFormatsModule from 'ajv-formats';
 import { schemas } from '@qap/shared';
 
+/* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any */
+
 // Interop fix: algunas configuraciones de módulo ESM/CJS
 // resuelven el default export como propiedad anidada.
 const Ajv = (AjvModule as any).default ?? AjvModule;
@@ -32,7 +34,7 @@ export class SchemaValidator {
       };
     }
 
-    const validateFn = this.ajv.compile(schema as object);
+    const validateFn = this.ajv.compile(schema);
     const valid = validateFn(data);
 
     if (valid) {

@@ -14,7 +14,7 @@
 import type { Command } from 'commander';
 
 import { NotImplementedError } from './errors.js';
-import { handleInitCommand } from './init.js';
+import { handleInitCommand } from './commands/init.js';
 import { handleAuthAdd, handleAuthList, handleAuthSetSecret, handleAuthRemove } from './auth.js';
 
 interface CommandDefinition {

@@ -1,4 +1,5 @@
 import keytar from 'keytar';
+
 import type { AuthCredentials, AuthOptions } from './types.js';
 
 export class AuthManager {

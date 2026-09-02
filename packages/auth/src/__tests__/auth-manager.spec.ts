@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import keytar from 'keytar';
+
 import { AuthManager } from '../auth-manager.js';
 
 // Mock de la librería keytar para no alterar el llavero real del sistema

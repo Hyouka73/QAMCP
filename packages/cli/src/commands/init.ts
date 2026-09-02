@@ -1,7 +1,9 @@
-import { input } from '@inquirer/prompts';
 import { existsSync, writeFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
+
+import { input } from '@inquirer/prompts';
 import YAML from 'yaml';
+
 // Se cambia a ruta relativa para evitar problemas de alias del workspace
 import { SchemaValidator } from '../lib/schema-validator.js';
 import type { InitOptions } from '../types.js';
@@ -21,7 +23,7 @@ export async function handleInitCommand(options: InitOptions): Promise<void> {
     try {
       const rawContent = readFileSync(configPath, 'utf-8');
       parsed = JSON.parse(rawContent);
-    } catch (err: unknown) {
+    } catch {
       console.error('El archivo de configuración no es un JSON válido.');
       process.exit(65); // POSIX EX_DATAERR
     }

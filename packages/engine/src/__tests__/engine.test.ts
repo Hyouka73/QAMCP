@@ -1,12 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { QAPEngine } from '../engine.js';
-import type {
-  IStorage,
-  IDiscoverer,
-  IRunner,
-  IFlowRunner,
-  IReporter,
-} from '../ports.js';
 import type {
   ModuleSpec,
   Module,
@@ -20,6 +12,15 @@ import type {
   FlowExecutionResult,
   ModuleContext,
 } from '@qap/shared';
+
+import { QAPEngine } from '../engine.js';
+import type {
+  IStorage,
+  IDiscoverer,
+  IRunner,
+  IFlowRunner,
+  IReporter,
+} from '../ports.js';
 
 describe('QAPEngine', () => {
   let mockStorage: { [K in keyof IStorage]: ReturnType<typeof vi.fn> };

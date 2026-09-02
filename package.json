@@ -5,15 +5,18 @@
   "description": "QA Agent Platform v2.1 - Monorepo modular con pnpm workspaces",
   "scripts": {
     "build": "pnpm run -r build",
-    "lint": "eslint packages/*/src/**/*.ts"
+    "lint": "eslint ."
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@typescript-eslint/eslint-plugin": "^8.67.0",
     "@typescript-eslint/parser": "^8.67.0",
     "eslint": "^9.20.0",
     "eslint-plugin-import": "^2.32.0",
+    "globals": "^17.12.0",
     "tsup": "^8.5.1",
-    "typescript": "~5.5.4"
+    "typescript": "~5.5.4",
+    "typescript-eslint": "^8.69.0"
   },
   "keywords": [
     "qa",
