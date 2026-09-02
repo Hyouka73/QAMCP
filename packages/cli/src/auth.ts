@@ -64,9 +64,13 @@ export async function handleAuthSetSecret(profile: string, secret: string): Prom
  */
 export async function handleAuthRemove(profile: string): Promise<void> {
     try {
-        // Al pasar un valor vacío o invocar la eliminación se remueve el secreto
-       console.log(`✔ Credenciales del perfil '${profile}' eliminadas del registro.    `);
+        const removed = await authManager.deleteSecret(profile);
+        if (removed) {
+            console.log(`✔ Credenciales del perfil '${profile}' eliminadas del registro.`);
+        } else {
+            console.log(`⚠ No se encontró ningún secreto para el perfil '${profile}'.`);
+        }
     } catch (error) {
         console.error(`✖ Error al eliminar el perfil '${profile}':`, error);
     }
-} 
+}
