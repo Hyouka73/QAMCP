@@ -1,12 +1,14 @@
 import { existsSync, writeFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 
+
 import { input } from '@inquirer/prompts';
 import YAML from 'yaml';
 
 // Se cambia a ruta relativa para evitar problemas de alias del workspace
 import { SchemaValidator } from '../lib/schema-validator.js';
 import type { InitOptions } from '../types.js';
+import { detectPlaywright } from '../utils/playwright-detector.js';
 
 export async function handleInitCommand(options: InitOptions): Promise<void> {
   let authProfile = 'default';
@@ -92,6 +94,9 @@ cache/
 `;
 
   writeFileSync(gitignorePath, gitignoreContent, 'utf-8');
+
+  // 6. Verificar si Playwright está instalado en el proyecto destino
+  detectPlaywright(process.cwd());
 
   console.log('\n✅ Proyecto inicializado con éxito en .qa/');
 }
