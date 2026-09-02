@@ -17,8 +17,12 @@
   "dependencies": {
     "@inquirer/prompts": "^8.6.0",
     "@qap/auth": "workspace:^",
+    "@qap/shared": "workspace:^",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
     "commander": "^15.0.0",
-    "playwright-core": "^1.62.1"
+    "playwright-core": "^1.62.1",
+    "yaml": "^2.9.0"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",
