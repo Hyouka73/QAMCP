@@ -12,6 +12,7 @@ describe('Suite de Comandos CLI Init', () => {
   let originalCwd: () => string;
   let exitSpy: ReturnType<typeof vi.spyOn>;
   let errorSpy: ReturnType<typeof vi.spyOn>;
+  let warnSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     tempDir = mkdtempSync(join(tmpdir(), 'qap-init-test-'));
@@ -22,8 +23,9 @@ describe('Suite de Comandos CLI Init', () => {
       throw new Error(`PROCESS_EXIT_${code}`);
     }) as never);
 
-    errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+       errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.spyOn(console, 'log').mockImplementation(() => {});
+    warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -158,6 +160,58 @@ describe('Suite de Comandos CLI Init', () => {
       await expect(handleInitCommand({ config: configPath })).rejects.toThrow(/PROCESS_EXIT_\d+/);
 
       expect(existsSync(join(tempDir, '.qa'))).toBe(false);
+    });
+  });
+
+  describe('Detección de Playwright durante init', () => {
+    it('debe advertir en consola si el proyecto destino NO tiene Playwright instalado', async () => {
+      const configPath = join(tempDir, 'config.json');
+      writeFileSync(
+        configPath,
+        JSON.stringify({ _version: '1.0', projectName: 'proyecto-sin-playwright' }),
+        'utf-8'
+      );
+
+      // Simulamos el package.json del proyecto destino (sin Playwright)
+      const targetPackageJsonPath = join(tempDir, 'package.json');
+      writeFileSync(
+        targetPackageJsonPath,
+        JSON.stringify({ name: 'proyecto-destino', dependencies: {}, devDependencies: {} }),
+        'utf-8'
+      );
+
+      await handleInitCommand({ config: configPath });
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Playwright no está instalado')
+      );
+    });
+
+    it('NO debe advertir si el proyecto destino ya tiene @playwright/test instalado', async () => {
+      const configPath = join(tempDir, 'config.json');
+      writeFileSync(
+        configPath,
+        JSON.stringify({ _version: '1.0', projectName: 'proyecto-con-playwright' }),
+        'utf-8'
+      );
+
+      // Simulamos el package.json del proyecto destino (CON Playwright)
+      const targetPackageJsonPath = join(tempDir, 'package.json');
+      writeFileSync(
+        targetPackageJsonPath,
+        JSON.stringify({
+          name: 'proyecto-destino',
+          dependencies: { '@playwright/test': '^1.48.0' },
+          devDependencies: {},
+        }),
+        'utf-8'
+      );
+
+      await handleInitCommand({ config: configPath });
+
+      expect(warnSpy).not.toHaveBeenCalledWith(
+        expect.stringContaining('Playwright no está instalado')
+      );
     });
   });
 });
