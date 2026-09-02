@@ -15,6 +15,7 @@ import type { Command } from 'commander';
 
 import { NotImplementedError } from './errors.js';
 import { handleInitCommand } from './init.js'; // 1. Importamos la función del wizard
+import { handleAuthAdd, handleAuthList, handleAuthSetSecret, handleAuthRemove} from './auth.js'; // 1. Importamos las funciones de auth
 
 interface CommandDefinition {
   /** Nombre del subcomando, p.ej. "test" -> `qap test`. */
@@ -36,7 +37,7 @@ const COMMANDS: readonly CommandDefinition[] = [
 ];
 
 export function registerCommands(program: Command): void {
-  // 2. Registrar el comando `init` con su implementación real y flag `--config`
+  // 1. Registrar el comando `init` con su implementación real y flag `--config`
   program
     .command('init')
     .description('Inicializa la estructura .qa/ en el proyecto actual')
@@ -44,6 +45,39 @@ export function registerCommands(program: Command): void {
     .action(async (options: { config?: string }) => {
       await handleInitCommand(options);
     });
+
+  // 2. Grupo de subcomandos 'auth' (Tarea s2-003)
+  const authGroup = program
+    .command('auth')
+    .description('Gestion de perfiles de autenticación y credenciales locales');
+
+  authGroup
+    .command('add <profile>')
+    .description('Registra un nuevo perfil de autenticación')
+    .action(async (profile: string) => {
+      await handleAuthAdd(profile);
+    });
+
+  authGroup
+    .command('list')
+    .description('Lista perfiles configurados sin exponer secretos')
+    .action(async () => {
+      await handleAuthList();
+    });
+
+  authGroup
+  .command('set-secret <profile> <secret>')
+  .description('Almacena un secreto directamente en el llavero local')
+  .action(async (profile: string, secret: string) => {
+    await handleAuthSetSecret(profile, secret);
+  });
+
+  authGroup
+  .command('remove <profile>')
+  .description('Elimina un perfil del llavero local')
+  .action(async (profile: string) => {
+    await handleAuthRemove(profile);
+  });
 
   // 3. Registrar el resto de comandos placeholders que lanzan NotImplementedError
   for (const definition of COMMANDS) {
