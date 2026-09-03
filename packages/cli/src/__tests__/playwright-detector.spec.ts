@@ -1,6 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { detectPlaywright } from '../utils/playwright-detector.js';
 import * as fs from 'node:fs';
+
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+import { detectPlaywright } from '../utils/playwright-detector.js';
 
 vi.mock('node:fs', () => ({
   existsSync: vi.fn(),

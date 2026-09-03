@@ -33,4 +33,12 @@ export class AuthManager {
   async setSecret(account: string, secret: string): Promise<void> {
     await keytar.setPassword(this.serviceName, account, secret);
   }
+
+  /**
+   * Elimina un secreto del llavero del SO. Devuelve true si existia y se elimino,
+   * false si no habia ningun secreto para esa cuenta.
+   */
+  async deleteSecret(account: string): Promise<boolean> {
+    return keytar.deletePassword(this.serviceName, account);
+  }
 }

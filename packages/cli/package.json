@@ -11,18 +11,14 @@
   "scripts": {
     "build": "tsup src/index.ts src/entrypoint.ts --format esm --dts",
     "dev": "tsup src/index.ts src/entrypoint.ts --format esm --dts --watch",
-    "test": "vitest run",
-    "test:playwright-spike": "tsx src/runner.ts"
+    "test": "vitest run"
   },
   "dependencies": {
     "@inquirer/prompts": "^8.6.0",
     "@qap/auth": "workspace:^",
-    "@qap/shared": "workspace:^",
     "@qap/engine": "workspace:^",
-    "ajv": "^8.20.0",
-    "ajv-formats": "^3.0.1",
+    "@qap/shared": "workspace:^",
     "commander": "^15.0.0",
-    "playwright-core": "^1.62.1",
     "yaml": "^2.9.0"
   },
   "devDependencies": {

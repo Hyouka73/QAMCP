@@ -1,12 +1,10 @@
 import { existsSync, writeFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 
-
 import { input } from '@inquirer/prompts';
+import { SchemaValidator } from '@qap/shared';
 import YAML from 'yaml';
 
-// Se cambia a ruta relativa para evitar problemas de alias del workspace
-import { SchemaValidator } from '../lib/schema-validator.js';
 import type { InitOptions } from '../types.js';
 import { detectPlaywright } from '../utils/playwright-detector.js';
 
@@ -31,13 +29,12 @@ export async function handleInitCommand(options: InitOptions): Promise<void> {
     }
 
     // Validar esquema ANTES de tocar el filesystem
+        // Validar esquema ANTES de tocar el filesystem
     const validator = new SchemaValidator();
-    const validationResult = validator.validate('project-init.schema.json', parsed);
-
+    const validationResult = validator.validateProjectInit(parsed);
     if (!validationResult.valid) {
-      console.error('Error de validación contra project-init.schema.json:');
-      // Tipamos 'err' como string o any para resolver ts(7006)
-      validationResult.errors?.forEach((err: unknown) => console.error(` - ${String(err)}`));
+      console.error('Error de validacion contra project-init.schema.json:');
+      validationResult.errors.forEach((err) => console.error(` - ${err.message}`));
       process.exit(65); // POSIX EX_DATAERR (Abortar sin modificar el disco)
     }
 
