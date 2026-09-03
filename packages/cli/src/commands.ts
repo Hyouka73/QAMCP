@@ -14,7 +14,8 @@
 import type { Command } from 'commander';
 
 import { NotImplementedError } from './errors.js';
-import { handleInitCommand } from './init.js'; // 1. Importamos la función del wizard
+import { handleInitCommand } from './commands/init.js';
+import { handleAuthAdd, handleAuthList, handleAuthSetSecret, handleAuthRemove } from './auth.js';
 
 interface CommandDefinition {
   /** Nombre del subcomando, p.ej. "test" -> `qap test`. */
@@ -36,13 +37,54 @@ const COMMANDS: readonly CommandDefinition[] = [
 ];
 
 export function registerCommands(program: Command): void {
-  // 2. Registrar el comando `init` con su implementación real y flag `--config`
+  // 1. Registrar el comando `init` con su implementación real y flag `--config`
   program
     .command('init')
     .description('Inicializa la estructura .qa/ en el proyecto actual')
     .option('-c, --config <path>', 'Ruta al archivo JSON de configuración para modo silencioso')
     .action(async (options: { config?: string }) => {
       await handleInitCommand(options);
+    });
+
+  // 2. Grupo de subcomandos 'auth' (Tarea S2-003)
+  const authGroup = program
+    .command('auth')
+    .description('Gestión de perfiles de autenticación y credenciales locales');
+
+  authGroup
+    .command('add [profile]')
+    .description('Registra un nuevo perfil de autenticación')
+    .option('-p, --profile <profile>', 'Nombre del perfil')
+    .action(async (profileArg?: string, options?: { profile?: string }) => {
+      const targetProfile = options?.profile || profileArg || 'default';
+      await handleAuthAdd(targetProfile);
+    });
+
+  authGroup
+    .command('list')
+    .description('Lista perfiles configurados sin exponer secretos')
+    .action(async () => {
+      await handleAuthList();
+    });
+
+  authGroup
+    .command('set-secret [profile] [secret]')
+    .description('Almacena un secreto directamente en el llavero local')
+    .option('-p, --profile <profile>', 'Nombre del perfil')
+    .option('-s, --secret <secret>', 'Valor del secreto')
+    .action(async (profileArg?: string, secretArg?: string, options?: { profile?: string; secret?: string }) => {
+      const targetProfile = options?.profile || profileArg || 'default';
+      const targetSecret = options?.secret || secretArg || '';
+      await handleAuthSetSecret(targetProfile, targetSecret);
+    });
+
+  authGroup
+    .command('remove [profile]')
+    .description('Elimina un perfil del llavero local')
+    .option('-p, --profile <profile>', 'Nombre del perfil')
+    .action(async (profileArg?: string, options?: { profile?: string }) => {
+      const targetProfile = options?.profile || profileArg || 'default';
+      await handleAuthRemove(targetProfile);
     });
 
   // 3. Registrar el resto de comandos placeholders que lanzan NotImplementedError
