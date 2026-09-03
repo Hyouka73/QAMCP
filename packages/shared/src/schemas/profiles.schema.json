@@ -1,0 +1,88 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "qap://schemas/profiles.schema.json",
+  "title": "Authentication Profiles Configuration",
+  "description": "Schema for profiles.json - array of authentication profiles with credentials and session management",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["_version", "profiles"],
+  "properties": {
+    "_version": {
+      "type": "string",
+      "description": "Schema version for evolution tracking"
+    },
+    "profiles": {
+      "type": "array",
+      "description": "List of authentication profiles",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "env", "username", "credential_source", "login_mode"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for this profile"
+          },
+          "env": {
+            "type": "string",
+            "description": "Environment this profile applies to"
+          },
+          "username": {
+            "type": "string",
+            "description": "Username for authentication"
+          },
+          "credential_source": {
+            "type": "string",
+            "enum": ["keychain", "env"],
+            "description": "Source of credentials (keychain or environment variable)"
+          },
+          "login_mode": {
+            "type": "string",
+            "enum": ["auto", "handoff"],
+            "description": "Login mode - auto for automated login, handoff for manual intervention"
+          },
+          "login_route": {
+            "type": "string",
+            "description": "Route or path for the login page",
+            "default": ""
+          },
+          "session_cache": {
+            "type": "object",
+            "description": "Session caching configuration",
+            "additionalProperties": false,
+            "default": {},
+            "properties": {
+              "enabled": {
+                "type": "boolean",
+                "default": true
+              },
+              "ttl_ms": {
+                "type": "integer",
+                "description": "Time-to-live for cached session in milliseconds",
+                "minimum": 0,
+                "default": 3600000
+              }
+            }
+          },
+          "post_login_condition": {
+            "type": "object",
+            "description": "Condition to verify successful login",
+            "additionalProperties": false,
+            "required": ["type", "value"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["url_contains", "url_equals", "selector_visible", "selector_exists"],
+                "description": "Type of condition to check"
+              },
+              "value": {
+                "type": "string",
+                "description": "Value to match against (URL pattern or selector)"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

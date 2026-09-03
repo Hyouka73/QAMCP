@@ -1,0 +1,128 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "qap://schemas/flow.schema.json",
+  "title": "Multi-Module Flow Definition",
+  "description": "Schema for flow.yaml - defines a multi-module flow with modules, context sharing, execution settings, and teardown configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["_version", "name", "modules"],
+  "properties": {
+    "_version": {
+      "type": "string",
+      "description": "Schema version for evolution tracking"
+    },
+    "name": {
+      "type": "string",
+      "description": "Name of the flow"
+    },
+    "description": {
+      "type": "string",
+      "description": "Description of the flow"
+    },
+    "modules": {
+      "type": "array",
+      "description": "List of modules in this flow",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["module"],
+        "properties": {
+          "module": {
+            "type": "string",
+            "description": "Name or identifier of the module"
+          },
+          "tags": {
+            "type": "array",
+            "description": "Tags associated with this module in the flow",
+            "items": {
+              "type": "string"
+            },
+            "default": []
+          },
+          "cases": {
+            "type": "array",
+            "description": "Test cases to execute from this module",
+            "items": {
+              "type": "string"
+            },
+            "default": []
+          },
+          "depends_on": {
+            "type": "array",
+            "description": "Other modules this module depends on within the flow",
+            "items": {
+              "type": "string"
+            },
+            "default": []
+          }
+        }
+      }
+    },
+    "context_sharing": {
+      "type": "array",
+      "description": "Configuration for sharing context between modules",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["capture", "from_module", "from_case", "as"],
+        "properties": {
+          "capture": {
+            "type": "string",
+            "description": "What to capture (e.g., variable name, selector output)"
+          },
+          "from_module": {
+            "type": "string",
+            "description": "Source module to capture from"
+          },
+          "from_case": {
+            "type": "string",
+            "description": "Source test case to capture from"
+          },
+          "as": {
+            "type": "string",
+            "description": "Alias or name to store the captured value as"
+          }
+        }
+      },
+      "default": []
+    },
+    "execution_timeout_ms": {
+      "type": "integer",
+      "description": "Maximum execution time for the entire flow in milliseconds",
+      "minimum": 0
+    },
+    "fail_fast": {
+      "type": "boolean",
+      "description": "If true, stop flow execution on first failure",
+      "default": false
+    },
+    "teardown": {
+      "type": "object",
+      "description": "Teardown configuration for cleanup actions",
+      "additionalProperties": false,
+      "properties": {
+        "on_failure": {
+          "type": "array",
+          "description": "Actions to execute when flow fails",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "description": "Type of teardown action"
+              },
+              "action": {
+                "type": "string",
+                "description": "Specific action to perform"
+              }
+            }
+          },
+          "default": []
+        }
+      },
+      "default": null
+    }
+  }
+}

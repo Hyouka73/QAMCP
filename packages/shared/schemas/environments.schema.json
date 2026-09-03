@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "qap://schemas/environments.schema.json",
+  "title": "Environments Configuration",
+  "description": "Schema for environments.yaml - map of environments with URL and browser mode settings",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["_version", "environments", "default"],
+  "properties": {
+    "_version": {
+      "type": "string",
+      "description": "Schema version for evolution tracking"
+    },
+    "environments": {
+      "type": "object",
+      "description": "Map of environment names to their configurations",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["url"],
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "Base URL for the environment",
+            "minLength": 1,
+            "pattern": "^https?://"
+          },
+          "browser_mode": {
+            "type": "string",
+            "enum": ["auto", "headless", "headed"],
+            "description": "Browser execution mode",
+            "default": "auto"
+          }
+        }
+      }
+    },
+    "default": {
+      "type": "string",
+      "description": "Name of the default environment to use"
+    }
+  }
+}

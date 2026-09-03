@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "qap://schemas/system-prompt.schema.json",
+  "title": "System Prompt Configuration",
+  "description": "Schema for .qa/project/system-prompt.yaml - defines AI QA agent role, objectives, constraints, and default workflows",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["_version", "role", "objectives", "constraints"],
+  "properties": {
+    "_version": {
+      "type": "string",
+      "description": "Schema version for evolution tracking"
+    },
+    "role": {
+      "type": "string",
+      "description": "Role definition and purpose for the QA Agent"
+    },
+    "objectives": {
+      "type": "array",
+      "description": "List of core objectives for the QA Agent",
+      "items": {
+        "type": "string"
+      }
+    },
+    "constraints": {
+      "type": "array",
+      "description": "Rules and constraints the agent must adhere to",
+      "items": {
+        "type": "string"
+      }
+    },
+    "default_workflows": {
+      "type": "object",
+      "description": "Predefined workflows for common tasks (discovery, testing, etc.)",
+      "additionalProperties": {
+        "type": "string"
+      }
+    }
+  }
+}

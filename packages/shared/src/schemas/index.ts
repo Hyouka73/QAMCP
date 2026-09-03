@@ -31,6 +31,7 @@
  */
 
 import authProfilesSchema from './auth-profiles.schema.json' with { type: 'json' };
+import profilesSchema from './profiles.schema.json' with { type: 'json' };
 import environmentsSchema from './environments.schema.json' with { type: 'json' };
 import executionResultSchema from './execution-result.schema.json' with { type: 'json' };
 import moduleContextSchema from './module-context.schema.json' with { type: 'json' };
@@ -42,27 +43,46 @@ import flowSchema from './flow.schema.json' with { type: 'json' };
 import tcCaseSchema from './tc-case.schema.json' with { type: 'json' };
 import selectorsSchema from './selectors.schema.json' with { type: 'json' };
 import semanticHashSchema from './semantic-hash.schema.json' with { type: 'json' };
+import systemPromptSchema from './system-prompt.schema.json' with { type: 'json' };
 
-export { authProfilesSchema, environmentsSchema, executionResultSchema, moduleContextSchema, prereqsSchema, projectInitSchema, rulesSchema, moduleFlowsSchema, flowSchema, tcCaseSchema, selectorsSchema, semanticHashSchema };
+export {
+  authProfilesSchema,
+  profilesSchema,
+  environmentsSchema,
+  executionResultSchema,
+  moduleContextSchema,
+  prereqsSchema,
+  projectInitSchema,
+  rulesSchema,
+  moduleFlowsSchema,
+  flowSchema,
+  tcCaseSchema,
+  selectorsSchema,
+  semanticHashSchema,
+  systemPromptSchema,
+};
 
 // Export all schemas as a record for dynamic access
 export const schemas = {
   'auth-profiles': authProfilesSchema,
-  'environments': environmentsSchema,
+  profiles: profilesSchema,
+  environments: environmentsSchema,
   'execution-result': executionResultSchema,
   'module-context': moduleContextSchema,
-  'prereqs': prereqsSchema,
+  prereqs: prereqsSchema,
   'project-init': projectInitSchema,
-  'rules': rulesSchema,
+  rules: rulesSchema,
   'module-flows': moduleFlowsSchema,
-  'flow': flowSchema,
+  flow: flowSchema,
   'tc-case': tcCaseSchema,
-  'selectors': selectorsSchema,
+  selectors: selectorsSchema,
   'semantic-hash': semanticHashSchema,
+  'system-prompt': systemPromptSchema,
 } as const;
 
 // Type exports for TypeScript consumers
 export type AuthProfilesSchema = typeof authProfilesSchema;
+export type ProfilesSchema = typeof profilesSchema;
 export type EnvironmentsSchema = typeof environmentsSchema;
 export type ExecutionResultSchema = typeof executionResultSchema;
 export type ModuleContextSchema = typeof moduleContextSchema;
@@ -74,3 +94,5 @@ export type FlowSchema = typeof flowSchema;
 export type TCCaseSchema = typeof tcCaseSchema;
 export type SelectorsSchema = typeof selectorsSchema;
 export type SemanticHashSchema = typeof semanticHashSchema;
+export type SystemPromptSchema = typeof systemPromptSchema;
+

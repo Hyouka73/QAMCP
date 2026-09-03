@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "qap://schemas/semantic-hash.schema.json",
+  "title": "Semantic Hash Record",
+  "description": "Schema for semantic-hash.json - stores hash, timestamp, and source information. This is a derived/regenerable file, so it omits _version.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["hash", "timestamp", "computed_from"],
+  "properties": {
+    "hash": {
+      "type": "string",
+      "description": "The semantic hash value"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when the hash was computed"
+    },
+    "computed_from": {
+      "type": "array",
+      "description": "List of files or sources that were used to compute this hash",
+      "items": {
+        "type": "string"
+      }
+    },
+    "algorithm": {
+      "type": "string",
+      "description": "Hash algorithm used (e.g., sha256, md5)",
+      "default": "sha256"
+    }
+  }
+}

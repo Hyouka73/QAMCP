@@ -12,6 +12,9 @@ export type { ProjectInit } from './project-init.type.js';
 // Environments
 export type { Environments, EnvironmentConfig } from './environments.type.js';
 
+// System Prompt
+export type { SystemPrompt, DefaultWorkflows } from './system-prompt.type.js';
+
 // Module Context
 export type { ModuleContext } from './module-context.type.js';
 

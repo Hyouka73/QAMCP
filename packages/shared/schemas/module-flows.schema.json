@@ -1,0 +1,63 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "qap://schemas/module-flows.schema.json",
+  "title": "Module Flows Configuration",
+  "description": "Schema for module-flows.yaml - defines flows within a module with manual edit tracking",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["_version", "manually_edited"],
+  "properties": {
+    "_version": {
+      "type": "string",
+      "description": "Schema version for evolution tracking"
+    },
+    "manually_edited": {
+      "type": "boolean",
+      "description": "Indicates if this module-flows file has been manually edited by a human"
+    },
+    "flows": {
+      "type": "array",
+      "description": "List of flows defined within this module",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Name of the flow"
+          },
+          "description": {
+            "type": "string",
+            "description": "Description of the flow"
+          },
+          "tags": {
+            "type": "array",
+            "description": "Tags associated with the flow",
+            "items": {
+              "type": "string"
+            },
+            "default": []
+          },
+          "cases": {
+            "type": "array",
+            "description": "Test cases included in this flow",
+            "items": {
+              "type": "string"
+            },
+            "default": []
+          },
+          "depends_on": {
+            "type": "array",
+            "description": "Other flows this flow depends on",
+            "items": {
+              "type": "string"
+            },
+            "default": []
+          }
+        }
+      },
+      "default": []
+    }
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "qap://schemas/selectors.schema.json",
+  "title": "Module Selectors Map",
+  "description": "Schema for selectors.json of a module - maps logical names to CSS selectors. This is a derived/regenerable file, so it omits _version.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["selectors"],
+  "properties": {
+    "selectors": {
+      "type": "object",
+      "description": "Map of logical selector names to CSS selector strings",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "default": {}
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Optional metadata about the selectors",
+      "additionalProperties": false,
+      "properties": {
+        "generated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when selectors were generated"
+        },
+        "source": {
+          "type": "string",
+          "description": "Source of the selectors (e.g., auto-extracted, manual)"
+        }
+      }
+    }
+  }
+}

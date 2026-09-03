@@ -6,6 +6,7 @@ import {
   environmentsSchema,
   authProfilesSchema,
   executionResultSchema,
+  systemPromptSchema,
 } from '../schemas/index.js';
 
 export interface ValidationError {
@@ -63,12 +64,18 @@ export class SchemaValidator {
     this.ajv = new Ajv({ allErrors: true, strict: false });
     addFormats(this.ajv);
 
-    // Precompilación en memoria de los schemas fundamentales
+    const envValidator = this.ajv.compile(environmentsSchema);
+    const profileValidator = this.ajv.compile(authProfilesSchema);
+
+    // Precompilación en memoria de los schemas fundamentales y aliases
     this.validators = new Map([
       ['project-init', this.ajv.compile(projectInitSchema)],
-      ['project-environments', this.ajv.compile(environmentsSchema)],
-      ['profiles', this.ajv.compile(authProfilesSchema)],
+      ['environments', envValidator],
+      ['project-environments', envValidator],
+      ['profiles', profileValidator],
+      ['auth-profiles', profileValidator],
       ['execution-result', this.ajv.compile(executionResultSchema)],
+      ['system-prompt', this.ajv.compile(systemPromptSchema)],
     ]);
   }
 
@@ -111,4 +118,8 @@ export class SchemaValidator {
   validateExecutionResult(data: unknown): ValidationResult {
     return this.runValidation('execution-result', data);
   }
-}
+
+  validateSystemPrompt(data: unknown): ValidationResult {
+    return this.runValidation('system-prompt', data);
+  }
+}

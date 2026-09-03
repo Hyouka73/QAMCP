@@ -7,9 +7,18 @@ export default tseslint.config(
   {
     ignores: ['**/node_modules/**', '**/dist/**'],
   },
+  {
+    // Scripts JS de utilidad (generate-types, etc.) — entorno Node puro sin tsconfig
+    files: ['**/scripts/**/*.js'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
+    },
+  },
   js.configs.recommended,
   {
-    files: ['packages/**/*.ts'],
+    files: ['packages/**/src/**/*.ts'],
     extends: [...tseslint.configs.recommendedTypeChecked],
     languageOptions: {
       parserOptions: {
@@ -32,6 +41,23 @@ export default tseslint.config(
           'newlines-between': 'always',
         },
       ],
+    },
+  },
+  {
+    // Archivos de configuración de empaquetado tsup
+    files: ['**/tsup.config.ts'],
+    extends: [...tseslint.configs.recommended],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
+    },
+  },
+  {
+    // Tipos TypeScript generados automáticamente desde JSON Schemas
+    files: ['**/types/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-empty-object-type': 'off',
     },
   },
   {

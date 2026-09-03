@@ -5,7 +5,9 @@
   "description": "QA Agent Platform v2.1 - Monorepo modular con pnpm workspaces",
   "scripts": {
     "build": "pnpm run -r build",
-    "lint": "eslint ."
+    "clean": "pnpm run -r --if-present clean",
+    "lint": "eslint .",
+    "test": "pnpm run -r --if-present test"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
