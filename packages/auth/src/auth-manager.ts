@@ -1,44 +1,75 @@
+import { basename } from 'node:path';
 import keytar from 'keytar';
-
-import type { AuthCredentials, AuthOptions } from './types.js';
+import type { AuthProfile } from '@qap/shared';
+import { readProfile } from './profiles-store.js';
+import type { AuthCredentials } from './types.js';
 
 export class AuthManager {
-  private serviceName: string;
+  private projectName: string;
 
-  constructor(options: AuthOptions = {}) {
-    this.serviceName = options.serviceName || 'qap-cli';
+  constructor(projectPath: string = process.cwd()) {
+    // Supuesto: se deriva el nombre del proyecto de la carpeta raíz,
+    // ya que projectName no se persiste en .qa/project/environments.yaml.
+    this.projectName = basename(projectPath);
   }
 
   /**
-   * Obtiene credenciales. Prioriza variables de entorno sobre el llavero del SO.
+   * Deriva el identificador seguro del keychain: qap.<proyecto>.<perfil_id>
    */
-  async getCredentials(account: string, envVarName?: string): Promise<AuthCredentials | null> {
-    // 1. Prioridad: Variable de entorno
-    if (envVarName && process.env[envVarName]) {
-      return { token: process.env[envVarName] };
+  private buildServiceName(profileId: string): string {
+    return `qap.${this.projectName}.${profileId}`;
+  }
+
+  /**
+   * Resuelve credenciales para un perfil según su credential_source.
+   * - 'env': lee de process.env[profile.env_var]
+   * - 'keychain': consulta keytar bajo qap.<proyecto>.<perfil_id>
+   */
+  async getCredentials(profileId: string): Promise<AuthCredentials | null> {
+    const profile = await readProfile(profileId);
+    if (!profile) return null;
+
+    if (profile.credential_source === 'env') {
+      // NOTA: 'env_var' aún no existe en el schema/tipo AuthProfile (pendiente S2-001).
+      const envVarName = (profile as AuthProfile & { env_var?: string }).env_var;
+      const value = envVarName ? process.env[envVarName] : undefined;
+      return value ? { token: value } : null;
     }
 
-    // 2. Consulta al llavero seguro del SO (keytar)
-    const secret = await keytar.getPassword(this.serviceName, account);
-    if (secret) {
-      return { password: secret };
+    // credential_source === 'keychain'
+    const serviceName = this.buildServiceName(profileId);
+    const secret = await keytar.getPassword(serviceName, profile.username);
+    return secret ? { password: secret } : null;
+  }
+
+  /**
+   * Guarda un secreto en el keychain para el perfil indicado.
+   * Solo aplica a perfiles con credential_source: 'keychain'.
+   */
+  async setSecret(profileId: string, password: string): Promise<void> {
+    const profile = await readProfile(profileId);
+    if (!profile) {
+      throw new Error(`Perfil '${profileId}' no encontrado en profiles.json`);
     }
-
-    return null;
+    const serviceName = this.buildServiceName(profileId);
+    await keytar.setPassword(serviceName, profile.username, password);
   }
 
   /**
-   * Guarda un secreto de forma segura en el llavero del SO.
+   * Verifica si existen credenciales válidas registradas para el perfil.
    */
-  async setSecret(account: string, secret: string): Promise<void> {
-    await keytar.setPassword(this.serviceName, account, secret);
+  async hasValidCredentials(profileId: string): Promise<boolean> {
+    const credentials = await this.getCredentials(profileId);
+    return credentials !== null;
   }
 
   /**
-   * Elimina un secreto del llavero del SO. Devuelve true si existia y se elimino,
-   * false si no habia ningun secreto para esa cuenta.
+   * Elimina el secreto del keychain asociado al perfil.
    */
-  async deleteSecret(account: string): Promise<boolean> {
-    return keytar.deletePassword(this.serviceName, account);
+  async deleteSecret(profileId: string): Promise<boolean> {
+    const profile = await readProfile(profileId);
+    if (!profile) return false;
+    const serviceName = this.buildServiceName(profileId);
+    return keytar.deletePassword(serviceName, profile.username);
   }
 }
