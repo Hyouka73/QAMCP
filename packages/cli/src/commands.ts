@@ -15,7 +15,7 @@ import type { Command } from 'commander';
 
 import { NotImplementedError } from './errors.js';
 import { handleInitCommand } from './commands/init.js';
-import { handleAuthAdd, handleAuthList, handleAuthSetSecret, handleAuthRemove } from './auth.js';
+import { handleAuthAdd, handleAuthList, handleAuthSetSecret, handleAuthRemove } from './commands/auth/index.js';
 
 interface CommandDefinition {
   /** Nombre del subcomando, p.ej. "test" -> `qap test`. */
