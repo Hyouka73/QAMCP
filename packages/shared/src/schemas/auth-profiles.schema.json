@@ -37,6 +37,10 @@
             "enum": ["keychain", "env"],
             "description": "Source of credentials (keychain or environment variable)"
           },
+          "env_var": {
+            "type": "string",
+            "description": "Nombre de la variable de entorno a leer cuando credential_source es 'env'"
+          },
           "login_mode": {
             "type": "string",
             "enum": ["auto", "handoff"],

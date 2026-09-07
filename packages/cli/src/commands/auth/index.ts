@@ -2,6 +2,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { AuthManager } from '@qap/auth';
+import type { AuthProfile } from '@qap/shared';
 import { SchemaValidator } from '@qap/shared';
 
 const PROFILES_DIR = join(process.cwd(), '.qa', 'project', 'auth');
@@ -10,36 +11,18 @@ const PROFILES_PATH = join(PROFILES_DIR, 'profiles.json');
 const authManager = new AuthManager();
 const validator = new SchemaValidator();
 
-interface SessionCache {
-  enabled: boolean;
-  ttl_ms?: number;
-}
-
-interface AuthProfileItem {
-  id: string;
-  env: string;
-  username: string;
-  login_mode: 'auto' | 'handoff';
-  login_route: string;
-  session_cache: SessionCache;
-  post_login_condition: { type: 'url_contains' | 'selector_present'; value: string };
-  handoff_timeout_ms: number;
-  credential_source: 'env' | 'keychain';
-  env_var?: string;
-}
-
-function loadProfiles(): AuthProfileItem[] {
+function loadProfiles(): AuthProfile[] {
   if (!existsSync(PROFILES_PATH)) return [];
   try {
     const raw = readFileSync(PROFILES_PATH, 'utf-8');
-    const parsed = JSON.parse(raw) as { profiles: AuthProfileItem[] };
+    const parsed = JSON.parse(raw) as { profiles: AuthProfile[] };
     return parsed.profiles || [];
   } catch {
     return [];
   }
 }
 
-function saveProfiles(profiles: AuthProfileItem[]): void {
+function saveProfiles(profiles: AuthProfile[]): void {
   if (!existsSync(PROFILES_DIR)) {
     mkdirSync(PROFILES_DIR, { recursive: true });
   }
@@ -50,14 +33,14 @@ function saveProfiles(profiles: AuthProfileItem[]): void {
  * 1) qap auth add: Registra perfil en .qa/project/auth/profiles.json (sin passwords)
  */
 export function handleAuthAdd(
-  profileInput: string | (Partial<AuthProfileItem> & { id: string })
+  profileInput: string | (Partial<AuthProfile> & { id: string })
 ): Promise<void> {
   try {
     const profileData = typeof profileInput === 'string' ? { id: profileInput } : profileInput;
     const profiles = loadProfiles();
     const existingIndex = profiles.findIndex((p) => p.id === profileData.id);
 
-    const newProfile: AuthProfileItem = {
+    const newProfile: AuthProfile = {
       id: profileData.id,
       env: profileData.env || 'dev',
       username: profileData.username || 'user',
@@ -68,9 +51,7 @@ export function handleAuthAdd(
           ? profileData.session_cache
           : { enabled: true },
       post_login_condition: profileData.post_login_condition || { type: 'url_contains', value: '/dashboard' },
-      // NOTA: handoff_timeout_ms se mantiene en el tipo local, pero se excluye
-      // de la validacion/persistencia hasta que S2-001 lo agregue al schema.
-      handoff_timeout_ms: profileData.handoff_timeout_ms || 30000,
+      handoff_timeout_ms: profileData.handoff_timeout_ms ?? 30000,
       credential_source: profileData.credential_source || 'keychain',
       ...(profileData.env_var ? { env_var: profileData.env_var } : {}),
     };
@@ -81,23 +62,9 @@ export function handleAuthAdd(
       profiles.push(newProfile);
     }
 
-    // handoff_timeout_ms se excluye de la validacion: no esta soportado aun
-    // por auth-profiles.schema.json (pendiente S2-001).
-    const profilesForValidation = profiles.map((p) => ({
-      id: p.id,
-      env: p.env,
-      username: p.username,
-      login_mode: p.login_mode,
-      login_route: p.login_route,
-      session_cache: p.session_cache,
-      post_login_condition: p.post_login_condition,
-      credential_source: p.credential_source,
-      ...(p.env_var ? { env_var: p.env_var } : {}),
-    }));
-
     const validationResult = validator.validateProfiles({
       _version: '1',
-      profiles: profilesForValidation,
+      profiles,
     });
 
     if (!validationResult.valid) {

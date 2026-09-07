@@ -5,9 +5,6 @@ import type { AuthProfile } from '@qap/shared';
 import { AuthManager } from '../auth-manager.js';
 import * as profilesStore from '../profiles-store.js';
 
-// NOTA: env_var y handoff_timeout_ms aun no existen en AuthProfile (pendiente S2-001).
-type TestProfile = AuthProfile & { env_var?: string; handoff_timeout_ms?: number };
-
 vi.mock('keytar', () => ({
   default: {
     getPassword: vi.fn(),
@@ -29,7 +26,7 @@ describe('AuthManager (S2-002)', () => {
   });
 
   it('debe obtener credenciales desde variable de entorno si credential_source es env', async () => {
-    const mockProfile: TestProfile = {
+    const mockProfile: AuthProfile = {
       id: 'dev-profile',
       env: 'dev',
       username: 'user1',
@@ -50,7 +47,7 @@ describe('AuthManager (S2-002)', () => {
   });
 
   it('debe obtener credenciales desde keytar si credential_source es keychain', async () => {
-    const mockProfile: TestProfile = {
+    const mockProfile: AuthProfile = {
       id: 'prod-profile',
       env: 'prod',
       username: 'admin',
@@ -74,7 +71,7 @@ describe('AuthManager (S2-002)', () => {
   });
 
   it('debe guardar un secreto correctamente en keytar con setSecret', async () => {
-    const mockProfile: TestProfile = {
+    const mockProfile: AuthProfile = {
       id: 'prod-profile',
       env: 'prod',
       username: 'admin',
@@ -92,7 +89,7 @@ describe('AuthManager (S2-002)', () => {
   });
 
   it('debe confirmar si existen credenciales validas con hasValidCredentials', async () => {
-    const mockProfile: TestProfile = {
+    const mockProfile: AuthProfile = {
       id: 'dev-profile',
       env: 'dev',
       username: 'user1',
