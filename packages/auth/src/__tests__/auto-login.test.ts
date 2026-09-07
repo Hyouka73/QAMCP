@@ -59,6 +59,31 @@ describe('executeAutoLogin (S2-004)', () => {
     expect(sessionCookie?.value).toBe('mock-authenticated-token');
   }, 20000);
 
+  it('debe completar el login automatico verificando selector_present', async () => {
+    const profile: AuthProfile = {
+      id: 'perfil-test-selector',
+      env: 'local',
+      username: TEST_USERNAME,
+      credential_source: 'env',
+      login_mode: 'auto',
+      login_route: `${mockServer.url}/login`,
+      post_login_condition: {
+        type: 'selector_present',
+        value: 'h1',
+      },
+    };
+
+    const storageState = await executeAutoLogin(
+      profile,
+      { username: TEST_USERNAME, password: TEST_PASSWORD },
+      context
+    );
+
+    expect(storageState.cookies.length).toBeGreaterThan(0);
+    const sessionCookie = storageState.cookies.find((c) => c.name === 'session');
+    expect(sessionCookie?.value).toBe('mock-authenticated-token');
+  }, 20000);
+
   it('debe lanzar un error si el perfil no tiene login_route', async () => {
     const profileSinRuta: AuthProfile = {
       id: 'perfil-sin-ruta',

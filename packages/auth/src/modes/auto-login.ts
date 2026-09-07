@@ -44,19 +44,11 @@ async function waitForPostLoginCondition(
         timeout: timeoutMs,
       });
       return;
-    case 'url_equals':
-      await page.waitForURL((url) => url.toString() === condition.value, {
-        timeout: timeoutMs,
-      });
-      return;
-    case 'selector_visible':
-      await page.locator(condition.value).waitFor({ state: 'visible', timeout: timeoutMs });
-      return;
-    case 'selector_exists':
+    case 'selector_present':
       await page.locator(condition.value).waitFor({ state: 'attached', timeout: timeoutMs });
       return;
     default:
-      throw new Error(`Tipo de post_login_condition no soportado: ${String(condition.type)}`);
+      throw new Error(`Tipo de post_login_condition no soportado: ${String((condition as { type: string }).type)}`);
   }
 }
 
