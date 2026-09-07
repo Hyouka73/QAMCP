@@ -7,6 +7,7 @@
  * Schema for profiles.json - array of authentication profiles with credentials and session management
  */
 export interface AuthProfiles {
+<<<<<<< HEAD
   /**
    * Schema version for evolution tracking
    */
@@ -67,3 +68,28 @@ export interface AuthProfiles {
 
 export type AuthProfile = AuthProfiles['profiles'][number];
 export type PostLoginCondition = NonNullable<AuthProfile['post_login_condition']>;
+=======
+  _version: '1';
+  profiles: AuthProfile[];
+}
+
+export interface AuthProfile {
+  id: string;
+  env: string;
+  username: string;
+  credential_source: 'keychain' | 'env';
+  login_mode: 'auto' | 'handoff';
+  login_route?: string;
+  handoff_timeout_ms?: number;
+  session_cache?: {
+    enabled?: boolean;
+    ttl_ms?: number;
+  };
+  post_login_condition?: PostLoginCondition;
+}
+
+export interface PostLoginCondition {
+  type: 'url_contains' | 'selector_present';
+  value: string;
+}
+>>>>>>> S2-001

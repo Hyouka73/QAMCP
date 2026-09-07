@@ -9,6 +9,7 @@
   "properties": {
     "_version": {
       "type": "string",
+      "const": "1",
       "description": "Schema version for evolution tracking"
     },
     "profiles": {
@@ -46,6 +47,11 @@
             "description": "Route or path for the login page",
             "default": ""
           },
+          "handoff_timeout_ms": {
+            "type": "integer",
+            "description": "Tiempo maximo de espera en ms para intervencion manual en login_mode=handoff",
+            "minimum": 0
+          },
           "session_cache": {
             "type": "object",
             "description": "Session caching configuration",
@@ -72,7 +78,7 @@
             "properties": {
               "type": {
                 "type": "string",
-                "enum": ["url_contains", "url_equals", "selector_visible", "selector_exists"],
+                "enum": ["url_contains", "selector_present"],
                 "description": "Type of condition to check"
               },
               "value": {
