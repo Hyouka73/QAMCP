@@ -1,6 +1,8 @@
 import { basename } from 'node:path';
+
 import keytar from 'keytar';
 import type { AuthProfile } from '@qap/shared';
+
 import { readProfile } from './profiles-store.js';
 import type { AuthCredentials } from './types.js';
 

@@ -1,7 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import keytar from 'keytar';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { AuthProfile } from '@qap/shared';
+
 import { AuthManager } from '../auth-manager.js';
 import * as profilesStore from '../profiles-store.js';
+
+// NOTA: env_var y handoff_timeout_ms aun no existen en AuthProfile (pendiente S2-001).
+type TestProfile = AuthProfile & { env_var?: string; handoff_timeout_ms?: number };
 
 vi.mock('keytar', () => ({
   default: {
@@ -24,18 +29,19 @@ describe('AuthManager (S2-002)', () => {
   });
 
   it('debe obtener credenciales desde variable de entorno si credential_source es env', async () => {
-    vi.spyOn(profilesStore, 'readProfile').mockResolvedValueOnce({
+    const mockProfile: TestProfile = {
       id: 'dev-profile',
       env: 'dev',
       username: 'user1',
       login_mode: 'auto',
       login_route: '/login',
-      session_cache: true,
+      session_cache: { enabled: true },
       post_login_condition: { type: 'url_contains', value: '/dashboard' },
       handoff_timeout_ms: 30000,
       credential_source: 'env',
       env_var: 'TEST_SECRET_TOKEN',
-    } as any);
+    };
+    vi.spyOn(profilesStore, 'readProfile').mockResolvedValueOnce(mockProfile);
 
     process.env.TEST_SECRET_TOKEN = 'secret-token-123';
 
@@ -44,17 +50,18 @@ describe('AuthManager (S2-002)', () => {
   });
 
   it('debe obtener credenciales desde keytar si credential_source es keychain', async () => {
-    vi.spyOn(profilesStore, 'readProfile').mockResolvedValueOnce({
+    const mockProfile: TestProfile = {
       id: 'prod-profile',
       env: 'prod',
       username: 'admin',
       login_mode: 'auto',
       login_route: '/login',
-      session_cache: true,
+      session_cache: { enabled: true },
       post_login_condition: { type: 'url_contains', value: '/dashboard' },
       handoff_timeout_ms: 30000,
       credential_source: 'keychain',
-    } as any);
+    };
+    vi.spyOn(profilesStore, 'readProfile').mockResolvedValueOnce(mockProfile);
 
     vi.mocked(keytar.getPassword).mockResolvedValueOnce('my-keychain-pass');
 
@@ -67,11 +74,14 @@ describe('AuthManager (S2-002)', () => {
   });
 
   it('debe guardar un secreto correctamente en keytar con setSecret', async () => {
-    vi.spyOn(profilesStore, 'readProfile').mockResolvedValueOnce({
+    const mockProfile: TestProfile = {
       id: 'prod-profile',
+      env: 'prod',
       username: 'admin',
+      login_mode: 'auto',
       credential_source: 'keychain',
-    } as any);
+    };
+    vi.spyOn(profilesStore, 'readProfile').mockResolvedValueOnce(mockProfile);
 
     await authManager.setSecret('prod-profile', 'new-pass');
     expect(keytar.setPassword).toHaveBeenCalledWith(
@@ -81,12 +91,16 @@ describe('AuthManager (S2-002)', () => {
     );
   });
 
-  it('debe confirmar si existen credenciales válidas con hasValidCredentials', async () => {
-    vi.spyOn(profilesStore, 'readProfile').mockResolvedValueOnce({
+  it('debe confirmar si existen credenciales validas con hasValidCredentials', async () => {
+    const mockProfile: TestProfile = {
       id: 'dev-profile',
+      env: 'dev',
+      username: 'user1',
+      login_mode: 'auto',
       credential_source: 'env',
       env_var: 'TEST_SECRET_TOKEN',
-    } as any);
+    };
+    vi.spyOn(profilesStore, 'readProfile').mockResolvedValueOnce(mockProfile);
 
     process.env.TEST_SECRET_TOKEN = 'secret-token-123';
 

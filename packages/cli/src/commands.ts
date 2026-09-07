@@ -11,11 +11,18 @@
  * `registerCommands` se encarga de darlo de alta en el árbol de Commander.
  */
 
+/**
+ * Routing de subcomandos del CLI `qap`.
+ */
+
 import type { Command } from 'commander';
 
 import { NotImplementedError } from './errors.js';
 import { handleInitCommand } from './commands/init.js';
 import { handleAuthAdd, handleAuthList, handleAuthSetSecret, handleAuthRemove } from './commands/auth/index.js';
+import { handleRun } from './commands/runner/index.js';
+import { handleStatus } from './commands/status/index.js';
+import { handleConfigShow, handleConfigSet } from './commands/config/index.js';
 
 interface CommandDefinition {
   /** Nombre del subcomando, p.ej. "test" -> `qap test`. */
@@ -25,19 +32,19 @@ interface CommandDefinition {
   args?: string;
 }
 
+// Mantenemos los placeholders eliminando 'status' que ahora tiene implementación real
 const COMMANDS: readonly CommandDefinition[] = [
   { name: 'discover', description: 'Descubre un módulo a partir de una especificación.', args: '<spec>' },
   { name: 'plan', description: 'Genera el plan de pruebas de un módulo.', args: '<module>' },
   { name: 'test', description: 'Ejecuta el plan de pruebas de un módulo.', args: '<module>' },
   { name: 'update', description: 'Actualiza un módulo ya descubierto.', args: '<module>' },
   { name: 'report', description: 'Genera el reporte de resultados de un módulo.', args: '<module>' },
-  { name: 'status', description: 'Muestra el estado general del proyecto QAP.' },
   { name: 'context', description: 'Muestra el contexto (local o global) de un módulo.', args: '[module]' },
   { name: 'flow', description: 'Ejecuta un flow definido sobre uno o más módulos.', args: '<flow>' },
 ];
 
 export function registerCommands(program: Command): void {
-  // 1. Registrar el comando `init` con su implementación real y flag `--config`
+  // 1. Registrar el comando `init` con su implementación real
   program
     .command('init')
     .description('Inicializa la estructura .qa/ en el proyecto actual')
@@ -87,7 +94,42 @@ export function registerCommands(program: Command): void {
       await handleAuthRemove(targetProfile);
     });
 
-  // 3. Registrar el resto de comandos placeholders que lanzan NotImplementedError
+  // 3. Nuevos comandos S2-004: 'status', 'run' y grupo 'config'
+  program
+    .command('status')
+    .description('Muestra el estado general del proyecto QAP y la configuración activa')
+    .action(async () => {
+      await handleStatus();
+    });
+
+  program
+    .command('run [target]')
+    .description('Ejecuta las pruebas especificadas o la suite completa')
+    .option('-p, --profile <profile>', 'Perfil de autenticación a utilizar')
+    .option('--headed', 'Ejecutar en modo con interfaz gráfica')
+    .action(async (target?: string, options?: { profile?: string; headed?: boolean }) => {
+      await handleRun(target, options);
+    });
+
+  const configGroup = program
+    .command('config')
+    .description('Gestiona la configuración del proyecto QA');
+
+  configGroup
+    .command('show')
+    .description('Muestra la configuración activa')
+    .action(async () => {
+      await handleConfigShow();
+    });
+
+  configGroup
+    .command('set <key> <value>')
+    .description('Establece un valor de configuración')
+    .action(async (key: string, value: string) => {
+      await handleConfigSet(key, value);
+    });
+
+  // 4. Registrar los comandos placeholders pendientes (Sprint 1)
   for (const definition of COMMANDS) {
     const subcommand = program.command(definition.name).description(definition.description);
 
