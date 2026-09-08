@@ -1,6 +1,5 @@
 // packages/auth/src/modes/handoff-login.ts
 import type { BrowserContext, Page } from 'playwright-core';
-
 import type { AuthProfile } from '@qap/shared';
 
 const DEFAULT_POLL_INTERVAL_MS = 500;

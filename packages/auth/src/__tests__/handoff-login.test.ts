@@ -1,9 +1,9 @@
 import { chromium, type Browser, type BrowserContext } from 'playwright-core';
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest';
-
 import type { AuthProfile } from '@qap/shared';
 
 import { executeHandoffLogin } from '../modes/handoff-login.js';
+
 import { startMockLoginServer, type MockLoginServer } from './mock-login-server.js';
 
 describe('executeHandoffLogin (S2-005)', () => {

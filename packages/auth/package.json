@@ -13,6 +13,7 @@
   "dependencies": {
     "@qap/shared": "workspace:*",
     "keytar": "^7.9.0",
+    "node-machine-id": "^1.1.12",
     "playwright-core": "^1.62.1"
   },
   "devDependencies": {
