@@ -17,6 +17,7 @@ export interface AuthProfile {
   login_mode: 'auto' | 'handoff';
   login_route?: string;
   handoff_timeout_ms?: number;
+  handoff_message?: string;
   session_cache?: {
     enabled?: boolean;
     ttl_ms?: number;

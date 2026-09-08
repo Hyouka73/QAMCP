@@ -56,6 +56,10 @@
             "description": "Tiempo maximo de espera en ms para intervencion manual en login_mode=handoff",
             "minimum": 0
           },
+          "handoff_message": {
+          "type": "string",
+          "description": "Mensaje mostrado al usuario durante login_mode=handoff, indicando que debe completar el login manualmente"
+          },
           "session_cache": {
             "type": "object",
             "description": "Session caching configuration",
