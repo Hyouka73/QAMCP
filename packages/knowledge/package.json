@@ -7,8 +7,16 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts",
-    "dev": "tsup src/index.ts --format esm --dts --watch"
+    "dev": "tsup src/index.ts --format esm --dts --watch",
+    "test": "vitest run"
   },
-  "dependencies": {},
-  "devDependencies": {}
+  "dependencies": {
+    "@qap/engine": "workspace:^",
+    "proper-lockfile": "^4.1.2"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@types/proper-lockfile": "^4.1.4",
+    "vitest": "^4.1.11"
+  }
 }
