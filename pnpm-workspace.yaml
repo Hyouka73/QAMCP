@@ -2,8 +2,4 @@ packages:
   - "packages/*"
 allowBuilds:
   esbuild: true
-<<<<<<< HEAD
   keytar: true
-=======
-  keytar: false
->>>>>>> S2-001
