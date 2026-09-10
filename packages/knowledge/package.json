@@ -12,7 +12,9 @@
   },
   "dependencies": {
     "@qap/engine": "workspace:^",
-    "proper-lockfile": "^4.1.2"
+    "@qap/shared": "workspace:^",
+    "proper-lockfile": "^4.1.2",
+    "yaml": "^2.9.0"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",
