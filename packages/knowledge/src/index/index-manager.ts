@@ -1,5 +1,8 @@
 import type { IStorage } from '@qap/engine';
 
+const INDEX_PATH = '.qa/cache/index/index.json';
+const ALIASES_PATH = '.qa/cache/index/aliases.json';
+
 export interface ModuleIndexEntry {
   id: string;
   name: string;
@@ -23,8 +26,8 @@ export class IndexManager {
    */
   async load(): Promise<void> {
     try {
-      if (await this.storage.exists('index.json')) {
-        const entries = await this.storage.readJson<ModuleIndexEntry[]>('index.json');
+      if (await this.storage.exists(INDEX_PATH)) {
+  const entries = await this.storage.readJson<ModuleIndexEntry[]>(INDEX_PATH);
         this.modulesMap.clear();
         this.tagsMap.clear();
 
@@ -49,8 +52,8 @@ export class IndexManager {
     }
 
     try {
-      if (await this.storage.exists('aliases.json')) {
-        const aliases = await this.storage.readJson<AliasMap>('aliases.json');
+      if (await this.storage.exists(ALIASES_PATH)) {
+  const aliases = await this.storage.readJson<AliasMap>(ALIASES_PATH);
         if (aliases && typeof aliases === 'object') {
           this.aliasesMap = new Map(Object.entries(aliases));
         }
@@ -64,13 +67,12 @@ export class IndexManager {
    * Serializa y persiste index.json y aliases.json
    */
   async save(): Promise<void> {
-    const uniqueModules = Array.from(new Set(this.modulesMap.values()));
-    await this.storage.writeJson('index.json', uniqueModules);
+  const uniqueModules = Array.from(new Set(this.modulesMap.values()));
+  await this.storage.writeJson(INDEX_PATH, uniqueModules);
 
-    const aliasObj: AliasMap = Object.fromEntries(this.aliasesMap.entries());
-    await this.storage.writeJson('aliases.json', aliasObj);
-  }
-
+  const aliasObj: AliasMap = Object.fromEntries(this.aliasesMap.entries());
+  await this.storage.writeJson(ALIASES_PATH, aliasObj);
+}
   /**
    * Búsqueda en complejidad O(1) por ID o por Nombre de módulo
    */
