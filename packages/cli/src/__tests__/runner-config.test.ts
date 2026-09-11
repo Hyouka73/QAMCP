@@ -70,7 +70,11 @@ describe('Comandos CLI de Runner, Status y Config', () => {
 
   it('debe ejecutar handleRun sin lanzar excepciones', async () => {
     const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
     await handleRun('login.spec.ts', { profile: 'default' });
+
     expect(spy).toHaveBeenCalled();
+    errorSpy.mockRestore();
   });
 });
