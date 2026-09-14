@@ -2,7 +2,8 @@ import { createCipheriv, createDecipheriv, randomBytes, createHash } from 'node:
 import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs';
 import { join, basename } from 'node:path';
 
-import { machineIdSync } from 'node-machine-id';
+import pkg from 'node-machine-id';
+const { machineIdSync } = pkg;
 import type { Cookie } from 'playwright-core';
 
 export interface StorageState {

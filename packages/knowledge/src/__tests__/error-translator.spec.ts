@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { ErrorObject } from 'ajv';
+
 import { ErrorTranslator } from '../validator/error-translator.js';
 
 describe('ErrorTranslator', () => {

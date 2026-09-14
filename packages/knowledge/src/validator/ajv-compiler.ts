@@ -1,6 +1,5 @@
 import Ajv, { type ValidateFunction } from 'ajv';
 import addFormats from 'ajv-formats';
-
 import { schemas } from '@qap/shared';
 
 import { ErrorTranslator, type ValidationError } from './error-translator.js';

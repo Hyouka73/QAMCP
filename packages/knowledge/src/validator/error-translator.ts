@@ -51,7 +51,7 @@ export class ErrorTranslator {
       }
       case 'const': {
         const allowed = (err.params as { allowedValue?: unknown }).allowedValue;
-        message = `El campo '${field}' debe ser exactamente '${allowed}'.`;
+        message = `El campo '${field}' debe ser exactamente '${String(allowed)}'.`;
         break;
       }
       case 'minimum': {
