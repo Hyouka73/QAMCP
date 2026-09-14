@@ -254,14 +254,12 @@ describe('QAPEngine', () => {
 
     const mockFlowResult: FlowExecutionResult = {
       flow_name: 'login-and-checkout',
-      status: 'passed',
-      summary: {
-        total_modules: 2,
-        passed_modules: 2,
-        failed_modules: 0,
-        duration_ms: 2500,
+      status: 'success',
+      modules: [],
+      timestamps: {
+        started_at: '2026-09-14T10:00:00Z',
+        ended_at: '2026-09-14T10:00:02Z',
       },
-      module_results: [],
     };
 
     mockFlowRunner.executeFlow.mockResolvedValueOnce(mockFlowResult);

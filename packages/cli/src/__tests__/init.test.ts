@@ -55,7 +55,7 @@ describe('Suite de Comandos CLI Init', () => {
       expect(existsSync(join(tempDir, '.qa', 'environments'))).toBe(false);
     });
 
-    it('debe generar .qa/project/environments.yaml con la libreria yaml', async () => {
+    it('debe generar .qa/project/environments.yaml y context.yaml con la libreria yaml conforme a schema', async () => {
       const configPath = join(tempDir, 'config.json');
       writeFileSync(
         configPath,
@@ -69,8 +69,17 @@ describe('Suite de Comandos CLI Init', () => {
       expect(existsSync(yamlPath)).toBe(true);
 
       const parsedYaml = YAML.parse(readFileSync(yamlPath, 'utf-8'));
-      expect(parsedYaml).toHaveProperty('authProfile');
+      expect(parsedYaml).toHaveProperty('_version', '1');
+      expect(parsedYaml).toHaveProperty('default', 'local');
       expect(parsedYaml).toHaveProperty('environments');
+      expect(parsedYaml.environments.local).toHaveProperty('url', 'http://localhost:3000');
+      expect(parsedYaml).not.toHaveProperty('authProfile');
+
+      const contextPath = join(tempDir, '.qa', 'project', 'context.yaml');
+      expect(existsSync(contextPath)).toBe(true);
+      const parsedContext = YAML.parse(readFileSync(contextPath, 'utf-8'));
+      expect(parsedContext).toHaveProperty('_version', '1');
+      expect(parsedContext).toHaveProperty('project_name', 'proyecto-yaml');
 
       expect(existsSync(join(tempDir, '.qa', 'config.json'))).toBe(false);
     });

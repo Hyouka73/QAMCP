@@ -1,5 +1,5 @@
 import { existsSync, writeFileSync, mkdirSync, readFileSync } from 'node:fs';
-import { resolve, join } from 'node:path';
+import { resolve, join, basename } from 'node:path';
 
 import { input } from '@inquirer/prompts';
 import { SchemaValidator } from '@qap/shared';
@@ -9,7 +9,8 @@ import type { InitOptions } from '../types.js';
 import { detectPlaywright } from '../utils/playwright-detector.js';
 
 export async function handleInitCommand(options: InitOptions): Promise<void> {
-  let authProfile = 'default';
+  let projectName = basename(process.cwd()) || 'my-project';
+  let envList: string[] = ['local'];
 
   // 1. Modo Silencioso (--config <path>)
   if (options.config) {
@@ -29,7 +30,6 @@ export async function handleInitCommand(options: InitOptions): Promise<void> {
     }
 
     // Validar esquema ANTES de tocar el filesystem
-        // Validar esquema ANTES de tocar el filesystem
     const validator = new SchemaValidator();
     const validationResult = validator.validateProjectInit(parsed);
     if (!validationResult.valid) {
@@ -38,17 +38,20 @@ export async function handleInitCommand(options: InitOptions): Promise<void> {
       process.exit(65); // POSIX EX_DATAERR (Abortar sin modificar el disco)
     }
 
-    const configData = parsed as { authProfile?: string };
-    if (configData.authProfile) {
-      authProfile = configData.authProfile;
+    const configData = parsed as { projectName?: string; environments?: string[] };
+    if (configData.projectName) {
+      projectName = configData.projectName;
+    }
+    if (configData.environments && Array.isArray(configData.environments) && configData.environments.length > 0) {
+      envList = configData.environments;
     }
   } 
   // 2. Modo Interactivo (Wizard)
   else {
-    authProfile = await input({
-      message: '¿Cuál es el perfil de autenticación inicial?',
-      default: 'default',
-      validate: (value) => (value.trim() !== '' ? true : 'El perfil no puede estar vacío.'),
+    projectName = await input({
+      message: '¿Cuál es el nombre del proyecto?',
+      default: basename(process.cwd()) || 'my-project',
+      validate: (value) => (value.trim() !== '' ? true : 'El nombre del proyecto no puede estar vacío.'),
     });
   }
 
@@ -69,21 +72,38 @@ export async function handleInitCommand(options: InitOptions): Promise<void> {
     }
   }
 
-  // 4. Generar .qa/project/environments.yaml utilizando la librería 'yaml'
+  // 4. Generar .qa/project/environments.yaml utilizando la librería 'yaml' conforme a environments.schema.json
   const environmentsYamlPath = join(rootQaDir, 'project', 'environments.yaml');
-  const yamlData = {
-    version: '1.0',
-    authProfile: authProfile,
-    environments: {
-      local: {
-        baseUrl: 'http://localhost:3000',
-      },
-    },
+  const envsMap: Record<string, { url: string; browser_mode: 'auto' | 'headless' | 'headed' }> = {};
+  for (const env of envList) {
+    envsMap[env] = {
+      url: 'http://localhost:3000',
+      browser_mode: 'auto',
+    };
+  }
+
+  const environmentsData = {
+    _version: '1',
+    default: envList[0] || 'local',
+    environments: envsMap,
   };
 
-  writeFileSync(environmentsYamlPath, YAML.stringify(yamlData), 'utf-8');
+  writeFileSync(environmentsYamlPath, YAML.stringify(environmentsData), 'utf-8');
 
-  // 5. Generar .qa/.gitignore ignorando EXCLUSIVAMENTE 'executions/' y 'cache/'
+  // 5. Generar .qa/project/context.yaml con los metadatos base del proyecto
+  const contextYamlPath = join(rootQaDir, 'project', 'context.yaml');
+  const contextData = {
+    _version: '1',
+    project_name: projectName,
+    description: `Configuración base de QA para ${projectName}`,
+    tech_stack: [],
+    base_url: 'http://localhost:3000',
+    manually_edited: false,
+  };
+
+  writeFileSync(contextYamlPath, YAML.stringify(contextData), 'utf-8');
+
+  // 6. Generar .qa/.gitignore ignorando EXCLUSIVAMENTE 'executions/' y 'cache/'
   const gitignorePath = join(rootQaDir, '.gitignore');
   const gitignoreContent = `# Generado automáticamente por QAP CLI
 executions/
@@ -92,7 +112,7 @@ cache/
 
   writeFileSync(gitignorePath, gitignoreContent, 'utf-8');
 
-  // 6. Verificar si Playwright está instalado en el proyecto destino
+  // 7. Verificar si Playwright está instalado en el proyecto destino
   detectPlaywright(process.cwd());
 
   console.log('\n✅ Proyecto inicializado con éxito en .qa/');
