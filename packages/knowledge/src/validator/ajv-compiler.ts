@@ -1,59 +1,27 @@
-import Ajv, { type ErrorObject, type ValidateFunction } from 'ajv';
+import Ajv, { type ValidateFunction } from 'ajv';
 import addFormats from 'ajv-formats';
 
 import { schemas } from '@qap/shared';
 
-export interface ValidationError {
-  field: string;
-  rule: string;
-  message: string;
-}
+import { ErrorTranslator, type ValidationError } from './error-translator.js';
+
+export type { ValidationError };
 
 export interface ValidationResult {
   valid: boolean;
   errors: ValidationError[];
 }
 
-function translateErrors(errors: ErrorObject[] | null | undefined): ValidationError[] {
-  if (!errors) return [];
-
-  return errors.map((err) => {
-    const field = err.instancePath ? err.instancePath.replace(/^\//, '') : '(root)';
-    const rule = err.keyword;
-
-    let message: string;
-    switch (err.keyword) {
-      case 'additionalProperties': {
-        const extra = (err.params as { additionalProperty?: string }).additionalProperty;
-        message = `Propiedad no permitida '${extra}' en '${field || '(root)'}'`;
-        break;
-      }
-      case 'required': {
-        const missing = (err.params as { missingProperty?: string }).missingProperty;
-        message = `Falta el campo requerido '${missing}'`;
-        break;
-      }
-      case 'type': {
-        const expectedType = (err.params as { type?: string }).type;
-        message = `El campo '${field}' debe ser de tipo '${expectedType}'`;
-        break;
-      }
-      default:
-        message = `Campo '${field}': ${err.message ?? 'valor invalido'}`;
-    }
-
-    return { field: field || '(root)', rule, message };
-  });
-}
-
 export class AjvCompiler {
   private ajv: Ajv;
   private validators: Map<string, ValidateFunction>;
+  private errorTranslator: ErrorTranslator;
 
   constructor() {
     this.ajv = new Ajv({ allErrors: true, strict: true, strictRequired: false });
     addFormats(this.ajv);
 
+    this.errorTranslator = new ErrorTranslator();
     this.validators = new Map();
 
     for (const [key, schema] of Object.entries(schemas)) {
@@ -85,7 +53,7 @@ export class AjvCompiler {
 
     return {
       valid: Boolean(valid),
-      errors: valid ? [] : translateErrors(validateFn.errors),
+      errors: valid ? [] : this.errorTranslator.translate(validateFn.errors),
     };
   }
 }
