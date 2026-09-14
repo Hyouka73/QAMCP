@@ -22,8 +22,11 @@ import type {
   IReporter,
 } from '../ports.js';
 
+import { createStorageMock } from './mocks/storage.mock.js';
+import type { StorageMock } from './mocks/storage.mock.js';
+
 describe('QAPEngine', () => {
-  let mockStorage: { [K in keyof IStorage]: ReturnType<typeof vi.fn> };
+  let mockStorage: StorageMock;
   let mockDiscoverer: { [K in keyof IDiscoverer]: ReturnType<typeof vi.fn> };
   let mockRunner: { [K in keyof IRunner]: ReturnType<typeof vi.fn> };
   let mockFlowRunner: { [K in keyof IFlowRunner]: ReturnType<typeof vi.fn> };
@@ -31,16 +34,7 @@ describe('QAPEngine', () => {
   let engine: QAPEngine;
 
   beforeEach(() => {
-    mockStorage = {
-      read: vi.fn(),
-      write: vi.fn(),
-      exists: vi.fn(),
-      list: vi.fn(),
-      delete: vi.fn(),
-      mkdir: vi.fn(),
-      readJson: vi.fn(),
-      writeJson: vi.fn(),
-    };
+    mockStorage = createStorageMock();
 
     mockDiscoverer = {
       discover: vi.fn(),

@@ -37,6 +37,10 @@
             "enum": ["keychain", "env"],
             "description": "Source of credentials (keychain or environment variable)"
           },
+          "env_var": {
+            "type": "string",
+            "description": "Nombre de la variable de entorno a leer cuando credential_source es 'env'"
+          },
           "login_mode": {
             "type": "string",
             "enum": ["auto", "handoff"],
@@ -51,6 +55,10 @@
             "type": "integer",
             "description": "Tiempo maximo de espera en ms para intervencion manual en login_mode=handoff",
             "minimum": 0
+          },
+          "handoff_message": {
+          "type": "string",
+          "description": "Mensaje mostrado al usuario durante login_mode=handoff, indicando que debe completar el login manualmente"
           },
           "session_cache": {
             "type": "object",

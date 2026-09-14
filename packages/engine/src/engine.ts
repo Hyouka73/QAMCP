@@ -1,8 +1,11 @@
 /**
  * QAPEngine - Main Engine Class
- * 
+ *
  * The core engine that orchestrates module discovery, test execution,
  * flow running, and reporting. All dependencies are injected via constructor.
+ *
+ * Principle 11 (QAP v2.1): The Engine NEVER imports concrete implementations.
+ * All I/O is delegated exclusively to IStorage (and the other ports).
  */
 
 import type {
@@ -25,6 +28,7 @@ import type {
   IRunner,
   IFlowRunner,
   IReporter,
+  ProjectStatus,
 } from './ports.js';
 
 /**
@@ -44,19 +48,6 @@ export interface UpdateResult {
   updated_at: string;
   backup_path?: string;
   changes?: string[];
-}
-
-/**
- * Status of the entire project
- */
-export interface ProjectStatus {
-  initialized: boolean;
-  modules_discovered: number;
-  last_execution?: {
-    date: string;
-    status: 'success' | 'failure' | 'error';
-  };
-  environment_configured: boolean;
 }
 
 /**
@@ -81,11 +72,11 @@ export class NotImplementedError extends Error {
 
 export class QAPEngine {
   constructor(
-    private storage: IStorage,
-    private discoverer: IDiscoverer,
-    private runner: IRunner,
-    private flowRunner: IFlowRunner,
-    private reporter: IReporter
+    private readonly storage: IStorage,
+    private readonly discoverer: IDiscoverer,
+    private readonly runner: IRunner,
+    private readonly flowRunner: IFlowRunner,
+    private readonly reporter: IReporter
   ) {}
 
   async discover(spec: ModuleSpec): Promise<Module> {
@@ -161,6 +152,7 @@ export class QAPEngine {
 }
 
 /**
- * Module context type - matches the one from @qap/shared
+ * Re-export types consumed by other packages
  */
 export type { ModuleContext } from '@qap/shared';
+export type { ProjectStatus } from './ports.js';

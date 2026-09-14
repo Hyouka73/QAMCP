@@ -1,37 +1,28 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
+
 import { AuthManager } from '@qap/auth';
+import type { AuthProfile } from '@qap/shared';
+import { SchemaValidator } from '@qap/shared';
 
 const PROFILES_DIR = join(process.cwd(), '.qa', 'project', 'auth');
 const PROFILES_PATH = join(PROFILES_DIR, 'profiles.json');
 
 const authManager = new AuthManager();
+const validator = new SchemaValidator();
 
-interface AuthProfileItem {
-  id: string;
-  env: string;
-  username: string;
-  login_mode: 'auto' | 'handoff';
-  login_route: string;
-  session_cache: boolean;
-  post_login_condition: { type: 'url_contains' | 'selector_present'; value: string };
-  handoff_timeout_ms: number;
-  credential_source: 'env' | 'keychain';
-  env_var?: string;
-}
-
-function loadProfiles(): AuthProfileItem[] {
+function loadProfiles(): AuthProfile[] {
   if (!existsSync(PROFILES_PATH)) return [];
   try {
     const raw = readFileSync(PROFILES_PATH, 'utf-8');
-    const parsed = JSON.parse(raw) as { profiles: AuthProfileItem[] };
+    const parsed = JSON.parse(raw) as { profiles: AuthProfile[] };
     return parsed.profiles || [];
   } catch {
     return [];
   }
 }
 
-function saveProfiles(profiles: AuthProfileItem[]): void {
+function saveProfiles(profiles: AuthProfile[]): void {
   if (!existsSync(PROFILES_DIR)) {
     mkdirSync(PROFILES_DIR, { recursive: true });
   }
@@ -41,23 +32,26 @@ function saveProfiles(profiles: AuthProfileItem[]): void {
 /**
  * 1) qap auth add: Registra perfil en .qa/project/auth/profiles.json (sin passwords)
  */
-export async function handleAuthAdd(
-  profileInput: string | (Partial<AuthProfileItem> & { id: string })
+export function handleAuthAdd(
+  profileInput: string | (Partial<AuthProfile> & { id: string })
 ): Promise<void> {
   try {
     const profileData = typeof profileInput === 'string' ? { id: profileInput } : profileInput;
     const profiles = loadProfiles();
     const existingIndex = profiles.findIndex((p) => p.id === profileData.id);
 
-    const newProfile: AuthProfileItem = {
+    const newProfile: AuthProfile = {
       id: profileData.id,
       env: profileData.env || 'dev',
       username: profileData.username || 'user',
       login_mode: profileData.login_mode || 'auto',
       login_route: profileData.login_route || '/login',
-      session_cache: profileData.session_cache ?? true,
+      session_cache:
+        profileData.session_cache && typeof profileData.session_cache === 'object'
+          ? profileData.session_cache
+          : { enabled: true },
       post_login_condition: profileData.post_login_condition || { type: 'url_contains', value: '/dashboard' },
-      handoff_timeout_ms: profileData.handoff_timeout_ms || 30000,
+      handoff_timeout_ms: profileData.handoff_timeout_ms ?? 30000,
       credential_source: profileData.credential_source || 'keychain',
       ...(profileData.env_var ? { env_var: profileData.env_var } : {}),
     };
@@ -68,10 +62,23 @@ export async function handleAuthAdd(
       profiles.push(newProfile);
     }
 
+    const validationResult = validator.validateProfiles({
+      _version: '1',
+      profiles,
+    });
+
+    if (!validationResult.valid) {
+      console.error('Perfil invalido, no cumple auth-profiles.schema.json:');
+      validationResult.errors.forEach((err) => console.error(` - ${err.message}`));
+      return Promise.resolve();
+    }
+
     saveProfiles(profiles);
     console.log(`✔ Perfil '${profileData.id}' registrado con éxito en .qa/project/auth/profiles.json.`);
+    return Promise.resolve();
   } catch (error) {
     console.error(`✖ Error al registrar el perfil:`, error);
+    return Promise.resolve();
   }
 }
 

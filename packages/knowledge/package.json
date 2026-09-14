@@ -12,11 +12,14 @@
   },
   "dependencies": {
     "@qap/shared": "workspace:*",
+    "@qap/engine": "workspace:^",
     "ajv": "^8.20.0",
-    "ajv-formats": "^3.0.1"
+    "ajv-formats": "^3.0.1",
+    "proper-lockfile": "^4.1.2"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",
+    "@types/proper-lockfile": "^4.1.4",
     "vitest": "^4.1.11"
   }
 }

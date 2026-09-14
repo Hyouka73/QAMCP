@@ -1,6 +1,8 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { existsSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
+
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
 import { handleAuthAdd, handleAuthList, handleAuthSetSecret, handleAuthRemove } from '../commands/auth/index.js';
 
 const TEST_DIR = join(process.cwd(), '.qa', 'project', 'auth');
