@@ -1,1 +1,2 @@
-// @qap/playwright-adapter - Module placeholder
+// @qap/playwright-adapter - Playwright Discovery Adapter
+export * from './adapter.js';

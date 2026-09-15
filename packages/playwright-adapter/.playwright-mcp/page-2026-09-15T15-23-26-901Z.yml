@@ -1,0 +1,6 @@
+- generic [active] [ref=e1]:
+  - heading "Checkout" [level=1] [ref=e2]
+  - link "Carrito" [ref=e3] [cursor=pointer]:
+    - /url: /checkout/cart
+  - link "Pago" [ref=e4] [cursor=pointer]:
+    - /url: /checkout/payment

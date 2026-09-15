@@ -11,14 +11,16 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@playwright/mcp": "^0.0.80",
     "@qap/engine": "workspace:*",
     "@qap/shared": "workspace:*",
     "playwright-core": "^1.49.0"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",
-    "typescript": "~5.5.4",
     "tsup": "^8.5.1",
+    "typescript": "~5.5.4",
     "vitest": "^4.1.11"
   }
 }
