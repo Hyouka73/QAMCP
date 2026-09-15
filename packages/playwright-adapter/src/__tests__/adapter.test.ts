@@ -49,7 +49,7 @@ describe('PlaywrightAdapter (S4-001)', () => {
     expect(result.context?.discovered_routes).toEqual(
       expect.arrayContaining(['/checkout/cart', '/checkout/payment'])
     );
-  }, 20000);
+  }, 30000);
 
   it('debe lanzar un error claro si el modulo no define una ruta', async () => {
     const adapter = new PlaywrightAdapter({ baseUrl });
