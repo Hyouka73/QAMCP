@@ -113,9 +113,10 @@ export function registerCommands(program: Command): void {
 
   program 
     .command('discover [name]')
-    .description('Descubre un modulo por fases: interview, navigate (repo-map pedinte de S4-005)')
-    .option('---phase <phase>', 'Fase a ejecutar: interview | navigate', 'interview')
-    .action(async (name: string | undefined, options: { phase?: string }) => {
+    .description('Descubre un modulo por fases: interview, navigate (repo-map pendinte de S4-005)')
+    .option('--phase <phase>', 'Fase a ejecutar: interview | navigate', 'interview')
+    .option('--amend', 'Corrige campos espeficicos de un modulo ya documentado, sin re-escaneo')
+    .action(async (name: string | undefined, options: { phase?: string; amend?: boolean }) => {
       await handleDiscover (name, options);
     });
 

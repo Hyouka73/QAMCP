@@ -2,7 +2,10 @@ import { mkdtempSync, rmSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { input } from '@inquirer/prompts';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+
+import { handleDiscover } from '../commands/discover.js';
 
 vi.mock('@inquirer/prompts', () => ({
   input: vi.fn(),
@@ -22,9 +25,7 @@ vi.mock('@qap/playwright-adapter', () => ({
   }),
 }));
 
-import { input } from '@inquirer/prompts';
 
-import { handleDiscover } from '../commands/discover.js';
 
 describe('qap discover (S4-003)', () => {
   let originalCwd: string;
@@ -86,5 +87,36 @@ describe('qap discover (S4-003)', () => {
 
   it('debe rechazar una fase desconocida', async () => {
     await expect(handleDiscover('checkout', { phase: 'invalida' })).rejects.toThrow(/no reconocida/);
+  });
+
+    it('amend debe corregir campos de un modulo ya documentado sin re-escanear', async () => {
+    vi.mocked(input)
+      .mockResolvedValueOnce('checkout')
+      .mockResolvedValueOnce('/checkout')
+      .mockResolvedValueOnce('');
+    await handleDiscover(undefined, { phase: 'interview' });
+    await handleDiscover('checkout', { phase: 'navigate' });
+
+    const { PlaywrightAdapter } = await import('@qap/playwright-adapter');
+    vi.mocked(PlaywrightAdapter).mockClear();
+
+    vi.mocked(input)
+      .mockResolvedValueOnce('Checkout module corregido')
+      .mockResolvedValueOnce('ecommerce, urgente');
+
+    await handleDiscover('checkout', { amend: true });
+
+    expect(PlaywrightAdapter).not.toHaveBeenCalled();
+
+    const moduleFile = join(tempDir, '.qa', 'cache', 'discover', 'checkout.module.json');
+    const amended = JSON.parse(readFileSync(moduleFile, 'utf-8')) as { description: string; tags: string[] };
+    expect(amended.description).toBe('Checkout module corregido');
+    expect(amended.tags).toEqual(['ecommerce', 'urgente']);
+  });
+
+  it('amend debe fallar con un mensaje claro si el modulo no fue documentado aun', async () => {
+    await expect(handleDiscover('inexistente', { amend: true })).rejects.toThrow(
+      /No existe un modulo documentado/
+    );
   });
 });

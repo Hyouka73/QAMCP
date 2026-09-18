@@ -7,6 +7,7 @@ import type { ModuleSpec, Module } from '@qap/shared';
 
 export interface DiscoverOptions {
   phase?: string;
+  amend?: boolean;
 }
 
 function getDiscoverCacheDir(): string {
@@ -46,6 +47,16 @@ function loadSpec(name: string): ModuleSpec {
 function saveModule(discoveredModule: Module): void {
   ensureCacheDir();
   writeFileSync(modulePath(discoveredModule.name), JSON.stringify(discoveredModule, null, 2), 'utf-8');
+}
+
+function loadModule(name: string): Module {
+  const path = modulePath(name);
+if (!existsSync(path)) {
+  throw new Error(
+    `No existe un modulo documentado para '${name}'. Ejecuta primero 'qap discover ${name} --phase navigate'.`
+    ); 
+  }
+  return JSON.parse(readFileSync(path, 'utf-8')) as Module;
 }
 
 /**
@@ -102,7 +113,41 @@ async function runNavigatePhase(nameArg?: string): Promise<void> {
   console.log(`Modulo '${nameArg}' navegado y persistido en .qa/cache/discover/${nameArg}.module.json`);
 }
 
+async function runAmendPhase(nameArg?: string): Promise<void> {
+  if (!nameArg) {
+    throw new Error("La fase 'amend' requiere el nombre del modulo: qap discover <name> --amend");
+  }
+
+  const currentModule = loadModule(nameArg);
+
+  const newDescription = await input({
+     message: `Descripcion actual: "${currentModule.description ?? ''}". Nueva descripcion (Enter para mantener):`,
+     default: currentModule.description ?? '',
+  });
+
+  const newTagsRaw = await input({
+    message: `Tags actuales: "${(currentModule.tags ?? []).join(', ')}". Nuevos tags separados por coma (Enter para mantener):`,
+    default: (currentModule.tags ?? []).join(', '),
+  });
+
+  const amendedModule: Module = {
+    ...currentModule,
+    description: newDescription,
+    tags: newTagsRaw
+      .split(',')
+      .map((t) => t.trim())
+      .filter(Boolean),
+  };
+
+  saveModule(amendedModule);
+  console.log(`Modulo '${nameArg}' corregido (amend) sin re-escaneo. Cambios persistidos en .qa/cache/discover/${nameArg}.module.json`);
+
+}
 export async function handleDiscover(nameArg: string | undefined, options: DiscoverOptions): Promise<void> {
+  if (options.amend) {
+    await runAmendPhase(nameArg);
+    return;
+  }
   const phase = options.phase ?? 'interview';
 
   switch (phase) {
