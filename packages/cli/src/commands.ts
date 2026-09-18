@@ -23,6 +23,7 @@ import { handleAuthAdd, handleAuthList, handleAuthSetSecret, handleAuthRemove } 
 import { handleRun } from './commands/runner/index.js';
 import { handleStatus } from './commands/status/index.js';
 import { handleConfigShow, handleConfigSet } from './commands/config/index.js';
+import { handleDiscover } from './commands/discover.js';
 
 interface CommandDefinition {
   /** Nombre del subcomando, p.ej. "test" -> `qap test`. */
@@ -34,7 +35,6 @@ interface CommandDefinition {
 
 // Mantenemos los placeholders eliminando 'status' que ahora tiene implementación real
 const COMMANDS: readonly CommandDefinition[] = [
-  { name: 'discover', description: 'Descubre un módulo a partir de una especificación.', args: '<spec>' },
   { name: 'plan', description: 'Genera el plan de pruebas de un módulo.', args: '<module>' },
   { name: 'test', description: 'Ejecuta el plan de pruebas de un módulo.', args: '<module>' },
   { name: 'update', description: 'Actualiza un módulo ya descubierto.', args: '<module>' },
@@ -109,6 +109,14 @@ export function registerCommands(program: Command): void {
     .option('--headed', 'Ejecutar en modo con interfaz gráfica')
     .action(async (target?: string, options?: { profile?: string; headed?: boolean }) => {
       await handleRun(target, options);
+    });
+
+  program 
+    .command('discover [name]')
+    .description('Descubre un modulo por fases: interview, navigate (repo-map pedinte de S4-005)')
+    .option('---phase <phase>', 'Fase a ejecutar: interview | navigate', 'interview')
+    .action(async (name: string | undefined, options: { phase?: string }) => {
+      await handleDiscover (name, options);
     });
 
   const configGroup = program
