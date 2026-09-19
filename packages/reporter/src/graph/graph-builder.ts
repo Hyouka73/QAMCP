@@ -3,28 +3,40 @@ import { basename } from 'node:path';
 import type { IStorage } from '@qap/engine';
 import type { FlowDefinition, ModuleContext, RepoMap } from '@qap/shared';
 
-export interface GraphNode {
-  id: string;              // Nombre del módulo (ej. 'auth', 'simulation')
-  label: string;
-  type: 'module' | 'flow';
-  routes: string[];
-  filesCount: number;
-  hasTests: boolean;
-  sensitiveSelectorsCount: number;
-  risksCount: number;
-  featuresCount: number;   // Total de funcionalidades y reglas de negocio
-  rulesCount: number;      // Conteo de reglas formales en rules.yaml
-  testCasesCount: number;  // Conteo de casos de prueba formales
-  rules?: unknown[];
-  testCases?: unknown[];
-  prdSource?: string;
-  manuallyEdited: boolean;
+export type SurfaceType = 'tab' | 'modal' | 'drawer' | 'section';
+
+export interface SurfaceNode {
+  id: string;
+  name: string;
+  type: SurfaceType;
 }
+
+export interface ViewNode {
+  id: string;
+  name: string;
+  path: string;
+  surfaces: SurfaceNode[];
+}
+
+export interface ModuleArchitectureNode {
+  id: string;
+  label: string;
+  description?: string;
+  baseRoute: string;
+  views: ViewNode[];
+  filesCount: number;
+  sensitiveSelectors: string[];
+  hasTests: boolean;
+  testsCount: number;
+}
+
+/** Alias para compatibilidad hacia atrás */
+export type GraphNode = ModuleArchitectureNode;
 
 export interface GraphEdge {
   from: string;
   to: string;
-  label?: string;          // Ej: 'prereq', 'depends_on', 'flow_step'
+  label?: string;          // Ej: 'prereq', 'flow'
   type: 'prereq' | 'flow';
 }
 
@@ -62,9 +74,9 @@ export interface RecentExecution {
 export interface KnowledgeGraphPayload {
   projectName: string;
   generatedAt: string;
-  nodes: GraphNode[];
+  nodes: ModuleArchitectureNode[];
   edges: GraphEdge[];
-  modulesDetail: Record<string, unknown>; // Datos completos de context.yaml, rules.yaml, etc.
+  modulesDetail: Record<string, unknown>;
   recentExecutions: RecentExecution[];
 }
 
@@ -82,7 +94,7 @@ function normalizeScreenshotUrl(pathOrUrl: string, executionId?: string): string
 
 /**
  * Construye el payload del grafo de conocimiento a partir de la memoria .qa/
- * utilizando la interfaz de almacenamiento IStorage.
+ * utilizando la interfaz de almacenamiento IStorage y el modelo universal de arquitectura.
  */
 export async function buildKnowledgeGraph(storage: IStorage): Promise<KnowledgeGraphPayload> {
   // 1. Extraer nombre del proyecto
@@ -106,238 +118,10 @@ export async function buildKnowledgeGraph(storage: IStorage): Promise<KnowledgeG
     }
   }
 
-  // 2. Extraer módulos y construir nodos
-  let moduleNames: string[];
-  try {
-    moduleNames = await storage.listModules();
-  } catch {
-    moduleNames = [];
-  }
-
-  const nodes: GraphNode[] = [];
-  const edges: GraphEdge[] = [];
-  const modulesDetail: Record<string, unknown> = {};
-
-  const edgeSet = new Set<string>();
-  const addEdge = (edge: GraphEdge): void => {
-    const key = `${edge.from}->${edge.to}:${edge.type}`;
-    if (!edgeSet.has(key)) {
-      edgeSet.add(key);
-      edges.push(edge);
-    }
-  };
-
-  for (const moduleName of moduleNames) {
-    let moduleContext: ModuleContext | null;
-    try {
-      moduleContext = await storage.getModuleContext(moduleName);
-    } catch {
-      moduleContext = null;
-    }
-
-    let repoMap: RepoMap | null;
-    try {
-      repoMap = await storage.getRepoMap(moduleName);
-    } catch {
-      repoMap = null;
-    }
-
-    // Reglas de negocio y funcionalidades (.qa/modules/<name>/rules.yaml)
-    let rulesList: Array<Record<string, unknown>> = [];
-    try {
-      if (typeof storage.getModuleRules === 'function') {
-        const moduleRules = await storage.getModuleRules(moduleName);
-        if (moduleRules && Array.isArray(moduleRules.rules)) {
-          rulesList = moduleRules.rules;
-        }
-      }
-    } catch {
-      rulesList = [];
-    }
-
-    // Casos de prueba (.qa/modules/<name>/tests/)
-    const testCasesDetail: Array<Record<string, unknown>> = [];
-    let hasTests: boolean;
-    try {
-      const testCases = await storage.listTestCases(moduleName);
-      hasTests = testCases.length > 0;
-      if (typeof storage.getTestCase === 'function') {
-        for (const tcId of testCases) {
-          try {
-            const tc = await storage.getTestCase(moduleName, tcId);
-            if (tc) {
-              testCasesDetail.push(tc as unknown as Record<string, unknown>);
-            } else {
-              testCasesDetail.push({ id: tcId, name: tcId });
-            }
-          } catch {
-            testCasesDetail.push({ id: tcId, name: tcId });
-          }
-        }
-      }
-    } catch {
-      try {
-        const plan = await storage.getTestPlan(moduleName);
-        hasTests = Boolean(plan && (plan.cases?.length ?? 0) > 0);
-      } catch {
-        hasTests = false;
-      }
-    }
-
-    const routes = moduleContext?.routes ?? [];
-    const files = repoMap?.files ?? [];
-    const sensitiveSelectors = moduleContext?.sensitive_selectors ?? [];
-    const risks = moduleContext?.risks ?? [];
-    const prdSource = moduleContext?.prd_source;
-    const manuallyEdited = Boolean(moduleContext?.manually_edited);
-
-    const node: GraphNode = {
-      id: moduleName,
-      label: moduleName,
-      type: 'module',
-      routes,
-      filesCount: files.length,
-      hasTests: hasTests || testCasesDetail.length > 0,
-      sensitiveSelectorsCount: sensitiveSelectors.length,
-      risksCount: risks.length,
-      featuresCount: rulesList.length > 0 ? rulesList.length : testCasesDetail.length,
-      rulesCount: rulesList.length,
-      testCasesCount: testCasesDetail.length,
-      rules: rulesList,
-      testCases: testCasesDetail,
-      ...(prdSource ? { prdSource } : {}),
-      manuallyEdited,
-    };
-    nodes.push(node);
-
-    modulesDetail[moduleName] = {
-      ...moduleContext,
-      context: moduleContext,
-      repoMap,
-      files,
-      routes,
-      risks,
-      sensitive_selectors: sensitiveSelectors,
-      users: moduleContext?.users ?? [],
-      objective: moduleContext?.objective ?? '',
-      notes: moduleContext?.notes ?? '',
-      prd_source: prdSource,
-      manually_edited: manuallyEdited,
-      rules: rulesList,
-      testCases: testCasesDetail,
-      features: rulesList.map((r) => ({
-        id: r.id,
-        name: r.id,
-        description: r.description,
-        severity: r.severity,
-        tags: r.tags || [],
-        condition: r.condition,
-        action: r.action,
-      })),
-    };
-
-    // 3. Aristas por Prerrequisitos (.qa/modules/<name>/prereqs.yaml)
-    try {
-      const prereqs = await storage.getModulePrereqs(moduleName);
-      if (prereqs) {
-        modulesDetail[moduleName] = {
-          ...(modulesDetail[moduleName] as Record<string, unknown>),
-          prereqs,
-        };
-
-        const rawPrereqs = prereqs as unknown as Record<string, unknown>;
-        const requiresObj = (prereqs.requires || rawPrereqs.requires || {}) as Record<string, unknown>;
-        const potentialDeps = new Set<string>();
-
-        // Si hay módulos declarados explícitamente en requires.modules o depends_on
-        if (Array.isArray(requiresObj.modules)) {
-          for (const m of requiresObj.modules) {
-            if (typeof m === 'string') potentialDeps.add(m);
-          }
-        }
-        if (Array.isArray(requiresObj.depends_on)) {
-          for (const m of requiresObj.depends_on) {
-            if (typeof m === 'string') potentialDeps.add(m);
-          }
-        }
-        if (Array.isArray(rawPrereqs.depends_on)) {
-          for (const m of rawPrereqs.depends_on) {
-            if (typeof m === 'string') potentialDeps.add(m);
-          }
-        }
-
-        // Si requiere autenticación (requires.auth), comprobar si existe un módulo de auth
-        const authObj = requiresObj.auth as Record<string, unknown> | undefined;
-        if (authObj) {
-          if (typeof authObj.primary === 'string' && moduleNames.includes(authObj.primary)) {
-            potentialDeps.add(authObj.primary);
-          } else if (moduleNames.includes('auth')) {
-            potentialDeps.add('auth');
-          }
-        }
-
-        for (const dep of potentialDeps) {
-          if (dep && dep !== moduleName) {
-            addEdge({
-              from: dep,
-              to: moduleName,
-              label: 'prereq',
-              type: 'prereq',
-            });
-          }
-        }
-      }
-    } catch {
-      // Prerrequisitos no disponibles para este módulo
-    }
-  }
-
-  // 4. Aristas por Flujos Multi-Módulo (.qa/flows/*.yaml)
-  try {
-    const flowNames = await storage.listFlows();
-    for (const flowName of flowNames) {
-      try {
-        const flow = await storage.getFlow(flowName) as FlowDefinition | null;
-        if (flow && Array.isArray(flow.modules) && flow.modules.length > 0) {
-          const flowLabel = flow.name || flowName;
-          for (let i = 0; i < flow.modules.length - 1; i++) {
-            const current = flow.modules[i]?.module;
-            const next = flow.modules[i + 1]?.module;
-            if (current && next && current !== next) {
-              addEdge({
-                from: current,
-                to: next,
-                label: flowLabel,
-                type: 'flow',
-              });
-            }
-          }
-
-          for (const modItem of flow.modules) {
-            if (Array.isArray(modItem.depends_on)) {
-              for (const dep of modItem.depends_on) {
-                if (dep && dep !== modItem.module) {
-                  addEdge({
-                    from: dep,
-                    to: modItem.module,
-                    label: flowLabel,
-                    type: 'flow',
-                  });
-                }
-              }
-            }
-          }
-        }
-      } catch {
-        // Ignorar flujo con error de lectura
-      }
-    }
-  } catch {
-    // Directorio de flujos no disponible
-  }
-
-  // 5. Evidencias y Ejecuciones (.qa/executions/)
+  // 2. Extraer ejecuciones y evidencias recientes (.qa/executions/)
   const recentExecutions: RecentExecution[] = [];
+  const executionsCountByModule: Record<string, number> = {};
+
   try {
     const executionsExists = await storage.exists('.qa/executions');
     if (executionsExists) {
@@ -397,6 +181,8 @@ export async function buildKnowledgeGraph(storage: IStorage): Promise<KnowledgeG
               screenshots,
               screenshotDetails,
             });
+
+            executionsCountByModule[module] = (executionsCountByModule[module] || 0) + 1;
           } catch {
             // Ignorar JSON no válido
           }
@@ -480,6 +266,8 @@ export async function buildKnowledgeGraph(storage: IStorage): Promise<KnowledgeG
                 screenshots,
                 screenshotDetails,
               });
+
+              executionsCountByModule[execModule] = (executionsCountByModule[execModule] || 0) + 1;
             }
           } catch {
             // Ignorar directorio
@@ -493,6 +281,263 @@ export async function buildKnowledgeGraph(storage: IStorage): Promise<KnowledgeG
 
   // Ordenar ejecuciones recientes de más nueva a más antigua
   recentExecutions.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+
+  // 3. Extraer módulos y construir nodos de arquitectura universal
+  let moduleNames: string[];
+  try {
+    moduleNames = await storage.listModules();
+  } catch {
+    moduleNames = [];
+  }
+
+  const nodes: ModuleArchitectureNode[] = [];
+  const edges: GraphEdge[] = [];
+  const modulesDetail: Record<string, unknown> = {};
+
+  const edgeSet = new Set<string>();
+  const addEdge = (edge: GraphEdge): void => {
+    const key = `${edge.from}->${edge.to}:${edge.type}`;
+    if (!edgeSet.has(key)) {
+      edgeSet.add(key);
+      edges.push(edge);
+    }
+  };
+
+  for (const moduleName of moduleNames) {
+    let moduleContext: ModuleContext | null;
+    try {
+      moduleContext = await storage.getModuleContext(moduleName);
+    } catch {
+      moduleContext = null;
+    }
+
+    let repoMap: RepoMap | null;
+    try {
+      repoMap = await storage.getRepoMap(moduleName);
+    } catch {
+      repoMap = null;
+    }
+
+    const rawContext = moduleContext as Record<string, unknown> | null;
+
+    // Extraer selectores DOM estandarizados
+    let selectorsObj: Record<string, string> = {};
+    try {
+      if (typeof storage.getModuleSelectors === 'function') {
+        const modSelectors = await storage.getModuleSelectors(moduleName);
+        if (modSelectors && typeof modSelectors.selectors === 'object') {
+          selectorsObj = modSelectors.selectors;
+        }
+      } else {
+        const modSelectors = await storage.readJson<{ selectors?: Record<string, string> }>(
+          `.qa/modules/${moduleName}/selectors.json`
+        );
+        if (modSelectors && typeof modSelectors.selectors === 'object') {
+          selectorsObj = modSelectors.selectors;
+        }
+      }
+    } catch {
+      selectorsObj = {};
+    }
+
+    // Casos de prueba y validación de cobertura de tests
+    let testsCount: number;
+    try {
+      const testCases = await storage.listTestCases(moduleName);
+      testsCount = testCases.length;
+    } catch {
+      testsCount = 0;
+    }
+
+    if (testsCount === 0) {
+      try {
+        const plan = await storage.getTestPlan(moduleName);
+        testsCount = plan?.cases?.length ?? 0;
+      } catch {
+        // Ignorar plan no disponible
+      }
+    }
+
+    if (testsCount === 0 && executionsCountByModule[moduleName]) {
+      testsCount = executionsCountByModule[moduleName];
+    }
+
+    const hasTests = testsCount > 0;
+
+    // Extraer jerarquía universal de Vistas y Superficies
+    const views: ViewNode[] = [];
+    if (Array.isArray(rawContext?.views)) {
+      for (const v of rawContext.views as Array<Record<string, unknown>>) {
+        const surfaces: SurfaceNode[] = [];
+        if (Array.isArray(v.surfaces)) {
+          for (const s of v.surfaces as Array<Record<string, unknown>>) {
+            surfaces.push({
+              id: (s.id as string) || '',
+              name: (s.name as string) || (s.id as string) || '',
+              type: (s.type as SurfaceType) || 'section',
+            });
+          }
+        }
+        views.push({
+          id: (v.id as string) || '',
+          name: (v.name as string) || (v.id as string) || '',
+          path: (v.path as string) || '',
+          surfaces,
+        });
+      }
+    } else if (Array.isArray(rawContext?.routes)) {
+      // Fallback para contextos que aún usen routes
+      for (const r of rawContext.routes as string[]) {
+        views.push({
+          id: r.replace(/^\//, '').replace(/[/\-_]/g, '-') || 'default-view',
+          name: r,
+          path: r,
+          surfaces: [],
+        });
+      }
+    }
+
+    const baseRoute =
+      (rawContext?.base_route as string) ||
+      (rawContext?.baseRoute as string) ||
+      (views.length > 0 ? views[0].path : `/${moduleName}`);
+
+    const description =
+      (rawContext?.description as string) ||
+      (rawContext?.objective as string) ||
+      '';
+
+    const sensitiveSelectors: string[] = Array.isArray(rawContext?.sensitive_selectors)
+      ? (rawContext.sensitive_selectors as string[])
+      : [];
+
+    const files = repoMap?.files ?? [];
+
+    const node: ModuleArchitectureNode = {
+      id: moduleName,
+      label: (rawContext?.module as string) || moduleName,
+      description,
+      baseRoute,
+      views,
+      filesCount: files.length,
+      sensitiveSelectors,
+      hasTests,
+      testsCount,
+    };
+
+    nodes.push(node);
+
+    modulesDetail[moduleName] = {
+      ...rawContext,
+      context: rawContext,
+      repoMap,
+      files,
+      baseRoute,
+      views,
+      sensitiveSelectors,
+      sensitive_selectors: sensitiveSelectors,
+      selectors: selectorsObj,
+      hasTests,
+      testsCount,
+    };
+
+    // 4. Aristas por Prerrequisitos (.qa/modules/<name>/prereqs.yaml)
+    try {
+      const prereqs = await storage.getModulePrereqs(moduleName);
+      if (prereqs) {
+        modulesDetail[moduleName] = {
+          ...(modulesDetail[moduleName] as Record<string, unknown>),
+          prereqs,
+        };
+
+        const rawPrereqs = prereqs as unknown as Record<string, unknown>;
+        const requiresObj = (prereqs.requires || rawPrereqs.requires || {}) as Record<string, unknown>;
+        const potentialDeps = new Set<string>();
+
+        if (Array.isArray(requiresObj.modules)) {
+          for (const m of requiresObj.modules) {
+            if (typeof m === 'string') potentialDeps.add(m);
+          }
+        }
+        if (Array.isArray(requiresObj.depends_on)) {
+          for (const m of requiresObj.depends_on) {
+            if (typeof m === 'string') potentialDeps.add(m);
+          }
+        }
+        if (Array.isArray(rawPrereqs.depends_on)) {
+          for (const m of rawPrereqs.depends_on) {
+            if (typeof m === 'string') potentialDeps.add(m);
+          }
+        }
+
+        const authObj = requiresObj.auth as Record<string, unknown> | undefined;
+        if (authObj) {
+          if (typeof authObj.primary === 'string' && moduleNames.includes(authObj.primary)) {
+            potentialDeps.add(authObj.primary);
+          } else if (moduleNames.includes('auth')) {
+            potentialDeps.add('auth');
+          }
+        }
+
+        for (const dep of potentialDeps) {
+          if (dep && dep !== moduleName) {
+            addEdge({
+              from: dep,
+              to: moduleName,
+              label: 'prereq',
+              type: 'prereq',
+            });
+          }
+        }
+      }
+    } catch {
+      // Prerrequisitos no disponibles para este módulo
+    }
+  }
+
+  // 5. Aristas por Flujos Multi-Módulo (.qa/flows/*.yaml)
+  try {
+    const flowNames = await storage.listFlows();
+    for (const flowName of flowNames) {
+      try {
+        const flow = (await storage.getFlow(flowName)) as FlowDefinition | null;
+        if (flow && Array.isArray(flow.modules) && flow.modules.length > 0) {
+          const flowLabel = flow.name || flowName;
+          for (let i = 0; i < flow.modules.length - 1; i++) {
+            const current = flow.modules[i]?.module;
+            const next = flow.modules[i + 1]?.module;
+            if (current && next && current !== next) {
+              addEdge({
+                from: current,
+                to: next,
+                label: flowLabel,
+                type: 'flow',
+              });
+            }
+          }
+
+          for (const modItem of flow.modules) {
+            if (Array.isArray(modItem.depends_on)) {
+              for (const dep of modItem.depends_on) {
+                if (dep && dep !== modItem.module) {
+                  addEdge({
+                    from: dep,
+                    to: modItem.module,
+                    label: flowLabel,
+                    type: 'flow',
+                  });
+                }
+              }
+            }
+          }
+        }
+      } catch {
+        // Ignorar flujo con error de lectura
+      }
+    }
+  } catch {
+    // Directorio de flujos no disponible
+  }
 
   return {
     projectName,

@@ -3,42 +3,43 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>QAP v2.1 — Knowledge Graph & QA Test Engineering Report</title>
+  <title>QAP v2.1 — Knowledge Graph & System Architecture</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-base: #06080e;
-      --bg-surface: rgba(13, 19, 33, 0.75);
-      --bg-surface-elevated: rgba(22, 30, 49, 0.9);
-      --bg-card: #0a0f1d;
-      --bg-card-hover: #0f1629;
-      --border-subtle: rgba(255, 255, 255, 0.08);
-      --border-strong: rgba(255, 255, 255, 0.16);
-      --border-accent: rgba(99, 102, 241, 0.35);
+      --bg-base: #09090b;
+      --bg-surface: #121215;
+      --bg-surface-hover: #18181b;
+      --bg-surface-active: #202024;
+      --border-subtle: #27272a;
+      --border-strong: #3f3f46;
+      --border-focus: #52525b;
 
-      --text-primary: #f8fafc;
-      --text-secondary: #94a3b8;
-      --text-muted: #64748b;
+      --text-primary: #f4f4f5;
+      --text-secondary: #a1a1aa;
+      --text-muted: #71717a;
 
-      --color-emerald: #10b981;
-      --color-emerald-glow: rgba(16, 185, 129, 0.35);
-      --color-emerald-bg: rgba(16, 185, 129, 0.1);
-      --color-amber: #f59e0b;
-      --color-amber-glow: rgba(245, 158, 11, 0.35);
-      --color-amber-bg: rgba(245, 158, 11, 0.1);
-      --color-rose: #f43f5e;
-      --color-rose-glow: rgba(244, 63, 94, 0.35);
-      --color-rose-bg: rgba(244, 63, 94, 0.1);
-      --color-cyan: #06b6d4;
-      --color-cyan-bg: rgba(6, 182, 212, 0.1);
-      --color-violet: #8b5cf6;
-      --color-primary: #6366f1;
-      --color-primary-glow: rgba(99, 102, 241, 0.35);
+      --color-pass: #10b981;
+      --color-pass-bg: rgba(16, 185, 129, 0.12);
+      --color-pass-border: rgba(16, 185, 129, 0.28);
 
-      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      --font-mono: 'JetBrains Mono', monospace;
+      --color-fail: #ef4444;
+      --color-fail-bg: rgba(239, 68, 68, 0.12);
+      --color-fail-border: rgba(239, 68, 68, 0.28);
+
+      --color-accent: #38bdf8;
+      --color-accent-bg: rgba(56, 189, 248, 0.12);
+      --color-accent-border: rgba(56, 189, 248, 0.28);
+
+      --color-warn: #f59e0b;
+      --color-warn-bg: rgba(245, 158, 11, 0.12);
+
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+      --header-height: 48px;
     }
 
     * {
@@ -51,142 +52,122 @@
       background-color: var(--bg-base);
       color: var(--text-primary);
       font-family: var(--font-sans);
-      overflow: hidden;
+      font-size: 13px;
+      line-height: 1.45;
       height: 100vh;
       width: 100vw;
+      overflow: hidden;
       display: flex;
       flex-direction: column;
-      user-select: none;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
     }
 
-    /* Top Navigation Bar */
+    /* SVG Icon utility */
+    .icon {
+      width: 15px;
+      height: 15px;
+      stroke-width: 1.5;
+      stroke: currentColor;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      display: inline-block;
+      vertical-align: middle;
+      flex-shrink: 0;
+    }
+
+    /* Top Bar */
     header.app-header {
-      background: rgba(10, 14, 26, 0.85);
+      background: var(--bg-surface);
       border-bottom: 1px solid var(--border-subtle);
-      height: 60px;
+      height: var(--header-height);
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 24px;
+      padding: 0 16px;
       z-index: 100;
-      backdrop-filter: blur(20px);
+      flex-shrink: 0;
     }
 
-    .brand-section {
+    .brand-group {
       display: flex;
       align-items: center;
       gap: 12px;
     }
 
-    .brand-symbol {
-      width: 32px;
-      height: 32px;
-      background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #06b6d4 100%);
-      border-radius: 9px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 800;
-      font-size: 15px;
-      color: white;
-      box-shadow: 0 0 20px rgba(99, 102, 241, 0.5);
-    }
-
-    .brand-info {
+    .brand-badge {
       display: flex;
       align-items: center;
       gap: 8px;
+      font-weight: 600;
+      color: var(--text-primary);
+      font-size: 13px;
+      letter-spacing: -0.01em;
     }
 
-    .brand-title {
-      font-size: 14px;
-      font-weight: 600;
-      letter-spacing: -0.01em;
+    .brand-logo-box {
+      width: 24px;
+      height: 24px;
+      background: #18181b;
+      border: 1px solid var(--border-strong);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       color: var(--text-primary);
     }
 
-    .pill-tag {
-      font-size: 11px;
-      padding: 2px 8px;
-      border-radius: 8px;
-      background: rgba(99, 102, 241, 0.15);
-      color: #818cf8;
-      border: 1px solid rgba(99, 102, 241, 0.3);
-      font-weight: 500;
-      font-family: var(--font-mono);
-    }
-
-    .sync-status {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 12px;
+    .brand-subtext {
       color: var(--text-muted);
-      margin-left: 8px;
+      font-size: 12px;
+      font-family: var(--font-mono);
+      font-weight: 400;
     }
 
-    .pulse-dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      background: var(--color-emerald);
-      box-shadow: 0 0 8px var(--color-emerald);
-      animation: pulse 2s infinite ease-in-out;
-    }
-
-    .pulse-dot.warning {
-      background: var(--color-amber);
-      box-shadow: 0 0 8px var(--color-amber);
-    }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.4; transform: scale(0.85); }
-    }
-
-    /* View Switcher */
+    /* Nav View Switcher */
     .view-switcher {
       display: flex;
-      background: rgba(15, 23, 42, 0.6);
-      padding: 3px;
-      border-radius: 20px;
+      background: #18181b;
       border: 1px solid var(--border-subtle);
-      gap: 3px;
+      border-radius: 5px;
+      padding: 2px;
+      gap: 2px;
     }
 
-    .view-btn {
+    .nav-btn {
       background: transparent;
       border: none;
       color: var(--text-secondary);
-      padding: 6px 18px;
-      font-size: 13px;
+      font-family: var(--font-sans);
+      font-size: 12px;
       font-weight: 500;
-      border-radius: 16px;
+      padding: 4px 12px;
+      border-radius: 4px;
       cursor: pointer;
-      display: flex;
+      display: inline-flex;
       align-items: center;
       gap: 7px;
-      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      transition: color 0.15s, background-color 0.15s;
     }
 
-    .view-btn:hover {
+    .nav-btn:hover {
       color: var(--text-primary);
     }
 
-    .view-btn.active {
-      background: rgba(255, 255, 255, 0.12);
+    .nav-btn.active {
+      background: var(--bg-surface);
       color: var(--text-primary);
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
-      font-weight: 600;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
     }
 
-    .view-btn-badge {
-      font-size: 10px;
-      padding: 1px 6px;
-      border-radius: 10px;
-      background: rgba(99, 102, 241, 0.25);
-      color: #a5b4fc;
+    .nav-count-badge {
       font-family: var(--font-mono);
+      font-size: 10px;
+      background: #27272a;
+      color: var(--text-secondary);
+      padding: 1px 5px;
+      border-radius: 3px;
     }
 
     .header-actions {
@@ -195,2439 +176,2160 @@
       gap: 12px;
     }
 
-    .search-wrapper {
-      position: relative;
+    .search-box {
       display: flex;
       align-items: center;
-    }
-
-    .search-wrapper input {
-      background: rgba(15, 23, 42, 0.6);
+      background: #18181b;
       border: 1px solid var(--border-subtle);
-      color: var(--text-primary);
-      padding: 6px 12px 6px 32px;
-      border-radius: 8px;
-      font-size: 13px;
+      border-radius: 4px;
+      padding: 4px 8px;
+      gap: 6px;
+      color: var(--text-secondary);
       width: 220px;
+      transition: border-color 0.15s;
+    }
+
+    .search-box:focus-within {
+      border-color: var(--border-focus);
+      color: var(--text-primary);
+    }
+
+    .search-input {
+      background: transparent;
+      border: none;
       outline: none;
-      transition: all 0.25s;
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      width: 100%;
     }
 
-    .search-wrapper input:focus {
-      border-color: var(--color-primary);
-      width: 280px;
-      background: rgba(15, 23, 42, 0.9);
-      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
-    }
-
-    .search-icon {
-      position: absolute;
-      left: 10px;
+    .search-input::placeholder {
       color: var(--text-muted);
-      font-size: 13px;
-      pointer-events: none;
+      font-family: var(--font-sans);
+    }
+
+    .server-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--color-pass);
     }
 
     /* Main Container */
-    main.app-body {
+    main.app-viewport {
       flex: 1;
       position: relative;
       overflow: hidden;
+      display: flex;
     }
 
     .view-pane {
-      position: absolute;
-      inset: 0;
+      width: 100%;
+      height: 100%;
       display: none;
-      opacity: 0;
-      transition: opacity 0.25s ease;
+      position: relative;
     }
 
     .view-pane.active {
       display: flex;
-      opacity: 1;
     }
 
-    /* Vista 1: Canvas Graphify View */
-    #graph-viewport {
-      width: 100%;
-      height: 100%;
+    /* ========================================================
+       VISTA 1: SYSTEM ARCHITECTURE MAP
+       ======================================================== */
+    #graph-pane {
       position: relative;
-      background: radial-gradient(circle at 50% 50%, #0c1122 0%, #06080e 100%);
-    }
-
-    canvas#network-canvas {
-      width: 100%;
-      height: 100%;
-      display: block;
+      background-color: var(--bg-base);
+      background-image: 
+        linear-gradient(to right, rgba(39, 39, 42, 0.4) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(39, 39, 42, 0.4) 1px, transparent 1px);
+      background-size: 20px 20px;
+      overflow: hidden;
       cursor: grab;
     }
 
-    canvas#network-canvas:active {
+    #graph-pane.panning {
       cursor: grabbing;
     }
 
-    /* Floating Graph Controls & Info */
-    .floating-hud-left {
-      position: absolute;
-      top: 20px;
-      left: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      pointer-events: none;
-      z-index: 10;
-    }
-
-    .glass-card {
-      background: var(--bg-surface);
-      border: 1px solid var(--border-subtle);
-      border-radius: 12px;
-      padding: 14px 18px;
-      backdrop-filter: blur(16px);
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-      pointer-events: auto;
-    }
-
-    .metrics-bar {
-      display: flex;
-      gap: 18px;
-    }
-
-    .metric-group {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-    }
-
-    .metric-name {
-      font-size: 10px;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--text-muted);
-      font-weight: 600;
-    }
-
-    .metric-number {
-      font-size: 20px;
-      font-weight: 700;
-      color: var(--text-primary);
-      font-family: var(--font-mono);
-      letter-spacing: -0.02em;
-    }
-
-    .legend-panel {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      font-size: 12px;
-      min-width: 190px;
-    }
-
-    .legend-title {
-      font-size: 10px;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--text-muted);
-      font-weight: 700;
-      margin-bottom: 2px;
-    }
-
-    .legend-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      color: var(--text-secondary);
-    }
-
-    .legend-ring {
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      border: 2px solid;
-    }
-
-    .legend-ring.green { border-color: #10b981; background: rgba(16, 185, 129, 0.2); }
-    .legend-ring.yellow { border-color: #f59e0b; background: rgba(245, 158, 11, 0.2); }
-    .legend-ring.red { border-color: #f43f5e; background: rgba(244, 63, 94, 0.2); }
-
-    .legend-connector {
-      width: 16px;
-      height: 2px;
-      border-radius: 1px;
-    }
-
-    .legend-connector.prereq { background: #06b6d4; }
-    .legend-connector.flow { background: #8b5cf6; }
-
-    /* Minimap HUD */
-    .minimap-hud {
-      position: absolute;
-      bottom: 20px;
-      left: 20px;
-      width: 150px;
-      height: 110px;
-      background: rgba(10, 15, 28, 0.85);
-      border: 1px solid var(--border-subtle);
-      border-radius: 10px;
-      overflow: hidden;
-      backdrop-filter: blur(12px);
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-      z-index: 10;
-    }
-
-    canvas#minimap-canvas {
-      width: 100%;
-      height: 100%;
-      display: block;
-    }
-
-    /* Floating Toolbar */
-    .floating-toolbar {
-      position: absolute;
-      bottom: 20px;
-      right: 20px;
-      display: flex;
-      background: var(--bg-surface);
-      border: 1px solid var(--border-subtle);
-      border-radius: 10px;
-      padding: 4px;
-      gap: 4px;
-      backdrop-filter: blur(16px);
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-      z-index: 10;
-    }
-
-    .tool-btn {
-      width: 34px;
-      height: 34px;
-      border-radius: 7px;
-      background: transparent;
-      border: none;
-      color: var(--text-secondary);
-      font-size: 15px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.2s;
-    }
-
-    .tool-btn:hover {
-      background: rgba(255, 255, 255, 0.1);
-      color: var(--text-primary);
-    }
-
-    /* Drawer Panel (Obsidian / Linear Style) */
-    aside.drawer-aside {
-      position: absolute;
-      top: 0;
-      right: 0;
-      bottom: 0;
-      width: 460px;
-      background: var(--bg-surface-elevated);
-      border-left: 1px solid var(--border-subtle);
-      backdrop-filter: blur(28px);
-      box-shadow: -8px 0 40px rgba(0, 0, 0, 0.5);
-      display: flex;
-      flex-direction: column;
-      transform: translateX(100%);
-      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-      z-index: 50;
-      user-select: text;
-    }
-
-    aside.drawer-aside.open {
-      transform: translateX(0);
-    }
-
-    .drawer-top-bar {
-      padding: 16px 20px;
-      border-bottom: 1px solid var(--border-subtle);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .drawer-title-group {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .drawer-node-name {
-      font-size: 16px;
-      font-weight: 700;
-      color: var(--text-primary);
-      letter-spacing: -0.01em;
-    }
-
-    .status-badge {
-      font-size: 11px;
-      padding: 3px 9px;
-      border-radius: 12px;
-      font-weight: 600;
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-    }
-
-    .status-badge.tested {
-      background: var(--color-emerald-bg);
-      color: #34d399;
-      border: 1px solid rgba(16, 185, 129, 0.3);
-    }
-
-    .status-badge.discovered {
-      background: var(--color-amber-bg);
-      color: #fbbf24;
-      border: 1px solid rgba(245, 158, 11, 0.3);
-    }
-
-    .status-badge.risky {
-      background: var(--color-rose-bg);
-      color: #fb7185;
-      border: 1px solid rgba(244, 63, 94, 0.3);
-    }
-
-    .drawer-close {
-      background: transparent;
-      border: none;
-      color: var(--text-muted);
-      font-size: 18px;
-      cursor: pointer;
-      width: 28px;
-      height: 28px;
-      border-radius: 6px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.2s;
-    }
-
-    .drawer-close:hover {
-      background: rgba(255, 255, 255, 0.1);
-      color: var(--text-primary);
-    }
-
-    .drawer-tabs {
-      display: flex;
-      border-bottom: 1px solid var(--border-subtle);
-      padding: 0 16px;
-      background: rgba(10, 14, 26, 0.4);
-      overflow-x: auto;
-    }
-
-    .drawer-tab {
-      background: transparent;
-      border: none;
-      color: var(--text-muted);
-      padding: 12px 14px;
-      font-size: 12px;
-      font-weight: 500;
-      cursor: pointer;
-      border-bottom: 2px solid transparent;
-      white-space: nowrap;
-      transition: all 0.2s;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .drawer-tab:hover {
-      color: var(--text-secondary);
-    }
-
-    .drawer-tab.active {
-      color: var(--text-primary);
-      border-bottom-color: var(--color-primary);
-      font-weight: 600;
-    }
-
-    .drawer-body {
-      flex: 1;
-      overflow-y: auto;
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-    }
-
-    .section-block {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .section-header {
-      font-size: 10px;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--text-muted);
-      font-weight: 700;
-    }
-
-    .section-description {
-      font-size: 13px;
-      line-height: 1.6;
-      color: var(--text-secondary);
-    }
-
-    .tag-container {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-    }
-
-    .interactive-tag {
-      font-size: 12px;
-      padding: 4px 10px;
-      border-radius: 6px;
-      background: rgba(30, 41, 59, 0.7);
-      border: 1px solid var(--border-subtle);
-      color: var(--text-secondary);
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      font-family: var(--font-mono);
-      transition: all 0.2s;
-      cursor: pointer;
-    }
-
-    .interactive-tag:hover {
-      border-color: var(--border-strong);
-      color: var(--text-primary);
-      background: rgba(51, 65, 85, 0.8);
-    }
-
-    .interactive-tag.route {
-      background: rgba(6, 182, 212, 0.1);
-      border-color: rgba(6, 182, 212, 0.25);
-      color: #67e8f9;
-    }
-
-    .interactive-tag.pii {
-      background: rgba(244, 63, 94, 0.1);
-      border-color: rgba(244, 63, 94, 0.25);
-      color: #fda4af;
-    }
-
-    .interactive-tag.risk {
-      background: rgba(245, 158, 11, 0.1);
-      border-color: rgba(245, 158, 11, 0.25);
-      color: #fde68a;
-    }
-
-    .interactive-tag.link-btn {
-      background: rgba(99, 102, 241, 0.15);
-      border-color: rgba(99, 102, 241, 0.35);
-      color: #a5b4fc;
-      text-decoration: none;
-    }
-
-    /* Reglas y Funcionalidades Cards en Drawer */
-    .rule-card {
-      background: rgba(10, 15, 28, 0.7);
-      border: 1px solid var(--border-subtle);
-      border-radius: 10px;
-      padding: 12px 14px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      transition: border-color 0.2s;
-    }
-
-    .rule-card:hover {
-      border-color: var(--border-accent);
-    }
-
-    .rule-card-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .rule-id {
-      font-family: var(--font-mono);
-      font-size: 11px;
-      font-weight: 600;
-      color: #a5b4fc;
-    }
-
-    .severity-pill {
-      font-size: 10px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      padding: 2px 7px;
-      border-radius: 6px;
-    }
-
-    .severity-pill.critical {
-      background: rgba(244, 63, 94, 0.2);
-      color: #fb7185;
-      border: 1px solid rgba(244, 63, 94, 0.4);
-    }
-
-    .severity-pill.high {
-      background: rgba(245, 158, 11, 0.2);
-      color: #fcd34d;
-      border: 1px solid rgba(245, 158, 11, 0.4);
-    }
-
-    .severity-pill.medium {
-      background: rgba(6, 182, 212, 0.15);
-      color: #67e8f9;
-      border: 1px solid rgba(6, 182, 212, 0.3);
-    }
-
-    .rule-desc {
-      font-size: 13px;
-      line-height: 1.5;
-      color: var(--text-primary);
-    }
-
-    .rule-code-snippet {
-      font-family: var(--font-mono);
-      font-size: 11px;
-      background: rgba(0, 0, 0, 0.4);
-      padding: 6px 8px;
-      border-radius: 6px;
-      color: #94a3b8;
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      overflow-x: auto;
-    }
-
-    /* Vista 2: Executive QA Test Report Dashboard */
-    #gallery-viewport {
-      width: 100%;
-      height: 100%;
-      overflow-y: auto;
-      padding: 30px 40px 60px;
-      display: flex;
-      flex-direction: column;
-      gap: 24px;
-      user-select: text;
-    }
-
-    /* Executive KPI Metrics Bar */
-    .kpi-metrics-banner {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 16px;
-    }
-
-    .kpi-card {
-      background: var(--bg-surface);
-      border: 1px solid var(--border-subtle);
-      border-radius: 12px;
-      padding: 16px 20px;
-      display: flex;
-      flex-direction: column;
-      position: relative;
-      overflow: hidden;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
-    }
-
-    .kpi-card::before {
-      content: '';
+    /* Graph Canvas & Transform Stage */
+    .graph-stage {
       position: absolute;
       top: 0;
       left: 0;
-      right: 0;
-      height: 2px;
-      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+      width: 100%;
+      height: 100%;
+      transform-origin: 0 0;
+      will-change: transform;
+      user-select: none;
     }
 
-    .kpi-label {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--text-muted);
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 6px;
+    /* SVG Connector Overlay */
+    .edges-svg-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      overflow: visible;
+      z-index: 10;
     }
 
-    .kpi-value {
-      font-size: 26px;
-      font-weight: 800;
-      color: var(--text-primary);
-      margin-top: 6px;
-      letter-spacing: -0.02em;
-      font-family: var(--font-mono);
-      display: flex;
-      align-items: baseline;
-      gap: 6px;
+    .edge-path {
+      fill: none;
+      stroke-width: 1.5;
+      stroke-linecap: round;
+      transition: stroke 0.15s, stroke-width 0.15s;
     }
 
-    .kpi-sub {
-      font-size: 12px;
-      color: var(--text-secondary);
-      margin-top: 4px;
+    .edge-path.prereq {
+      stroke: #52525b;
+      stroke-dasharray: none;
     }
 
-    /* Filter & Search Bar */
-    .qa-filter-bar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      background: rgba(13, 19, 33, 0.5);
-      padding: 12px 16px;
-      border-radius: 12px;
+    .edge-path.flow {
+      stroke: var(--color-accent);
+      stroke-dasharray: 4 3;
+    }
+
+    .edge-path.highlighted {
+      stroke-width: 2.2;
+      stroke: var(--text-primary);
+    }
+
+    /* Block Nodes (Module Cards) */
+    .module-card {
+      position: absolute;
+      width: 290px;
+      background: var(--bg-surface);
       border: 1px solid var(--border-subtle);
-    }
-
-    .filter-left-group {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-
-    .chip-filter-group {
-      display: flex;
-      gap: 6px;
-      align-items: center;
-    }
-
-    .filter-chip {
-      background: rgba(22, 30, 49, 0.6);
-      border: 1px solid var(--border-subtle);
-      color: var(--text-secondary);
-      padding: 6px 14px;
-      border-radius: 8px;
-      font-size: 12px;
-      cursor: pointer;
-      transition: all 0.2s;
-      font-weight: 500;
-    }
-
-    .filter-chip:hover {
-      border-color: var(--border-strong);
-      color: var(--text-primary);
-    }
-
-    .filter-chip.active {
-      background: rgba(99, 102, 241, 0.2);
-      border-color: rgba(99, 102, 241, 0.5);
-      color: #c7d2fe;
-      font-weight: 600;
-      box-shadow: 0 0 12px rgba(99, 102, 241, 0.2);
-    }
-
-    .filter-chip.status-pass.active {
-      background: rgba(16, 185, 129, 0.2);
-      border-color: rgba(16, 185, 129, 0.5);
-      color: #6ee7b7;
-    }
-
-    .filter-chip.status-fail.active {
-      background: rgba(244, 63, 94, 0.2);
-      border-color: rgba(244, 63, 94, 0.5);
-      color: #fda4af;
-    }
-
-    .report-search-box {
-      background: rgba(10, 15, 28, 0.8);
-      border: 1px solid var(--border-subtle);
-      border-radius: 8px;
-      color: var(--text-primary);
-      padding: 6px 12px;
-      font-size: 13px;
-      width: 240px;
-      outline: none;
-      transition: border-color 0.2s;
-    }
-
-    .report-search-box:focus {
-      border-color: var(--color-primary);
-    }
-
-    /* Executive QA Report Cards Grid */
-    .qa-reports-feed {
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-    }
-
-    .executive-report-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border-subtle);
-      border-radius: 14px;
+      border-radius: 6px;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+      z-index: 20;
+      cursor: default;
+      transition: border-color 0.15s, box-shadow 0.15s;
       overflow: hidden;
       display: flex;
       flex-direction: column;
-      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
-      transition: border-color 0.25s, box-shadow 0.25s;
     }
 
-    .executive-report-card:hover {
-      border-color: rgba(99, 102, 241, 0.3);
-      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+    .module-card:hover {
+      border-color: var(--border-strong);
+      background: #151518;
     }
 
-    .card-top-bar {
-      padding: 16px 22px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      border-bottom: 1px solid var(--border-subtle);
-      background: rgba(255, 255, 255, 0.015);
-      gap: 16px;
+    .module-card.selected {
+      border-color: var(--color-accent);
+      box-shadow: 0 0 0 1px var(--color-accent), 0 8px 24px rgba(0, 0, 0, 0.6);
     }
 
-    .card-meta-left {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-
-    .status-pill-big {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 12px;
-      font-weight: 700;
-      padding: 4px 12px;
-      border-radius: 20px;
-      letter-spacing: 0.04em;
-    }
-
-    .status-pill-big.success {
-      background: var(--color-emerald-bg);
-      color: #34d399;
-      border: 1px solid rgba(16, 185, 129, 0.35);
-    }
-
-    .status-pill-big.failure {
-      background: var(--color-rose-bg);
-      color: #fb7185;
-      border: 1px solid rgba(244, 63, 94, 0.35);
-    }
-
-    .execution-id-tag {
-      font-family: var(--font-mono);
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--text-primary);
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      cursor: pointer;
-    }
-
-    .module-badge {
-      font-size: 11px;
-      padding: 3px 9px;
-      border-radius: 6px;
-      background: rgba(99, 102, 241, 0.15);
-      border: 1px solid rgba(99, 102, 241, 0.35);
-      color: #a5b4fc;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-
-    .env-badge {
-      font-size: 11px;
-      padding: 3px 8px;
-      border-radius: 6px;
-      background: rgba(6, 182, 212, 0.12);
-      border: 1px solid rgba(6, 182, 212, 0.3);
-      color: #67e8f9;
-      font-family: var(--font-mono);
-      text-transform: uppercase;
-    }
-
-    .card-meta-right {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      font-size: 12px;
-      color: var(--text-muted);
-    }
-
-    .duration-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      padding: 3px 8px;
-      background: rgba(255, 255, 255, 0.05);
-      border-radius: 6px;
-      color: var(--text-secondary);
-      font-family: var(--font-mono);
-      font-size: 11px;
-    }
-
-    /* Tested Features Strip */
-    .tested-features-strip {
-      padding: 12px 22px;
-      background: rgba(13, 19, 33, 0.4);
-      border-bottom: 1px solid var(--border-subtle);
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-
-    .tested-features-label {
-      font-size: 10px;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--text-muted);
-      font-weight: 700;
-      margin-right: 4px;
-    }
-
-    .tested-feature-tag {
-      font-size: 12px;
-      padding: 4px 10px;
-      border-radius: 6px;
-      background: rgba(99, 102, 241, 0.1);
-      border: 1px solid rgba(99, 102, 241, 0.25);
-      color: #c7d2fe;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    /* Step Trace Accordion */
-    .step-trace-section {
-      padding: 16px 22px;
-      border-bottom: 1px solid var(--border-subtle);
-    }
-
-    details.trace-details summary {
-      cursor: pointer;
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--text-secondary);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      outline: none;
-      transition: color 0.2s;
-    }
-
-    details.trace-details summary:hover {
-      color: var(--text-primary);
-    }
-
-    .trace-table {
-      margin-top: 14px;
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 12px;
-    }
-
-    .trace-table th {
-      text-align: left;
-      font-size: 10px;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--text-muted);
-      padding: 8px 12px;
-      border-bottom: 1px solid var(--border-subtle);
-    }
-
-    .trace-table td {
+    .module-card-header {
       padding: 10px 12px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-      color: var(--text-secondary);
-      vertical-align: middle;
-    }
-
-    .trace-table tr:hover td {
-      background: rgba(255, 255, 255, 0.02);
-      color: var(--text-primary);
-    }
-
-    .step-action-badge {
-      font-size: 10px;
-      font-weight: 600;
-      padding: 2px 7px;
-      border-radius: 4px;
-      font-family: var(--font-mono);
-      text-transform: uppercase;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    .step-action-badge.navigate { background: rgba(6, 182, 212, 0.15); color: #67e8f9; }
-    .step-action-badge.fill { background: rgba(139, 92, 246, 0.15); color: #c084fc; }
-    .step-action-badge.click { background: rgba(99, 102, 241, 0.15); color: #a5b4fc; }
-    .step-action-badge.assert { background: rgba(16, 185, 129, 0.15); color: #6ee7b7; }
-    .step-action-badge.screenshot { background: rgba(245, 158, 11, 0.15); color: #fde68a; }
-
-    .step-status-chip {
-      font-size: 11px;
-      font-weight: 600;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    .step-status-chip.success { color: #34d399; }
-    .step-status-chip.failure { color: #fb7185; }
-
-    .step-err-box {
-      font-family: var(--font-mono);
-      font-size: 11px;
-      background: rgba(244, 63, 94, 0.1);
-      border: 1px solid rgba(244, 63, 94, 0.3);
-      color: #fda4af;
-      padding: 6px 10px;
-      border-radius: 6px;
-      margin-top: 4px;
-    }
-
-    /* Screenshots & Evidence Area */
-    .card-evidences-section {
-      padding: 18px 22px;
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-      background: rgba(0, 0, 0, 0.2);
-    }
-
-    .evidences-header {
+      background: #18181b;
+      border-bottom: 1px solid var(--border-subtle);
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 8px;
+      cursor: grab;
     }
 
-    .evidences-title {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--text-muted);
-      font-weight: 700;
+    .module-card-header:active {
+      cursor: grabbing;
+    }
+
+    .module-name-group {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 7px;
+      min-width: 0;
     }
 
-    /* Split Slider Interactive Comparison */
-    .split-viewer-container {
-      position: relative;
-      aspect-ratio: 21 / 9;
-      background: #000;
-      overflow: hidden;
-      border-radius: 8px;
-      border: 1px solid var(--border-subtle);
-      cursor: ew-resize;
-    }
-
-    .split-layer {
-      position: absolute;
-      inset: 0;
-      overflow: hidden;
-    }
-
-    .split-layer img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: block;
-    }
-
-    .top-layer {
-      width: 50%;
-      border-right: 2px solid #ffffff;
-      box-shadow: 2px 0 12px rgba(0, 0, 0, 0.6);
-      z-index: 2;
-    }
-
-    .split-handle {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 32px;
-      height: 32px;
+    .module-status-dot {
+      width: 6px;
+      height: 6px;
       border-radius: 50%;
-      background: #ffffff;
-      color: #07090e;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 12px;
-      font-weight: 700;
-      z-index: 3;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.7);
-      pointer-events: none;
+      flex-shrink: 0;
     }
 
-    .split-label-badge {
-      position: absolute;
-      top: 10px;
-      font-size: 10px;
-      padding: 3px 8px;
-      border-radius: 4px;
-      backdrop-filter: blur(8px);
+    .module-status-dot.active {
+      background: var(--color-pass);
+    }
+
+    .module-status-dot.inactive {
+      background: var(--text-muted);
+    }
+
+    .module-title-mono {
+      font-family: var(--font-mono);
       font-weight: 600;
-      z-index: 4;
-      pointer-events: none;
-    }
-
-    .split-label-badge.before {
-      left: 10px;
-      background: rgba(15, 23, 42, 0.75);
-      color: #cbd5e1;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-    }
-
-    .split-label-badge.after {
-      right: 10px;
-      background: rgba(16, 185, 129, 0.25);
-      color: #6ee7b7;
-      border: 1px solid rgba(16, 185, 129, 0.4);
-    }
-
-    /* Screenshots Grid Thumbnail View */
-    .screenshots-thumb-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 12px;
-    }
-
-    .screenshot-thumb-card {
-      background: rgba(10, 15, 28, 0.6);
-      border: 1px solid var(--border-subtle);
-      border-radius: 8px;
-      overflow: hidden;
-      cursor: pointer;
-      transition: transform 0.2s, border-color 0.2s;
-    }
-
-    .screenshot-thumb-card:hover {
-      transform: translateY(-2px);
-      border-color: var(--border-strong);
-    }
-
-    .screenshot-thumb-img {
-      aspect-ratio: 16 / 9;
-      background: #000;
-      overflow: hidden;
-      position: relative;
-    }
-
-    .screenshot-thumb-img img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: block;
-    }
-
-    .screenshot-thumb-meta {
-      padding: 8px 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    .screenshot-thumb-caption {
-      font-size: 12px;
+      font-size: 13px;
       color: var(--text-primary);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
-    .screenshot-thumb-sub {
+    .module-route-pill {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-secondary);
+      background: #27272a;
+      padding: 2px 6px;
+      border-radius: 3px;
+      white-space: nowrap;
+    }
+
+    .module-card-body {
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .module-desc {
+      font-size: 11px;
+      color: var(--text-secondary);
+      line-height: 1.35;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    /* Views & Surfaces Hierarchy List */
+    .hierarchy-container {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      border-top: 1px solid #1f1f23;
+      padding-top: 8px;
+    }
+
+    .hierarchy-section-title {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 2px;
+    }
+
+    .view-row {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      padding: 4px 6px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: background-color 0.12s, border-color 0.12s;
+    }
+
+    .view-row:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: var(--border-subtle);
+    }
+
+    .view-row-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+
+    .view-label-group {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      min-width: 0;
+    }
+
+    .type-tag {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      padding: 1px 4px;
+      border-radius: 2px;
+      letter-spacing: 0.03em;
+    }
+
+    .type-tag.view {
+      background: #27272a;
+      color: var(--text-secondary);
+    }
+
+    .type-tag.tab {
+      background: rgba(56, 189, 248, 0.15);
+      color: #7dd3fc;
+    }
+
+    .type-tag.modal {
+      background: rgba(245, 158, 11, 0.15);
+      color: #fcd34d;
+    }
+
+    .type-tag.section {
+      background: rgba(16, 185, 129, 0.15);
+      color: #6ee7b7;
+    }
+
+    .type-tag.drawer {
+      background: rgba(168, 85, 247, 0.15);
+      color: #d8b4fe;
+    }
+
+    .view-name {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .view-path-mono {
+      font-family: var(--font-mono);
       font-size: 10px;
       color: var(--text-muted);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
     }
 
-    .card-footer-strip {
-      padding: 12px 22px;
+    .surfaces-list {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding-left: 12px;
+      border-left: 1px solid #27272a;
+      margin-left: 6px;
+      margin-top: 3px;
+    }
+
+    .surface-item {
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 6px;
+      padding: 2px 4px;
+      border-radius: 3px;
+      font-size: 11px;
+      color: var(--text-secondary);
+      transition: color 0.12s;
+    }
+
+    .surface-item:hover {
+      color: var(--text-primary);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .module-card-footer {
+      padding: 7px 12px;
+      background: #0e0e11;
       border-top: 1px solid var(--border-subtle);
-      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-family: var(--font-mono);
+      font-size: 10px;
       color: var(--text-muted);
-      background: rgba(255, 255, 255, 0.01);
     }
 
-    /* Modal Lightbox */
-    .lightbox-modal {
-      position: fixed;
-      inset: 0;
-      background: rgba(4, 6, 11, 0.9);
-      backdrop-filter: blur(20px);
-      z-index: 1000;
-      display: none;
+    .card-stat {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* Floating Canvas Controls */
+    .canvas-hud-top-left {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 50;
+      pointer-events: none;
+    }
+
+    .hud-metrics-strip {
+      background: rgba(18, 18, 21, 0.95);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 6px 12px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      backdrop-filter: blur(8px);
+      pointer-events: auto;
+    }
+
+    .hud-metric {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .hud-metric-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+    }
+
+    .hud-metric-val {
+      font-family: var(--font-mono);
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .hud-legend-strip {
+      background: rgba(18, 18, 21, 0.95);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 6px 10px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-size: 11px;
+      color: var(--text-secondary);
+      pointer-events: auto;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend-line {
+      width: 16px;
+      height: 2px;
+    }
+
+    .legend-line.prereq {
+      background: #52525b;
+    }
+
+    .legend-line.flow {
+      background: var(--color-accent);
+      border-top: 1px dashed var(--color-accent);
+    }
+
+    .canvas-controls-bottom-right {
+      position: absolute;
+      bottom: 16px;
+      right: 16px;
+      display: flex;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 5px;
+      overflow: hidden;
+      z-index: 50;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    }
+
+    .ctrl-btn {
+      background: transparent;
+      border: none;
+      border-right: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      width: 32px;
+      height: 32px;
+      display: flex;
       align-items: center;
       justify-content: center;
-      padding: 32px;
+      cursor: pointer;
+      font-size: 14px;
+      font-family: var(--font-mono);
+      transition: background-color 0.12s, color 0.12s;
+    }
+
+    .ctrl-btn:last-child {
+      border-right: none;
+    }
+
+    .ctrl-btn:hover {
+      background: var(--bg-surface-hover);
+      color: var(--text-primary);
+    }
+
+    /* ========================================================
+       TECHNICAL INSPECTOR DRAWER
+       ======================================================== */
+    aside.inspector-drawer {
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 440px;
+      background: var(--bg-surface);
+      border-left: 1px solid var(--border-subtle);
+      z-index: 80;
+      display: flex;
+      flex-direction: column;
+      transform: translateX(100%);
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: -8px 0 24px rgba(0, 0, 0, 0.6);
+    }
+
+    aside.inspector-drawer.open {
+      transform: translateX(0);
+    }
+
+    .drawer-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      background: #151518;
+    }
+
+    .drawer-breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .drawer-breadcrumb span.crumb-active {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    .drawer-close-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px;
+      border-radius: 4px;
+      transition: color 0.12s, background-color 0.12s;
+    }
+
+    .drawer-close-btn:hover {
+      color: var(--text-primary);
+      background: #27272a;
+    }
+
+    .drawer-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .drawer-section {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .drawer-section-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .drawer-prop-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .drawer-prop-table tr {
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .drawer-prop-table tr:last-child {
+      border-bottom: none;
+    }
+
+    .drawer-prop-table td {
+      padding: 7px 10px;
+    }
+
+    .drawer-prop-table td.prop-key {
+      width: 120px;
+      color: var(--text-muted);
+      background: #151518;
+      font-family: var(--font-mono);
+      font-size: 11px;
+    }
+
+    .drawer-prop-table td.prop-val {
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      word-break: break-all;
+    }
+
+    .code-list-box {
+      background: #09090b;
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      padding: 8px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .code-file-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .code-file-item:hover {
+      color: var(--text-primary);
+    }
+
+    .code-file-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .copy-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 2px 4px;
+      border-radius: 3px;
+      font-size: 10px;
+      font-family: var(--font-mono);
+    }
+
+    .copy-btn:hover {
+      color: var(--text-primary);
+      background: #27272a;
+    }
+
+    .selector-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 5px 8px;
+      background: #18181b;
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+    }
+
+    .protected-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-family: var(--font-sans);
+      font-size: 10px;
+      font-weight: 500;
+      color: #fcd34d;
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.25);
+      padding: 2px 6px;
+      border-radius: 3px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    /* Browser Mockup Frame */
+    .browser-frame {
+      background: #151518;
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .browser-titlebar {
+      height: 28px;
+      background: #1a1a1e;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      padding: 0 10px;
+      gap: 8px;
+    }
+
+    .browser-dots {
+      display: flex;
+      gap: 4px;
+    }
+
+    .browser-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #3f3f46;
+    }
+
+    .browser-url-pill {
+      flex: 1;
+      background: #09090b;
+      border: 1px solid #27272a;
+      border-radius: 3px;
+      height: 18px;
+      display: flex;
+      align-items: center;
+      padding: 0 8px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-muted);
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .browser-content-area {
+      position: relative;
+      background: #000;
+      min-height: 180px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .browser-screenshot-img {
+      width: 100%;
+      height: auto;
+      max-height: 260px;
+      object-fit: contain;
+      display: block;
+      cursor: zoom-in;
+    }
+
+    .masked-region-indicator {
+      position: absolute;
+      bottom: 8px;
+      right: 8px;
+      background: rgba(18, 18, 21, 0.85);
+      border: 1px solid rgba(245, 158, 11, 0.4);
+      color: #fcd34d;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 3px;
+      backdrop-filter: blur(4px);
+    }
+
+    /* ========================================================
+       VISTA 2: EXECUTION LOGS & REPORTS DASHBOARD
+       ======================================================== */
+    #gallery-pane {
+      width: 100%;
+      height: 100%;
+      flex-direction: column;
+      background: var(--bg-base);
+      overflow-y: auto;
+      padding: 20px 24px;
+      gap: 20px;
+    }
+
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+    }
+
+    .kpi-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 12px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .kpi-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .kpi-value {
+      font-family: var(--font-mono);
+      font-size: 22px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .kpi-detail {
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    /* Filter Strip */
+    .filter-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .filter-btn-group {
+      display: flex;
+      background: #18181b;
+      border: 1px solid var(--border-subtle);
+      border-radius: 5px;
+      padding: 2px;
+      gap: 2px;
+    }
+
+    .filter-chip {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-family: var(--font-sans);
+      font-size: 12px;
+      font-weight: 500;
+      padding: 4px 10px;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: color 0.12s, background-color 0.12s;
+    }
+
+    .filter-chip:hover {
+      color: var(--text-primary);
+    }
+
+    .filter-chip.active {
+      background: var(--bg-surface);
+      color: var(--text-primary);
+    }
+
+    /* Executions High-Density Table */
+    .table-container {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .dense-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      text-align: left;
+    }
+
+    .dense-table th {
+      background: #151518;
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 9px 14px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .dense-table td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+    }
+
+    .dense-table tbody tr {
+      transition: background-color 0.12s;
+      cursor: pointer;
+    }
+
+    .dense-table tbody tr:hover {
+      background-color: var(--bg-surface-hover);
+    }
+
+    .dense-table tbody tr.expanded {
+      background-color: #16161a;
+    }
+
+    .dense-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    .badge-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 3px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .badge-status.success {
+      background: var(--color-pass-bg);
+      border: 1px solid var(--color-pass-border);
+      color: var(--color-pass);
+    }
+
+    .badge-status.failure {
+      background: var(--color-fail-bg);
+      border: 1px solid var(--color-fail-border);
+      color: var(--color-fail);
+    }
+
+    .badge-env {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-muted);
+      background: #1c1c20;
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+
+    /* Trace Details Accordion Row */
+    .trace-detail-row {
+      display: none;
+      background: #0d0d10;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .trace-detail-row.open {
+      display: table-row;
+    }
+
+    .trace-content-box {
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .step-trace-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      background: #121215;
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .step-trace-table th {
+      background: #16161a;
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 6px 10px;
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .step-trace-table td {
+      padding: 6px 10px;
+      border-bottom: 1px solid #1f1f23;
+    }
+
+    .step-trace-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .action-badge {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 600;
+      padding: 1px 5px;
+      border-radius: 3px;
+      background: #27272a;
+      color: var(--text-primary);
+    }
+
+    .btn-action-small {
+      background: #27272a;
+      border: 1px solid #3f3f46;
+      color: var(--text-primary);
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 3px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .btn-action-small:hover {
+      background: #3f3f46;
+    }
+
+    /* Lightbox Modal */
+    .lightbox-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      backdrop-filter: blur(6px);
     }
 
     .lightbox-modal.active {
       display: flex;
     }
 
-    .lightbox-window {
+    .lightbox-box {
       max-width: 90vw;
       max-height: 90vh;
-      background: var(--bg-surface-elevated);
+      background: var(--bg-surface);
       border: 1px solid var(--border-strong);
-      border-radius: 16px;
+      border-radius: 6px;
       overflow: hidden;
       display: flex;
       flex-direction: column;
-      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.8);
     }
 
     .lightbox-header {
-      padding: 14px 20px;
+      padding: 10px 16px;
+      background: #18181b;
+      border-bottom: 1px solid var(--border-subtle);
       display: flex;
       align-items: center;
       justify-content: space-between;
-      border-bottom: 1px solid var(--border-subtle);
+      font-size: 12px;
+      font-family: var(--font-mono);
     }
 
-    .lightbox-img-wrap {
-      background: #000;
-      padding: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .lightbox-img-wrap img {
+    .lightbox-img {
       max-width: 100%;
-      max-height: 75vh;
+      max-height: calc(90vh - 60px);
       object-fit: contain;
-      border-radius: 8px;
-    }
-
-    /* Scrollbar */
-    ::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
-    }
-    ::-webkit-scrollbar-track {
-      background: transparent;
-    }
-    ::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.14);
-      border-radius: 3px;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-      background: rgba(255, 255, 255, 0.24);
+      background: #000;
     }
   </style>
 </head>
 <body>
 
-  <!-- Top Navigation Bar -->
+  <!-- Top App Navigation -->
   <header class="app-header">
-    <div class="brand-section">
-      <div class="brand-symbol">Q</div>
-      <div class="brand-info">
-        <span class="brand-title" id="project-header-title">QAP Knowledge Graph</span>
-        <span class="pill-tag" id="project-version-badge">v2.1</span>
-        <div class="sync-status">
-          <div class="pulse-dot" id="header-pulse-dot"></div>
-          <span id="header-sync-label">Memoria .qa/ Activa</span>
+    <div class="brand-group">
+      <div class="brand-badge">
+        <div class="brand-logo-box">
+          <svg class="icon" viewBox="0 0 24 24">
+            <rect x="3" y="3" width="7" height="7" rx="1"></rect>
+            <rect x="14" y="3" width="7" height="7" rx="1"></rect>
+            <rect x="14" y="14" width="7" height="7" rx="1"></rect>
+            <rect x="3" y="14" width="7" height="7" rx="1"></rect>
+          </svg>
         </div>
+        <span>QAP v2.1</span>
+        <span class="brand-subtext" id="project-title-label">· Architecture & QA Telemetry</span>
       </div>
     </div>
 
-    <!-- View Switcher -->
+    <!-- Center Views Switcher -->
     <div class="view-switcher">
-      <button class="view-btn active" id="btn-graph-view" onclick="activateView('graph')">
-        <span>🌐</span> Knowledge Graph
+      <button class="nav-btn active" id="btn-view-graph" onclick="switchView('graph')">
+        <svg class="icon" viewBox="0 0 24 24">
+          <circle cx="6" cy="6" r="3"></circle>
+          <circle cx="18" cy="6" r="3"></circle>
+          <circle cx="12" cy="18" r="3"></circle>
+          <line x1="8.5" y1="7.5" x2="15.5" y2="7.5"></line>
+          <line x1="7.5" y1="8.5" x2="10.5" y2="15.5"></line>
+          <line x1="16.5" y1="8.5" x2="13.5" y2="15.5"></line>
+        </svg>
+        <span>Architecture Map</span>
       </button>
-      <button class="view-btn" id="btn-gallery-view" onclick="activateView('gallery')">
-        <span>📊</span> Reportes & Evidencias
-        <span class="view-btn-badge" id="nav-reports-count">0</span>
+      <button class="nav-btn" id="btn-view-logs" onclick="switchView('logs')">
+        <svg class="icon" viewBox="0 0 24 24">
+          <rect x="3" y="4" width="18" height="16" rx="2"></rect>
+          <line x1="3" y1="9" x2="21" y2="9"></line>
+          <line x1="9" y1="20" x2="9" y2="9"></line>
+        </svg>
+        <span>Execution Logs</span>
+        <span class="nav-count-badge" id="nav-logs-badge">0</span>
       </button>
     </div>
 
-    <!-- Right HUD & Search -->
+    <!-- Right HUD & Filter -->
     <div class="header-actions">
-      <div class="search-wrapper">
-        <span class="search-icon">🔍</span>
-        <input type="text" id="global-search" placeholder="Filtrar por módulo, regla..." autocomplete="off">
+      <div class="search-box">
+        <svg class="icon" viewBox="0 0 24 24">
+          <circle cx="11" cy="11" r="7"></circle>
+          <line x1="21" y1="21" x2="16" y2="16"></line>
+        </svg>
+        <input type="text" id="filter-search-input" class="search-input" placeholder="Filter nodes, routes..." oninput="handleGlobalSearch(event)">
+      </div>
+      <div class="server-status">
+        <div class="status-dot"></div>
+        <span>LIVE :9280</span>
       </div>
     </div>
   </header>
 
-  <!-- Main View Area -->
-  <main class="app-body">
-    
-    <!-- Vista 1: Obsidian / Graphify Knowledge Graph -->
+  <!-- App Body -->
+  <main class="app-viewport">
+
+    <!-- ==========================================
+         VIEW 1: SYSTEM ARCHITECTURE MAP
+         ========================================== -->
     <section class="view-pane active" id="graph-pane">
-      <div id="graph-viewport">
-        <canvas id="network-canvas"></canvas>
-
-        <!-- Floating HUD Metrics -->
-        <div class="floating-hud-left">
-          <div class="glass-card metrics-bar">
-            <div class="metric-group">
-              <span class="metric-name">Módulos</span>
-              <span class="metric-number" id="val-modules">0</span>
-            </div>
-            <div class="metric-group">
-              <span class="metric-name">Funcionalidades</span>
-              <span class="metric-number" style="color: #a5b4fc;" id="val-features">0</span>
-            </div>
-            <div class="metric-group">
-              <span class="metric-name">Con Tests</span>
-              <span class="metric-number" style="color: #34d399;" id="val-tests">0</span>
-            </div>
-            <div class="metric-group">
-              <span class="metric-name">Riesgos</span>
-              <span class="metric-number" style="color: #fb7185;" id="val-risks">0</span>
-            </div>
+      
+      <!-- Top Left HUD Metrics & Legend -->
+      <div class="canvas-hud-top-left">
+        <div class="hud-metrics-strip">
+          <div class="hud-metric">
+            <span class="hud-metric-label">Modules</span>
+            <span class="hud-metric-val" id="metric-modules-count">0</span>
           </div>
-
-          <div class="glass-card legend-panel">
-            <span class="legend-title">Estado de Nodos</span>
-            <div class="legend-row">
-              <div class="legend-ring green"></div>
-              <span>Con Pruebas (Test Cases)</span>
-            </div>
-            <div class="legend-row">
-              <div class="legend-ring yellow"></div>
-              <span>Descubierto (Sin Pruebas)</span>
-            </div>
-            <div class="legend-row">
-              <div class="legend-ring red"></div>
-              <span>Con Riesgos Críticos</span>
-            </div>
-
-            <span class="legend-title" style="margin-top: 6px;">Relaciones Dirigidas</span>
-            <div class="legend-row">
-              <div class="legend-connector prereq"></div>
-              <span>Prerrequisito (prereq)</span>
-            </div>
-            <div class="legend-row">
-              <div class="legend-connector flow"></div>
-              <span>Flujo Secuencial (flow)</span>
-            </div>
+          <div class="hud-metric">
+            <span class="hud-metric-label">Views</span>
+            <span class="hud-metric-val" id="metric-views-count">0</span>
+          </div>
+          <div class="hud-metric">
+            <span class="hud-metric-label">Surfaces</span>
+            <span class="hud-metric-val" id="metric-surfaces-count">0</span>
+          </div>
+          <div class="hud-metric">
+            <span class="hud-metric-label">PII Protected</span>
+            <span class="hud-metric-val" style="color: #fcd34d;" id="metric-pii-count">0</span>
           </div>
         </div>
 
-        <!-- Minimap HUD -->
-        <div class="minimap-hud">
-          <canvas id="minimap-canvas"></canvas>
-        </div>
-
-        <!-- Floating Camera Controls -->
-        <div class="floating-toolbar">
-          <button class="tool-btn" title="Acercar (Zoom In)" onclick="zoomStep(1.2)">+</button>
-          <button class="tool-btn" title="Alejar (Zoom Out)" onclick="zoomStep(0.8)">−</button>
-          <button class="tool-btn" title="Ajustar y Centrar Cámara" onclick="fitCamera()">⌖</button>
-          <button class="tool-btn" id="btn-physics-pause" title="Pausar Física" onclick="togglePhysicsState()">⏸</button>
+        <div class="hud-legend-strip">
+          <div class="legend-item">
+            <div class="legend-line prereq"></div>
+            <span>Prerequisite Dependency</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-line flow"></div>
+            <span>User Journey Flow</span>
+          </div>
         </div>
       </div>
 
-      <!-- Slide-out Drawer Panel -->
-      <aside class="drawer-aside" id="drawer-aside">
-        <div class="drawer-top-bar">
-          <div class="drawer-title-group">
-            <span class="drawer-node-name" id="drawer-title">Módulo</span>
-            <span class="status-badge" id="drawer-badge">Estado</span>
+      <!-- Zoom / Pan Controls -->
+      <div class="canvas-controls-bottom-right">
+        <button class="ctrl-btn" title="Zoom In (+)" onclick="zoomCamera(1.2)">+</button>
+        <button class="ctrl-btn" title="Zoom Out (-)" onclick="zoomCamera(0.8)">−</button>
+        <button class="ctrl-btn" title="Fit to Screen" onclick="fitGraphView()">
+          <svg class="icon" viewBox="0 0 24 24">
+            <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"></path>
+          </svg>
+        </button>
+        <button class="ctrl-btn" title="Reset Zoom (100%)" onclick="resetZoom()">1:1</button>
+      </div>
+
+      <!-- Interactive Graph Stage -->
+      <div class="graph-stage" id="graph-stage">
+        <!-- SVG Directed Edges Layer -->
+        <svg class="edges-svg-layer" id="edges-svg-layer">
+          <defs>
+            <marker id="arrow-prereq" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#52525b"></path>
+            </marker>
+            <marker id="arrow-flow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#38bdf8"></path>
+            </marker>
+          </defs>
+        </svg>
+
+        <!-- HTML Cards Node Layer -->
+        <div id="nodes-container"></div>
+      </div>
+
+      <!-- Slide-Out Technical Inspector Drawer -->
+      <aside class="inspector-drawer" id="inspector-drawer">
+        <div class="drawer-header">
+          <div class="drawer-breadcrumb" id="drawer-breadcrumb">
+            <span>Module</span>
           </div>
-          <button class="drawer-close" onclick="hideDrawer()">✕</button>
+          <button class="drawer-close-btn" onclick="closeInspectorDrawer()" title="Close Inspector">
+            <svg class="icon" viewBox="0 0 24 24">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
         </div>
 
-        <div class="drawer-tabs">
-          <button class="drawer-tab active" id="tab-btn-features" onclick="setDrawerTab('features')">⚡ Funcionalidades</button>
-          <button class="drawer-tab" id="tab-btn-tests" onclick="setDrawerTab('tests')">🧪 Casos de Prueba</button>
-          <button class="drawer-tab" id="tab-btn-overview" onclick="setDrawerTab('overview')">📋 General</button>
-          <button class="drawer-tab" id="tab-btn-routes" onclick="setDrawerTab('routes')">🔗 Rutas</button>
-          <button class="drawer-tab" id="tab-btn-security" onclick="setDrawerTab('security')">🛡️ Privacidad PII</button>
-          <button class="drawer-tab" id="tab-btn-files" onclick="setDrawerTab('files')">📄 Código</button>
-        </div>
-
-        <div class="drawer-body">
-          <!-- Features / Rules Tab -->
-          <div class="tab-content active" id="tab-pane-features">
-            <div class="section-block">
-              <span class="section-header">Funcionalidades y Reglas de Negocio (.qa/modules/&lt;name&gt;/rules.yaml)</span>
-              <div id="drawer-rules-list" style="display: flex; flex-direction: column; gap: 10px; margin-top: 4px;"></div>
-            </div>
-          </div>
-
-          <!-- Test Cases Tab -->
-          <div class="tab-content" id="tab-pane-tests" style="display: none;">
-            <div class="section-block">
-              <span class="section-header">Casos de Prueba Automatizados (.qa/modules/&lt;name&gt;/tests/)</span>
-              <div id="drawer-testcases-list" style="display: flex; flex-direction: column; gap: 10px; margin-top: 4px;"></div>
-            </div>
-          </div>
-
-          <!-- Overview Tab -->
-          <div class="tab-content" id="tab-pane-overview" style="display: none;">
-            <div class="section-block">
-              <span class="section-header">Objetivo Principal</span>
-              <p class="section-description" id="drawer-objective">Cargando...</p>
-            </div>
-
-            <div class="section-block">
-              <span class="section-header">Tipos de Usuario</span>
-              <div class="tag-container" id="drawer-users"></div>
-            </div>
-
-            <div class="section-block">
-              <span class="section-header">Riesgos Identificados</span>
-              <div class="tag-container" id="drawer-risks"></div>
-            </div>
-
-            <div class="section-block" id="drawer-prd-wrap">
-              <span class="section-header">Especificación PRD</span>
-              <div id="drawer-prd-link"></div>
-            </div>
-          </div>
-
-          <!-- Routes Tab -->
-          <div class="tab-content" id="tab-pane-routes" style="display: none;">
-            <div class="section-block">
-              <span class="section-header">Rutas Web Registradas</span>
-              <div class="tag-container" id="drawer-routes-list"></div>
-            </div>
-          </div>
-
-          <!-- Files Tab -->
-          <div class="tab-content" id="tab-pane-files" style="display: none;">
-            <div class="section-block">
-              <span class="section-header">Archivos Fuente Mapeados (POSIX)</span>
-              <div class="tag-container" id="drawer-files-list"></div>
-            </div>
-          </div>
-
-          <!-- Security Tab -->
-          <div class="tab-content" id="tab-pane-security" style="display: none;">
-            <div class="section-block">
-              <span class="section-header">Selectores con Redacción PII Activa</span>
-              <div class="tag-container" id="drawer-pii-list"></div>
-            </div>
-          </div>
+        <div class="drawer-body" id="drawer-body">
+          <!-- Dynamic Technical Inspection Content -->
         </div>
       </aside>
+
     </section>
 
-    <!-- Vista 2: Executive QA Test Engineering Dashboard -->
-    <section class="view-pane" id="gallery-pane">
-      <div id="gallery-viewport">
-        
-        <!-- Summary Stats Banner -->
-        <div class="kpi-metrics-banner">
-          <div class="kpi-card">
-            <span class="kpi-label">📊 Tasa de Éxito</span>
-            <span class="kpi-value" id="kpi-pass-rate" style="color: #34d399;">100%</span>
-            <span class="kpi-sub" id="kpi-pass-rate-sub">Salud global de la suite</span>
+    <!-- ==========================================
+         VIEW 2: EXECUTION LOGS DASHBOARD
+         ========================================== -->
+    <section class="view-pane" id="logs-pane">
+      <div class="kpi-row">
+        <div class="kpi-card">
+          <div class="kpi-label">
+            <span>Total Executions</span>
+            <svg class="icon" viewBox="0 0 24 24">
+              <polygon points="5 3 19 12 5 21 5 3"></polygon>
+            </svg>
           </div>
-          <div class="kpi-card">
-            <span class="kpi-label">⚡ Pasos Ejecutados</span>
-            <span class="kpi-value" id="kpi-total-steps">0</span>
-            <span class="kpi-sub">Acciones individuales validadas</span>
-          </div>
-          <div class="kpi-card">
-            <span class="kpi-label">🛡️ Protección PII</span>
-            <span class="kpi-value" id="kpi-pii-count" style="color: #38bdf8;">0</span>
-            <span class="kpi-sub">Campos sensibles enmascarados</span>
-          </div>
-          <div class="kpi-card">
-            <span class="kpi-label">⏱️ Latencia Media</span>
-            <span class="kpi-value" id="kpi-avg-duration">0ms</span>
-            <span class="kpi-sub">Tiempo promedio por test</span>
-          </div>
-          <div class="kpi-card">
-            <span class="kpi-label">📁 Ejecuciones</span>
-            <span class="kpi-value" id="kpi-exec-count">0</span>
-            <span class="kpi-sub">Corridas en .qa/executions/</span>
-          </div>
+          <span class="kpi-value" id="kpi-total-execs">0</span>
+          <span class="kpi-detail">Recorded in .qa/executions/</span>
         </div>
-
-        <!-- Filter & Search Bar -->
-        <div class="qa-filter-bar">
-          <div class="filter-left-group">
-            <div class="chip-filter-group" id="filter-module-chips">
-              <button class="filter-chip active" onclick="setModuleFilter('ALL')">Todos los Módulos</button>
-            </div>
-            <div class="chip-filter-group">
-              <button class="filter-chip active" id="chip-status-all" onclick="setStatusFilter('ALL')">Todos</button>
-              <button class="filter-chip status-pass" id="chip-status-success" onclick="setStatusFilter('success')">✓ Exitosos</button>
-              <button class="filter-chip status-fail" id="chip-status-failure" onclick="setStatusFilter('failure')">✕ Fallidos</button>
-            </div>
+        <div class="kpi-card">
+          <div class="kpi-label">
+            <span>Pass Rate</span>
+            <svg class="icon" viewBox="0 0 24 24">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+              <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
           </div>
-          <div>
-            <input type="text" class="report-search-box" id="report-search-input" placeholder="Buscar por paso o funcionalidad..." oninput="onReportSearch()">
+          <span class="kpi-value" style="color: var(--color-pass);" id="kpi-pass-rate">100%</span>
+          <span class="kpi-detail" id="kpi-pass-detail">0 passed · 0 failed</span>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">
+            <span>Avg Duration</span>
+            <svg class="icon" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
           </div>
+          <span class="kpi-value" id="kpi-avg-duration">0ms</span>
+          <span class="kpi-detail">Step execution telemetry</span>
         </div>
-
-        <!-- Executions & Report Cards Feed -->
-        <div class="qa-reports-feed" id="reports-grid">
-          <!-- Generado dinámicamente -->
+        <div class="kpi-card">
+          <div class="kpi-label">
+            <span>PII Masked Fields</span>
+            <svg class="icon" viewBox="0 0 24 24">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            </svg>
+          </div>
+          <span class="kpi-value" style="color: #fcd34d;" id="kpi-pii-masked">0</span>
+          <span class="kpi-detail">Confidential inputs protected</span>
         </div>
-
       </div>
+
+      <!-- Filters Strip -->
+      <div class="filter-bar">
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <span style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Module:</span>
+          <div class="filter-btn-group" id="module-filter-group">
+            <button class="filter-chip active" onclick="setModuleFilter('ALL')">ALL</button>
+          </div>
+          <span style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; margin-left: 8px;">Status:</span>
+          <div class="filter-btn-group">
+            <button class="filter-chip active" id="chip-status-all" onclick="setStatusFilter('ALL')">ALL</button>
+            <button class="filter-chip" id="chip-status-success" onclick="setStatusFilter('success')">PASSED</button>
+            <button class="filter-chip" id="chip-status-failure" onclick="setStatusFilter('failure')">FAILED</button>
+          </div>
+        </div>
+
+        <div class="search-box" style="width: 260px;">
+          <svg class="icon" viewBox="0 0 24 24">
+            <circle cx="11" cy="11" r="7"></circle>
+            <line x1="21" y1="21" x2="16" y2="16"></line>
+          </svg>
+          <input type="text" id="log-search-input" class="search-input" placeholder="Search execution ID, steps..." oninput="handleLogSearch(event)">
+        </div>
+      </div>
+
+      <!-- Executions Table -->
+      <div class="table-container">
+        <table class="dense-table">
+          <thead>
+            <tr>
+              <th style="width: 220px;">Execution ID</th>
+              <th style="width: 120px;">Module</th>
+              <th style="width: 110px;">Environment</th>
+              <th style="width: 120px;">Duration</th>
+              <th style="width: 110px;">Status</th>
+              <th>Actions / Telemetry</th>
+            </tr>
+          </thead>
+          <tbody id="executions-table-body">
+            <!-- Dynamic Table Rows -->
+          </tbody>
+        </table>
+      </div>
+
     </section>
 
   </main>
 
-  <!-- Fullscreen Lightbox Modal -->
+  <!-- Fullscreen Evidence Lightbox Modal -->
   <div class="lightbox-modal" id="lightbox-modal" onclick="closeLightbox()">
-    <div class="lightbox-window" onclick="event.stopPropagation()">
+    <div class="lightbox-box" onclick="event.stopPropagation()">
       <div class="lightbox-header">
-        <span id="lightbox-title" style="font-size: 13px; font-weight: 600;">Evidencia Visual</span>
-        <button class="drawer-close" onclick="closeLightbox()">✕</button>
+        <span id="lightbox-title">Visual Evidence</span>
+        <button class="drawer-close-btn" onclick="closeLightbox()">
+          <svg class="icon" viewBox="0 0 24 24">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
       </div>
-      <div class="lightbox-img-wrap">
-        <img id="lightbox-image" src="" alt="Captura de Evidencia en Grande">
-      </div>
+      <img id="lightbox-img" class="lightbox-img" src="" alt="Full Evidence Capture">
     </div>
   </div>
 
   <script>
-    // State
-    let apiData = {
-      projectName: 'QAP Banco Digital',
+    // Global Application State
+    let graphData = {
+      projectName: 'QAP Project',
+      generatedAt: new Date().toISOString(),
       nodes: [],
       edges: [],
       modulesDetail: {},
       recentExecutions: []
     };
 
-    let camera = { x: 0, y: 0, zoom: 1 };
+    // Camera Navigation State
+    let camera = { x: 80, y: 80, zoom: 1 };
     let isPanning = false;
     let panStart = { x: 0, y: 0 };
-    let hoveredNode = null;
-    let selectedNode = null;
-    let draggedNode = null;
-    let physicsEnabled = true;
-    let searchQuery = '';
-
-    // Gallery Filters
     let activeModuleFilter = 'ALL';
     let activeStatusFilter = 'ALL';
-    let reportSearchQuery = '';
+    let activeLogSearch = '';
+    let selectedItem = null;
 
-    // Simulation nodes & edges
-    let simNodes = [];
-    let simEdges = [];
-    let edgeParticles = [];
+    // Node Positions in Virtual Space
+    const nodePositions = {};
 
-    const canvas = document.getElementById('network-canvas');
-    const ctx = canvas.getContext('2d');
-    const minimapCanvas = document.getElementById('minimap-canvas');
-    const minimapCtx = minimapCanvas.getContext('2d');
+    // 1. Initialize and Fetch Data
+    async function init() {
+      setupGraphInteractions();
+      await loadGraphData();
+    }
 
-    // Switch View
-    function activateView(view) {
-      document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+    async function loadGraphData() {
+      try {
+        const response = await fetch('/api/graph');
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        graphData = await response.json();
+        
+        // Update Brand Label
+        const titleEl = document.getElementById('project-title-label');
+        if (titleEl && graphData.projectName) {
+          titleEl.textContent = `· ${graphData.projectName} (Architecture & Telemetry)`;
+        }
+
+        renderArchitectureNodes();
+        renderExecutionLogs();
+        updateKPICounters();
+      } catch (err) {
+        console.error('Failed to load knowledge graph:', err);
+      }
+    }
+
+    // 2. View Switching
+    function switchView(viewName) {
+      document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
       document.querySelectorAll('.view-pane').forEach(p => p.classList.remove('active'));
 
-      if (view === 'graph') {
-        document.getElementById('btn-graph-view').classList.add('active');
+      if (viewName === 'graph') {
+        document.getElementById('btn-view-graph').classList.add('active');
         document.getElementById('graph-pane').classList.add('active');
-        updateCanvasResolution();
+        updateEdges();
       } else {
-        document.getElementById('btn-gallery-view').classList.add('active');
-        document.getElementById('gallery-pane').classList.add('active');
-        renderExecutiveReports();
+        document.getElementById('btn-view-logs').classList.add('active');
+        document.getElementById('logs-pane').classList.add('active');
       }
     }
 
-    // Load Data from /api/graph
-    async function fetchGraphData() {
-      try {
-        const res = await fetch('/api/graph');
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        apiData = await res.json();
+    // 3. Render Architecture Diagram (Block Nodes & Directed Edges)
+    function renderArchitectureNodes() {
+      const container = document.getElementById('nodes-container');
+      container.innerHTML = '';
 
-        // Update Headers & Metrics
-        document.getElementById('project-header-title').textContent = apiData.projectName || 'QAP Knowledge Graph';
-        document.getElementById('val-modules').textContent = apiData.nodes.length;
-        
-        const totalFeatures = apiData.nodes.reduce((acc, n) => acc + (n.featuresCount || 0), 0);
-        document.getElementById('val-features').textContent = totalFeatures;
-        
-        document.getElementById('val-tests').textContent = apiData.nodes.filter(n => n.hasTests).length;
-        document.getElementById('val-risks').textContent = apiData.nodes.reduce((acc, n) => acc + (n.risksCount || 0), 0);
-        document.getElementById('nav-reports-count').textContent = apiData.recentExecutions.length;
+      const nodes = graphData.nodes || [];
+      const total = nodes.length;
 
-        setupGraphSimulation();
-        setupModuleFilterChips();
-        updateExecutiveKPIs();
-        renderExecutiveReports();
-      } catch (err) {
-        console.error('Error al cargar datos del grafo:', err);
-      }
-    }
+      // Layout modules horizontally with comfortable spacing
+      const startX = 60;
+      const startY = 80;
+      const cardWidth = 290;
+      const gapX = 140;
 
-    // Executive KPIs
-    function updateExecutiveKPIs() {
-      const execs = apiData.recentExecutions || [];
-      const totalExecs = execs.length;
-      document.getElementById('kpi-exec-count').textContent = totalExecs;
+      nodes.forEach((node, idx) => {
+        if (!nodePositions[node.id]) {
+          nodePositions[node.id] = {
+            x: startX + idx * (cardWidth + gapX),
+            y: startY
+          };
+        }
 
-      if (totalExecs === 0) {
-        document.getElementById('kpi-pass-rate').textContent = 'N/A';
-        document.getElementById('kpi-total-steps').textContent = '0';
-        document.getElementById('kpi-pii-count').textContent = '0';
-        document.getElementById('kpi-avg-duration').textContent = '0ms';
-        return;
-      }
+        const card = document.createElement('div');
+        card.className = 'module-card';
+        card.id = `node-${node.id}`;
+        card.style.transform = `translate(${nodePositions[node.id].x}px, ${nodePositions[node.id].y}px)`;
 
-      const passedExecs = execs.filter(e => e.status === 'success' || e.result === 'success').length;
-      const passRate = Math.round((passedExecs / totalExecs) * 100);
-      const passRateEl = document.getElementById('kpi-pass-rate');
-      passRateEl.textContent = `${passRate}%`;
-      if (passRate >= 80) {
-        passRateEl.style.color = '#34d399';
-        document.getElementById('kpi-pass-rate-sub').textContent = `${passedExecs} de ${totalExecs} pruebas superadas`;
-      } else {
-        passRateEl.style.color = '#fb7185';
-        document.getElementById('kpi-pass-rate-sub').textContent = `⚠️ ${totalExecs - passedExecs} ejecución(es) con fallas`;
-      }
+        // Header
+        const header = document.createElement('div');
+        header.className = 'module-card-header';
+        header.innerHTML = `
+          <div class="module-name-group">
+            <span class="module-status-dot ${node.hasTests ? 'active' : 'inactive'}" title="${node.hasTests ? 'Tests Verified' : 'No Automated Tests'}"></span>
+            <span class="module-title-mono">${escapeHtml(node.label || node.id)}</span>
+          </div>
+          <span class="module-route-pill">${escapeHtml(node.baseRoute || '/' + node.id)}</span>
+        `;
 
-      let totalSteps = 0;
-      let totalPii = 0;
-      let totalDurationMs = 0;
+        // Card Body with Hierarchy of Views & Surfaces
+        const body = document.createElement('div');
+        body.className = 'module-card-body';
 
-      execs.forEach(e => {
-        totalSteps += (e.steps && e.steps.length) || 0;
-        totalPii += e.piiMaskedCount || 0;
-        totalDurationMs += e.totalDurationMs || 0;
-      });
+        if (node.description) {
+          const desc = document.createElement('div');
+          desc.className = 'module-desc';
+          desc.textContent = node.description;
+          body.appendChild(desc);
+        }
 
-      document.getElementById('kpi-total-steps').textContent = totalSteps;
-      document.getElementById('kpi-pii-count').textContent = totalPii;
+        const hierContainer = document.createElement('div');
+        hierContainer.className = 'hierarchy-container';
+        hierContainer.innerHTML = `<span class="hierarchy-section-title">Views & Surfaces (${(node.views || []).length})</span>`;
 
-      const avgDuration = Math.round(totalDurationMs / totalExecs);
-      document.getElementById('kpi-avg-duration').textContent = `${avgDuration}ms`;
-    }
+        (node.views || []).forEach(view => {
+          const viewRow = document.createElement('div');
+          viewRow.className = 'view-row';
+          viewRow.onclick = (e) => {
+            e.stopPropagation();
+            openInspector('view', node, view);
+          };
 
-    // Setup Force-Directed Simulation (Graphify Style)
-    function setupGraphSimulation() {
-      const w = canvas.clientWidth || 900;
-      const h = canvas.clientHeight || 650;
-      const count = apiData.nodes.length;
-      const r = Math.min(w, h) * 0.28;
+          const viewHdr = document.createElement('div');
+          viewHdr.className = 'view-row-header';
+          viewHdr.innerHTML = `
+            <div class="view-label-group">
+              <span class="type-tag view">view</span>
+              <span class="view-name">${escapeHtml(view.name || view.id)}</span>
+            </div>
+            <span class="view-path-mono">${escapeHtml(view.path || '')}</span>
+          `;
+          viewRow.appendChild(viewHdr);
 
-      simNodes = apiData.nodes.map((node, i) => {
-        const angle = (i / (count || 1)) * Math.PI * 2;
-        return {
-          ...node,
-          x: w / 2 + Math.cos(angle) * r,
-          y: h / 2 + Math.sin(angle) * r,
-          vx: 0,
-          vy: 0,
-          radius: 28,
-        };
-      });
-
-      simEdges = apiData.edges.map(e => ({
-        ...e,
-        source: simNodes.find(n => n.id === e.from),
-        target: simNodes.find(n => n.id === e.to),
-      })).filter(e => e.source && e.target);
-
-      // Create animated synaptic particles on edges
-      edgeParticles = simEdges.map((e, idx) => ({
-        edge: e,
-        t: (idx * 0.3) % 1,
-        speed: 0.003 + Math.random() * 0.003
-      }));
-
-      fitCamera();
-    }
-
-    function togglePhysicsState() {
-      physicsEnabled = !physicsEnabled;
-      const btn = document.getElementById('btn-physics-pause');
-      btn.textContent = physicsEnabled ? '⏸' : '▶';
-      btn.title = physicsEnabled ? 'Pausar Física' : 'Reanudar Física';
-    }
-
-    // Physics Step
-    function stepSimulation() {
-      if (!physicsEnabled) return;
-
-      const kRepulsion = 5400;
-      const kSpring = 0.024;
-      const springLength = 175;
-      const damping = 0.86;
-      const centerGravity = 0.004;
-
-      const centerX = canvas.width / (2 * (window.devicePixelRatio || 1));
-      const centerY = canvas.height / (2 * (window.devicePixelRatio || 1));
-
-      // 1. Repulsion between all nodes
-      for (let i = 0; i < simNodes.length; i++) {
-        const n1 = simNodes[i];
-        if (n1 === draggedNode) continue;
-
-        // Centering force
-        n1.vx += (centerX - n1.x) * centerGravity;
-        n1.vy += (centerY - n1.y) * centerGravity;
-
-        for (let j = i + 1; j < simNodes.length; j++) {
-          const n2 = simNodes[j];
-          const dx = n2.x - n1.x;
-          const dy = n2.y - n1.y;
-          const distSq = dx * dx + dy * dy || 1;
-          const dist = Math.sqrt(distSq);
-
-          if (dist < 420) {
-            const force = kRepulsion / distSq;
-            const fx = (dx / dist) * force;
-            const fy = (dy / dist) * force;
-
-            if (n1 !== draggedNode) {
-              n1.vx -= fx;
-              n1.vy -= fy;
-            }
-            if (n2 !== draggedNode) {
-              n2.vx += fx;
-              n2.vy += fy;
-            }
+          if (view.surfaces && view.surfaces.length > 0) {
+            const surfList = document.createElement('div');
+            surfList.className = 'surfaces-list';
+            view.surfaces.forEach(surf => {
+              const surfItem = document.createElement('div');
+              surfItem.className = 'surface-item';
+              surfItem.onclick = (e) => {
+                e.stopPropagation();
+                openInspector('surface', node, view, surf);
+              };
+              surfItem.innerHTML = `
+                <div style="display:flex; align-items:center; gap:5px;">
+                  <span class="type-tag ${escapeHtml(surf.type || 'section')}">${escapeHtml(surf.type || 'section')}</span>
+                  <span>${escapeHtml(surf.name || surf.id)}</span>
+                </div>
+              `;
+              surfList.appendChild(surfItem);
+            });
+            viewRow.appendChild(surfList);
           }
-        }
-      }
 
-      // 2. Spring force on edges
-      for (const edge of simEdges) {
-        const dx = edge.target.x - edge.source.x;
-        const dy = edge.target.y - edge.source.y;
-        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-        const displacement = dist - springLength;
-        const force = displacement * kSpring;
+          hierContainer.appendChild(viewRow);
+        });
 
-        const fx = (dx / dist) * force;
-        const fy = (dy / dist) * force;
+        body.appendChild(hierContainer);
 
-        if (edge.source !== draggedNode) {
-          edge.source.vx += fx;
-          edge.source.vy += fy;
-        }
-        if (edge.target !== draggedNode) {
-          edge.target.vx -= fx;
-          edge.target.vy -= fy;
-        }
-      }
+        // Footer with file count and protected selectors count
+        const footer = document.createElement('div');
+        footer.className = 'module-card-footer';
+        footer.innerHTML = `
+          <span class="card-stat">
+            <svg class="icon" viewBox="0 0 24 24" style="width:12px;height:12px;">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+            </svg>
+            ${node.filesCount || 0} files
+          </span>
+          <span class="card-stat" style="color: ${node.sensitiveSelectors?.length > 0 ? '#fcd34d' : 'var(--text-muted)'};">
+            <svg class="icon" viewBox="0 0 24 24" style="width:12px;height:12px;">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            </svg>
+            ${node.sensitiveSelectors?.length || 0} protected
+          </span>
+        `;
 
-      // 3. Integrate velocity
-      for (const node of simNodes) {
-        if (node === draggedNode) continue;
-        node.vx *= damping;
-        node.vy *= damping;
-        node.x += node.vx;
-        node.y += node.vy;
-      }
+        card.appendChild(header);
+        card.appendChild(body);
+        card.appendChild(footer);
 
-      // 4. Advance synaptic particles
-      for (const p of edgeParticles) {
-        p.t += p.speed;
-        if (p.t > 1) p.t = 0;
-      }
+        // Drag module card to reposition
+        setupCardDrag(card, node.id);
+
+        // Click on module card opens module inspector
+        card.addEventListener('click', () => {
+          openInspector('module', node);
+        });
+
+        container.appendChild(card);
+      });
+
+      updateEdges();
     }
 
-    // Render Canvas
-    function drawNetwork() {
-      const dpr = window.devicePixelRatio || 1;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // 4. SVG Directed Edges Rendering
+    function updateEdges() {
+      const svg = document.getElementById('edges-svg-layer');
+      if (!svg) return;
 
-      ctx.save();
-      ctx.scale(dpr, dpr);
-      ctx.translate(camera.x, camera.y);
-      ctx.scale(camera.zoom, camera.zoom);
+      // Keep defs
+      const defs = svg.querySelector('defs');
+      svg.innerHTML = '';
+      if (defs) svg.appendChild(defs);
 
-      // A. Dynamic Dot Grid Background
-      const gridSize = 40;
-      const startX = Math.floor((-camera.x / camera.zoom) / gridSize) * gridSize - gridSize;
-      const endX = startX + (canvas.width / dpr / camera.zoom) + gridSize * 2;
-      const startY = Math.floor((-camera.y / camera.zoom) / gridSize) * gridSize - gridSize;
-      const endY = startY + (canvas.height / dpr / camera.zoom) + gridSize * 2;
+      const edges = graphData.edges || [];
+      const cardWidth = 290;
+      const cardHeightEst = 220;
 
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.035)';
-      for (let gx = startX; gx < endX; gx += gridSize) {
-        for (let gy = startY; gy < endY; gy += gridSize) {
-          ctx.beginPath();
-          ctx.arc(gx, gy, 1, 0, Math.PI * 2);
-          ctx.fill();
+      edges.forEach(edge => {
+        const fromPos = nodePositions[edge.from];
+        const toPos = nodePositions[edge.to];
+        if (!fromPos || !toPos) return;
+
+        // Port on right edge of source card
+        const startX = fromPos.x + cardWidth;
+        const startY = fromPos.y + 24;
+
+        // Port on left edge of destination card
+        const endX = toPos.x;
+        const endY = toPos.y + 24;
+
+        // Smooth cubic Bézier connector
+        const dx = Math.abs(endX - startX) * 0.55;
+        const pathData = `M ${startX} ${startY} C ${startX + dx} ${startY}, ${endX - dx} ${endY}, ${endX} ${endY}`;
+
+        const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        pathEl.setAttribute('d', pathData);
+        pathEl.setAttribute('class', `edge-path ${edge.type || 'prereq'}`);
+        pathEl.setAttribute('marker-end', `url(#arrow-${edge.type === 'flow' ? 'flow' : 'prereq'})`);
+        
+        svg.appendChild(pathEl);
+      });
+    }
+
+    // 5. Card Drag Handling
+    function setupCardDrag(cardEl, nodeId) {
+      const header = cardEl.querySelector('.module-card-header');
+      let isDragging = false;
+      let startX, startY;
+      let initialLeft, initialTop;
+
+      header.addEventListener('mousedown', (e) => {
+        e.stopPropagation();
+        isDragging = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        initialLeft = nodePositions[nodeId].x;
+        initialTop = nodePositions[nodeId].y;
+        cardEl.style.zIndex = 40;
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        const dx = (e.clientX - startX) / camera.zoom;
+        const dy = (e.clientY - startY) / camera.zoom;
+        nodePositions[nodeId].x = initialLeft + dx;
+        nodePositions[nodeId].y = initialTop + dy;
+        cardEl.style.transform = `translate(${nodePositions[nodeId].x}px, ${nodePositions[nodeId].y}px)`;
+        updateEdges();
+      });
+
+      window.addEventListener('mouseup', () => {
+        if (isDragging) {
+          isDragging = false;
+          cardEl.style.zIndex = 20;
         }
-      }
+      });
+    }
 
-      // B. Render Edges with directional flow
-      for (const edge of simEdges) {
-        const isNeighbor = selectedNode && (edge.source === selectedNode || edge.target === selectedNode);
-        const isDimmed = selectedNode && !isNeighbor;
+    // 6. Camera Pan & Zoom
+    function setupGraphInteractions() {
+      const pane = document.getElementById('graph-pane');
+      const stage = document.getElementById('graph-stage');
 
-        ctx.lineWidth = isNeighbor ? 2.5 : 1.5;
-        if (edge.type === 'prereq') {
-          ctx.strokeStyle = isDimmed ? 'rgba(6, 182, 212, 0.15)' : (isNeighbor ? '#22d3ee' : 'rgba(6, 182, 212, 0.45)');
-          ctx.setLineDash([4, 4]);
-        } else {
-          ctx.strokeStyle = isDimmed ? 'rgba(139, 92, 246, 0.15)' : (isNeighbor ? '#a78bfa' : 'rgba(139, 92, 246, 0.45)');
-          ctx.setLineDash([]);
+      pane.addEventListener('mousedown', (e) => {
+        if (e.target.closest('.module-card') || e.target.closest('.inspector-drawer') || e.target.closest('.canvas-hud-top-left') || e.target.closest('.canvas-controls-bottom-right')) {
+          return;
         }
-
-        ctx.beginPath();
-        ctx.moveTo(edge.source.x, edge.source.y);
-        ctx.lineTo(edge.target.x, edge.target.y);
-        ctx.stroke();
-
-        // Arrow head
-        const dx = edge.target.x - edge.source.x;
-        const dy = edge.target.y - edge.source.y;
-        const angle = Math.atan2(dy, dx);
-        const targetRadius = edge.target.radius + 6;
-        const ax = edge.target.x - Math.cos(angle) * targetRadius;
-        const ay = edge.target.y - Math.sin(angle) * targetRadius;
-
-        ctx.fillStyle = ctx.strokeStyle;
-        ctx.beginPath();
-        ctx.moveTo(ax, ay);
-        ctx.lineTo(ax - 9 * Math.cos(angle - Math.PI / 7), ay - 9 * Math.sin(angle - Math.PI / 7));
-        ctx.lineTo(ax - 9 * Math.cos(angle + Math.PI / 7), ay - 9 * Math.sin(angle + Math.PI / 7));
-        ctx.closePath();
-        ctx.fill();
-
-        // Edge label
-        if (camera.zoom > 0.8 || isNeighbor) {
-          const midX = (edge.source.x + edge.target.x) / 2;
-          const midY = (edge.source.y + edge.target.y) / 2;
-          ctx.font = '500 10px Inter, sans-serif';
-          ctx.fillStyle = isDimmed ? 'rgba(148, 163, 184, 0.2)' : '#94a3b8';
-          ctx.textAlign = 'center';
-          ctx.fillText(edge.label || edge.type, midX, midY - 6);
-        }
-      }
-
-      ctx.setLineDash([]);
-
-      // C. Synaptic Particles
-      for (const p of edgeParticles) {
-        const edge = p.edge;
-        const isDimmed = selectedNode && edge.source !== selectedNode && edge.target !== selectedNode;
-        if (isDimmed) continue;
-
-        const px = edge.source.x + (edge.target.x - edge.source.x) * p.t;
-        const py = edge.source.y + (edge.target.y - edge.source.y) * p.t;
-
-        ctx.beginPath();
-        ctx.arc(px, py, 2.5, 0, Math.PI * 2);
-        ctx.fillStyle = edge.type === 'prereq' ? '#22d3ee' : '#c084fc';
-        ctx.shadowColor = ctx.fillStyle;
-        ctx.shadowBlur = 6;
-        ctx.fill();
-        ctx.shadowBlur = 0;
-      }
-
-      // D. Render Nodes
-      for (const node of simNodes) {
-        const isHovered = (node === hoveredNode);
-        const isSelected = (node === selectedNode);
-        const matchesSearch = !searchQuery || node.label.toLowerCase().includes(searchQuery) || (node.routes && node.routes.some(r => r.toLowerCase().includes(searchQuery)));
-        const isNeighbor = selectedNode && simEdges.some(e => (e.source === selectedNode && e.target === node) || (e.target === selectedNode && e.source === node));
-        const isDimmed = (selectedNode && node !== selectedNode && !isNeighbor) || (!matchesSearch);
-
-        let baseColor = '#f59e0b'; // Amarillo
-        let glowColor = 'rgba(245, 158, 11, 0.4)';
-        if (node.risksCount > 0) {
-          baseColor = '#f43f5e'; // Rojo
-          glowColor = 'rgba(244, 63, 94, 0.45)';
-        } else if (node.hasTests) {
-          baseColor = '#10b981'; // Verde
-          glowColor = 'rgba(16, 185, 129, 0.45)';
-        }
-
-        // Ambient outer glow on select, hover, or search match
-        if ((isHovered || isSelected || (matchesSearch && searchQuery)) && !isDimmed) {
-          ctx.beginPath();
-          ctx.arc(node.x, node.y, node.radius + 12, 0, Math.PI * 2);
-          ctx.fillStyle = glowColor;
-          ctx.fill();
-        }
-
-        // Outer Ring
-        ctx.beginPath();
-        ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
-        ctx.fillStyle = isDimmed ? 'rgba(15, 23, 42, 0.6)' : 'rgba(15, 23, 42, 0.95)';
-        ctx.fill();
-        ctx.lineWidth = isSelected ? 3 : 2;
-        ctx.strokeStyle = isDimmed ? 'rgba(51, 65, 85, 0.5)' : (isSelected ? '#ffffff' : baseColor);
-        ctx.stroke();
-
-        // Inner glowing core
-        ctx.beginPath();
-        ctx.arc(node.x, node.y, 8, 0, Math.PI * 2);
-        ctx.fillStyle = isDimmed ? 'rgba(71, 85, 105, 0.4)' : baseColor;
-        ctx.fill();
-
-        // Center light
-        ctx.beginPath();
-        ctx.arc(node.x, node.y, 3, 0, Math.PI * 2);
-        ctx.fillStyle = isDimmed ? 'rgba(148, 163, 184, 0.4)' : '#ffffff';
-        ctx.fill();
-
-        // Typography Label with background shadow
-        ctx.font = '600 12px Inter, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'top';
-
-        ctx.fillStyle = 'rgba(7, 9, 14, 0.85)';
-        ctx.fillText(node.label, node.x + 1, node.y + node.radius + 8);
-        ctx.fillText(node.label, node.x - 1, node.y + node.radius + 8);
-
-        ctx.fillStyle = isDimmed ? 'rgba(100, 116, 139, 0.5)' : '#f8fafc';
-        ctx.fillText(node.label, node.x, node.y + node.radius + 8);
-
-        // Subtitle badge: features count
-        const featCount = node.featuresCount || 0;
-        const subText = `⚡ ${featCount} func`;
-        ctx.font = '500 10px JetBrains Mono, monospace';
-        ctx.fillStyle = isDimmed ? 'rgba(148, 163, 184, 0.3)' : '#818cf8';
-        ctx.fillText(subText, node.x, node.y + node.radius + 24);
-      }
-
-      ctx.restore();
-
-      // E. Draw Minimap
-      drawMinimap();
-    }
-
-    // Minimap Rendering
-    function drawMinimap() {
-      const mw = minimapCanvas.width;
-      const mh = minimapCanvas.height;
-      minimapCtx.clearRect(0, 0, mw, mh);
-
-      if (simNodes.length === 0) return;
-
-      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-      for (const n of simNodes) {
-        minX = Math.min(minX, n.x);
-        maxX = Math.max(maxX, n.x);
-        minY = Math.min(minY, n.y);
-        maxY = Math.max(maxY, n.y);
-      }
-
-      const padding = 60;
-      const gw = (maxX - minX) + padding * 2;
-      const gh = (maxY - minY) + padding * 2;
-
-      const sx = mw / gw;
-      const sy = mh / gh;
-      const scale = Math.min(sx, sy);
-
-      minimapCtx.save();
-      minimapCtx.translate(mw / 2, mh / 2);
-      minimapCtx.scale(scale, scale);
-      minimapCtx.translate(-(minX + maxX) / 2, -(minY + maxY) / 2);
-
-      // Minimap Edges
-      minimapCtx.lineWidth = 1.5;
-      minimapCtx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
-      for (const e of simEdges) {
-        minimapCtx.beginPath();
-        minimapCtx.moveTo(e.source.x, e.source.y);
-        minimapCtx.lineTo(e.target.x, e.target.y);
-        minimapCtx.stroke();
-      }
-
-      // Minimap Nodes
-      for (const n of simNodes) {
-        minimapCtx.beginPath();
-        minimapCtx.arc(n.x, n.y, 6, 0, Math.PI * 2);
-        minimapCtx.fillStyle = n.risksCount > 0 ? '#f43f5e' : (n.hasTests ? '#10b981' : '#f59e0b');
-        minimapCtx.fill();
-      }
-
-      // Viewport Box
-      const dpr = window.devicePixelRatio || 1;
-      const vpX = -camera.x / camera.zoom;
-      const vpY = -camera.y / camera.zoom;
-      const vpW = (canvas.width / dpr) / camera.zoom;
-      const vpH = (canvas.height / dpr) / camera.zoom;
-
-      minimapCtx.strokeStyle = 'rgba(99, 102, 241, 0.7)';
-      minimapCtx.lineWidth = 2;
-      minimapCtx.strokeRect(vpX, vpY, vpW, vpH);
-
-      minimapCtx.restore();
-    }
-
-    // Loop
-    function mainLoop() {
-      stepSimulation();
-      drawNetwork();
-      requestAnimationFrame(mainLoop);
-    }
-
-    // Canvas Resolution
-    function updateCanvasResolution() {
-      const dpr = window.devicePixelRatio || 1;
-      const rect = canvas.parentElement.getBoundingClientRect();
-      canvas.width = rect.width * dpr;
-      canvas.height = rect.height * dpr;
-      canvas.style.width = rect.width + 'px';
-      canvas.style.height = rect.height + 'px';
-
-      minimapCanvas.width = 150 * dpr;
-      minimapCanvas.height = 110 * dpr;
-    }
-
-    window.addEventListener('resize', updateCanvasResolution);
-
-    // Coordinate Math
-    function getCanvasCoords(clientX, clientY) {
-      const rect = canvas.getBoundingClientRect();
-      const x = (clientX - rect.left - camera.x) / camera.zoom;
-      const y = (clientY - rect.top - camera.y) / camera.zoom;
-      return { x, y };
-    }
-
-    function getNodeAt(clientX, clientY) {
-      const { x, y } = getCanvasCoords(clientX, clientY);
-      for (const n of simNodes) {
-        const dx = n.x - x;
-        const dy = n.y - y;
-        if (Math.sqrt(dx * dx + dy * dy) <= n.radius + 8) return n;
-      }
-      return null;
-    }
-
-    // Mouse & Touch Controls
-    canvas.addEventListener('mousedown', (e) => {
-      const node = getNodeAt(e.clientX, e.clientY);
-      if (node) {
-        draggedNode = node;
-      } else {
         isPanning = true;
-        panStart = { x: e.clientX - camera.x, y: e.clientY - camera.y };
-      }
-    });
+        panStart.x = e.clientX - camera.x;
+        panStart.y = e.clientY - camera.y;
+        pane.classList.add('panning');
+      });
 
-    window.addEventListener('mousemove', (e) => {
-      if (draggedNode) {
-        const { x, y } = getCanvasCoords(e.clientX, e.clientY);
-        draggedNode.x = x;
-        draggedNode.y = y;
-        draggedNode.vx = 0;
-        draggedNode.vy = 0;
-      } else if (isPanning) {
+      window.addEventListener('mousemove', (e) => {
+        if (!isPanning) return;
         camera.x = e.clientX - panStart.x;
         camera.y = e.clientY - panStart.y;
-      } else {
-        const node = getNodeAt(e.clientX, e.clientY);
-        if (node !== hoveredNode) {
-          hoveredNode = node;
-          canvas.style.cursor = hoveredNode ? 'pointer' : 'grab';
+        applyCameraTransform();
+      });
+
+      window.addEventListener('mouseup', () => {
+        if (isPanning) {
+          isPanning = false;
+          pane.classList.remove('panning');
         }
-      }
-    });
+      });
 
-    window.addEventListener('mouseup', () => {
-      draggedNode = null;
-      isPanning = false;
-    });
+      pane.addEventListener('wheel', (e) => {
+        if (e.target.closest('.inspector-drawer')) return;
+        e.preventDefault();
+        const factor = e.deltaY < 0 ? 1.08 : 0.92;
+        const rect = pane.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
 
-    canvas.addEventListener('click', (e) => {
-      const node = getNodeAt(e.clientX, e.clientY);
-      if (node) {
-        selectedNode = node;
-        showDrawer(node);
-      } else {
-        selectedNode = null;
-        hideDrawer();
-      }
-    });
-
-    canvas.addEventListener('wheel', (e) => {
-      e.preventDefault();
-      const factor = e.deltaY < 0 ? 1.1 : 0.9;
-      zoomStep(factor, e.clientX, e.clientY);
-    }, { passive: false });
-
-    function zoomStep(factor, clientX, clientY) {
-      const rect = canvas.getBoundingClientRect();
-      const cx = (clientX !== undefined ? clientX : rect.left + rect.width / 2) - rect.left;
-      const cy = (clientY !== undefined ? clientY : rect.top + rect.height / 2) - rect.top;
-
-      const nextZoom = Math.min(Math.max(camera.zoom * factor, 0.2), 3.5);
-      camera.x = cx - (cx - camera.x) * (nextZoom / camera.zoom);
-      camera.y = cy - (cy - camera.y) * (nextZoom / camera.zoom);
-      camera.zoom = nextZoom;
+        const newZoom = Math.min(2.5, Math.max(0.35, camera.zoom * factor));
+        camera.x = mouseX - (mouseX - camera.x) * (newZoom / camera.zoom);
+        camera.y = mouseY - (mouseY - camera.y) * (newZoom / camera.zoom);
+        camera.zoom = newZoom;
+        applyCameraTransform();
+      }, { passive: false });
     }
 
-    function fitCamera() {
-      if (simNodes.length === 0) {
-        camera = { x: 0, y: 0, zoom: 1 };
-        return;
-      }
-      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-      for (const n of simNodes) {
-        minX = Math.min(minX, n.x);
-        maxX = Math.max(maxX, n.x);
-        minY = Math.min(minY, n.y);
-        maxY = Math.max(maxY, n.y);
-      }
-      const rect = canvas.getBoundingClientRect();
-      const gw = (maxX - minX) + 160;
-      const gh = (maxY - minY) + 160;
-      const zx = rect.width / gw;
-      const zy = rect.height / gh;
-      const z = Math.min(Math.max(Math.min(zx, zy), 0.4), 1.3);
-
-      camera.zoom = z;
-      camera.x = rect.width / 2 - ((minX + maxX) / 2) * z;
-      camera.y = rect.height / 2 - ((minY + maxY) / 2) * z;
+    function applyCameraTransform() {
+      const stage = document.getElementById('graph-stage');
+      stage.style.transform = `translate(${camera.x}px, ${camera.y}px) scale(${camera.zoom})`;
     }
 
-    // Drawer Logic with Features and Rules
-    function showDrawer(node) {
-      const drawer = document.getElementById('drawer-aside');
-      const detail = apiData.modulesDetail[node.id] || {};
+    function zoomCamera(factor) {
+      camera.zoom = Math.min(2.5, Math.max(0.35, camera.zoom * factor));
+      applyCameraTransform();
+    }
 
-      document.getElementById('drawer-title').textContent = node.label;
-      const badge = document.getElementById('drawer-badge');
+    function resetZoom() {
+      camera.zoom = 1;
+      applyCameraTransform();
+    }
 
-      if (node.risksCount > 0) {
-        badge.className = 'status-badge risky';
-        badge.textContent = `${node.risksCount} Riesgos`;
-      } else if (node.hasTests) {
-        badge.className = 'status-badge tested';
-        badge.textContent = 'Con Pruebas';
-      } else {
-        badge.className = 'status-badge discovered';
-        badge.textContent = 'Descubierto';
-      }
+    function fitGraphView() {
+      const pane = document.getElementById('graph-pane');
+      const rect = pane.getBoundingClientRect();
+      const nodeKeys = Object.keys(nodePositions);
+      if (nodeKeys.length === 0) return;
 
-      // 1. Rules & Features Tab
-      const rulesWrap = document.getElementById('drawer-rules-list');
-      rulesWrap.innerHTML = '';
-      const rules = detail.rules || node.rules || [];
-      if (rules.length > 0) {
-        rules.forEach(r => {
-          const sev = r.severity || 'medium';
-          const tags = Array.isArray(r.tags) ? r.tags.map(t => `<span class="interactive-tag">#${t}</span>`).join(' ') : '';
-          rulesWrap.innerHTML += `
-            <div class="rule-card">
-              <div class="rule-card-header">
-                <span class="rule-id">⚡ ${r.id}</span>
-                <span class="severity-pill ${sev}">${sev}</span>
-              </div>
-              <div class="rule-desc">${r.description}</div>
-              ${r.condition ? `<div class="rule-code-snippet"><strong>cond:</strong> ${escapeHtml(r.condition)}</div>` : ''}
-              ${r.action ? `<div class="rule-code-snippet"><strong>action:</strong> ${escapeHtml(r.action)}</div>` : ''}
-              ${tags ? `<div class="tag-container" style="margin-top:4px;">${tags}</div>` : ''}
-            </div>
-          `;
-        });
-      } else {
-        rulesWrap.innerHTML = `
-          <div style="padding: 24px 10px; text-align: center; color: var(--text-muted); font-size: 13px;">
-            <p>No se encontraron reglas en <code>.qa/modules/${node.id}/rules.yaml</code>.</p>
-            <p style="margin-top: 6px; font-size: 12px;">Define reglas funcionales para auditar condiciones de negocio.</p>
-          </div>
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      nodeKeys.forEach(k => {
+        const p = nodePositions[k];
+        minX = Math.min(minX, p.x);
+        minY = Math.min(minY, p.y);
+        maxX = Math.max(maxX, p.x + 300);
+        maxY = Math.max(maxY, p.y + 260);
+      });
+
+      const totalW = maxX - minX + 80;
+      const totalH = maxY - minY + 80;
+      const scaleX = rect.width / totalW;
+      const scaleY = rect.height / totalH;
+      const fitZoom = Math.min(1.2, Math.max(0.5, Math.min(scaleX, scaleY)));
+
+      camera.zoom = fitZoom;
+      camera.x = (rect.width - totalW * fitZoom) / 2 - minX * fitZoom + 40;
+      camera.y = (rect.height - totalH * fitZoom) / 2 - minY * fitZoom + 40;
+      applyCameraTransform();
+    }
+
+    // 7. Inspector Drawer (Technical Detail)
+    function openInspector(level, moduleNode, viewNode, surfaceNode) {
+      const drawer = document.getElementById('inspector-drawer');
+      const breadcrumb = document.getElementById('drawer-breadcrumb');
+      const body = document.getElementById('drawer-body');
+
+      // Highlight selected module card
+      document.querySelectorAll('.module-card').forEach(c => c.classList.remove('selected'));
+      const activeCard = document.getElementById(`node-${moduleNode.id}`);
+      if (activeCard) activeCard.classList.add('selected');
+
+      // Build Breadcrumb
+      if (level === 'module') {
+        breadcrumb.innerHTML = `<span class="crumb-active">${escapeHtml(moduleNode.id)}</span>`;
+      } else if (level === 'view') {
+        breadcrumb.innerHTML = `
+          <span>${escapeHtml(moduleNode.id)}</span> / 
+          <span class="crumb-active">${escapeHtml(viewNode.id || viewNode.name)}</span>
+        `;
+      } else if (level === 'surface') {
+        breadcrumb.innerHTML = `
+          <span>${escapeHtml(moduleNode.id)}</span> / 
+          <span>${escapeHtml(viewNode.id)}</span> / 
+          <span class="crumb-active">${escapeHtml(surfaceNode.id || surfaceNode.name)}</span>
         `;
       }
 
-      // 2. Test Cases Tab
-      const testsWrap = document.getElementById('drawer-testcases-list');
-      testsWrap.innerHTML = '';
-      const testCases = detail.testCases || node.testCases || [];
-      if (testCases.length > 0) {
-        testCases.forEach(tc => {
-          const tags = Array.isArray(tc.tags) ? tc.tags.map(t => `<span class="interactive-tag">#${t}</span>`).join(' ') : '';
-          const stepsCount = Array.isArray(tc.steps) ? tc.steps.length : 0;
-          let stepsPreview = '';
-          if (Array.isArray(tc.steps)) {
-            stepsPreview = tc.steps.slice(0, 4).map((s, idx) => `
-              <div style="display:flex; align-items:center; gap:6px; font-size:11px; margin-top:3px; color:var(--text-secondary);">
-                <span class="step-action-badge ${s.type}">${s.type}</span>
-                <span style="font-family:var(--font-mono);">${escapeHtml(s.selector || s.url || s.description || '')}</span>
-              </div>
-            `).join('');
-            if (tc.steps.length > 4) {
-              stepsPreview += `<div style="font-size:10px; color:var(--text-muted); margin-top:4px;">+ ${tc.steps.length - 4} pasos adicionales</div>`;
-            }
-          }
+      // Find real execution evidence for this module
+      const moduleExecs = (graphData.recentExecutions || []).filter(e => e.module === moduleNode.id);
+      const modDetail = graphData.modulesDetail[moduleNode.id] || {};
+      const files = modDetail.files || [];
+      const selectors = modDetail.selectors || {};
+      const sensitiveSelectors = moduleNode.sensitiveSelectors || [];
 
-          testsWrap.innerHTML += `
-            <div class="rule-card">
-              <div class="rule-card-header">
-                <span class="rule-id">🧪 ${tc.id || tc.name}</span>
-                <span class="status-badge tested">${stepsCount} Pasos</span>
+      let contentHtml = `
+        <!-- Section: Technical Route & Metadata -->
+        <div class="drawer-section">
+          <span class="drawer-section-title">
+            <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line></svg>
+            Architecture Specification
+          </span>
+          <table class="drawer-prop-table">
+            <tr>
+              <td class="prop-key">Module ID</td>
+              <td class="prop-val">${escapeHtml(moduleNode.id)}</td>
+            </tr>
+            <tr>
+              <td class="prop-key">Base Route</td>
+              <td class="prop-val">${escapeHtml(moduleNode.baseRoute)}</td>
+            </tr>
+            ${viewNode ? `
+            <tr>
+              <td class="prop-key">View Path</td>
+              <td class="prop-val">${escapeHtml(viewNode.path || '')}</td>
+            </tr>
+            ` : ''}
+            ${surfaceNode ? `
+            <tr>
+              <td class="prop-key">Surface Type</td>
+              <td class="prop-val"><span class="type-tag ${escapeHtml(surfaceNode.type)}">${escapeHtml(surfaceNode.type)}</span></td>
+            </tr>
+            ` : ''}
+            <tr>
+              <td class="prop-key">Description</td>
+              <td class="prop-val" style="font-family:var(--font-sans);">${escapeHtml(moduleNode.description || 'No description provided')}</td>
+            </tr>
+          </table>
+        </div>
+
+        <!-- Section: Repository Source Files -->
+        <div class="drawer-section">
+          <span class="drawer-section-title">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+            Source Code Files (${files.length})
+          </span>
+          <div class="code-list-box">
+            ${files.length > 0 ? files.map(f => `
+              <div class="code-file-item">
+                <div class="code-file-left">
+                  <svg class="icon" viewBox="0 0 24 24" style="width:12px;height:12px;color:var(--text-muted);"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>
+                  <span>${escapeHtml(f)}</span>
+                </div>
+                <button class="copy-btn" onclick="copyToClipboard('${escapeHtml(f)}')">copy</button>
               </div>
-              <div class="rule-desc" style="font-weight:600;">${tc.name || tc.id}</div>
-              ${stepsPreview ? `<div style="background:rgba(0,0,0,0.3); padding:8px; border-radius:6px; margin-top:4px;">${stepsPreview}</div>` : ''}
-              ${tags ? `<div class="tag-container" style="margin-top:4px;">${tags}</div>` : ''}
-            </div>
-          `;
-        });
-      } else {
-        testsWrap.innerHTML = `
-          <div style="padding: 24px 10px; text-align: center; color: var(--text-muted); font-size: 13px;">
-            <p>Sin casos de prueba registrados en <code>.qa/modules/${node.id}/tests/</code>.</p>
+            `).join('') : '<span style="color:var(--text-muted);font-size:11px;">No files mapped in repo-map.json</span>'}
           </div>
-        `;
-      }
+        </div>
 
-      // 3. Overview Tab
-      document.getElementById('drawer-objective').textContent = detail.objective || 'Sin objetivo registrado en context.yaml.';
+        <!-- Section: DOM Selectors & PII -->
+        <div class="drawer-section">
+          <span class="drawer-section-title">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+            DOM Selectors & Protected Fields
+          </span>
+          <div style="display:flex; flex-direction:column; gap:5px;">
+            ${sensitiveSelectors.map(sel => `
+              <div class="selector-item" style="border-color: rgba(245, 158, 11, 0.3);">
+                <span style="color:#fcd34d;">${escapeHtml(sel)}</span>
+                <span class="protected-badge">Protected Field</span>
+              </div>
+            `).join('')}
 
-      const usersWrap = document.getElementById('drawer-users');
-      usersWrap.innerHTML = '';
-      (detail.users || []).forEach(u => {
-        usersWrap.innerHTML += `<span class="interactive-tag">👤 ${u}</span>`;
-      });
-      if ((detail.users || []).length === 0) {
-        usersWrap.innerHTML = '<span class="section-description">Sin roles especificados</span>';
-      }
+            ${Object.entries(selectors).filter(([k, v]) => !sensitiveSelectors.includes(v)).map(([k, v]) => `
+              <div class="selector-item">
+                <span style="color:var(--text-muted);">${escapeHtml(k)}:</span>
+                <span>${escapeHtml(v)}</span>
+              </div>
+            `).join('')}
 
-      const risksWrap = document.getElementById('drawer-risks');
-      risksWrap.innerHTML = '';
-      (detail.risks || []).forEach(r => {
-        risksWrap.innerHTML += `<span class="interactive-tag risk">⚠️ ${r}</span>`;
-      });
-      if ((detail.risks || []).length === 0) {
-        risksWrap.innerHTML = '<span class="section-description" style="color:#10b981;">✓ 0 riesgos críticos detectados</span>';
-      }
+            ${sensitiveSelectors.length === 0 && Object.keys(selectors).length === 0 ? `
+              <span style="color:var(--text-muted); font-size:11px;">No DOM selectors registered</span>
+            ` : ''}
+          </div>
+        </div>
 
-      const prdWrap = document.getElementById('drawer-prd-link');
-      if (detail.prd_source) {
-        prdWrap.innerHTML = `<a class="interactive-tag link-btn" href="${detail.prd_source}" target="_blank" rel="noopener">📄 Abrir PRD Origen ↗</a>`;
-      } else {
-        prdWrap.innerHTML = '<span class="section-description">No vinculado a un PRD</span>';
-      }
+        <!-- Section: Visual Evidence Preview -->
+        <div class="drawer-section">
+          <span class="drawer-section-title">
+            <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+            Execution Evidence Preview
+          </span>
+          ${renderInspectorScreenshots(moduleExecs)}
+        </div>
+      `;
 
-      // 4. Routes List
-      const routesWrap = document.getElementById('drawer-routes-list');
-      routesWrap.innerHTML = '';
-      (detail.routes || node.routes || []).forEach(rt => {
-        routesWrap.innerHTML += `<span class="interactive-tag route" onclick="copyToClipboard('${rt}')" title="Clic para copiar ruta">🔗 ${rt}</span>`;
-      });
-
-      // 5. Files List
-      const filesWrap = document.getElementById('drawer-files-list');
-      filesWrap.innerHTML = '';
-      (detail.files || []).forEach(f => {
-        filesWrap.innerHTML += `<span class="interactive-tag" onclick="copyToClipboard('${f}')" title="Clic para copiar ruta POSIX">📄 ${f}</span>`;
-      });
-
-      // 6. PII Selectors
-      const piiWrap = document.getElementById('drawer-pii-list');
-      piiWrap.innerHTML = '';
-      (detail.sensitive_selectors || []).forEach(s => {
-        piiWrap.innerHTML += `<span class="interactive-tag pii">🛡️ ${s}</span>`;
-      });
-      if ((detail.sensitive_selectors || []).length === 0) {
-        piiWrap.innerHTML = '<span class="section-description">Sin selectores PII definidos</span>';
-      }
-
-      setDrawerTab('features');
+      body.innerHTML = contentHtml;
       drawer.classList.add('open');
     }
 
-    function hideDrawer() {
-      document.getElementById('drawer-aside').classList.remove('open');
-      selectedNode = null;
+    function renderInspectorScreenshots(execs) {
+      if (!execs || execs.length === 0) {
+        return `<span style="color:var(--text-muted); font-size:11px;">No executions registered for this module yet</span>`;
+      }
+
+      const allScreenshots = [];
+      execs.forEach(e => {
+        (e.screenshots || []).forEach(url => {
+          allScreenshots.push({ url, execId: e.id, status: e.status });
+        });
+      });
+
+      if (allScreenshots.length === 0) {
+        return `<span style="color:var(--text-muted); font-size:11px;">No screenshots attached to recent runs</span>`;
+      }
+
+      const primary = allScreenshots[0];
+      return `
+        <div class="browser-frame">
+          <div class="browser-titlebar">
+            <div class="browser-dots">
+              <div class="browser-dot"></div>
+              <div class="browser-dot"></div>
+              <div class="browser-dot"></div>
+            </div>
+            <div class="browser-url-pill">${escapeHtml(primary.execId)} · Chromium 128</div>
+          </div>
+          <div class="browser-content-area">
+            <img class="browser-screenshot-img" src="${escapeHtml(primary.url)}" alt="Screenshot Preview" onclick="openLightbox('${escapeHtml(primary.url)}', '${escapeHtml(primary.execId)}')">
+            <div class="masked-region-indicator">Masked Region: Active</div>
+          </div>
+        </div>
+      `;
     }
 
-    function setDrawerTab(tab) {
-      document.querySelectorAll('.drawer-tab').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.tab-content').forEach(p => p.style.display = 'none');
-
-      const btn = document.getElementById(`tab-btn-${tab}`);
-      const pane = document.getElementById(`tab-pane-${tab}`);
-      if (btn) btn.classList.add('active');
-      if (pane) pane.style.display = 'flex';
+    function closeInspectorDrawer() {
+      const drawer = document.getElementById('inspector-drawer');
+      drawer.classList.remove('open');
+      document.querySelectorAll('.module-card').forEach(c => c.classList.remove('selected'));
     }
 
-    function copyToClipboard(text) {
-      navigator.clipboard?.writeText(text);
-    }
+    // 8. Render Execution Logs Dashboard
+    function renderExecutionLogs() {
+      const tbody = document.getElementById('executions-table-body');
+      tbody.innerHTML = '';
 
-    function escapeHtml(str) {
-      if (!str) return '';
-      return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-    }
+      const execs = graphData.recentExecutions || [];
 
-    // Module Filters for Executive QA Reports
-    function setupModuleFilterChips() {
-      const wrap = document.getElementById('filter-module-chips');
-      wrap.innerHTML = `<button class="filter-chip active" onclick="setModuleFilter('ALL')">Todos los Módulos</button>`;
-      apiData.nodes.forEach(n => {
-        wrap.innerHTML += `<button class="filter-chip" onclick="setModuleFilter('${n.id}')">${n.label}</button>`;
+      // Update module filter chips
+      const modFilterGroup = document.getElementById('module-filter-group');
+      const uniqueModules = Array.from(new Set(execs.map(e => e.module).filter(Boolean)));
+      modFilterGroup.innerHTML = `
+        <button class="filter-chip ${activeModuleFilter === 'ALL' ? 'active' : ''}" onclick="setModuleFilter('ALL')">ALL</button>
+        ${uniqueModules.map(m => `
+          <button class="filter-chip ${activeModuleFilter === m ? 'active' : ''}" onclick="setModuleFilter('${escapeHtml(m)}')">${escapeHtml(m)}</button>
+        `).join('')}
+      `;
+
+      // Filter
+      const filtered = execs.filter(e => {
+        const matchMod = activeModuleFilter === 'ALL' || e.module === activeModuleFilter;
+        const matchStatus = activeStatusFilter === 'ALL' || e.status === activeStatusFilter || (activeStatusFilter === 'failure' && e.status !== 'success');
+        const matchSearch = !activeLogSearch || e.id.toLowerCase().includes(activeLogSearch) || (e.module && e.module.toLowerCase().includes(activeLogSearch));
+        return matchMod && matchStatus && matchSearch;
+      });
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" style="text-align:center; padding:32px; color:var(--text-muted);">
+              No execution records match the current filter criteria.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      filtered.forEach((exec, idx) => {
+        const isSuccess = exec.status === 'success' || exec.result === 'completed';
+        const mainRow = document.createElement('tr');
+        mainRow.id = `row-exec-${exec.id}`;
+        mainRow.onclick = () => toggleTraceAccordion(exec.id);
+
+        mainRow.innerHTML = `
+          <td style="font-family:var(--font-mono); font-weight:600; color:var(--text-primary);">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <svg class="icon accordion-arrow" id="arrow-${exec.id}" viewBox="0 0 24 24" style="width:12px;height:12px;transition:transform 0.15s;">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+              <span>${escapeHtml(exec.id)}</span>
+            </div>
+          </td>
+          <td>
+            <span class="badge-env">${escapeHtml(exec.module)}</span>
+          </td>
+          <td>
+            <span class="badge-env">${escapeHtml(exec.environment || 'staging')}</span>
+          </td>
+          <td style="font-family:var(--font-mono); font-size:11px;">
+            ${formatDuration(exec.totalDurationMs)}
+          </td>
+          <td>
+            <span class="badge-status ${isSuccess ? 'success' : 'failure'}">
+              ${isSuccess ? 'PASSED' : 'FAILED'}
+            </span>
+          </td>
+          <td>
+            <button class="btn-action-small" onclick="event.stopPropagation(); toggleTraceAccordion('${escapeHtml(exec.id)}')">
+              <span>View Trace (${(exec.steps || []).length} steps)</span>
+            </button>
+          </td>
+        `;
+
+        // Accordion Row with Steps Breakdown and Evidence Frame
+        const traceRow = document.createElement('tr');
+        traceRow.className = 'trace-detail-row';
+        traceRow.id = `trace-${exec.id}`;
+
+        const steps = exec.steps || [];
+        const screenshots = exec.screenshots || [];
+
+        traceRow.innerHTML = `
+          <td colspan="6" style="padding:0;">
+            <div class="trace-content-box">
+              
+              <!-- Step by Step Table -->
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                <div style="display:flex; align-items:center; justify-content:space-between;">
+                  <span style="font-size:11px; font-weight:600; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.04em;">
+                    Execution Steps Telemetry
+                  </span>
+                  <span style="font-family:var(--font-mono); font-size:11px; color:var(--text-secondary);">
+                    Operator: ${escapeHtml(exec.operator || 'Carlos Eduardo (QAP v2.1)')} · Browser: ${escapeHtml(exec.browser || 'Chromium Headless')}
+                  </span>
+                </div>
+
+                <table class="step-trace-table">
+                  <thead>
+                    <tr>
+                      <th style="width:36px;">#</th>
+                      <th style="width:90px;">Action</th>
+                      <th>Step Description & Target Selector</th>
+                      <th style="width:80px;">Duration</th>
+                      <th style="width:80px;">Status</th>
+                      <th style="width:80px;">Evidence</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${steps.map((st, sIdx) => {
+                      const stSuccess = st.status === 'success';
+                      const actionType = inferAction(st.name);
+                      return `
+                        <tr>
+                          <td style="font-family:var(--font-mono); color:var(--text-muted); text-align:center;">${sIdx + 1}</td>
+                          <td><span class="action-badge">${escapeHtml(actionType)}</span></td>
+                          <td>
+                            <div style="font-weight:500; color:var(--text-primary);">${escapeHtml(st.name)}</div>
+                            ${st.message ? `<div style="font-size:11px; color:var(--text-secondary); margin-top:2px;">${escapeHtml(st.message)}</div>` : ''}
+                          </td>
+                          <td style="font-family:var(--font-mono); font-size:11px;">${st.duration_ms || 0}ms</td>
+                          <td>
+                            <span class="badge-status ${stSuccess ? 'success' : 'failure'}" style="font-size:9px; padding:1px 5px;">
+                              ${stSuccess ? 'OK' : 'ERR'}
+                            </span>
+                          </td>
+                          <td>
+                            ${st.screenshot ? `
+                              <button class="btn-action-small" onclick="openLightbox('${escapeHtml(st.screenshot)}', 'Step ${sIdx + 1}: ${escapeHtml(st.name)}')">
+                                Frame
+                              </button>
+                            ` : `<span style="color:var(--text-muted); font-size:10px;">—</span>`}
+                          </td>
+                        </tr>
+                      `;
+                    }).join('')}
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Evidence Preview Frame -->
+              ${screenshots.length > 0 ? `
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                  <span style="font-size:11px; font-weight:600; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.04em;">
+                    Visual Verification (${screenshots.length} captured frames)
+                  </span>
+                  <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap:12px;">
+                    ${screenshots.map((sUrl, sIdx) => `
+                      <div class="browser-frame">
+                        <div class="browser-titlebar">
+                          <div class="browser-dots">
+                            <div class="browser-dot"></div>
+                            <div class="browser-dot"></div>
+                            <div class="browser-dot"></div>
+                          </div>
+                          <div class="browser-url-pill">Evidence #${sIdx + 1} · ${escapeHtml(exec.id)}</div>
+                        </div>
+                        <div class="browser-content-area">
+                          <img class="browser-screenshot-img" src="${escapeHtml(sUrl)}" alt="Evidence ${sIdx + 1}" onclick="openLightbox('${escapeHtml(sUrl)}', '${escapeHtml(exec.id)} - Frame ${sIdx + 1}')">
+                          <div class="masked-region-indicator">Masked Region: Active</div>
+                        </div>
+                      </div>
+                    `).join('')}
+                  </div>
+                </div>
+              ` : ''}
+
+            </div>
+          </td>
+        `;
+
+        tbody.appendChild(mainRow);
+        tbody.appendChild(traceRow);
       });
     }
 
+    function toggleTraceAccordion(execId) {
+      const traceRow = document.getElementById(`trace-${execId}`);
+      const arrow = document.getElementById(`arrow-${execId}`);
+      const mainRow = document.getElementById(`row-exec-${execId}`);
+      if (!traceRow) return;
+
+      const isOpen = traceRow.classList.contains('open');
+      if (isOpen) {
+        traceRow.classList.remove('open');
+        mainRow.classList.remove('expanded');
+        if (arrow) arrow.style.transform = 'rotate(0deg)';
+      } else {
+        traceRow.classList.add('open');
+        mainRow.classList.add('expanded');
+        if (arrow) arrow.style.transform = 'rotate(90deg)';
+      }
+    }
+
+    function inferAction(stepName) {
+      const lower = (stepName || '').toLowerCase();
+      if (lower.includes('navegar') || lower.includes('navigate') || lower.includes('url')) return 'NAVIGATE';
+      if (lower.includes('ingresar') || lower.includes('fill') || lower.includes('type')) return 'FILL';
+      if (lower.includes('clic') || lower.includes('click') || lower.includes('boton') || lower.includes('pulsar')) return 'CLICK';
+      if (lower.includes('aserci') || lower.includes('assert') || lower.includes('verificar') || lower.includes('validar')) return 'ASSERT';
+      if (lower.includes('captura') || lower.includes('screenshot')) return 'SCREENSHOT';
+      return 'STEP';
+    }
+
+    function formatDuration(ms) {
+      if (!ms || typeof ms !== 'number') return '0ms';
+      if (ms < 1000) return `${ms}ms`;
+      return `${(ms / 1000).toFixed(2)}s`;
+    }
+
+    // 9. Update KPI Summary Counters
+    function updateKPICounters() {
+      const nodes = graphData.nodes || [];
+      const execs = graphData.recentExecutions || [];
+
+      let viewsCount = 0;
+      let surfacesCount = 0;
+      let piiCount = 0;
+
+      nodes.forEach(n => {
+        (n.views || []).forEach(v => {
+          viewsCount++;
+          surfacesCount += (v.surfaces || []).length;
+        });
+        piiCount += (n.sensitiveSelectors || []).length;
+      });
+
+      document.getElementById('metric-modules-count').textContent = nodes.length;
+      document.getElementById('metric-views-count').textContent = viewsCount;
+      document.getElementById('metric-surfaces-count').textContent = surfacesCount;
+      document.getElementById('metric-pii-count').textContent = piiCount;
+
+      document.getElementById('nav-logs-badge').textContent = execs.length;
+      document.getElementById('kpi-total-execs').textContent = execs.length;
+
+      const passed = execs.filter(e => e.status === 'success' || e.result === 'completed').length;
+      const failed = execs.length - passed;
+      const rate = execs.length > 0 ? Math.round((passed / execs.length) * 100) : 100;
+
+      document.getElementById('kpi-pass-rate').textContent = `${rate}%`;
+      document.getElementById('kpi-pass-detail').textContent = `${passed} passed · ${failed} failed`;
+
+      const totalDuration = execs.reduce((acc, e) => acc + (e.totalDurationMs || 0), 0);
+      const avgDuration = execs.length > 0 ? Math.round(totalDuration / execs.length) : 0;
+      document.getElementById('kpi-avg-duration').textContent = formatDuration(avgDuration);
+
+      const totalPii = execs.reduce((acc, e) => acc + (e.piiMaskedCount || 0), 0);
+      document.getElementById('kpi-pii-masked').textContent = totalPii || piiCount;
+    }
+
+    // 10. Filter Handlers
     function setModuleFilter(mod) {
       activeModuleFilter = mod;
-      document.querySelectorAll('#filter-module-chips .filter-chip').forEach(c => {
-        c.classList.toggle('active', c.textContent.trim() === (mod === 'ALL' ? 'Todos los Módulos' : mod));
-      });
-      renderExecutiveReports();
+      renderExecutionLogs();
     }
 
     function setStatusFilter(status) {
       activeStatusFilter = status;
-      document.getElementById('chip-status-all').classList.toggle('active', status === 'ALL');
-      document.getElementById('chip-status-success').classList.toggle('active', status === 'success');
-      document.getElementById('chip-status-failure').classList.toggle('active', status === 'failure');
-      renderExecutiveReports();
+      document.querySelectorAll('#chip-status-all, #chip-status-success, #chip-status-failure').forEach(c => c.classList.remove('active'));
+      const activeBtn = document.getElementById(`chip-status-${status}`);
+      if (activeBtn) activeBtn.classList.add('active');
+      renderExecutionLogs();
     }
 
-    function onReportSearch() {
-      reportSearchQuery = document.getElementById('report-search-input').value.trim().toLowerCase();
-      renderExecutiveReports();
+    function handleLogSearch(e) {
+      activeLogSearch = e.target.value.trim().toLowerCase();
+      renderExecutionLogs();
     }
 
-    // Render Executive QA Report Cards
-    function renderExecutiveReports() {
-      const container = document.getElementById('reports-grid');
-      container.innerHTML = '';
-
-      const list = (apiData.recentExecutions || []).filter(e => {
-        // Module filter
-        if (activeModuleFilter !== 'ALL' && e.module !== activeModuleFilter) return false;
-
-        // Status filter
-        const isPass = (e.status === 'success' || e.result === 'success');
-        if (activeStatusFilter === 'success' && !isPass) return false;
-        if (activeStatusFilter === 'failure' && isPass) return false;
-
-        // Search query
-        if (reportSearchQuery) {
-          const matchId = e.id.toLowerCase().includes(reportSearchQuery);
-          const matchMod = e.module.toLowerCase().includes(reportSearchQuery);
-          const matchFeat = (e.testedFeatures || []).some(f => f.toLowerCase().includes(reportSearchQuery));
-          const matchStep = (e.steps || []).some(s => s.name.toLowerCase().includes(reportSearchQuery) || (s.message || '').toLowerCase().includes(reportSearchQuery));
-          if (!matchId && !matchMod && !matchFeat && !matchStep) return false;
-        }
-
-        return true;
-      });
-
-      if (list.length === 0) {
-        container.innerHTML = `
-          <div style="padding: 60px 20px; text-align: center; color: var(--text-muted); background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 12px;">
-            <h3>No se encontraron reportes con los filtros seleccionados</h3>
-            <p style="margin-top: 8px; font-size: 13px;">Prueba seleccionando otro módulo o limpiando los criterios de búsqueda.</p>
-          </div>
-        `;
-        return;
-      }
-
-      list.forEach(item => {
-        const isSuccess = (item.status === 'success' || item.result === 'success');
-        const dateStr = item.timestamp ? new Date(item.timestamp).toLocaleString() : 'Reciente';
-        const screenshots = item.screenshots || [];
-        const steps = item.steps || [];
-        const testedFeatures = item.testedFeatures || [];
-        const durationMs = item.totalDurationMs || steps.reduce((acc, s) => acc + (s.duration_ms || 0), 0);
-
-        // Feature chips
-        let featuresHtml = '';
-        if (testedFeatures.length > 0) {
-          featuresHtml = `
-            <div class="tested-features-strip">
-              <span class="tested-features-label">Funcionalidades Validadas:</span>
-              ${testedFeatures.map(f => `<span class="tested-feature-tag">⚡ ${f}</span>`).join('')}
-            </div>
-          `;
-        }
-
-        // Steps Rows
-        let stepsRowsHtml = '';
-        if (steps.length > 0) {
-          stepsRowsHtml = steps.map((s, idx) => {
-            const stepPass = s.status === 'success';
-            const actionType = s.name.toLowerCase().includes('navigate') ? 'navigate'
-              : s.name.toLowerCase().includes('ingres') || s.name.toLowerCase().includes('fill') ? 'fill'
-              : s.name.toLowerCase().includes('clic') || s.name.toLowerCase().includes('click') ? 'click'
-              : s.name.toLowerCase().includes('aserc') || s.name.toLowerCase().includes('valid') || s.name.toLowerCase().includes('assert') ? 'assert'
-              : 'assert';
-
-            return `
-              <tr>
-                <td style="font-family: var(--font-mono); color: var(--text-muted); font-size: 11px;">#${String(idx + 1).padStart(2, '0')}</td>
-                <td><span class="step-action-badge ${actionType}">${actionType}</span></td>
-                <td style="font-weight: 500;">
-                  ${escapeHtml(s.name)}
-                  ${s.message ? `<div style="font-size: 11px; color: ${stepPass ? 'var(--text-muted)' : '#fda4af'}; margin-top: 2px;">${escapeHtml(s.message)}</div>` : ''}
-                </td>
-                <td style="font-family: var(--font-mono);">${s.duration_ms}ms</td>
-                <td>
-                  <span class="step-status-chip ${stepPass ? 'success' : 'failure'}">
-                    ${stepPass ? '✓ OK' : '✕ Error'}
-                  </span>
-                </td>
-                <td>
-                  ${s.screenshot ? `<button class="filter-chip" style="padding: 2px 8px; font-size: 11px;" onclick="openLightbox('${s.screenshot}', '${item.module} — Paso ${idx + 1}')">📸 Ver</button>` : '—'}
-                </td>
-              </tr>
-            `;
-          }).join('');
-        }
-
-        // Visual Evidences
-        let evidenceHtml = '';
-        if (screenshots.length >= 2) {
-          const beforeImg = screenshots[0];
-          const afterImg = screenshots[1];
-          evidenceHtml = `
-            <div class="card-evidences-section">
-              <div class="evidences-header">
-                <span class="evidences-title">📸 Comparativa Visual de Evidencias (Antes / Después con PII)</span>
-                <span style="font-size: 11px; color: var(--text-muted);">Arrastra el divisor para comparar</span>
-              </div>
-              <div class="split-viewer-container" id="split-box-${item.id}">
-                <div class="split-layer bottom-layer" onclick="openLightbox('${afterImg}', '${item.module} — Captura Posterior')">
-                  <img src="${afterImg}" alt="Después">
-                  <span class="split-label-badge after">🛡️ Post-Acción / Con Máscara PII</span>
-                </div>
-                <div class="split-layer top-layer" id="top-layer-${item.id}" onclick="openLightbox('${beforeImg}', '${item.module} — Captura Previa')">
-                  <img src="${beforeImg}" alt="Antes">
-                  <span class="split-label-badge before">Pre-Acción</span>
-                </div>
-                <div class="split-handle" id="split-handle-${item.id}">↔</div>
-              </div>
-            </div>
-          `;
-        } else if (screenshots.length === 1) {
-          evidenceHtml = `
-            <div class="card-evidences-section">
-              <div class="evidences-header">
-                <span class="evidences-title">📸 Evidencia Visual Capturada</span>
-              </div>
-              <div class="screenshots-thumb-grid">
-                <div class="screenshot-thumb-card" onclick="openLightbox('${screenshots[0]}', '${item.module} — Captura')">
-                  <div class="screenshot-thumb-img">
-                    <img src="${screenshots[0]}" alt="Evidencia">
-                  </div>
-                  <div class="screenshot-thumb-meta">
-                    <span class="screenshot-thumb-caption">${item.module} — Evidencia de ejecución</span>
-                    <span class="screenshot-thumb-sub"><span>🛡️ PII Auditado</span><span>${dateStr}</span></span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          `;
-        }
-
-        const card = document.createElement('div');
-        card.className = 'executive-report-card';
-        card.innerHTML = `
-          <div class="card-top-bar">
-            <div class="card-meta-left">
-              <span class="status-pill-big ${isSuccess ? 'success' : 'failure'}">
-                ${isSuccess ? '✓ SUCCESS' : '✕ FAILURE'}
-              </span>
-              <span class="execution-id-tag" onclick="copyToClipboard('${item.id}')" title="Copiar ID de corrida">
-                ${item.id} <span style="font-size: 10px; color: var(--text-muted);">📋</span>
-              </span>
-              <span class="module-badge">${item.module}</span>
-              <span class="env-badge">${item.environment || 'staging'}</span>
-            </div>
-            <div class="card-meta-right">
-              <span class="duration-chip">⏱️ ${durationMs}ms</span>
-              <span>📅 ${dateStr}</span>
-            </div>
-          </div>
-
-          ${featuresHtml}
-
-          ${steps.length > 0 ? `
-            <div class="step-trace-section">
-              <details class="trace-details" ${isSuccess ? '' : 'open'}>
-                <summary>
-                  <span>📋 Traza Detallada de Ejecución (${steps.length} pasos)</span>
-                  <span style="font-size: 11px; font-weight: normal; color: var(--text-muted);">
-                    — ${steps.filter(s => s.status === 'success').length} exitosos, ${steps.filter(s => s.status !== 'success').length} fallos
-                  </span>
-                </summary>
-                <table class="trace-table">
-                  <thead>
-                    <tr>
-                      <th style="width: 40px;">Paso</th>
-                      <th style="width: 90px;">Acción</th>
-                      <th>Descripción / Mensaje</th>
-                      <th style="width: 70px;">Tiempo</th>
-                      <th style="width: 70px;">Estado</th>
-                      <th style="width: 60px;">Captura</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${stepsRowsHtml}
-                  </tbody>
-                </table>
-              </details>
-            </div>
-          ` : ''}
-
-          ${evidenceHtml}
-
-          <div class="card-footer-strip">
-            <span>🛡️ ${item.piiMaskedCount || 0} campos PII protegidos · ${item.browser || 'Chromium Headless'}</span>
-            <span>Operador: ${item.operator || 'Carlos Eduardo (QAP v2.1)'}</span>
-          </div>
-        `;
-
-        container.appendChild(card);
-        if (screenshots.length >= 2) {
-          initSplitSlider(item.id);
+    function handleGlobalSearch(e) {
+      const q = e.target.value.trim().toLowerCase();
+      document.querySelectorAll('.module-card').forEach(card => {
+        const text = card.textContent.toLowerCase();
+        if (!q || text.includes(q)) {
+          card.style.display = 'flex';
+        } else {
+          card.style.display = 'none';
         }
       });
+      updateEdges();
     }
 
-    // Split Slider Interactive Dragging
-    function initSplitSlider(id) {
-      const box = document.getElementById(`split-box-${id}`);
-      const topLayer = document.getElementById(`top-layer-${id}`);
-      const handle = document.getElementById(`split-handle-${id}`);
-      if (!box || !topLayer || !handle) return;
-
-      let isMoving = false;
-
-      const updatePos = (clientX) => {
-        const rect = box.getBoundingClientRect();
-        let pct = ((clientX - rect.left) / rect.width) * 100;
-        pct = Math.max(0, Math.min(100, pct));
-        topLayer.style.width = pct + '%';
-        handle.style.left = pct + '%';
-      };
-
-      box.addEventListener('mousedown', (e) => {
-        isMoving = true;
-        updatePos(e.clientX);
-      });
-
-      window.addEventListener('mousemove', (e) => {
-        if (isMoving) updatePos(e.clientX);
-      });
-
-      window.addEventListener('mouseup', () => {
-        isMoving = false;
-      });
-    }
-
-    // Lightbox Modal
+    // 11. Lightbox Handling
     function openLightbox(src, title) {
       if (!src) return;
-      document.getElementById('lightbox-image').src = src;
-      document.getElementById('lightbox-title').textContent = title;
+      document.getElementById('lightbox-img').src = src;
+      document.getElementById('lightbox-title').textContent = title || 'Visual Evidence';
       document.getElementById('lightbox-modal').classList.add('active');
     }
 
@@ -2635,15 +2337,25 @@
       document.getElementById('lightbox-modal').classList.remove('active');
     }
 
-    // Global Search
-    document.getElementById('global-search').addEventListener('input', (e) => {
-      searchQuery = e.target.value.trim().toLowerCase();
-    });
+    // 12. Utilities
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
 
-    // Startup
-    updateCanvasResolution();
-    fetchGraphData();
-    mainLoop();
+    function copyToClipboard(text) {
+      navigator.clipboard.writeText(text).then(() => {
+        // Subtle feedback if needed
+      }).catch(() => {});
+    }
+
+    // Start
+    window.addEventListener('DOMContentLoaded', init);
   </script>
 </body>
 </html>
