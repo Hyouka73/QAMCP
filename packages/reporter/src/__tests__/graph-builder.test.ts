@@ -240,4 +240,101 @@ describe('GraphBuilder (S5-006)', () => {
       '/artifacts/exec-101/login-after.png',
     ]);
   });
+
+  it('debe extraer reglas de negocio, casos de prueba formales y pasos de ejecución con metadatos PII', async () => {
+    const mockStorage: Partial<IStorage> = {
+      getProjectRoot: () => '/mock/workspace/features-app',
+      listModules: async () => ['auth'],
+      getModuleContext: async () => ({
+        _version: '1',
+        objective: 'Auth con MFA',
+        manually_edited: false,
+      }),
+      getRepoMap: async () => null,
+      getModuleRules: async (mod: string) => {
+        if (mod === 'auth') {
+          return {
+            _version: '1',
+            manually_edited: false,
+            rules: [
+              {
+                id: 'AUTH-RULE-001',
+                description: 'MFA TOTP obligatorio',
+                condition: 'session.is_new()',
+                action: 'solicitar_totp()',
+                severity: 'critical',
+                tags: ['seguridad'],
+              },
+            ],
+          };
+        }
+        return null;
+      },
+      listTestCases: async () => ['TC-AUTH-001'],
+      getTestCase: async () => ({
+        _version: '1',
+        id: 'case-uuid-1',
+        name: 'Login TOTP Test',
+        tags: ['smoke'],
+        steps: [
+          { type: 'navigate', url: '/login' },
+          { type: 'fill', selector: 'input#totp', value: '123456' },
+        ],
+      }),
+      getModulePrereqs: async () => null,
+      listFlows: async () => [],
+      exists: async (path: string) => path === '.qa/executions',
+      list: async (path: string) => {
+        if (path === '.qa/executions') return ['exec-auth-rich.json'];
+        return [];
+      },
+      readJson: async <T>(path: string): Promise<T> => {
+        if (path === '.qa/executions/exec-auth-rich.json') {
+          return {
+            execution_id: 'exec-auth-rich',
+            module: 'auth',
+            status: 'success',
+            timestamps: {
+              started_at: '2026-09-19T15:00:00Z',
+              ended_at: '2026-09-19T15:00:05Z',
+            },
+            steps: [
+              {
+                name: 'Paso 1: Navegar a login',
+                status: 'success',
+                duration_ms: 250,
+                message: 'Página cargada',
+              },
+            ],
+            metadata: {
+              tested_features: ['MFA TOTP obligatorio'],
+              environment: 'staging',
+              pii_masked_count: 3,
+              assertions_passed: 4,
+            },
+            screenshots: [{ path: '.qa/executions/exec-auth-rich/01-login.png' }],
+          } as unknown as T;
+        }
+        throw new Error('Not found');
+      },
+    };
+
+    const payload = await buildKnowledgeGraph(mockStorage as unknown as IStorage);
+
+    const authNode = payload.nodes.find((n) => n.id === 'auth');
+    expect(authNode).toBeDefined();
+    expect(authNode?.featuresCount).toBe(1);
+    expect(authNode?.rulesCount).toBe(1);
+    expect(authNode?.testCasesCount).toBe(1);
+
+    expect(payload.recentExecutions).toHaveLength(1);
+    const exec = payload.recentExecutions[0];
+    expect(exec.id).toBe('exec-auth-rich');
+    expect(exec.testedFeatures).toEqual(['MFA TOTP obligatorio']);
+    expect(exec.piiMaskedCount).toBe(3);
+    expect(exec.assertionsPassed).toBe(4);
+    expect(exec.steps).toHaveLength(1);
+    expect(exec.steps[0].duration_ms).toBe(250);
+  });
 });
+

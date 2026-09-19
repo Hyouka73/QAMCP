@@ -12,6 +12,11 @@ export interface GraphNode {
   hasTests: boolean;
   sensitiveSelectorsCount: number;
   risksCount: number;
+  featuresCount: number;   // Total de funcionalidades y reglas de negocio
+  rulesCount: number;      // Conteo de reglas formales en rules.yaml
+  testCasesCount: number;  // Conteo de casos de prueba formales
+  rules?: unknown[];
+  testCases?: unknown[];
   prdSource?: string;
   manuallyEdited: boolean;
 }
@@ -23,19 +28,56 @@ export interface GraphEdge {
   type: 'prereq' | 'flow';
 }
 
+export interface ExecutionStepInfo {
+  name: string;
+  status: 'success' | 'failure' | 'error' | 'skipped';
+  duration_ms: number;
+  message?: string;
+  screenshot?: string;
+}
+
+export interface RecentExecution {
+  id: string;
+  timestamp: string;
+  module: string;
+  result: string;
+  status: string;
+  environment?: string;
+  totalDurationMs?: number;
+  testedFeatures?: string[];
+  piiMaskedCount?: number;
+  assertionsPassed?: number;
+  browser?: string;
+  operator?: string;
+  steps: ExecutionStepInfo[];
+  screenshots: string[];
+  screenshotDetails?: Array<{
+    path: string;
+    url: string;
+    timestamp?: string;
+    context?: string;
+  }>;
+}
+
 export interface KnowledgeGraphPayload {
   projectName: string;
   generatedAt: string;
   nodes: GraphNode[];
   edges: GraphEdge[];
-  modulesDetail: Record<string, unknown>; // Datos completos de context.yaml y repo-map.json
-  recentExecutions: Array<{
-    id: string;
-    timestamp: string;
-    module: string;
-    result: string;
-    screenshots: string[];
-  }>;
+  modulesDetail: Record<string, unknown>; // Datos completos de context.yaml, rules.yaml, etc.
+  recentExecutions: RecentExecution[];
+}
+
+/**
+ * Normaliza una ruta de captura de pantalla a una URL servida por el endpoint /artifacts/
+ */
+function normalizeScreenshotUrl(pathOrUrl: string, executionId?: string): string {
+  if (pathOrUrl.startsWith('/artifacts/')) return pathOrUrl;
+  const cleaned = pathOrUrl.replace(/^\.?\/?\.qa\/executions\//, '').replace(/^\/+/, '');
+  if (executionId && !cleaned.startsWith(executionId)) {
+    return `/artifacts/${executionId}/${cleaned}`;
+  }
+  return `/artifacts/${cleaned}`;
 }
 
 /**
@@ -100,10 +142,39 @@ export async function buildKnowledgeGraph(storage: IStorage): Promise<KnowledgeG
       repoMap = null;
     }
 
+    // Reglas de negocio y funcionalidades (.qa/modules/<name>/rules.yaml)
+    let rulesList: Array<Record<string, unknown>> = [];
+    try {
+      if (typeof storage.getModuleRules === 'function') {
+        const moduleRules = await storage.getModuleRules(moduleName);
+        if (moduleRules && Array.isArray(moduleRules.rules)) {
+          rulesList = moduleRules.rules;
+        }
+      }
+    } catch {
+      rulesList = [];
+    }
+
+    // Casos de prueba (.qa/modules/<name>/tests/)
+    const testCasesDetail: Array<Record<string, unknown>> = [];
     let hasTests: boolean;
     try {
       const testCases = await storage.listTestCases(moduleName);
       hasTests = testCases.length > 0;
+      if (typeof storage.getTestCase === 'function') {
+        for (const tcId of testCases) {
+          try {
+            const tc = await storage.getTestCase(moduleName, tcId);
+            if (tc) {
+              testCasesDetail.push(tc as unknown as Record<string, unknown>);
+            } else {
+              testCasesDetail.push({ id: tcId, name: tcId });
+            }
+          } catch {
+            testCasesDetail.push({ id: tcId, name: tcId });
+          }
+        }
+      }
     } catch {
       try {
         const plan = await storage.getTestPlan(moduleName);
@@ -126,9 +197,14 @@ export async function buildKnowledgeGraph(storage: IStorage): Promise<KnowledgeG
       type: 'module',
       routes,
       filesCount: files.length,
-      hasTests,
+      hasTests: hasTests || testCasesDetail.length > 0,
       sensitiveSelectorsCount: sensitiveSelectors.length,
       risksCount: risks.length,
+      featuresCount: rulesList.length > 0 ? rulesList.length : testCasesDetail.length,
+      rulesCount: rulesList.length,
+      testCasesCount: testCasesDetail.length,
+      rules: rulesList,
+      testCases: testCasesDetail,
       ...(prdSource ? { prdSource } : {}),
       manuallyEdited,
     };
@@ -147,6 +223,17 @@ export async function buildKnowledgeGraph(storage: IStorage): Promise<KnowledgeG
       notes: moduleContext?.notes ?? '',
       prd_source: prdSource,
       manually_edited: manuallyEdited,
+      rules: rulesList,
+      testCases: testCasesDetail,
+      features: rulesList.map((r) => ({
+        id: r.id,
+        name: r.id,
+        description: r.description,
+        severity: r.severity,
+        tags: r.tags || [],
+        condition: r.condition,
+        action: r.action,
+      })),
     };
 
     // 3. Aristas por Prerrequisitos (.qa/modules/<name>/prereqs.yaml)
@@ -249,8 +336,8 @@ export async function buildKnowledgeGraph(storage: IStorage): Promise<KnowledgeG
     // Directorio de flujos no disponible
   }
 
-  // 5. Evidencias (.qa/executions/)
-  const recentExecutions: KnowledgeGraphPayload['recentExecutions'] = [];
+  // 5. Evidencias y Ejecuciones (.qa/executions/)
+  const recentExecutions: RecentExecution[] = [];
   try {
     const executionsExists = await storage.exists('.qa/executions');
     if (executionsExists) {
@@ -260,25 +347,55 @@ export async function buildKnowledgeGraph(storage: IStorage): Promise<KnowledgeG
         if (entry.endsWith('.json')) {
           try {
             const execData = await storage.readJson<Record<string, unknown>>(entryPath);
-            const id = (execData.id as string) || entry.replace(/\.json$/, '');
+            const id = (execData.execution_id as string) || (execData.id as string) || entry.replace(/\.json$/, '');
             const timestamps = execData.timestamps as Record<string, string> | undefined;
             const timestamp = timestamps?.started_at || timestamps?.ended_at || new Date().toISOString();
             const module = (execData.module as string) || 'unknown';
             const result = (execData.status as string) || 'completed';
-            const rawScreenshots = (execData.screenshots as Array<{ path: string } | string>) || [];
-            const screenshots = rawScreenshots.map((s) => {
+            const metadata = (execData.metadata as Record<string, unknown>) || {};
+            const rawSteps = (execData.steps as Array<Record<string, unknown>>) || [];
+            const steps: ExecutionStepInfo[] = rawSteps.map((s) => ({
+              name: (s.name as string) || 'Paso sin nombre',
+              status: (s.status as ExecutionStepInfo['status']) || 'success',
+              duration_ms: typeof s.duration_ms === 'number' ? s.duration_ms : 0,
+              message: (s.message as string) || '',
+              screenshot: s.screenshot ? normalizeScreenshotUrl(s.screenshot as string, id) : undefined,
+            }));
+
+            const rawScreenshots = (execData.screenshots as Array<{ path: string; timestamp?: string; context?: string } | string>) || [];
+            const screenshots: string[] = [];
+            const screenshotDetails: RecentExecution['screenshotDetails'] = [];
+
+            for (const s of rawScreenshots) {
               const p = typeof s === 'string' ? s : s.path;
-              return p.startsWith('/artifacts/')
-                ? p
-                : `/artifacts/${p.replace(/^\.?\/?\.qa\/executions\//, '').replace(/^\/+/, '')}`;
-            });
+              const url = normalizeScreenshotUrl(p, id);
+              screenshots.push(url);
+              screenshotDetails.push({
+                path: p,
+                url,
+                timestamp: typeof s === 'object' ? s.timestamp : undefined,
+                context: typeof s === 'object' ? s.context : undefined,
+              });
+            }
 
             recentExecutions.push({
               id,
               timestamp,
               module,
               result,
+              status: result,
+              environment: (metadata.environment as string) || 'staging',
+              totalDurationMs: typeof metadata.total_duration_ms === 'number'
+                ? metadata.total_duration_ms
+                : steps.reduce((acc, step) => acc + step.duration_ms, 0),
+              testedFeatures: Array.isArray(metadata.tested_features) ? (metadata.tested_features as string[]) : [],
+              piiMaskedCount: typeof metadata.pii_masked_count === 'number' ? metadata.pii_masked_count : 0,
+              assertionsPassed: typeof metadata.assertions_passed === 'number' ? metadata.assertions_passed : 0,
+              browser: (metadata.browser as string) || 'Chromium Headless',
+              operator: (metadata.operator as string) || 'QAP Engine',
+              steps,
               screenshots,
+              screenshotDetails,
             });
           } catch {
             // Ignorar JSON no válido
@@ -292,6 +409,9 @@ export async function buildKnowledgeGraph(storage: IStorage): Promise<KnowledgeG
             let execModule = 'unknown';
             let execResult = 'completed';
             let execTime = new Date().toISOString();
+            let metadata: Record<string, unknown> = {};
+            let steps: ExecutionStepInfo[] = [];
+            const screenshotDetails: RecentExecution['screenshotDetails'] = [];
 
             if (subFiles.includes('result.json') || subFiles.includes('execution.json')) {
               const metaFile = subFiles.includes('result.json') ? 'result.json' : 'execution.json';
@@ -301,8 +421,42 @@ export async function buildKnowledgeGraph(storage: IStorage): Promise<KnowledgeG
                 if (typeof meta.status === 'string') execResult = meta.status;
                 const ts = meta.timestamps as Record<string, string> | undefined;
                 if (ts?.started_at) execTime = ts.started_at;
+                if (meta.metadata && typeof meta.metadata === 'object') {
+                  metadata = meta.metadata as Record<string, unknown>;
+                }
+                if (Array.isArray(meta.steps)) {
+                  steps = meta.steps.map((s: Record<string, unknown>) => ({
+                    name: (s.name as string) || 'Paso',
+                    status: (s.status as ExecutionStepInfo['status']) || 'success',
+                    duration_ms: typeof s.duration_ms === 'number' ? s.duration_ms : 0,
+                    message: (s.message as string) || '',
+                    screenshot: s.screenshot ? normalizeScreenshotUrl(s.screenshot as string, entry) : undefined,
+                  }));
+                }
+                if (Array.isArray(meta.screenshots)) {
+                  for (const s of meta.screenshots) {
+                    const p = typeof s === 'string' ? s : (s as { path: string }).path;
+                    const url = normalizeScreenshotUrl(p, entry);
+                    screenshotDetails.push({
+                      path: p,
+                      url,
+                      timestamp: typeof s === 'object' ? (s as { timestamp?: string }).timestamp : undefined,
+                      context: typeof s === 'object' ? (s as { context?: string }).context : undefined,
+                    });
+                  }
+                }
               } catch {
                 // Ignorar
+              }
+            }
+
+            const screenshots = imgFiles.map((f) => `/artifacts/${entry}/${f}`);
+            if (screenshotDetails.length === 0) {
+              for (const f of imgFiles) {
+                screenshotDetails.push({
+                  path: `${entryPath}/${f}`,
+                  url: `/artifacts/${entry}/${f}`,
+                });
               }
             }
 
@@ -312,7 +466,19 @@ export async function buildKnowledgeGraph(storage: IStorage): Promise<KnowledgeG
                 timestamp: execTime,
                 module: execModule,
                 result: execResult,
-                screenshots: imgFiles.map((f) => `/artifacts/${entry}/${f}`),
+                status: execResult,
+                environment: (metadata.environment as string) || 'staging',
+                totalDurationMs: typeof metadata.total_duration_ms === 'number'
+                  ? metadata.total_duration_ms
+                  : steps.reduce((acc, step) => acc + step.duration_ms, 0),
+                testedFeatures: Array.isArray(metadata.tested_features) ? (metadata.tested_features as string[]) : [],
+                piiMaskedCount: typeof metadata.pii_masked_count === 'number' ? metadata.pii_masked_count : 0,
+                assertionsPassed: typeof metadata.assertions_passed === 'number' ? metadata.assertions_passed : 0,
+                browser: (metadata.browser as string) || 'Chromium Headless',
+                operator: (metadata.operator as string) || 'QAP Engine',
+                steps,
+                screenshots,
+                screenshotDetails,
               });
             }
           } catch {
