@@ -44,6 +44,7 @@ import tcCaseSchema from './tc-case.schema.json' with { type: 'json' };
 import selectorsSchema from './selectors.schema.json' with { type: 'json' };
 import semanticHashSchema from './semantic-hash.schema.json' with { type: 'json' };
 import systemPromptSchema from './system-prompt.schema.json' with { type: 'json' };
+import moduleRepoMapSchema from './module-repo-map.schema.json' with { type: 'json' };
 
 export {
   authProfilesSchema,
@@ -60,6 +61,7 @@ export {
   selectorsSchema,
   semanticHashSchema,
   systemPromptSchema,
+  moduleRepoMapSchema,
 };
 
 // Export all schemas as a record for dynamic access
@@ -78,6 +80,8 @@ export const schemas = {
   selectors: selectorsSchema,
   'semantic-hash': semanticHashSchema,
   'system-prompt': systemPromptSchema,
+  'module-repo-map': moduleRepoMapSchema,
+  'repo-map': moduleRepoMapSchema,
 } as const;
 
 // Type exports for TypeScript consumers
@@ -95,4 +99,5 @@ export type TCCaseSchema = typeof tcCaseSchema;
 export type SelectorsSchema = typeof selectorsSchema;
 export type SemanticHashSchema = typeof semanticHashSchema;
 export type SystemPromptSchema = typeof systemPromptSchema;
+export type ModuleRepoMapSchema = typeof moduleRepoMapSchema;
 

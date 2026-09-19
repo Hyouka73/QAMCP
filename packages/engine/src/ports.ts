@@ -31,6 +31,7 @@ import type {
   Selectors,
   SemanticHash,
   TCCase,
+  RepoMap,
 } from '@qap/shared';
 
 // ---------------------------------------------------------------------------
@@ -278,6 +279,17 @@ export interface IStorage {
 
   /** Write .qa/modules/<name>/semantic-hash.json */
   saveSemanticHash(moduleName: string, data: SemanticHashData): Promise<void>;
+
+  /**
+   * Read .qa/modules/<name>/repo-map.json (S4-005)
+   * Returns null if the file does not exist.
+   */
+  getRepoMap(moduleName: string): Promise<RepoMap | null>;
+
+  /**
+   * Write .qa/modules/<name>/repo-map.json with POSIX-normalized file paths (S4-005)
+   */
+  saveRepoMap(moduleName: string, data: RepoMap): Promise<void>;
 
   // -------------------------------------------------------------------------
   // Test plans and test cases  (.qa/modules/<name>/tests/)

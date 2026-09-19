@@ -12,4 +12,4 @@ export { formatDate, formatDateTime, parseISODate } from './date-utils.js';
 export { generateUUID, isValidUUID } from './uuid-utils.js';
 
 // Path normalization utilities
-export { normalizePath, toPosixPath, ensureRelativePath } from './path-utils.js';
+export { normalizePath, toPosixPath, normalizeToPosix, ensureRelativePath } from './path-utils.js';

@@ -3,7 +3,8 @@ import { join } from 'node:path';
 
 import { input } from '@inquirer/prompts';
 import { PlaywrightAdapter } from '@qap/playwright-adapter';
-import type { ModuleSpec, Module } from '@qap/shared';
+import type { ModuleSpec, Module, RepoMap } from '@qap/shared';
+import { normalizeToPosix } from '@qap/shared';
 
 export interface DiscoverOptions {
   phase?: string;
@@ -20,6 +21,10 @@ function specPath(name: string): string {
 
 function modulePath(name: string): string {
   return join(getDiscoverCacheDir(), `${name}.module.json`);
+}
+
+function repoMapPath(name: string): string {
+  return join(getDiscoverCacheDir(), `${name}.repo-map.json`);
 }
 
 function ensureCacheDir(): void {
@@ -57,6 +62,21 @@ if (!existsSync(path)) {
     ); 
   }
   return JSON.parse(readFileSync(path, 'utf-8')) as Module;
+}
+
+function saveRepoMap(repoMap: RepoMap): void {
+  ensureCacheDir();
+  writeFileSync(repoMapPath(repoMap.module), JSON.stringify(repoMap, null, 2), 'utf-8');
+}
+
+function loadRepoMap(name: string): RepoMap {
+  const path = repoMapPath(name);
+  if (!existsSync(path)) {
+    throw new Error(
+      `No existe un repo-map persistido para '${name}'. Ejecuta primero 'qap discover ${name} --phase repo-map'.`
+    );
+  }
+  return JSON.parse(readFileSync(path, 'utf-8')) as RepoMap;
 }
 
 /**
@@ -143,6 +163,50 @@ async function runAmendPhase(nameArg?: string): Promise<void> {
   console.log(`Modulo '${nameArg}' corregido (amend) sin re-escaneo. Cambios persistidos en .qa/cache/discover/${nameArg}.module.json`);
 
 }
+
+/**
+ * Fase 'repo-map': genera o recolecta las rutas de código fuente asociadas
+ * al módulo, asegurando que se persistan en formato repo-map.json con rutas POSIX.
+ */
+async function runRepoMapPhase(nameArg?: string): Promise<void> {
+  if (!nameArg) {
+    throw new Error("La fase 'repo-map' requiere el nombre del modulo: qap discover <name> --phase repo-map");
+  }
+
+  // Asegura que el módulo fue descubierto previamente
+  loadModule(nameArg);
+
+  let defaultFiles = '';
+  if (existsSync(repoMapPath(nameArg))) {
+    try {
+      const existing = loadRepoMap(nameArg);
+      defaultFiles = existing.files.join(', ');
+    } catch {
+      // Ignorar error si el archivo previo no es legible
+    }
+  }
+
+  const filesRaw = await input({
+    message: 'Rutas de archivos fuente del modulo separadas por coma:',
+    default: defaultFiles,
+  });
+
+  const files = filesRaw
+    .split(',')
+    .map((f) => f.trim())
+    .filter(Boolean)
+    .map(normalizeToPosix);
+
+  const repoMap: RepoMap = {
+    _version: '1',
+    module: nameArg,
+    files,
+  };
+
+  saveRepoMap(repoMap);
+  console.log(`Repo-map de '${nameArg}' persistido con rutas POSIX en .qa/cache/discover/${nameArg}.repo-map.json`);
+}
+
 export async function handleDiscover(nameArg: string | undefined, options: DiscoverOptions): Promise<void> {
   if (options.amend) {
     await runAmendPhase(nameArg);
@@ -158,10 +222,9 @@ export async function handleDiscover(nameArg: string | undefined, options: Disco
       await runNavigatePhase(nameArg);
       return;
     case 'repo-map':
-      throw new Error(
-        "La fase 'repo-map' aun no esta disponible: depende del generador de S4-005 (packages/knowledge/src/prd/bootstrap.ts), pendiente de entrega."
-      );
+      await runRepoMapPhase(nameArg);
+      return;
     default:
-      throw new Error(`Fase de discover no reconocida: '${phase}'. Fases validas: interview, navigate.`);
+      throw new Error(`Fase de discover no reconocida: '${phase}'. Fases validas: interview, navigate, repo-map.`);
   }
 }

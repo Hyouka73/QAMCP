@@ -25,6 +25,19 @@ export function normalizePath(inputPath: string): string {
 }
 
 /**
+ * Normaliza una ruta asegurando forzosamente el uso de separadores POSIX (/).
+ * Crítico para compatibilidad con git diff en Windows y Unix (S4-005).
+ * @param filePath - Ruta a normalizar
+ * @returns Ruta con separadores POSIX (/)
+ */
+export function normalizeToPosix(filePath: string): string {
+  if (!filePath || typeof filePath !== 'string') {
+    return '';
+  }
+  return filePath.replace(/\\/g, '/');
+}
+
+/**
  * Converts any path to use POSIX separators (forward slashes)
  * @param inputPath - The path to convert
  * @returns A path with only forward slashes

@@ -7,7 +7,9 @@ import {
   authProfilesSchema,
   executionResultSchema,
   systemPromptSchema,
+  moduleRepoMapSchema,
 } from '../schemas/index.js';
+import type { RepoMap } from '../types/repo-map.type.js';
 
 export interface ValidationError {
   field: string;
@@ -15,9 +17,10 @@ export interface ValidationError {
   message: string;
 }
 
-export interface ValidationResult {
+export interface ValidationResult<T = unknown> {
   valid: boolean;
   errors: ValidationError[];
+  data?: T;
 }
 
 /**
@@ -67,6 +70,8 @@ export class SchemaValidator {
     const envValidator = this.ajv.compile(environmentsSchema);
     const profileValidator = this.ajv.compile(authProfilesSchema);
 
+    const repoMapValidator = this.ajv.compile(moduleRepoMapSchema);
+
     // Precompilación en memoria de los schemas fundamentales y aliases
     this.validators = new Map([
       ['project-init', this.ajv.compile(projectInitSchema)],
@@ -76,10 +81,12 @@ export class SchemaValidator {
       ['auth-profiles', profileValidator],
       ['execution-result', this.ajv.compile(executionResultSchema)],
       ['system-prompt', this.ajv.compile(systemPromptSchema)],
+      ['module-repo-map', repoMapValidator],
+      ['repo-map', repoMapValidator],
     ]);
   }
 
-  private runValidation(schemaKey: string, data: unknown): ValidationResult {
+  private runValidation<T = unknown>(schemaKey: string, data: unknown): ValidationResult<T> {
     const validateFn = this.validators.get(schemaKey);
 
     if (!validateFn) {
@@ -100,6 +107,7 @@ export class SchemaValidator {
     return {
       valid: Boolean(valid),
       errors: valid ? [] : translateErrors(validateFn.errors),
+      data: valid ? (data as T) : undefined,
     };
   }
 
@@ -121,5 +129,9 @@ export class SchemaValidator {
 
   validateSystemPrompt(data: unknown): ValidationResult {
     return this.runValidation('system-prompt', data);
+  }
+
+  validateRepoMap(data: unknown): ValidationResult<RepoMap> {
+    return this.runValidation<RepoMap>('module-repo-map', data);
   }
 }

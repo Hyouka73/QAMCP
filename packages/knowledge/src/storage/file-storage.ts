@@ -32,7 +32,9 @@ import type {
   TestPlan,
   ExecutionResult,
   FlowDefinition,
+  RepoMap,
 } from '@qap/shared';
+import { normalizeToPosix } from '@qap/shared';
 import lockfile from 'proper-lockfile';
 import YAML from 'yaml';
 
@@ -245,6 +247,24 @@ export class FileSystemStorage implements IStorage {
 
   async saveSemanticHash(moduleName: string, data: SemanticHashData): Promise<void> {
     await this.writeJson(join('.qa/modules', moduleName, 'semantic-hash.json'), data);
+  }
+
+  async getRepoMap(moduleName: string): Promise<RepoMap | null> {
+    const path = join('.qa/modules', moduleName, 'repo-map.json');
+    if (!(await this.exists(path))) return null;
+    const data = await this.readJson<RepoMap>(path);
+    if (data && Array.isArray(data.files)) {
+      data.files = data.files.map(normalizeToPosix);
+    }
+    return data;
+  }
+
+  async saveRepoMap(moduleName: string, data: RepoMap): Promise<void> {
+    const normalizedData: RepoMap = {
+      ...data,
+      files: (data.files || []).map(normalizeToPosix),
+    };
+    await this.writeJson(join('.qa/modules', moduleName, 'repo-map.json'), normalizedData);
   }
 
   // ---------------------------------------------------------------------
