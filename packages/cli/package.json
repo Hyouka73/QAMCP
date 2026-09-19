@@ -17,7 +17,9 @@
     "@inquirer/prompts": "^8.6.0",
     "@qap/auth": "workspace:^",
     "@qap/engine": "workspace:^",
+    "@qap/knowledge": "workspace:^",
     "@qap/playwright-adapter": "workspace:^",
+    "@qap/reporter": "workspace:^",
     "@qap/shared": "workspace:^",
     "commander": "^15.0.0",
     "yaml": "^2.9.0"

@@ -24,6 +24,7 @@ import { handleRun } from './commands/runner/index.js';
 import { handleStatus } from './commands/status/index.js';
 import { handleConfigShow, handleConfigSet } from './commands/config/index.js';
 import { handleDiscover } from './commands/discover.js';
+import { handleReport } from './commands/report.js';
 
 interface CommandDefinition {
   /** Nombre del subcomando, p.ej. "test" -> `qap test`. */
@@ -33,12 +34,11 @@ interface CommandDefinition {
   args?: string;
 }
 
-// Mantenemos los placeholders eliminando 'status' que ahora tiene implementación real
+// Mantenemos los placeholders eliminando 'status' y 'report' que ahora tienen implementación real
 const COMMANDS: readonly CommandDefinition[] = [
   { name: 'plan', description: 'Genera el plan de pruebas de un módulo.', args: '<module>' },
   { name: 'test', description: 'Ejecuta el plan de pruebas de un módulo.', args: '<module>' },
   { name: 'update', description: 'Actualiza un módulo ya descubierto.', args: '<module>' },
-  { name: 'report', description: 'Genera el reporte de resultados de un módulo.', args: '<module>' },
   { name: 'context', description: 'Muestra el contexto (local o global) de un módulo.', args: '[module]' },
   { name: 'flow', description: 'Ejecuta un flow definido sobre uno o más módulos.', args: '<flow>' },
 ];
@@ -138,7 +138,25 @@ export function registerCommands(program: Command): void {
       await handleConfigSet(key, value);
     });
 
-  // 4. Registrar los comandos placeholders pendientes (Sprint 1)
+  // 4. Subcomandos 'report' y 'serve' (Tarea S5-006)
+  program
+    .command('report [module]')
+    .description('Genera el reporte de resultados de un módulo o levanta el visor interactivo con --serve')
+    .option('-s, --serve', 'Inicia el servidor web interactivo del Knowledge Graph y visor de memoria')
+    .option('-p, --port <port>', 'Puerto en el que escuchará el servidor web (por defecto: 9280)', '9280')
+    .action(async (moduleArg?: string, options?: { serve?: boolean; port?: string | number }) => {
+      await handleReport(moduleArg, options);
+    });
+
+  program
+    .command('serve')
+    .description('Inicia el servidor web interactivo del Knowledge Graph en http://localhost:9280')
+    .option('-p, --port <port>', 'Puerto en el que escuchará el servidor web (por defecto: 9280)', '9280')
+    .action(async (options?: { port?: string | number }) => {
+      await handleReport(undefined, { ...options, serve: true });
+    });
+
+  // 5. Registrar los comandos placeholders pendientes (Sprint 1)
   for (const definition of COMMANDS) {
     const subcommand = program.command(definition.name).description(definition.description);
 
