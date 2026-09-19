@@ -145,6 +145,24 @@ describe('FileSystemStorage (S3-002)', () => {
     it('debe devolver null si semantic-hash.json de un modulo no existe', async () => {
       expect(await storage.getSemanticHash('checkout')).toBeNull();
     });
+
+    it('debe devolver null si repo-map.json de un modulo no existe', async () => {
+      expect(await storage.getRepoMap('checkout')).toBeNull();
+    });
+
+    it('debe guardar y leer repo-map.json forzando la normalizacion POSIX', async () => {
+      const repoMap = {
+        _version: '1' as const,
+        module: 'checkout',
+        files: ['src\\components\\Cart.tsx', 'src\\hooks\\useCart.ts'],
+      };
+      await storage.saveRepoMap('checkout', repoMap);
+
+      const result = await storage.getRepoMap('checkout');
+      expect(result).not.toBeNull();
+      expect(result?.module).toBe('checkout');
+      expect(result?.files).toEqual(['src/components/Cart.tsx', 'src/hooks/useCart.ts']);
+    });
   });
 
   describe('Planes y casos de prueba', () => {

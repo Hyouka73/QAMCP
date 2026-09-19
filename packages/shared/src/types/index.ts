@@ -52,6 +52,9 @@ export type { Selectors, SelectorsMetadata } from './selectors.type.js';
 // Semantic Hash
 export type { SemanticHash } from './semantic-hash.type.js';
 
+// Repo Map (S4-005)
+export type { RepoMap } from './repo-map.type.js';
+
 // Engine Ports - Module Discovery
 export type { ModuleSpec } from './module-spec.type.js';
 export type { Module } from './module.type.js';

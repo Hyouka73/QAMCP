@@ -81,8 +81,36 @@ describe('qap discover (S4-003)', () => {
     );
   });
 
-  it('fase repo-map debe indicar que depende de S4-005 (pendiente)', async () => {
-    await expect(handleDiscover('checkout', { phase: 'repo-map' })).rejects.toThrow(/S4-005/);
+  it('fase repo-map debe persistir repo-map.json con rutas POSIX', async () => {
+    vi.mocked(input)
+      .mockResolvedValueOnce('checkout')
+      .mockResolvedValueOnce('/checkout')
+      .mockResolvedValueOnce('');
+
+    await handleDiscover(undefined, { phase: 'interview' });
+    await handleDiscover('checkout', { phase: 'navigate' });
+
+    vi.mocked(input).mockResolvedValueOnce('src\\components\\Cart.tsx, src\\hooks\\useCart.ts');
+
+    await handleDiscover('checkout', { phase: 'repo-map' });
+
+    const repoMapFile = join(tempDir, '.qa', 'cache', 'discover', 'checkout.repo-map.json');
+    expect(existsSync(repoMapFile)).toBe(true);
+
+    const repoMap = JSON.parse(readFileSync(repoMapFile, 'utf-8')) as {
+      _version: string;
+      module: string;
+      files: string[];
+    };
+    expect(repoMap._version).toBe('1');
+    expect(repoMap.module).toBe('checkout');
+    expect(repoMap.files).toEqual(['src/components/Cart.tsx', 'src/hooks/useCart.ts']);
+  });
+
+  it('fase repo-map debe fallar si el modulo no fue navegado previamente', async () => {
+    await expect(handleDiscover('inexistente', { phase: 'repo-map' })).rejects.toThrow(
+      /No existe un modulo documentado/
+    );
   });
 
   it('debe rechazar una fase desconocida', async () => {
