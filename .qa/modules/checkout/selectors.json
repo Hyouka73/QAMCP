@@ -1,0 +1,9 @@
+{
+  "_version": "1",
+  "module": "checkout",
+  "selectors": {
+    "sign_button": "button#btn-sign",
+    "clabe_input": "#bank-account-clabe",
+    "terms_modal": "#modal-terms"
+  }
+}

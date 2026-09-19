@@ -1,0 +1,9 @@
+{
+  "_version": "1",
+  "module": "simulation",
+  "selectors": {
+    "calc_submit": "button#calculate-btn",
+    "income_input": "#client-income",
+    "rfc_input": "#rfc-tax-id"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "_version": "1",
+  "module": "auth",
+  "selectors": {
+    "login_button": "button#submit-login",
+    "username_input": "input#username",
+    "password_input": "#password",
+    "totp_input": "#totp-token"
+  }
+}

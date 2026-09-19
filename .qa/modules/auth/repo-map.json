@@ -1,0 +1,9 @@
+{
+  "_version": "1",
+  "module": "auth",
+  "files": [
+    "src/modules/auth/login-form.tsx",
+    "src/modules/auth/mfa-challenge.tsx",
+    "src/services/auth-service.ts"
+  ]
+}

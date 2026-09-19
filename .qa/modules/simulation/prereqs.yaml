@@ -1,0 +1,10 @@
+_version: '1'
+module: simulation
+requires:
+  auth:
+    primary: auth
+    available:
+      - default
+  modules:
+    - auth
+execution_timeout_ms: 30000

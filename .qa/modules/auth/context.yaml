@@ -1,0 +1,21 @@
+_version: "1"
+module: "auth"
+description: "Autenticación, control de acceso y gestión de sesiones"
+base_route: "/auth"
+views:
+  - id: "login-view"
+    name: "Inicio de Sesión"
+    path: "/auth/login"
+    surfaces:
+      - id: "form-credentials"
+        name: "Formulario de Acceso"
+        type: "section"
+      - id: "modal-mfa"
+        name: "Verificación en Dos Pasos (TOTP)"
+        type: "modal"
+  - id: "recovery-view"
+    name: "Recuperación de Contraseña"
+    path: "/auth/recover"
+sensitive_selectors:
+  - "#password"
+  - "#totp-token"

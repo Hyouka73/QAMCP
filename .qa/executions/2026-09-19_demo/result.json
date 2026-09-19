@@ -1,0 +1,68 @@
+{
+  "_version": "1",
+  "execution_id": "2026-09-19_demo",
+  "module": "simulation",
+  "status": "success",
+  "timestamps": {
+    "started_at": "2026-09-19T18:45:00Z",
+    "ended_at": "2026-09-19T18:45:15Z"
+  },
+  "steps": [
+    {
+      "name": "Navegar al simulador financiero (/simulate)",
+      "status": "success",
+      "duration_ms": 320,
+      "message": "Ruta /simulate cargada correctamente en 320ms con HTTP 200"
+    },
+    {
+      "name": "Ingreso de monto solicitado ($50,000 MXN) y plazo (24m)",
+      "status": "success",
+      "duration_ms": 180,
+      "message": "Valores fijados en selector input#loan-amount y select#loan-term",
+      "screenshot": ".qa/executions/2026-09-19_demo/01-simulation-before.png"
+    },
+    {
+      "name": "Cálculo actuarial de amortización francesa y CAT dinámico",
+      "status": "success",
+      "duration_ms": 640,
+      "message": "Cálculo ejecutado con éxito bajo sistema Francés. Tasa mensual: 1.85%"
+    },
+    {
+      "name": "Aplicación de máscara PII en datos confidenciales",
+      "status": "success",
+      "duration_ms": 95,
+      "message": "4 selectores sensibles ocultados de la vista del cliente",
+      "screenshot": ".qa/executions/2026-09-19_demo/02-simulation-after.png"
+    },
+    {
+      "name": "Aserción de cuota mensual y desglose de IVA",
+      "status": "success",
+      "duration_ms": 110,
+      "message": "Cuota mensual calculada: $2,845.50 (Esperado: $2,845.50, Diferencia: $0.00)"
+    }
+  ],
+  "metadata": {
+    "tested_features": [
+      "Cálculo de cuota mensual amortizada bajo sistema Francés con CAT dinámico",
+      "Enmascaramiento de ingresos y RFC en la presentación pública del simulador"
+    ],
+    "environment": "staging",
+    "browser": "Chromium 128 (Headless)",
+    "pii_masked_count": 4,
+    "assertions_passed": 8,
+    "total_duration_ms": 1345,
+    "operator": "Carlos Eduardo (QAP Engine v2.1)"
+  },
+  "screenshots": [
+    {
+      "path": ".qa/executions/2026-09-19_demo/01-simulation-before.png",
+      "timestamp": "2026-09-19T18:45:05Z",
+      "context": "Formulario de crédito antes de ingresar montos"
+    },
+    {
+      "path": ".qa/executions/2026-09-19_demo/02-simulation-after.png",
+      "timestamp": "2026-09-19T18:45:10Z",
+      "context": "Tabla de amortización calculada con máscara PII"
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "_version": "1",
+  "module": "simulation",
+  "files": [
+    "src/modules/simulation/credit-calc.ts",
+    "src/modules/simulation/amortization-table.tsx"
+  ]
+}

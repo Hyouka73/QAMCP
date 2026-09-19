@@ -1,0 +1,8 @@
+_version: '1'
+module: checkout
+requires:
+  auth:
+    primary: auth
+  modules:
+    - simulation
+execution_timeout_ms: 45000

@@ -959,20 +959,25 @@
     /* ========================================================
        VISTA 2: EXECUTION LOGS & REPORTS DASHBOARD
        ======================================================== */
-    #gallery-pane {
+    #logs-pane {
       width: 100%;
       height: 100%;
-      flex-direction: column;
       background: var(--bg-base);
       overflow-y: auto;
       padding: 20px 24px;
-      gap: 20px;
+      gap: 16px;
+    }
+
+    #logs-pane.active {
+      display: flex;
+      flex-direction: column;
     }
 
     .kpi-row {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 12px;
+      width: 100%;
     }
 
     .kpi-card {
@@ -1583,16 +1588,20 @@
       const container = document.getElementById('nodes-container');
       container.innerHTML = '';
 
-      const nodes = graphData.nodes || [];
-      const total = nodes.length;
+      // Layout modules horizontally with canonical ordering (auth -> simulation -> checkout)
+      const moduleOrder = { auth: 0, simulation: 1, checkout: 2 };
+      const sortedNodes = [...(graphData.nodes || [])].sort((a, b) => {
+        const orderA = moduleOrder[a.id] ?? 99;
+        const orderB = moduleOrder[b.id] ?? 99;
+        return orderA - orderB;
+      });
 
-      // Layout modules horizontally with comfortable spacing
       const startX = 60;
       const startY = 80;
       const cardWidth = 290;
       const gapX = 140;
 
-      nodes.forEach((node, idx) => {
+      sortedNodes.forEach((node, idx) => {
         if (!nodePositions[node.id]) {
           nodePositions[node.id] = {
             x: startX + idx * (cardWidth + gapX),

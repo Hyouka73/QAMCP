@@ -1,0 +1,55 @@
+{
+  "_version": "1",
+  "execution_id": "2026-09-19_sim_risk_alert",
+  "module": "simulation",
+  "status": "failure",
+  "timestamps": {
+    "started_at": "2026-09-19T19:12:00Z",
+    "ended_at": "2026-09-19T19:12:08Z"
+  },
+  "steps": [
+    {
+      "name": "Navegar al simulador financiero (/simulate)",
+      "status": "success",
+      "duration_ms": 280,
+      "message": "URL /simulate cargada correctamente"
+    },
+    {
+      "name": "Ingresar ingreso neto mensual $8,000 MXN",
+      "status": "success",
+      "duration_ms": 120,
+      "message": "Valor fijado en selector input#monthly-income"
+    },
+    {
+      "name": "Solicitar crédito de $200,000 MXN a 12 meses",
+      "status": "success",
+      "duration_ms": 190,
+      "message": "Monto y plazo enviados para cálculo"
+    },
+    {
+      "name": "Validar rechazo preventivo por capacidad de pago (Regla 35%)",
+      "status": "failure",
+      "duration_ms": 450,
+      "message": "AssertionError: Esperaba alerta .alert-capacity-exceeded visible pero el simulador devolvió cotización activa.",
+      "screenshot": ".qa/executions/2026-09-19_sim_risk_alert/01-unexpected-quote.png"
+    }
+  ],
+  "metadata": {
+    "tested_features": [
+      "Validación de capacidad máxima de pago respecto al ingreso neto declarado"
+    ],
+    "environment": "staging",
+    "browser": "Chromium 128 (Headless)",
+    "pii_masked_count": 1,
+    "assertions_passed": 3,
+    "total_duration_ms": 1040,
+    "operator": "Carlos Eduardo (QAP Engine v2.1)"
+  },
+  "screenshots": [
+    {
+      "path": ".qa/executions/2026-09-19_sim_risk_alert/01-unexpected-quote.png",
+      "timestamp": "2026-09-19T19:12:07Z",
+      "context": "Simulador arrojó cotización cuando debió disparar alerta de riesgo crediticio"
+    }
+  ]
+}
