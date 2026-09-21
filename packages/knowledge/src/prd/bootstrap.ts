@@ -144,6 +144,7 @@ export function buildModuleContext(moduleName: string, options: BootstrapContext
 
   const context: ModuleContext = {
     _version: '1',
+    module: moduleName,
     objective,
     users,
     routes,
