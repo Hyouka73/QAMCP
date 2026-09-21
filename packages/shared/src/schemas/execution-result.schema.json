@@ -1,115 +1,179 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "qap://schemas/execution-result.schema.json",
-  "title": "Execution Result Configuration",
-  "description": "Schema for structured test execution results including execution ID, module, status, steps, timestamps, and screenshots",
+  "title": "ExecutionResult",
+  "description": "Schema for structured test execution results adhering to QAP v2.1 Sprint 5 contract (S5-001)",
   "type": "object",
   "additionalProperties": false,
-  "required": ["_version", "execution_id", "module", "status", "timestamps"],
+  "required": [
+    "_version",
+    "execution_id",
+    "module",
+    "env",
+    "started_at",
+    "finished_at",
+    "result",
+    "timed_out",
+    "summary",
+    "cases"
+  ],
   "properties": {
     "_version": {
       "type": "string",
-      "description": "Schema version for evolution tracking"
+      "const": "1",
+      "description": "Versión del esquema de ejecución. Debe ser exactamente '1' (Principio 9)."
     },
     "execution_id": {
       "type": "string",
-      "description": "Unique identifier for this execution run"
+      "description": "Identificador único de ejecución con formato <timestamp>_<modulo>_<uuid-corto>"
     },
     "module": {
       "type": "string",
-      "description": "Name or identifier of the executed module"
+      "description": "Nombre del módulo evaluado"
     },
-    "status": {
+    "env": {
       "type": "string",
-      "enum": ["success", "failure", "error", "timeout", "skipped", "cancelled"],
-      "description": "Overall status of the execution"
+      "description": "Entorno de ejecución (ej. local, staging, production)"
     },
-    "steps": {
-      "type": "array",
-      "description": "List of execution steps with their individual results",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["name", "status"],
-        "properties": {
-          "name": {
-            "type": "string",
-            "description": "Name or description of the step"
-          },
-          "status": {
-            "type": "string",
-            "enum": ["success", "failure", "error", "skipped"],
-            "description": "Status of this specific step"
-          },
-          "duration_ms": {
-            "type": "integer",
-            "description": "Duration of this step in milliseconds",
-            "minimum": 0,
-            "default": 0
-          },
-          "message": {
-            "type": "string",
-            "description": "Optional message or error details for this step",
-            "default": ""
-          },
-          "screenshot": {
-            "type": "string",
-            "description": "Path or reference to screenshot taken during this step",
-            "default": ""
-          }
-        }
-      },
-      "default": []
+    "started_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp ISO 8601 de inicio de la ejecución"
     },
-    "timestamps": {
+    "finished_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp ISO 8601 de fin de la ejecución"
+    },
+    "result": {
+      "type": "string",
+      "enum": ["passed", "failed", "partial", "error"],
+      "description": "Resultado global de la ejecución"
+    },
+    "timed_out": {
+      "type": "boolean",
+      "description": "Indica si la ejecución excedió el tiempo límite"
+    },
+    "summary": {
       "type": "object",
-      "description": "Timestamps for key execution events",
       "additionalProperties": false,
-      "required": ["started_at"],
+      "description": "Resumen cuantitativo de la ejecución",
+      "required": ["total", "passed", "failed", "skipped", "not_run"],
       "properties": {
-        "started_at": {
-          "type": "string",
-          "description": "ISO 8601 timestamp when execution started",
-          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}"
+        "total": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total de casos evaluados"
         },
-        "ended_at": {
-          "type": "string",
-          "description": "ISO 8601 timestamp when execution ended",
-          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}"
+        "passed": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Casos pasados exitosamente"
+        },
+        "failed": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Casos con fallo"
+        },
+        "skipped": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Casos omitidos intencionalmente"
+        },
+        "not_run": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Casos no ejecutados (ej. por dependencia no satisfecha)"
         }
       }
     },
-    "screenshots": {
+    "cases": {
       "type": "array",
-      "description": "List of screenshots captured during execution",
+      "description": "Lista de casos ejecutados en el módulo",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["path"],
+        "required": ["id", "title", "result"],
         "properties": {
-          "path": {
+          "id": {
             "type": "string",
-            "description": "File path or URL to the screenshot"
+            "description": "UUID o slug identificador del caso de prueba"
           },
-          "timestamp": {
+          "title": {
             "type": "string",
-            "description": "ISO 8601 timestamp when screenshot was captured",
-            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}"
+            "description": "Título descriptivo del caso"
           },
-          "context": {
+          "result": {
             "type": "string",
-            "description": "Context or reason for capturing this screenshot",
-            "default": ""
+            "enum": ["passed", "failed", "skipped", "not_run"],
+            "description": "Resultado específico de este caso"
+          },
+          "failure_type": {
+            "type": ["string", "null"],
+            "enum": [
+              "assertion_failed",
+              "execution_timeout",
+              "selector_not_found",
+              "network_error",
+              "auth_failed",
+              null
+            ],
+            "description": "Categorización del fallo si el caso no pasó"
+          },
+          "not_run_reason": {
+            "type": ["string", "null"],
+            "description": "Motivo por el que no se ejecutó el caso (ej. dependencia fallida)"
+          },
+          "duration_ms": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Duración de la ejecución del caso en milisegundos"
+          },
+          "steps": {
+            "type": "array",
+            "description": "Pasos detallados ejecutados dentro del caso",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["action", "status"],
+              "properties": {
+                "action": {
+                  "type": "string",
+                  "description": "Acción ejecutada en el paso"
+                },
+                "selector": {
+                  "type": ["string", "null"],
+                  "description": "Selector objetivo de la acción si aplica"
+                },
+                "duration_ms": {
+                  "type": "number",
+                  "minimum": 0,
+                  "description": "Duración del paso en milisegundos"
+                },
+                "status": {
+                  "type": "string",
+                  "description": "Estado resultante del paso"
+                },
+                "message": {
+                  "type": ["string", "null"],
+                  "description": "Mensaje informativo o detalle de error"
+                },
+                "screenshot": {
+                  "type": ["string", "null"],
+                  "description": "Ruta relativa a captura de pantalla tomada en este paso"
+                }
+              }
+            }
+          },
+          "screenshots": {
+            "type": "array",
+            "description": "Rutas relativas a capturas PNG asociadas al caso",
+            "items": {
+              "type": "string"
+            }
           }
         }
-      },
-      "default": []
-    },
-    "metadata": {
-      "type": "object",
-      "description": "Additional metadata about the execution",
-      "additionalProperties": false,
-      "default": {}
+      }
     }
   }
 }

@@ -1,24 +1,88 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "qap://schemas/module-context.schema.json",
-  "title": "Module Context Configuration",
-  "description": "Schema for context.yaml of a module - objective, users, routes, risks, notes, sensitive selectors, and PRD source",
+  "title": "Module Context Configuration v2",
+  "description": "Schema for context.yaml of a module. Unified v2: merges engine fields (objective, users, risks) with graph fields (views, surfaces, base_route) and adds graph-navigation metadata (tags, critical_path, owner, health_status, related_modules).",
   "type": "object",
   "additionalProperties": false,
-  "required": ["_version", "objective", "manually_edited"],
+  "required": ["_version", "module"],
   "properties": {
     "_version": {
       "type": "string",
-      "description": "Schema version for evolution tracking"
+      "description": "Schema version for evolution tracking. Use '2' for files conforming to this unified schema."
+    },
+    "module": {
+      "type": "string",
+      "description": "Module identifier. Must match the directory name under .qa/modules/.",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string",
+      "description": "Short human-readable description of the module's purpose. Used as the primary label in the knowledge graph.",
+      "default": ""
     },
     "objective": {
       "type": "string",
-      "description": "Primary objective or goal of this module",
-      "minLength": 1
+      "description": "Primary business objective or goal of this module. More detailed than description.",
+      "default": ""
+    },
+    "base_route": {
+      "type": "string",
+      "description": "Root URL path for this module (e.g. '/auth', '/simulation'). Used as the entry point in the graph.",
+      "default": ""
+    },
+    "views": {
+      "type": "array",
+      "description": "Hierarchical list of UI views exposed by this module. Each view can contain nested surfaces (tabs, modals, drawers, sections).",
+      "items": {
+        "type": "object",
+        "required": ["id"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for this view within the module."
+          },
+          "name": {
+            "type": "string",
+            "description": "Human-readable display name for the view."
+          },
+          "path": {
+            "type": "string",
+            "description": "URL path for this view (e.g. '/auth/login')."
+          },
+          "surfaces": {
+            "type": "array",
+            "description": "Nested UI surfaces within the view (tabs, modals, drawers, sections).",
+            "items": {
+              "type": "object",
+              "required": ["id", "type"],
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "Unique surface identifier."
+                },
+                "name": {
+                  "type": "string",
+                  "description": "Human-readable surface name."
+                },
+                "type": {
+                  "type": "string",
+                  "enum": ["tab", "modal", "drawer", "section"],
+                  "description": "Category of UI surface."
+                }
+              }
+            },
+            "default": []
+          }
+        }
+      },
+      "default": []
     },
     "users": {
       "type": "array",
-      "description": "List of user types or roles involved in this module",
+      "description": "List of user types or roles involved in this module (e.g. 'anonymous', 'authenticated-user', 'admin').",
       "items": {
         "type": "string"
       },
@@ -26,7 +90,7 @@
     },
     "routes": {
       "type": "array",
-      "description": "List of routes or paths covered by this module",
+      "description": "Flat list of all routes or paths covered by this module. Use views[].path for structured data.",
       "items": {
         "type": "string"
       },
@@ -34,7 +98,7 @@
     },
     "risks": {
       "type": "array",
-      "description": "List of identified risks for this module",
+      "description": "List of identified QA risks for this module.",
       "items": {
         "type": "string"
       },
@@ -42,12 +106,12 @@
     },
     "notes": {
       "type": "string",
-      "description": "Additional notes or context for this module",
+      "description": "Additional implementation notes or context for QA engineers.",
       "default": ""
     },
     "sensitive_selectors": {
       "type": "array",
-      "description": "List of CSS selectors that target sensitive data (passwords, PII, etc.)",
+      "description": "CSS selectors targeting sensitive data (passwords, PII, tax IDs, etc.). These will be masked during test execution.",
       "items": {
         "type": "string"
       },
@@ -55,12 +119,45 @@
     },
     "manually_edited": {
       "type": "boolean",
-      "description": "Indicates if this context file has been manually edited by a human"
+      "description": "True if this context file has been manually reviewed or edited by a human engineer.",
+      "default": false
     },
     "prd_source": {
       "type": "string",
-      "description": "Optional reference to the Product Requirements Document source",
+      "description": "Reference to the Product Requirements Document (file path, URL, or ticket ID).",
       "default": ""
+    },
+    "tags": {
+      "type": "array",
+      "description": "Semantic tags for grouping modules in the knowledge graph (e.g. ['security', 'payments', 'onboarding']). Used to apply visual clusters in the graph viewer.",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "critical_path": {
+      "type": "boolean",
+      "description": "If true, this module is part of the primary user journey (critical path). The graph viewer will visually highlight these nodes.",
+      "default": false
+    },
+    "owner": {
+      "type": "string",
+      "description": "Team or individual responsible for this module (e.g. 'auth-squad', 'payments-team').",
+      "default": ""
+    },
+    "health_status": {
+      "type": "string",
+      "enum": ["healthy", "degraded", "unknown"],
+      "description": "Current operational health of this module. 'healthy' = tests passing, 'degraded' = some failures, 'unknown' = no recent executions. Drives node color in the graph.",
+      "default": "unknown"
+    },
+    "related_modules": {
+      "type": "array",
+      "description": "Explicit cross-module relationships not captured by prereqs.yaml or flows. These become 'related' edges in the knowledge graph.",
+      "items": {
+        "type": "string"
+      },
+      "default": []
     }
   }
 }

@@ -14,8 +14,6 @@ import type {
   TestPlan,
   TestOptions,
   ExecutionResult,
-  ReportOptions,
-  Report,
   FlowDefinition,
   FlowOptions,
   FlowExecutionResult,
@@ -28,6 +26,8 @@ import type {
   IRunner,
   IFlowRunner,
   IReporter,
+  ReportOptions,
+  GeneratedReport,
   ProjectStatus,
 } from './ports.js';
 
@@ -115,18 +115,30 @@ export class QAPEngine {
     };
   }
 
-  async report(moduleName: string, options: ReportOptions): Promise<Report> {
-    const placeholderResult: ExecutionResult = {
-      _version: '2.1.0',
-      execution_id: `exec-${Date.now()}`,
-      module: moduleName,
-      status: 'success',
-      timestamps: {
-        started_at: new Date().toISOString(),
-        ended_at: new Date().toISOString(),
-      },
-    };
-    return this.reporter.generate(placeholderResult, options);
+  async report(executionId: string, options?: ReportOptions): Promise<GeneratedReport> {
+    let result = await this.storage.getExecutionResult(executionId);
+    if (!result) {
+      const now = new Date().toISOString();
+      result = {
+        _version: '1',
+        execution_id: executionId,
+        module: executionId,
+        env: 'local',
+        started_at: now,
+        finished_at: now,
+        result: 'passed',
+        timed_out: false,
+        summary: {
+          total: 0,
+          passed: 0,
+          failed: 0,
+          skipped: 0,
+          not_run: 0,
+        },
+        cases: [],
+      };
+    }
+    return this.reporter.generate(result, options);
   }
 
   async status(): Promise<ProjectStatus> {

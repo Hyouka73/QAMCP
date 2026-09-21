@@ -16,7 +16,13 @@ export type { Environments, EnvironmentConfig } from './environments.type.js';
 export type { SystemPrompt, DefaultWorkflows } from './system-prompt.type.js';
 
 // Module Context
-export type { ModuleContext } from './module-context.type.js';
+export type {
+  ModuleContext,
+  ModuleView,
+  ModuleSurface,
+  SurfaceKind,
+  ModuleHealthStatus,
+} from './module-context.type.js';
 
 // Auth Profiles
 export type { AuthProfiles, AuthProfile, PostLoginCondition } from './auth-profiles.type.js';
@@ -24,8 +30,19 @@ export type { AuthProfiles, AuthProfile, PostLoginCondition } from './auth-profi
 // Prerequisites
 export type { Prereqs, Requirements, AuthRequirements, StatePrerequisite, Teardown } from './prereqs.type.js';
 
-// Execution Result
-export type { ExecutionResult, ExecutionStep, Timestamps, Screenshot } from './execution-result.type.js';
+// Execution Result (S5-001)
+export type {
+  ExecutionResult,
+  ExecutionSummary,
+  ExecutedCase,
+  ExecutedStep,
+  FailureType,
+  ExecutionStatus,
+  CaseResult,
+  ExecutionStep,
+  Timestamps,
+  Screenshot,
+} from './execution-result.type.js';
 
 // Rules
 export type { Rules, Rule } from './rules.type.js';

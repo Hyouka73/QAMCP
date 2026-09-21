@@ -5,8 +5,6 @@ import type {
   TestPlan,
   TestOptions,
   ExecutionResult,
-  ReportOptions,
-  Report,
   FlowDefinition,
   FlowOptions,
   FlowExecutionResult,
@@ -20,6 +18,8 @@ import type {
   IRunner,
   IFlowRunner,
   IReporter,
+  ReportOptions,
+  GeneratedReport,
 } from '../ports.js';
 
 import { createStorageMock } from './mocks/storage.mock.js';
@@ -118,14 +118,22 @@ describe('QAPEngine', () => {
     };
 
     const mockExecutionResult: ExecutionResult = {
-      _version: '2.1.0',
+      _version: '1',
       execution_id: 'exec-123',
       module: 'auth-module',
-      status: 'success',
-      timestamps: {
-        started_at: '2026-08-26T10:00:00.000Z',
-        ended_at: '2026-08-26T10:00:05.000Z',
+      env: 'staging',
+      started_at: '2026-08-26T10:00:00.000Z',
+      finished_at: '2026-08-26T10:00:05.000Z',
+      result: 'passed',
+      timed_out: false,
+      summary: {
+        total: 2,
+        passed: 2,
+        failed: 0,
+        skipped: 0,
+        not_run: 0,
       },
+      cases: [],
     };
 
     mockRunner.execute.mockResolvedValueOnce(mockExecutionResult);
@@ -162,38 +170,52 @@ describe('QAPEngine', () => {
     expect(result.changes).toEqual(['specs/auth.spec.ts']);
   });
 
-  it('delegates report() to IReporter', async () => {
+  it('delegates report() to IReporter reading from IStorage if available', async () => {
     const options: ReportOptions = {
-      format: 'html',
-      output_path: './reports/auth.html',
+      formats: ['html'],
+      outputDir: './reports',
     };
 
-    const mockReport: Report = {
-      id: 'rep-123',
-      format: 'html',
-      path: './reports/auth.html',
+    const mockExecutionResult: ExecutionResult = {
+      _version: '1',
+      execution_id: 'exec-123',
+      module: 'auth-module',
+      env: 'local',
+      started_at: '2026-08-26T10:00:00.000Z',
+      finished_at: '2026-08-26T10:00:05.000Z',
+      result: 'passed',
+      timed_out: false,
       summary: {
         total: 5,
         passed: 5,
         failed: 0,
         skipped: 0,
-        duration_ms: 1200,
+        not_run: 0,
       },
-      created_at: '2026-08-26T10:00:00.000Z',
+      cases: [],
     };
 
+    const mockReport: GeneratedReport = {
+      executionId: 'exec-123',
+      generatedAt: '2026-08-26T10:00:00.000Z',
+      formats: { html: './reports/auth.html' },
+      summary: {
+        total: 5,
+        passed: 5,
+        failed: 0,
+        skipped: 0,
+        not_run: 0,
+      },
+    };
+
+    mockStorage.getExecutionResult.mockResolvedValueOnce(mockExecutionResult);
     mockReporter.generate.mockResolvedValueOnce(mockReport);
 
-    const result = await engine.report('auth-module', options);
+    const result = await engine.report('exec-123', options);
 
+    expect(mockStorage.getExecutionResult).toHaveBeenCalledWith('exec-123');
     expect(mockReporter.generate).toHaveBeenCalledTimes(1);
-    expect(mockReporter.generate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        module: 'auth-module',
-        status: 'success',
-      }),
-      options
-    );
+    expect(mockReporter.generate).toHaveBeenCalledWith(mockExecutionResult, options);
     expect(result).toEqual(mockReport);
   });
 

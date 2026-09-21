@@ -17,8 +17,7 @@ import type {
   TestPlan,
   TestOptions,
   ExecutionResult,
-  ReportOptions,
-  Report,
+  ExecutionSummary,
   FlowDefinition,
   FlowOptions,
   FlowExecutionResult,
@@ -134,13 +133,39 @@ export interface IRunner {
 }
 
 /**
- * Reporter Port
+ * Options for report generation (S5-001)
+ */
+export interface ReportOptions {
+  outputDir?: string;
+  formats?: Array<'html' | 'json' | 'markdown' | 'junit'>;
+  includeScreenshots?: boolean;
+  regressionManifestPath?: string;
+}
+
+/**
+ * Result of report generation (S5-001)
+ */
+export interface GeneratedReport {
+  executionId: string;
+  generatedAt: string;
+  formats: Record<string, string>; // e.g. { html: 'path/to/report.html', junit: 'path/to/junit.xml' }
+  summary: ExecutionSummary;
+  regressionsDetected?: boolean;
+}
+
+/**
+ * Backward compatibility alias
+ */
+export type Report = GeneratedReport;
+
+/**
+ * Reporter Port (S5-001)
  *
  * Responsible for generating reports from execution results.
  * Implementations may produce HTML, JSON, JUnit, or other formats.
  */
 export interface IReporter {
-  generate(result: ExecutionResult, options: ReportOptions): Promise<Report>;
+  generate(result: ExecutionResult, options?: ReportOptions): Promise<GeneratedReport>;
 }
 
 /**

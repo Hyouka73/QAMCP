@@ -156,23 +156,38 @@ describe('SchemaValidator - Suite de Pruebas Unitarias Aisladas', () => {
   describe('Validación de execution-result (execution-result.schema.json)', () => {
     it('debe aceptar un resultado de ejecución estructurado y válido', () => {
       const validPayload = {
-        _version: '2.1.0',
-        execution_id: 'exec-20260903-001',
+        _version: '1',
+        execution_id: '20260921T100000Z_checkout_a1b2c3d',
         module: 'checkout',
-        status: 'success',
-        timestamps: {
-          started_at: '2026-09-03T10:00:00.000Z',
-          ended_at: '2026-09-03T10:00:15.000Z',
+        env: 'staging',
+        started_at: '2026-09-21T10:00:00.000Z',
+        finished_at: '2026-09-21T10:00:15.000Z',
+        result: 'passed',
+        timed_out: false,
+        summary: {
+          total: 1,
+          passed: 1,
+          failed: 0,
+          skipped: 0,
+          not_run: 0,
         },
-        steps: [
+        cases: [
           {
-            name: 'Navegar al carrito',
-            status: 'success',
+            id: 'TC-CHK-001',
+            title: 'Navegar al carrito',
+            result: 'passed',
             duration_ms: 1200,
+            steps: [
+              {
+                action: 'click',
+                selector: '#btn-cart',
+                status: 'passed',
+                duration_ms: 300,
+              },
+            ],
+            screenshots: ['screenshots/cart.png'],
           },
         ],
-        screenshots: [],
-        metadata: {},
       };
 
       const result = validator.validateExecutionResult(validPayload);
@@ -180,58 +195,79 @@ describe('SchemaValidator - Suite de Pruebas Unitarias Aisladas', () => {
       expect(result.errors).toHaveLength(0);
     });
 
-    it('debe rechazar cuando el status no pertenece al enum permitido', () => {
+    it('debe rechazar cuando el result global no pertenece al enum permitido', () => {
       const invalidPayload = {
-        _version: '2.1.0',
-        execution_id: 'exec-002',
+        _version: '1',
+        execution_id: '20260921T100000Z_auth_a1b2c3d',
         module: 'auth',
-        status: 'status_invalido', // No está en enum
-        timestamps: {
-          started_at: '2026-09-03T10:00:00.000Z',
+        env: 'local',
+        started_at: '2026-09-21T10:00:00.000Z',
+        finished_at: '2026-09-21T10:00:05.000Z',
+        result: 'status_invalido', // No está en enum
+        timed_out: false,
+        summary: {
+          total: 0,
+          passed: 0,
+          failed: 0,
+          skipped: 0,
+          not_run: 0,
         },
+        cases: [],
       };
 
       const result = validator.validateExecutionResult(invalidPayload);
       expect(result.valid).toBe(false);
       expect(result.errors.length).toBeGreaterThan(0);
-      expect(result.errors.some((err) => err.field === 'status')).toBe(true);
+      expect(result.errors.some((err) => err.field === 'result')).toBe(true);
     });
 
-    it('debe rechazar de forma estricta propiedades adicionales en metadata (Principio 9 / additionalProperties: false)', () => {
+    it('debe rechazar de forma estricta propiedades adicionales en summary (Principio 9 / additionalProperties: false)', () => {
       const invalidPayload = {
-        _version: '2.1.0',
-        execution_id: 'exec-003',
+        _version: '1',
+        execution_id: '20260921T100000Z_auth_a1b2c3d',
         module: 'auth',
-        status: 'failure',
-        timestamps: {
-          started_at: '2026-09-03T10:00:00.000Z',
+        env: 'local',
+        started_at: '2026-09-21T10:00:00.000Z',
+        finished_at: '2026-09-21T10:00:05.000Z',
+        result: 'failed',
+        timed_out: false,
+        summary: {
+          total: 1,
+          passed: 0,
+          failed: 1,
+          skipped: 0,
+          not_run: 0,
+          propiedadNoPermitidaEnSummary: 'error_esperado',
         },
-        metadata: {
-          propiedadNoPermitidaEnMetadata: 'error_esperado',
-        },
+        cases: [],
       };
 
       const result = validator.validateExecutionResult(invalidPayload);
       expect(result.valid).toBe(false);
 
-      const metadataError = result.errors.find((err) => err.rule === 'additionalProperties');
-      expect(metadataError).toBeDefined();
-      expect(metadataError?.message).toContain("Propiedad no permitida 'propiedadNoPermitidaEnMetadata'");
+      const additionalError = result.errors.find((err) => err.rule === 'additionalProperties');
+      expect(additionalError).toBeDefined();
+      expect(additionalError?.message).toContain("Propiedad no permitida 'propiedadNoPermitidaEnSummary'");
     });
 
-    it('debe rechazar cuando falta el campo timestamps requerido', () => {
+    it('debe rechazar cuando falta el campo summary requerido', () => {
       const invalidPayload = {
-        _version: '2.1.0',
-        execution_id: 'exec-004',
+        _version: '1',
+        execution_id: '20260921T100000Z_auth_a1b2c3d',
         module: 'auth',
-        status: 'success',
+        env: 'local',
+        started_at: '2026-09-21T10:00:00.000Z',
+        finished_at: '2026-09-21T10:00:05.000Z',
+        result: 'passed',
+        timed_out: false,
+        cases: [],
       };
 
       const result = validator.validateExecutionResult(invalidPayload);
       expect(result.valid).toBe(false);
 
       const requiredError = result.errors.find((err) => err.rule === 'required');
-      expect(requiredError?.message).toBe("Falta el campo requerido 'timestamps'");
+      expect(requiredError?.message).toBe("Falta el campo requerido 'summary'");
     });
   });
 
