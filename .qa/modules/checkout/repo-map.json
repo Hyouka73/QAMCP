@@ -1,8 +1,0 @@
-{
-  "_version": "1",
-  "module": "checkout",
-  "files": [
-    "src/modules/checkout/contract-sign.tsx",
-    "src/modules/checkout/disbursement.ts"
-  ]
-}
