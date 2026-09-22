@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@qap/engine": "workspace:^",
+    "@qap/knowledge": "workspace:*",
     "@qap/shared": "workspace:*"
   },
   "devDependencies": {

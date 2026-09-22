@@ -1,0 +1,53 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "qap://schemas/flow-definition.schema.json",
+  "title": "Flow Definition v3",
+  "description": "Schema for an E2E flow in QAP v3.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "name", "description", "tags", "steps"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["stepIndex", "capabilityId"],
+        "properties": {
+          "stepIndex": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "capabilityId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "customLabel": {
+            "type": "string"
+          },
+          "stepTimeoutMs": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      }
+    }
+  }
+}

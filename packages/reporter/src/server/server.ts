@@ -3,9 +3,11 @@ import { existsSync, createReadStream, statSync } from 'node:fs';
 import { join, normalize, extname, isAbsolute } from 'node:path';
 
 import type { IStorage } from '@qap/engine';
+import { validateDefinitions } from '@qap/knowledge';
 
 import { buildKnowledgeGraph } from '../graph/graph-builder.js';
 import { getTemplateHtml } from '../template/index.js';
+import { QapDatabase } from '../persistence/sqlite-client.js';
 
 export interface ViewerServerOptions {
   storage: IStorage;
@@ -55,7 +57,7 @@ export function startViewerServer(options: ViewerServerOptions): Promise<ViewerS
   const requestListener = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
     // Manejo de CORS
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, POST, PATCH, DELETE, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
     if (req.method === 'OPTIONS') {
@@ -64,18 +66,13 @@ export function startViewerServer(options: ViewerServerOptions): Promise<ViewerS
       return;
     }
 
-    if (req.method !== 'GET' && req.method !== 'HEAD') {
-      res.writeHead(405, { 'Content-Type': 'text/plain' });
-      res.end('Method Not Allowed');
-      return;
-    }
-
     const rawUrl = req.url || '/';
     const parsedUrl = new URL(rawUrl, `http://${host}:${preferredPort}`);
     const pathname = decodeURIComponent(parsedUrl.pathname);
+    const method = req.method?.toUpperCase();
 
     // 1. Ruta principal: Interfaz Web
-    if (pathname === '/' || pathname === '/index.html') {
+    if ((pathname === '/' || pathname === '/index.html') && (method === 'GET' || method === 'HEAD')) {
       const html = getTemplateHtml();
       res.writeHead(200, {
         'Content-Type': 'text/html; charset=utf-8',
@@ -85,8 +82,78 @@ export function startViewerServer(options: ViewerServerOptions): Promise<ViewerS
       return;
     }
 
-    // 2. Ruta API: Knowledge Graph Payload en JSON
-    if (pathname === '/api/graph') {
+    let projectRoot = process.cwd();
+    try {
+      projectRoot = storage.getProjectRoot();
+    } catch {
+      // Usar cwd
+    }
+    const runtimeDir = join(projectRoot, '.qa', 'runtime');
+    const definitionsDir = join(projectRoot, '.qa', 'definitions');
+
+    // 2. Ruta API: Definiciones canónicas estáticas de QAP v3.0
+    if (pathname === '/api/definitions' && method === 'GET') {
+      try {
+        const defs = validateDefinitions(definitionsDir);
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: true, ...defs }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: false, error: String(err) }));
+      }
+      return;
+    }
+
+    // 3. Rutas API: Telemetría dinámica y Persistencia (/api/runs)
+    if (pathname === '/api/runs' && method === 'GET') {
+      try {
+        const db = new QapDatabase(runtimeDir);
+        const runs = db.listRuns();
+        db.close();
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: true, count: runs.length, runs }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: false, error: String(err) }));
+      }
+      return;
+    }
+
+    const runMatch = pathname.match(/^\/api\/runs\/([^/]+)$/);
+    if (runMatch) {
+      const runId = decodeURIComponent(runMatch[1]);
+      const db = new QapDatabase(runtimeDir);
+
+      if (method === 'GET') {
+        const run = db.getRun(runId);
+        db.close();
+        if (!run) {
+          res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ success: false, error: `Run no encontrado: ${runId}` }));
+          return;
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: true, run }));
+        return;
+      }
+
+      if (method === 'DELETE') {
+        const deleted = db.deleteRun(runId);
+        db.close();
+        if (!deleted) {
+          res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ success: false, error: `Run no encontrado: ${runId}` }));
+          return;
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: true, deleted: true, runId }));
+        return;
+      }
+      db.close();
+    }
+
+    // 4. Ruta API: Knowledge Graph Payload en JSON (Compatibilidad v2)
+    if (pathname === '/api/graph' && (method === 'GET' || method === 'HEAD')) {
       try {
         const payload = await buildKnowledgeGraph(storage);
         const jsonContent = JSON.stringify(payload, null, 2);

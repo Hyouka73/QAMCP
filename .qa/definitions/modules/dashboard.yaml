@@ -1,0 +1,17 @@
+id: dashboard
+name: User Analytics & Portfolio
+category: feature
+ownerSquad: analytics
+capabilities:
+  - id: dashboard.metrics.view
+    name: View Portfolio Metrics
+    type: ui-interaction
+    description: Visualiza el resumen financiero y métricas de cartera
+    moduleId: dashboard
+    prerequisiteGroups:
+      - mode: ALL
+        requirements:
+          - capabilityId: auth.mfa.verify
+    emits:
+      - key: dashboard.metrics.loaded
+        description: Métricas renderizadas en pantalla

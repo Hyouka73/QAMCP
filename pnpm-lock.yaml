@@ -192,6 +192,9 @@ importers:
       '@qap/engine':
         specifier: workspace:^
         version: link:../engine
+      '@qap/knowledge':
+        specifier: workspace:*
+        version: link:../knowledge
       '@qap/shared':
         specifier: workspace:*
         version: link:../shared

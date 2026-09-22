@@ -25,6 +25,9 @@ import { handleStatus } from './commands/status/index.js';
 import { handleConfigShow, handleConfigSet } from './commands/config/index.js';
 import { handleDiscover } from './commands/discover.js';
 import { handleReport } from './commands/report.js';
+import { handleValidate } from './commands/validate.js';
+import { handlePrune } from './commands/prune.js';
+import { handleRuntimeReindex } from './commands/reindex.js';
 
 interface CommandDefinition {
   /** Nombre del subcomando, p.ej. "test" -> `qap test`. */
@@ -156,7 +159,38 @@ export function registerCommands(program: Command): void {
       await handleReport(undefined, { ...options, serve: true });
     });
 
-  // 5. Registrar los comandos placeholders pendientes (Sprint 1)
+  // 5. Subcomando 'validate' (QAP v3.0 Fase 1)
+  program
+    .command('validate [path]')
+    .description('Valida estáticamente las definiciones (.qa/definitions/), schemas y ciclos del DAG')
+    .action(async (targetPath?: string) => {
+      await handleValidate(targetPath);
+    });
+
+  // 6. Subcomando 'prune' (QAP v3.0 Fase 3)
+  program
+    .command('prune')
+    .description('Poda y recolección de basura de telemetría y artefactos multimedia')
+    .option('--older-than-days <days>', 'Días de antigüedad para expirar registros')
+    .option('--max-bytes <bytes>', 'Cuota máxima de disco permitida')
+    .option('--dry-run', 'Audita el espacio liberable sin eliminar archivos')
+    .action(async (options: { olderThanDays?: string; maxBytes?: string; dryRun?: boolean }) => {
+      await handlePrune(options);
+    });
+
+  // 7. Grupo 'runtime' con 'reindex' (QAP v3.0 Fase 3)
+  const runtimeGroup = program
+    .command('runtime')
+    .description('Gestión del almacenamiento runtime local');
+
+  runtimeGroup
+    .command('reindex [dir]')
+    .description('Reconstruye íntegramente la base de datos qap.sqlite desde run.json')
+    .action(async (dir?: string) => {
+      await handleRuntimeReindex(dir);
+    });
+
+  // 8. Registrar los comandos placeholders pendientes (Sprint 1)
   for (const definition of COMMANDS) {
     const subcommand = program.command(definition.name).description(definition.description);
 

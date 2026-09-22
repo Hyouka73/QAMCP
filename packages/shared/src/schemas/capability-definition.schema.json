@@ -1,0 +1,104 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "qap://schemas/capability-definition.schema.json",
+  "title": "Capability Definition v3",
+  "description": "Schema for a single atomic capability in QAP v3.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "name", "type", "moduleId", "prerequisiteGroups", "emits"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "type": {
+      "type": "string",
+      "enum": ["ui-interaction", "api-rest", "event-stream", "business-rule", "db-state"]
+    },
+    "description": {
+      "type": "string"
+    },
+    "moduleId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "prerequisiteGroups": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["mode", "requirements"],
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": ["ALL", "ANY"]
+          },
+          "requirements": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["capabilityId"],
+              "properties": {
+                "capabilityId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "condition": {
+                  "type": "string"
+                },
+                "isOptional": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "emits": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["key", "description"],
+        "properties": {
+          "key": {
+            "type": "string",
+            "minLength": 1
+          },
+          "schemaRef": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "guardrailIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "testBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["file"],
+      "properties": {
+        "file": {
+          "type": "string",
+          "minLength": 1
+        },
+        "identifier": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

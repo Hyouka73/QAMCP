@@ -1,0 +1,29 @@
+id: billing
+name: Billing & Checkout Module
+category: core
+ownerSquad: payments
+capabilities:
+  - id: billing.payment.submit
+    name: Submit Payment Method
+    type: ui-interaction
+    description: Procesa la tarjeta de crédito o método de pago
+    moduleId: billing
+    prerequisiteGroups:
+      - mode: ALL
+        requirements:
+          - capabilityId: auth.login.submit
+    emits:
+      - key: billing.payment.authorized
+        description: Pago autorizado exitosamente
+  - id: billing.invoice.download
+    name: Download Tax Invoice
+    type: api-rest
+    description: Descarga el comprobante fiscal en PDF
+    moduleId: billing
+    prerequisiteGroups:
+      - mode: ALL
+        requirements:
+          - capabilityId: billing.payment.submit
+    emits:
+      - key: billing.invoice.generated
+        description: Factura generada
