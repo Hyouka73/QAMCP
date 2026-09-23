@@ -1,7 +1,0 @@
-_version: '1'
-environments:
-  local:
-    url: 'http://localhost:3000'
-  staging:
-    url: 'https://staging.bancodigital.internal'
-default: 'local'

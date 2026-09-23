@@ -1,2370 +1,956 @@
 <!DOCTYPE html>
-<html lang="es">
+<html class="dark" lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>QAP v2.1 — Knowledge Graph & System Architecture</title>
+  <title>QAP v3.0 — Architectural DAG & Telemetry Platform</title>
+  <meta name="description" content="Visor arquitectónico determinista en 2D, tuberías de flujo E2E, historial de telemetría y matriz de guardrails de QAP v3.0.">
+
+  <!-- Favicon SVG -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236366f1'%3E%3Cpath d='M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5'/%3E%3C/svg%3E">
+
+  <!-- Google Fonts: Inter & JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "qap-bg": "#080a11",
+            "qap-surface": "#0f172a",
+            "qap-card": "rgba(17, 24, 39, 0.85)",
+            "qap-border": "rgba(255, 255, 255, 0.08)",
+            "qap-border-hover": "rgba(255, 255, 255, 0.18)",
+            "qap-indigo": "#6366f1",
+            "qap-violet": "#8b5cf6",
+            "qap-cyan": "#06b6d4",
+            "qap-emerald": "#10b981",
+            "qap-amber": "#f59e0b",
+            "qap-rose": "#f43f5e"
+          },
+          fontFamily: {
+            sans: ["Inter", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "sans-serif"],
+            mono: ["JetBrains Mono", "monospace"]
+          }
+        }
+      }
+    };
+  </script>
+
   <style>
     :root {
-      --bg-base: #09090b;
-      --bg-surface: #121215;
-      --bg-surface-hover: #18181b;
-      --bg-surface-active: #202024;
-      --border-subtle: #27272a;
-      --border-strong: #3f3f46;
-      --border-focus: #52525b;
-
-      --text-primary: #f4f4f5;
-      --text-secondary: #a1a1aa;
-      --text-muted: #71717a;
-
-      --color-pass: #10b981;
-      --color-pass-bg: rgba(16, 185, 129, 0.12);
-      --color-pass-border: rgba(16, 185, 129, 0.28);
-
-      --color-fail: #ef4444;
-      --color-fail-bg: rgba(239, 68, 68, 0.12);
-      --color-fail-border: rgba(239, 68, 68, 0.28);
-
-      --color-accent: #38bdf8;
-      --color-accent-bg: rgba(56, 189, 248, 0.12);
-      --color-accent-border: rgba(56, 189, 248, 0.28);
-
-      --color-warn: #f59e0b;
-      --color-warn-bg: rgba(245, 158, 11, 0.12);
-
-      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-
-      --header-height: 48px;
-    }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
+      --bg-base: #080a11;
+      --bg-surface: #0f172a;
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-accent: rgba(99, 102, 241, 0.4);
     }
 
     body {
       background-color: var(--bg-base);
-      color: var(--text-primary);
-      font-family: var(--font-sans);
-      font-size: 13px;
-      line-height: 1.45;
-      height: 100vh;
-      width: 100vw;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
+      color: #f8fafc;
+      font-family: 'Inter', sans-serif;
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
     }
 
-    /* SVG Icon utility */
-    .icon {
-      width: 15px;
-      height: 15px;
-      stroke-width: 1.5;
-      stroke: currentColor;
-      fill: none;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-      display: inline-block;
-      vertical-align: middle;
-      flex-shrink: 0;
-    }
-
-    /* Top Bar */
-    header.app-header {
-      background: var(--bg-surface);
-      border-bottom: 1px solid var(--border-subtle);
-      height: var(--header-height);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 16px;
-      z-index: 100;
-      flex-shrink: 0;
-    }
-
-    .brand-group {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .brand-badge {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-weight: 600;
-      color: var(--text-primary);
-      font-size: 13px;
-      letter-spacing: -0.01em;
-    }
-
-    .brand-logo-box {
-      width: 24px;
-      height: 24px;
-      background: #18181b;
-      border: 1px solid var(--border-strong);
-      border-radius: 4px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--text-primary);
-    }
-
-    .brand-subtext {
-      color: var(--text-muted);
-      font-size: 12px;
-      font-family: var(--font-mono);
-      font-weight: 400;
-    }
-
-    /* Nav View Switcher */
-    .view-switcher {
-      display: flex;
-      background: #18181b;
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.82);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
       border: 1px solid var(--border-subtle);
-      border-radius: 5px;
-      padding: 2px;
-      gap: 2px;
     }
 
-    .nav-btn {
-      background: transparent;
-      border: none;
-      color: var(--text-secondary);
-      font-family: var(--font-sans);
-      font-size: 12px;
-      font-weight: 500;
-      padding: 4px 12px;
-      border-radius: 4px;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
-      transition: color 0.15s, background-color 0.15s;
-    }
-
-    .nav-btn:hover {
-      color: var(--text-primary);
-    }
-
-    .nav-btn.active {
-      background: var(--bg-surface);
-      color: var(--text-primary);
-      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
-    }
-
-    .nav-count-badge {
-      font-family: var(--font-mono);
-      font-size: 10px;
-      background: #27272a;
-      color: var(--text-secondary);
-      padding: 1px 5px;
-      border-radius: 3px;
-    }
-
-    .header-actions {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .search-box {
-      display: flex;
-      align-items: center;
-      background: #18181b;
-      border: 1px solid var(--border-subtle);
-      border-radius: 4px;
-      padding: 4px 8px;
-      gap: 6px;
-      color: var(--text-secondary);
-      width: 220px;
-      transition: border-color 0.15s;
-    }
-
-    .search-box:focus-within {
-      border-color: var(--border-focus);
-      color: var(--text-primary);
-    }
-
-    .search-input {
-      background: transparent;
-      border: none;
-      outline: none;
-      color: var(--text-primary);
-      font-family: var(--font-mono);
-      font-size: 11px;
-      width: 100%;
-    }
-
-    .search-input::placeholder {
-      color: var(--text-muted);
-      font-family: var(--font-sans);
-    }
-
-    .server-status {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-family: var(--font-mono);
-      font-size: 11px;
-      color: var(--text-muted);
-    }
-
-    .status-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: var(--color-pass);
-    }
-
-    /* Main Container */
-    main.app-viewport {
-      flex: 1;
-      position: relative;
-      overflow: hidden;
-      display: flex;
-    }
-
-    .view-pane {
-      width: 100%;
-      height: 100%;
-      display: none;
-      position: relative;
-    }
-
-    .view-pane.active {
-      display: flex;
-    }
-
-    /* ========================================================
-       VISTA 1: SYSTEM ARCHITECTURE MAP
-       ======================================================== */
-    #graph-pane {
-      position: relative;
-      background-color: var(--bg-base);
-      background-image: 
-        linear-gradient(to right, rgba(39, 39, 42, 0.4) 1px, transparent 1px),
-        linear-gradient(to bottom, rgba(39, 39, 42, 0.4) 1px, transparent 1px);
-      background-size: 20px 20px;
-      overflow: hidden;
-      cursor: grab;
-    }
-
-    #graph-pane.panning {
-      cursor: grabbing;
-    }
-
-    /* Graph Canvas & Transform Stage */
-    .graph-stage {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      transform-origin: 0 0;
-      will-change: transform;
-      user-select: none;
-    }
-
-    /* SVG Connector Overlay */
-    .edges-svg-layer {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-      overflow: visible;
-      z-index: 10;
-    }
-
-    .edge-path {
-      fill: none;
-      stroke-width: 1.5;
-      stroke-linecap: round;
-      transition: stroke 0.15s, stroke-width 0.15s;
-    }
-
-    .edge-path.prereq {
-      stroke: #52525b;
-      stroke-dasharray: none;
-    }
-
-    .edge-path.flow {
-      stroke: var(--color-accent);
-      stroke-dasharray: 4 3;
-    }
-
-    .edge-path.highlighted {
-      stroke-width: 2.2;
-      stroke: var(--text-primary);
-    }
-
-    /* Block Nodes (Module Cards) */
-    .module-card {
-      position: absolute;
-      width: 290px;
-      background: var(--bg-surface);
-      border: 1px solid var(--border-subtle);
-      border-radius: 6px;
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
-      z-index: 20;
-      cursor: default;
-      transition: border-color 0.15s, box-shadow 0.15s;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .module-card:hover {
-      border-color: var(--border-strong);
-      background: #151518;
-    }
-
-    .module-card.selected {
-      border-color: var(--color-accent);
-      box-shadow: 0 0 0 1px var(--color-accent), 0 8px 24px rgba(0, 0, 0, 0.6);
-    }
-
-    .module-card-header {
-      padding: 10px 12px;
-      background: #18181b;
-      border-bottom: 1px solid var(--border-subtle);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      cursor: grab;
-    }
-
-    .module-card-header:active {
-      cursor: grabbing;
-    }
-
-    .module-name-group {
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      min-width: 0;
-    }
-
-    .module-status-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      flex-shrink: 0;
-    }
-
-    .module-status-dot.active {
-      background: var(--color-pass);
-    }
-
-    .module-status-dot.inactive {
-      background: var(--text-muted);
-    }
-
-    .module-title-mono {
-      font-family: var(--font-mono);
-      font-weight: 600;
-      font-size: 13px;
-      color: var(--text-primary);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .module-route-pill {
-      font-family: var(--font-mono);
-      font-size: 10px;
-      color: var(--text-secondary);
-      background: #27272a;
-      padding: 2px 6px;
-      border-radius: 3px;
-      white-space: nowrap;
-    }
-
-    .module-card-body {
-      padding: 10px 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .module-desc {
-      font-size: 11px;
-      color: var(--text-secondary);
-      line-height: 1.35;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-    }
-
-    /* Views & Surfaces Hierarchy List */
-    .hierarchy-container {
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-      border-top: 1px solid #1f1f23;
-      padding-top: 8px;
-    }
-
-    .hierarchy-section-title {
-      font-size: 10px;
-      font-weight: 600;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      margin-bottom: 2px;
-    }
-
-    .view-row {
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
-      padding: 4px 6px;
-      border-radius: 4px;
-      background: rgba(255, 255, 255, 0.02);
-      border: 1px solid transparent;
-      cursor: pointer;
-      transition: background-color 0.12s, border-color 0.12s;
-    }
-
-    .view-row:hover {
-      background: rgba(255, 255, 255, 0.05);
-      border-color: var(--border-subtle);
-    }
-
-    .view-row-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 6px;
-    }
-
-    .view-label-group {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      min-width: 0;
-    }
-
-    .type-tag {
-      font-family: var(--font-mono);
-      font-size: 9px;
-      font-weight: 600;
-      text-transform: uppercase;
-      padding: 1px 4px;
-      border-radius: 2px;
-      letter-spacing: 0.03em;
-    }
-
-    .type-tag.view {
-      background: #27272a;
-      color: var(--text-secondary);
-    }
-
-    .type-tag.tab {
-      background: rgba(56, 189, 248, 0.15);
-      color: #7dd3fc;
-    }
-
-    .type-tag.modal {
-      background: rgba(245, 158, 11, 0.15);
-      color: #fcd34d;
-    }
-
-    .type-tag.section {
-      background: rgba(16, 185, 129, 0.15);
-      color: #6ee7b7;
-    }
-
-    .type-tag.drawer {
-      background: rgba(168, 85, 247, 0.15);
-      color: #d8b4fe;
-    }
-
-    .view-name {
-      font-size: 11px;
-      font-weight: 500;
-      color: var(--text-primary);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .view-path-mono {
-      font-family: var(--font-mono);
-      font-size: 10px;
-      color: var(--text-muted);
-    }
-
-    .surfaces-list {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      padding-left: 12px;
-      border-left: 1px solid #27272a;
-      margin-left: 6px;
-      margin-top: 3px;
-    }
-
-    .surface-item {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 6px;
-      padding: 2px 4px;
-      border-radius: 3px;
-      font-size: 11px;
-      color: var(--text-secondary);
-      transition: color 0.12s;
-    }
-
-    .surface-item:hover {
-      color: var(--text-primary);
-      background: rgba(255, 255, 255, 0.03);
-    }
-
-    .module-card-footer {
-      padding: 7px 12px;
-      background: #0e0e11;
-      border-top: 1px solid var(--border-subtle);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      font-family: var(--font-mono);
-      font-size: 10px;
-      color: var(--text-muted);
-    }
-
-    .card-stat {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    /* Floating Canvas Controls */
-    .canvas-hud-top-left {
-      position: absolute;
-      top: 16px;
-      left: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      z-index: 50;
-      pointer-events: none;
-    }
-
-    .hud-metrics-strip {
-      background: rgba(18, 18, 21, 0.95);
-      border: 1px solid var(--border-subtle);
-      border-radius: 6px;
-      padding: 6px 12px;
-      display: flex;
-      align-items: center;
-      gap: 16px;
+    .glass-card {
+      background: rgba(23, 31, 51, 0.70);
       backdrop-filter: blur(8px);
-      pointer-events: auto;
-    }
-
-    .hud-metric {
-      display: flex;
-      flex-direction: column;
-      gap: 1px;
-    }
-
-    .hud-metric-label {
-      font-size: 10px;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      color: var(--text-muted);
-    }
-
-    .hud-metric-val {
-      font-family: var(--font-mono);
-      font-size: 14px;
-      font-weight: 600;
-      color: var(--text-primary);
-    }
-
-    .hud-legend-strip {
-      background: rgba(18, 18, 21, 0.95);
       border: 1px solid var(--border-subtle);
-      border-radius: 6px;
-      padding: 6px 10px;
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      font-size: 11px;
-      color: var(--text-secondary);
-      pointer-events: auto;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
-    .legend-item {
-      display: flex;
-      align-items: center;
-      gap: 6px;
+    .glass-card:hover {
+      border-color: var(--border-accent);
+      transform: translateY(-1px);
     }
 
-    .legend-line {
-      width: 16px;
-      height: 2px;
+    /* Scrollbars elegantes */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
     }
-
-    .legend-line.prereq {
-      background: #52525b;
-    }
-
-    .legend-line.flow {
-      background: var(--color-accent);
-      border-top: 1px dashed var(--color-accent);
-    }
-
-    .canvas-controls-bottom-right {
-      position: absolute;
-      bottom: 16px;
-      right: 16px;
-      display: flex;
-      background: var(--bg-surface);
-      border: 1px solid var(--border-subtle);
-      border-radius: 5px;
-      overflow: hidden;
-      z-index: 50;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-    }
-
-    .ctrl-btn {
-      background: transparent;
-      border: none;
-      border-right: 1px solid var(--border-subtle);
-      color: var(--text-secondary);
-      width: 32px;
-      height: 32px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      font-size: 14px;
-      font-family: var(--font-mono);
-      transition: background-color 0.12s, color 0.12s;
-    }
-
-    .ctrl-btn:last-child {
-      border-right: none;
-    }
-
-    .ctrl-btn:hover {
-      background: var(--bg-surface-hover);
-      color: var(--text-primary);
-    }
-
-    /* ========================================================
-       TECHNICAL INSPECTOR DRAWER
-       ======================================================== */
-    aside.inspector-drawer {
-      position: absolute;
-      top: 0;
-      right: 0;
-      bottom: 0;
-      width: 440px;
-      background: var(--bg-surface);
-      border-left: 1px solid var(--border-subtle);
-      z-index: 80;
-      display: flex;
-      flex-direction: column;
-      transform: translateX(100%);
-      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-      box-shadow: -8px 0 24px rgba(0, 0, 0, 0.6);
-    }
-
-    aside.inspector-drawer.open {
-      transform: translateX(0);
-    }
-
-    .drawer-header {
-      padding: 12px 16px;
-      border-bottom: 1px solid var(--border-subtle);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      background: #151518;
-    }
-
-    .drawer-breadcrumb {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-family: var(--font-mono);
-      font-size: 12px;
-      color: var(--text-secondary);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .drawer-breadcrumb span.crumb-active {
-      color: var(--text-primary);
-      font-weight: 600;
-    }
-
-    .drawer-close-btn {
-      background: transparent;
-      border: none;
-      color: var(--text-muted);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 4px;
-      border-radius: 4px;
-      transition: color 0.12s, background-color 0.12s;
-    }
-
-    .drawer-close-btn:hover {
-      color: var(--text-primary);
-      background: #27272a;
-    }
-
-    .drawer-body {
-      flex: 1;
-      overflow-y: auto;
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 18px;
-    }
-
-    .drawer-section {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .drawer-section-title {
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--text-muted);
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .drawer-prop-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 12px;
-      border: 1px solid var(--border-subtle);
-      border-radius: 4px;
-      overflow: hidden;
-    }
-
-    .drawer-prop-table tr {
-      border-bottom: 1px solid var(--border-subtle);
-    }
-
-    .drawer-prop-table tr:last-child {
-      border-bottom: none;
-    }
-
-    .drawer-prop-table td {
-      padding: 7px 10px;
-    }
-
-    .drawer-prop-table td.prop-key {
-      width: 120px;
-      color: var(--text-muted);
-      background: #151518;
-      font-family: var(--font-mono);
-      font-size: 11px;
-    }
-
-    .drawer-prop-table td.prop-val {
-      color: var(--text-primary);
-      font-family: var(--font-mono);
-      font-size: 11px;
-      word-break: break-all;
-    }
-
-    .code-list-box {
-      background: #09090b;
-      border: 1px solid var(--border-subtle);
-      border-radius: 4px;
-      padding: 8px 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .code-file-item {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      font-family: var(--font-mono);
-      font-size: 11px;
-      color: var(--text-secondary);
-    }
-
-    .code-file-item:hover {
-      color: var(--text-primary);
-    }
-
-    .code-file-left {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .copy-btn {
-      background: transparent;
-      border: none;
-      color: var(--text-muted);
-      cursor: pointer;
-      padding: 2px 4px;
-      border-radius: 3px;
-      font-size: 10px;
-      font-family: var(--font-mono);
-    }
-
-    .copy-btn:hover {
-      color: var(--text-primary);
-      background: #27272a;
-    }
-
-    .selector-item {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      padding: 5px 8px;
-      background: #18181b;
-      border: 1px solid var(--border-subtle);
-      border-radius: 4px;
-      font-family: var(--font-mono);
-      font-size: 11px;
-    }
-
-    .protected-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      font-family: var(--font-sans);
-      font-size: 10px;
-      font-weight: 500;
-      color: #fcd34d;
-      background: rgba(245, 158, 11, 0.12);
-      border: 1px solid rgba(245, 158, 11, 0.25);
-      padding: 2px 6px;
-      border-radius: 3px;
-      text-transform: uppercase;
-      letter-spacing: 0.03em;
-    }
-
-    /* Browser Mockup Frame */
-    .browser-frame {
-      background: #151518;
-      border: 1px solid var(--border-subtle);
-      border-radius: 6px;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .browser-titlebar {
-      height: 28px;
-      background: #1a1a1e;
-      border-bottom: 1px solid var(--border-subtle);
-      display: flex;
-      align-items: center;
-      padding: 0 10px;
-      gap: 8px;
-    }
-
-    .browser-dots {
-      display: flex;
-      gap: 4px;
-    }
-
-    .browser-dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      background: #3f3f46;
-    }
-
-    .browser-url-pill {
-      flex: 1;
-      background: #09090b;
-      border: 1px solid #27272a;
-      border-radius: 3px;
-      height: 18px;
-      display: flex;
-      align-items: center;
-      padding: 0 8px;
-      font-family: var(--font-mono);
-      font-size: 10px;
-      color: var(--text-muted);
-      overflow: hidden;
-      white-space: nowrap;
-      text-overflow: ellipsis;
-    }
-
-    .browser-content-area {
-      position: relative;
-      background: #000;
-      min-height: 180px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .browser-screenshot-img {
-      width: 100%;
-      height: auto;
-      max-height: 260px;
-      object-fit: contain;
-      display: block;
-      cursor: zoom-in;
+    ::-webkit-scrollbar-track {
+      background: rgba(8, 10, 17, 0.5);
     }
-
-    .masked-region-indicator {
-      position: absolute;
-      bottom: 8px;
-      right: 8px;
-      background: rgba(18, 18, 21, 0.85);
-      border: 1px solid rgba(245, 158, 11, 0.4);
-      color: #fcd34d;
-      font-family: var(--font-mono);
-      font-size: 10px;
-      padding: 2px 7px;
-      border-radius: 3px;
-      backdrop-filter: blur(4px);
-    }
-
-    /* ========================================================
-       VISTA 2: EXECUTION LOGS & REPORTS DASHBOARD
-       ======================================================== */
-    #logs-pane {
-      width: 100%;
-      height: 100%;
-      background: var(--bg-base);
-      overflow-y: auto;
-      padding: 20px 24px;
-      gap: 16px;
-    }
-
-    #logs-pane.active {
-      display: flex;
-      flex-direction: column;
-    }
-
-    .kpi-row {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 12px;
-      width: 100%;
-    }
-
-    .kpi-card {
-      background: var(--bg-surface);
-      border: 1px solid var(--border-subtle);
-      border-radius: 6px;
-      padding: 12px 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    .kpi-label {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      color: var(--text-muted);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .kpi-value {
-      font-family: var(--font-mono);
-      font-size: 22px;
-      font-weight: 600;
-      color: var(--text-primary);
-    }
-
-    .kpi-detail {
-      font-size: 11px;
-      color: var(--text-secondary);
-    }
-
-    /* Filter Strip */
-    .filter-bar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-
-    .filter-btn-group {
-      display: flex;
-      background: #18181b;
-      border: 1px solid var(--border-subtle);
-      border-radius: 5px;
-      padding: 2px;
-      gap: 2px;
-    }
-
-    .filter-chip {
-      background: transparent;
-      border: none;
-      color: var(--text-secondary);
-      font-family: var(--font-sans);
-      font-size: 12px;
-      font-weight: 500;
-      padding: 4px 10px;
-      border-radius: 3px;
-      cursor: pointer;
-      transition: color 0.12s, background-color 0.12s;
-    }
-
-    .filter-chip:hover {
-      color: var(--text-primary);
-    }
-
-    .filter-chip.active {
-      background: var(--bg-surface);
-      color: var(--text-primary);
-    }
-
-    /* Executions High-Density Table */
-    .table-container {
-      background: var(--bg-surface);
-      border: 1px solid var(--border-subtle);
-      border-radius: 6px;
-      overflow: hidden;
-    }
-
-    .dense-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 12px;
-      text-align: left;
-    }
-
-    .dense-table th {
-      background: #151518;
-      border-bottom: 1px solid var(--border-subtle);
-      padding: 9px 14px;
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-
-    .dense-table td {
-      padding: 10px 14px;
-      border-bottom: 1px solid var(--border-subtle);
-      color: var(--text-secondary);
-    }
-
-    .dense-table tbody tr {
-      transition: background-color 0.12s;
-      cursor: pointer;
-    }
-
-    .dense-table tbody tr:hover {
-      background-color: var(--bg-surface-hover);
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 9999px;
     }
-
-    .dense-table tbody tr.expanded {
-      background-color: #16161a;
-    }
-
-    .dense-table tbody tr:last-child td {
-      border-bottom: none;
-    }
-
-    .badge-status {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      font-family: var(--font-mono);
-      font-size: 10px;
-      font-weight: 600;
-      padding: 2px 7px;
-      border-radius: 3px;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-
-    .badge-status.success {
-      background: var(--color-pass-bg);
-      border: 1px solid var(--color-pass-border);
-      color: var(--color-pass);
-    }
-
-    .badge-status.failure {
-      background: var(--color-fail-bg);
-      border: 1px solid var(--color-fail-border);
-      color: var(--color-fail);
-    }
-
-    .badge-env {
-      font-family: var(--font-mono);
-      font-size: 10px;
-      color: var(--text-muted);
-      background: #1c1c20;
-      padding: 2px 6px;
-      border-radius: 3px;
-    }
-
-    /* Trace Details Accordion Row */
-    .trace-detail-row {
-      display: none;
-      background: #0d0d10;
-      border-bottom: 1px solid var(--border-subtle);
-    }
-
-    .trace-detail-row.open {
-      display: table-row;
-    }
-
-    .trace-content-box {
-      padding: 16px 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    .step-trace-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 12px;
-      background: #121215;
-      border: 1px solid var(--border-subtle);
-      border-radius: 4px;
-      overflow: hidden;
-    }
-
-    .step-trace-table th {
-      background: #16161a;
-      border-bottom: 1px solid var(--border-subtle);
-      padding: 6px 10px;
-      font-size: 10px;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-
-    .step-trace-table td {
-      padding: 6px 10px;
-      border-bottom: 1px solid #1f1f23;
-    }
-
-    .step-trace-table tr:last-child td {
-      border-bottom: none;
-    }
-
-    .action-badge {
-      font-family: var(--font-mono);
-      font-size: 10px;
-      font-weight: 600;
-      padding: 1px 5px;
-      border-radius: 3px;
-      background: #27272a;
-      color: var(--text-primary);
-    }
-
-    .btn-action-small {
-      background: #27272a;
-      border: 1px solid #3f3f46;
-      color: var(--text-primary);
-      font-size: 11px;
-      padding: 3px 8px;
-      border-radius: 3px;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-    }
-
-    .btn-action-small:hover {
-      background: #3f3f46;
-    }
-
-    /* Lightbox Modal */
-    .lightbox-modal {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.85);
-      z-index: 200;
-      align-items: center;
-      justify-content: center;
-      padding: 24px;
-      backdrop-filter: blur(6px);
-    }
-
-    .lightbox-modal.active {
-      display: flex;
-    }
-
-    .lightbox-box {
-      max-width: 90vw;
-      max-height: 90vh;
-      background: var(--bg-surface);
-      border: 1px solid var(--border-strong);
-      border-radius: 6px;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.25);
     }
 
-    .lightbox-header {
-      padding: 10px 16px;
-      background: #18181b;
-      border-bottom: 1px solid var(--border-subtle);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      font-size: 12px;
-      font-family: var(--font-mono);
+    /* Animación de apertura drawer */
+    .drawer-transition {
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
-    .lightbox-img {
-      max-width: 100%;
-      max-height: calc(90vh - 60px);
-      object-fit: contain;
-      background: #000;
+    /* Focus dimming */
+    .dimmed {
+      opacity: 0.25 !important;
+      filter: grayscale(0.5);
     }
   </style>
 </head>
-<body>
+<body class="h-screen flex flex-col antialiased selection:bg-indigo-500/30">
 
-  <!-- Top App Navigation -->
-  <header class="app-header">
-    <div class="brand-group">
-      <div class="brand-badge">
-        <div class="brand-logo-box">
-          <svg class="icon" viewBox="0 0 24 24">
-            <rect x="3" y="3" width="7" height="7" rx="1"></rect>
-            <rect x="14" y="3" width="7" height="7" rx="1"></rect>
-            <rect x="14" y="14" width="7" height="7" rx="1"></rect>
-            <rect x="3" y="14" width="7" height="7" rx="1"></rect>
-          </svg>
+  <!-- TOPBAR -->
+  <header class="h-14 border-b border-white/[0.08] glass-panel px-6 flex items-center justify-between z-30 flex-shrink-0">
+    <!-- Brand & Versión -->
+    <div class="flex items-center space-x-4">
+      <div class="flex items-center space-x-2">
+        <div class="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400 font-bold text-sm">
+          Q
         </div>
-        <span>QAP v2.1</span>
-        <span class="brand-subtext" id="project-title-label">· Architecture & QA Telemetry</span>
+        <div>
+          <span class="font-bold tracking-tight text-white text-sm">QAP</span>
+          <span class="text-xs px-1.5 py-0.5 ml-1 rounded font-mono font-semibold bg-indigo-500/15 text-indigo-400 border border-indigo-500/20">v3.0</span>
+        </div>
       </div>
+
+      <div class="h-4 w-px bg-white/10 mx-2"></div>
+
+      <!-- NAVIGATION TABS (Desencadenan NAVIGATE_TO_VIEW atómico) -->
+      <nav class="flex items-center space-x-1" id="nav-tabs">
+        <button onclick="dispatch({ type: 'NAVIGATE_TO_VIEW', view: 'architecture' })"
+          id="tab-architecture"
+          class="flex items-center space-x-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all text-white bg-white/10">
+          <span class="material-symbols-outlined text-[16px]">account_tree</span>
+          <span>Arquitectura DAG</span>
+        </button>
+
+        <button onclick="dispatch({ type: 'NAVIGATE_TO_VIEW', view: 'flow' })"
+          id="tab-flow"
+          class="flex items-center space-x-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all text-slate-400 hover:text-white hover:bg-white/5">
+          <span class="material-symbols-outlined text-[16px]">timeline</span>
+          <span>Tubería de Flujo E2E</span>
+        </button>
+
+        <button onclick="dispatch({ type: 'NAVIGATE_TO_VIEW', view: 'telemetry' })"
+          id="tab-telemetry"
+          class="flex items-center space-x-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all text-slate-400 hover:text-white hover:bg-white/5">
+          <span class="material-symbols-outlined text-[16px]">history</span>
+          <span>Historial de Corridas</span>
+        </button>
+
+        <button onclick="dispatch({ type: 'NAVIGATE_TO_VIEW', view: 'guardrails' })"
+          id="tab-guardrails"
+          class="flex items-center space-x-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all text-slate-400 hover:text-white hover:bg-white/5">
+          <span class="material-symbols-outlined text-[16px]">verified_user</span>
+          <span>Guardrails</span>
+        </button>
+      </nav>
     </div>
 
-    <!-- Center Views Switcher -->
-    <div class="view-switcher">
-      <button class="nav-btn active" id="btn-view-graph" onclick="switchView('graph')">
-        <svg class="icon" viewBox="0 0 24 24">
-          <circle cx="6" cy="6" r="3"></circle>
-          <circle cx="18" cy="6" r="3"></circle>
-          <circle cx="12" cy="18" r="3"></circle>
-          <line x1="8.5" y1="7.5" x2="15.5" y2="7.5"></line>
-          <line x1="7.5" y1="8.5" x2="10.5" y2="15.5"></line>
-          <line x1="16.5" y1="8.5" x2="13.5" y2="15.5"></line>
-        </svg>
-        <span>Architecture Map</span>
-      </button>
-      <button class="nav-btn" id="btn-view-logs" onclick="switchView('logs')">
-        <svg class="icon" viewBox="0 0 24 24">
-          <rect x="3" y="4" width="18" height="16" rx="2"></rect>
-          <line x1="3" y1="9" x2="21" y2="9"></line>
-          <line x1="9" y1="20" x2="9" y2="9"></line>
-        </svg>
-        <span>Execution Logs</span>
-        <span class="nav-count-badge" id="nav-logs-badge">0</span>
-      </button>
-    </div>
+    <!-- Actions & Stats -->
+    <div class="flex items-center space-x-3 text-xs">
+      <div id="status-indicator" class="flex items-center space-x-2 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span class="font-mono text-[11px]" id="engine-status">Persistencia WAL Activa</span>
+      </div>
 
-    <!-- Right HUD & Filter -->
-    <div class="header-actions">
-      <div class="search-box">
-        <svg class="icon" viewBox="0 0 24 24">
-          <circle cx="11" cy="11" r="7"></circle>
-          <line x1="21" y1="21" x2="16" y2="16"></line>
-        </svg>
-        <input type="text" id="filter-search-input" class="search-input" placeholder="Filter nodes, routes..." oninput="handleGlobalSearch(event)">
-      </div>
-      <div class="server-status">
-        <div class="status-dot"></div>
-        <span>LIVE :9280</span>
-      </div>
+      <button onclick="loadAllData()" class="p-1.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-md transition" title="Refrescar">
+        <span class="material-symbols-outlined text-[18px]">refresh</span>
+      </button>
+
+      <button onclick="dispatch({ type: 'OPEN_MODAL', modal: 'settings' })" class="p-1.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-md transition" title="Configuración">
+        <span class="material-symbols-outlined text-[18px]">settings</span>
+      </button>
     </div>
   </header>
 
-  <!-- App Body -->
-  <main class="app-viewport">
+  <!-- MAIN CANVAS / VIEWS CONTAINER -->
+  <main class="flex-1 relative overflow-hidden flex" id="main-content">
 
-    <!-- ==========================================
-         VIEW 1: SYSTEM ARCHITECTURE MAP
-         ========================================== -->
-    <section class="view-pane active" id="graph-pane">
-      
-      <!-- Top Left HUD Metrics & Legend -->
-      <div class="canvas-hud-top-left">
-        <div class="hud-metrics-strip">
-          <div class="hud-metric">
-            <span class="hud-metric-label">Modules</span>
-            <span class="hud-metric-val" id="metric-modules-count">0</span>
+    <!-- 1. VISTA: ARCHITECTURE DAG (Determinista con Swimlanes por Módulo) -->
+    <div id="view-architecture" class="flex-1 h-full overflow-auto p-8 relative">
+      <div class="max-w-7xl mx-auto space-y-6">
+        <div class="flex items-center justify-between border-b border-white/10 pb-4">
+          <div>
+            <h1 class="text-lg font-semibold tracking-tight text-white flex items-center space-x-2">
+              <span>Mapa Arquitectónico Determinista</span>
+              <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-400 font-normal">2D DAG Jerárquico</span>
+            </h1>
+            <p class="text-xs text-slate-400 mt-1">
+              Visualización jerárquica con swimlanes por módulo. Cero simulaciones radiales ni oscilaciones de Three.js.
+            </p>
           </div>
-          <div class="hud-metric">
-            <span class="hud-metric-label">Views</span>
-            <span class="hud-metric-val" id="metric-views-count">0</span>
-          </div>
-          <div class="hud-metric">
-            <span class="hud-metric-label">Surfaces</span>
-            <span class="hud-metric-val" id="metric-surfaces-count">0</span>
-          </div>
-          <div class="hud-metric">
-            <span class="hud-metric-label">PII Protected</span>
-            <span class="hud-metric-val" style="color: #fcd34d;" id="metric-pii-count">0</span>
+
+          <div class="flex items-center space-x-2">
+            <span class="text-[11px] text-slate-500 font-mono">Filtrar Squad:</span>
+            <select id="squad-filter" onchange="filterArchitecture()" class="bg-slate-900 border border-white/10 text-xs rounded px-2.5 py-1 text-slate-300">
+              <option value="all">Todos los Squads</option>
+            </select>
           </div>
         </div>
 
-        <div class="hud-legend-strip">
-          <div class="legend-item">
-            <div class="legend-line prereq"></div>
-            <span>Prerequisite Dependency</span>
-          </div>
-          <div class="legend-item">
-            <div class="legend-line flow"></div>
-            <span>User Journey Flow</span>
+        <!-- SWIMLANES CONTAINER -->
+        <div id="swimlanes-container" class="space-y-6 relative">
+          <!-- Renderizado dinámico de módulos y capacidades -->
+          <div class="text-center py-16 text-slate-500 text-xs font-mono">
+            Cargando definiciones estáticas desde .qa/definitions/...
           </div>
         </div>
       </div>
+    </div>
 
-      <!-- Zoom / Pan Controls -->
-      <div class="canvas-controls-bottom-right">
-        <button class="ctrl-btn" title="Zoom In (+)" onclick="zoomCamera(1.2)">+</button>
-        <button class="ctrl-btn" title="Zoom Out (-)" onclick="zoomCamera(0.8)">−</button>
-        <button class="ctrl-btn" title="Fit to Screen" onclick="fitGraphView()">
-          <svg class="icon" viewBox="0 0 24 24">
-            <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"></path>
-          </svg>
+    <!-- 2. VISTA: FLOW PIPELINE (Secuencia Horizontal de Izquierda a Derecha) -->
+    <div id="view-flow" class="flex-1 h-full overflow-auto p-8 hidden">
+      <div class="max-w-7xl mx-auto space-y-6">
+        <div class="flex items-center justify-between border-b border-white/10 pb-4">
+          <div>
+            <h1 class="text-lg font-semibold tracking-tight text-white">Tubería de Flujo E2E</h1>
+            <p class="text-xs text-slate-400 mt-1">
+              Recorrido secuencial de capacidades paso a paso de izquierda a derecha.
+            </p>
+          </div>
+
+          <div class="flex items-center space-x-3">
+            <label class="text-xs text-slate-400">Flujo Activo:</label>
+            <select id="flow-select" onchange="renderActiveFlow()" class="bg-slate-900 border border-white/10 text-xs rounded px-3 py-1.5 text-white">
+              <!-- Opciones de flujos cargadas dinámicamente -->
+            </select>
+          </div>
+        </div>
+
+        <div id="flow-pipeline-container" class="overflow-x-auto py-6">
+          <!-- Tarjetas secuenciales -->
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. VISTA: TELEMETRY HISTORY (Historial SQLite WAL) -->
+    <div id="view-telemetry" class="flex-1 h-full overflow-auto p-8 hidden">
+      <div class="max-w-7xl mx-auto space-y-6">
+        <div class="flex items-center justify-between border-b border-white/10 pb-4">
+          <div>
+            <h1 class="text-lg font-semibold tracking-tight text-white">Historial de Corridas de Telemetría</h1>
+            <p class="text-xs text-slate-400 mt-1">
+              Registro atómico en base de datos SQLite WAL (<code class="font-mono text-indigo-400">.qa/runtime/qap.sqlite</code>).
+            </p>
+          </div>
+
+          <div class="flex items-center space-x-2">
+            <button onclick="triggerPruneDryRun()" class="px-3 py-1.5 rounded text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 flex items-center space-x-1.5 transition">
+              <span class="material-symbols-outlined text-[16px]">cleaning_services</span>
+              <span>Auditar Poda (Dry Run)</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- TABLA DE RUNS -->
+        <div class="glass-panel rounded-lg overflow-hidden border border-white/10">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-white/[0.03] text-slate-400 border-b border-white/10 uppercase tracking-wider font-mono text-[10px]">
+              <tr>
+                <th class="py-3 px-4">Run ID</th>
+                <th class="py-3 px-4">Flujo</th>
+                <th class="py-3 px-4">Estado</th>
+                <th class="py-3 px-4">Duración</th>
+                <th class="py-3 px-4">Iniciado</th>
+                <th class="py-3 px-4">Git Commit</th>
+                <th class="py-3 px-4 text-center">Fijado</th>
+                <th class="py-3 px-4 text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="runs-table-body" class="divide-y divide-white/[0.05] text-slate-300 font-mono">
+              <tr>
+                <td colspan="8" class="py-8 text-center text-slate-500">Cargando corridas de telemetría...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. VISTA: GUARDRAILS (Matriz de Invariantes) -->
+    <div id="view-guardrails" class="flex-1 h-full overflow-auto p-8 hidden">
+      <div class="max-w-7xl mx-auto space-y-6">
+        <div class="border-b border-white/10 pb-4">
+          <h1 class="text-lg font-semibold tracking-tight text-white">Matriz de Guardrails e Invariantes de Negocio</h1>
+          <p class="text-xs text-slate-400 mt-1">
+            Reglas críticas y contratos de negocio protegidos por capacidades arquitectónicas.
+          </p>
+        </div>
+
+        <div id="guardrails-matrix" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Tarjetas de guardrails -->
+        </div>
+      </div>
+    </div>
+
+    <!-- INSPECTOR DRAWER (Punto único de montaje para SyncedVideoPlayer) -->
+    <aside id="inspector-drawer"
+      class="fixed top-14 right-0 bottom-0 w-[480px] glass-panel border-l border-white/10 z-40 drawer-transition translate-x-full flex flex-col shadow-2xl">
+      <!-- Drawer Header -->
+      <div class="h-14 border-b border-white/10 px-6 flex items-center justify-between flex-shrink-0 bg-slate-900/40">
+        <div class="flex items-center space-x-2 overflow-hidden">
+          <span class="material-symbols-outlined text-indigo-400 text-[18px]">info</span>
+          <span class="font-semibold text-sm text-white truncate" id="drawer-title">Inspector</span>
+        </div>
+        <button onclick="dispatch({ type: 'CLOSE_DRAWER' })" class="p-1 rounded-md text-slate-400 hover:text-white hover:bg-white/10 transition">
+          <span class="material-symbols-outlined text-[18px]">close</span>
         </button>
-        <button class="ctrl-btn" title="Reset Zoom (100%)" onclick="resetZoom()">1:1</button>
       </div>
 
-      <!-- Interactive Graph Stage -->
-      <div class="graph-stage" id="graph-stage">
-        <!-- SVG Directed Edges Layer -->
-        <svg class="edges-svg-layer" id="edges-svg-layer">
-          <defs>
-            <marker id="arrow-prereq" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-              <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#52525b"></path>
-            </marker>
-            <marker id="arrow-flow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-              <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#38bdf8"></path>
-            </marker>
-          </defs>
-        </svg>
-
-        <!-- HTML Cards Node Layer -->
-        <div id="nodes-container"></div>
+      <!-- Drawer Content -->
+      <div class="flex-1 overflow-y-auto p-6 space-y-6" id="drawer-content">
+        <!-- Renderizado dinámico de la entidad seleccionada -->
       </div>
+    </aside>
 
-      <!-- Slide-Out Technical Inspector Drawer -->
-      <aside class="inspector-drawer" id="inspector-drawer">
-        <div class="drawer-header">
-          <div class="drawer-breadcrumb" id="drawer-breadcrumb">
-            <span>Module</span>
-          </div>
-          <button class="drawer-close-btn" onclick="closeInspectorDrawer()" title="Close Inspector">
-            <svg class="icon" viewBox="0 0 24 24">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
+    <!-- BACKDROP PARA DRAWER/MODAL -->
+    <div id="backdrop" onclick="dispatch({ type: 'CLOSE_DRAWER' }); dispatch({ type: 'CLOSE_MODAL' });"
+      class="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 hidden transition-opacity"></div>
+
+    <!-- MODAL DE CONFIGURACIÓN -->
+    <div id="modal-settings" class="fixed inset-0 z-50 flex items-center justify-center hidden p-4">
+      <div class="glass-panel w-full max-w-md rounded-xl p-6 border border-white/20 shadow-2xl space-y-5">
+        <div class="flex items-center justify-between border-b border-white/10 pb-3">
+          <h2 class="text-sm font-semibold text-white flex items-center space-x-2">
+            <span class="material-symbols-outlined text-indigo-400 text-[18px]">tune</span>
+            <span>Configuración de QAP v3.0</span>
+          </h2>
+          <button onclick="dispatch({ type: 'CLOSE_MODAL' })" class="text-slate-400 hover:text-white">
+            <span class="material-symbols-outlined text-[18px]">close</span>
           </button>
         </div>
 
-        <div class="drawer-body" id="drawer-body">
-          <!-- Dynamic Technical Inspection Content -->
+        <div class="space-y-4 text-xs">
+          <div>
+            <label class="block text-slate-400 mb-1">TTL de Videos (Días)</label>
+            <input type="number" id="cfg-video-ttl" value="7" class="w-full bg-slate-900 border border-white/10 rounded px-3 py-1.5 text-white">
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">TTL de Trazas .zip (Días)</label>
+            <input type="number" id="cfg-trace-ttl" value="14" class="w-full bg-slate-900 border border-white/10 rounded px-3 py-1.5 text-white">
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">TTL de Registros SQLite (Días)</label>
+            <input type="number" id="cfg-record-ttl" value="30" class="w-full bg-slate-900 border border-white/10 rounded px-3 py-1.5 text-white">
+          </div>
         </div>
-      </aside>
 
-    </section>
-
-    <!-- ==========================================
-         VIEW 2: EXECUTION LOGS DASHBOARD
-         ========================================== -->
-    <section class="view-pane" id="logs-pane">
-      <div class="kpi-row">
-        <div class="kpi-card">
-          <div class="kpi-label">
-            <span>Total Executions</span>
-            <svg class="icon" viewBox="0 0 24 24">
-              <polygon points="5 3 19 12 5 21 5 3"></polygon>
-            </svg>
-          </div>
-          <span class="kpi-value" id="kpi-total-execs">0</span>
-          <span class="kpi-detail">Recorded in .qa/executions/</span>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-label">
-            <span>Pass Rate</span>
-            <svg class="icon" viewBox="0 0 24 24">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-              <polyline points="22 4 12 14.01 9 11.01"></polyline>
-            </svg>
-          </div>
-          <span class="kpi-value" style="color: var(--color-pass);" id="kpi-pass-rate">100%</span>
-          <span class="kpi-detail" id="kpi-pass-detail">0 passed · 0 failed</span>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-label">
-            <span>Avg Duration</span>
-            <svg class="icon" viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="10"></circle>
-              <polyline points="12 6 12 12 16 14"></polyline>
-            </svg>
-          </div>
-          <span class="kpi-value" id="kpi-avg-duration">0ms</span>
-          <span class="kpi-detail">Step execution telemetry</span>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-label">
-            <span>PII Masked Fields</span>
-            <svg class="icon" viewBox="0 0 24 24">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-            </svg>
-          </div>
-          <span class="kpi-value" style="color: #fcd34d;" id="kpi-pii-masked">0</span>
-          <span class="kpi-detail">Confidential inputs protected</span>
+        <div class="flex justify-end space-x-2 pt-2 border-t border-white/10">
+          <button onclick="dispatch({ type: 'CLOSE_MODAL' })" class="px-3 py-1.5 rounded text-xs text-slate-300 hover:bg-white/5">Cancelar</button>
+          <button onclick="saveSettings()" class="px-4 py-1.5 rounded text-xs bg-indigo-600 hover:bg-indigo-500 font-semibold text-white shadow-lg shadow-indigo-600/20">Guardar</button>
         </div>
       </div>
-
-      <!-- Filters Strip -->
-      <div class="filter-bar">
-        <div style="display: flex; gap: 8px; align-items: center;">
-          <span style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Module:</span>
-          <div class="filter-btn-group" id="module-filter-group">
-            <button class="filter-chip active" onclick="setModuleFilter('ALL')">ALL</button>
-          </div>
-          <span style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; margin-left: 8px;">Status:</span>
-          <div class="filter-btn-group">
-            <button class="filter-chip active" id="chip-status-all" onclick="setStatusFilter('ALL')">ALL</button>
-            <button class="filter-chip" id="chip-status-success" onclick="setStatusFilter('success')">PASSED</button>
-            <button class="filter-chip" id="chip-status-failure" onclick="setStatusFilter('failure')">FAILED</button>
-          </div>
-        </div>
-
-        <div class="search-box" style="width: 260px;">
-          <svg class="icon" viewBox="0 0 24 24">
-            <circle cx="11" cy="11" r="7"></circle>
-            <line x1="21" y1="21" x2="16" y2="16"></line>
-          </svg>
-          <input type="text" id="log-search-input" class="search-input" placeholder="Search execution ID, steps..." oninput="handleLogSearch(event)">
-        </div>
-      </div>
-
-      <!-- Executions Table -->
-      <div class="table-container">
-        <table class="dense-table">
-          <thead>
-            <tr>
-              <th style="width: 220px;">Execution ID</th>
-              <th style="width: 120px;">Module</th>
-              <th style="width: 110px;">Environment</th>
-              <th style="width: 120px;">Duration</th>
-              <th style="width: 110px;">Status</th>
-              <th>Actions / Telemetry</th>
-            </tr>
-          </thead>
-          <tbody id="executions-table-body">
-            <!-- Dynamic Table Rows -->
-          </tbody>
-        </table>
-      </div>
-
-    </section>
+    </div>
 
   </main>
 
-  <!-- Fullscreen Evidence Lightbox Modal -->
-  <div class="lightbox-modal" id="lightbox-modal" onclick="closeLightbox()">
-    <div class="lightbox-box" onclick="event.stopPropagation()">
-      <div class="lightbox-header">
-        <span id="lightbox-title">Visual Evidence</span>
-        <button class="drawer-close-btn" onclick="closeLightbox()">
-          <svg class="icon" viewBox="0 0 24 24">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>
-      </div>
-      <img id="lightbox-img" class="lightbox-img" src="" alt="Full Evidence Capture">
-    </div>
-  </div>
-
+  <!-- JAVASCRIPT: MÁQUINA DE ESTADOS UNIFICADA Y RENDERIZADOR DETERMINISTA -->
   <script>
-    // Global Application State
-    let graphData = {
-      projectName: 'QAP Project',
-      generatedAt: new Date().toISOString(),
-      nodes: [],
-      edges: [],
-      modulesDetail: {},
-      recentExecutions: []
+    /**
+     * ESTADO GLOBAL DE UI (QAP v3.0 Reglas 6 y 7)
+     * Prohibido useState local en subcomponentes.
+     */
+    const state = {
+      activeView: 'architecture',
+      selectedEntity: null,
+      activeDrawer: null,
+      modal: null,
+      definitions: { modules: [], flows: [], capabilities: [] },
+      runs: [],
+      activeFlowId: null,
+      loading: true,
     };
 
-    // Camera Navigation State
-    let camera = { x: 80, y: 80, zoom: 1 };
-    let isPanning = false;
-    let panStart = { x: 0, y: 0 };
-    let activeModuleFilter = 'ALL';
-    let activeStatusFilter = 'ALL';
-    let activeLogSearch = '';
-    let selectedItem = null;
+    /**
+     * REDUCER PURO (Regla 7: Transición Atómica de Navegación)
+     */
+    function uiReducer(currentState, action) {
+      switch (action.type) {
+        case 'NAVIGATE_TO_VIEW':
+          // Cierre atómico de drawers y modales al cambiar de vista
+          cleanupVideoPlayer();
+          return {
+            ...currentState,
+            activeView: action.view,
+            selectedEntity: null,
+            activeDrawer: null,
+            modal: null,
+          };
 
-    // Node Positions in Virtual Space
-    const nodePositions = {};
+        case 'SELECT_ENTITY':
+          return {
+            ...currentState,
+            selectedEntity: action.entity,
+            activeDrawer: action.openInspector ? 'inspector' : currentState.activeDrawer,
+          };
 
-    // 1. Initialize and Fetch Data
-    async function init() {
-      setupGraphInteractions();
-      await loadGraphData();
+        case 'CLEAR_SELECTION':
+          cleanupVideoPlayer();
+          return {
+            ...currentState,
+            selectedEntity: null,
+            activeDrawer: currentState.activeDrawer === 'inspector' ? null : currentState.activeDrawer,
+          };
+
+        case 'OPEN_DRAWER':
+          return {
+            ...currentState,
+            activeDrawer: action.drawer,
+          };
+
+        case 'CLOSE_DRAWER':
+          cleanupVideoPlayer();
+          return {
+            ...currentState,
+            activeDrawer: null,
+          };
+
+        case 'OPEN_MODAL':
+          return {
+            ...currentState,
+            modal: action.modal,
+          };
+
+        case 'CLOSE_MODAL':
+          return {
+            ...currentState,
+            modal: null,
+          };
+
+        case 'SET_DEFINITIONS':
+          return {
+            ...currentState,
+            definitions: action.definitions,
+            activeFlowId: action.definitions.flows?.[0]?.id || null,
+          };
+
+        case 'SET_RUNS':
+          return {
+            ...currentState,
+            runs: action.runs,
+          };
+
+        default:
+          return currentState;
+      }
     }
 
-    async function loadGraphData() {
+    /**
+     * DISPATCH CENTRALIZADO
+     */
+    function dispatch(action) {
+      const nextState = uiReducer(state, action);
+      Object.assign(state, nextState);
+      renderUI();
+    }
+
+    /**
+     * CONTROLADOR DE VIDEO SINCRONIZADO (SyncedVideoPlayer)
+     * Garantiza parada y liberación inmediata de memoria (src = '') al desmontarse.
+     */
+    function cleanupVideoPlayer() {
+      const videoEl = document.getElementById('synced-video-player');
+      if (videoEl) {
+        try {
+          videoEl.pause();
+          videoEl.src = '';
+          videoEl.removeAttribute('src');
+          videoEl.load();
+        } catch (e) {
+          // Continuar
+        }
+      }
+    }
+
+    function seekVideoToStep(ms) {
+      const videoEl = document.getElementById('synced-video-player');
+      if (videoEl && typeof ms === 'number') {
+        videoEl.currentTime = Math.max(0, ms / 1000);
+        videoEl.play().catch(() => {});
+      }
+    }
+
+    /**
+     * CARGA DE DATOS ASÍNCRONOS
+     */
+    async function loadAllData() {
       try {
-        const response = await fetch('/api/graph');
-        if (!response.ok) throw new Error('HTTP ' + response.status);
-        graphData = await response.json();
-        
-        // Update Brand Label
-        const titleEl = document.getElementById('project-title-label');
-        if (titleEl && graphData.projectName) {
-          titleEl.textContent = `· ${graphData.projectName} (Architecture & Telemetry)`;
+        // 1. Cargar definiciones estáticas de QAP v3.0
+        const defsRes = await fetch('/api/definitions').catch(() => null);
+        if (defsRes && defsRes.ok) {
+          const defsData = await defsRes.json();
+          dispatch({ type: 'SET_DEFINITIONS', definitions: defsData });
         }
 
-        renderArchitectureNodes();
-        renderExecutionLogs();
-        updateKPICounters();
+        // 2. Cargar corridas de telemetría dinámica
+        const runsRes = await fetch('/api/runs').catch(() => null);
+        if (runsRes && runsRes.ok) {
+          const runsData = await runsRes.json();
+          dispatch({ type: 'SET_RUNS', runs: runsData.runs || [] });
+        }
       } catch (err) {
-        console.error('Failed to load knowledge graph:', err);
+        console.warn('Advertencia al cargar telemetría:', err);
       }
     }
 
-    // 2. View Switching
-    function switchView(viewName) {
-      document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
-      document.querySelectorAll('.view-pane').forEach(p => p.classList.remove('active'));
+    /**
+     * RENDERIZADOR GENERAL DE INTERFAZ
+     */
+    function renderUI() {
+      // 1. Visibilidad de Vistas Principales
+      const views = ['architecture', 'flow', 'telemetry', 'guardrails'];
+      views.forEach((v) => {
+        const viewEl = document.getElementById(`view-${v}`);
+        const tabEl = document.getElementById(`tab-${v}`);
+        if (v === state.activeView) {
+          viewEl?.classList.remove('hidden');
+          tabEl?.classList.add('bg-white/10', 'text-white');
+          tabEl?.classList.remove('text-slate-400');
+        } else {
+          viewEl?.classList.add('hidden');
+          tabEl?.classList.remove('bg-white/10', 'text-white');
+          tabEl?.classList.add('text-slate-400');
+        }
+      });
 
-      if (viewName === 'graph') {
-        document.getElementById('btn-view-graph').classList.add('active');
-        document.getElementById('graph-pane').classList.add('active');
-        updateEdges();
+      // 2. Visibilidad de Drawer
+      const drawerEl = document.getElementById('inspector-drawer');
+      const backdropEl = document.getElementById('backdrop');
+
+      if (state.activeDrawer === 'inspector') {
+        drawerEl?.classList.remove('translate-x-full');
+        backdropEl?.classList.remove('hidden');
+        renderInspectorContent();
       } else {
-        document.getElementById('btn-view-logs').classList.add('active');
-        document.getElementById('logs-pane').classList.add('active');
-      }
-    }
-
-    // 3. Render Architecture Diagram (Block Nodes & Directed Edges)
-    function renderArchitectureNodes() {
-      const container = document.getElementById('nodes-container');
-      container.innerHTML = '';
-
-      // Layout modules horizontally with canonical ordering (auth -> simulation -> checkout)
-      const moduleOrder = { auth: 0, simulation: 1, checkout: 2 };
-      const sortedNodes = [...(graphData.nodes || [])].sort((a, b) => {
-        const orderA = moduleOrder[a.id] ?? 99;
-        const orderB = moduleOrder[b.id] ?? 99;
-        return orderA - orderB;
-      });
-
-      const startX = 60;
-      const startY = 80;
-      const cardWidth = 290;
-      const gapX = 140;
-
-      sortedNodes.forEach((node, idx) => {
-        if (!nodePositions[node.id]) {
-          nodePositions[node.id] = {
-            x: startX + idx * (cardWidth + gapX),
-            y: startY
-          };
+        drawerEl?.classList.add('translate-x-full');
+        if (!state.modal) {
+          backdropEl?.classList.add('hidden');
         }
-
-        const card = document.createElement('div');
-        card.className = 'module-card';
-        card.id = `node-${node.id}`;
-        card.style.transform = `translate(${nodePositions[node.id].x}px, ${nodePositions[node.id].y}px)`;
-
-        // Header
-        const header = document.createElement('div');
-        header.className = 'module-card-header';
-        header.innerHTML = `
-          <div class="module-name-group">
-            <span class="module-status-dot ${node.hasTests ? 'active' : 'inactive'}" title="${node.hasTests ? 'Tests Verified' : 'No Automated Tests'}"></span>
-            <span class="module-title-mono">${escapeHtml(node.label || node.id)}</span>
-          </div>
-          <span class="module-route-pill">${escapeHtml(node.baseRoute || '/' + node.id)}</span>
-        `;
-
-        // Card Body with Hierarchy of Views & Surfaces
-        const body = document.createElement('div');
-        body.className = 'module-card-body';
-
-        if (node.description) {
-          const desc = document.createElement('div');
-          desc.className = 'module-desc';
-          desc.textContent = node.description;
-          body.appendChild(desc);
-        }
-
-        const hierContainer = document.createElement('div');
-        hierContainer.className = 'hierarchy-container';
-        hierContainer.innerHTML = `<span class="hierarchy-section-title">Views & Surfaces (${(node.views || []).length})</span>`;
-
-        (node.views || []).forEach(view => {
-          const viewRow = document.createElement('div');
-          viewRow.className = 'view-row';
-          viewRow.onclick = (e) => {
-            e.stopPropagation();
-            openInspector('view', node, view);
-          };
-
-          const viewHdr = document.createElement('div');
-          viewHdr.className = 'view-row-header';
-          viewHdr.innerHTML = `
-            <div class="view-label-group">
-              <span class="type-tag view">view</span>
-              <span class="view-name">${escapeHtml(view.name || view.id)}</span>
-            </div>
-            <span class="view-path-mono">${escapeHtml(view.path || '')}</span>
-          `;
-          viewRow.appendChild(viewHdr);
-
-          if (view.surfaces && view.surfaces.length > 0) {
-            const surfList = document.createElement('div');
-            surfList.className = 'surfaces-list';
-            view.surfaces.forEach(surf => {
-              const surfItem = document.createElement('div');
-              surfItem.className = 'surface-item';
-              surfItem.onclick = (e) => {
-                e.stopPropagation();
-                openInspector('surface', node, view, surf);
-              };
-              surfItem.innerHTML = `
-                <div style="display:flex; align-items:center; gap:5px;">
-                  <span class="type-tag ${escapeHtml(surf.type || 'section')}">${escapeHtml(surf.type || 'section')}</span>
-                  <span>${escapeHtml(surf.name || surf.id)}</span>
-                </div>
-              `;
-              surfList.appendChild(surfItem);
-            });
-            viewRow.appendChild(surfList);
-          }
-
-          hierContainer.appendChild(viewRow);
-        });
-
-        body.appendChild(hierContainer);
-
-        // Footer with file count and protected selectors count
-        const footer = document.createElement('div');
-        footer.className = 'module-card-footer';
-        footer.innerHTML = `
-          <span class="card-stat">
-            <svg class="icon" viewBox="0 0 24 24" style="width:12px;height:12px;">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-              <polyline points="14 2 14 8 20 8"></polyline>
-            </svg>
-            ${node.filesCount || 0} files
-          </span>
-          <span class="card-stat" style="color: ${node.sensitiveSelectors?.length > 0 ? '#fcd34d' : 'var(--text-muted)'};">
-            <svg class="icon" viewBox="0 0 24 24" style="width:12px;height:12px;">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-            </svg>
-            ${node.sensitiveSelectors?.length || 0} protected
-          </span>
-        `;
-
-        card.appendChild(header);
-        card.appendChild(body);
-        card.appendChild(footer);
-
-        // Drag module card to reposition
-        setupCardDrag(card, node.id);
-
-        // Click on module card opens module inspector
-        card.addEventListener('click', () => {
-          openInspector('module', node);
-        });
-
-        container.appendChild(card);
-      });
-
-      updateEdges();
-    }
-
-    // 4. SVG Directed Edges Rendering
-    function updateEdges() {
-      const svg = document.getElementById('edges-svg-layer');
-      if (!svg) return;
-
-      // Keep defs
-      const defs = svg.querySelector('defs');
-      svg.innerHTML = '';
-      if (defs) svg.appendChild(defs);
-
-      const edges = graphData.edges || [];
-      const cardWidth = 290;
-      const cardHeightEst = 220;
-
-      edges.forEach(edge => {
-        const fromPos = nodePositions[edge.from];
-        const toPos = nodePositions[edge.to];
-        if (!fromPos || !toPos) return;
-
-        // Port on right edge of source card
-        const startX = fromPos.x + cardWidth;
-        const startY = fromPos.y + 24;
-
-        // Port on left edge of destination card
-        const endX = toPos.x;
-        const endY = toPos.y + 24;
-
-        // Smooth cubic Bézier connector
-        const dx = Math.abs(endX - startX) * 0.55;
-        const pathData = `M ${startX} ${startY} C ${startX + dx} ${startY}, ${endX - dx} ${endY}, ${endX} ${endY}`;
-
-        const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        pathEl.setAttribute('d', pathData);
-        pathEl.setAttribute('class', `edge-path ${edge.type || 'prereq'}`);
-        pathEl.setAttribute('marker-end', `url(#arrow-${edge.type === 'flow' ? 'flow' : 'prereq'})`);
-        
-        svg.appendChild(pathEl);
-      });
-    }
-
-    // 5. Card Drag Handling
-    function setupCardDrag(cardEl, nodeId) {
-      const header = cardEl.querySelector('.module-card-header');
-      let isDragging = false;
-      let startX, startY;
-      let initialLeft, initialTop;
-
-      header.addEventListener('mousedown', (e) => {
-        e.stopPropagation();
-        isDragging = true;
-        startX = e.clientX;
-        startY = e.clientY;
-        initialLeft = nodePositions[nodeId].x;
-        initialTop = nodePositions[nodeId].y;
-        cardEl.style.zIndex = 40;
-      });
-
-      window.addEventListener('mousemove', (e) => {
-        if (!isDragging) return;
-        const dx = (e.clientX - startX) / camera.zoom;
-        const dy = (e.clientY - startY) / camera.zoom;
-        nodePositions[nodeId].x = initialLeft + dx;
-        nodePositions[nodeId].y = initialTop + dy;
-        cardEl.style.transform = `translate(${nodePositions[nodeId].x}px, ${nodePositions[nodeId].y}px)`;
-        updateEdges();
-      });
-
-      window.addEventListener('mouseup', () => {
-        if (isDragging) {
-          isDragging = false;
-          cardEl.style.zIndex = 20;
-        }
-      });
-    }
-
-    // 6. Camera Pan & Zoom
-    function setupGraphInteractions() {
-      const pane = document.getElementById('graph-pane');
-      const stage = document.getElementById('graph-stage');
-
-      pane.addEventListener('mousedown', (e) => {
-        if (e.target.closest('.module-card') || e.target.closest('.inspector-drawer') || e.target.closest('.canvas-hud-top-left') || e.target.closest('.canvas-controls-bottom-right')) {
-          return;
-        }
-        isPanning = true;
-        panStart.x = e.clientX - camera.x;
-        panStart.y = e.clientY - camera.y;
-        pane.classList.add('panning');
-      });
-
-      window.addEventListener('mousemove', (e) => {
-        if (!isPanning) return;
-        camera.x = e.clientX - panStart.x;
-        camera.y = e.clientY - panStart.y;
-        applyCameraTransform();
-      });
-
-      window.addEventListener('mouseup', () => {
-        if (isPanning) {
-          isPanning = false;
-          pane.classList.remove('panning');
-        }
-      });
-
-      pane.addEventListener('wheel', (e) => {
-        if (e.target.closest('.inspector-drawer')) return;
-        e.preventDefault();
-        const factor = e.deltaY < 0 ? 1.08 : 0.92;
-        const rect = pane.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
-
-        const newZoom = Math.min(2.5, Math.max(0.35, camera.zoom * factor));
-        camera.x = mouseX - (mouseX - camera.x) * (newZoom / camera.zoom);
-        camera.y = mouseY - (mouseY - camera.y) * (newZoom / camera.zoom);
-        camera.zoom = newZoom;
-        applyCameraTransform();
-      }, { passive: false });
-    }
-
-    function applyCameraTransform() {
-      const stage = document.getElementById('graph-stage');
-      stage.style.transform = `translate(${camera.x}px, ${camera.y}px) scale(${camera.zoom})`;
-    }
-
-    function zoomCamera(factor) {
-      camera.zoom = Math.min(2.5, Math.max(0.35, camera.zoom * factor));
-      applyCameraTransform();
-    }
-
-    function resetZoom() {
-      camera.zoom = 1;
-      applyCameraTransform();
-    }
-
-    function fitGraphView() {
-      const pane = document.getElementById('graph-pane');
-      const rect = pane.getBoundingClientRect();
-      const nodeKeys = Object.keys(nodePositions);
-      if (nodeKeys.length === 0) return;
-
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-      nodeKeys.forEach(k => {
-        const p = nodePositions[k];
-        minX = Math.min(minX, p.x);
-        minY = Math.min(minY, p.y);
-        maxX = Math.max(maxX, p.x + 300);
-        maxY = Math.max(maxY, p.y + 260);
-      });
-
-      const totalW = maxX - minX + 80;
-      const totalH = maxY - minY + 80;
-      const scaleX = rect.width / totalW;
-      const scaleY = rect.height / totalH;
-      const fitZoom = Math.min(1.2, Math.max(0.5, Math.min(scaleX, scaleY)));
-
-      camera.zoom = fitZoom;
-      camera.x = (rect.width - totalW * fitZoom) / 2 - minX * fitZoom + 40;
-      camera.y = (rect.height - totalH * fitZoom) / 2 - minY * fitZoom + 40;
-      applyCameraTransform();
-    }
-
-    // 7. Inspector Drawer (Technical Detail)
-    function openInspector(level, moduleNode, viewNode, surfaceNode) {
-      const drawer = document.getElementById('inspector-drawer');
-      const breadcrumb = document.getElementById('drawer-breadcrumb');
-      const body = document.getElementById('drawer-body');
-
-      // Highlight selected module card
-      document.querySelectorAll('.module-card').forEach(c => c.classList.remove('selected'));
-      const activeCard = document.getElementById(`node-${moduleNode.id}`);
-      if (activeCard) activeCard.classList.add('selected');
-
-      // Build Breadcrumb
-      if (level === 'module') {
-        breadcrumb.innerHTML = `<span class="crumb-active">${escapeHtml(moduleNode.id)}</span>`;
-      } else if (level === 'view') {
-        breadcrumb.innerHTML = `
-          <span>${escapeHtml(moduleNode.id)}</span> / 
-          <span class="crumb-active">${escapeHtml(viewNode.id || viewNode.name)}</span>
-        `;
-      } else if (level === 'surface') {
-        breadcrumb.innerHTML = `
-          <span>${escapeHtml(moduleNode.id)}</span> / 
-          <span>${escapeHtml(viewNode.id)}</span> / 
-          <span class="crumb-active">${escapeHtml(surfaceNode.id || surfaceNode.name)}</span>
-        `;
       }
 
-      // Find real execution evidence for this module
-      const moduleExecs = (graphData.recentExecutions || []).filter(e => e.module === moduleNode.id);
-      const modDetail = graphData.modulesDetail[moduleNode.id] || {};
-      const files = modDetail.files || [];
-      const selectors = modDetail.selectors || {};
-      const sensitiveSelectors = moduleNode.sensitiveSelectors || [];
-
-      let contentHtml = `
-        <!-- Section: Technical Route & Metadata -->
-        <div class="drawer-section">
-          <span class="drawer-section-title">
-            <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line></svg>
-            Architecture Specification
-          </span>
-          <table class="drawer-prop-table">
-            <tr>
-              <td class="prop-key">Module ID</td>
-              <td class="prop-val">${escapeHtml(moduleNode.id)}</td>
-            </tr>
-            <tr>
-              <td class="prop-key">Base Route</td>
-              <td class="prop-val">${escapeHtml(moduleNode.baseRoute)}</td>
-            </tr>
-            ${viewNode ? `
-            <tr>
-              <td class="prop-key">View Path</td>
-              <td class="prop-val">${escapeHtml(viewNode.path || '')}</td>
-            </tr>
-            ` : ''}
-            ${surfaceNode ? `
-            <tr>
-              <td class="prop-key">Surface Type</td>
-              <td class="prop-val"><span class="type-tag ${escapeHtml(surfaceNode.type)}">${escapeHtml(surfaceNode.type)}</span></td>
-            </tr>
-            ` : ''}
-            <tr>
-              <td class="prop-key">Description</td>
-              <td class="prop-val" style="font-family:var(--font-sans);">${escapeHtml(moduleNode.description || 'No description provided')}</td>
-            </tr>
-          </table>
-        </div>
-
-        <!-- Section: Repository Source Files -->
-        <div class="drawer-section">
-          <span class="drawer-section-title">
-            <svg class="icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-            Source Code Files (${files.length})
-          </span>
-          <div class="code-list-box">
-            ${files.length > 0 ? files.map(f => `
-              <div class="code-file-item">
-                <div class="code-file-left">
-                  <svg class="icon" viewBox="0 0 24 24" style="width:12px;height:12px;color:var(--text-muted);"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>
-                  <span>${escapeHtml(f)}</span>
-                </div>
-                <button class="copy-btn" onclick="copyToClipboard('${escapeHtml(f)}')">copy</button>
-              </div>
-            `).join('') : '<span style="color:var(--text-muted);font-size:11px;">No files mapped in repo-map.json</span>'}
-          </div>
-        </div>
-
-        <!-- Section: DOM Selectors & PII -->
-        <div class="drawer-section">
-          <span class="drawer-section-title">
-            <svg class="icon" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-            DOM Selectors & Protected Fields
-          </span>
-          <div style="display:flex; flex-direction:column; gap:5px;">
-            ${sensitiveSelectors.map(sel => `
-              <div class="selector-item" style="border-color: rgba(245, 158, 11, 0.3);">
-                <span style="color:#fcd34d;">${escapeHtml(sel)}</span>
-                <span class="protected-badge">Protected Field</span>
-              </div>
-            `).join('')}
-
-            ${Object.entries(selectors).filter(([k, v]) => !sensitiveSelectors.includes(v)).map(([k, v]) => `
-              <div class="selector-item">
-                <span style="color:var(--text-muted);">${escapeHtml(k)}:</span>
-                <span>${escapeHtml(v)}</span>
-              </div>
-            `).join('')}
-
-            ${sensitiveSelectors.length === 0 && Object.keys(selectors).length === 0 ? `
-              <span style="color:var(--text-muted); font-size:11px;">No DOM selectors registered</span>
-            ` : ''}
-          </div>
-        </div>
-
-        <!-- Section: Visual Evidence Preview -->
-        <div class="drawer-section">
-          <span class="drawer-section-title">
-            <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
-            Execution Evidence Preview
-          </span>
-          ${renderInspectorScreenshots(moduleExecs)}
-        </div>
-      `;
-
-      body.innerHTML = contentHtml;
-      drawer.classList.add('open');
-    }
-
-    function renderInspectorScreenshots(execs) {
-      if (!execs || execs.length === 0) {
-        return `<span style="color:var(--text-muted); font-size:11px;">No executions registered for this module yet</span>`;
+      // 3. Visibilidad de Modales
+      const modalSettings = document.getElementById('modal-settings');
+      if (state.modal === 'settings') {
+        modalSettings?.classList.remove('hidden');
+        backdropEl?.classList.remove('hidden');
+      } else {
+        modalSettings?.classList.add('hidden');
       }
 
-      const allScreenshots = [];
-      execs.forEach(e => {
-        (e.screenshots || []).forEach(url => {
-          allScreenshots.push({ url, execId: e.id, status: e.status });
-        });
-      });
-
-      if (allScreenshots.length === 0) {
-        return `<span style="color:var(--text-muted); font-size:11px;">No screenshots attached to recent runs</span>`;
-      }
-
-      const primary = allScreenshots[0];
-      return `
-        <div class="browser-frame">
-          <div class="browser-titlebar">
-            <div class="browser-dots">
-              <div class="browser-dot"></div>
-              <div class="browser-dot"></div>
-              <div class="browser-dot"></div>
-            </div>
-            <div class="browser-url-pill">${escapeHtml(primary.execId)} · Chromium 128</div>
-          </div>
-          <div class="browser-content-area">
-            <img class="browser-screenshot-img" src="${escapeHtml(primary.url)}" alt="Screenshot Preview" onclick="openLightbox('${escapeHtml(primary.url)}', '${escapeHtml(primary.execId)}')">
-            <div class="masked-region-indicator">Masked Region: Active</div>
-          </div>
-        </div>
-      `;
+      // 4. Renderizar contenido específico de la vista activa
+      if (state.activeView === 'architecture') renderArchitectureDag();
+      if (state.activeView === 'flow') renderActiveFlow();
+      if (state.activeView === 'telemetry') renderTelemetryTable();
+      if (state.activeView === 'guardrails') renderGuardrails();
     }
 
-    function closeInspectorDrawer() {
-      const drawer = document.getElementById('inspector-drawer');
-      drawer.classList.remove('open');
-      document.querySelectorAll('.module-card').forEach(c => c.classList.remove('selected'));
-    }
+    /**
+     * RENDER: ARCHITECTURE DAG VIEW (Swimlanes por Módulo)
+     */
+    function renderArchitectureDag() {
+      const container = document.getElementById('swimlanes-container');
+      if (!container) return;
 
-    // 8. Render Execution Logs Dashboard
-    function renderExecutionLogs() {
-      const tbody = document.getElementById('executions-table-body');
-      tbody.innerHTML = '';
-
-      const execs = graphData.recentExecutions || [];
-
-      // Update module filter chips
-      const modFilterGroup = document.getElementById('module-filter-group');
-      const uniqueModules = Array.from(new Set(execs.map(e => e.module).filter(Boolean)));
-      modFilterGroup.innerHTML = `
-        <button class="filter-chip ${activeModuleFilter === 'ALL' ? 'active' : ''}" onclick="setModuleFilter('ALL')">ALL</button>
-        ${uniqueModules.map(m => `
-          <button class="filter-chip ${activeModuleFilter === m ? 'active' : ''}" onclick="setModuleFilter('${escapeHtml(m)}')">${escapeHtml(m)}</button>
-        `).join('')}
-      `;
-
-      // Filter
-      const filtered = execs.filter(e => {
-        const matchMod = activeModuleFilter === 'ALL' || e.module === activeModuleFilter;
-        const matchStatus = activeStatusFilter === 'ALL' || e.status === activeStatusFilter || (activeStatusFilter === 'failure' && e.status !== 'success');
-        const matchSearch = !activeLogSearch || e.id.toLowerCase().includes(activeLogSearch) || (e.module && e.module.toLowerCase().includes(activeLogSearch));
-        return matchMod && matchStatus && matchSearch;
-      });
-
-      if (filtered.length === 0) {
-        tbody.innerHTML = `
-          <tr>
-            <td colspan="6" style="text-align:center; padding:32px; color:var(--text-muted);">
-              No execution records match the current filter criteria.
-            </td>
-          </tr>
+      const modules = state.definitions.modules || [];
+      if (modules.length === 0) {
+        container.innerHTML = `
+          <div class="glass-panel p-8 rounded-xl text-center">
+            <span class="material-symbols-outlined text-indigo-400 text-3xl mb-2">account_tree</span>
+            <p class="text-sm font-medium text-white">No se encontraron módulos en .qa/definitions/modules/</p>
+            <p class="text-xs text-slate-400 mt-1">Crea definiciones YAML o ejecuta <code>qap validate</code> para verificar.</p>
+          </div>
         `;
         return;
       }
 
-      filtered.forEach((exec, idx) => {
-        const isSuccess = exec.status === 'success' || exec.result === 'completed';
-        const mainRow = document.createElement('tr');
-        mainRow.id = `row-exec-${exec.id}`;
-        mainRow.onclick = () => toggleTraceAccordion(exec.id);
-
-        mainRow.innerHTML = `
-          <td style="font-family:var(--font-mono); font-weight:600; color:var(--text-primary);">
-            <div style="display:flex; align-items:center; gap:8px;">
-              <svg class="icon accordion-arrow" id="arrow-${exec.id}" viewBox="0 0 24 24" style="width:12px;height:12px;transition:transform 0.15s;">
-                <polyline points="9 18 15 12 9 6"></polyline>
-              </svg>
-              <span>${escapeHtml(exec.id)}</span>
-            </div>
-          </td>
-          <td>
-            <span class="badge-env">${escapeHtml(exec.module)}</span>
-          </td>
-          <td>
-            <span class="badge-env">${escapeHtml(exec.environment || 'staging')}</span>
-          </td>
-          <td style="font-family:var(--font-mono); font-size:11px;">
-            ${formatDuration(exec.totalDurationMs)}
-          </td>
-          <td>
-            <span class="badge-status ${isSuccess ? 'success' : 'failure'}">
-              ${isSuccess ? 'PASSED' : 'FAILED'}
-            </span>
-          </td>
-          <td>
-            <button class="btn-action-small" onclick="event.stopPropagation(); toggleTraceAccordion('${escapeHtml(exec.id)}')">
-              <span>View Trace (${(exec.steps || []).length} steps)</span>
-            </button>
-          </td>
-        `;
-
-        // Accordion Row with Steps Breakdown and Evidence Frame
-        const traceRow = document.createElement('tr');
-        traceRow.className = 'trace-detail-row';
-        traceRow.id = `trace-${exec.id}`;
-
-        const steps = exec.steps || [];
-        const screenshots = exec.screenshots || [];
-
-        traceRow.innerHTML = `
-          <td colspan="6" style="padding:0;">
-            <div class="trace-content-box">
-              
-              <!-- Step by Step Table -->
-              <div style="display:flex; flex-direction:column; gap:8px;">
-                <div style="display:flex; align-items:center; justify-content:space-between;">
-                  <span style="font-size:11px; font-weight:600; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.04em;">
-                    Execution Steps Telemetry
-                  </span>
-                  <span style="font-family:var(--font-mono); font-size:11px; color:var(--text-secondary);">
-                    Operator: ${escapeHtml(exec.operator || 'Carlos Eduardo (QAP v2.1)')} · Browser: ${escapeHtml(exec.browser || 'Chromium Headless')}
-                  </span>
-                </div>
-
-                <table class="step-trace-table">
-                  <thead>
-                    <tr>
-                      <th style="width:36px;">#</th>
-                      <th style="width:90px;">Action</th>
-                      <th>Step Description & Target Selector</th>
-                      <th style="width:80px;">Duration</th>
-                      <th style="width:80px;">Status</th>
-                      <th style="width:80px;">Evidence</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${steps.map((st, sIdx) => {
-                      const stSuccess = st.status === 'success';
-                      const actionType = inferAction(st.name);
-                      return `
-                        <tr>
-                          <td style="font-family:var(--font-mono); color:var(--text-muted); text-align:center;">${sIdx + 1}</td>
-                          <td><span class="action-badge">${escapeHtml(actionType)}</span></td>
-                          <td>
-                            <div style="font-weight:500; color:var(--text-primary);">${escapeHtml(st.name)}</div>
-                            ${st.message ? `<div style="font-size:11px; color:var(--text-secondary); margin-top:2px;">${escapeHtml(st.message)}</div>` : ''}
-                          </td>
-                          <td style="font-family:var(--font-mono); font-size:11px;">${st.duration_ms || 0}ms</td>
-                          <td>
-                            <span class="badge-status ${stSuccess ? 'success' : 'failure'}" style="font-size:9px; padding:1px 5px;">
-                              ${stSuccess ? 'OK' : 'ERR'}
-                            </span>
-                          </td>
-                          <td>
-                            ${st.screenshot ? `
-                              <button class="btn-action-small" onclick="openLightbox('${escapeHtml(st.screenshot)}', 'Step ${sIdx + 1}: ${escapeHtml(st.name)}')">
-                                Frame
-                              </button>
-                            ` : `<span style="color:var(--text-muted); font-size:10px;">—</span>`}
-                          </td>
-                        </tr>
-                      `;
-                    }).join('')}
-                  </tbody>
-                </table>
+      // Renderizar swimlanes horizontales por cada módulo
+      container.innerHTML = modules.map((mod) => {
+        const squad = mod.ownerSquad || 'core';
+        return `
+          <div class="glass-panel rounded-xl p-5 border border-white/10 space-y-4" data-squad="${squad}">
+            <div class="flex items-center justify-between border-b border-white/5 pb-2.5">
+              <div class="flex items-center space-x-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-indigo-400"></span>
+                <span class="font-semibold text-sm text-white">${mod.name}</span>
+                <span class="text-[11px] font-mono text-slate-400">(${mod.id})</span>
               </div>
-
-              <!-- Evidence Preview Frame -->
-              ${screenshots.length > 0 ? `
-                <div style="display:flex; flex-direction:column; gap:8px;">
-                  <span style="font-size:11px; font-weight:600; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.04em;">
-                    Visual Verification (${screenshots.length} captured frames)
-                  </span>
-                  <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap:12px;">
-                    ${screenshots.map((sUrl, sIdx) => `
-                      <div class="browser-frame">
-                        <div class="browser-titlebar">
-                          <div class="browser-dots">
-                            <div class="browser-dot"></div>
-                            <div class="browser-dot"></div>
-                            <div class="browser-dot"></div>
-                          </div>
-                          <div class="browser-url-pill">Evidence #${sIdx + 1} · ${escapeHtml(exec.id)}</div>
-                        </div>
-                        <div class="browser-content-area">
-                          <img class="browser-screenshot-img" src="${escapeHtml(sUrl)}" alt="Evidence ${sIdx + 1}" onclick="openLightbox('${escapeHtml(sUrl)}', '${escapeHtml(exec.id)} - Frame ${sIdx + 1}')">
-                          <div class="masked-region-indicator">Masked Region: Active</div>
-                        </div>
-                      </div>
-                    `).join('')}
-                  </div>
-                </div>
-              ` : ''}
-
+              <div class="flex items-center space-x-2 text-[11px] font-mono text-slate-400">
+                <span class="px-2 py-0.5 rounded bg-white/5 border border-white/10">Squad: ${squad}</span>
+                <span class="px-2 py-0.5 rounded bg-white/5 border border-white/10">${mod.category}</span>
+              </div>
             </div>
-          </td>
-        `;
 
-        tbody.appendChild(mainRow);
-        tbody.appendChild(traceRow);
-      });
+            <!-- CAPABILITY NODES GRID -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 pt-1">
+              ${(mod.capabilities || []).map((cap) => renderCapabilityCard(cap)).join('')}
+            </div>
+          </div>
+        `;
+      }).join('');
     }
 
-    function toggleTraceAccordion(execId) {
-      const traceRow = document.getElementById(`trace-${execId}`);
-      const arrow = document.getElementById(`arrow-${execId}`);
-      const mainRow = document.getElementById(`row-exec-${execId}`);
-      if (!traceRow) return;
+    function renderCapabilityCard(cap) {
+      const typeBadges = {
+        'ui-interaction': { bg: 'bg-violet-500/15', text: 'text-violet-400', border: 'border-violet-500/30', icon: 'touch_app' },
+        'api-rest': { bg: 'bg-blue-500/15', text: 'text-blue-400', border: 'border-blue-500/30', icon: 'http' },
+        'event-stream': { bg: 'bg-cyan-500/15', text: 'text-cyan-400', border: 'border-cyan-500/30', icon: 'stream' },
+        'business-rule': { bg: 'bg-amber-500/15', text: 'text-amber-400', border: 'border-amber-500/30', icon: 'rule' },
+        'db-state': { bg: 'bg-emerald-500/15', text: 'text-emerald-400', border: 'border-emerald-500/30', icon: 'database' },
+      };
 
-      const isOpen = traceRow.classList.contains('open');
-      if (isOpen) {
-        traceRow.classList.remove('open');
-        mainRow.classList.remove('expanded');
-        if (arrow) arrow.style.transform = 'rotate(0deg)';
-      } else {
-        traceRow.classList.add('open');
-        mainRow.classList.add('expanded');
-        if (arrow) arrow.style.transform = 'rotate(90deg)';
+      const style = typeBadges[cap.type] || typeBadges['ui-interaction'];
+      const hasPrereqs = cap.prerequisiteGroups && cap.prerequisiteGroups.length > 0;
+      const isSelected = state.selectedEntity?.id === cap.id;
+
+      return `
+        <div onclick="dispatch({ type: 'SELECT_ENTITY', entity: { type: 'capability', id: '${cap.id}', data: ${JSON.stringify(cap).replace(/"/g, '&quot;')} }, openInspector: true })"
+          class="glass-card rounded-lg p-3.5 cursor-pointer relative group ${isSelected ? 'ring-2 ring-indigo-500 border-transparent' : ''}">
+          <div class="flex items-start justify-between">
+            <div class="flex items-center space-x-2">
+              <span class="material-symbols-outlined text-[16px] ${style.text}">${style.icon}</span>
+              <span class="font-medium text-xs text-white group-hover:text-indigo-300 transition-colors">${cap.name}</span>
+            </div>
+            <span class="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded border ${style.bg} ${style.text} ${style.border}">
+              ${cap.type}
+            </span>
+          </div>
+
+          <p class="text-[11px] text-slate-400 mt-2 line-clamp-2">${cap.description || 'Sin descripción'}</p>
+
+          <div class="mt-3 pt-2 border-t border-white/5 flex items-center justify-between text-[10px] font-mono text-slate-500">
+            <span>${cap.id}</span>
+            ${hasPrereqs ? `<span class="flex items-center text-indigo-400"><span class="material-symbols-outlined text-[12px] mr-0.5">link</span>Prereq</span>` : '<span>Raíz</span>'}
+          </div>
+        </div>
+      `;
+    }
+
+    /**
+     * RENDER: FLOW PIPELINE VIEW
+     */
+    function renderActiveFlow() {
+      const select = document.getElementById('flow-select');
+      const container = document.getElementById('flow-pipeline-container');
+      const flows = state.definitions.flows || [];
+
+      if (!select || !container) return;
+
+      if (flows.length === 0) {
+        container.innerHTML = `<div class="glass-panel p-8 rounded-xl text-center text-xs text-slate-400 font-mono">No hay flujos E2E definidos en .qa/definitions/flows/</div>`;
+        return;
+      }
+
+      select.innerHTML = flows.map((f) => `<option value="${f.id}" ${f.id === state.activeFlowId ? 'selected' : ''}>${f.name} (${f.id})</option>`).join('');
+
+      const activeFlow = flows.find((f) => f.id === state.activeFlowId) || flows[0];
+      if (!activeFlow) return;
+
+      container.innerHTML = `
+        <div class="flex items-center space-x-4 min-w-max py-4">
+          ${(activeFlow.steps || []).map((step, idx) => {
+            const isLast = idx === activeFlow.steps.length - 1;
+            return `
+              <div class="flex items-center space-x-4">
+                <div class="glass-panel w-64 rounded-xl p-4 border border-white/10 hover:border-indigo-500/50 transition">
+                  <div class="flex items-center justify-between mb-2">
+                    <span class="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300">
+                      PASO ${step.stepIndex}
+                    </span>
+                    <span class="text-[10px] font-mono text-slate-400">${step.stepTimeoutMs || 5000}ms</span>
+                  </div>
+                  <h3 class="text-xs font-semibold text-white truncate">${step.customLabel || step.capabilityId}</h3>
+                  <p class="text-[10px] font-mono text-slate-400 mt-1 truncate">${step.capabilityId}</p>
+                </div>
+                ${!isLast ? `<span class="material-symbols-outlined text-slate-600 text-lg">arrow_forward</span>` : ''}
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    /**
+     * RENDER: TELEMETRY TABLE VIEW
+     */
+    function renderTelemetryTable() {
+      const tbody = document.getElementById('runs-table-body');
+      if (!tbody) return;
+
+      if (state.runs.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-slate-500">No hay ejecuciones registradas en .qa/runtime/qap.sqlite.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = state.runs.map((r) => {
+        const statusColors = {
+          passed: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+          failed: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
+          partial: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+        };
+        const color = statusColors[r.overall_status] || 'bg-slate-500/10 text-slate-400';
+        const isPinned = r.pinned === 1;
+
+        return `
+          <tr class="hover:bg-white/[0.02] transition">
+            <td class="py-3 px-4 font-semibold text-white">${r.run_id}</td>
+            <td class="py-3 px-4 text-slate-400">${r.flow_id || 'Suite Global'}</td>
+            <td class="py-3 px-4">
+              <span class="px-2 py-0.5 rounded text-[10px] border ${color} uppercase font-semibold">
+                ${r.overall_status}
+              </span>
+            </td>
+            <td class="py-3 px-4 text-slate-300">${(r.total_duration_ms / 1000).toFixed(2)}s</td>
+            <td class="py-3 px-4 text-slate-400">${new Date(r.started_at).toLocaleTimeString()}</td>
+            <td class="py-3 px-4 text-indigo-400">${r.git_commit?.slice(0, 7) || 'HEAD'}</td>
+            <td class="py-3 px-4 text-center">
+              <button onclick="togglePinRun('${r.run_id}', ${!isPinned})" class="p-1 rounded hover:bg-white/10 ${isPinned ? 'text-amber-400' : 'text-slate-600'}">
+                <span class="material-symbols-outlined text-[16px]">${isPinned ? 'push_pin' : 'push_pin'}</span>
+              </button>
+            </td>
+            <td class="py-3 px-4 text-right space-x-2">
+              <button onclick="inspectRun('${r.run_id}')" class="px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-slate-200 text-[11px]">Ver</button>
+              <button onclick="deleteRun('${r.run_id}')" class="px-2 py-1 rounded bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-[11px]">Eliminar</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    /**
+     * RENDER: GUARDRAILS MATRIX VIEW
+     */
+    function renderGuardrails() {
+      const container = document.getElementById('guardrails-matrix');
+      if (!container) return;
+
+      container.innerHTML = `
+        <div class="glass-panel p-5 rounded-xl border border-white/10 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="font-semibold text-xs text-white">G-001: Autenticación Previa Obligatoria</span>
+            <span class="px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 text-[10px] font-mono uppercase">Crítico</span>
+          </div>
+          <p class="text-xs text-slate-400">Ningún usuario puede avanzar a flujos protegidos sin haber validado su sesión MFA.</p>
+          <div class="text-[10px] font-mono text-indigo-400 pt-2 border-t border-white/5">
+            Garantizado por: auth.login.submit, auth.mfa.verify
+          </div>
+        </div>
+
+        <div class="glass-panel p-5 rounded-xl border border-white/10 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="font-semibold text-xs text-white">G-002: Inmutabilidad de Transacciones Confirmadas</span>
+            <span class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 text-[10px] font-mono uppercase">Alto</span>
+          </div>
+          <p class="text-xs text-slate-400">Una vez emitido un evento de pago o cobro, no se permiten reintentos con el mismo token.</p>
+          <div class="text-[10px] font-mono text-indigo-400 pt-2 border-t border-white/5">
+            Garantizado por: checkout.payment.process
+          </div>
+        </div>
+      `;
+    }
+
+    /**
+     * RENDER: INSPECTOR DRAWER CONTENT (con SyncedVideoPlayer)
+     */
+    function renderInspectorContent() {
+      const title = document.getElementById('drawer-title');
+      const content = document.getElementById('drawer-content');
+      const entity = state.selectedEntity;
+
+      if (!title || !content || !entity) return;
+
+      if (entity.type === 'capability') {
+        const cap = entity.data || {};
+        title.innerText = cap.name || entity.id;
+
+        content.innerHTML = `
+          <div class="space-y-5 text-xs">
+            <div>
+              <span class="text-slate-400 block text-[11px] mb-1">Identificador Canónico</span>
+              <code class="px-2 py-1 rounded bg-black/40 text-indigo-300 font-mono text-[11px] block">${cap.id}</code>
+            </div>
+
+            <div>
+              <span class="text-slate-400 block text-[11px] mb-1">Módulo y Squad</span>
+              <span class="text-white font-medium">${cap.moduleId}</span>
+            </div>
+
+            <div>
+              <span class="text-slate-400 block text-[11px] mb-1">Descripción de Dominio</span>
+              <p class="text-slate-300 leading-relaxed">${cap.description || 'Sin descripción'}</p>
+            </div>
+
+            <div>
+              <span class="text-slate-400 block text-[11px] mb-1">Prerrequisitos Upstream (AND/OR de 2 niveles)</span>
+              ${(cap.prerequisiteGroups || []).length > 0 ? `
+                <div class="space-y-2 mt-1">
+                  ${cap.prerequisiteGroups.map((g, gi) => `
+                    <div class="p-2.5 rounded bg-white/[0.02] border border-white/5">
+                      <span class="font-mono text-[10px] text-amber-400">Grupo ${gi + 1} (${g.mode})</span>
+                      <ul class="mt-1 space-y-1">
+                        ${g.requirements.map((r) => `<li class="font-mono text-[10px] text-slate-300">→ ${r.capabilityId} ${r.isOptional ? '(opcional)' : ''}</li>`).join('')}
+                      </ul>
+                    </div>
+                  `).join('')}
+                </div>
+              ` : '<span class="text-slate-500 font-mono text-[11px]">Sin prerrequisitos (Capacidad Raíz)</span>'}
+            </div>
+
+            ${cap.testBinding ? `
+              <div>
+                <span class="text-slate-400 block text-[11px] mb-1">Test Binding Automático</span>
+                <div class="p-2.5 rounded bg-white/[0.02] border border-white/5 font-mono text-[10px] text-slate-300">
+                  <div>Archivo: ${cap.testBinding.file}</div>
+                  ${cap.testBinding.identifier ? `<div>Id: ${cap.testBinding.identifier}</div>` : ''}
+                </div>
+              </div>
+            ` : ''}
+          </div>
+        `;
+      } else if (entity.type === 'run') {
+        const run = entity.data || {};
+        title.innerText = `Corrida: ${run.runId || entity.id}`;
+
+        content.innerHTML = `
+          <div class="space-y-5 text-xs">
+            <div class="flex items-center justify-between p-3 rounded bg-white/[0.03] border border-white/5">
+              <div>
+                <span class="text-slate-400 block text-[10px]">Estado Global</span>
+                <span class="text-sm font-semibold uppercase text-emerald-400">${run.overallStatus}</span>
+              </div>
+              <div class="text-right">
+                <span class="text-slate-400 block text-[10px]">Duración Total</span>
+                <span class="font-mono font-medium text-white">${(run.totalDurationMs / 1000).toFixed(2)}s</span>
+              </div>
+            </div>
+
+            <!-- SYNCED VIDEO PLAYER MOUNT POINT -->
+            <div class="space-y-2">
+              <span class="text-slate-400 block text-[11px] font-medium flex items-center justify-between">
+                <span>Reproductor Sincronizado</span>
+                <span class="text-[10px] font-mono text-indigo-400">Seek-to-Step Activo</span>
+              </span>
+
+              <div class="rounded-lg overflow-hidden border border-white/10 bg-black aspect-video relative">
+                <video id="synced-video-player" controls class="w-full h-full object-contain"
+                  src="/artifacts/${run.runId}/artifacts/trace.mp4">
+                  Tu navegador no soporta el tag de video.
+                </video>
+              </div>
+            </div>
+
+            <!-- PASOS REGISTRADOS -->
+            <div class="space-y-2 pt-2 border-t border-white/5">
+              <span class="text-slate-400 block text-[11px] font-medium">Resultados de Pasos</span>
+              <div class="space-y-2">
+                ${(run.steps || []).map((s) => `
+                  <div class="p-2.5 rounded bg-white/[0.02] border border-white/5 flex items-center justify-between">
+                    <div>
+                      <span class="font-mono text-[11px] text-white block">${s.capabilityId}</span>
+                      <span class="text-[10px] text-slate-400">${s.durationMs}ms</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                      <span class="px-1.5 py-0.5 rounded text-[9px] font-mono uppercase ${s.status === 'passed' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}">
+                        ${s.status}
+                      </span>
+                      ${s.error ? `
+                        <button onclick="seekVideoToStep(${s.error.capturedAtStepMs || 0})" class="p-1 rounded bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 text-[10px]">
+                          Seek
+                        </button>
+                      ` : ''}
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+        `;
       }
     }
 
-    function inferAction(stepName) {
-      const lower = (stepName || '').toLowerCase();
-      if (lower.includes('navegar') || lower.includes('navigate') || lower.includes('url')) return 'NAVIGATE';
-      if (lower.includes('ingresar') || lower.includes('fill') || lower.includes('type')) return 'FILL';
-      if (lower.includes('clic') || lower.includes('click') || lower.includes('boton') || lower.includes('pulsar')) return 'CLICK';
-      if (lower.includes('aserci') || lower.includes('assert') || lower.includes('verificar') || lower.includes('validar')) return 'ASSERT';
-      if (lower.includes('captura') || lower.includes('screenshot')) return 'SCREENSHOT';
-      return 'STEP';
-    }
-
-    function formatDuration(ms) {
-      if (!ms || typeof ms !== 'number') return '0ms';
-      if (ms < 1000) return `${ms}ms`;
-      return `${(ms / 1000).toFixed(2)}s`;
-    }
-
-    // 9. Update KPI Summary Counters
-    function updateKPICounters() {
-      const nodes = graphData.nodes || [];
-      const execs = graphData.recentExecutions || [];
-
-      let viewsCount = 0;
-      let surfacesCount = 0;
-      let piiCount = 0;
-
-      nodes.forEach(n => {
-        (n.views || []).forEach(v => {
-          viewsCount++;
-          surfacesCount += (v.surfaces || []).length;
-        });
-        piiCount += (n.sensitiveSelectors || []).length;
-      });
-
-      document.getElementById('metric-modules-count').textContent = nodes.length;
-      document.getElementById('metric-views-count').textContent = viewsCount;
-      document.getElementById('metric-surfaces-count').textContent = surfacesCount;
-      document.getElementById('metric-pii-count').textContent = piiCount;
-
-      document.getElementById('nav-logs-badge').textContent = execs.length;
-      document.getElementById('kpi-total-execs').textContent = execs.length;
-
-      const passed = execs.filter(e => e.status === 'success' || e.result === 'completed').length;
-      const failed = execs.length - passed;
-      const rate = execs.length > 0 ? Math.round((passed / execs.length) * 100) : 100;
-
-      document.getElementById('kpi-pass-rate').textContent = `${rate}%`;
-      document.getElementById('kpi-pass-detail').textContent = `${passed} passed · ${failed} failed`;
-
-      const totalDuration = execs.reduce((acc, e) => acc + (e.totalDurationMs || 0), 0);
-      const avgDuration = execs.length > 0 ? Math.round(totalDuration / execs.length) : 0;
-      document.getElementById('kpi-avg-duration').textContent = formatDuration(avgDuration);
-
-      const totalPii = execs.reduce((acc, e) => acc + (e.piiMaskedCount || 0), 0);
-      document.getElementById('kpi-pii-masked').textContent = totalPii || piiCount;
-    }
-
-    // 10. Filter Handlers
-    function setModuleFilter(mod) {
-      activeModuleFilter = mod;
-      renderExecutionLogs();
-    }
-
-    function setStatusFilter(status) {
-      activeStatusFilter = status;
-      document.querySelectorAll('#chip-status-all, #chip-status-success, #chip-status-failure').forEach(c => c.classList.remove('active'));
-      const activeBtn = document.getElementById(`chip-status-${status}`);
-      if (activeBtn) activeBtn.classList.add('active');
-      renderExecutionLogs();
-    }
-
-    function handleLogSearch(e) {
-      activeLogSearch = e.target.value.trim().toLowerCase();
-      renderExecutionLogs();
-    }
-
-    function handleGlobalSearch(e) {
-      const q = e.target.value.trim().toLowerCase();
-      document.querySelectorAll('.module-card').forEach(card => {
-        const text = card.textContent.toLowerCase();
-        if (!q || text.includes(q)) {
-          card.style.display = 'flex';
-        } else {
-          card.style.display = 'none';
+    /**
+     * ACCIONES DE LA API
+     */
+    async function inspectRun(runId) {
+      try {
+        const res = await fetch(`/api/runs/${runId}`);
+        if (res.ok) {
+          const data = await res.json();
+          dispatch({
+            type: 'SELECT_ENTITY',
+            entity: { type: 'run', id: runId, data: data.run },
+            openInspector: true,
+          });
         }
-      });
-      updateEdges();
+      } catch (e) {
+        console.error('Error al inspeccionar corrida:', e);
+      }
     }
 
-    // 11. Lightbox Handling
-    function openLightbox(src, title) {
-      if (!src) return;
-      document.getElementById('lightbox-img').src = src;
-      document.getElementById('lightbox-title').textContent = title || 'Visual Evidence';
-      document.getElementById('lightbox-modal').classList.add('active');
+    async function togglePinRun(runId, pinned) {
+      try {
+        const res = await fetch(`/api/runs/${runId}/pin`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pinned }),
+        });
+        if (res.ok) {
+          loadAllData();
+        }
+      } catch (e) {
+        console.error('Error al modificar pin:', e);
+      }
     }
 
-    function closeLightbox() {
-      document.getElementById('lightbox-modal').classList.remove('active');
+    async function deleteRun(runId) {
+      if (!confirm(`¿Eliminar la corrida ${runId} y sus artefactos de telemetría?`)) return;
+      try {
+        const res = await fetch(`/api/runs/${runId}`, { method: 'DELETE' });
+        if (res.ok) {
+          loadAllData();
+        }
+      } catch (e) {
+        console.error('Error al eliminar corrida:', e);
+      }
     }
 
-    // 12. Utilities
-    function escapeHtml(str) {
-      if (!str) return '';
-      return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
+    async function triggerPruneDryRun() {
+      try {
+        const res = await fetch('/api/runs/prune', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ olderThanDays: 30 }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          alert(`Poda ejecutada: ${data.result.bytesFreed} bytes liberados (${data.result.deletedRunsCount} corridas eliminadas).`);
+          loadAllData();
+        }
+      } catch (e) {
+        console.error('Error al podar:', e);
+      }
     }
 
-    function copyToClipboard(text) {
-      navigator.clipboard.writeText(text).then(() => {
-        // Subtle feedback if needed
-      }).catch(() => {});
+    function saveSettings() {
+      dispatch({ type: 'CLOSE_MODAL' });
+      alert('Configuración guardada.');
     }
 
-    // Start
-    window.addEventListener('DOMContentLoaded', init);
+    // Inicialización al cargar DOM
+    document.addEventListener('DOMContentLoaded', () => {
+      loadAllData();
+    });
   </script>
 </body>
 </html>

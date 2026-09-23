@@ -1,9 +1,0 @@
-_version: '1'
-project_name: 'Banco Digital QAP Demo'
-description: 'Plataforma bancaria y de simulaciones financieras'
-tech_stack:
-  - 'Next.js'
-  - 'TypeScript'
-  - 'Playwright'
-base_url: 'http://localhost:3000'
-manually_edited: false

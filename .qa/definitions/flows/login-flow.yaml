@@ -1,0 +1,15 @@
+id: auth-e2e-flow
+name: Complete Login Flow
+description: Flujo de inicio de sesión con MFA
+tags:
+  - smoke
+  - critical
+steps:
+  - stepIndex: 0
+    capabilityId: auth.login.submit
+    customLabel: Iniciar sesión con usuario y contraseña
+    stepTimeoutMs: 5000
+  - stepIndex: 1
+    capabilityId: auth.mfa.verify
+    customLabel: Validar código MFA de un solo uso
+    stepTimeoutMs: 10000

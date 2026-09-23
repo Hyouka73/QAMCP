@@ -112,6 +112,20 @@ cache/
 
   writeFileSync(gitignorePath, gitignoreContent, 'utf-8');
 
+  // Asegurar que .qa/ esté ignorado en el .gitignore de la raíz del proyecto
+  try {
+    const rootGitignorePath = join(process.cwd(), '.gitignore');
+    if (existsSync(rootGitignorePath)) {
+      const rootGitignore = readFileSync(rootGitignorePath, 'utf-8');
+      if (!rootGitignore.split(/\r?\n/).some((line) => line.trim() === '.qa' || line.trim() === '.qa/')) {
+        const separator = rootGitignore.endsWith('\n') ? '' : '\n';
+        writeFileSync(rootGitignorePath, `${rootGitignore}${separator}.qa/\n`, 'utf-8');
+      }
+    }
+  } catch {
+    // Ignorar si no se puede acceder a la raíz
+  }
+
   // 7. Verificar si Playwright está instalado en el proyecto destino
   detectPlaywright(process.cwd());
 

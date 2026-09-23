@@ -24,4 +24,8 @@ coverage/
 .vscode/
 .idea/
 .DS_Store
-.qa/
+# QA Runtime and Ephemeral Data (QAP v3.0 Desacoplamiento Git vs Runtime)
+.qa/*
+!.qa/definitions/
+.playwright-mcp/
+

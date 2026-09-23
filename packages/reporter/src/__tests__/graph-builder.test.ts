@@ -204,6 +204,7 @@ describe('GraphBuilder (S5-006 / QAP v2.1 Universal Architecture)', () => {
       to: 'simulation',
       label: 'prereq',
       type: 'prereq',
+      weight: 2,
     });
   });
 
@@ -246,12 +247,14 @@ describe('GraphBuilder (S5-006 / QAP v2.1 Universal Architecture)', () => {
       to: 'simulation',
       label: 'Préstamo Completo Digital',
       type: 'flow',
+      weight: 3,
     });
     expect(payload.edges[1]).toEqual({
       from: 'simulation',
       to: 'checkout',
       label: 'Préstamo Completo Digital',
       type: 'flow',
+      weight: 3,
     });
   });
 

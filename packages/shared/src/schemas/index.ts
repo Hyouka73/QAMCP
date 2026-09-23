@@ -45,6 +45,9 @@ import selectorsSchema from './selectors.schema.json' with { type: 'json' };
 import semanticHashSchema from './semantic-hash.schema.json' with { type: 'json' };
 import systemPromptSchema from './system-prompt.schema.json' with { type: 'json' };
 import moduleRepoMapSchema from './module-repo-map.schema.json' with { type: 'json' };
+import capabilityDefinitionSchema from './capability-definition.schema.json' with { type: 'json' };
+import moduleDefinitionSchema from './module-definition.schema.json' with { type: 'json' };
+import flowDefinitionSchema from './flow-definition.schema.json' with { type: 'json' };
 
 export {
   authProfilesSchema,
@@ -62,6 +65,9 @@ export {
   semanticHashSchema,
   systemPromptSchema,
   moduleRepoMapSchema,
+  capabilityDefinitionSchema,
+  moduleDefinitionSchema,
+  flowDefinitionSchema,
 };
 
 // Export all schemas as a record for dynamic access
@@ -82,6 +88,9 @@ export const schemas = {
   'system-prompt': systemPromptSchema,
   'module-repo-map': moduleRepoMapSchema,
   'repo-map': moduleRepoMapSchema,
+  'capability-definition': capabilityDefinitionSchema,
+  'module-definition': moduleDefinitionSchema,
+  'flow-definition': flowDefinitionSchema,
 } as const;
 
 // Type exports for TypeScript consumers

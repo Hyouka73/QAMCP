@@ -23,8 +23,21 @@ export class AjvCompiler {
     this.errorTranslator = new ErrorTranslator();
     this.validators = new Map();
 
+    // Registrar schemas por su $id para permitir resolución de $ref cruzadas
+    for (const schema of Object.values(schemas)) {
+      const s = schema as { $id?: string };
+      if (s?.$id && !this.ajv.getSchema(s.$id)) {
+        this.ajv.addSchema(schema, s.$id);
+      }
+    }
+
     for (const [key, schema] of Object.entries(schemas)) {
-      this.validators.set(key, this.ajv.compile(schema));
+      const s = schema as { $id?: string };
+      if (s?.$id && this.ajv.getSchema(s.$id)) {
+        this.validators.set(key, this.ajv.getSchema(s.$id)!);
+      } else {
+        this.validators.set(key, this.ajv.compile(schema));
+      }
     }
   }
 

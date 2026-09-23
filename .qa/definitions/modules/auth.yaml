@@ -1,0 +1,29 @@
+id: auth
+name: Authentication Module
+category: core
+ownerSquad: identity
+capabilities:
+  - id: auth.login.submit
+    name: Submit Credentials
+    type: ui-interaction
+    description: Permite al usuario enviar credenciales de login
+    moduleId: auth
+    prerequisiteGroups: []
+    emits:
+      - key: auth.session.active
+        description: Sesión de usuario iniciada
+    testBinding:
+      file: packages/cli/src/__tests__/auth-commands.test.ts
+      identifier: handleAuthAdd
+  - id: auth.mfa.verify
+    name: Verify Multi-Factor Auth
+    type: ui-interaction
+    description: Verificación de código de seguridad MFA
+    moduleId: auth
+    prerequisiteGroups:
+      - mode: ALL
+        requirements:
+          - capabilityId: auth.login.submit
+    emits:
+      - key: auth.mfa.verified
+        description: Token MFA confirmado

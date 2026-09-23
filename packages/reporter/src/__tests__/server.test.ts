@@ -59,8 +59,8 @@ describe('ViewerServer (S5-006)', () => {
     expect(res.headers.get('content-type')).toContain('text/html');
 
     const body = await res.text();
-    expect(body).toContain('QAP v2.1');
-    expect(body).toContain('Knowledge Graph');
+    expect(body).toContain('QAP v3.0');
+    expect(body).toContain('Architectural DAG');
   });
 
   it('debe responder HTTP 200 en /api/graph con el JSON del payload', async () => {

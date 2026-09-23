@@ -22,22 +22,44 @@ export interface ModuleArchitectureNode {
   id: string;
   label: string;
   description?: string;
+  objective?: string;
   baseRoute: string;
   views: ViewNode[];
   filesCount: number;
   sensitiveSelectors: string[];
   hasTests: boolean;
   testsCount: number;
+  /** Etiquetas semánticas para agrupar en el grafo */
+  tags: string[];
+  /** Si forma parte del camino crítico del usuario */
+  criticalPath: boolean;
+  /** Equipo responsable */
+  owner: string;
+  /** Estado de salud del módulo */
+  healthStatus: 'healthy' | 'degraded' | 'unknown';
+  /** Relaciones explícitas con otros módulos */
+  relatedModules: string[];
+  /** Usuarios/roles que interactúan con este módulo */
+  users: string[];
+  /** Riesgos de QA identificados */
+  risks: string[];
 }
 
 /** Alias para compatibilidad hacia atrás */
 export type GraphNode = ModuleArchitectureNode;
 
+export type EdgeType = 'prereq' | 'flow' | 'related' | 'shared-context';
+
 export interface GraphEdge {
   from: string;
   to: string;
-  label?: string;          // Ej: 'prereq', 'flow'
-  type: 'prereq' | 'flow';
+  label?: string;
+  type: EdgeType;
+  /**
+   * Peso de la arista (1 = normal, 2 = importante, 3 = crítica).
+   * El visor puede usar este valor para dibujar aristas más gruesas.
+   */
+  weight?: number;
 }
 
 export interface ExecutionStepInfo {
@@ -71,6 +93,25 @@ export interface RecentExecution {
   }>;
 }
 
+/** Resumen de un flow multi-módulo para el visor */
+export interface FlowSummary {
+  id: string;
+  name: string;
+  description?: string;
+  modules: string[];
+  failFast: boolean;
+}
+
+/** Estadísticas globales del grafo para el visor */
+export interface GraphStats {
+  totalNodes: number;
+  totalEdges: number;
+  edgesByType: Record<EdgeType, number>;
+  criticalPathModules: string[];
+  mostConnectedModule: string | null;
+  tagGroups: Record<string, string[]>;
+}
+
 export interface KnowledgeGraphPayload {
   projectName: string;
   generatedAt: string;
@@ -78,6 +119,10 @@ export interface KnowledgeGraphPayload {
   edges: GraphEdge[];
   modulesDetail: Record<string, unknown>;
   recentExecutions: RecentExecution[];
+  /** Lista de flows multi-módulo para dibujar caminos en el visor */
+  flows: FlowSummary[];
+  /** Métricas globales del grafo */
+  graphStats: GraphStats;
 }
 
 /**
@@ -90,6 +135,70 @@ function normalizeScreenshotUrl(pathOrUrl: string, executionId?: string): string
     return `/artifacts/${executionId}/${cleaned}`;
   }
   return `/artifacts/${cleaned}`;
+}
+
+/**
+ * Extrae un ViewNode tipado a partir de los datos crudos del context.yaml
+ * Soporta tanto el formato v2 (ModuleContext.views) como el fallback de v1 (routes[]).
+ */
+function extractViews(moduleContext: ModuleContext | null): ViewNode[] {
+  if (!moduleContext) return [];
+
+  // v2: usa el array de views con superficies anidadas
+  if (Array.isArray(moduleContext.views) && moduleContext.views.length > 0) {
+    return moduleContext.views.map((v) => ({
+      id: v.id,
+      name: v.name ?? v.id,
+      path: v.path ?? '',
+      surfaces: (v.surfaces ?? []).map((s) => ({
+        id: s.id,
+        name: s.name ?? s.id,
+        type: s.type,
+      })),
+    }));
+  }
+
+  // v1 fallback: usa routes[] como lista plana sin superficies
+  if (Array.isArray(moduleContext.routes) && moduleContext.routes.length > 0) {
+    return moduleContext.routes.map((r) => ({
+      id: r.replace(/^\//, '').replace(/[/\-_]/g, '-') || 'default-view',
+      name: r,
+      path: r,
+      surfaces: [],
+    }));
+  }
+
+  return [];
+}
+
+/**
+ * Calcula el estado de salud derivado de las ejecuciones recientes de un módulo.
+ * Si el context.yaml ya define un health_status explícito, ese tiene prioridad
+ * solo cuando no hay ejecuciones para sobreescribirlo.
+ */
+function deriveHealthStatus(
+  moduleName: string,
+  recentExecutions: RecentExecution[],
+  explicitStatus?: string,
+): 'healthy' | 'degraded' | 'unknown' {
+  const moduleExecutions = recentExecutions.filter((e) => e.module === moduleName);
+  if (moduleExecutions.length === 0) {
+    // Sin ejecuciones: usar el valor explícito del context.yaml, o 'unknown'
+    if (explicitStatus === 'healthy' || explicitStatus === 'degraded') {
+      return explicitStatus;
+    }
+    return 'unknown';
+  }
+
+  // Tomar las 5 ejecuciones más recientes
+  const recent = moduleExecutions.slice(0, 5);
+  const passed = recent.filter(
+    (e) => e.status === 'success' || e.status === 'completed' || e.result === 'success',
+  ).length;
+
+  if (passed === recent.length) return 'healthy';
+  if (passed === 0) return 'degraded';
+  return 'degraded'; // Parcialmente fallando sigue siendo degraded
 }
 
 /**
@@ -318,8 +427,6 @@ export async function buildKnowledgeGraph(storage: IStorage): Promise<KnowledgeG
       repoMap = null;
     }
 
-    const rawContext = moduleContext as Record<string, unknown> | null;
-
     // Extraer selectores DOM estandarizados
     let selectorsObj: Record<string, string> = {};
     try {
@@ -364,72 +471,50 @@ export async function buildKnowledgeGraph(storage: IStorage): Promise<KnowledgeG
 
     const hasTests = testsCount > 0;
 
-    // Extraer jerarquía universal de Vistas y Superficies
-    const views: ViewNode[] = [];
-    if (Array.isArray(rawContext?.views)) {
-      for (const v of rawContext.views as Array<Record<string, unknown>>) {
-        const surfaces: SurfaceNode[] = [];
-        if (Array.isArray(v.surfaces)) {
-          for (const s of v.surfaces as Array<Record<string, unknown>>) {
-            surfaces.push({
-              id: (s.id as string) || '',
-              name: (s.name as string) || (s.id as string) || '',
-              type: (s.type as SurfaceType) || 'section',
-            });
-          }
-        }
-        views.push({
-          id: (v.id as string) || '',
-          name: (v.name as string) || (v.id as string) || '',
-          path: (v.path as string) || '',
-          surfaces,
-        });
-      }
-    } else if (Array.isArray(rawContext?.routes)) {
-      // Fallback para contextos que aún usen routes
-      for (const r of rawContext.routes as string[]) {
-        views.push({
-          id: r.replace(/^\//, '').replace(/[/\-_]/g, '-') || 'default-view',
-          name: r,
-          path: r,
-          surfaces: [],
-        });
-      }
-    }
+    // Extraer vistas con tipado fuerte (v2) con fallback a v1
+    const views = extractViews(moduleContext);
 
     const baseRoute =
-      (rawContext?.base_route as string) ||
-      (rawContext?.baseRoute as string) ||
+      moduleContext?.base_route ||
       (views.length > 0 ? views[0].path : `/${moduleName}`);
 
-    const description =
-      (rawContext?.description as string) ||
-      (rawContext?.objective as string) ||
-      '';
+    const description = moduleContext?.description || moduleContext?.objective || '';
+    const objective = moduleContext?.objective || '';
+    const sensitiveSelectors = moduleContext?.sensitive_selectors ?? [];
 
-    const sensitiveSelectors: string[] = Array.isArray(rawContext?.sensitive_selectors)
-      ? (rawContext.sensitive_selectors as string[])
-      : [];
+    // Derivar health status a partir de ejecuciones reales
+    const healthStatus = deriveHealthStatus(
+      moduleName,
+      recentExecutions,
+      moduleContext?.health_status,
+    );
 
     const files = repoMap?.files ?? [];
 
     const node: ModuleArchitectureNode = {
       id: moduleName,
-      label: (rawContext?.module as string) || moduleName,
+      label: moduleContext?.module || moduleName,
       description,
+      objective,
       baseRoute,
       views,
       filesCount: files.length,
       sensitiveSelectors,
       hasTests,
       testsCount,
+      tags: moduleContext?.tags ?? [],
+      criticalPath: moduleContext?.critical_path ?? false,
+      owner: moduleContext?.owner ?? '',
+      healthStatus,
+      relatedModules: moduleContext?.related_modules ?? [],
+      users: moduleContext?.users ?? [],
+      risks: moduleContext?.risks ?? [],
     };
 
     nodes.push(node);
 
     modulesDetail[moduleName] = {
-      ...rawContext,
-      context: rawContext,
+      ...moduleContext,
       repoMap,
       files,
       baseRoute,
@@ -439,6 +524,7 @@ export async function buildKnowledgeGraph(storage: IStorage): Promise<KnowledgeG
       selectors: selectorsObj,
       hasTests,
       testsCount,
+      healthStatus,
     };
 
     // 4. Aristas por Prerrequisitos (.qa/modules/<name>/prereqs.yaml)
@@ -486,6 +572,7 @@ export async function buildKnowledgeGraph(storage: IStorage): Promise<KnowledgeG
               to: moduleName,
               label: 'prereq',
               type: 'prereq',
+              weight: 2,
             });
           }
         }
@@ -493,9 +580,24 @@ export async function buildKnowledgeGraph(storage: IStorage): Promise<KnowledgeG
     } catch {
       // Prerrequisitos no disponibles para este módulo
     }
+
+    // 5. Aristas por related_modules (relaciones explícitas en context.yaml v2)
+    for (const relatedModule of node.relatedModules) {
+      if (relatedModule && relatedModule !== moduleName && moduleNames.includes(relatedModule)) {
+        addEdge({
+          from: moduleName,
+          to: relatedModule,
+          label: 'related',
+          type: 'related',
+          weight: 1,
+        });
+      }
+    }
   }
 
-  // 5. Aristas por Flujos Multi-Módulo (.qa/flows/*.yaml)
+  // 6. Aristas por Flujos Multi-Módulo (.qa/flows/*.yaml)
+  const flowSummaries: FlowSummary[] = [];
+
   try {
     const flowNames = await storage.listFlows();
     for (const flowName of flowNames) {
@@ -503,19 +605,29 @@ export async function buildKnowledgeGraph(storage: IStorage): Promise<KnowledgeG
         const flow = (await storage.getFlow(flowName)) as FlowDefinition | null;
         if (flow && Array.isArray(flow.modules) && flow.modules.length > 0) {
           const flowLabel = flow.name || flowName;
+          const flowModuleNames: string[] = [];
+
           for (let i = 0; i < flow.modules.length - 1; i++) {
             const current = flow.modules[i]?.module;
             const next = flow.modules[i + 1]?.module;
+            if (current) flowModuleNames.push(current);
             if (current && next && current !== next) {
               addEdge({
                 from: current,
                 to: next,
                 label: flowLabel,
                 type: 'flow',
+                weight: 3,
               });
             }
           }
+          // Agregar el último módulo del flow
+          const lastMod = flow.modules[flow.modules.length - 1]?.module;
+          if (lastMod && !flowModuleNames.includes(lastMod)) {
+            flowModuleNames.push(lastMod);
+          }
 
+          // Aristas depends_on dentro del flow
           for (const modItem of flow.modules) {
             if (Array.isArray(modItem.depends_on)) {
               for (const dep of modItem.depends_on) {
@@ -525,11 +637,40 @@ export async function buildKnowledgeGraph(storage: IStorage): Promise<KnowledgeG
                     to: modItem.module,
                     label: flowLabel,
                     type: 'flow',
+                    weight: 3,
                   });
                 }
               }
             }
           }
+
+          // Aristas shared-context (context_sharing en el flow)
+          const rawFlow = flow as unknown as Record<string, unknown>;
+          if (Array.isArray(rawFlow.context_sharing)) {
+            for (const cs of rawFlow.context_sharing as Array<Record<string, unknown>>) {
+              const fromMod = cs.from_module as string | undefined;
+              // El target del shared-context es implícito (siguiente módulo en la cadena)
+              // Por ahora marcamos solo la arista desde el módulo fuente al módulo receptor
+              const toMods = flowModuleNames.filter((m) => m !== fromMod);
+              if (fromMod && toMods.length > 0) {
+                addEdge({
+                  from: fromMod,
+                  to: toMods[0],
+                  label: `ctx: ${cs.as as string ?? cs.capture as string ?? 'data'}`,
+                  type: 'shared-context',
+                  weight: 1,
+                });
+              }
+            }
+          }
+
+          flowSummaries.push({
+            id: flowName,
+            name: flowLabel,
+            description: typeof rawFlow.description === 'string' ? rawFlow.description : undefined,
+            modules: flowModuleNames,
+            failFast: typeof flow.fail_fast === 'boolean' ? flow.fail_fast : false,
+          });
         }
       } catch {
         // Ignorar flujo con error de lectura
@@ -539,6 +680,46 @@ export async function buildKnowledgeGraph(storage: IStorage): Promise<KnowledgeG
     // Directorio de flujos no disponible
   }
 
+  // 7. Calcular estadísticas globales del grafo
+  const edgesByType: Record<EdgeType, number> = {
+    prereq: 0,
+    flow: 0,
+    related: 0,
+    'shared-context': 0,
+  };
+  for (const edge of edges) {
+    edgesByType[edge.type] = (edgesByType[edge.type] ?? 0) + 1;
+  }
+
+  const criticalPathModules = nodes.filter((n) => n.criticalPath).map((n) => n.id);
+
+  // Módulo más conectado (mayor número de aristas entrantes + salientes)
+  const connectionCount: Record<string, number> = {};
+  for (const edge of edges) {
+    connectionCount[edge.from] = (connectionCount[edge.from] ?? 0) + 1;
+    connectionCount[edge.to] = (connectionCount[edge.to] ?? 0) + 1;
+  }
+  const mostConnectedModule = Object.entries(connectionCount)
+    .sort(([, a], [, b]) => b - a)[0]?.[0] ?? null;
+
+  // Agrupación de módulos por tag
+  const tagGroups: Record<string, string[]> = {};
+  for (const node of nodes) {
+    for (const tag of node.tags) {
+      if (!tagGroups[tag]) tagGroups[tag] = [];
+      tagGroups[tag].push(node.id);
+    }
+  }
+
+  const graphStats: GraphStats = {
+    totalNodes: nodes.length,
+    totalEdges: edges.length,
+    edgesByType,
+    criticalPathModules,
+    mostConnectedModule,
+    tagGroups,
+  };
+
   return {
     projectName,
     generatedAt: new Date().toISOString(),
@@ -546,5 +727,7 @@ export async function buildKnowledgeGraph(storage: IStorage): Promise<KnowledgeG
     edges,
     modulesDetail,
     recentExecutions,
+    flows: flowSummaries,
+    graphStats,
   };
 }
