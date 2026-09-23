@@ -12,6 +12,8 @@ capabilities:
     emits:
       - key: auth.session.active
         description: Sesión de usuario iniciada
+    guardrailIds:
+      - G-001
     testBinding:
       file: packages/cli/src/__tests__/auth-commands.test.ts
       identifier: handleAuthAdd
@@ -27,3 +29,5 @@ capabilities:
     emits:
       - key: auth.mfa.verified
         description: Token MFA confirmado
+    guardrailIds:
+      - G-001

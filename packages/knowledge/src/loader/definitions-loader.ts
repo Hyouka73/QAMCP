@@ -5,13 +5,15 @@ import YAML from 'yaml';
 
 import { AjvCompiler } from '../validator/ajv-compiler.js';
 import { validateDependencyGraph } from '../graph/cycle-detector.js';
-import type { CapabilityDefinition, FlowDefinition, ModuleDefinition } from '../types.js';
+import { loadGuardrails } from './guardrails-loader.js';
+import type { CapabilityDefinition, FlowDefinition, ModuleDefinition, GuardrailDefinition } from '../types.js';
 
 export interface DefinitionsValidationResult {
   valid: boolean;
   modules: ModuleDefinition[];
   flows: FlowDefinition[];
   capabilities: CapabilityDefinition[];
+  guardrails: GuardrailDefinition[];
   errors: string[];
 }
 
@@ -56,11 +58,12 @@ function parseFileContent(filePath: string): unknown {
  * Carga y valida todas las definiciones estáticas (.qa/definitions/).
  *
  * Ejecuta en build-time:
- * 1. Validación de esquema JSON (Ajv) para módulos y flujos.
- * 2. Comprobación de duplicados de `capabilityId`.
+ * 1. Validación de esquema JSON (Ajv) para módulos, flujos y guardrails.
+ * 2. Comprobación de duplicados de `capabilityId` y `guardrailId`.
  * 3. Detección de ciclos por DFS de 3 colores con trazado exacto de ruta.
  * 4. Detección de referencias rotas hacia capacidades inexistentes.
  * 5. Validación de pasos de flujos referenciando capacidades válidas.
+ * 6. Integridad referencial de Guardrails: `enforcedByCapabilities` deben existir en los módulos.
  */
 export function validateDefinitions(definitionsDir: string): DefinitionsValidationResult {
   const errors: string[] = [];
@@ -75,25 +78,43 @@ export function validateDefinitions(definitionsDir: string): DefinitionsValidati
       modules: [],
       flows: [],
       capabilities: [],
+      guardrails: [],
       errors: [`El directorio de definiciones no existe: ${definitionsDir}`],
     };
   }
 
   const compiler = new AjvCompiler();
+
+  // 1. Cargar y validar Guardrails desde el subdirectorio guardrails/ si existe
+  const guardrailsDir = path.join(definitionsDir, 'guardrails');
+  const guardrailsResult = loadGuardrails(guardrailsDir, compiler);
+  const guardrails = guardrailsResult.guardrails;
+  if (!guardrailsResult.valid) {
+    errors.push(...guardrailsResult.errors);
+  }
+
   const filePaths = scanDirectoryFiles(definitionsDir);
 
-  if (filePaths.length === 0) {
+  if (filePaths.length === 0 && guardrails.length === 0) {
     return {
       valid: true,
       modules: [],
       flows: [],
       capabilities: [],
+      guardrails: [],
       errors: [],
     };
   }
 
   for (const filePath of filePaths) {
     const relativePath = path.relative(definitionsDir, filePath);
+
+    // Omitir archivos bajo guardrails/ ya procesados por loadGuardrails
+    const normalizedParts = path.normalize(relativePath).split(path.sep);
+    if (normalizedParts[0] === 'guardrails') {
+      continue;
+    }
+
     let rawData: unknown;
 
     try {
@@ -154,8 +175,7 @@ export function validateDefinitions(definitionsDir: string): DefinitionsValidati
     }
   }
 
-  // Si hubo errores de esquema o duplicados, podemos seguir con el chequeo de grafo
-  // solo sobre las capacidades parseadas válidas
+  // Chequeo de ciclo de dependencias sobre las capacidades parseadas válidas
   const graphValidation = validateDependencyGraph(allCapabilities);
   if (!graphValidation.valid) {
     errors.push(...graphValidation.errors);
@@ -173,11 +193,37 @@ export function validateDefinitions(definitionsDir: string): DefinitionsValidati
     }
   }
 
+  // Validar integridad referencial de los guardrails hacia capacidades
+  for (const guardrail of guardrails) {
+    for (const capId of guardrail.enforcedByCapabilities) {
+      if (!knownCapIds.has(capId)) {
+        errors.push(
+          `Guardrail '${guardrail.id}': referencia a capacidad inexistente '${capId}' en enforcedByCapabilities.`
+        );
+      }
+    }
+  }
+
+  // Validar si alguna capacidad referencia un guardrail inexistente
+  const knownGuardrailIds = new Set(guardrails.map((g) => g.id));
+  for (const cap of allCapabilities) {
+    if (cap.guardrailIds && cap.guardrailIds.length > 0) {
+      for (const gId of cap.guardrailIds) {
+        if (!knownGuardrailIds.has(gId)) {
+          errors.push(
+            `Capacidad '${cap.id}': referencia a guardrail inexistente '${gId}' en guardrailIds.`
+          );
+        }
+      }
+    }
+  }
+
   return {
     valid: errors.length === 0,
     modules,
     flows,
     capabilities: allCapabilities,
+    guardrails,
     errors,
   };
 }

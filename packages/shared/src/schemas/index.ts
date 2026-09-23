@@ -48,6 +48,7 @@ import moduleRepoMapSchema from './module-repo-map.schema.json' with { type: 'js
 import capabilityDefinitionSchema from './capability-definition.schema.json' with { type: 'json' };
 import moduleDefinitionSchema from './module-definition.schema.json' with { type: 'json' };
 import flowDefinitionSchema from './flow-definition.schema.json' with { type: 'json' };
+import guardrailDefinitionSchema from './guardrail-definition.schema.json' with { type: 'json' };
 
 export {
   authProfilesSchema,
@@ -68,6 +69,7 @@ export {
   capabilityDefinitionSchema,
   moduleDefinitionSchema,
   flowDefinitionSchema,
+  guardrailDefinitionSchema,
 };
 
 // Export all schemas as a record for dynamic access
@@ -91,6 +93,7 @@ export const schemas = {
   'capability-definition': capabilityDefinitionSchema,
   'module-definition': moduleDefinitionSchema,
   'flow-definition': flowDefinitionSchema,
+  'guardrail-definition': guardrailDefinitionSchema,
 } as const;
 
 // Type exports for TypeScript consumers
@@ -109,4 +112,5 @@ export type SelectorsSchema = typeof selectorsSchema;
 export type SemanticHashSchema = typeof semanticHashSchema;
 export type SystemPromptSchema = typeof systemPromptSchema;
 export type ModuleRepoMapSchema = typeof moduleRepoMapSchema;
+export type GuardrailDefinitionSchema = typeof guardrailDefinitionSchema;
 

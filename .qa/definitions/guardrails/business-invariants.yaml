@@ -1,0 +1,59 @@
+_version: '1'
+guardrails:
+  - id: G-001
+    name: Autenticación Previa Obligatoria
+    category: security
+    severity: critical
+    description: Ningún usuario puede avanzar a flujos protegidos sin haber validado su sesión MFA.
+    rationale: Cumplimiento de estándar OWASP ASVS 4.0 y política de identidad corporativa.
+    enforcedByCapabilities:
+      - auth.login.submit
+      - auth.mfa.verify
+    remediation: Revisar el flujo de redirección hacia /mfa-challenge antes de otorgar el JWT con claims de acceso.
+    ownerSquad: identity
+
+  - id: G-002
+    name: Inmutabilidad de Transacciones Confirmadas
+    category: financial-integrity
+    severity: high
+    description: Una vez emitido un evento de cobro autorizado, se prohíbe el reintento con el mismo token de idempotencia.
+    rationale: Prevención de doble cargo bancario en pasarela de pagos.
+    enforcedByCapabilities:
+      - billing.payment.submit
+    remediation: Verificar que el gateway responda 409 Conflict si el Idempotency-Key ya fue registrado en estado AUTHORIZED.
+    ownerSquad: payments
+
+  - id: G-003
+    name: Stock Suficiente en Carrito
+    category: business-invariant
+    severity: high
+    description: Prohíbe agregar productos al carrito o procesar compras si el inventario reporta cero o unidades insuficientes.
+    rationale: Evitar sobreventas (backorders no deseados) y cancelaciones forzadas post-pago.
+    enforcedByCapabilities:
+      - catalog.inventory.check
+      - cart.item.add
+    remediation: Validar la disponibilidad en almacén y desactivar el botón de compra cuando el inventario sea 0.
+    ownerSquad: catalog
+
+  - id: G-004
+    name: Integridad y Coherencia de Monto Total
+    category: financial-integrity
+    severity: critical
+    description: El importe enviado al procesador bancario debe coincidir de forma idéntica con el total calculado (subtotal + impuestos - descuentos).
+    rationale: Prevención de manipulación de precios desde el cliente o errores de redondeo financiero.
+    enforcedByCapabilities:
+      - checkout.order.create
+      - payment.transaction.authorize
+    remediation: Recalcular y firmar criptográficamente el total de la orden en el servidor antes de invocar la pasarela de pagos.
+    ownerSquad: payments
+
+  - id: G-005
+    name: Idempotencia en Creación de Órdenes
+    category: business-invariant
+    severity: medium
+    description: Cada intento de checkout genera a lo sumo una orden activa para prevenir duplicidad de compras por clics repetidos.
+    rationale: Garantizar una experiencia de usuario limpia y evitar bloqueos de inventario redundantes.
+    enforcedByCapabilities:
+      - checkout.order.create
+    remediation: Implementar un token de checkout efímero y deshabilitar el botón de envío tras el primer clic.
+    ownerSquad: checkout

@@ -1,0 +1,61 @@
+id: ecommerce-purchase-flow
+name: Complete E-Commerce Checkout Flow
+description: Flujo integral de compra de usuario registrado, desde selección en catálogo hasta confirmación de pago
+tags:
+  - e2e
+  - checkout
+  - critical-path
+  - payments
+steps:
+  - stepIndex: 0
+    capabilityId: auth.login.submit
+    customLabel: Iniciar sesión de usuario
+    stepTimeoutMs: 5000
+  - stepIndex: 1
+    capabilityId: catalog.products.browse
+    customLabel: Explorar catálogo de productos
+    stepTimeoutMs: 3000
+  - stepIndex: 2
+    capabilityId: catalog.product.view
+    customLabel: Abrir detalle de producto
+    stepTimeoutMs: 3000
+  - stepIndex: 3
+    capabilityId: catalog.inventory.check
+    customLabel: Validar stock disponible
+    stepTimeoutMs: 2000
+  - stepIndex: 4
+    capabilityId: cart.item.add
+    customLabel: Agregar producto al carrito
+    stepTimeoutMs: 2000
+  - stepIndex: 5
+    capabilityId: cart.items.review
+    customLabel: Revisar carrito y total
+    stepTimeoutMs: 2000
+  - stepIndex: 6
+    capabilityId: checkout.session.start
+    customLabel: Iniciar sesión de checkout y shipping
+    stepTimeoutMs: 4000
+  - stepIndex: 7
+    capabilityId: checkout.order.create
+    customLabel: Registrar orden pendiente
+    stepTimeoutMs: 3000
+  - stepIndex: 8
+    capabilityId: billing.payment.submit
+    customLabel: Proporcionar credencial de pago
+    stepTimeoutMs: 5000
+  - stepIndex: 9
+    capabilityId: payment.method.select
+    customLabel: Elegir pasarela de pago
+    stepTimeoutMs: 2000
+  - stepIndex: 10
+    capabilityId: payment.transaction.authorize
+    customLabel: Autorizar cobro bancario
+    stepTimeoutMs: 6000
+  - stepIndex: 11
+    capabilityId: payment.webhook.confirm
+    customLabel: Confirmar webhook de pasarela
+    stepTimeoutMs: 3000
+  - stepIndex: 12
+    capabilityId: orders.confirmation.display
+    customLabel: Visualizar orden completada
+    stepTimeoutMs: 3000

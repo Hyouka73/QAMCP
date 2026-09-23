@@ -42,6 +42,6 @@ export async function handleValidate(
   }
 
   process.stdout.write(
-    `✔ Definiciones válidas: ${result.modules.length} módulo(s), ${result.capabilities.length} capacidad(es), ${result.flows.length} flujo(s). Grafo de dependencias acíclico.\n`
+    `✔ Definiciones válidas: ${result.modules.length} módulo(s), ${result.capabilities.length} capacidad(es), ${result.flows.length} flujo(s), ${result.guardrails.length} guardrail(s). Grafo de dependencias acíclico.\n`
   );
 }

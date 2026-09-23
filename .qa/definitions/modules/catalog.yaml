@@ -1,0 +1,40 @@
+id: catalog
+name: Product Catalog & Inventory
+category: feature
+ownerSquad: catalog
+capabilities:
+  - id: catalog.products.browse
+    name: Browse Products
+    type: ui-interaction
+    description: Explora el listado general de productos filtrados por categoría o búsqueda
+    moduleId: catalog
+    prerequisiteGroups: []
+    emits:
+      - key: catalog.products.listed
+        description: Lista de productos renderizada en catálogo
+  - id: catalog.product.view
+    name: View Product Details
+    type: ui-interaction
+    description: Visualiza la ficha técnica, fotos, precio y variantes de un producto
+    moduleId: catalog
+    prerequisiteGroups:
+      - mode: ALL
+        requirements:
+          - capabilityId: catalog.products.browse
+    emits:
+      - key: catalog.product.selected
+        description: Producto cargado en vista individual
+  - id: catalog.inventory.check
+    name: Check Inventory Stock
+    type: api-rest
+    description: Consulta el servicio de inventario para validar stock disponible en almacén
+    moduleId: catalog
+    prerequisiteGroups:
+      - mode: ALL
+        requirements:
+          - capabilityId: catalog.product.view
+    emits:
+      - key: catalog.inventory.confirmed
+        description: Existencia de unidades confirmada
+    guardrailIds:
+      - G-003

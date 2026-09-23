@@ -154,6 +154,7 @@
           class="flex items-center space-x-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all text-slate-400 hover:text-white hover:bg-white/5">
           <span class="material-symbols-outlined text-[16px]">verified_user</span>
           <span>Guardrails</span>
+          <span id="guardrails-tab-badge" class="px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-mono hidden"></span>
         </button>
       </nav>
     </div>
@@ -554,6 +555,14 @@
       if (state.activeView === 'flow') renderActiveFlow();
       if (state.activeView === 'telemetry') renderTelemetryTable();
       if (state.activeView === 'guardrails') renderGuardrails();
+
+      // 5. Actualizar badge de conteo en la pestaña de Guardrails
+      const guardrailsCount = (state.definitions.guardrails || []).length;
+      const countBadge = document.getElementById('guardrails-tab-badge');
+      if (countBadge) {
+        countBadge.innerText = guardrailsCount;
+        countBadge.classList.toggle('hidden', guardrailsCount === 0);
+      }
     }
 
     /**
@@ -614,6 +623,11 @@
       const hasPrereqs = cap.prerequisiteGroups && cap.prerequisiteGroups.length > 0;
       const isSelected = state.selectedEntity?.id === cap.id;
 
+      const allGuardrails = state.definitions.guardrails || [];
+      const capGuardrails = allGuardrails.filter(
+        (g) => (g.enforcedByCapabilities || []).includes(cap.id) || (cap.guardrailIds || []).includes(g.id)
+      );
+
       return `
         <div onclick="dispatch({ type: 'SELECT_ENTITY', entity: { type: 'capability', id: '${cap.id}', data: ${JSON.stringify(cap).replace(/"/g, '&quot;')} }, openInspector: true })"
           class="glass-card rounded-lg p-3.5 cursor-pointer relative group ${isSelected ? 'ring-2 ring-indigo-500 border-transparent' : ''}">
@@ -631,7 +645,14 @@
 
           <div class="mt-3 pt-2 border-t border-white/5 flex items-center justify-between text-[10px] font-mono text-slate-500">
             <span>${cap.id}</span>
-            ${hasPrereqs ? `<span class="flex items-center text-indigo-400"><span class="material-symbols-outlined text-[12px] mr-0.5">link</span>Prereq</span>` : '<span>Raíz</span>'}
+            <div class="flex items-center space-x-1.5">
+              ${capGuardrails.length > 0 ? `
+                <span class="flex items-center text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded border border-amber-400/20 text-[9px]" title="Protegido por ${capGuardrails.length} guardrail(s)">
+                  <span class="material-symbols-outlined text-[11px] mr-0.5">shield</span>${capGuardrails.length} Guardrail${capGuardrails.length > 1 ? 's' : ''}
+                </span>
+              ` : ''}
+              ${hasPrereqs ? `<span class="flex items-center text-indigo-400"><span class="material-symbols-outlined text-[12px] mr-0.5">link</span>Prereq</span>` : '<span>Raíz</span>'}
+            </div>
           </div>
         </div>
       `;
@@ -661,14 +682,25 @@
         <div class="flex items-center space-x-4 min-w-max py-4">
           ${(activeFlow.steps || []).map((step, idx) => {
             const isLast = idx === activeFlow.steps.length - 1;
+            const stepGuardrails = (state.definitions.guardrails || []).filter(
+              (g) => (g.enforcedByCapabilities || []).includes(step.capabilityId)
+            );
+
             return `
               <div class="flex items-center space-x-4">
-                <div class="glass-panel w-64 rounded-xl p-4 border border-white/10 hover:border-indigo-500/50 transition">
+                <div onclick="selectCapabilityById('${step.capabilityId}')" class="glass-panel w-64 rounded-xl p-4 border border-white/10 hover:border-indigo-500/50 cursor-pointer transition">
                   <div class="flex items-center justify-between mb-2">
                     <span class="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300">
                       PASO ${step.stepIndex}
                     </span>
-                    <span class="text-[10px] font-mono text-slate-400">${step.stepTimeoutMs || 5000}ms</span>
+                    <div class="flex items-center space-x-1.5">
+                      ${stepGuardrails.length > 0 ? `
+                        <span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center" title="${stepGuardrails.length} guardrail(s) asegurando este paso">
+                          <span class="material-symbols-outlined text-[10px] mr-0.5">shield</span>${stepGuardrails.length}
+                        </span>
+                      ` : ''}
+                      <span class="text-[10px] font-mono text-slate-400">${step.stepTimeoutMs || 5000}ms</span>
+                    </div>
                   </div>
                   <h3 class="text-xs font-semibold text-white truncate">${step.customLabel || step.capabilityId}</h3>
                   <p class="text-[10px] font-mono text-slate-400 mt-1 truncate">${step.capabilityId}</p>
@@ -729,35 +761,113 @@
     }
 
     /**
-     * RENDER: GUARDRAILS MATRIX VIEW
+     * ACCIONES DE SELECCIÓN DE ENTIDADES
+     */
+    window.selectGuardrail = function(guardrailId) {
+      const guardrails = state.definitions.guardrails || [];
+      const g = guardrails.find((item) => item.id === guardrailId);
+      if (g) {
+        dispatch({
+          type: 'SELECT_ENTITY',
+          entity: { type: 'guardrail', id: g.id, data: g },
+          openInspector: true,
+        });
+      }
+    };
+
+    window.selectCapabilityById = function(capId) {
+      const modules = state.definitions.modules || [];
+      for (const mod of modules) {
+        const found = (mod.capabilities || []).find((c) => c.id === capId);
+        if (found) {
+          dispatch({
+            type: 'SELECT_ENTITY',
+            entity: { type: 'capability', id: found.id, data: found },
+            openInspector: true,
+          });
+          return;
+        }
+      }
+      dispatch({
+        type: 'SELECT_ENTITY',
+        entity: { type: 'capability', id: capId, data: { id: capId, name: capId, description: 'Capacidad arquitectónica registrada' } },
+        openInspector: true,
+      });
+    };
+
+    /**
+     * RENDER: GUARDRAILS MATRIX VIEW (Dinámico)
      */
     function renderGuardrails() {
       const container = document.getElementById('guardrails-matrix');
       if (!container) return;
 
-      container.innerHTML = `
-        <div class="glass-panel p-5 rounded-xl border border-white/10 space-y-3">
-          <div class="flex items-center justify-between">
-            <span class="font-semibold text-xs text-white">G-001: Autenticación Previa Obligatoria</span>
-            <span class="px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 text-[10px] font-mono uppercase">Crítico</span>
+      const guardrails = state.definitions.guardrails || [];
+      if (guardrails.length === 0) {
+        container.innerHTML = `
+          <div class="col-span-full glass-panel p-8 rounded-xl text-center">
+            <span class="material-symbols-outlined text-indigo-400 text-3xl mb-2">shield_lock</span>
+            <p class="text-sm font-medium text-white">No se encontraron guardrails definidos en .qa/definitions/guardrails/</p>
+            <p class="text-xs text-slate-400 mt-1">Declara invariantes de negocio en archivos YAML y ejecuta <code>qap validate</code> para verificar.</p>
           </div>
-          <p class="text-xs text-slate-400">Ningún usuario puede avanzar a flujos protegidos sin haber validado su sesión MFA.</p>
-          <div class="text-[10px] font-mono text-indigo-400 pt-2 border-t border-white/5">
-            Garantizado por: auth.login.submit, auth.mfa.verify
-          </div>
-        </div>
+        `;
+        return;
+      }
 
-        <div class="glass-panel p-5 rounded-xl border border-white/10 space-y-3">
-          <div class="flex items-center justify-between">
-            <span class="font-semibold text-xs text-white">G-002: Inmutabilidad de Transacciones Confirmadas</span>
-            <span class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 text-[10px] font-mono uppercase">Alto</span>
+      const severityBadges = {
+        critical: { class: 'bg-rose-500/20 text-rose-400 border border-rose-500/30', label: 'Crítico' },
+        high: { class: 'bg-amber-500/20 text-amber-400 border border-amber-500/30', label: 'Alto' },
+        medium: { class: 'bg-sky-500/20 text-sky-400 border border-sky-500/30', label: 'Medio' },
+        low: { class: 'bg-slate-500/20 text-slate-400 border border-slate-500/30', label: 'Bajo' },
+      };
+
+      container.innerHTML = guardrails.map((g) => {
+        const sev = severityBadges[g.severity] || severityBadges.medium;
+        const squad = g.ownerSquad || 'core';
+        const capabilities = g.enforcedByCapabilities || [];
+
+        return `
+          <div onclick="selectGuardrail('${g.id}')"
+               class="glass-panel p-5 rounded-xl border border-white/10 hover:border-indigo-500/40 transition-all duration-200 space-y-3 cursor-pointer group">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-2">
+                <span class="w-2 h-2 rounded-full ${g.severity === 'critical' ? 'bg-rose-400' : g.severity === 'high' ? 'bg-amber-400' : 'bg-sky-400'}"></span>
+                <span class="font-semibold text-xs text-white group-hover:text-indigo-300 transition-colors">${g.id}: ${g.name}</span>
+              </div>
+              <div class="flex items-center space-x-1.5">
+                <span class="px-2 py-0.5 rounded ${sev.class} text-[10px] font-mono uppercase">${sev.label}</span>
+              </div>
+            </div>
+
+            <p class="text-xs text-slate-300 leading-relaxed">${g.description}</p>
+
+            ${g.rationale ? `
+              <p class="text-[11px] text-slate-400 italic">Justificación: ${g.rationale}</p>
+            ` : ''}
+
+            <div class="p-2.5 rounded bg-black/40 border border-white/5 text-[11px] font-mono text-slate-300">
+              <span class="text-amber-400/90 font-semibold block text-[10px] uppercase mb-0.5">Remediación:</span>
+              ${g.remediation}
+            </div>
+
+            <div class="flex items-center justify-between pt-2 border-t border-white/5 text-[10px] font-mono">
+              <span class="text-slate-400">Squad: <span class="text-slate-200">${squad}</span></span>
+              <span class="px-2 py-0.5 rounded bg-white/5 border border-white/10 text-slate-400">${g.category}</span>
+            </div>
+
+            <div class="pt-1 text-[10px] font-mono text-indigo-400 flex flex-wrap gap-1.5 items-center">
+              <span class="text-slate-500">Garantizado por:</span>
+              ${capabilities.map((capId) => `
+                <button type="button"
+                        onclick="event.stopPropagation(); selectCapabilityById('${capId}')"
+                        class="px-2 py-0.5 rounded bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/20 transition-colors">
+                  ${capId}
+                </button>
+              `).join('')}
+            </div>
           </div>
-          <p class="text-xs text-slate-400">Una vez emitido un evento de pago o cobro, no se permiten reintentos con el mismo token.</p>
-          <div class="text-[10px] font-mono text-indigo-400 pt-2 border-t border-white/5">
-            Garantizado por: checkout.payment.process
-          </div>
-        </div>
-      `;
+        `;
+      }).join('');
     }
 
     /**
@@ -816,6 +926,108 @@
                 </div>
               </div>
             ` : ''}
+
+            <!-- GUARDRAILS ASOCIADOS -->
+            <div>
+              <span class="text-slate-400 block text-[11px] mb-1 font-semibold flex items-center">
+                <span class="material-symbols-outlined text-amber-400 text-[14px] mr-1">shield</span>
+                Guardrails e Invariantes Asociados
+              </span>
+              ${(() => {
+                const allG = state.definitions.guardrails || [];
+                const matched = allG.filter((g) => (g.enforcedByCapabilities || []).includes(cap.id) || (cap.guardrailIds || []).includes(g.id));
+                if (matched.length === 0) {
+                  return '<span class="text-slate-500 font-mono text-[11px]">Sin guardrails asignados</span>';
+                }
+                return `
+                  <div class="space-y-2 mt-1">
+                    ${matched.map((g) => `
+                      <div onclick="selectGuardrail('${g.id}')"
+                           class="p-2.5 rounded bg-white/[0.02] border border-white/5 hover:border-amber-500/40 cursor-pointer flex items-center justify-between group transition">
+                        <div class="space-y-0.5">
+                          <span class="font-mono text-[11px] text-amber-300 font-semibold group-hover:text-amber-200">🛡 ${g.id}: ${g.name}</span>
+                          <p class="text-[10px] text-slate-400 line-clamp-1">${g.description}</p>
+                        </div>
+                        <span class="px-1.5 py-0.5 rounded text-[9px] font-mono uppercase bg-amber-500/10 text-amber-400 border border-amber-500/20">${g.severity}</span>
+                      </div>
+                    `).join('')}
+                  </div>
+                `;
+              })()}
+            </div>
+          </div>
+        `;
+      } else if (entity.type === 'guardrail') {
+        const g = entity.data || {};
+        title.innerText = `Guardrail: ${g.id}`;
+
+        const severityBadges = {
+          critical: 'bg-rose-500/20 text-rose-400 border border-rose-500/30',
+          high: 'bg-amber-500/20 text-amber-400 border border-amber-500/30',
+          medium: 'bg-sky-500/20 text-sky-400 border border-sky-500/30',
+          low: 'bg-slate-500/20 text-slate-400 border border-slate-500/30',
+        };
+        const sevClass = severityBadges[g.severity] || severityBadges.medium;
+
+        content.innerHTML = `
+          <div class="space-y-5 text-xs">
+            <div class="flex items-center justify-between p-3 rounded bg-white/[0.03] border border-white/5">
+              <div>
+                <span class="text-slate-400 block text-[10px] uppercase font-mono">Identificador</span>
+                <span class="text-sm font-semibold font-mono text-white">${g.id}</span>
+              </div>
+              <span class="px-2.5 py-1 rounded ${sevClass} text-[10px] font-mono uppercase font-bold">
+                ${g.severity}
+              </span>
+            </div>
+
+            <div>
+              <span class="text-slate-400 block text-[11px] mb-1">Nombre de la Invariante</span>
+              <span class="text-white font-medium text-sm">${g.name}</span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 text-[11px] font-mono">
+              <div class="p-2 rounded bg-white/[0.02] border border-white/5">
+                <span class="text-slate-400 block text-[10px]">Categoría</span>
+                <span class="text-indigo-300">${g.category}</span>
+              </div>
+              <div class="p-2 rounded bg-white/[0.02] border border-white/5">
+                <span class="text-slate-400 block text-[10px]">Squad Propietario</span>
+                <span class="text-indigo-300">${g.ownerSquad}</span>
+              </div>
+            </div>
+
+            <div>
+              <span class="text-slate-400 block text-[11px] mb-1">Descripción de la Regla de Negocio</span>
+              <p class="text-slate-300 leading-relaxed bg-black/20 p-3 rounded-lg border border-white/5">${g.description}</p>
+            </div>
+
+            ${g.rationale ? `
+              <div>
+                <span class="text-slate-400 block text-[11px] mb-1">Justificación Normativa / SLA</span>
+                <p class="text-slate-300 leading-relaxed text-[11px]">${g.rationale}</p>
+              </div>
+            ` : ''}
+
+            <div>
+              <span class="text-slate-400 block text-[11px] mb-1">Procedimiento de Remediación</span>
+              <div class="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-200/90 font-mono text-[11px] leading-relaxed">
+                ${g.remediation}
+              </div>
+            </div>
+
+            <div>
+              <span class="text-slate-400 block text-[11px] mb-1">Capacidades de Aseguramiento (Enforced By)</span>
+              <div class="space-y-1.5 mt-1">
+                ${(g.enforcedByCapabilities || []).map((capId) => `
+                  <div onclick="selectCapabilityById('${capId}')"
+                       class="p-2.5 rounded bg-white/[0.02] border border-white/5 hover:border-indigo-500/40 cursor-pointer flex items-center justify-between group transition">
+                    <span class="font-mono text-[11px] text-indigo-300 group-hover:text-indigo-200">🛡 ${capId}</span>
+                    <span class="material-symbols-outlined text-[14px] text-slate-500 group-hover:text-white transition">arrow_forward</span>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
           </div>
         `;
       } else if (entity.type === 'run') {

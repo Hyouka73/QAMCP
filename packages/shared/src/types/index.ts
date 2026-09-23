@@ -88,3 +88,10 @@ export type { Report } from './report.type.js';
 export type { FlowDefinition, FlowModuleRef, ContextSharingDef } from './flow-definition.type.js';
 export type { FlowOptions } from './flow-options.type.js';
 export type { FlowExecutionResult, ModuleExecutionResult, ExecutionResultSummary } from './flow-execution-result.type.js';
+
+// Guardrails & Business Invariants (QAP v3.0)
+export type {
+  GuardrailSeverity,
+  GuardrailCategory,
+  GuardrailDefinition,
+} from './guardrails.js';

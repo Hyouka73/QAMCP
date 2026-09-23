@@ -8,9 +8,11 @@ import {
   executionResultSchema,
   systemPromptSchema,
   moduleRepoMapSchema,
+  guardrailDefinitionSchema,
 } from '../schemas/index.js';
 import type { ExecutionResult } from '../types/execution-result.type.js';
 import type { RepoMap } from '../types/repo-map.type.js';
+import type { GuardrailDefinition } from '../types/guardrails.js';
 
 export interface ValidationError {
   field: string;
@@ -183,6 +185,7 @@ export class SchemaValidator {
       ['system-prompt', this.ajv.compile(systemPromptSchema)],
       ['module-repo-map', repoMapValidator],
       ['repo-map', repoMapValidator],
+      ['guardrail-definition', this.ajv.compile(guardrailDefinitionSchema)],
     ]);
   }
 
@@ -233,5 +236,9 @@ export class SchemaValidator {
 
   validateRepoMap(data: unknown): ValidationResult<RepoMap> {
     return this.runValidation<RepoMap>('module-repo-map', data);
+  }
+
+  validateGuardrailDefinition(data: unknown): ValidationResult<GuardrailDefinition> {
+    return this.runValidation<GuardrailDefinition>('guardrail-definition', data);
   }
 }

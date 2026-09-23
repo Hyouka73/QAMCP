@@ -135,4 +135,113 @@ describe('Comando qap validate (QAP v3.0)', () => {
       expect(dataErr.message).toContain("la capacidad prerrequisito 'missing.cap.id' no existe");
     }
   });
+
+  it('valida guardrails e incluye su conteo en el reporte de salida limpia', async () => {
+    const modulesDir = path.join(tempDir, 'modules');
+    const guardrailsDir = path.join(tempDir, 'guardrails');
+    fs.mkdirSync(modulesDir, { recursive: true });
+    fs.mkdirSync(guardrailsDir, { recursive: true });
+
+    const mod = {
+      id: 'auth',
+      name: 'Authentication',
+      category: 'core',
+      capabilities: [
+        {
+          id: 'auth.login.submit',
+          name: 'Submit Login',
+          type: 'ui-interaction',
+          moduleId: 'auth',
+          prerequisiteGroups: [],
+          emits: [],
+        },
+      ],
+    };
+    fs.writeFileSync(path.join(modulesDir, 'auth.yaml'), YAML.stringify(mod));
+
+    const guardrail = {
+      _version: '1',
+      guardrails: [
+        {
+          id: 'G-001',
+          name: 'MFA Obligatorio',
+          category: 'security',
+          severity: 'critical',
+          description: 'Login seguro requerido',
+          enforcedByCapabilities: ['auth.login.submit'],
+          remediation: 'Revisar flujo de login',
+          ownerSquad: 'identity',
+        },
+      ],
+    };
+    fs.writeFileSync(path.join(guardrailsDir, 'auth.yaml'), YAML.stringify(guardrail));
+
+    let output = '';
+    const originalWrite = process.stdout.write;
+    process.stdout.write = (chunk: string | Uint8Array): boolean => {
+      output += String(chunk);
+      return true;
+    };
+
+    try {
+      await handleValidate(tempDir);
+    } finally {
+      process.stdout.write = originalWrite;
+    }
+
+    expect(output).toContain('1 módulo(s)');
+    expect(output).toContain('1 capacidad(es)');
+    expect(output).toContain('0 flujo(s)');
+    expect(output).toContain('1 guardrail(s)');
+  });
+
+  it('lanza DataError cuando un guardrail apunta a una capacidad huérfana o inexistente', async () => {
+    const modulesDir = path.join(tempDir, 'modules');
+    const guardrailsDir = path.join(tempDir, 'guardrails');
+    fs.mkdirSync(modulesDir, { recursive: true });
+    fs.mkdirSync(guardrailsDir, { recursive: true });
+
+    const mod = {
+      id: 'auth',
+      name: 'Authentication',
+      category: 'core',
+      capabilities: [
+        {
+          id: 'auth.login.submit',
+          name: 'Submit Login',
+          type: 'ui-interaction',
+          moduleId: 'auth',
+          prerequisiteGroups: [],
+          emits: [],
+        },
+      ],
+    };
+    fs.writeFileSync(path.join(modulesDir, 'auth.yaml'), YAML.stringify(mod));
+
+    const brokenGuardrail = {
+      guardrails: [
+        {
+          id: 'G-ORPHAN',
+          name: 'Broken Invariant',
+          category: 'security',
+          severity: 'critical',
+          description: 'Invalid mapping',
+          enforcedByCapabilities: ['non.existent.capability'],
+          remediation: 'Fix capability ID',
+          ownerSquad: 'identity',
+        },
+      ],
+    };
+    fs.writeFileSync(path.join(guardrailsDir, 'broken.yaml'), YAML.stringify(brokenGuardrail));
+
+    try {
+      await handleValidate(tempDir);
+      expect.fail('Debería haber lanzado DataError por capacidad inexistente en guardrail');
+    } catch (err: unknown) {
+      expect(err).toBeInstanceOf(DataError);
+      const dataErr = err as DataError;
+      expect(dataErr.exitCode).toBe(ExitCode.DATA_ERROR);
+      expect(dataErr.message).toContain("referencia a capacidad inexistente 'non.existent.capability'");
+    }
+  });
 });

@@ -1,0 +1,33 @@
+id: checkout
+name: Checkout & Order Creation
+category: core
+ownerSquad: checkout
+capabilities:
+  - id: checkout.session.start
+    name: Start Checkout Session
+    type: ui-interaction
+    description: Inicia el embudo de checkout capturando dirección de entrega y datos de facturación
+    moduleId: checkout
+    prerequisiteGroups:
+      - mode: ALL
+        requirements:
+          - capabilityId: cart.items.review
+          - capabilityId: auth.login.submit
+    emits:
+      - key: checkout.session.initialized
+        description: Sesión de checkout creada con shipping address
+  - id: checkout.order.create
+    name: Create Pending Order
+    type: api-rest
+    description: Genera el registro de la orden en estado PENDING_PAYMENT con idempotencia
+    moduleId: checkout
+    prerequisiteGroups:
+      - mode: ALL
+        requirements:
+          - capabilityId: checkout.session.start
+    emits:
+      - key: checkout.order.created
+        description: Identificador de orden generado y bloqueado para pago
+    guardrailIds:
+      - G-004
+      - G-005

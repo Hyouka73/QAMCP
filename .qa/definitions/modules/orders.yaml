@@ -1,0 +1,29 @@
+id: orders
+name: Order Fulfillment & Notifications
+category: feature
+ownerSquad: fulfillment
+capabilities:
+  - id: orders.confirmation.display
+    name: Display Order Confirmation
+    type: ui-interaction
+    description: Muestra la pantalla de agradecimiento con el código de seguimiento de pedido
+    moduleId: orders
+    prerequisiteGroups:
+      - mode: ALL
+        requirements:
+          - capabilityId: payment.webhook.confirm
+    emits:
+      - key: orders.confirmation.viewed
+        description: Pantalla de confirmación visualizada
+  - id: orders.email.send
+    name: Send Email Receipt
+    type: event-stream
+    description: Despacha el correo electrónico transaccional con el comprobante de compra
+    moduleId: orders
+    prerequisiteGroups:
+      - mode: ALL
+        requirements:
+          - capabilityId: orders.confirmation.display
+    emits:
+      - key: orders.email.dispatched
+        description: Comprobante enviado por email

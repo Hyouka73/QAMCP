@@ -1,0 +1,43 @@
+id: cart
+name: Shopping Cart
+category: core
+ownerSquad: checkout
+capabilities:
+  - id: cart.item.add
+    name: Add Item to Cart
+    type: ui-interaction
+    description: Añade el producto y cantidad seleccionada al carrito de compra del usuario
+    moduleId: cart
+    prerequisiteGroups:
+      - mode: ALL
+        requirements:
+          - capabilityId: catalog.inventory.check
+    emits:
+      - key: cart.item.added
+        description: Producto persistido en sesión de carrito
+    guardrailIds:
+      - G-003
+  - id: cart.items.review
+    name: Review Cart Items
+    type: ui-interaction
+    description: Permite revisar la lista de compras, ajustar cantidades y calcular subtotales
+    moduleId: cart
+    prerequisiteGroups:
+      - mode: ALL
+        requirements:
+          - capabilityId: cart.item.add
+    emits:
+      - key: cart.subtotal.calculated
+        description: Subtotal de la orden calculado
+  - id: cart.coupon.apply
+    name: Apply Promotional Coupon
+    type: business-rule
+    description: Valida restricciones de cupón (vigencia, monto mínimo) y aplica descuento
+    moduleId: cart
+    prerequisiteGroups:
+      - mode: ALL
+        requirements:
+          - capabilityId: cart.items.review
+    emits:
+      - key: cart.discount.applied
+        description: Descuento reflejado en el total

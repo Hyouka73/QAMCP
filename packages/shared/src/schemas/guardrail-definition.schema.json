@@ -1,0 +1,73 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "qap://schemas/guardrail-definition.schema.json",
+  "title": "Guardrail Definition v3",
+  "description": "Schema for business invariant or security guardrail in QAP v3.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "name",
+    "category",
+    "severity",
+    "description",
+    "enforcedByCapabilities",
+    "remediation",
+    "ownerSquad"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "security",
+        "financial-integrity",
+        "business-invariant",
+        "compliance",
+        "performance"
+      ]
+    },
+    "severity": {
+      "type": "string",
+      "enum": [
+        "critical",
+        "high",
+        "medium",
+        "low"
+      ]
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    },
+    "rationale": {
+      "type": "string"
+    },
+    "enforcedByCapabilities": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "violationCondition": {
+      "type": "string"
+    },
+    "remediation": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ownerSquad": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

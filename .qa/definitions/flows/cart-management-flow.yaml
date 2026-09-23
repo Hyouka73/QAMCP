@@ -1,0 +1,32 @@
+id: cart-management-flow
+name: Cart Manipulation & Coupon Application Flow
+description: Flujo de usuario para navegar productos, agregarlos al carrito y redimir cupones de descuento
+tags:
+  - cart
+  - promo
+  - smoke
+steps:
+  - stepIndex: 0
+    capabilityId: catalog.products.browse
+    customLabel: Explorar catálogo
+    stepTimeoutMs: 3000
+  - stepIndex: 1
+    capabilityId: catalog.product.view
+    customLabel: Ver ficha de producto
+    stepTimeoutMs: 3000
+  - stepIndex: 2
+    capabilityId: catalog.inventory.check
+    customLabel: Consultar stock
+    stepTimeoutMs: 2000
+  - stepIndex: 3
+    capabilityId: cart.item.add
+    customLabel: Añadir artículo al carrito
+    stepTimeoutMs: 2000
+  - stepIndex: 4
+    capabilityId: cart.items.review
+    customLabel: Revisar subtotal
+    stepTimeoutMs: 2000
+  - stepIndex: 5
+    capabilityId: cart.coupon.apply
+    customLabel: Aplicar cupón de descuento
+    stepTimeoutMs: 2000

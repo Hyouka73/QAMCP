@@ -68,3 +68,9 @@ export interface FlowDefinition {
   tags: string[];
   steps: FlowStep[];
 }
+
+export type {
+  GuardrailDefinition,
+  GuardrailSeverity,
+  GuardrailCategory,
+} from '@qap/shared';

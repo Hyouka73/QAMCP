@@ -1,0 +1,44 @@
+id: payment
+name: Payment Gateway Processing
+category: core
+ownerSquad: payments
+capabilities:
+  - id: payment.method.select
+    name: Select Payment Method
+    type: ui-interaction
+    description: Permite al cliente seleccionar método de pago (Tarjeta, PayPal o SPEI)
+    moduleId: payment
+    prerequisiteGroups:
+      - mode: ALL
+        requirements:
+          - capabilityId: checkout.order.create
+    emits:
+      - key: payment.method.selected
+        description: Medio de pago seleccionado
+  - id: payment.transaction.authorize
+    name: Authorize Transaction
+    type: api-rest
+    description: Envía la carga cifrada a la pasarela bancaria y obtiene autorización
+    moduleId: payment
+    prerequisiteGroups:
+      - mode: ALL
+        requirements:
+          - capabilityId: payment.method.select
+          - capabilityId: billing.payment.submit
+    emits:
+      - key: payment.authorized.event
+        description: Transacción autorizada por el procesador bancario
+    guardrailIds:
+      - G-004
+  - id: payment.webhook.confirm
+    name: Process Webhook Confirmation
+    type: event-stream
+    description: Recibe y valida la firma criptográfica del webhook de notificación de pago
+    moduleId: payment
+    prerequisiteGroups:
+      - mode: ALL
+        requirements:
+          - capabilityId: payment.transaction.authorize
+    emits:
+      - key: payment.webhook.verified
+        description: Pago marcado como liquidado y verificado
