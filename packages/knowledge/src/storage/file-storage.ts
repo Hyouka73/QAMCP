@@ -99,6 +99,15 @@ export class FileSystemStorage implements IStorage {
   async read(path: string): Promise<string> {
     return await readFile(this.resolvePath(path), 'utf-8');
   }
+  
+   /**
+   * Lee un archivo como bytes crudos (sin decodificar como texto).
+   * Necesario para binarios como screenshots PNG (S5-003).
+   */
+
+   async readBuffer(path: string): Promise<Buffer> {
+    return await readFile(this.resolvePath(path));
+  }
 
   async write(path: string, content: string): Promise<void> {
     const fullPath = this.resolvePath(path);

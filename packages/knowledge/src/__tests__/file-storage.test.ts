@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, rmSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -42,6 +42,24 @@ describe('FileSystemStorage (S3-002)', () => {
     await storage.write('data/b.txt', '2');
     const files = await storage.list('data');
     expect(files.sort()).toEqual(['a.txt', 'b.txt']);
+  });
+
+  it('debe leer archivos binarios (PNG) sin corromper los bytes con readBuffer (S5-003)', async () => {
+    // Firma real de un PNG: empieza con 0x89, que NO es UTF-8 válido
+    const pngBytes = Buffer.from([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0xff, 0xfe, 0x80,
+    ]);
+
+    mkdirSync(join(tempDir, 'data'), { recursive: true });
+    writeFileSync(join(tempDir, 'data', 'shot.png'), pngBytes);
+
+    const result = await storage.readBuffer('data/shot.png');
+
+    expect(Buffer.isBuffer(result)).toBe(true);
+    expect(result.equals(pngBytes)).toBe(true);
+    // Contraste: leer como texto SÍ corrompe, por eso existe readBuffer
+    const asText = await storage.read('data/shot.png');
+    expect(Buffer.from(asText).equals(pngBytes)).toBe(false);
   });
 
   it('debe eliminar archivos', async () => {
@@ -125,7 +143,7 @@ describe('FileSystemStorage (S3-002)', () => {
     });
 
     it('debe guardar y leer context.yaml de un modulo', async () => {
-      const ctx = { _version: '1', objective: 'probar checkout', manually_edited: false };
+      const ctx = { _version: '1', module: 'checkout', objective: 'probar checkout', manually_edited: false };
       await storage.saveModuleContext('checkout', ctx);
       const result = await storage.getModuleContext('checkout');
       expect(result).toEqual(ctx);
@@ -184,13 +202,18 @@ describe('FileSystemStorage (S3-002)', () => {
   });
 
   describe('Resultados de ejecucion e historial', () => {
-    it('debe guardar y leer un resultado de ejecucion', async () => {
+        it('debe guardar y leer un resultado de ejecucion', async () => {
       const result = {
-        _version: '1',
+        _version: '1' as const,
         execution_id: 'exec-001',
         module: 'checkout',
-        status: 'success' as const,
-        timestamps: { started_at: new Date().toISOString() },
+        env: 'staging',
+        started_at: new Date().toISOString(),
+        finished_at: new Date().toISOString(),
+        result: 'passed' as const,
+        timed_out: false,
+        summary: { total: 1, passed: 1, failed: 0, skipped: 0, not_run: 0 },
+        cases: [],
       };
       await storage.saveExecutionResult('exec-001', result);
       const restored = await storage.getExecutionResult('exec-001');

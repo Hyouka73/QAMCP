@@ -144,10 +144,11 @@ export function registerCommands(program: Command): void {
   // 4. Subcomandos 'report' y 'serve' (Tarea S5-006)
   program
     .command('report [module]')
-    .description('Genera el reporte de resultados de un módulo o levanta el visor interactivo con --serve')
+    .description('Genera el reporte de resultados de un mÃ³dulo o levanta el visor interactivo con --serve')
     .option('-s, --serve', 'Inicia el servidor web interactivo del Knowledge Graph y visor de memoria')
-    .option('-p, --port <port>', 'Puerto en el que escuchará el servidor web (por defecto: 9280)', '9280')
-    .action(async (moduleArg?: string, options?: { serve?: boolean; port?: string | number }) => {
+    .option('-p, --port <port>', 'Puerto en el que escucharÃ¡ el servidor web (por defecto: 9280)', '9280')
+    .option('-f, --format <format>', 'Formato de reporte estatico: html')
+    .action(async (moduleArg?: string, options?: { serve?: boolean; port?: string | number; format?: string }) => {
       await handleReport(moduleArg, options);
     });
 

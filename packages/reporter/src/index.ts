@@ -13,3 +13,4 @@ export * from './pruning/pruning-engine.js';
 export * from './api/telemetry-server.js';
 export * from './ui/ui-state.js';
 
+export * from './generators/html-report.js';

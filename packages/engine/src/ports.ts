@@ -233,6 +233,7 @@ export interface IStorage {
    * Returns the absolute path to the project root (where .qa/ lives).
    * Synchronous — allows callers to build paths without await.
    */
+  
   getProjectRoot(): string;
 
   /** Returns true if the .qa/ tree has been initialised (qap init has run). */

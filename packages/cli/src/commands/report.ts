@@ -1,9 +1,10 @@
 import { FileSystemStorage } from '@qap/knowledge';
-import { startViewerServer } from '@qap/reporter';
+import { startViewerServer, generateHtmlReport } from '@qap/reporter';
 
 export interface ReportOptions {
   serve?: boolean;
   port?: string | number;
+  format?: string;
 }
 
 /**
@@ -38,6 +39,25 @@ export async function handleReport(moduleArg?: string, options: ReportOptions = 
       process.once('SIGTERM', () => void shutdown());
     });
 
+    return;
+  }
+
+  // Generación de reporte HTML autocontenido (S5-003)
+  if (moduleArg && options.format === 'html') {
+    const storage = new FileSystemStorage({ rootDir: process.cwd() });
+    const result = await storage.getExecutionResult(moduleArg);
+
+    if (!result) {
+      console.error(
+        `No se encontró un resultado de ejecución con id '${moduleArg}' en .qa/executions/. Usa el execution_id exacto, ej: 'qap report 2026-09-19_checkout_e2e --format html'.`
+      );
+      return;
+    }
+
+    const html = await generateHtmlReport(result, { storage });
+    const outputPath = `.qa/executions/${moduleArg}.report.html`;
+    await storage.write(outputPath, html);
+    console.log(`Reporte HTML generado en ${outputPath}`);
     return;
   }
 
