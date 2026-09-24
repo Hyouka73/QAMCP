@@ -3,10 +3,11 @@ import path from 'node:path';
 
 import YAML from 'yaml';
 
-import { AjvCompiler } from '../validator/ajv-compiler.js';
-import { validateDependencyGraph } from '../graph/cycle-detector.js';
-import { loadGuardrails } from './guardrails-loader.js';
 import type { CapabilityDefinition, FlowDefinition, ModuleDefinition, GuardrailDefinition } from '../types.js';
+import { validateDependencyGraph } from '../graph/cycle-detector.js';
+import { AjvCompiler } from '../validator/ajv-compiler.js';
+
+import { loadGuardrails } from './guardrails-loader.js';
 
 export interface DefinitionsValidationResult {
   valid: boolean;

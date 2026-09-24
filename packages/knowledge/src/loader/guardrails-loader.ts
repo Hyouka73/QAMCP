@@ -90,7 +90,7 @@ export function loadGuardrails(guardrailsDir: string, compiler?: AjvCompiler): G
       continue;
     }
 
-    let itemsToValidate: unknown[] = [];
+    let itemsToValidate: unknown[];
 
     if (Array.isArray(rawData)) {
       itemsToValidate = rawData;
