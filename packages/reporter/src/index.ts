@@ -14,3 +14,6 @@ export * from './api/telemetry-server.js';
 export * from './ui/ui-state.js';
 
 export * from './generators/html-report.js';
+export * from './generators/json-report.js';
+export * from './generators/markdown-report.js';
+export * from './generators/junit-report.js';

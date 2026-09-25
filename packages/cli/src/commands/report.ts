@@ -1,5 +1,12 @@
+import type { ExecutionResult } from '@qap/shared';
 import { FileSystemStorage } from '@qap/knowledge';
-import { startViewerServer, generateHtmlReport } from '@qap/reporter';
+import {
+  startViewerServer,
+  generateHtmlReport,
+  generateJsonReport,
+  generateMarkdownReport,
+  generateJunitReport,
+} from '@qap/reporter';
 
 export interface ReportOptions {
   serve?: boolean;
@@ -58,6 +65,32 @@ export async function handleReport(moduleArg?: string, options: ReportOptions = 
     const outputPath = `.qa/executions/${moduleArg}.report.html`;
     await storage.write(outputPath, html);
     console.log(`Reporte HTML generado en ${outputPath}`);
+    return;
+  }
+
+  // Generación de reportes alternativos: JSON, Markdown y JUnit XML (S5-004)
+  if (moduleArg && (options.format === 'json' || options.format === 'markdown' || options.format === 'junit')) {
+    const storage = new FileSystemStorage({ rootDir: process.cwd() });
+    const result = await storage.getExecutionResult(moduleArg);
+
+    if (!result) {
+      console.error(
+        `No se encontró un resultado de ejecución con id '${moduleArg}' en .qa/executions/. Usa el execution_id exacto, ej: 'qap report 2026-09-19_checkout_e2e --format junit'.`
+      );
+      return;
+    }
+
+    const formatConfig: Record<string, { generate: (r: ExecutionResult) => string; ext: string }> = {
+      json: { generate: generateJsonReport, ext: 'json' },
+      markdown: { generate: generateMarkdownReport, ext: 'md' },
+      junit: { generate: generateJunitReport, ext: 'xml' },
+    };
+
+    const { generate, ext } = formatConfig[options.format];
+    const content = generate(result);
+    const outputPath = `.qa/executions/${moduleArg}.report.${ext}`;
+    await storage.write(outputPath, content);
+    console.log(`Reporte ${options.format.toUpperCase()} generado en ${outputPath}`);
     return;
   }
 
