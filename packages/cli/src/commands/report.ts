@@ -1,4 +1,5 @@
 import type { ExecutionResult } from '@qap/shared';
+import type { IStorage } from '@qap/engine';
 import { FileSystemStorage } from '@qap/knowledge';
 import {
   startViewerServer,
@@ -6,12 +7,46 @@ import {
   generateJsonReport,
   generateMarkdownReport,
   generateJunitReport,
+  detectRegressions,
+  updateManifestIfCompleted,
 } from '@qap/reporter';
 
 export interface ReportOptions {
   serve?: boolean;
   port?: string | number;
   format?: string;
+}
+
+/**
+ * Compara la ejecución actual contra la última ejecución exitosa registrada
+ * en el manifest (S5-005), imprime el resumen en consola, y actualiza el
+ * manifest si esta ejecución fue exitosa.
+ */
+async function printRegressionSummary(storage: IStorage, result: ExecutionResult): Promise<void> {
+  const comparison = await detectRegressions(storage, result);
+
+  if (comparison.baselineExecutionId) {
+    if (comparison.newFailures.length === 0 && comparison.fixedFailures.length === 0) {
+      console.log(
+        `Sin cambios respecto a la última ejecución exitosa (${comparison.baselineExecutionId}).`
+      );
+    } else {
+      if (comparison.newFailures.length > 0) {
+        const ids = comparison.newFailures.map((c) => c.id).join(', ');
+        console.log(
+          `⚠ ${comparison.newFailures.length} falla(s) nueva(s) respecto a ${comparison.baselineExecutionId}: ${ids}`
+        );
+      }
+      if (comparison.fixedFailures.length > 0) {
+        const ids = comparison.fixedFailures.map((c) => c.id).join(', ');
+        console.log(
+          `✔ ${comparison.fixedFailures.length} falla(s) corregida(s) respecto a ${comparison.baselineExecutionId}: ${ids}`
+        );
+      }
+    }
+  }
+
+  await updateManifestIfCompleted(storage, result);
 }
 
 /**
@@ -65,6 +100,8 @@ export async function handleReport(moduleArg?: string, options: ReportOptions = 
     const outputPath = `.qa/executions/${moduleArg}.report.html`;
     await storage.write(outputPath, html);
     console.log(`Reporte HTML generado en ${outputPath}`);
+
+    await printRegressionSummary(storage, result);
     return;
   }
 
@@ -91,6 +128,8 @@ export async function handleReport(moduleArg?: string, options: ReportOptions = 
     const outputPath = `.qa/executions/${moduleArg}.report.${ext}`;
     await storage.write(outputPath, content);
     console.log(`Reporte ${options.format.toUpperCase()} generado en ${outputPath}`);
+
+    await printRegressionSummary(storage, result);
     return;
   }
 

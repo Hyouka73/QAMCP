@@ -17,3 +17,4 @@ export * from './generators/html-report.js';
 export * from './generators/json-report.js';
 export * from './generators/markdown-report.js';
 export * from './generators/junit-report.js';
+export * from './manifest/regression-detector.js';
