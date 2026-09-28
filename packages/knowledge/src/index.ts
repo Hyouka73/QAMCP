@@ -13,3 +13,6 @@ export * from './graph/cycle-detector.js';
 export * from './loader/definitions-loader.js';
 export * from './loader/guardrails-loader.js';
 
+export * from './plan/case-generator.js';
+
+
