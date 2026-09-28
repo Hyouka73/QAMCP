@@ -90,8 +90,28 @@ export async function handleReport(moduleArg?: string, options: ReportOptions = 
     const result = await storage.getExecutionResult(moduleArg);
 
     if (!result) {
-      console.error(
-        `No se encontró un resultado de ejecución con id '${moduleArg}' en .qa/executions/. Usa el execution_id exacto, ej: 'qap report 2026-09-19_checkout_e2e --format html'.`
+      // AC-004: Tolerancia a referencias huérfanas (QAP-v2.1-plan L79).
+      // La ejecución fue purgada por `qap prune`. En lugar de abortar,
+      // se genera un reporte sintético marcado como [execution purged].
+      const now = new Date().toISOString();
+      const purgedResult: ExecutionResult = {
+        _version: '1',
+        execution_id: moduleArg,
+        module: `[execution purged] ${moduleArg}`,
+        env: 'unknown',
+        started_at: now,
+        finished_at: now,
+        result: 'error',
+        timed_out: false,
+        summary: { total: 0, passed: 0, failed: 0, skipped: 0, not_run: 0 },
+        cases: [],
+      };
+      const purgeHtml = await generateHtmlReport(purgedResult, { storage });
+      const purgedOutputPath = `.qa/executions/${moduleArg}.report.html`;
+      const purgeComment = `<!-- [execution purged] execution_id: ${moduleArg} -->\n`;
+      await storage.write(purgedOutputPath, purgeComment + purgeHtml);
+      console.warn(
+        `⚠ La ejecución '${moduleArg}' fue purgada. Reporte marcado como [execution purged] en ${purgedOutputPath}`,
       );
       return;
     }
@@ -111,8 +131,32 @@ export async function handleReport(moduleArg?: string, options: ReportOptions = 
     const result = await storage.getExecutionResult(moduleArg);
 
     if (!result) {
-      console.error(
-        `No se encontró un resultado de ejecución con id '${moduleArg}' en .qa/executions/. Usa el execution_id exacto, ej: 'qap report 2026-09-19_checkout_e2e --format junit'.`
+      // AC-004: Tolerancia a referencias huérfanas para formatos alternativos.
+      const now = new Date().toISOString();
+      const purgedResult: ExecutionResult = {
+        _version: '1',
+        execution_id: moduleArg,
+        module: `[execution purged] ${moduleArg}`,
+        env: 'unknown',
+        started_at: now,
+        finished_at: now,
+        result: 'error',
+        timed_out: false,
+        summary: { total: 0, passed: 0, failed: 0, skipped: 0, not_run: 0 },
+        cases: [],
+      };
+
+      const formatConfig: Record<string, { generate: (r: ExecutionResult) => string; ext: string }> = {
+        json: { generate: generateJsonReport, ext: 'json' },
+        markdown: { generate: generateMarkdownReport, ext: 'md' },
+        junit: { generate: generateJunitReport, ext: 'xml' },
+      };
+      const { generate, ext } = formatConfig[options.format];
+      const purgedOutputPath = `.qa/executions/${moduleArg}.report.${ext}`;
+      const purgeContent = generate(purgedResult);
+      await storage.write(purgedOutputPath, purgeContent);
+      console.warn(
+        `⚠ La ejecución '${moduleArg}' fue purgada. Reporte marcado como [execution purged] en ${purgedOutputPath}`,
       );
       return;
     }

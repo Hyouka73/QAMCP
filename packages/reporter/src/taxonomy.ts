@@ -3,7 +3,8 @@ export type ErrorCategory =
   | 'assertion_failed'
   | 'execution_timeout'
   | 'navigation_error'
-  | 'network_error';
+  | 'network_error'
+  | 'auth_failed';
   
 
 export interface ClassifiedError {
@@ -45,7 +46,12 @@ export function classifyError(error: unknown): ClassifiedError {
     return { category: 'execution_timeout', message, originalError: error };
   }
 
-  // 5. Errores de Aserción
+  // 5. Errores de Autenticación
+  if (/auth|login|credential|unauthorized|403/i.test(message)) {
+    return { category: 'auth_failed', message, originalError: error };
+  }
+
+  // 6. Errores de Aserción
   // Fallback: si ningún patrón coincide, se clasifica como assertion_failed
   // por decisión de diseño (la taxonomía del PDF no define una categoría "unknown").
   if (/assert|expect|match|failed|received/i.test(message)) {

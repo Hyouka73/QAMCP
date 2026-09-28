@@ -78,16 +78,25 @@ describe('CLI report & serve commands (S5-006)', () => {
     );
   });
 
-  it('debe mostrar error si no encuentra la ejecución al generar reporte HTML', async () => {
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+  it('debe generar un reporte sintético [execution purged] cuando la ejecución no existe (AC-004)', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.spyOn(FileSystemStorage.prototype, 'getExecutionResult').mockResolvedValue(null);
+    const writeSpy = vi.spyOn(FileSystemStorage.prototype, 'write').mockResolvedValue(undefined);
+    vi.spyOn(reporterModule, 'generateHtmlReport').mockResolvedValue('<!DOCTYPE html><html></html>');
 
     await handleReport('inexistente', { format: 'html' });
 
-    expect(errorSpy).toHaveBeenCalledWith(
-      expect.stringContaining("No se encontró un resultado de ejecución con id 'inexistente'")
+    // Debe emitir warn (no error) con el marcador canónico
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('[execution purged]'),
     );
-    errorSpy.mockRestore();
+    // Debe escribir el reporte con el comentario de purge
+    expect(writeSpy).toHaveBeenCalledWith(
+      '.qa/executions/inexistente.report.html',
+      expect.stringContaining('<!-- [execution purged] execution_id: inexistente -->'),
+    );
+    warnSpy.mockRestore();
+    writeSpy.mockRestore();
   });
 
   it('debe generar y persistir el reporte HTML si la ejecución existe', async () => {
@@ -107,6 +116,9 @@ describe('CLI report & serve commands (S5-006)', () => {
     vi.spyOn(FileSystemStorage.prototype, 'getExecutionResult').mockResolvedValue(mockExecutionResult);
     const writeSpy = vi.spyOn(FileSystemStorage.prototype, 'write').mockResolvedValue(undefined);
     const generateSpy = vi.spyOn(reporterModule, 'generateHtmlReport').mockResolvedValue('<!DOCTYPE html><html></html>');
+    // Aislar el detector de regresión: manifest vacío → no hay baseline → sin errores de I/O
+    vi.spyOn(FileSystemStorage.prototype, 'exists').mockResolvedValue(false);
+    vi.spyOn(FileSystemStorage.prototype, 'writeJson').mockResolvedValue(undefined);
 
     await handleReport('exec-123', { format: 'html' });
 

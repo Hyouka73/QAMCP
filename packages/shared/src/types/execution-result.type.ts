@@ -12,6 +12,7 @@ export type FailureType =
   | 'execution_timeout'
   | 'selector_not_found'
   | 'network_error'
+  | 'navigation_error'
   | 'auth_failed'
   | (string & {});
 

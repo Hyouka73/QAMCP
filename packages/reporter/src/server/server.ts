@@ -72,7 +72,11 @@ export function startViewerServer(options: ViewerServerOptions): Promise<ViewerS
     const method = req.method?.toUpperCase();
 
     // 1. Ruta principal: Interfaz Web
-    if ((pathname === '/' || pathname === '/index.html') && (method === 'GET' || method === 'HEAD')) {
+    // /graph-view es el alias canónico según QAP-v2.1-plan.md (S5-006).
+    if (
+      (pathname === '/' || pathname === '/index.html' || pathname === '/graph-view') &&
+      (method === 'GET' || method === 'HEAD')
+    ) {
       const html = getTemplateHtml();
       res.writeHead(200, {
         'Content-Type': 'text/html; charset=utf-8',
