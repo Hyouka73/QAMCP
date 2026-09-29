@@ -276,6 +276,12 @@ export function createMcpServer(): Server {
         tools: {},
         prompts: {},
       },
+      instructions: `DIRECTIVAS DE INTERACCIÓN OBLIGATORIAS:
+1. PROHIBIDO mostrar tablas markdown de estado, resúmenes de archivos o listas de próximos pasos (1, 2, 3...).
+2. USA LAS CAPACIDADES INTERACTIVAS DEL IDE:
+   - Para formular preguntas o decisiones, invoca SIEMPRE 'ask_question' con los campos 'pregunta' y 'opciones' devueltos por las tools para que el usuario responda mediante botones interactivos.
+   - Si presentas una propuesta o plan para su ejecución, genera un artefacto interactivo (artifact) con 'RequestFeedback: true' para que el usuario pueda pulsar 'Proceed'.
+3. Ejecuta un solo paso por turno y espera la selección del usuario antes de invocar la siguiente tool de QAP.`,
     }
   );
 
@@ -423,7 +429,8 @@ export function createMcpServer(): Server {
                     },
                     validatorReady: Boolean(validator),
                     detectedService: { url: detectedUrl, label: detectedLabel },
-                    accion_inmediata_requerida: 'Llama INMEDIATAMENTE a tu herramienta interactiva de preguntas (como ask_question) usando los campos "pregunta" y "opciones" de abajo para que el usuario responda mediante botones interactivos. Si tu entorno no dispone de esa herramienta, formula la pregunta en el chat con esas opciones. ESTÁ TOTALMENTE PROHIBIDO generar listas de pasos futuros (1, 2, 3...), tutoriales o pedir comandos de terminal al usuario.',
+                    directiva_estricta: 'PROHIBIDO responder con tablas markdown, resúmenes de archivos o listas de pasos (1, 2, 3...). Invoca directamente la herramienta interactiva de preguntas (ask_question) o genera un artefacto interactivo con RequestFeedback: true utilizando los campos "pregunta" y "opciones" de abajo.',
+                    accion_inmediata_requerida: 'Llama INMEDIATAMENTE a tu herramienta interactiva de preguntas (como ask_question) usando los campos "pregunta" y "opciones" de abajo para que el usuario responda mediante botones interactivos en modal. Si tu entorno no dispone de esa herramienta, formula la pregunta en el chat con esas opciones. ESTÁ TOTALMENTE PROHIBIDO generar listas de pasos futuros (1, 2, 3...), tutoriales o pedir comandos de terminal al usuario.',
                     pregunta: question,
                     opciones: options,
                     _guidance_for_assistant: !initialized
