@@ -7,7 +7,7 @@ export interface PrototypeResult {
 }
 
 export async function runChromiumPrototype(
-  targetUrl: string = 'https://example.com'
+  targetUrl: string = 'data:text/html,<html><head><title>Example Domain</title></head><body><h1>Example Domain</h1></body></html>'
 ): Promise<PrototypeResult> {
   const startTime = Date.now();
   let browser: Browser | null = null;
@@ -16,18 +16,13 @@ export async function runChromiumPrototype(
 
   try {
     browser = await chromium.launch({ headless: true });
-    console.log('Chromium Headless lanzado correctamente');
-
     context = await browser.newContext();
     page = await context.newPage();
-    console.log('BrowserContext y Page creados correctamente');
 
-    await page.goto(targetUrl, { waitUntil: 'domcontentloaded' });
-    console.log(`Navegacion completada: ${targetUrl}`);
+    await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 5000 });
 
     const title = await page.title();
     const headerText = await page.locator('h1').innerText();
-    console.log('Selector h1 resuelto correctamente');
 
     const executionTimeMs = Date.now() - startTime;
     return { title, headerText, executionTimeMs };
