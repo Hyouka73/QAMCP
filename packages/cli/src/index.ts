@@ -5,6 +5,8 @@
 // quien quiera embeberlo o testearlo sin invocar el proceso real.
 
 export { createProgram } from './program.js';
+export { handleClean } from './commands/clean.js';
+export { handleMcp } from './commands/mcp.js';
 export {
   CliError,
   UsageError,

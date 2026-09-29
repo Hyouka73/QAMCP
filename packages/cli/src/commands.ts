@@ -19,6 +19,7 @@ import type { Command } from 'commander';
 
 import { NotImplementedError } from './errors.js';
 import { handleInitCommand } from './commands/init.js';
+import { handleClean } from './commands/clean.js';
 import { handleAuthAdd, handleAuthList, handleAuthSetSecret, handleAuthRemove } from './commands/auth/index.js';
 import { handleRun } from './commands/runner/index.js';
 import { handleStatus } from './commands/status/index.js';
@@ -28,6 +29,10 @@ import { handleReport } from './commands/report.js';
 import { handleValidate } from './commands/validate.js';
 import { handlePrune } from './commands/prune.js';
 import { handleRuntimeReindex } from './commands/reindex.js';
+import { handleMcp } from './commands/mcp.js';
+
+export { handleClean } from './commands/clean.js';
+export { handleMcp } from './commands/mcp.js';
 
 interface CommandDefinition {
   /** Nombre del subcomando, p.ej. "test" -> `qap test`. */
@@ -54,6 +59,17 @@ export function registerCommands(program: Command): void {
     .option('-c, --config <path>', 'Ruta al archivo JSON de configuración para modo silencioso')
     .action(async (options: { config?: string }) => {
       await handleInitCommand(options);
+    });
+
+  // 1.1 Registrar comando `clean` (con alias `reset`)
+  program
+    .command('clean')
+    .alias('reset')
+    .description('Elimina de forma segura todo el árbol .qa/ del proyecto actual y limpia locks remanentes')
+    .option('-y, --yes', 'Confirma la eliminación sin solicitar confirmación interactiva')
+    .option('-f, --force', 'Fuerza la eliminación inmediata de .qa/ y locks remanentes')
+    .action(async (options: { yes?: boolean; force?: boolean }) => {
+      await handleClean(options);
     });
 
   // 2. Grupo de subcomandos 'auth' (Tarea S2-003)
@@ -189,6 +205,14 @@ export function registerCommands(program: Command): void {
     .description('Reconstruye íntegramente la base de datos qap.sqlite desde run.json')
     .action(async (dir?: string) => {
       await handleRuntimeReindex(dir);
+    });
+
+  // 7.1. Subcomando 'mcp' para iniciar el servidor MCP sobre Stdio
+  program
+    .command('mcp')
+    .description('Inicia el servidor MCP de QAP sobre transporte Stdio para Cursor, Claude y Antigravity')
+    .action(async () => {
+      await handleMcp();
     });
 
   // 8. Registrar los comandos placeholders pendientes (Sprint 1)

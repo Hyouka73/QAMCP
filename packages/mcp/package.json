@@ -1,14 +1,36 @@
 {
   "name": "@qap/mcp",
   "version": "2.1.0",
-  "private": true,
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "scripts": {
-    "build": "tsup src/index.ts --format esm --dts",
-    "dev": "tsup src/index.ts --format esm --dts --watch"
+  "bin": {
+    "qap-mcp": "dist/server.js"
   },
-  "dependencies": {},
-  "devDependencies": {}
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@qap/auth": "workspace:*",
+    "@qap/engine": "workspace:*",
+    "@qap/knowledge": "workspace:*",
+    "@qap/reporter": "workspace:*",
+    "@qap/shared": "workspace:*",
+    "yaml": "^2.9.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "tsup": "^8.5.1",
+    "typescript": "~5.5.4",
+    "vitest": "^4.1.11"
+  }
 }

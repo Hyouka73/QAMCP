@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * Entrypoint binario del CLI `qap`.
  *
