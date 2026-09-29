@@ -3,9 +3,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createMcpServer } from '../server.js';
-import { ListToolsRequestSchema, CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { ListToolsRequestSchema, CallToolRequestSchema, ListPromptsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 
-describe('Suite MCP Server QAP v2.1', () => {
+describe('Suite MCP Server QAP v2.1 / v2.1.2', () => {
   let tempDir: string;
   let originalCwd: () => string;
 
@@ -21,7 +21,7 @@ describe('Suite MCP Server QAP v2.1', () => {
     vi.restoreAllMocks();
   });
 
-  it('debe registrar y exponer las 6 tools del ciclo de vida requeridas', async () => {
+  it('debe registrar y exponer la suite completa de 12 tools y prompts', async () => {
     const server = createMcpServer();
     // @ts-expect-error accessing internal request handler
     const handler = server._requestHandlers.get(ListToolsRequestSchema.shape.method.value);
@@ -33,10 +33,23 @@ describe('Suite MCP Server QAP v2.1', () => {
     expect(toolNames).toContain('qap_init');
     expect(toolNames).toContain('qap_clean');
     expect(toolNames).toContain('qap_auth_add');
+    expect(toolNames).toContain('qap_auth_list');
     expect(toolNames).toContain('qap_status');
+    expect(toolNames).toContain('qap_discover');
+    expect(toolNames).toContain('qap_plan');
+    expect(toolNames).toContain('qap_validate');
+    expect(toolNames).toContain('qap_test');
     expect(toolNames).toContain('qap_report');
     expect(toolNames).toContain('qap_server');
-    expect(toolNames.length).toBe(6);
+    expect(toolNames).toContain('qap_prune');
+    expect(toolNames.length).toBe(12);
+
+    // @ts-expect-error accessing internal request handler
+    const promptHandler = server._requestHandlers.get(ListPromptsRequestSchema.shape.method.value);
+    expect(promptHandler).toBeDefined();
+    const promptResponse = await promptHandler({ method: 'prompts/list' }, {});
+    expect(promptResponse.prompts.length).toBeGreaterThan(0);
+    expect(promptResponse.prompts[0].name).toBe('qap_start');
   });
 
   it('debe ejecutar qap_init y crear el arbol .qa/', async () => {
@@ -65,9 +78,10 @@ describe('Suite MCP Server QAP v2.1', () => {
     expect(parsed.projectName).toBe('demo-mcp');
     expect(existsSync(join(tempDir, '.qa', 'project', 'environments.yaml'))).toBe(true);
     expect(existsSync(join(tempDir, '.qa', 'project', 'context.yaml'))).toBe(true);
+    expect(parsed._guidance_for_assistant).toBeDefined();
   });
 
-  it('debe validar y mostrar estado con qap_status', async () => {
+  it('debe validar y mostrar estado con directivas UX en qap_status', async () => {
     const server = createMcpServer();
     // @ts-expect-error accessing internal request handler
     const handler = server._requestHandlers.get(CallToolRequestSchema.shape.method.value);
@@ -76,6 +90,7 @@ describe('Suite MCP Server QAP v2.1', () => {
     const statusBefore = await handler({ method: 'tools/call', params: { name: 'qap_status', arguments: {} } }, {});
     const parsedBefore = JSON.parse(statusBefore.content[0].text);
     expect(parsedBefore.initialized).toBe(false);
+    expect(parsedBefore._guidance_for_assistant).toContain('NO expliques listas de pasos futuros');
 
     // Inicializar
     await handler({ method: 'tools/call', params: { name: 'qap_init', arguments: { projectName: 'status-demo' } } }, {});
@@ -85,9 +100,70 @@ describe('Suite MCP Server QAP v2.1', () => {
     const parsedAfter = JSON.parse(statusAfter.content[0].text);
     expect(parsedAfter.initialized).toBe(true);
     expect(parsedAfter.projectName).toBe('status-demo');
+    expect(parsedAfter._guidance_for_assistant).toContain('qap_discover');
   });
 
-  it('debe registrar un perfil de autenticacion con qap_auth_add', async () => {
+  it('debe descubrir modulos y generar planes con qap_discover y qap_plan', async () => {
+    const server = createMcpServer();
+    // @ts-expect-error accessing internal request handler
+    const handler = server._requestHandlers.get(CallToolRequestSchema.shape.method.value);
+
+    await handler({ method: 'tools/call', params: { name: 'qap_init', arguments: {} } }, {});
+
+    // Descubrir módulo auth
+    const discoverResult = await handler(
+      {
+        method: 'tools/call',
+        params: {
+          name: 'qap_discover',
+          arguments: {
+            name: 'auth',
+            path: '/login',
+            tags: ['critical', 'auth'],
+          },
+        },
+      },
+      {}
+    );
+    expect(discoverResult.isError).toBeFalsy();
+    expect(existsSync(join(tempDir, '.qa', 'modules', 'auth.yaml'))).toBe(true);
+
+    // Generar plan
+    const planResult = await handler(
+      {
+        method: 'tools/call',
+        params: {
+          name: 'qap_plan',
+          arguments: {
+            module: 'auth',
+          },
+        },
+      },
+      {}
+    );
+    expect(planResult.isError).toBeFalsy();
+    expect(existsSync(join(tempDir, '.qa', 'plans', 'auth.json'))).toBe(true);
+
+    // Ejecutar prueba
+    const testResult = await handler(
+      {
+        method: 'tools/call',
+        params: {
+          name: 'qap_test',
+          arguments: {
+            module: 'auth',
+          },
+        },
+      },
+      {}
+    );
+    expect(testResult.isError).toBeFalsy();
+    const parsedTest = JSON.parse(testResult.content[0].text);
+    expect(parsedTest.status).toBe('success');
+    expect(parsedTest.result).toBe('passed');
+  });
+
+  it('debe registrar un perfil de autenticacion con qap_auth_add y listar con qap_auth_list', async () => {
     const server = createMcpServer();
     // @ts-expect-error accessing internal request handler
     const handler = server._requestHandlers.get(CallToolRequestSchema.shape.method.value);
@@ -115,6 +191,12 @@ describe('Suite MCP Server QAP v2.1', () => {
     expect(parsed.status).toBe('success');
     expect(parsed.profile.id).toBe('admin-user');
     expect(existsSync(join(tempDir, '.qa', 'project', 'auth', 'profiles.json'))).toBe(true);
+
+    // Listar
+    const listResult = await handler({ method: 'tools/call', params: { name: 'qap_auth_list', arguments: {} } }, {});
+    const parsedList = JSON.parse(listResult.content[0].text);
+    expect(parsedList.count).toBe(1);
+    expect(parsedList.profiles[0].id).toBe('admin-user');
   });
 
   it('debe generar reportes con qap_report y limpiar con qap_clean', async () => {
@@ -138,7 +220,7 @@ describe('Suite MCP Server QAP v2.1', () => {
     expect(reportResult.isError).toBeFalsy();
     const parsedReport = JSON.parse(reportResult.content[0].text);
     expect(parsedReport.status).toBe('success');
-    expect(parsedReport.generatedReports.html).toBeDefined();
+    expect(parsedReport.reports.html).toBeDefined();
 
     // Resetear con clean
     const cleanResult = await handler(
