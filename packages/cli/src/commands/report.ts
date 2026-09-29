@@ -1,3 +1,5 @@
+import { resolve } from 'node:path';
+
 import type { ExecutionResult } from '@qap/shared';
 import type { IStorage } from '@qap/engine';
 import { FileSystemStorage } from '@qap/knowledge';
@@ -15,6 +17,7 @@ export interface ReportOptions {
   serve?: boolean;
   port?: string | number;
   format?: string;
+  cwd?: string;
 }
 
 /**
@@ -53,11 +56,13 @@ async function printRegressionSummary(storage: IStorage, result: ExecutionResult
  * Maneja el comando `qap report` y su modalidad interactiva `--serve` (S5-006).
  */
 export async function handleReport(moduleArg?: string, options: ReportOptions = {}): Promise<void> {
+  const rootDir = options.cwd ? resolve(options.cwd) : process.cwd();
+
   if (options.serve) {
     const parsedPort = options.port !== undefined ? Number(options.port) : 9280;
     const targetPort = Number.isNaN(parsedPort) ? 9280 : parsedPort;
 
-    const storage = new FileSystemStorage({ rootDir: process.cwd() });
+    const storage = new FileSystemStorage({ rootDir });
 
     const serverInstance = await startViewerServer({
       storage,
@@ -86,7 +91,7 @@ export async function handleReport(moduleArg?: string, options: ReportOptions = 
 
   // Generación de reporte HTML autocontenido (S5-003)
   if (moduleArg && options.format === 'html') {
-    const storage = new FileSystemStorage({ rootDir: process.cwd() });
+    const storage = new FileSystemStorage({ rootDir });
     const result = await storage.getExecutionResult(moduleArg);
 
     if (!result) {
@@ -127,7 +132,7 @@ export async function handleReport(moduleArg?: string, options: ReportOptions = 
 
   // Generación de reportes alternativos: JSON, Markdown y JUnit XML (S5-004)
   if (moduleArg && (options.format === 'json' || options.format === 'markdown' || options.format === 'junit')) {
-    const storage = new FileSystemStorage({ rootDir: process.cwd() });
+    const storage = new FileSystemStorage({ rootDir });
     const result = await storage.getExecutionResult(moduleArg);
 
     if (!result) {
