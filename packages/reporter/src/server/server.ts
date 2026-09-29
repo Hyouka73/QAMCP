@@ -258,8 +258,8 @@ export function startViewerServer(options: ViewerServerOptions): Promise<ViewerS
       const url = `http://${host}:${actualPort}`;
 
       if (!silent) {
-        console.error(`✨ QAP Knowledge Graph & Memory Viewer activo en: ${url}`);
-        console.error('Pulse Ctrl+C para detener el servidor.');
+        console.log(`✨ QAP Knowledge Graph & Memory Viewer activo en: ${url}`);
+        console.log('Pulse Ctrl+C para detener el servidor.');
       }
 
       const instance: ViewerServerInstance = {
