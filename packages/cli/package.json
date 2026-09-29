@@ -1,6 +1,6 @@
 {
   "name": "@hyouka73/qap-cli",
-  "version": "2.1.2",
+  "version": "2.1.3",
   "type": "module",
   "main": "./dist/entrypoint.js",
   "bin": {

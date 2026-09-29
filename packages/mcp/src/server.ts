@@ -28,12 +28,12 @@ import {
 
 let activeViewerServer: ViewerServerInstance | null = null;
 
-const UX_DIRECTIVE = 'DIRECTIVA DE UX ESTRICTA: Guía al usuario paso a paso. PROHIBIDO hacer preguntas en texto plano en el chat o entregar listas de pasos. UTILIZA SIEMPRE la herramienta interactiva ask_question para que el usuario seleccione opciones mediante botones clicables.';
+const UX_DIRECTIVE = 'DIRECTIVA DE UX ESTRICTA: Guía al usuario paso a paso interactivo. Si tu entorno dispone de herramienta para hacer preguntas interactivas con opciones (como ask_question), ÚSALA OBLIGATORIAMENTE para cada decisión. Si no, formula la pregunta directa con sus opciones. PROHIBIDO mostrar listas de pasos futuros (1, 2, 3...), tutoriales o pedir comandos de terminal.';
 
 const TOOLS: Tool[] = [
   {
     name: 'qap_status',
-    description: 'PUNTO DE ENTRADA OBLIGATORIO: Invoca esta herramienta INMEDIATAMENTE cuando el usuario quiera probar su app, testear un proyecto o empezar con QAP. Analiza el repo y te devuelve exactamente la pregunta que debes hacerle al usuario, sin muros de texto ni pasos futuros.',
+    description: 'PUNTO DE ENTRADA OBLIGATORIO: Invoca esta herramienta INMEDIATAMENTE cuando el usuario quiera probar su app, testear un proyecto o empezar con QAP. Analiza el repo y te devuelve exactamente la pregunta y opciones que debes presentar con ask_question, sin muros de texto ni pasos futuros.',
     inputSchema: {
       type: 'object',
       properties: {},
@@ -269,7 +269,7 @@ export function createMcpServer(): Server {
   const server = new Server(
     {
       name: 'qap-mcp-server',
-      version: '2.1.2',
+      version: '2.1.3',
     },
     {
       capabilities: {
@@ -391,12 +391,20 @@ export function createMcpServer(): Server {
           }
 
           const question = !initialized
-            ? `Detecté tu servicio en ${detectedUrl} (${detectedLabel}). ¿Inicializamos QAP para este servicio o prefieres otra URL?`
+            ? `Detecté tu servicio en ${detectedUrl} (${detectedLabel}). ¿Deseas inicializar QAP para este servicio o prefieres otra URL?`
             : `El proyecto QAP ya está inicializado con ${moduleCount} módulo(s). ¿Qué pantalla o flujo deseas descubrir con qap_discover?`;
 
-          const directive = !initialized
-            ? 'NO expliques listas de pasos futuros. Haz al usuario la pregunta: ' + question
-            : 'Pregunta al usuario qué pantalla o flujo desea registrar con qap_discover: ' + question;
+          const options = !initialized
+            ? [
+                `Sí, inicializar QAP para ${detectedUrl}`,
+                'Usar otra URL o puerto',
+                'Cancelar',
+              ]
+            : [
+                'Descubrir pantalla de Login / Autenticación (/login)',
+                'Descubrir Página Principal o Dashboard',
+                'Ver reportes y ejecuciones anteriores',
+              ];
 
           return {
             content: [
@@ -415,9 +423,12 @@ export function createMcpServer(): Server {
                     },
                     validatorReady: Boolean(validator),
                     detectedService: { url: detectedUrl, label: detectedLabel },
-                    pregunta_para_el_usuario: question,
-                    instruccion_estricta: 'Hazle al usuario ÚNICAMENTE la "pregunta_para_el_usuario". PROHIBIDO dar explicaciones largas, PROHIBIDO dar listas de pasos futuros (1, 2, 3...) y PROHIBIDO pedir comandos de terminal.',
-                    _guidance_for_assistant: directive,
+                    accion_inmediata_requerida: 'Llama INMEDIATAMENTE a tu herramienta interactiva de preguntas (como ask_question) usando los campos "pregunta" y "opciones" de abajo para que el usuario responda mediante botones interactivos. Si tu entorno no dispone de esa herramienta, formula la pregunta en el chat con esas opciones. ESTÁ TOTALMENTE PROHIBIDO generar listas de pasos futuros (1, 2, 3...), tutoriales o pedir comandos de terminal al usuario.',
+                    pregunta: question,
+                    opciones: options,
+                    _guidance_for_assistant: !initialized
+                      ? 'NO expliques listas de pasos futuros. Haz al usuario la pregunta con ask_question: ' + question
+                      : 'Pregunta al usuario qué pantalla o flujo desea registrar con qap_discover: ' + question,
                   },
                   null,
                   2
@@ -482,6 +493,13 @@ export function createMcpServer(): Server {
                     projectName,
                     environments: envList,
                     directories: allowedDirs.map((p) => p.replace(rootDir, '')),
+                    accion_inmediata_requerida: 'Llama INMEDIATAMENTE a la herramienta interactiva de preguntas (como ask_question) con los campos "pregunta" y "opciones". PROHIBIDO mostrar listas de pasos o comandos.',
+                    pregunta: 'QAP se ha inicializado correctamente. ¿Tu aplicación requiere inicio de sesión (autenticación) o empezamos descubriendo un módulo público?',
+                    opciones: [
+                      'Descubrir módulo público o pantalla inicial (qap_discover)',
+                      'Configurar perfil de autenticación primero (qap_auth_add)',
+                      'Ver estado del proyecto (qap_status)',
+                    ],
                     _guidance_for_assistant: 'DIRECTIVA: Inicialización completada. No des listas de pasos. Pregunta al usuario qué módulo o ruta clave desea probar primero (ej: Login, Catálogo, Checkout) para proceder con qap_discover.',
                   },
                   null,
@@ -590,7 +608,13 @@ export function createMcpServer(): Server {
                     message: `✔ Perfil '${profileId}' registrado con éxito en .qa/project/auth/profiles.json.`,
                     profile: newProfile,
                     secretSaved: Boolean(secret),
-                    _guidance_for_assistant: `DIRECTIVA: Perfil ${profileId} registrado. Pregunta ahora qué módulo o flujo desea asociar a este perfil para probarlo.`,
+                    accion_inmediata_requerida: 'Llama INMEDIATAMENTE a la herramienta interactiva de preguntas (como ask_question) con los campos "pregunta" y "opciones".',
+                    pregunta: `Perfil '${profileId}' registrado. ¿Qué pantalla o flujo deseas descubrir ahora con qap_discover?`,
+                    opciones: [
+                      'Descubrir flujo de Login (/login)',
+                      'Descubrir Dashboard principal (/dashboard)',
+                      'Especificar otra ruta',
+                    ],
                   },
                   null,
                   2
@@ -687,7 +711,13 @@ export function createMcpServer(): Server {
                     status: 'success',
                     message: `✔ Módulo '${name}' descubierto y persistido en .qa/modules/${name}.yaml`,
                     module: moduleDefinition,
-                    _guidance_for_assistant: `DIRECTIVA: Módulo '${name}' registrado con éxito. Pregunta al usuario si desea generar el plan de pruebas para '${name}' invocando qap_plan, o descubrir otro módulo.`,
+                    accion_inmediata_requerida: 'Llama INMEDIATAMENTE a la herramienta interactiva de preguntas (como ask_question) con los campos "pregunta" y "opciones".',
+                    pregunta: `Módulo '${name}' registrado con éxito. ¿Deseas generar el plan de pruebas para '${name}' (qap_plan) o prefieres descubrir otro módulo?`,
+                    opciones: [
+                      `Generar plan de pruebas para '${name}' (qap_plan)`,
+                      'Descubrir otro módulo (qap_discover)',
+                      'Ver estado del proyecto (qap_status)',
+                    ],
                   },
                   null,
                   2
@@ -722,7 +752,13 @@ export function createMcpServer(): Server {
                     status: 'success',
                     message: `✔ Plan de pruebas para '${moduleName}' generado en .qa/plans/${moduleName}.json`,
                     plan: testPlan,
-                    _guidance_for_assistant: `DIRECTIVA: Plan de pruebas listo. Pregunta al usuario si desea ejecutar las pruebas ahora mediante qap_test para el módulo '${moduleName}'.`,
+                    accion_inmediata_requerida: 'Llama INMEDIATAMENTE a la herramienta interactiva de preguntas (como ask_question) con los campos "pregunta" y "opciones".',
+                    pregunta: `Plan de pruebas para '${moduleName}' listo. ¿Deseas ejecutar las pruebas ahora con qap_test?`,
+                    opciones: [
+                      `Ejecutar pruebas ahora (qap_test)`,
+                      'Ver estado actual (qap_status)',
+                      'Descubrir otro módulo primero (qap_discover)',
+                    ],
                   },
                   null,
                   2
@@ -833,7 +869,13 @@ export function createMcpServer(): Server {
                     executionId,
                     result: syntheticResult.result,
                     summary: syntheticResult.summary,
-                    _guidance_for_assistant: `DIRECTIVA: Pruebas concluidas con éxito. Pregunta al usuario si desea generar el reporte visual con qap_report o abrir el Knowledge Graph 3D con qap_server.`,
+                    accion_inmediata_requerida: 'Llama INMEDIATAMENTE a la herramienta interactiva de preguntas (como ask_question) con los campos "pregunta" y "opciones".',
+                    pregunta: `Pruebas finalizadas con resultado: ${syntheticResult.result.toUpperCase()}. ¿Deseas abrir el visor 3D interactivo o generar los reportes?`,
+                    opciones: [
+                      'Abrir visor del Knowledge Graph 3D (qap_server)',
+                      'Generar reporte HTML interactivo y Markdown (qap_report)',
+                      'Ver estado del proyecto (qap_status)',
+                    ],
                   },
                   null,
                   2
@@ -925,7 +967,13 @@ export function createMcpServer(): Server {
                     message: `✔ Reporte generado exitosamente para ${executionId}`,
                     executionId,
                     reports: reportsGenerated,
-                    _guidance_for_assistant: 'DIRECTIVA: Reporte generado. Informa al usuario la ruta del reporte HTML y ofrece lanzar el visualizador 3D con qap_server.',
+                    accion_inmediata_requerida: 'Llama INMEDIATAMENTE a la herramienta interactiva de preguntas (como ask_question) con los campos "pregunta" y "opciones".',
+                    pregunta: `Reporte generado en ${reportsGenerated.html ? 'HTML' : 'formato seleccionado'}. ¿Deseas abrir el visor interactivo del Knowledge Graph 3D en el navegador?`,
+                    opciones: [
+                      'Abrir visor del Knowledge Graph 3D (qap_server)',
+                      'Ver estado del proyecto (qap_status)',
+                      'Concluir sesión de pruebas',
+                    ],
                   },
                   null,
                   2
