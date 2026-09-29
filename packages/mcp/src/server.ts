@@ -28,12 +28,12 @@ import {
 
 let activeViewerServer: ViewerServerInstance | null = null;
 
-const UX_DIRECTIVE = 'DIRECTIVA DE UX ESTRICTA: Guía al usuario paso a paso resolviendo un solo requerimiento a la vez. NO entregues listas de 5 pasos ni pidas comandos de terminal. Realiza las acciones directamente con estas herramientas.';
+const UX_DIRECTIVE = 'DIRECTIVA DE UX ESTRICTA: Guía al usuario paso a paso. PROHIBIDO hacer preguntas en texto plano en el chat o entregar listas de pasos. UTILIZA SIEMPRE la herramienta interactiva ask_question para que el usuario seleccione opciones mediante botones clicables.';
 
 const TOOLS: Tool[] = [
   {
     name: 'qap_status',
-    description: `Valida y muestra el estado actual del proyecto QAP, módulos descubiertos, perfiles de autenticación y esquemas. ${UX_DIRECTIVE}`,
+    description: 'PUNTO DE ENTRADA OBLIGATORIO: Invoca esta herramienta INMEDIATAMENTE cuando el usuario quiera probar su app, testear un proyecto o empezar con QAP. Analiza el repo y te devuelve exactamente la pregunta que debes hacerle al usuario, sin muros de texto ni pasos futuros.',
     inputSchema: {
       type: 'object',
       properties: {},
@@ -371,9 +371,32 @@ export function createMcpServer(): Server {
 
           const validator = new SchemaValidator();
 
+          // Detección automática de servicios y URLs en el repo
+          let detectedUrl = 'http://localhost:3000';
+          let detectedLabel = 'puerto local';
+          const candidates = [
+            { path: 'vite.config.ts', url: 'http://localhost:5173', label: 'Frontend Vite' },
+            { path: 'vite.config.js', url: 'http://localhost:5173', label: 'Frontend Vite' },
+            { path: 'front/vite.config.ts', url: 'http://localhost:5173', label: 'Frontend Vite (front/)' },
+            { path: 'front/vite.config.js', url: 'http://localhost:5173', label: 'Frontend Vite (front/)' },
+            { path: 'next.config.js', url: 'http://localhost:3000', label: 'Next.js' },
+            { path: 'next.config.mjs', url: 'http://localhost:3000', label: 'Next.js' },
+          ];
+          for (const cand of candidates) {
+            if (existsSync(join(rootDir, cand.path))) {
+              detectedUrl = cand.url;
+              detectedLabel = cand.label;
+              break;
+            }
+          }
+
+          const question = !initialized
+            ? `Detecté tu servicio en ${detectedUrl} (${detectedLabel}). ¿Inicializamos QAP para este servicio o prefieres otra URL?`
+            : `El proyecto QAP ya está inicializado con ${moduleCount} módulo(s). ¿Qué pantalla o flujo deseas descubrir con qap_discover?`;
+
           const directive = !initialized
-            ? 'DIRECTIVA: El proyecto aún no tiene .qa/. NO expliques listas de pasos futuros. Pregunta únicamente la URL local de la aplicación (detecta puertos del repo como :5173 o :3000 y preséntalos como opciones) y luego ejecuta qap_init.'
-            : 'DIRECTIVA: El proyecto ya está inicializado. Pregunta al usuario de forma concisa qué módulo o pantalla desea descubrir primero para ejecutar qap_discover.';
+            ? 'NO expliques listas de pasos futuros. Haz al usuario la pregunta: ' + question
+            : 'Pregunta al usuario qué pantalla o flujo desea registrar con qap_discover: ' + question;
 
           return {
             content: [
@@ -383,7 +406,7 @@ export function createMcpServer(): Server {
                   {
                     status: 'success',
                     initialized,
-                    projectName,
+                    projectName: projectName !== 'No inicializado' ? projectName : basename(rootDir),
                     environments,
                     stats: {
                       modules: moduleCount,
@@ -391,6 +414,9 @@ export function createMcpServer(): Server {
                       executions: executionCount,
                     },
                     validatorReady: Boolean(validator),
+                    detectedService: { url: detectedUrl, label: detectedLabel },
+                    pregunta_para_el_usuario: question,
+                    instruccion_estricta: 'Hazle al usuario ÚNICAMENTE la "pregunta_para_el_usuario". PROHIBIDO dar explicaciones largas, PROHIBIDO dar listas de pasos futuros (1, 2, 3...) y PROHIBIDO pedir comandos de terminal.',
                     _guidance_for_assistant: directive,
                   },
                   null,
