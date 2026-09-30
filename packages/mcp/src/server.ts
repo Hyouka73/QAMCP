@@ -163,6 +163,19 @@ const TOOLS: Tool[] = [
           description: 'Si es true, abre el navegador visualmente durante la exploración del módulo (default: false)',
           default: false,
         },
+        profileId: {
+          type: 'string',
+          description: 'ID del perfil de autenticación en .qa/project/auth/profiles.json (ej: "admin")',
+        },
+        credentials: {
+          type: 'object',
+          properties: {
+            username: { type: 'string', description: 'Nombre de usuario o email' },
+            password: { type: 'string', description: 'Contraseña' },
+          },
+          required: ['username', 'password'],
+          description: 'Credenciales explícitas para iniciar sesión si la ruta es de autenticación',
+        },
       },
       required: ['name', 'path'],
     },
@@ -791,7 +804,42 @@ export function createMcpServer(): Server {
               }
             }
 
-            const adapter = new PlaywrightAdapter({ headless: !headed, baseUrl });
+            // Resolver credenciales y sesión para descubrimiento autenticado
+            let credentials: { username: string; password: string } | undefined = undefined;
+            if (args.credentials && typeof args.credentials === 'object') {
+              const c = args.credentials as Record<string, unknown>;
+              if (c.username && c.password) {
+                credentials = { username: String(c.username), password: String(c.password) };
+              }
+            } else if (args.profileId) {
+              const profileId = String(args.profileId);
+              const profilesPath = join(rootDir, '.qa', 'project', 'auth', 'profiles.json');
+              if (existsSync(profilesPath)) {
+                try {
+                  const parsed = JSON.parse(readFileSync(profilesPath, 'utf-8'));
+                  const profile = (parsed.profiles || []).find((p: any) => p.id === profileId);
+                  if (profile) {
+                    const { AuthManager } = await import('@qap/auth');
+                    const authMgr = new AuthManager(rootDir);
+                    const creds = await authMgr.getCredentials(profileId);
+                    if (creds && creds.password) {
+                      credentials = { username: profile.username, password: creds.password };
+                    } else if (profile.username) {
+                      credentials = { username: profile.username, password: '' };
+                    }
+                  }
+                } catch { /* usa credenciales vacías si falla */ }
+              }
+            }
+
+            const sessionPath = join(qaDir, 'cache', 'sessions', 'discover-session.json');
+
+            const adapter = new PlaywrightAdapter({
+              headless: !headed,
+              baseUrl,
+              sessionPath,
+              credentials,
+            });
             const discovered = await adapter.discover({ name, path: route, tags });
 
             const ctxObj = (discovered.context || {}) as Record<string, unknown>;
@@ -811,9 +859,20 @@ export function createMcpServer(): Server {
             } else {
               playwrightUsed = true;
             }
+
+            // Metadatos de autenticación y sesión
+            (discoveredData as any).isAuthView = Boolean(ctxObj.is_auth_view);
+            (discoveredData as any).sessionSaved = Boolean(ctxObj.session_saved);
+            (discoveredData as any).storageStateUsed = Boolean(ctxObj.storage_state_used);
+            (discoveredData as any).currentUrl = ctxObj.current_url ? String(ctxObj.current_url) : route;
           } catch (err) {
             playwrightError = err instanceof Error ? err.message : String(err);
           }
+
+          const isAuthView = Boolean((discoveredData as any).isAuthView);
+          const sessionSaved = Boolean((discoveredData as any).sessionSaved);
+          const storageStateUsed = Boolean((discoveredData as any).storageStateUsed);
+          const currentUrl = (discoveredData as any).currentUrl || route;
 
           // Estructura granular de persistencia (Fix 5)
           const modulesDir = join(qaDir, 'modules');
@@ -827,7 +886,11 @@ export function createMcpServer(): Server {
             view_name: 'default',
             description: desc,
             path: route,
+            current_url: currentUrl,
             tags,
+            is_auth_view: isAuthView,
+            session_saved: sessionSaved,
+            storage_state_used: storageStateUsed,
             playwright_used: playwrightUsed,
             playwright_error: playwrightError,
             discovered_at: new Date().toISOString(),
@@ -878,8 +941,10 @@ export function createMcpServer(): Server {
             writeFileSync(join(qaDir, 'index.json'), JSON.stringify(globalIndex, null, 2), 'utf-8');
           } catch { /* ignore */ }
 
-          // Entrevista guiada en 3 pasos (Fix 3)
+          // Entrevista guiada contextual (Fix 3 & Tarea 3)
           const playwrightStatus = playwrightUsed ? 'explorando' : (playwrightError ? 'fallido' : 'estático');
+          const sessionPath = join(qaDir, 'cache', 'sessions', 'discover-session.json');
+          const sessionExists = existsSync(sessionPath);
 
           const responsePayload: Record<string, unknown> = {
             status: 'success',
@@ -889,11 +954,61 @@ export function createMcpServer(): Server {
             view: viewContext,
             playwright_status: playwrightStatus,
             playwright_error: playwrightError,
+            is_auth_view: isAuthView,
+            session_saved: sessionSaved,
+            storage_state_used: storageStateUsed,
             headed_disponible: true,
             accion_inmediata_requerida: 'Llama INMEDIATAMENTE a la herramienta interactiva de preguntas (como ask_question) con los campos "pregunta" y "opciones".',
           };
 
-          if (!rawDesc) {
+          if (isAuthView && !sessionSaved && !sessionExists) {
+            // Pantalla de login detectada y sin sesión activa
+            responsePayload.pregunta = "Detecté la pantalla de inicio de sesión. ¿Deseas que ingrese con el perfil 'admin' o con otras credenciales para explorar el interior de la plataforma?";
+            responsePayload.opciones = [
+              'Ingresar con perfil "admin" (qap_discover con profileId="admin")',
+              'Ingresar con credenciales personalizadas (usuario y contraseña)',
+              'Continuar documentando la pantalla de login sin autenticación',
+              'Cancelar exploración',
+            ];
+          } else if (!isAuthView && (sessionSaved || sessionExists || storageStateUsed)) {
+            // Vista autenticada: extraer opciones del menú principal
+            const menuLinks = (discoveredData.links || [])
+              .filter((l: any) =>
+                l.text &&
+                l.href &&
+                !l.href.startsWith('http') &&
+                !l.href.startsWith('//') &&
+                !l.href.toLowerCase().includes('/logout') &&
+                !l.href.toLowerCase().includes('/salir') &&
+                !l.href.toLowerCase().includes('/login')
+              )
+              .slice(0, 4);
+
+            if (menuLinks.length > 0) {
+              responsePayload.pregunta = `Módulo '${name}' explorado con sesión activa (${playwrightStatus}). Detecté enlaces en el menú principal. ¿Qué módulo deseas explorar a continuación?`;
+              responsePayload.opciones = [
+                ...menuLinks.map((l: any) => `Explorar ${l.text} (${l.href})`),
+                'Descubrir otra ruta manual (qap_discover)',
+                'Abrir visor del Knowledge Graph 2D (qap_server)',
+                'Ver estado del proyecto (qap_status)',
+              ];
+            } else if (!rawDesc) {
+              responsePayload.pregunta = `¿Qué módulo o funcionalidad estás construyendo o probando hoy? Describe brevemente el propósito de '${name}'.`;
+              responsePayload.opciones = [
+                'Panel de administración o dashboard',
+                'Formulario de creación/edición de entidad',
+                'Listado y búsqueda de registros',
+                'Otro (especifica en el chat)',
+              ];
+            } else {
+              responsePayload.pregunta = `Módulo '${name}' registrado con éxito (${playwrightStatus}). ¿Deseas explorar otra vista o consultar el Knowledge Graph 2D?`;
+              responsePayload.opciones = [
+                'Abrir visor del Knowledge Graph 2D (qap_server)',
+                'Descubrir otro módulo (qap_discover)',
+                'Ver estado del proyecto (qap_status)',
+              ];
+            }
+          } else if (!rawDesc) {
             responsePayload.pregunta = `¿Qué módulo o funcionalidad estás construyendo o probando hoy? Describe brevemente el propósito de '${name}'.`;
             responsePayload.opciones = [
               'Flujo de autenticación (login/registro/recuperación)',

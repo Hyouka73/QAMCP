@@ -1,6 +1,13 @@
-import { chromium, type Browser, type Page } from 'playwright-core';
+import { existsSync, mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
+import { chromium, type Browser, type BrowserContext, type Page } from 'playwright-core';
 import type { IDiscoverer } from '@qap/engine';
 import type { ModuleSpec, Module } from '@qap/shared';
+
+export interface AuthCredentials {
+  username: string;
+  password: string;
+}
 
 export interface PlaywrightAdapterOptions {
   /** Si el navegador corre sin interfaz visible. Por defecto true. */
@@ -9,6 +16,10 @@ export interface PlaywrightAdapterOptions {
   headed?: boolean;
   /** URL base contra la cual se resuelven las rutas relativas de los modulos. */
   baseUrl?: string;
+  /** Ruta al archivo storageState para restaurar o guardar sesiones persistentes */
+  sessionPath?: string;
+  /** Credenciales explícitas para autenticarse si la pantalla es de login */
+  credentials?: AuthCredentials;
 }
 
 export interface LaunchBrowserOptions {
@@ -89,8 +100,8 @@ export async function launchBrowser(options: LaunchBrowserOptions = {}): Promise
 /**
  * Adaptador de descubrimiento Playwright con soporte para SPAs (React / Vite).
  * Implementa IDiscoverer navegando directamente con playwright-core,
- * esperando activamente a la hidratación del DOM y extrayendo selectores CSS reales
- * para inputs, botones y enlaces.
+ * gestionando persistencia de sesión con storageState, detección de login,
+ * ejecución de login automático y extracción de selectores CSS reales.
  */
 export class PlaywrightAdapter implements IDiscoverer {
   constructor(private options: PlaywrightAdapterOptions = {}) {}
@@ -105,6 +116,7 @@ export class PlaywrightAdapter implements IDiscoverer {
       (this.options.headless !== undefined ? !this.options.headless : false);
 
     let browser: Browser | null = null;
+    let context: BrowserContext | null = null;
 
     try {
       browser = await launchBrowser({ headed });
@@ -123,6 +135,9 @@ export class PlaywrightAdapter implements IDiscoverer {
           inputs: [],
           buttons: [],
           links: [],
+          is_auth_view: false,
+          session_saved: false,
+          storage_state_used: false,
           playwright_used: false,
           playwright_error: playwrightError,
         },
@@ -130,13 +145,72 @@ export class PlaywrightAdapter implements IDiscoverer {
     }
 
     try {
-      const page = await browser.newPage();
+      // 1. Inicializar contexto con storageState si existe sesión previa
+      const contextOptions: { storageState?: string } = {};
+      if (this.options.sessionPath && existsSync(this.options.sessionPath)) {
+        contextOptions.storageState = this.options.sessionPath;
+      }
+      context = await browser.newContext(contextOptions);
+      const page = await context.newPage();
       const targetUrl = this.resolveUrl(spec.path);
 
       await page.goto(targetUrl, { waitUntil: 'networkidle', timeout: 30000 });
-      // Esperar a que React monte componentes en el root
+      // Esperar a que React monte componentes en el root o DOM
       await page.waitForSelector('#root > *, main, form, input, button, a[href]', { timeout: 10000 }).catch(() => {});
       await page.waitForTimeout(1000); // margen para renderizado y transiciones
+
+      // 2. Detección de vista de autenticación/login
+      const currentUrl = page.url();
+      const hasPasswordField = (await page.$('input[type="password"]')) !== null;
+      const initialIsAuthView = Boolean(
+        spec.path.toLowerCase().includes('/login') ||
+        currentUrl.toLowerCase().includes('/login') ||
+        hasPasswordField
+      );
+
+      // 3. Acción de login y guardado de sesión si se proveen credenciales
+      let sessionSaved = false;
+      if (initialIsAuthView && this.options.credentials) {
+        const { username, password } = this.options.credentials;
+        const usernameInput = await page.$(
+          'input[type="email"], input[name*="user" i], input[name*="email" i], input[name*="login" i], input[id*="user" i], input[id*="email" i], input:not([type="password"]):not([type="submit"]):not([type="hidden"]):not([type="checkbox"])'
+        );
+        const passwordInput = await page.$('input[type="password"]');
+
+        if (usernameInput && passwordInput) {
+          await usernameInput.fill(username);
+          await passwordInput.fill(password);
+
+          const submitButton = await page.$(
+            'button[type="submit"], input[type="submit"], form button, button:has-text("Iniciar"), button:has-text("Login"), button:has-text("Entrar"), button:has-text("Acceder"), [role="button"]:has-text("Iniciar")'
+          );
+
+          const navPromise = page.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {});
+          if (submitButton) {
+            await submitButton.click();
+          } else {
+            await passwordInput.press('Enter');
+          }
+          await navPromise;
+          await page.waitForTimeout(1500);
+
+          // Guardar storageState en disco
+          if (this.options.sessionPath) {
+            const sessionDir = dirname(this.options.sessionPath);
+            if (!existsSync(sessionDir)) {
+              mkdirSync(sessionDir, { recursive: true });
+            }
+            await context.storageState({ path: this.options.sessionPath });
+            sessionSaved = true;
+          }
+        }
+      }
+
+      const finalUrl = page.url();
+      const finalHasPasswordField = (await page.$('input[type="password"]')) !== null;
+      const finalIsAuthView = sessionSaved
+        ? Boolean(finalUrl.toLowerCase().includes('/login') || finalHasPasswordField)
+        : initialIsAuthView;
 
       const title = await page.title();
       const description = title && title.trim() ? title.trim() : spec.name;
@@ -160,6 +234,10 @@ export class PlaywrightAdapter implements IDiscoverer {
           inputs,
           buttons,
           links,
+          is_auth_view: finalIsAuthView,
+          session_saved: sessionSaved,
+          storage_state_used: Boolean(contextOptions.storageState),
+          current_url: finalUrl,
           playwright_used: true,
           playwright_error: null,
         },
@@ -179,11 +257,17 @@ export class PlaywrightAdapter implements IDiscoverer {
           inputs: [],
           buttons: [],
           links: [],
+          is_auth_view: false,
+          session_saved: false,
+          storage_state_used: false,
           playwright_used: false,
           playwright_error: playwrightError,
         },
       };
     } finally {
+      if (context) {
+        await context.close().catch(() => {});
+      }
       if (browser) {
         await browser.close().catch(() => {});
       }

@@ -1,6 +1,9 @@
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { createServer } from 'node:http';
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { chromium } from 'playwright-core';
@@ -14,6 +17,58 @@ describe('PlaywrightAdapter (S4-001 & Sprint 5)', () => {
   beforeAll(async () => {
     server = createServer((req, res) => {
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
+
+      if (req.url === '/login') {
+        if (req.method === 'POST') {
+          res.writeHead(302, {
+            'Set-Cookie': 'auth_session=admin-token-123; Path=/; HttpOnly',
+            'Location': '/operaciones/tablero',
+          });
+          res.end();
+          return;
+        }
+
+        res.end(`
+          <!DOCTYPE html>
+          <html>
+            <head><title>Iniciar Sesión</title></head>
+            <body>
+              <h1>Acceso</h1>
+              <form action="/login" method="POST">
+                <input name="username" type="text" placeholder="Usuario o email" />
+                <input name="password" type="password" placeholder="Contraseña" />
+                <button type="submit">Iniciar Sesión</button>
+              </form>
+            </body>
+          </html>
+        `);
+        return;
+      }
+
+      if (req.url === '/operaciones/tablero') {
+        const cookie = req.headers.cookie || '';
+        if (!cookie.includes('auth_session=admin-token-123')) {
+          res.writeHead(302, { 'Location': '/login' });
+          res.end();
+          return;
+        }
+
+        res.end(`
+          <!DOCTYPE html>
+          <html>
+            <head><title>Tablero Kanban Operaciones</title></head>
+            <body>
+              <main>
+                <h1>Tablero Kanban</h1>
+                <a href="/operaciones/tareas">Tareas</a>
+                <a href="/operaciones/metricas">Métricas</a>
+                <button type="button" id="btn-nueva-tarea">Nueva Tarea</button>
+              </main>
+            </body>
+          </html>
+        `);
+        return;
+      }
 
       if (req.url === '/spa') {
         // Simula una Single Page Application (React / Vite) como EXATO Center
@@ -227,6 +282,68 @@ describe('PlaywrightAdapter (S4-001 & Sprint 5)', () => {
     const linkWithoutText = links.find((l) => l.href === '/terms');
     expect(linkWithoutText?.selector).toBe('a[href="/terms"]');
   }, 30000);
+
+  it('debe detectar vista de autenticación y redirección a /login cuando no hay sesión activa', async () => {
+    const adapter = new PlaywrightAdapter({ baseUrl });
+
+    const result = await adapter.discover({
+      name: 'tablero-protegido',
+      path: '/operaciones/tablero',
+      tags: ['auth', 'protected'],
+    });
+
+    expect(result.context?.is_auth_view).toBe(true);
+    expect(result.context?.current_url).toContain('/login');
+    expect(result.context?.storage_state_used).toBe(false);
+  }, 30000);
+
+  it('debe realizar login, cambiar de ruta, persistir sesión en storageState y restaurarla en rutas protegidas', async () => {
+    const tempDir = mkdtempSync(join(tmpdir(), 'qap-session-test-'));
+    const sessionPath = join(tempDir, 'discover-session.json');
+
+    try {
+      const adapter = new PlaywrightAdapter({
+        baseUrl,
+        sessionPath,
+        credentials: {
+          username: 'admin@exato.com.mx',
+          password: 'secretpassword123',
+        },
+      });
+
+      const result = await adapter.discover({
+        name: 'login-autenticado',
+        path: '/login',
+        tags: ['auth'],
+      });
+
+      expect(result.context?.session_saved).toBe(true);
+      expect(result.context?.is_auth_view).toBe(false);
+      expect(result.context?.current_url).toContain('/operaciones/tablero');
+      expect(existsSync(sessionPath)).toBe(true);
+
+      // Restaurar sesión previa con storageState para acceder a ruta protegida sin redirección
+      const authAdapter = new PlaywrightAdapter({
+        baseUrl,
+        sessionPath,
+      });
+
+      const protectedResult = await authAdapter.discover({
+        name: 'tablero-con-sesion',
+        path: '/operaciones/tablero',
+        tags: ['operaciones'],
+      });
+
+      expect(protectedResult.context?.storage_state_used).toBe(true);
+      expect(protectedResult.context?.is_auth_view).toBe(false);
+      expect(protectedResult.description).toBe('Tablero Kanban Operaciones');
+      expect(protectedResult.context?.discovered_routes).toEqual(
+        expect.arrayContaining(['/operaciones/tareas', '/operaciones/metricas'])
+      );
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  }, 45000);
 
   it('debe lanzar un error claro si el modulo no define una ruta', async () => {
     const adapter = new PlaywrightAdapter({ baseUrl });

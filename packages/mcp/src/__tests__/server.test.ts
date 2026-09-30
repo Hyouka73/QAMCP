@@ -19,7 +19,9 @@ vi.mock('playwright-core', () => ({
 
 vi.mock('@qap/playwright-adapter', () => ({
   PlaywrightAdapter: class {
+    constructor(public options: any = {}) {}
     async discover(spec: { name: string; path: string; tags?: string[] }) {
+      const isLogin = spec.path === '/login';
       return {
         name: spec.name,
         path: spec.path,
@@ -29,7 +31,13 @@ vi.mock('@qap/playwright-adapter', () => ({
         context: {
           discovered_routes: [spec.path, `${spec.path}/sub`],
           forms: [{ id: `${spec.name}-form`, fields: ['user', 'pass'] }],
-          buttons: ['Enviar'],
+          buttons: [{ key: 'enviar', text: 'Enviar', selector: 'button:has-text("Enviar")' }],
+          links: [
+            { key: 'tablero', text: 'Tablero', href: '/operaciones/tablero', selector: 'a:has-text("Tablero")' },
+          ],
+          is_auth_view: isLogin && !this.options.credentials,
+          session_saved: isLogin && Boolean(this.options.credentials),
+          storage_state_used: Boolean(this.options.sessionPath),
         },
       };
     }
