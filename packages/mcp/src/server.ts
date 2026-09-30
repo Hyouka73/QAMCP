@@ -759,10 +759,12 @@ export function createMcpServer(): Server {
 
           let discoveredData: {
             routes: string[];
-            forms: Array<{ id: string; fields: string[] }>;
-            buttons: string[];
+            forms: any[];
+            buttons: any[];
+            inputs: any[];
+            links: any[];
             pageTitle: string;
-          } = { routes: [], forms: [], buttons: [], pageTitle: name };
+          } = { routes: [], forms: [], buttons: [], inputs: [], links: [], pageTitle: name };
 
           // Intentar exploración activa con Playwright
           let playwrightUsed = false;
@@ -797,12 +799,10 @@ export function createMcpServer(): Server {
               routes: Array.isArray(ctxObj.discovered_routes)
                 ? (ctxObj.discovered_routes as string[])
                 : [],
-              forms: Array.isArray(ctxObj.forms)
-                ? (ctxObj.forms as Array<{ id: string; fields: string[] }>)
-                : [],
-              buttons: Array.isArray(ctxObj.buttons)
-                ? (ctxObj.buttons as string[])
-                : [],
+              forms: Array.isArray(ctxObj.forms) ? (ctxObj.forms as any[]) : [],
+              buttons: Array.isArray(ctxObj.buttons) ? (ctxObj.buttons as any[]) : [],
+              inputs: Array.isArray(ctxObj.inputs) ? (ctxObj.inputs as any[]) : [],
+              links: Array.isArray(ctxObj.links) ? (ctxObj.links as any[]) : [],
               pageTitle: discovered.description ?? name,
             };
             if (ctxObj.playwright_error) {
@@ -844,7 +844,9 @@ export function createMcpServer(): Server {
             generated_at: new Date().toISOString(),
             selectors: {
               forms: discoveredData.forms,
+              inputs: discoveredData.inputs,
               buttons: discoveredData.buttons,
+              links: discoveredData.links,
             },
           };
           writeFileSync(join(viewsDir, 'selectors.json'), JSON.stringify(selectorsData, null, 2), 'utf-8');

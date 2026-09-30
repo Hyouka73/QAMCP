@@ -16,6 +16,33 @@ export interface LaunchBrowserOptions {
   headed?: boolean;
 }
 
+export interface DiscoveredInput {
+  key: string;
+  selector: string;
+  type: string;
+  placeholder: string | null;
+}
+
+export interface DiscoveredButton {
+  key: string;
+  text: string;
+  selector: string;
+}
+
+export interface DiscoveredLink {
+  key: string;
+  text: string;
+  href: string;
+  selector: string;
+}
+
+export interface DiscoveredForm {
+  id: string;
+  selector: string;
+  inputs: DiscoveredInput[];
+  fields: string[];
+}
+
 /**
  * Estrategia de lanzamiento de navegador en cascada multiplataforma.
  * 1. Intenta canal 'chrome' instalado en el sistema (Windows / macOS).
@@ -62,7 +89,8 @@ export async function launchBrowser(options: LaunchBrowserOptions = {}): Promise
 /**
  * Adaptador de descubrimiento Playwright con soporte para SPAs (React / Vite).
  * Implementa IDiscoverer navegando directamente con playwright-core,
- * esperando activamente a la hidratación del DOM y extrayendo rutas, botones y formularios.
+ * esperando activamente a la hidratación del DOM y extrayendo selectores CSS reales
+ * para inputs, botones y enlaces.
  */
 export class PlaywrightAdapter implements IDiscoverer {
   constructor(private options: PlaywrightAdapterOptions = {}) {}
@@ -92,7 +120,9 @@ export class PlaywrightAdapter implements IDiscoverer {
           discovered_routes: [],
           discovered_at: new Date().toISOString(),
           forms: [],
+          inputs: [],
           buttons: [],
+          links: [],
           playwright_used: false,
           playwright_error: playwrightError,
         },
@@ -111,8 +141,10 @@ export class PlaywrightAdapter implements IDiscoverer {
       const title = await page.title();
       const description = title && title.trim() ? title.trim() : spec.name;
 
-      const discoveredRoutes = await this.extractRoutes(page);
+      const links = await this.extractLinks(page);
+      const discoveredRoutes = Array.from(new Set(links.map((l) => l.href)));
       const forms = await this.extractForms(page);
+      const inputs = forms.flatMap((f) => f.inputs);
       const buttons = await this.extractButtons(page);
 
       return {
@@ -125,7 +157,9 @@ export class PlaywrightAdapter implements IDiscoverer {
           discovered_routes: discoveredRoutes,
           discovered_at: new Date().toISOString(),
           forms,
+          inputs,
           buttons,
+          links,
           playwright_used: true,
           playwright_error: null,
         },
@@ -142,7 +176,9 @@ export class PlaywrightAdapter implements IDiscoverer {
           discovered_routes: [],
           discovered_at: new Date().toISOString(),
           forms: [],
+          inputs: [],
           buttons: [],
+          links: [],
           playwright_used: false,
           playwright_error: playwrightError,
         },
@@ -161,19 +197,50 @@ export class PlaywrightAdapter implements IDiscoverer {
   }
 
   /**
-   * Extrae rutas de enlaces (a[href]) encontrados en el DOM.
+   * Extrae enlaces (a[href]) y determina su selector CSS real:
+   * a:has-text("${texto}") o a[href="${href}"]
    */
-  private async extractRoutes(page: Page): Promise<string[]> {
+  private async extractLinks(page: Page): Promise<DiscoveredLink[]> {
     try {
       return await page.$$eval('a[href]', (anchors) => {
-        const routes: string[] = [];
-        for (const a of anchors) {
-          const href = a.getAttribute('href');
-          if (href && !href.startsWith('#') && !href.startsWith('javascript:')) {
-            routes.push(href);
+        const list: Array<{ key: string; text: string; href: string; selector: string }> = [];
+        const seen = new Set<string>();
+
+        anchors.forEach((a, idx) => {
+          const href = a.getAttribute('href') || '';
+          if (!href || href.startsWith('#') || href.startsWith('javascript:')) {
+            return;
           }
-        }
-        return Array.from(new Set(routes));
+
+          const rawText = (a.textContent || a.getAttribute('aria-label') || '').trim();
+          const text = rawText.replace(/\s+/g, ' ');
+
+          // Prioridad de selector: a:has-text("${texto}") o a[href="${href}"]
+          let selector = '';
+          if (text) {
+            selector = `a:has-text("${text.replace(/"/g, '\\"')}")`;
+          } else {
+            selector = `a[href="${href.replace(/"/g, '\\"')}"]`;
+          }
+
+          let key = text
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9_-]+/gi, '_')
+            .replace(/^_+|_+$/g, '');
+
+          if (!key) {
+            key = href.replace(/[^a-z0-9_-]+/gi, '_').replace(/^_+|_+$/g, '') || `link-${idx + 1}`;
+          }
+
+          if (!seen.has(selector)) {
+            seen.add(selector);
+            list.push({ key, text, href, selector });
+          }
+        });
+
+        return list;
       });
     } catch {
       return [];
@@ -181,60 +248,242 @@ export class PlaywrightAdapter implements IDiscoverer {
   }
 
   /**
-   * Extrae formularios e inputs presentes en el DOM hidratado.
+   * Extrae formularios e inputs con selectores CSS robustos.
+   * Prioridad de selector para inputs:
+   * 1. Si tiene id: #${el.id}
+   * 2. Si tiene name: ${tag}[name="${el.name}"]
+   * 3. Si tiene data-testid: [data-testid="${el.dataset.testid}"]
+   * 4. Si tiene type: input[type="${el.type}"]
+   * PROHIBIDO: Guardar el.value o valores enmascarados de password (••••••••).
    */
-  private async extractForms(page: Page): Promise<Array<{ id: string; fields: string[] }>> {
+  private async extractForms(page: Page): Promise<DiscoveredForm[]> {
     try {
       const forms = await page.$$eval('form', (formList) => {
-        return formList.map((form, idx) => {
-          const id = form.getAttribute('id') || form.getAttribute('name') || `form-${idx + 1}`;
-          const inputs = Array.from(form.querySelectorAll('input, select, textarea'));
-          const fields = inputs
-            .map((input) => input.getAttribute('name') || input.getAttribute('id') || input.getAttribute('placeholder') || '')
-            .filter((field) => field.length > 0);
-          return { id, fields: Array.from(new Set(fields)) };
+        return formList.map((form, formIdx) => {
+          const formId = form.getAttribute('id') || form.getAttribute('name') || `form-${formIdx + 1}`;
+          const formSelector = form.id
+            ? `#${form.id}`
+            : form.getAttribute('name')
+            ? `form[name="${form.getAttribute('name')}"]`
+            : `form:nth-of-type(${formIdx + 1})`;
+
+          const rawInputs = Array.from(form.querySelectorAll('input, select, textarea'));
+          const inputs = rawInputs.map((el, idx) => {
+            const tag = el.tagName.toLowerCase();
+            const id = el.id ? el.id.trim() : '';
+            const name = el.getAttribute('name') ? el.getAttribute('name')!.trim() : '';
+            const testId = (el.getAttribute('data-testid') || (el as HTMLElement).dataset?.testid || '').trim();
+            const rawType = (
+              el.getAttribute('type') ||
+              (tag === 'textarea' ? 'textarea' : tag === 'select' ? 'select' : 'text')
+            ).trim().toLowerCase();
+
+            // Selector por prioridad: id -> name -> data-testid -> type
+            let selector = '';
+            if (id) {
+              selector = `#${id}`;
+            } else if (name) {
+              selector = `${tag}[name="${name}"]`;
+            } else if (testId) {
+              selector = `[data-testid="${testId}"]`;
+            } else if (rawType && tag === 'input') {
+              selector = `input[type="${rawType}"]`;
+            } else {
+              selector = tag;
+            }
+
+            // Sanitización de placeholder y prohibición de valores enmascarados de password
+            const rawPlaceholder = el.getAttribute('placeholder');
+            let placeholder: string | null = null;
+            if (rawPlaceholder) {
+              const trimmed = rawPlaceholder.trim();
+              const isMaskedPassword =
+                /^[\u2022\u25cf\*\.\s]+$/.test(trimmed) ||
+                trimmed.includes('•') ||
+                trimmed.includes('â€¢') ||
+                (rawType === 'password' && /^[\u2022\u25cf\*\.\s\u00e2\u20ac\u00a2]+$/.test(trimmed));
+              if (!isMaskedPassword && trimmed.length > 0) {
+                placeholder = trimmed;
+              }
+            }
+
+            // Key identificadora lógica
+            let key = name || id || testId;
+            if (!key && placeholder) {
+              key = placeholder
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^a-z0-9_-]+/gi, '_')
+                .replace(/^_+|_+$/g, '');
+            }
+            if (!key) {
+              key = rawType ? `${rawType}-${idx + 1}` : `${tag}-${idx + 1}`;
+            }
+
+            return {
+              key,
+              selector,
+              type: rawType,
+              placeholder,
+            };
+          });
+
+          return {
+            id: formId,
+            selector: formSelector,
+            inputs,
+            fields: inputs.map((inp) => inp.selector),
+          };
         });
       });
 
-      if (forms.length > 0) return forms;
+      // Extraer inputs huérfanos fuera de tags <form> (comunes en React / SPAs)
+      const standaloneInputs = await page.$$eval(
+        'input:not(form input), select:not(form select), textarea:not(form textarea)',
+        (elements) => {
+          return elements.map((el, idx) => {
+            const tag = el.tagName.toLowerCase();
+            const id = el.id ? el.id.trim() : '';
+            const name = el.getAttribute('name') ? el.getAttribute('name')!.trim() : '';
+            const testId = (el.getAttribute('data-testid') || (el as HTMLElement).dataset?.testid || '').trim();
+            const rawType = (
+              el.getAttribute('type') ||
+              (tag === 'textarea' ? 'textarea' : tag === 'select' ? 'select' : 'text')
+            ).trim().toLowerCase();
 
-      // Soporte para SPAs donde los inputs están dentro de divs/containers sin tag <form>
-      const standaloneInputs = await page.$$eval('input, select, textarea', (inputs) => {
-        return inputs
-          .map((input) => input.getAttribute('name') || input.getAttribute('id') || input.getAttribute('placeholder') || '')
-          .filter((field) => field.length > 0);
-      });
+            let selector = '';
+            if (id) {
+              selector = `#${id}`;
+            } else if (name) {
+              selector = `${tag}[name="${name}"]`;
+            } else if (testId) {
+              selector = `[data-testid="${testId}"]`;
+            } else if (rawType && tag === 'input') {
+              selector = `input[type="${rawType}"]`;
+            } else {
+              selector = tag;
+            }
+
+            const rawPlaceholder = el.getAttribute('placeholder');
+            let placeholder: string | null = null;
+            if (rawPlaceholder) {
+              const trimmed = rawPlaceholder.trim();
+              const isMaskedPassword =
+                /^[\u2022\u25cf\*\.\s]+$/.test(trimmed) ||
+                trimmed.includes('•') ||
+                trimmed.includes('â€¢') ||
+                (rawType === 'password' && /^[\u2022\u25cf\*\.\s\u00e2\u20ac\u00a2]+$/.test(trimmed));
+              if (!isMaskedPassword && trimmed.length > 0) {
+                placeholder = trimmed;
+              }
+            }
+
+            let key = name || id || testId;
+            if (!key && placeholder) {
+              key = placeholder
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^a-z0-9_-]+/gi, '_')
+                .replace(/^_+|_+$/g, '');
+            }
+            if (!key) {
+              key = rawType ? `${rawType}-${idx + 1}` : `${tag}-${idx + 1}`;
+            }
+
+            return {
+              key,
+              selector,
+              type: rawType,
+              placeholder,
+            };
+          });
+        }
+      );
 
       if (standaloneInputs.length > 0) {
-        return [{ id: 'form-default', fields: Array.from(new Set(standaloneInputs)) }];
+        forms.push({
+          id: forms.length === 0 ? 'form-default' : 'form-standalone',
+          selector: 'body',
+          inputs: standaloneInputs,
+          fields: standaloneInputs.map((inp) => inp.selector),
+        });
       }
 
-      return [];
+      return forms;
     } catch {
       return [];
     }
   }
 
   /**
-   * Extrae botones interactivos presentes en el DOM hidratado.
+   * Extrae botones interactivos generando selectores CSS reales.
+   * Prioridad de selector:
+   * id → data-testid → button:has-text("${texto}") → button[type="submit"]
    */
-  private async extractButtons(page: Page): Promise<string[]> {
+  private async extractButtons(page: Page): Promise<DiscoveredButton[]> {
     try {
       return await page.$$eval(
         'button, input[type="button"], input[type="submit"], [role="button"]',
         (elements) => {
-          const list: string[] = [];
-          for (const el of elements) {
-            const text = (
-              el.textContent ||
-              (el as HTMLInputElement).value ||
-              el.getAttribute('aria-label') ||
-              ''
-            ).trim();
-            if (text && !list.includes(text)) {
-              list.push(text);
+          const list: Array<{ key: string; text: string; selector: string }> = [];
+          const seen = new Set<string>();
+
+          elements.forEach((el, idx) => {
+            const tag = el.tagName.toLowerCase();
+            const id = el.id ? el.id.trim() : '';
+            const testId = (el.getAttribute('data-testid') || (el as HTMLElement).dataset?.testid || '').trim();
+            const type = (el.getAttribute('type') || '').trim().toLowerCase();
+
+            let text = '';
+            if (tag === 'input') {
+              text = ((el as HTMLInputElement).value || el.getAttribute('aria-label') || '').trim();
+            } else {
+              text = (el.textContent || el.getAttribute('aria-label') || '').trim();
             }
-          }
+            text = text.replace(/\s+/g, ' ');
+
+            // Prioridad: id → data-testid → button:has-text("${texto}") → button[type="submit"]
+            let selector = '';
+            if (id) {
+              selector = `#${id}`;
+            } else if (testId) {
+              selector = `[data-testid="${testId}"]`;
+            } else if (text) {
+              const escapedText = text.replace(/"/g, '\\"');
+              if (tag === 'button') {
+                selector = `button:has-text("${escapedText}")`;
+              } else if (tag === 'input') {
+                selector = `input[type="${type || 'submit'}"]`;
+              } else {
+                selector = `[role="button"]:has-text("${escapedText}")`;
+              }
+            } else if (type === 'submit') {
+              selector = tag === 'input' ? 'input[type="submit"]' : 'button[type="submit"]';
+            } else {
+              selector = tag === 'button' ? 'button' : `[role="button"]`;
+            }
+
+            let key = id || testId || (el.getAttribute('name') ? el.getAttribute('name')!.trim() : '');
+            if (!key && text) {
+              key = text
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^a-z0-9_-]+/gi, '_')
+                .replace(/^_+|_+$/g, '');
+            }
+            if (!key) {
+              key = type === 'submit' ? 'submit' : `button-${idx + 1}`;
+            }
+
+            if (!seen.has(selector)) {
+              seen.add(selector);
+              list.push({ key, text, selector });
+            }
+          });
+
           return list;
         }
       );
