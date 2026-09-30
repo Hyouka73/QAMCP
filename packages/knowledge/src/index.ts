@@ -16,3 +16,5 @@ export * from './loader/guardrails-loader.js';
 export * from './plan/case-generator.js';
 export * from './plan/update-guard.js';
 
+export * from './graph/dependency-graph.js'
+
