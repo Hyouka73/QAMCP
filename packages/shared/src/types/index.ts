@@ -44,8 +44,16 @@ export type {
   Screenshot,
 } from './execution-result.type.js';
 
-// Rules
-export type { Rules, Rule } from './rules.type.js';
+// Rules (P3: extended with category, status, source, evidence, category_waivers)
+export type {
+  Rules,
+  Rule,
+  RuleEntry,
+  RuleCategory,
+  RuleStatus,
+  RuleSource,
+  CategoryWaiver,
+} from './rules.type.js';
 
 // Module Flows
 export type { ModuleFlows, FlowItem } from './module-flows.type.js';
@@ -103,4 +111,30 @@ export type {
   ModuleSummary,
   KnowledgeIndex,
 } from './knowledge-granular.type.js';
+
+// Lifecycle State (E1, E2)
+export type {
+  ProjectPhase,
+  ModuleLifecycleState,
+  SessionPlanItem,
+  SessionAuthConfig,
+  LifecycleSession,
+  ModuleStateInfo,
+  TransitionHistoryEntry,
+  LifecycleState,
+} from './lifecycle-state.type.js';
+
+// Module View Context (E5b)
+export type { ModuleViewData } from './module-view.type.js';
+
+// Project & Business Context (E1)
+export type {
+  ContextSource,
+  SourceOfTruthType,
+  BusinessRole,
+  CriticalFlow,
+  SourceOfTruth,
+  ProjectContext,
+} from './project-context.type.js';
+
 

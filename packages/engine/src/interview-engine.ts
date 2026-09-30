@@ -1,0 +1,671 @@
+/**
+ * QAP Interview Engine — E3 (P3)
+ *
+ * Módulo 100 % puro (sin I/O): genera hipótesis deterministas desde DOM,
+ * calcula categorías aplicables, cobertura y el siguiente lote de preguntas.
+ *
+ * Ubicado en @qap/engine por depender de los tipos de @qap/shared
+ * (RuleEntry, RuleCategory, etc.) que forman parte del dominio de motor,
+ * y por NO requerir dependencias de I/O (Playwright, fs, etc.).
+ */
+
+import type {
+  RuleEntry,
+  RuleCategory,
+  RuleStatus,
+  CategoryWaiver,
+} from '@qap/shared';
+
+// ---------------------------------------------------------------------------
+// Constantes configurables (E3.1 — heurística de sensibilidad)
+// ---------------------------------------------------------------------------
+
+/**
+ * Patrones de heurística de sensibilidad en nombres/etiquetas/autocomplete.
+ * Lista ampliable sin cambiar la lógica de negocio.
+ */
+export const SENSITIVE_PATTERNS: RegExp[] = [
+  /password|contrase[ñn]a|clave/i,
+  /email|correo/i,
+  /tel[eé]fono|phone|mobile|celular/i,
+  /tarjeta|card|credit|debit/i,
+  /cvv|cvc|ccv/i,
+  /token|secret|pin/i,
+  /clabe/i,
+  /\brfc\b/i,
+  /\bcurp\b/i,
+  /\biban\b/i,
+  /\bssn\b|social.?security/i,
+  /tax.?id|n[uú]mero.?fiscal/i,
+  /cuenta.?bancaria|bank.?account/i,
+];
+
+// ---------------------------------------------------------------------------
+// Tipos internos del motor
+// ---------------------------------------------------------------------------
+
+/** Campo normalizado proveniente del DOM (E2) */
+export interface DomField {
+  /** Nombre lógico (name, id, o derivado de label) */
+  key: string;
+  /** tipo HTML: text, password, email, tel, number, date, etc. */
+  type: string;
+  /** Nombre del atributo name */
+  name?: string;
+  /** id del elemento */
+  id?: string;
+  /** Etiqueta sanitizada (label / aria-label / placeholder) */
+  label?: string;
+  /** Valor del atributo autocomplete */
+  autocomplete?: string;
+  /** Si el campo es requerido en el DOM */
+  required?: boolean;
+  /** Longitud mínima */
+  minlength?: number;
+  /** Longitud máxima */
+  maxlength?: number;
+  /** Patrón de validación HTML */
+  pattern?: string;
+  /** Mínimo numérico */
+  min?: string;
+  /** Máximo numérico */
+  max?: string;
+  /** Si el campo es hidden */
+  hidden?: boolean;
+  /** Si el campo es disabled */
+  disabled?: boolean;
+  /** ID del formulario al que pertenece */
+  formId?: string;
+  /** Selector del botón de envío del formulario */
+  submitSelector?: string;
+}
+
+/** Formulario normalizado proveniente del DOM */
+export interface DomForm {
+  id: string;
+  selector: string;
+  fields: DomField[];
+  /** Selector del botón de envío */
+  submitSelector?: string;
+}
+
+/** Contexto de descubrimiento de la vista para el generador */
+export interface ViewDiscoveryContext {
+  /** Nombre del módulo */
+  module: string;
+  /** Nombre de la vista */
+  view: string;
+  /** Formularios descubiertos */
+  forms?: DomForm[];
+  /** Campos independientes (fuera de formulario) */
+  standaloneFields?: DomField[];
+  /** Botones descubiertos */
+  buttons?: Array<{ key: string; text: string; selector: string }>;
+  /** Si se usó storage_state para la sesión */
+  storage_state_used?: boolean;
+  /** Si la vista es de autenticación */
+  is_auth_view?: boolean;
+}
+
+/** Pregunta generada para la entrevista */
+export interface InterviewQuestion {
+  id: string;
+  tipo: 'confirmar_hipotesis' | 'abierta';
+  categoria: RuleCategory;
+  texto: string;
+  /** Solo para tipo "confirmar_hipotesis": ids + enunciados de hipótesis */
+  hipotesis_ids?: Array<{ id: string; texto: string }>;
+}
+
+// ---------------------------------------------------------------------------
+// Plantillas de preguntas (E3.4 — textos en módulo separado)
+// ---------------------------------------------------------------------------
+
+/**
+ * Plantillas de preguntas en español parametrizadas por vista y campo.
+ * La separación del texto de la lógica permite cambiar el idioma sin
+ * modificar el motor.
+ */
+export const QUESTION_TEMPLATES = {
+  proposito: (view: string) =>
+    `¿Cuál es el propósito de negocio de la vista "${view}"? Describe qué acción realiza el usuario y qué resultado espera.`,
+
+  actor: (view: string) =>
+    `¿Qué roles o usuarios tienen acceso a la vista "${view}"? ¿Hay restricciones de permisos?`,
+
+  confirmar_hipotesis: (count: number) =>
+    `El DOM sugiere ${count} regla(s). Por favor confirma si son correctas o corrige por id:`,
+
+  error_form: (formId: string) =>
+    `Para el formulario "${formId}": ¿Qué mensajes de error debe mostrar el sistema cuando la validación falla? ¿Hay reglas de unicidad, rangos de negocio u otras restricciones no visibles en el DOM?`,
+
+  accion: (buttonText: string) =>
+    `El botón "${buttonText}" aparenta cambiar estado. ¿Qué efectos secundarios tiene esta acción (creación, modificación, eliminación, envío externo)? ¿Tiene precondiciones?`,
+
+  dato: (view: string) =>
+    `¿Qué datos ingresados en "${view}" son persistidos o enviados a sistemas externos? ¿Hay datos calculados o derivados?`,
+
+  sensibilidad: (fields: string[]) =>
+    `Se detectaron campos posiblemente sensibles: ${fields.join(', ')}. ¿Cómo deben tratarse estos datos? (cifrado, enmascarado, retención, auditoría)`,
+} as const;
+
+// ---------------------------------------------------------------------------
+// E3.1 — Heurística de sensibilidad
+// ---------------------------------------------------------------------------
+
+/**
+ * Determina si un campo es potencialmente sensible según su tipo, nombre,
+ * etiqueta o autocomplete. Puro y determinista.
+ */
+export function isFieldSensitive(field: DomField): boolean {
+  if (field.type === 'password') return true;
+
+  const rawText = [
+    field.name ?? '',
+    field.id ?? '',
+    field.label ?? '',
+    field.autocomplete ?? '',
+    field.key,
+    field.type ?? '',
+  ]
+    .join(' ')
+    .toLowerCase();
+
+  // Normalizar separadores (_, -) a espacios para que los límites de palabra funcionen con snake_case y kebab-case
+  const normalizedText = rawText.replace(/[_-]/g, ' ');
+
+  return SENSITIVE_PATTERNS.some((p) => p.test(normalizedText) || p.test(rawText));
+}
+
+// ---------------------------------------------------------------------------
+// E3.1 — Generador de hipótesis deterministas desde DOM
+// ---------------------------------------------------------------------------
+
+/**
+ * Genera un id determinista para una regla inferida del DOM.
+ * Formato: `<view>.<campo>.<tipo-de-regla>` — re-descubrimiento no duplica.
+ */
+export function buildInferredRuleId(view: string, fieldKey: string, ruleType: string): string {
+  const safeView = view.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const safeField = fieldKey.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const safeType = ruleType.replace(/[^a-zA-Z0-9_-]/g, '_');
+  return `${safeView}.${safeField}.${safeType}`;
+}
+
+/**
+ * Genera reglas candidatas (status "inferred", source "dom") para todos
+ * los campos y formularios del DOM. Determinista: misma vista -> mismos ids.
+ */
+export function generateDomHypotheses(
+  ctx: ViewDiscoveryContext
+): RuleEntry[] {
+  const rules: RuleEntry[] = [];
+  const { view } = ctx;
+
+  const allFields: DomField[] = [
+    ...(ctx.forms?.flatMap((f) => f.fields) ?? []),
+    ...(ctx.standaloneFields ?? []),
+  ];
+
+  for (const field of allFields) {
+    if (field.hidden || field.disabled) continue;
+
+    const fieldKey = field.key || field.name || field.id || 'field';
+
+    // Regla: campo requerido
+    if (field.required) {
+      rules.push({
+        id: buildInferredRuleId(view, fieldKey, 'required'),
+        description: `El campo "${field.label ?? fieldKey}" es obligatorio en el DOM (required).`,
+        category: 'campo',
+        status: 'inferred',
+        source: 'dom',
+        view,
+        field: fieldKey,
+        evidence: field.id ? `#${field.id}` : field.name ? `[name="${field.name}"]` : fieldKey,
+      });
+    }
+
+    // Regla: formato por type / pattern (excluyendo password y campos sensibles)
+    if (
+      field.type &&
+      field.type !== 'text' &&
+      field.type !== 'textarea' &&
+      field.type !== 'select' &&
+      field.type !== 'password' &&
+      !isFieldSensitive(field)
+    ) {
+      const formatDesc = getTypeFormatDescription(field.type, field.pattern);
+      if (formatDesc) {
+        rules.push({
+          id: buildInferredRuleId(view, fieldKey, `format_${field.type}`),
+          description: formatDesc,
+          category: 'campo',
+          status: 'inferred',
+          source: 'dom',
+          view,
+          field: fieldKey,
+          evidence: field.type === 'email'
+            ? 'type="email"'
+            : field.pattern
+            ? `pattern="${field.pattern.slice(0, 60)}"`
+            : `type="${field.type}"`,
+        });
+      }
+    }
+
+    if (field.pattern && field.type === 'text' && !isFieldSensitive(field)) {
+      rules.push({
+        id: buildInferredRuleId(view, fieldKey, 'pattern'),
+        description: `El campo "${field.label ?? fieldKey}" tiene un patrón de validación HTML: "${field.pattern.slice(0, 60)}".`,
+        category: 'campo',
+        status: 'inferred',
+        source: 'dom',
+        view,
+        field: fieldKey,
+        evidence: `pattern="${field.pattern.slice(0, 60)}"`,
+      });
+    }
+
+    // Reglas de longitud
+    if (field.minlength !== undefined && field.minlength > 0) {
+      rules.push({
+        id: buildInferredRuleId(view, fieldKey, 'minlength'),
+        description: `El campo "${field.label ?? fieldKey}" requiere al menos ${field.minlength} caracteres.`,
+        category: 'campo',
+        status: 'inferred',
+        source: 'dom',
+        view,
+        field: fieldKey,
+        evidence: `minlength="${field.minlength}"`,
+      });
+    }
+
+    if (field.maxlength !== undefined && field.maxlength > 0) {
+      rules.push({
+        id: buildInferredRuleId(view, fieldKey, 'maxlength'),
+        description: `El campo "${field.label ?? fieldKey}" acepta máximo ${field.maxlength} caracteres.`,
+        category: 'campo',
+        status: 'inferred',
+        source: 'dom',
+        view,
+        field: fieldKey,
+        evidence: `maxlength="${field.maxlength}"`,
+      });
+    }
+
+    // Reglas de rango numérico
+    if (field.min !== undefined) {
+      rules.push({
+        id: buildInferredRuleId(view, fieldKey, 'min'),
+        description: `El campo "${field.label ?? fieldKey}" tiene valor mínimo ${field.min}.`,
+        category: 'campo',
+        status: 'inferred',
+        source: 'dom',
+        view,
+        field: fieldKey,
+        evidence: `min="${field.min}"`,
+      });
+    }
+
+    if (field.max !== undefined) {
+      rules.push({
+        id: buildInferredRuleId(view, fieldKey, 'max'),
+        description: `El campo "${field.label ?? fieldKey}" tiene valor máximo ${field.max}.`,
+        category: 'campo',
+        status: 'inferred',
+        source: 'dom',
+        view,
+        field: fieldKey,
+        evidence: `max="${field.max}"`,
+      });
+    }
+
+    // Marca de sensibilidad
+    if (isFieldSensitive(field)) {
+      rules.push({
+        id: buildInferredRuleId(view, fieldKey, 'sensibilidad'),
+        description: `El campo "${field.label ?? fieldKey}" maneja datos sensibles. Confirma las medidas de protección requeridas.`,
+        category: 'sensibilidad',
+        status: 'inferred',
+        source: 'dom',
+        view,
+        field: fieldKey,
+        evidence: field.type === 'password' ? 'type="password"' : `key="${fieldKey}"`,
+      });
+    }
+  }
+
+  return rules;
+}
+
+/** Obtiene una descripción de formato basada en el type y pattern HTML */
+function getTypeFormatDescription(type: string, pattern?: string): string | null {
+  switch (type) {
+    case 'email':
+      return `El campo requiere un email válido (type="email").`;
+    case 'tel':
+      return `El campo requiere un número de teléfono (type="tel")${pattern ? ` con patrón "${pattern.slice(0, 40)}"` : ''}.`;
+    case 'number':
+      return `El campo acepta solo valores numéricos (type="number").`;
+    case 'date':
+      return `El campo requiere una fecha (type="date").`;
+    case 'url':
+      return `El campo requiere una URL válida (type="url").`;
+    case 'color':
+      return null; // no es una regla de negocio relevante
+    default:
+      return pattern
+        ? `El campo tiene restricción de formato: pattern="${pattern.slice(0, 60)}".`
+        : null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// E3.2 — Categorías aplicables por vista (función pura)
+// ---------------------------------------------------------------------------
+
+/**
+ * Determina qué categorías de la entrevista aplican a esta vista.
+ * Puro y determinista: mismo ctx -> mismas categorías.
+ */
+export function computeApplicableCategories(
+  ctx: ViewDiscoveryContext,
+  projectRoleCount: number
+): RuleCategory[] {
+  const applicable: RuleCategory[] = [];
+
+  // proposito: SIEMPRE
+  applicable.push('proposito');
+
+  // actor: si la vista usó sesión O el proyecto tiene >= 2 roles
+  if (ctx.storage_state_used || projectRoleCount >= 2) {
+    applicable.push('actor');
+  }
+
+  const allFields = [
+    ...(ctx.forms?.flatMap((f) => f.fields) ?? []),
+    ...(ctx.standaloneFields ?? []),
+  ].filter((f) => !f.hidden && !f.disabled);
+
+  const visibleInputCount = allFields.length;
+  const formCount = (ctx.forms?.length ?? 0);
+  const buttonCount = (ctx.buttons?.length ?? 0);
+
+  // campo: si hay >= 1 input visible
+  if (visibleInputCount >= 1) {
+    applicable.push('campo');
+  }
+
+  // error: si hay >= 1 formulario
+  if (formCount >= 1) {
+    applicable.push('error');
+  }
+
+  // accion: si hay >= 1 botón/envío que no sea solo navegación
+  const actionButtons = (ctx.buttons ?? []).filter(
+    (b) => !/^(ir|ir a|volver|regresar|cancelar|cerrar|salir|back|close|cancel)/i.test(b.text)
+  );
+  if (buttonCount >= 1 || formCount >= 1) {
+    // Si hay botón o formulario se asume que hay acción
+    if (actionButtons.length >= 1 || formCount >= 1) {
+      applicable.push('accion');
+    }
+  }
+
+  // dato: si aplican campo o accion
+  if (applicable.includes('campo') || applicable.includes('accion')) {
+    applicable.push('dato');
+  }
+
+  // sensibilidad: si algún campo sensible
+  const hasSensitive = allFields.some((f) => isFieldSensitive(f));
+  if (hasSensitive) {
+    applicable.push('sensibilidad');
+  }
+
+  return applicable;
+}
+
+// ---------------------------------------------------------------------------
+// E3.3 — Cobertura (función pura reutilizable)
+// ---------------------------------------------------------------------------
+
+export interface CategoryCoverage {
+  aplicable: boolean;
+  cubierta: boolean;
+  pendientes: number; // reglas inferred sin confirmar en esa categoría
+}
+
+export interface CoverageResult {
+  completa: boolean;
+  categorias: Record<RuleCategory, CategoryCoverage>;
+  inferidas_pendientes: number;
+}
+
+const ALL_CATEGORIES: RuleCategory[] = [
+  'proposito', 'actor', 'campo', 'accion', 'error', 'dato', 'sensibilidad',
+];
+
+/**
+ * Calcula la cobertura de la entrevista de una vista.
+ * Una categoría está cubierta si tiene >= 1 regla en confirmed | rejected | deferred, o un waiver.
+ * completa = todas las aplicables cubiertas Y inferidas_pendientes == 0.
+ */
+export function computeCoverage(
+  applicableCategories: RuleCategory[],
+  rules: RuleEntry[],
+  waivers: CategoryWaiver[],
+  view: string
+): CoverageResult {
+  const applicableSet = new Set(applicableCategories);
+
+  const categorias = {} as Record<RuleCategory, CategoryCoverage>;
+  let totalInferidaPendiente = 0;
+
+  for (const cat of ALL_CATEGORIES) {
+    const aplicable = applicableSet.has(cat);
+    const viewRules = rules.filter((r) => (!r.view || r.view === view) && r.category === cat);
+    const hasWaiver = waivers.some((w) => w.view === view && w.category === cat);
+
+    const resolvedStatuses: RuleStatus[] = ['confirmed', 'rejected', 'deferred'];
+    const hasResolved = viewRules.some((r) => r.status && resolvedStatuses.includes(r.status));
+    const cubierta = aplicable && (hasWaiver || hasResolved);
+
+    const pendientes = viewRules.filter((r) => r.status === 'inferred').length;
+    if (aplicable) {
+      totalInferidaPendiente += pendientes;
+    }
+
+    categorias[cat] = { aplicable, cubierta, pendientes };
+  }
+
+  const todasCubiertas = ALL_CATEGORIES.every(
+    (cat) => !applicableSet.has(cat) || categorias[cat].cubierta
+  );
+  const completa = todasCubiertas && totalInferidaPendiente === 0;
+
+  return { completa, categorias, inferidas_pendientes: totalInferidaPendiente };
+}
+
+// ---------------------------------------------------------------------------
+// E3.4 — Siguiente lote de preguntas (función pura)
+// ---------------------------------------------------------------------------
+
+/** Prioridad de categorías para ordenar las preguntas */
+const CATEGORY_PRIORITY: Record<RuleCategory, number> = {
+  sensibilidad: 0,
+  accion: 1,
+  actor: 2,
+  campo: 3,
+  error: 4,
+  proposito: 5,
+  dato: 6,
+};
+
+/**
+ * Genera el siguiente lote de preguntas (máx. 5) para la entrevista de una vista.
+ * Puro y sin I/O: puede reanudarse en otra conversación.
+ *
+ * @param ctx - Contexto de descubrimiento de la vista
+ * @param existingRules - Reglas ya registradas (para no repreguntarlas)
+ * @param applicableCategories - Categorías aplicables calculadas con computeApplicableCategories
+ * @param waivers - Waivers de categoría declarados por el usuario
+ */
+export function generateNextInterviewBatch(
+  ctx: ViewDiscoveryContext,
+  existingRules: RuleEntry[],
+  applicableCategories: RuleCategory[],
+  waivers: CategoryWaiver[]
+): InterviewQuestion[] {
+  const { view } = ctx;
+  const questions: InterviewQuestion[] = [];
+
+  const resolvedStatuses: RuleStatus[] = ['confirmed', 'rejected', 'deferred'];
+
+  // 1. Agrupar hipótesis DOM pendientes en UNA pregunta confirmar_hipotesis
+  const pendingHypotheses = existingRules.filter(
+    (r) => r.source === 'dom' && r.status === 'inferred' && (!r.view || r.view === view)
+  );
+
+  if (pendingHypotheses.length > 0) {
+    questions.push({
+      id: `${view}.confirmar_hipotesis`,
+      tipo: 'confirmar_hipotesis',
+      categoria: 'campo',
+      texto: QUESTION_TEMPLATES.confirmar_hipotesis(pendingHypotheses.length),
+      hipotesis_ids: pendingHypotheses.map((h) => ({ id: h.id, texto: h.description })),
+    });
+  }
+
+  // 2. Preguntas abiertas por categoría sin cobertura (excluyendo campo que ya va con hipótesis)
+  const openCategories = applicableCategories
+    .filter((cat) => {
+      // Ya cubierta por waiver
+      if (waivers.some((w) => w.view === view && w.category === cat)) return false;
+      // Tiene al menos una regla resuelta
+      const hasResolved = existingRules.some(
+        (r) => (!r.view || r.view === view) && r.category === cat && r.status && resolvedStatuses.includes(r.status)
+      );
+      return !hasResolved;
+    })
+    .filter((cat) => {
+      // "campo" se cubrió con las hipótesis si hubiera pendientes; si no hay pendientes pero tampoco confirmados, añadir
+      if (cat === 'campo' && pendingHypotheses.length > 0) return false;
+      return true;
+    })
+    .sort((a, b) => (CATEGORY_PRIORITY[a] ?? 99) - (CATEGORY_PRIORITY[b] ?? 99));
+
+  const allFields = [
+    ...(ctx.forms?.flatMap((f) => f.fields) ?? []),
+    ...(ctx.standaloneFields ?? []),
+  ].filter((f) => !f.hidden && !f.disabled);
+
+  const sensitiveFields = allFields.filter(isFieldSensitive).map((f) => f.label ?? f.key);
+  const actionButtons = (ctx.buttons ?? []).filter(
+    (b) => !/^(ir|ir a|volver|regresar|cancelar|cerrar|salir|back|close|cancel)/i.test(b.text)
+  );
+  const forms = ctx.forms ?? [];
+
+  for (const cat of openCategories) {
+    if (questions.length >= 5) break;
+
+    switch (cat) {
+      case 'sensibilidad':
+        questions.push({
+          id: `${view}.sensibilidad`,
+          tipo: 'abierta',
+          categoria: 'sensibilidad',
+          texto: QUESTION_TEMPLATES.sensibilidad(sensitiveFields.length > 0 ? sensitiveFields : ['campo sensible detectado']),
+        });
+        break;
+
+      case 'accion': {
+        const btn = actionButtons[0];
+        if (btn) {
+          questions.push({
+            id: `${view}.accion.${btn.key}`,
+            tipo: 'abierta',
+            categoria: 'accion',
+            texto: QUESTION_TEMPLATES.accion(btn.text || btn.key),
+          });
+        }
+        break;
+      }
+
+      case 'actor':
+        questions.push({
+          id: `${view}.actor`,
+          tipo: 'abierta',
+          categoria: 'actor',
+          texto: QUESTION_TEMPLATES.actor(view),
+        });
+        break;
+
+      case 'campo':
+        // Sin hipótesis pendientes pero aún sin reglas confirmadas de campo
+        questions.push({
+          id: `${view}.campo`,
+          tipo: 'abierta',
+          categoria: 'campo',
+          texto: `¿Hay validaciones de negocio adicionales para los campos de la vista "${view}" que no estén en el DOM? (unicidad, rangos, interdependencias)`,
+        });
+        break;
+
+      case 'error': {
+        const form = forms[0];
+        if (form) {
+          questions.push({
+            id: `${view}.error.${form.id}`,
+            tipo: 'abierta',
+            categoria: 'error',
+            texto: QUESTION_TEMPLATES.error_form(form.id),
+          });
+        }
+        break;
+      }
+
+      case 'proposito':
+        questions.push({
+          id: `${view}.proposito`,
+          tipo: 'abierta',
+          categoria: 'proposito',
+          texto: QUESTION_TEMPLATES.proposito(view),
+        });
+        break;
+
+      case 'dato':
+        questions.push({
+          id: `${view}.dato`,
+          tipo: 'abierta',
+          categoria: 'dato',
+          texto: QUESTION_TEMPLATES.dato(view),
+        });
+        break;
+    }
+  }
+
+  return questions.slice(0, 5);
+}
+
+// ---------------------------------------------------------------------------
+// Sanitización de cadenas del DOM (E2 — dato no confiable)
+// ---------------------------------------------------------------------------
+
+const MAX_DOM_STRING_LENGTH = 60;
+
+/**
+ * Sanitiza texto proveniente del DOM:
+ * - Elimina saltos de línea y caracteres de control
+ * - Elimina marcado HTML residual
+ * - Trunca a 60 caracteres
+ */
+export function sanitizeDomString(raw: string | undefined | null): string {
+  if (!raw) return '';
+  return raw
+    .replace(/[\r\n\t\x00-\x1F\x7F]/g, ' ')  // caracteres de control -> espacio
+    .replace(/<[^>]*>/g, '')                   // tags HTML residuales
+    .replace(/\s+/g, ' ')                      // colapsar espacios
+    .trim()
+    .slice(0, MAX_DOM_STRING_LENGTH);
+}

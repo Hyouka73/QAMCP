@@ -48,6 +48,15 @@ const instructionsContent = `# Instrucciones de QAP (qap-mcp) para el Asistente
    - Cada herramienta de QAP te devuelve los campos \`pregunta\` y \`opciones\`.
    - Utiliza esos campos directamente en \`ask_question\` para que el usuario responda con un solo clic.
    - Espera la respuesta antes de ejecutar la siguiente herramienta del ciclo (\`qap_init\`, \`qap_discover\`, \`qap_plan\`, \`qap_test\`, \`qap_report\`).
+
+5. **ENTREVISTA EN UN SOLO MENSAJE**:
+   - Cuando \`siguiente_accion.tipo\` sea "entrevista", formula las preguntas listadas en un solo mensaje, en texto libre, sin botones interactivos.
+
+6. **RESPUESTA A TOOLS BLOQUEADAS**:
+   - Si una tool responde con status "blocked", sigue obligatoriamente la indicación de \`desbloquear_con\` y no intentes rodearla.
+
+7. **INTEGRIDAD DE PROCEDENCIA DE DATOS**:
+   - NUNCA registres con source "user" algo que el usuario no haya dicho o confirmado explícitamente.
 `;
 
 writeFileSync(join(targetDir, 'instructions.md'), instructionsContent, 'utf-8');

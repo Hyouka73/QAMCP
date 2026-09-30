@@ -53,6 +53,24 @@ export function createStorageMock(): StorageMock {
     }),
     saveProjectContext: vi.fn().mockResolvedValue(undefined),
     getSystemPrompt: vi.fn().mockResolvedValue(null),
+    getLifecycleState: vi.fn().mockResolvedValue({
+      _version: '1',
+      phase: 'ONBOARDING',
+      session: { id: '', started_at: '', plan: [] },
+      modules: {},
+      history: [],
+    }),
+    saveLifecycleState: vi.fn().mockResolvedValue(undefined),
+    updateLifecycleState: vi.fn().mockImplementation(async (mutator: (state: any) => any) => {
+      const current = {
+        _version: '1',
+        phase: 'ONBOARDING',
+        session: { id: '', started_at: '', plan: [] },
+        modules: {},
+        history: [],
+      };
+      return await mutator(current);
+    }),
 
     // --- Module domain ---
     listModules: vi.fn().mockResolvedValue([]),

@@ -268,4 +268,102 @@ describe('FileSystemStorage (S3-002)', () => {
       expect(status.environment_configured).toBe(true);
     });
   });
+
+  describe('updateModuleRules (P3 E1)', () => {
+    it('debe crear rules.yaml si no existe y aplicar el mutator', async () => {
+      const updated = await storage.updateModuleRules('auth', async (curr) => {
+        curr.rules = [
+          {
+            id: 'default.username.required',
+            category: 'campo',
+            description: 'Username obligatorio',
+            status: 'confirmed',
+            source: 'user',
+            view: 'default',
+          },
+        ];
+        return curr;
+      });
+
+      expect(updated.rules).toHaveLength(1);
+      expect(updated.rules?.[0].id).toBe('default.username.required');
+
+      // Leer directamente desde disco con getModuleRules
+      const readBack = await storage.getModuleRules('auth');
+      expect(readBack).toBeDefined();
+      expect(readBack?.rules).toHaveLength(1);
+      expect(readBack?.rules?.[0].status).toBe('confirmed');
+    });
+
+    it('debe mutar reglas y category_waivers atómicamente en archivo existente', async () => {
+      // Primera mutación
+      await storage.updateModuleRules('checkout', async (curr) => {
+        curr.rules = [
+          {
+            id: 'default.cart.min',
+            category: 'campo',
+            description: 'Carrito mínimo 1 ítem',
+            status: 'inferred',
+            source: 'dom',
+            view: 'default',
+          },
+        ];
+        return curr;
+      });
+
+      // Segunda mutación: confirmar y agregar waiver
+      const second = await storage.updateModuleRules('checkout', async (curr) => {
+        const r = curr.rules?.find((x) => x.id === 'default.cart.min');
+        if (r) r.status = 'confirmed';
+        curr.category_waivers = [
+          {
+            category: 'sensibilidad',
+            view: 'default',
+            reason: 'Sin datos personales',
+            waived_at: new Date().toISOString(),
+            waived_by: 'user',
+          },
+        ];
+        return curr;
+      });
+
+      expect(second.rules?.[0].status).toBe('confirmed');
+      expect(second.category_waivers).toHaveLength(1);
+      expect(second.category_waivers?.[0].category).toBe('sensibilidad');
+    });
+
+    it('dos llamadas concurrentes no pierden actualizaciones gracias al lock', async () => {
+      const p1 = storage.updateModuleRules('concurrency', async (curr) => {
+        curr.rules = curr.rules || [];
+        curr.rules.push({
+          id: 'rule.1',
+          category: 'campo',
+          description: 'Regla 1',
+          status: 'confirmed',
+          source: 'user',
+          view: 'default',
+        });
+        return curr;
+      });
+
+      const p2 = storage.updateModuleRules('concurrency', async (curr) => {
+        curr.rules = curr.rules || [];
+        curr.rules.push({
+          id: 'rule.2',
+          category: 'accion',
+          description: 'Regla 2',
+          status: 'confirmed',
+          source: 'user',
+          view: 'default',
+        });
+        return curr;
+      });
+
+      await Promise.all([p1, p2]);
+
+      const finalRules = await storage.getModuleRules('concurrency');
+      expect(finalRules?.rules).toHaveLength(2);
+      expect(finalRules?.rules?.map((r) => r.id).sort()).toEqual(['rule.1', 'rule.2']);
+    });
+  });
 });

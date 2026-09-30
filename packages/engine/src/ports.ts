@@ -31,6 +31,7 @@ import type {
   SemanticHash,
   TCCase,
   RepoMap,
+  LifecycleState,
 } from '@qap/shared';
 
 // ---------------------------------------------------------------------------
@@ -257,6 +258,27 @@ export interface IStorage {
    */
   getSystemPrompt(): Promise<SystemPromptConfig | null>;
 
+  /**
+   * Lee el estado del ciclo de vida del proyecto (.qa/project/lifecycle.json).
+   * Si no existe en disco, se deriva perezosamente de forma retrocompatible sin escribir en disco:
+   * - Sin módulos registrados -> phase ONBOARDING.
+   * - Con módulos registrados -> phase WORKING y cada módulo en estado 'observed'.
+   */
+  getLifecycleState(): Promise<LifecycleState>;
+
+  /**
+   * Guarda de forma atómica el estado del ciclo de vida en .qa/project/lifecycle.json.
+   */
+  saveLifecycleState(state: LifecycleState): Promise<void>;
+
+  /**
+   * Operación atómica de lectura-modificación-escritura sobre .qa/project/lifecycle.json
+   * bajo el mismo lock exclusivo para prevenir condiciones de carrera y pérdida de actualizaciones concurrentes.
+   */
+  updateLifecycleState(
+    mutator: (state: LifecycleState) => Promise<LifecycleState> | LifecycleState
+  ): Promise<LifecycleState>;
+
   // -------------------------------------------------------------------------
   // Module domain  (.qa/modules/<name>/)
   // -------------------------------------------------------------------------
@@ -281,6 +303,19 @@ export interface IStorage {
 
   /** Write .qa/modules/<name>/rules.yaml */
   saveModuleRules(moduleName: string, rules: ModuleRules): Promise<void>;
+
+  /**
+   * Operación atómica de lectura-modificación-escritura sobre rules.yaml de un módulo.
+   * Usa el mismo mecanismo de lock que updateLifecycleState para prevenir condiciones de carrera.
+   * Las tools de P3 DEBEN usarla en lugar de getModuleRules + saveModuleRules en pasos separados.
+   *
+   * @param moduleName - Nombre del módulo
+   * @param mutator - Función que recibe las reglas actuales (o un objeto base si no existen) y devuelve las reglas actualizadas
+   */
+  updateModuleRules(
+    moduleName: string,
+    mutator: (current: ModuleRules) => Promise<ModuleRules> | ModuleRules
+  ): Promise<ModuleRules>;
 
   /**
    * Read .qa/modules/<name>/prereqs.yaml

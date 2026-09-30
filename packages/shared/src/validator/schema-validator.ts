@@ -9,10 +9,18 @@ import {
   systemPromptSchema,
   moduleRepoMapSchema,
   guardrailDefinitionSchema,
+  lifecycleStateSchema,
+  moduleViewSchema,
+  projectContextSchema,
+  rulesSchema,
 } from '../schemas/index.js';
 import type { ExecutionResult } from '../types/execution-result.type.js';
 import type { RepoMap } from '../types/repo-map.type.js';
 import type { GuardrailDefinition } from '../types/guardrails.js';
+import type { LifecycleState } from '../types/lifecycle-state.type.js';
+import type { ModuleViewData } from '../types/module-view.type.js';
+import type { ProjectContext } from '../types/project-context.type.js';
+import type { Rules } from '../types/rules.type.js';
 
 export interface ValidationError {
   field: string;
@@ -186,6 +194,10 @@ export class SchemaValidator {
       ['module-repo-map', repoMapValidator],
       ['repo-map', repoMapValidator],
       ['guardrail-definition', this.ajv.compile(guardrailDefinitionSchema)],
+      ['lifecycle-state', this.ajv.compile(lifecycleStateSchema)],
+      ['module-view', this.ajv.compile(moduleViewSchema)],
+      ['project-context', this.ajv.compile(projectContextSchema)],
+      ['rules', this.ajv.compile(rulesSchema)],
     ]);
   }
 
@@ -241,4 +253,21 @@ export class SchemaValidator {
   validateGuardrailDefinition(data: unknown): ValidationResult<GuardrailDefinition> {
     return this.runValidation<GuardrailDefinition>('guardrail-definition', data);
   }
-}
+
+  validateLifecycleState(data: unknown): ValidationResult<LifecycleState> {
+    return this.runValidation<LifecycleState>('lifecycle-state', data);
+  }
+
+  validateModuleView(data: unknown): ValidationResult<ModuleViewData> {
+    return this.runValidation<ModuleViewData>('module-view', data);
+  }
+
+  validateProjectContext(data: unknown): ValidationResult<ProjectContext> {
+    return this.runValidation<ProjectContext>('project-context', data);
+  }
+
+  /** Valida un objeto rules.yaml contra rules.schema.json (P3 — E1) */
+  validateRules(data: unknown): ValidationResult<Rules> {
+    return this.runValidation<Rules>('rules', data);
+  }
+}

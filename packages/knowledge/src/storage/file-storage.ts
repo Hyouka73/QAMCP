@@ -33,6 +33,8 @@ import type {
   ExecutionResult,
   FlowDefinition,
   RepoMap,
+  LifecycleState,
+  ModuleStateInfo,
 } from '@qap/shared';
 import { normalizeToPosix } from '@qap/shared';
 import lockfile from 'proper-lockfile';
@@ -201,6 +203,89 @@ export class FileSystemStorage implements IStorage {
   }
 
   // ---------------------------------------------------------------------
+  // Ciclo de vida del proyecto (.qa/project/lifecycle.json) (E3, E4)
+  // ---------------------------------------------------------------------
+
+  /**
+   * Regla de retrocompatibilidad E4:
+   * Si lifecycle.json no existe, derivarlo de forma perezosa SIN escribir en disco
+   * hasta la primera transición real:
+   * - Sin módulos registrados -> phase ONBOARDING.
+   * - Con módulos registrados -> phase WORKING y cada módulo en estado 'observed'.
+   */
+  async getLifecycleState(): Promise<LifecycleState> {
+    const lifecyclePath = '.qa/project/lifecycle.json';
+    if (await this.exists(lifecyclePath)) {
+      try {
+        const content = await this.read(lifecyclePath);
+        if (content.trim()) {
+          return JSON.parse(content) as LifecycleState;
+        }
+      } catch {
+        // En caso de error de parseo o archivo vacío temporal, derivar retrocompatiblemente
+      }
+    }
+
+    const modules = await this.listModules();
+    const now = new Date().toISOString();
+
+    if (modules.length === 0) {
+      return {
+        _version: '1',
+        phase: 'ONBOARDING',
+        session: {
+          id: '',
+          started_at: '',
+          plan: [],
+        },
+        modules: {},
+        history: [],
+      };
+    }
+
+    const moduleMap: Record<string, ModuleStateInfo> = {};
+    for (const mod of modules) {
+      moduleMap[mod] = {
+        state: 'observed',
+        updated_at: now,
+      };
+    }
+
+    return {
+      _version: '1',
+      phase: 'WORKING',
+      session: {
+        id: '',
+        started_at: '',
+        plan: [],
+      },
+      modules: moduleMap,
+      history: [],
+    };
+  }
+
+  async saveLifecycleState(state: LifecycleState): Promise<void> {
+    await this.writeJson('.qa/project/lifecycle.json', state);
+  }
+
+  async updateLifecycleState(
+    mutator: (state: LifecycleState) => Promise<LifecycleState> | LifecycleState
+  ): Promise<LifecycleState> {
+    const fullPath = this.resolvePath('.qa/project/lifecycle.json');
+    mkdirSync(dirname(fullPath), { recursive: true });
+
+    return await this.withLock(fullPath, async () => {
+      const current = await this.getLifecycleState();
+      const updated = await mutator(current);
+      const content = JSON.stringify(updated, null, 2);
+      const tempPath = `${fullPath}.${randomBytes(6).toString('hex')}.tmp`;
+      writeFileSync(tempPath, content, 'utf-8');
+      renameSync(tempPath, fullPath);
+      return updated;
+    });
+  }
+
+  // ---------------------------------------------------------------------
   // Dominio de modulos (.qa/modules/<name>/)
   // ---------------------------------------------------------------------
 
@@ -245,6 +330,48 @@ export class FileSystemStorage implements IStorage {
   async saveModuleRules(moduleName: string, rules: ModuleRules): Promise<void> {
     await this.writeYaml(join('.qa/modules', moduleName, 'rules.yaml'), rules);
   }
+
+  /**
+   * Operación atómica de lectura-modificación-escritura sobre rules.yaml de un módulo.
+   * Usa el mismo mecanismo de lock que updateLifecycleState.
+   * Las tools de P3 DEBEN usarla para evitar condiciones de carrera concurrentes.
+   */
+  async updateModuleRules(
+    moduleName: string,
+    mutator: (current: ModuleRules) => Promise<ModuleRules> | ModuleRules
+  ): Promise<ModuleRules> {
+    const rulesRelPath = join('.qa/modules', moduleName, 'rules.yaml');
+    const fullPath = this.resolvePath(rulesRelPath);
+    mkdirSync(dirname(fullPath), { recursive: true });
+
+    return await this.withLock(fullPath, async () => {
+      // Leer estado actual (o base si no existe o está vacío por el lockfile)
+      let current: ModuleRules;
+      try {
+        const existing = await this.getModuleRules(moduleName);
+        if (existing && typeof existing === 'object' && Array.isArray(existing.rules)) {
+          current = {
+            _version: existing._version || '1',
+            manually_edited: Boolean(existing.manually_edited),
+            rules: existing.rules,
+            category_waivers: existing.category_waivers || [],
+          };
+        } else {
+          current = { _version: '1', manually_edited: false, rules: [], category_waivers: [] };
+        }
+      } catch {
+        current = { _version: '1', manually_edited: false, rules: [], category_waivers: [] };
+      }
+
+      const updated = await mutator(current);
+      const content = YAML.stringify(updated);
+      const tempPath = `${fullPath}.${randomBytes(6).toString('hex')}.tmp`;
+      writeFileSync(tempPath, content, 'utf-8');
+      renameSync(tempPath, fullPath);
+      return updated;
+    });
+  }
+
 
   async getModulePrereqs(moduleName: string): Promise<ModulePrereqs | null> {
     const path = join('.qa/modules', moduleName, 'prereqs.yaml');

@@ -1,5 +1,17 @@
-import { existsSync, mkdirSync, writeFileSync, readFileSync, readdirSync, rmSync } from 'node:fs';
-import { resolve, join, basename } from 'node:path';
+/* eslint-disable @typescript-eslint/no-base-to-string, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any, @typescript-eslint/require-await, @typescript-eslint/no-unnecessary-type-assertion, @typescript-eslint/no-unsafe-return */
+import {
+  existsSync,
+  mkdirSync,
+  writeFileSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  realpathSync,
+  statSync,
+} from 'node:fs';
+import { resolve, join, basename, relative, isAbsolute, extname } from 'node:path';
+import { randomUUID } from 'node:crypto';
+
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
@@ -11,9 +23,20 @@ import {
   type Prompt,
 } from '@modelcontextprotocol/sdk/types.js';
 import YAML from 'yaml';
-import { SchemaValidator, type AuthProfile, type ModuleSpec } from '@qap/shared';
-import { FileSystemStorage } from '@qap/knowledge';
-import { validateDefinitions } from '@qap/knowledge';
+import { SchemaValidator, type AuthProfile, type ModuleSpec, type ProjectPhase } from '@qap/shared';
+import { FileSystemStorage, validateDefinitions, parsePrdContent } from '@qap/knowledge';
+import {
+  canExitOnboarding,
+  canExitScoping,
+  assertLifecycleStateInvariants,
+  generateDomHypotheses,
+  computeApplicableCategories,
+  computeCoverage,
+  generateNextInterviewBatch,
+  type ViewDiscoveryContext,
+  type DomField,
+  type DomForm,
+} from '@qap/engine';
 import { AuthManager } from '@qap/auth';
 import {
   startViewerServer,
@@ -25,6 +48,8 @@ import {
   PruningEngine,
   type ViewerServerInstance,
 } from '@qap/reporter';
+
+import { getPhaseGuidance } from './guidance.js';
 
 let activeViewerServer: ViewerServerInstance | null = null;
 
@@ -132,6 +157,116 @@ const TOOLS: Tool[] = [
       properties: {
         targetPath: TARGET_PATH_PROP,
       },
+    },
+  },
+  {
+    name: 'qap_context_set',
+    description: `Actualiza parcial e incrementalmente el contexto de negocio en .qa/project/context.yaml. Evalúa la compuerta de ONBOARDING. ${UX_DIRECTIVE}`,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        targetPath: TARGET_PATH_PROP,
+        objective: {
+          type: 'string',
+          description: 'Objetivo y propósito central del proyecto (mínimo 20 caracteres)',
+        },
+        roles: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              name: { type: 'string', description: 'Nombre del rol' },
+              description: { type: 'string', description: 'Descripción de permisos o alcance' },
+              source: { type: 'string', enum: ['user', 'prd', 'inferred'], description: 'Procedencia' },
+            },
+            required: ['name'],
+          },
+          description: 'Roles de usuario que interactúan con el sistema',
+        },
+        critical_flows: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              name: { type: 'string', description: 'Nombre del flujo crítico' },
+              description: { type: 'string', description: 'Descripción de la interacción' },
+              priority: { type: 'string', enum: ['high', 'medium', 'low'] },
+              source: { type: 'string', enum: ['user', 'prd', 'inferred'], description: 'Procedencia' },
+            },
+            required: ['name'],
+          },
+          description: 'Flujos o procesos clave de negocio',
+        },
+        source_of_truth: {
+          type: 'object',
+          properties: {
+            type: { type: 'string', enum: ['prd', 'readme', 'notes', 'none'] },
+            ref: { type: 'string', description: 'Ruta o referencia documental' },
+            declared: { type: 'boolean', description: 'Declaración explícita de fuente de verdad' },
+            notes: { type: 'string', description: 'Notas informales de requerimientos' },
+            source: { type: 'string', enum: ['user', 'prd', 'inferred'] },
+          },
+          required: ['type', 'declared'],
+          description: 'Declaración de la fuente de verdad del proyecto',
+        },
+        source: {
+          type: 'string',
+          enum: ['user', 'prd', 'inferred'],
+          description: 'Procedencia por defecto de los campos actualizados (por defecto: user)',
+          default: 'user',
+        },
+      },
+    },
+  },
+  {
+    name: 'qap_context_ingest',
+    description: `Ingesta y procesa un documento de requerimientos (PRD, README, spec) para extraer propuestas de contexto y plan sugerido. ${UX_DIRECTIVE}`,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        targetPath: TARGET_PATH_PROP,
+        docPath: {
+          type: 'string',
+          description: 'Ruta relativa al archivo de especificación (.md, .markdown, .txt) dentro del workspace',
+        },
+        docContent: {
+          type: 'string',
+          description: 'Contenido en texto plano o markdown del documento de especificación',
+        },
+      },
+    },
+  },
+  {
+    name: 'qap_session_plan',
+    description: `Define o amplía el plan de sesión y la decisión de autenticación. Transiciona a WORKING cuando el plan es válido. ${UX_DIRECTIVE}`,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        targetPath: TARGET_PATH_PROP,
+        modules: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              module: { type: 'string', description: 'Nombre identificador del módulo' },
+              path: { type: 'string', description: 'Ruta inicial del módulo comenzando con /' },
+              priority: { type: 'string', enum: ['high', 'medium', 'low'], description: 'Prioridad de prueba' },
+            },
+            required: ['module', 'path', 'priority'],
+          },
+          description: 'Lista de módulos a incluir en el plan de sesión',
+        },
+        auth: {
+          type: 'object',
+          properties: {
+            required: { type: 'boolean', description: 'Si la aplicación requiere autenticación para las pruebas' },
+            profile: { type: 'string', description: 'Perfil de autenticación a utilizar' },
+          },
+          required: ['required'],
+          description: 'Decisión explícita de autenticación',
+        },
+      },
+      required: ['modules'],
     },
   },
   {
@@ -297,7 +432,59 @@ const TOOLS: Tool[] = [
       },
     },
   },
+  {
+    name: 'qap_rules_set',
+    description: `Persiste reglas de negocio confirmadas o rechazadas por el usuario, y waivers de categoría, en rules.yaml de un módulo. Usa operación atómica RMW. ${UX_DIRECTIVE}`,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        targetPath: TARGET_PATH_PROP,
+        module: {
+          type: 'string',
+          description: 'Nombre del módulo al que pertenecen las reglas (ej: "auth", "dashboard")',
+        },
+        view: {
+          type: 'string',
+          description: 'Vista específica del módulo (por defecto: "default")',
+          default: 'default',
+        },
+        rules: {
+          type: 'array',
+          description: 'Reglas a insertar o actualizar (upsert por id). Se mezclan con las existentes.',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string', description: 'Identificador único de la regla' },
+              description: { type: 'string', description: 'Descripción legible de la regla' },
+              category: { type: 'string', enum: ['proposito', 'actor', 'campo', 'accion', 'error', 'dato', 'sensibilidad'] },
+              status: { type: 'string', enum: ['confirmed', 'rejected', 'deferred', 'inferred'] },
+              source: { type: 'string', enum: ['user', 'prd', 'dom'] },
+              severity: { type: 'string', enum: ['low', 'medium', 'high', 'critical'] },
+              view: { type: 'string', description: 'Vista a la que aplica (si difiere del parámetro view)' },
+              field: { type: 'string', description: 'Campo o selector al que aplica' },
+              evidence: { type: 'string', description: 'Evidencia corta (selector o referencia, máx 120 chars)' },
+            },
+            required: ['id', 'description', 'status'],
+          },
+        },
+        category_waivers: {
+          type: 'array',
+          description: 'Categorías que el usuario declara como no aplicables (upsert por view+category).',
+          items: {
+            type: 'object',
+            properties: {
+              category: { type: 'string', enum: ['proposito', 'actor', 'campo', 'accion', 'error', 'dato', 'sensibilidad'] },
+              reason: { type: 'string', minLength: 1, description: 'Razón declarada de por qué no aplica' },
+            },
+            required: ['category', 'reason'],
+          },
+        },
+      },
+      required: ['module'],
+    },
+  },
 ];
+
 
 const PROMPTS: Prompt[] = [
   {
@@ -311,22 +498,28 @@ export function createMcpServer(): Server {
   const server = new Server(
     {
       name: 'qap-mcp-server',
-      version: '2.1.3',
+      version: '3.0.0',
     },
     {
       capabilities: {
         tools: {},
         prompts: {},
       },
-      instructions: `DIRECTIVAS DE INTERACCIÓN OBLIGATORIAS:
-1. RUTA OBJETIVO OBLIGATORIA (targetPath): En TODAS las llamadas a herramientas MCP (qap_status, qap_init, qap_discover, qap_plan, qap_test, qap_server, etc.), envía SIEMPRE la ruta absoluta del workspace del usuario en el parámetro 'targetPath'. NUNCA lo omitas.
+      instructions: `DIRECTIVAS DE INTERACCIÓN OBLIGATORIAS (QAP v3.0):
+1. RUTA OBJETIVO OBLIGATORIA (targetPath): En TODAS las llamadas a herramientas MCP, envía SIEMPRE la ruta absoluta del workspace del usuario en el parámetro 'targetPath'. NUNCA lo omitas.
 2. PROHIBIDO mostrar tablas markdown de estado, resúmenes de archivos o listas de próximos pasos (1, 2, 3...).
 3. USA LAS CAPACIDADES INTERACTIVAS DEL IDE:
-   - Para formular preguntas o decisiones, invoca SIEMPRE 'ask_question' con los campos 'pregunta' y 'opciones' devueltos por las tools para que el usuario responda mediante botones interactivos.
+   - Para formular preguntas o decisiones, invoca SIEMPRE 'ask_question' con los campos 'pregunta' y 'opciones' devueltos por las tools.
    - Si presentas una propuesta o plan para su ejecución, genera un artefacto interactivo (artifact) con 'RequestFeedback: true' para que el usuario pueda pulsar 'Proceed'.
-4. Ejecuta un solo paso por turno y espera la selección del usuario antes de invocar la siguiente tool de QAP.`,
+4. Ejecuta un solo paso por turno y espera la selección del usuario antes de invocar la siguiente tool de QAP.
+5. Cuando 'siguiente_accion.tipo' sea "entrevista", formula las preguntas listadas en un solo mensaje, en texto libre y sin botones.
+6. Cuando 'siguiente_accion.tipo' sea "entrevista_vista": presenta la lista de preguntas de la entrevista (campo 'preguntas') y espera respuesta del usuario antes de llamar qap_rules_set. NUNCA llames qap_rules_set con datos no confirmados por el usuario.
+7. Si una tool responde con status "blocked", sigue obligatoriamente 'desbloquear_con' y no intentes rodear el bloqueo.
+8. NUNCA registres con source "user" algo que el usuario no haya confirmado o dicho explícitamente.
+9. Para hipótesis DOM (source "dom", status "inferred"): CONFIRMA cada una con el usuario antes de marcarla como "confirmed". Presenta las hipótesis al usuario y pregunta cuáles son correctas.`,
     }
   );
+
 
   // Manejador de lista de tools
   server.setRequestHandler(ListToolsRequestSchema, async () => {
@@ -376,11 +569,15 @@ export function createMcpServer(): Server {
           let profileCount = 0;
           let executionCount = 0;
 
+          let parsedContext: any = null;
+          let parsedEnv: any = null;
+          let profilesList: any[] = [];
+
           if (initialized) {
             const contextPath = join(qaDir, 'project', 'context.yaml');
             if (existsSync(contextPath)) {
               try {
-                const parsedContext = YAML.parse(readFileSync(contextPath, 'utf-8'));
+                parsedContext = YAML.parse(readFileSync(contextPath, 'utf-8'));
                 projectName = parsedContext?.project_name || projectName;
               } catch {
                 // Ignore parse errors
@@ -390,7 +587,7 @@ export function createMcpServer(): Server {
             const envPath = join(qaDir, 'project', 'environments.yaml');
             if (existsSync(envPath)) {
               try {
-                const parsedEnv = YAML.parse(readFileSync(envPath, 'utf-8'));
+                parsedEnv = YAML.parse(readFileSync(envPath, 'utf-8'));
                 environments = Object.keys(parsedEnv?.environments || {});
               } catch {
                 // Ignore parse errors
@@ -424,7 +621,8 @@ export function createMcpServer(): Server {
             if (existsSync(profilesFile)) {
               try {
                 const parsed = JSON.parse(readFileSync(profilesFile, 'utf-8'));
-                profileCount = Array.isArray(parsed.profiles) ? parsed.profiles.length : 0;
+                profilesList = Array.isArray(parsed.profiles) ? parsed.profiles : [];
+                profileCount = profilesList.length;
               } catch {
                 // Ignore
               }
@@ -457,21 +655,69 @@ export function createMcpServer(): Server {
             }
           }
 
-          const question = !initialized
-            ? `Detecté tu servicio en ${detectedUrl} (${detectedLabel}). ¿Deseas inicializar QAP para este servicio o prefieres otra URL?`
-            : `El proyecto QAP ya está inicializado con ${moduleCount} módulo(s). ¿Qué pantalla o flujo deseas descubrir con qap_discover?`;
+          if (!initialized) {
+            const question = `Detecté tu servicio en ${detectedUrl} (${detectedLabel}). ¿Deseas inicializar QAP para este servicio o prefieres otra URL?`;
+            const options = [
+              `Sí, inicializar QAP para ${detectedUrl}`,
+              'Usar otra URL o puerto',
+              'Cancelar',
+            ];
 
-          const options = !initialized
-            ? [
-                `Sí, inicializar QAP para ${detectedUrl}`,
-                'Usar otra URL o puerto',
-                'Cancelar',
-              ]
-            : [
-                'Descubrir pantalla de Login / Autenticación (/login)',
-                'Descubrir Página Principal o Dashboard',
-                'Ver reportes y ejecuciones anteriores',
-              ];
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(
+                    {
+                      status: 'success',
+                      directorio_objetivo: rootDir,
+                      initialized: false,
+                      projectName: basename(rootDir),
+                      environments: [],
+                      stats: {
+                        modules: 0,
+                        authProfiles: 0,
+                        executions: 0,
+                      },
+                      validatorReady: Boolean(validator),
+                      detectedService: { url: detectedUrl, label: detectedLabel },
+                      pregunta: question,
+                      opciones: options,
+                      _guidance_for_assistant: 'NO expliques listas de pasos futuros. Haz al usuario la pregunta con ask_question: ' + question,
+                    },
+                    null,
+                    2
+                  ),
+                },
+              ],
+            };
+          }
+
+          // Caso inicializado
+          const storage = new FileSystemStorage({ rootDir });
+          const lifecycleState = await storage.getLifecycleState();
+          const currentPhase = lifecycleState.phase;
+
+          let faltantes: Array<{ campo: string; motivo: string }> = [];
+          if (currentPhase === 'ONBOARDING') {
+            const gate = canExitOnboarding(parsedContext, parsedEnv);
+            faltantes = gate.faltantes;
+          } else if (currentPhase === 'SCOPING') {
+            const registeredIds = profilesList.map((p: any) => p.id);
+            const gate = canExitScoping(lifecycleState, registeredIds);
+            faltantes = gate.faltantes;
+          }
+
+          const estadosModulos: Record<string, string> = {};
+          for (const [k, v] of Object.entries(lifecycleState.modules || {})) {
+            estadosModulos[k] = v.state;
+          }
+
+          const guidance = getPhaseGuidance(currentPhase, {
+            faltantes,
+            plan: lifecycleState.session?.plan,
+            modules: lifecycleState.modules as any,
+          });
 
           return {
             content: [
@@ -481,7 +727,11 @@ export function createMcpServer(): Server {
                   {
                     status: 'success',
                     directorio_objetivo: rootDir,
-                    initialized,
+                    initialized: true,
+                    fase: currentPhase,
+                    estados_modulos: estadosModulos,
+                    faltantes,
+                    siguiente_accion: guidance.siguiente_accion,
                     projectName: projectName !== 'No inicializado' ? projectName : basename(rootDir),
                     environments,
                     stats: {
@@ -491,13 +741,9 @@ export function createMcpServer(): Server {
                     },
                     validatorReady: Boolean(validator),
                     detectedService: { url: detectedUrl, label: detectedLabel },
-                    directiva_estricta: 'PROHIBIDO responder con tablas markdown, resúmenes de archivos o listas de pasos (1, 2, 3...). Invoca directamente la herramienta interactiva de preguntas (ask_question) o genera un artefacto interactivo con RequestFeedback: true utilizando los campos "pregunta" y "opciones" de abajo.',
-                    accion_inmediata_requerida: 'Llama INMEDIATAMENTE a tu herramienta interactiva de preguntas (como ask_question) usando los campos "pregunta" y "opciones" de abajo para que el usuario responda mediante botones interactivos en modal. Si tu entorno no dispone de esa herramienta, formula la pregunta en el chat con esas opciones. ESTÁ TOTALMENTE PROHIBIDO generar listas de pasos futuros (1, 2, 3...), tutoriales o pedir comandos de terminal al usuario.',
-                    pregunta: question,
-                    opciones: options,
-                    _guidance_for_assistant: !initialized
-                      ? 'NO expliques listas de pasos futuros. Haz al usuario la pregunta con ask_question: ' + question
-                      : 'Pregunta al usuario qué pantalla o flujo desea registrar con qap_discover: ' + question,
+                    pregunta: guidance.pregunta,
+                    opciones: guidance.opciones,
+                    _guidance_for_assistant: `Fase actual: ${currentPhase}. Siguiente acción: ${guidance.siguiente_accion.descripcion}`,
                   },
                   null,
                   2
@@ -528,27 +774,79 @@ export function createMcpServer(): Server {
             }
           }
 
-          const envsMap: Record<string, { url: string; browser_mode: 'auto' | 'headless' | 'headed' }> = {};
-          for (const env of envList) {
-            envsMap[env] = { url: baseUrl, browser_mode: 'auto' };
-          }
-          const envsYaml = {
-            _version: '1',
-            default: envList[0] || 'local',
-            environments: envsMap,
-          };
-          writeFileSync(join(qaDir, 'project', 'environments.yaml'), YAML.stringify(envsYaml), 'utf-8');
+          const envsPath = join(qaDir, 'project', 'environments.yaml');
+          const contextPath = join(qaDir, 'project', 'context.yaml');
+          const gitignorePath = join(qaDir, '.gitignore');
+          const lifecyclePath = join(qaDir, 'project', 'lifecycle.json');
 
-          const contextYaml = {
-            _version: '1',
-            project_name: projectName,
-            description: `Configuración base de QA para ${projectName}`,
-            tech_stack: [],
-            base_url: baseUrl,
-            manually_edited: false,
-          };
-          writeFileSync(join(qaDir, 'project', 'context.yaml'), YAML.stringify(contextYaml), 'utf-8');
-          writeFileSync(join(qaDir, '.gitignore'), '# Generado automáticamente por QAP\nexecutions/\ncache/\n', 'utf-8');
+          const yaExistia = existsSync(contextPath) || existsSync(envsPath);
+
+          if (!existsSync(envsPath)) {
+            const envsMap: Record<string, { url: string; browser_mode: 'auto' | 'headless' | 'headed' }> = {};
+            for (const env of envList) {
+              envsMap[env] = { url: baseUrl, browser_mode: 'auto' };
+            }
+            const envsYaml = {
+              _version: '1',
+              default: envList[0] || 'local',
+              environments: envsMap,
+            };
+            writeFileSync(envsPath, YAML.stringify(envsYaml), 'utf-8');
+          }
+
+          if (!existsSync(contextPath)) {
+            const contextYaml = {
+              _version: '1',
+              project_name: projectName,
+              description: `Configuración base de QA para ${projectName}`,
+              tech_stack: [],
+              base_url: baseUrl,
+              manually_edited: false,
+            };
+            writeFileSync(contextPath, YAML.stringify(contextYaml), 'utf-8');
+          }
+
+          if (!existsSync(gitignorePath)) {
+            writeFileSync(gitignorePath, '# Generado automáticamente por QAP\nexecutions/\ncache/\n', 'utf-8');
+          }
+
+          if (!existsSync(lifecyclePath)) {
+            const initialLifecycle = {
+              _version: '1',
+              phase: 'ONBOARDING',
+              session: {
+                id: '',
+                started_at: new Date().toISOString(),
+                plan: [],
+              },
+              modules: {},
+              history: [
+                {
+                  from: 'NONE',
+                  to: 'ONBOARDING',
+                  at: new Date().toISOString(),
+                  reason: 'Inicialización de ciclo de vida con qap_init',
+                },
+              ],
+            };
+            writeFileSync(lifecyclePath, JSON.stringify(initialLifecycle, null, 2), 'utf-8');
+          }
+
+          const storage = new FileSystemStorage({ rootDir });
+          const currentLifecycle = await storage.getLifecycleState();
+          const finalPhase = currentLifecycle.phase;
+
+          let ctxObj: any = null;
+          if (existsSync(contextPath)) {
+            try { ctxObj = YAML.parse(readFileSync(contextPath, 'utf-8')); } catch { /* ignore */ }
+          }
+          let envObj: any = null;
+          if (existsSync(envsPath)) {
+            try { envObj = YAML.parse(readFileSync(envsPath, 'utf-8')); } catch { /* ignore */ }
+          }
+
+          const gate = canExitOnboarding(ctxObj, envObj);
+          const guidance = getPhaseGuidance('ONBOARDING', { faltantes: gate.faltantes });
 
           return {
             content: [
@@ -562,14 +860,15 @@ export function createMcpServer(): Server {
                     projectName,
                     environments: envList,
                     directories: allowedDirs.map((p) => p.replace(rootDir, '')),
-                    accion_inmediata_requerida: 'Llama INMEDIATAMENTE a la herramienta interactiva de preguntas (como ask_question) con los campos "pregunta" y "opciones". PROHIBIDO mostrar listas de pasos o comandos.',
-                    pregunta: 'QAP se ha inicializado correctamente. ¿Tu aplicación requiere inicio de sesión (autenticación) o empezamos descubriendo un módulo público?',
-                    opciones: [
-                      'Descubrir módulo público o pantalla inicial (qap_discover)',
-                      'Configurar perfil de autenticación primero (qap_auth_add)',
-                      'Ver estado del proyecto (qap_status)',
-                    ],
-                    _guidance_for_assistant: 'DIRECTIVA: Inicialización completada. No des listas de pasos. Pregunta al usuario qué módulo o ruta clave desea probar primero (ej: Login, Catálogo, Checkout) para proceder con qap_discover.',
+                    ya_existia: yaExistia,
+                    lifecycle: {
+                      phase: finalPhase,
+                    },
+                    fase: finalPhase,
+                    siguiente_accion: guidance.siguiente_accion,
+                    pregunta: guidance.pregunta,
+                    opciones: guidance.opciones,
+                    _guidance_for_assistant: `Fase actual: ${finalPhase}. Siguiente acción: ${guidance.siguiente_accion.descripcion}`,
                   },
                   null,
                   2
@@ -668,6 +967,28 @@ export function createMcpServer(): Server {
             }
           }
 
+          const storage = new FileSystemStorage({ rootDir });
+          const lifecycleState = await storage.getLifecycleState();
+          const currentPhase = lifecycleState.phase;
+
+          let faltantes: Array<{ campo: string; motivo: string }> = [];
+          if (currentPhase === 'ONBOARDING') {
+            const ctxPath = join(rootDir, '.qa', 'project', 'context.yaml');
+            const envsPath = join(rootDir, '.qa', 'project', 'environments.yaml');
+            const parsedContext = existsSync(ctxPath) ? YAML.parse(readFileSync(ctxPath, 'utf-8')) : null;
+            const parsedEnv = existsSync(envsPath) ? YAML.parse(readFileSync(envsPath, 'utf-8')) : null;
+            faltantes = canExitOnboarding(parsedContext, parsedEnv).faltantes;
+          } else if (currentPhase === 'SCOPING') {
+            const registeredIds = profiles.map((p) => p.id);
+            faltantes = canExitScoping(lifecycleState, registeredIds).faltantes;
+          }
+
+          const guidance = getPhaseGuidance(currentPhase, {
+            faltantes,
+            plan: lifecycleState.session?.plan,
+            modules: lifecycleState.modules as any,
+          });
+
           return {
             content: [
               {
@@ -679,13 +1000,10 @@ export function createMcpServer(): Server {
                     message: `✔ Perfil '${profileId}' registrado con éxito en .qa/project/auth/profiles.json.`,
                     profile: newProfile,
                     secretSaved: Boolean(secret),
-                    accion_inmediata_requerida: 'Llama INMEDIATAMENTE a la herramienta interactiva de preguntas (como ask_question) con los campos "pregunta" y "opciones".',
-                    pregunta: `Perfil '${profileId}' registrado. ¿Qué pantalla o flujo deseas descubrir ahora con qap_discover?`,
-                    opciones: [
-                      'Descubrir flujo de Login (/login)',
-                      'Descubrir Dashboard principal (/dashboard)',
-                      'Especificar otra ruta',
-                    ],
+                    fase: currentPhase,
+                    siguiente_accion: guidance.siguiente_accion,
+                    pregunta: guidance.pregunta,
+                    opciones: guidance.opciones,
                   },
                   null,
                   2
@@ -734,6 +1052,806 @@ export function createMcpServer(): Server {
           };
         }
 
+        case 'qap_context_set': {
+          const qaDir = resolve(rootDir, '.qa');
+          if (!existsSync(qaDir)) {
+            return {
+              isError: true,
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(
+                    {
+                      status: 'error',
+                      isError: true,
+                      directorio_objetivo: rootDir,
+                      error: `El proyecto en '${rootDir}' no está inicializado. Ejecuta qap_init primero.`,
+                    },
+                    null,
+                    2
+                  ),
+                },
+              ],
+            };
+          }
+
+          const contextPath = join(qaDir, 'project', 'context.yaml');
+          let existingContext: Record<string, any> = {
+            _version: '1',
+            project_name: basename(rootDir),
+            description: `Configuración base de QA para ${basename(rootDir)}`,
+            tech_stack: [],
+            base_url: 'http://localhost:3000',
+            manually_edited: false,
+          };
+          if (existsSync(contextPath)) {
+            try {
+              existingContext = YAML.parse(readFileSync(contextPath, 'utf-8')) || existingContext;
+            } catch { /* use default */ }
+          }
+
+          const callerSource = (typeof args.source === 'string' && ['user', 'prd', 'inferred'].includes(args.source))
+            ? args.source
+            : undefined;
+          const defaultSource = callerSource || 'user';
+
+          const ignoredDowngrades: Array<{ field: string; reason: string }> = [];
+
+          // 1. Objetivo
+          if (args.objective !== undefined) {
+            const newObj = String(args.objective);
+            const newSource = (typeof args.objective_source === 'string' && args.objective_source !== 'inferred' && ['user', 'prd'].includes(args.objective_source))
+              ? args.objective_source
+              : (callerSource ?? (args.objective_source === 'inferred' ? 'inferred' : defaultSource));
+            if (existingContext.objective_source === 'user' && newSource !== 'user') {
+              ignoredDowngrades.push({
+                field: 'objective',
+                reason: 'No se puede sobrescribir un objetivo con source "user" por uno con source "prd" o "inferred"',
+              });
+            } else {
+              existingContext.objective = newObj;
+              existingContext.objective_source = newSource;
+            }
+          }
+
+          // 2. Roles
+          if (Array.isArray(args.roles)) {
+            existingContext.roles = existingContext.roles || [];
+            for (const r of args.roles) {
+              if (!r || typeof r !== 'object') continue;
+              const roleName = String(r.name || '').trim();
+              if (!roleName) continue;
+              const rSource = (r.source && r.source !== 'inferred' && ['user', 'prd'].includes(r.source))
+                ? r.source
+                : (callerSource ?? (r.source === 'inferred' ? 'inferred' : defaultSource));
+              const exIdx = existingContext.roles.findIndex((er: any) => er.name === roleName);
+              if (exIdx >= 0) {
+                const exRole = existingContext.roles[exIdx];
+                if (exRole.source === 'user' && rSource !== 'user') {
+                  ignoredDowngrades.push({
+                    field: `roles.${roleName}`,
+                    reason: `No se puede sobrescribir el rol '${roleName}' con source "user" por uno con source "prd" o "inferred"`,
+                  });
+                } else {
+                  existingContext.roles[exIdx] = {
+                    name: roleName,
+                    description: r.description !== undefined ? String(r.description) : exRole.description,
+                    source: rSource,
+                  };
+                }
+              } else {
+                existingContext.roles.push({
+                  name: roleName,
+                  description: r.description !== undefined ? String(r.description) : undefined,
+                  source: rSource,
+                });
+              }
+            }
+          }
+
+          // 3. Flujos críticos
+          if (Array.isArray(args.critical_flows)) {
+            existingContext.critical_flows = existingContext.critical_flows || [];
+            for (const f of args.critical_flows) {
+              if (!f || typeof f !== 'object') continue;
+              const flowName = String(f.name || '').trim();
+              if (!flowName) continue;
+              const fSource = (f.source && f.source !== 'inferred' && ['user', 'prd'].includes(f.source))
+                ? f.source
+                : (callerSource ?? (f.source === 'inferred' ? 'inferred' : defaultSource));
+              const exIdx = existingContext.critical_flows.findIndex((ef: any) => ef.name === flowName);
+              if (exIdx >= 0) {
+                const exFlow = existingContext.critical_flows[exIdx];
+                if (exFlow.source === 'user' && fSource !== 'user') {
+                  ignoredDowngrades.push({
+                    field: `critical_flows.${flowName}`,
+                    reason: `No se puede sobrescribir el flujo '${flowName}' con source "user" por uno con source "prd" o "inferred"`,
+                  });
+                } else {
+                  existingContext.critical_flows[exIdx] = {
+                    name: flowName,
+                    description: f.description !== undefined ? String(f.description) : exFlow.description,
+                    priority: f.priority !== undefined ? String(f.priority) : exFlow.priority,
+                    source: fSource,
+                  };
+                }
+              } else {
+                existingContext.critical_flows.push({
+                  name: flowName,
+                  description: f.description !== undefined ? String(f.description) : undefined,
+                  priority: f.priority !== undefined ? String(f.priority) : undefined,
+                  source: fSource,
+                });
+              }
+            }
+          }
+
+          // 4. Fuente de verdad
+          if (args.source_of_truth && typeof args.source_of_truth === 'object') {
+            const sot = args.source_of_truth as Record<string, any>;
+            const sotSource = (sot.source && sot.source !== 'inferred' && ['user', 'prd'].includes(sot.source))
+              ? sot.source
+              : (callerSource ?? (sot.source === 'inferred' ? 'inferred' : defaultSource));
+            if (existingContext.source_of_truth?.source === 'user' && sotSource !== 'user') {
+              ignoredDowngrades.push({
+                field: 'source_of_truth',
+                reason: 'No se puede sobrescribir una fuente de verdad con source "user" por una con source "prd" o "inferred"',
+              });
+            } else {
+              existingContext.source_of_truth = {
+                type: sot.type,
+                declared: Boolean(sot.declared),
+                ref: sot.ref !== undefined ? String(sot.ref) : existingContext.source_of_truth?.ref,
+                notes: sot.notes !== undefined ? String(sot.notes) : existingContext.source_of_truth?.notes,
+                source: sotSource,
+              };
+            }
+          }
+
+          // Validar schema de context.yaml
+          const validator = new SchemaValidator();
+          const valRes = validator.validateProjectContext(existingContext);
+          if (!valRes.valid) {
+            return {
+              isError: true,
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(
+                    {
+                      status: 'error',
+                      isError: true,
+                      directorio_objetivo: rootDir,
+                      error: 'Error de validación contra project-context.schema.json',
+                      detalles: valRes.errors,
+                    },
+                    null,
+                    2
+                  ),
+                },
+              ],
+            };
+          }
+
+          writeFileSync(contextPath, YAML.stringify(existingContext), 'utf-8');
+
+          // Evaluar compuerta de ONBOARDING
+          const envsPath = join(qaDir, 'project', 'environments.yaml');
+          const parsedEnv = existsSync(envsPath) ? YAML.parse(readFileSync(envsPath, 'utf-8')) : null;
+          const gateRes = canExitOnboarding(existingContext, parsedEnv);
+
+          const storage = new FileSystemStorage({ rootDir });
+          let autoTransitioned = false;
+          let finalPhase: ProjectPhase = 'ONBOARDING';
+
+          await storage.updateLifecycleState(async (curr) => {
+            finalPhase = curr.phase;
+            if (curr.phase === 'ONBOARDING' && gateRes.passed) {
+              curr.phase = 'SCOPING';
+              finalPhase = 'SCOPING';
+              autoTransitioned = true;
+              curr.session = curr.session || { id: '', started_at: new Date().toISOString(), plan: [] };
+              if (!curr.session.id) {
+                curr.session.id = `session_${randomUUID().slice(0, 8)}`;
+              }
+              curr.history = curr.history || [];
+              curr.history.push({
+                from: 'ONBOARDING',
+                to: 'SCOPING',
+                at: new Date().toISOString(),
+                reason: 'Compuerta de salida de ONBOARDING superada exitosamente',
+              });
+            }
+            return curr;
+          });
+
+          const guidance = getPhaseGuidance(finalPhase, {
+            faltantes: gateRes.faltantes,
+          });
+
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify(
+                  {
+                    status: 'success',
+                    directorio_objetivo: rootDir,
+                    fase: finalPhase,
+                    transicion_automatica: autoTransitioned,
+                    faltantes: autoTransitioned ? [] : gateRes.faltantes,
+                    ignored_downgrades: ignoredDowngrades.length > 0 ? ignoredDowngrades : undefined,
+                    context: existingContext,
+                    siguiente_accion: guidance.siguiente_accion,
+                    pregunta: guidance.pregunta,
+                    opciones: guidance.opciones,
+                  },
+                  null,
+                  2
+                ),
+              },
+            ],
+          };
+        }
+
+        case 'qap_context_ingest': {
+          const qaDir = resolve(rootDir, '.qa');
+          if (!existsSync(qaDir)) {
+            return {
+              isError: true,
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(
+                    {
+                      status: 'error',
+                      isError: true,
+                      directorio_objetivo: rootDir,
+                      error: `El proyecto en '${rootDir}' no está inicializado. Ejecuta qap_init primero.`,
+                    },
+                    null,
+                    2
+                  ),
+                },
+              ],
+            };
+          }
+
+          const hasDocPath = Boolean(args.docPath);
+          const hasDocContent = Boolean(args.docContent);
+          if ((hasDocPath && hasDocContent) || (!hasDocPath && !hasDocContent)) {
+            return {
+              isError: true,
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(
+                    {
+                      status: 'error',
+                      isError: true,
+                      directorio_objetivo: rootDir,
+                      error: 'Debe proporcionarse exactamente uno de docPath o docContent.',
+                    },
+                    null,
+                    2
+                  ),
+                },
+              ],
+            };
+          }
+
+          let rawContent = '';
+          let docRef = '';
+
+          if (hasDocPath) {
+            const rawPath = String(args.docPath);
+            const ext = extname(rawPath).toLowerCase();
+            if (!['.md', '.markdown', '.txt'].includes(ext)) {
+              return {
+                isError: true,
+                content: [
+                  {
+                    type: 'text',
+                    text: JSON.stringify(
+                      {
+                        status: 'error',
+                        isError: true,
+                        directorio_objetivo: rootDir,
+                        error: 'Extensión no permitida. Solo se admiten archivos .md, .markdown o .txt.',
+                      },
+                      null,
+                      2
+                    ),
+                  },
+                ],
+              };
+            }
+
+            const realWorkspace = realpathSync(rootDir);
+            const resolvedPath = resolve(rootDir, rawPath);
+            if (!existsSync(resolvedPath)) {
+              return {
+                isError: true,
+                content: [
+                  {
+                    type: 'text',
+                    text: JSON.stringify(
+                      {
+                        status: 'error',
+                        isError: true,
+                        directorio_objetivo: rootDir,
+                        error: `Archivo no encontrado: ${rawPath}`,
+                      },
+                      null,
+                      2
+                    ),
+                  },
+                ],
+              };
+            }
+
+            const realDocPath = realpathSync(resolvedPath);
+            const rel = relative(realWorkspace, realDocPath);
+            if (rel.startsWith('..') || isAbsolute(rel)) {
+              return {
+                isError: true,
+                content: [
+                  {
+                    type: 'text',
+                    text: JSON.stringify(
+                      {
+                        status: 'error',
+                        isError: true,
+                        directorio_objetivo: rootDir,
+                        error: 'Acceso denegado: el archivo resuelve fuera del workspace objetivo.',
+                      },
+                      null,
+                      2
+                    ),
+                  },
+                ],
+              };
+            }
+
+            const stats = statSync(realDocPath);
+            if (stats.size > 512 * 1024) {
+              return {
+                isError: true,
+                content: [
+                  {
+                    type: 'text',
+                    text: JSON.stringify(
+                      {
+                        status: 'error',
+                        isError: true,
+                        directorio_objetivo: rootDir,
+                        error: 'Tamaño de archivo excedido: máximo 512 KB.',
+                      },
+                      null,
+                      2
+                    ),
+                  },
+                ],
+              };
+            }
+
+            rawContent = readFileSync(realDocPath, 'utf-8');
+            docRef = rawPath;
+          } else {
+            rawContent = String(args.docContent);
+            if (Buffer.byteLength(rawContent, 'utf-8') > 512 * 1024) {
+              return {
+                isError: true,
+                content: [
+                  {
+                    type: 'text',
+                    text: JSON.stringify(
+                      {
+                        status: 'error',
+                        isError: true,
+                        directorio_objetivo: rootDir,
+                        error: 'Tamaño de contenido excedido: máximo 512 KB.',
+                      },
+                      null,
+                      2
+                    ),
+                  },
+                ],
+              };
+            }
+            docRef = 'inline_docContent';
+          }
+
+          // Parsear con parsePrdContent (dato no confiable)
+          const parsed = parsePrdContent(rawContent, docRef);
+
+          const extractedObjective = (parsed.objective || '').slice(0, 500).trim();
+          const extractedUsers = (parsed.users || []).map((u) => u.slice(0, 50).trim()).filter(Boolean);
+          const extractedNotes = (parsed.notes || '').slice(0, 500).trim();
+          const extractedRoutes = (parsed.routes || []).map((r) => r.slice(0, 100).trim()).filter(Boolean);
+
+          const suggestedModules = extractedRoutes.map((r) => {
+            const cleanName = r.replace(/^\//, '').replace(/\//g, '-').replace(/[^a-zA-Z0-9_-]/g, '') || 'modulo';
+            return {
+              module: cleanName,
+              path: r.startsWith('/') ? r : `/${r}`,
+              priority: 'medium',
+            };
+          });
+
+          // Persistir en context.yaml con source "inferred" sin sobrescribir "user"
+          const contextPath = join(qaDir, 'project', 'context.yaml');
+          let currentContext: Record<string, any> = {
+            _version: '1',
+            project_name: basename(rootDir),
+            description: `Configuración base de QA para ${basename(rootDir)}`,
+            tech_stack: [],
+            base_url: 'http://localhost:3000',
+            manually_edited: false,
+          };
+          if (existsSync(contextPath)) {
+            try {
+              currentContext = YAML.parse(readFileSync(contextPath, 'utf-8')) || currentContext;
+            } catch { /* use default */ }
+          }
+
+          if (extractedObjective && currentContext.objective_source !== 'user') {
+            currentContext.objective = extractedObjective;
+            currentContext.objective_source = 'inferred';
+          }
+
+          if (extractedUsers.length > 0) {
+            currentContext.roles = currentContext.roles || [];
+            for (const u of extractedUsers) {
+              const existingIdx = currentContext.roles.findIndex((er: any) => er.name === u);
+              if (existingIdx >= 0) {
+                if (currentContext.roles[existingIdx].source !== 'user') {
+                  currentContext.roles[existingIdx].source = 'inferred';
+                }
+              } else {
+                currentContext.roles.push({ name: u, source: 'inferred' });
+              }
+            }
+          }
+
+          if (currentContext.source_of_truth?.source !== 'user') {
+            currentContext.source_of_truth = {
+              type: 'prd',
+              ref: docRef,
+              declared: false,
+              notes: extractedNotes || undefined,
+              source: 'inferred',
+            };
+          }
+
+          writeFileSync(contextPath, YAML.stringify(currentContext), 'utf-8');
+
+          const storage = new FileSystemStorage({ rootDir });
+          const lifecycleState = await storage.getLifecycleState();
+
+          // Reportar faltantes requeridos por E1 que parsePrdContent no extrae o que son inferred
+          const faltantes = [
+            { campo: 'source_of_truth', motivo: 'sin confirmar (declared debe ser true con source user|prd)' },
+            { campo: 'critical_flows', motivo: 'el documento no define flujos críticos (deben definirse con qap_context_set)' },
+            { campo: 'objective', motivo: 'sin confirmar (extraído como inferred)' },
+            { campo: 'roles', motivo: 'sin confirmar (extraídos como inferred)' },
+          ];
+
+          const guidance = getPhaseGuidance(lifecycleState.phase, {
+            faltantes,
+            suggestedModules,
+          });
+
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify(
+                  {
+                    status: 'success',
+                    directorio_objetivo: rootDir,
+                    fase: lifecycleState.phase,
+                    propuestas_extraidas: {
+                      objetivo: extractedObjective || undefined,
+                      roles: extractedUsers.map((name) => ({ name, source: 'inferred' })),
+                      notas: extractedNotes || undefined,
+                      rutas: extractedRoutes,
+                    },
+                    modulos_sugeridos_para_plan: suggestedModules,
+                    solicitud_confirmacion: 'Presenta estas propuestas al usuario. Si las confirma tal cual, regístralas con qap_context_set (source: "prd"). Si las corrige, usa source: "user".',
+                    faltantes,
+                    siguiente_accion: guidance.siguiente_accion,
+                    pregunta: guidance.pregunta,
+                    opciones: guidance.opciones,
+                  },
+                  null,
+                  2
+                ),
+              },
+            ],
+          };
+        }
+
+        case 'qap_session_plan': {
+          const qaDir = resolve(rootDir, '.qa');
+          if (!existsSync(qaDir)) {
+            return {
+              isError: true,
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(
+                    {
+                      status: 'error',
+                      isError: true,
+                      directorio_objetivo: rootDir,
+                      error: `El proyecto en '${rootDir}' no está inicializado. Ejecuta qap_init primero.`,
+                    },
+                    null,
+                    2
+                  ),
+                },
+              ],
+            };
+          }
+
+          const storage = new FileSystemStorage({ rootDir });
+          const lifecycleState = await storage.getLifecycleState();
+
+          if (lifecycleState.phase === 'ONBOARDING') {
+            const ctxPath = join(qaDir, 'project', 'context.yaml');
+            const envsPath = join(qaDir, 'project', 'environments.yaml');
+            const parsedContext = existsSync(ctxPath) ? YAML.parse(readFileSync(ctxPath, 'utf-8')) : null;
+            const parsedEnv = existsSync(envsPath) ? YAML.parse(readFileSync(envsPath, 'utf-8')) : null;
+            const gate = canExitOnboarding(parsedContext, parsedEnv);
+            const guidance = getPhaseGuidance('ONBOARDING', { faltantes: gate.faltantes });
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(
+                    {
+                      status: 'blocked',
+                      directorio_objetivo: rootDir,
+                      fase: 'ONBOARDING',
+                      razon: 'No se puede definir el plan de sesión en la fase ONBOARDING. Completa el contexto de negocio primero.',
+                      desbloquear_con: {
+                        tool: 'qap_context_set',
+                        descripcion: 'Define el objetivo, roles, flujos críticos y fuente de verdad con qap_context_set.',
+                      },
+                      faltantes: gate.faltantes,
+                      siguiente_accion: guidance.siguiente_accion,
+                      pregunta: guidance.pregunta,
+                      opciones: guidance.opciones,
+                    },
+                    null,
+                    2
+                  ),
+                },
+              ],
+            };
+          }
+
+          if (lifecycleState.phase === 'WRAP_UP') {
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(
+                    {
+                      status: 'blocked',
+                      directorio_objetivo: rootDir,
+                      fase: 'WRAP_UP',
+                      razon: 'El proyecto se encuentra en la fase WRAP_UP. Nueva sesión aún no implementada.',
+                      desbloquear_con: {
+                        tool: 'qap_session_plan',
+                        descripcion: 'Nueva sesión aún no implementada',
+                      },
+                      siguiente_accion: {
+                        tipo: 'decision',
+                        descripcion: 'La sesión ha concluido en WRAP_UP. Nueva sesión aún no implementada.',
+                      },
+                      pregunta: 'La sesión ha finalizado. Nueva sesión aún no implementada.',
+                      opciones: [],
+                    },
+                    null,
+                    2
+                  ),
+                },
+              ],
+            };
+          }
+
+          // Validación atómica del lote
+          const rawModules = args.modules;
+          if (!Array.isArray(rawModules) || rawModules.length === 0) {
+            return {
+              isError: true,
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(
+                    {
+                      status: 'error',
+                      isError: true,
+                      directorio_objetivo: rootDir,
+                      error: 'El parámetro modules debe ser una lista con al menos un módulo.',
+                    },
+                    null,
+                    2
+                  ),
+                },
+              ],
+            };
+          }
+
+          const seenNames = new Set<string>();
+          for (const m of rawModules) {
+            if (!m || typeof m !== 'object') {
+              return {
+                isError: true,
+                content: [{ type: 'text', text: JSON.stringify({ status: 'error', error: 'Elemento de módulo inválido en el lote.' }, null, 2) }],
+              };
+            }
+            const mName = String(m.module || '').trim();
+            const mPath = String(m.path || '').trim();
+            const mPriority = String(m.priority || '').trim();
+
+            if (!mName) {
+              return {
+                isError: true,
+                content: [{ type: 'text', text: JSON.stringify({ status: 'error', error: 'Nombre de módulo no puede estar vacío.' }, null, 2) }],
+              };
+            }
+            if (!mPath || !mPath.startsWith('/')) {
+              return {
+                isError: true,
+                content: [{ type: 'text', text: JSON.stringify({ status: 'error', error: `La ruta '${mPath}' del módulo '${mName}' debe iniciar con '/'.` }, null, 2) }],
+              };
+            }
+            if (!['high', 'medium', 'low'].includes(mPriority)) {
+              return {
+                isError: true,
+                content: [{ type: 'text', text: JSON.stringify({ status: 'error', error: `Prioridad inválida '${mPriority}' en módulo '${mName}'. Debe ser high, medium o low.` }, null, 2) }],
+              };
+            }
+            if (seenNames.has(mName)) {
+              return {
+                isError: true,
+                content: [{ type: 'text', text: JSON.stringify({ status: 'error', error: `Módulos duplicados en el lote: '${mName}'.` }, null, 2) }],
+              };
+            }
+            seenNames.add(mName);
+          }
+
+          const profilesPath = join(qaDir, 'project', 'auth', 'profiles.json');
+          let registeredProfiles: string[] = [];
+          if (existsSync(profilesPath)) {
+            try {
+              const parsed = JSON.parse(readFileSync(profilesPath, 'utf-8'));
+              registeredProfiles = (parsed.profiles || []).map((p: any) => p.id);
+            } catch { /* empty */ }
+          }
+
+          let scopingGateRes: { passed: boolean; faltantes: Array<{ campo: string; motivo: string }> } = { passed: true, faltantes: [] };
+          let updatedPhase = lifecycleState.phase;
+
+          await storage.updateLifecycleState(async (curr) => {
+            curr.session = curr.session || { id: `session_${randomUUID().slice(0, 8)}`, started_at: new Date().toISOString(), plan: [] };
+            curr.modules = curr.modules || {};
+
+            if (curr.phase === 'SCOPING') {
+              if (args.auth && typeof args.auth === 'object') {
+                const a = args.auth as Record<string, any>;
+                curr.session.auth = {
+                  required: Boolean(a.required),
+                  profile: a.profile !== undefined ? String(a.profile) : undefined,
+                };
+              }
+
+              curr.session.plan = rawModules.map((m: any) => ({
+                module: String(m.module).trim(),
+                path: String(m.path).trim(),
+                priority: String(m.priority).trim(),
+                status: 'planned',
+              }));
+
+              for (const item of curr.session.plan) {
+                if (!curr.modules[item.module]) {
+                  curr.modules[item.module] = {
+                    state: 'planned',
+                    updated_at: new Date().toISOString(),
+                  };
+                }
+              }
+
+              assertLifecycleStateInvariants(curr);
+              scopingGateRes = canExitScoping(curr, registeredProfiles);
+
+              if (scopingGateRes.passed) {
+                curr.phase = 'WORKING';
+                curr.history = curr.history || [];
+                curr.history.push({
+                  from: 'SCOPING',
+                  to: 'WORKING',
+                  at: new Date().toISOString(),
+                  reason: 'Compuerta de salida de SCOPING superada exitosamente',
+                });
+              }
+              updatedPhase = curr.phase;
+              return curr;
+            } else if (curr.phase === 'WORKING') {
+              // En WORKING solo amplía (no modifica ni borra existentes)
+              curr.session.plan = curr.session.plan || [];
+              for (const m of rawModules) {
+                const mName = String(m.module).trim();
+                const mPath = String(m.path).trim();
+                const mPriority = String(m.priority).trim();
+                const existsInPlan = curr.session.plan.some((p) => p.module === mName);
+                if (!existsInPlan) {
+                  curr.session.plan.push({
+                    module: mName,
+                    path: mPath,
+                    priority: mPriority,
+                    status: 'planned',
+                  });
+                }
+                if (!curr.modules[mName]) {
+                  curr.modules[mName] = {
+                    state: 'planned',
+                    updated_at: new Date().toISOString(),
+                  };
+                }
+              }
+
+              if (args.auth && !curr.session.auth && typeof args.auth === 'object') {
+                const a = args.auth as Record<string, any>;
+                curr.session.auth = {
+                  required: Boolean(a.required),
+                  profile: a.profile !== undefined ? String(a.profile) : undefined,
+                };
+              }
+
+              assertLifecycleStateInvariants(curr);
+              updatedPhase = curr.phase;
+              return curr;
+            }
+
+            return curr;
+          });
+
+          const freshState = await storage.getLifecycleState();
+          const guidance = getPhaseGuidance(freshState.phase, {
+            faltantes: scopingGateRes.faltantes,
+            plan: freshState.session?.plan,
+            modules: freshState.modules as any,
+          });
+
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify(
+                  {
+                    status: 'success',
+                    directorio_objetivo: rootDir,
+                    fase: freshState.phase,
+                    transicion_automatica: updatedPhase === 'WORKING' && lifecycleState.phase === 'SCOPING',
+                    plan: freshState.session?.plan,
+                    auth: freshState.session?.auth,
+                    faltantes: freshState.phase === 'WORKING' ? [] : scopingGateRes.faltantes,
+                    siguiente_accion: guidance.siguiente_accion,
+                    pregunta: guidance.pregunta,
+                    opciones: guidance.opciones,
+                  },
+                  null,
+                  2
+                ),
+              },
+            ],
+          };
+        }
+
         case 'qap_discover': {
           const qaDir = resolve(rootDir, '.qa');
           if (!existsSync(qaDir)) {
@@ -763,6 +1881,176 @@ export function createMcpServer(): Server {
           const desc = rawDesc || `Módulo ${name}`;
           const tags = Array.isArray(args.tags) ? args.tags.map(String) : [];
           const headed = Boolean(args.headed);
+
+          const storage = new FileSystemStorage({ rootDir });
+          const lifecycleState = await storage.getLifecycleState();
+          const currentPhase = lifecycleState.phase;
+
+          if (currentPhase === 'ONBOARDING') {
+            const ctxPath = join(qaDir, 'project', 'context.yaml');
+            const envsPath = join(qaDir, 'project', 'environments.yaml');
+            const parsedContext = existsSync(ctxPath) ? YAML.parse(readFileSync(ctxPath, 'utf-8')) : null;
+            const parsedEnv = existsSync(envsPath) ? YAML.parse(readFileSync(envsPath, 'utf-8')) : null;
+            const gate = canExitOnboarding(parsedContext, parsedEnv);
+            const guidance = getPhaseGuidance('ONBOARDING', { faltantes: gate.faltantes });
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(
+                    {
+                      status: 'blocked',
+                      directorio_objetivo: rootDir,
+                      fase: 'ONBOARDING',
+                      razon: 'No se puede ejecutar qap_discover en la fase ONBOARDING. Debes completar el contexto de negocio antes de explorar.',
+                      desbloquear_con: {
+                        tool: 'qap_context_set',
+                        descripcion: 'Define el objetivo, roles, flujos críticos y fuente de verdad con qap_context_set.',
+                      },
+                      faltantes: gate.faltantes,
+                      siguiente_accion: guidance.siguiente_accion,
+                      pregunta: guidance.pregunta,
+                      opciones: guidance.opciones,
+                    },
+                    null,
+                    2
+                  ),
+                },
+              ],
+            };
+          }
+
+          if (currentPhase === 'SCOPING') {
+            const profilesPath = join(qaDir, 'project', 'auth', 'profiles.json');
+            let registeredProfiles: string[] = [];
+            if (existsSync(profilesPath)) {
+              try {
+                const parsed = JSON.parse(readFileSync(profilesPath, 'utf-8'));
+                registeredProfiles = (parsed.profiles || []).map((p: any) => p.id);
+              } catch { /* empty */ }
+            }
+            const gate = canExitScoping(lifecycleState, registeredProfiles);
+            const guidance = getPhaseGuidance('SCOPING', { faltantes: gate.faltantes });
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(
+                    {
+                      status: 'blocked',
+                      directorio_objetivo: rootDir,
+                      fase: 'SCOPING',
+                      razon: 'No se puede ejecutar qap_discover en la fase SCOPING. Debes definir el plan de sesión con qap_session_plan.',
+                      desbloquear_con: {
+                        tool: 'qap_session_plan',
+                        descripcion: 'Registra los módulos y la decisión de autenticación con qap_session_plan.',
+                      },
+                      faltantes: gate.faltantes,
+                      siguiente_accion: guidance.siguiente_accion,
+                      pregunta: guidance.pregunta,
+                      opciones: guidance.opciones,
+                    },
+                    null,
+                    2
+                  ),
+                },
+              ],
+            };
+          }
+
+          if (currentPhase === 'WRAP_UP') {
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(
+                    {
+                      status: 'blocked',
+                      directorio_objetivo: rootDir,
+                      fase: 'WRAP_UP',
+                      razon: 'La sesión actual ha concluido en WRAP_UP. Nueva sesión aún no implementada.',
+                      desbloquear_con: {
+                        tool: 'qap_session_plan',
+                        descripcion: 'Nueva sesión aún no implementada',
+                      },
+                      siguiente_accion: {
+                        tipo: 'decision',
+                        descripcion: 'La sesión actual ha concluido en WRAP_UP. Nueva sesión aún no implementada.',
+                      },
+                      pregunta: 'La sesión ha finalizado. Nueva sesión aún no implementada.',
+                      opciones: [],
+                    },
+                    null,
+                    2
+                  ),
+                },
+              ],
+            };
+          }
+
+          // Fase WORKING: el módulo debe existir en modules
+          const modEntry = lifecycleState.modules?.[name];
+          if (!modEntry) {
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(
+                    {
+                      status: 'blocked',
+                      directorio_objetivo: rootDir,
+                      fase: 'WORKING',
+                      razon: `El módulo '${name}' no está registrado en el plan de sesión ni en los módulos del estado.`,
+                      desbloquear_con: {
+                        tool: 'qap_session_plan',
+                        descripcion: `Registra el módulo '${name}' en el plan con qap_session_plan antes de descubrirlo.`,
+                      },
+                      siguiente_accion: {
+                        tipo: 'decision',
+                        descripcion: `Registra el módulo '${name}' usando qap_session_plan.`,
+                        tool: 'qap_session_plan',
+                      },
+                      pregunta: `El módulo '${name}' no forma parte del plan. ¿Deseas agregarlo con qap_session_plan?`,
+                      opciones: ['Registrar módulo con qap_session_plan', 'Ver estado del proyecto (qap_status)'],
+                    },
+                    null,
+                    2
+                  ),
+                },
+              ],
+            };
+          }
+
+          const modStatus = modEntry.state;
+          if (modStatus === 'closed' || modStatus === 'waived') {
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(
+                    {
+                      status: 'blocked',
+                      directorio_objetivo: rootDir,
+                      fase: 'WORKING',
+                      razon: `El módulo '${name}' ya se encuentra en estado '${modEntry.state}' y no puede ser redescubierto.`,
+                      desbloquear_con: {
+                        tool: 'qap_session_plan',
+                        descripcion: 'Registra un nuevo módulo o reactiva el plan con qap_session_plan.',
+                      },
+                      siguiente_accion: {
+                        tipo: 'trabajo',
+                        descripcion: `Selecciona otro módulo del plan que no esté ${modEntry.state}.`,
+                      },
+                      pregunta: `El módulo '${name}' está cerrado (${modEntry.state}). ¿Deseas trabajar en otro módulo?`,
+                      opciones: ['Ver estado del proyecto (qap_status)'],
+                    },
+                    null,
+                    2
+                  ),
+                },
+              ],
+            };
+          }
 
           // 1. Guardar Spec en cache
           const cacheDir = join(qaDir, 'cache', 'discover');
@@ -872,13 +2160,8 @@ export function createMcpServer(): Server {
           const isAuthView = Boolean((discoveredData as any).isAuthView);
           const sessionSaved = Boolean((discoveredData as any).sessionSaved);
           const storageStateUsed = Boolean((discoveredData as any).storageStateUsed);
-          const currentUrl = (discoveredData as any).currentUrl || route;
-
-          // Estructura granular de persistencia (Fix 5)
-          const modulesDir = join(qaDir, 'modules');
-          const moduleDir = join(modulesDir, name);
-          const viewsDir = join(moduleDir, 'views', 'default');
-          mkdirSync(viewsDir, { recursive: true });
+          const currentUrl: string = typeof (discoveredData as any).currentUrl === 'string' ? String((discoveredData as any).currentUrl) : route;
+          const playwrightStatus = playwrightUsed ? 'explorando' : playwrightError ? 'fallido' : 'no_disponible';
 
           // context.yaml de la vista por defecto
           const viewContext = {
@@ -897,6 +2180,35 @@ export function createMcpServer(): Server {
             page_title: discoveredData.pageTitle,
             routes_found: discoveredData.routes,
           };
+
+          // Validar contra module-view.schema.json antes de escribir nada en disco (E5b)
+          const validator = new SchemaValidator();
+          const validationResult = validator.validateModuleView(viewContext);
+          if (!validationResult.valid) {
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(
+                    {
+                      status: 'error',
+                      message: 'Error de validación contra module-view.schema.json',
+                      errors: validationResult.errors,
+                    },
+                    null,
+                    2
+                  ),
+                },
+              ],
+            };
+          }
+
+          // Estructura granular de persistencia (Fix 5)
+          const modulesDir = join(qaDir, 'modules');
+          const moduleDir = join(modulesDir, name);
+          const viewsDir = join(moduleDir, 'views', 'default');
+          mkdirSync(viewsDir, { recursive: true });
+
           writeFileSync(join(viewsDir, 'context.yaml'), YAML.stringify(viewContext), 'utf-8');
 
           // selectors.json de la vista
@@ -941,11 +2253,91 @@ export function createMcpServer(): Server {
             writeFileSync(join(qaDir, 'index.json'), JSON.stringify(globalIndex, null, 2), 'utf-8');
           } catch { /* ignore */ }
 
-          // Entrevista guiada contextual (Fix 3 & Tarea 3)
-          const playwrightStatus = playwrightUsed ? 'explorando' : (playwrightError ? 'fallido' : 'estático');
-          const sessionPath = join(qaDir, 'cache', 'sessions', 'discover-session.json');
-          const sessionExists = existsSync(sessionPath);
+          // E4: Generar hipótesis DOM deterministas y calcular cobertura inicial
+          const viewCtx: ViewDiscoveryContext = {
+            module: name,
+            view: 'default',
+            forms: (discoveredData.forms || []).map((f: any) => ({
+              id: f.id || 'form-1',
+              selector: f.selector || 'form',
+              fields: (f.inputs || []).map((inp: any) => ({
+                key: inp.key || inp.name || 'field',
+                type: inp.type || 'text',
+                name: inp.name,
+                id: inp.id,
+                label: inp.label,
+                autocomplete: inp.autocomplete,
+                required: inp.required,
+                minlength: inp.minlength,
+                maxlength: inp.maxlength,
+                pattern: inp.pattern,
+                min: inp.min,
+                max: inp.max,
+                hidden: inp.hidden,
+                disabled: inp.disabled,
+                formId: f.id,
+              } satisfies DomField)),
+              submitSelector: f.submitSelector,
+            } satisfies DomForm)),
+            buttons: (discoveredData.buttons || []),
+            storage_state_used: storageStateUsed,
+            is_auth_view: isAuthView,
+          };
 
+          const domHypotheses = generateDomHypotheses(viewCtx);
+
+          // Persistir hipótesis en rules.yaml del módulo (atómico, E4)
+          let persistedRulesCount = 0;
+          if (domHypotheses.length > 0) {
+            const updatedRules = await storage.updateModuleRules(name, (current) => {
+              const existing = current.rules || [];
+              const existingIds = new Set(existing.map((r) => r.id));
+              const newHypotheses = domHypotheses.filter((h) => !existingIds.has(h.id));
+              return {
+                ...current,
+                rules: [...existing, ...newHypotheses],
+              };
+            });
+            const allRules = updatedRules.rules || [];
+            persistedRulesCount = allRules.filter((r) => r.source === 'dom' && r.status === 'inferred').length;
+          }
+
+          // Calcular cobertura inicial
+          const currentRulesFile = await storage.getModuleRules(name);
+          const currentRules = currentRulesFile?.rules || [];
+          const currentWaivers = currentRulesFile?.category_waivers || [];
+
+          // Cargar roles del proyecto para determinar si aplica 'actor'
+          let projectRoleCount = 0;
+          try {
+            const ctx = await storage.getProjectContext();
+            const roles = Array.isArray((ctx as any).roles) ? (ctx as any).roles : [];
+            projectRoleCount = roles.length;
+          } catch { /* sin contexto: 0 roles */ }
+
+          const applicableCategories = computeApplicableCategories(viewCtx, projectRoleCount);
+          const coverage = computeCoverage(applicableCategories, currentRules, currentWaivers, 'default');
+          const nextQuestions = generateNextInterviewBatch(viewCtx, currentRules, applicableCategories, currentWaivers);
+
+          // E4: Construir siguiente_accion tipo entrevista_vista
+          const siguienteAccion = {
+            tipo: 'entrevista_vista',
+            descripcion: `Entrevista de reglas de negocio para el módulo '${name}' (vista: default). Cobertura actual: ${Object.values(coverage.categorias).filter((c) => c.cubierta).length}/${applicableCategories.length} categorías.`,
+            tool: 'qap_rules_set',
+            module: name,
+            view: 'default',
+            preguntas: nextQuestions,
+            cobertura: {
+              completa: coverage.completa,
+              categorias_aplicables: applicableCategories,
+              categorias_cubiertas: Object.entries(coverage.categorias)
+                .filter(([, v]) => v.aplicable && v.cubierta)
+                .map(([k]) => k),
+              inferidas_pendientes: coverage.inferidas_pendientes,
+            },
+          };
+
+          // E0a: NO incluir accion_inmediata_requerida ni directiva_estricta
           const responsePayload: Record<string, unknown> = {
             status: 'success',
             directorio_objetivo: rootDir,
@@ -958,80 +2350,36 @@ export function createMcpServer(): Server {
             session_saved: sessionSaved,
             storage_state_used: storageStateUsed,
             headed_disponible: true,
-            accion_inmediata_requerida: 'Llama INMEDIATAMENTE a la herramienta interactiva de preguntas (como ask_question) con los campos "pregunta" y "opciones".',
+            hipotesis_dom_persistidas: persistedRulesCount,
+            siguiente_accion: siguienteAccion,
           };
 
-          if (isAuthView && !sessionSaved && !sessionExists) {
-            // Pantalla de login detectada y sin sesión activa
-            responsePayload.pregunta = "Detecté la pantalla de inicio de sesión. ¿Deseas que ingrese con el perfil 'admin' o con otras credenciales para explorar el interior de la plataforma?";
-            responsePayload.opciones = [
-              'Ingresar con perfil "admin" (qap_discover con profileId="admin")',
-              'Ingresar con credenciales personalizadas (usuario y contraseña)',
-              'Continuar documentando la pantalla de login sin autenticación',
-              'Cancelar exploración',
-            ];
-          } else if (!isAuthView && (sessionSaved || sessionExists || storageStateUsed)) {
-            // Vista autenticada: extraer opciones del menú principal
-            const menuLinks = (discoveredData.links || [])
-              .filter((l: any) =>
-                l.text &&
-                l.href &&
-                !l.href.startsWith('http') &&
-                !l.href.startsWith('//') &&
-                !l.href.toLowerCase().includes('/logout') &&
-                !l.href.toLowerCase().includes('/salir') &&
-                !l.href.toLowerCase().includes('/login')
-              )
-              .slice(0, 4);
-
-            if (menuLinks.length > 0) {
-              responsePayload.pregunta = `Módulo '${name}' explorado con sesión activa (${playwrightStatus}). Detecté enlaces en el menú principal. ¿Qué módulo deseas explorar a continuación?`;
-              responsePayload.opciones = [
-                ...menuLinks.map((l: any) => `Explorar ${l.text} (${l.href})`),
-                'Descubrir otra ruta manual (qap_discover)',
-                'Abrir visor del Knowledge Graph 2D (qap_server)',
-                'Ver estado del proyecto (qap_status)',
-              ];
-            } else if (!rawDesc) {
-              responsePayload.pregunta = `¿Qué módulo o funcionalidad estás construyendo o probando hoy? Describe brevemente el propósito de '${name}'.`;
-              responsePayload.opciones = [
-                'Panel de administración o dashboard',
-                'Formulario de creación/edición de entidad',
-                'Listado y búsqueda de registros',
-                'Otro (especifica en el chat)',
-              ];
-            } else {
-              responsePayload.pregunta = `Módulo '${name}' registrado con éxito (${playwrightStatus}). ¿Deseas explorar otra vista o consultar el Knowledge Graph 2D?`;
-              responsePayload.opciones = [
-                'Abrir visor del Knowledge Graph 2D (qap_server)',
-                'Descubrir otro módulo (qap_discover)',
-                'Ver estado del proyecto (qap_status)',
-              ];
+          // E0b: Transición planned -> observed SIN fallback .status
+          await storage.updateLifecycleState(async (curr) => {
+            const mod = curr.modules?.[name];
+            if (mod && mod.state === 'planned') {
+              curr.modules[name] = {
+                ...mod,
+                state: 'observed',
+                updated_at: new Date().toISOString(),
+              };
+              if (curr.session?.plan) {
+                const item = curr.session.plan.find((p) => p.module === name);
+                if (item && item.status === 'planned') {
+                  item.status = 'observed';
+                }
+              }
+              curr.history = curr.history || [];
+              if (curr.history.length >= 50) curr.history.shift();
+              curr.history.push({
+                from: 'WORKING',
+                to: 'WORKING',
+                at: new Date().toISOString(),
+                reason: `Módulo '${name}' observado tras descubrimiento exitoso`,
+              });
             }
-          } else if (!rawDesc) {
-            responsePayload.pregunta = `¿Qué módulo o funcionalidad estás construyendo o probando hoy? Describe brevemente el propósito de '${name}'.`;
-            responsePayload.opciones = [
-              'Flujo de autenticación (login/registro/recuperación)',
-              'Panel de administración o dashboard',
-              'Formulario de creación/edición de entidad',
-              'Listado y búsqueda de registros',
-              'Otro (especifica en el chat)',
-            ];
-          } else {
-            responsePayload.pregunta = `Módulo '${name}' registrado con éxito (${playwrightStatus}). ¿Deseas explorar otra vista o consultar el Knowledge Graph 2D?`;
-            responsePayload.opciones = [
-              'Abrir visor del Knowledge Graph 2D (qap_server)',
-              'Descubrir otro módulo (qap_discover)',
-              'Ver estado del proyecto (qap_status)',
-            ];
-          }
-
-          responsePayload.pregunta_doc = `¿Existe un PRD, README o especificación de diseño para '${name}' que pueda usar como guía base?`;
-          responsePayload.opciones_doc = [
-            'Sí, tengo un archivo de especificación (comparte la ruta o contenido)',
-            'No, proceder solo con exploración de Playwright',
-            'Tengo notas informales (puedo dictártelas)',
-          ];
+            return curr;
+          });
 
           return {
             content: [
@@ -1043,6 +2391,7 @@ export function createMcpServer(): Server {
           };
         }
 
+
         case 'qap_plan': {
           return {
             content: [{
@@ -1050,13 +2399,29 @@ export function createMcpServer(): Server {
               text: JSON.stringify({
                 estado: 'en_desarrollo',
                 sprint_disponible: 6,
-                mensaje: 'La generación automática de planes está programada para el Sprint 6. Actualmente el motor opera hasta el Sprint 5: Descubrimiento, Mapeo y Knowledge Graph 2D.',
-                capacidades_actuales: ['qap_status', 'qap_init', 'qap_discover', 'qap_validate', 'qap_report', 'qap_server'],
-                accion_recomendada: 'Usa qap_discover para registrar el módulo y qap_validate para verificar la estructura.',
+                mensaje: 'La generación automática de planes de prueba está programada para el Sprint 6. Actualmente el motor opera en QAP v3.0: Descubrimiento, Entrevista de Reglas, Mapeo y Knowledge Graph.',
+                capacidades_actuales: [
+                  'qap_status',
+                  'qap_init',
+                  'qap_clean',
+                  'qap_auth_add',
+                  'qap_auth_list',
+                  'qap_context_set',
+                  'qap_context_ingest',
+                  'qap_session_plan',
+                  'qap_discover',
+                  'qap_rules_set',
+                  'qap_validate',
+                  'qap_report',
+                  'qap_server',
+                  'qap_prune',
+                ],
+                accion_recomendada: 'Usa qap_discover para registrar el módulo y qap_rules_set para confirmar las reglas de negocio de la vista.',
               }, null, 2),
             }],
           };
         }
+
 
         case 'qap_validate': {
           const targetDefsDir = args.path ? resolve(String(args.path)) : resolve(rootDir, '.qa');
@@ -1214,7 +2579,6 @@ export function createMcpServer(): Server {
                     executionId,
                     reports: reportsGenerated,
                     viewer_url: viewerUrl,
-                    accion_inmediata_requerida: 'Llama INMEDIATAMENTE a la herramienta interactiva de preguntas (como ask_question) con los campos "pregunta" y "opciones".',
                     pregunta: `Reporte generado en ${reportsGenerated.html ? 'HTML' : 'formato seleccionado'}. ¿Deseas abrir el visor interactivo del Knowledge Graph 2D en el navegador?`,
                     opciones: [
                       'Abrir visor del Knowledge Graph 2D (qap_server)',
@@ -1244,7 +2608,6 @@ export function createMcpServer(): Server {
                       isError: true,
                       directorio_objetivo: rootDir,
                       error: `No existe la carpeta de base de conocimiento .qa/ en '${rootDir}'. Debe ejecutar qap_init primero.`,
-                      accion_inmediata_requerida: 'Llama INMEDIATAMENTE a la herramienta interactiva de preguntas (como ask_question) con los campos "pregunta" y "opciones".',
                       pregunta: `El proyecto en '${rootDir}' no tiene la carpeta .qa/. ¿Deseas inicializar QAP ahora con qap_init?`,
                       opciones: [
                         `Inicializar QAP en '${rootDir}' (qap_init)`,
@@ -1366,6 +2729,153 @@ export function createMcpServer(): Server {
           };
         }
 
+        case 'qap_rules_set': {
+          const moduleName = args.module ? String(args.module) : '';
+          if (!moduleName) {
+            return {
+              isError: true,
+              content: [{ type: 'text', text: JSON.stringify({ status: 'error', error: "El parámetro 'module' es requerido." }, null, 2) }],
+            };
+          }
+
+          const storage = new FileSystemStorage({ rootDir });
+          const view = args.view ? String(args.view) : 'default';
+          const incomingRules = Array.isArray(args.rules) ? args.rules : [];
+          const incomingWaivers = Array.isArray(args.category_waivers) ? args.category_waivers : [];
+
+          // Upsert atómico vía updateModuleRules (E5)
+          const updatedRules = await storage.updateModuleRules(moduleName, (current) => {
+            const existing = current.rules || [];
+            const existingIds = new Set(existing.map((r: any) => r.id));
+
+            // Upsert: actualizar existentes por id, agregar nuevos
+            const merged = existing.map((r: any) => {
+              const incoming = incomingRules.find((ir: any) => ir.id === r.id);
+              if (incoming) {
+                return {
+                  ...r,
+                  ...incoming,
+                  view: incoming.view ?? r.view ?? view,
+                  source: incoming.source ?? r.source ?? 'user',
+                  evidence: incoming.evidence ? incoming.evidence.slice(0, 120) : r.evidence,
+                };
+              }
+              return r;
+            });
+
+            const newRules = incomingRules
+              .filter((ir: any) => !existingIds.has(ir.id))
+              .map((ir: any) => ({
+                ...ir,
+                view: ir.view ?? view,
+                source: ir.source ?? 'user',
+                evidence: ir.evidence ? ir.evidence.slice(0, 120) : undefined,
+              }));
+
+            // Upsert waivers por view+category
+            const existingWaivers = current.category_waivers || [];
+            const mergedWaivers = existingWaivers.map((w: any) => {
+              const incoming = incomingWaivers.find((iw: any) => iw.category === w.category && (iw.view ?? view) === (w.view ?? view));
+              return incoming ? { ...w, ...incoming, view: incoming.view ?? view } : w;
+            });
+            const newWaivers = incomingWaivers
+              .filter((iw: any) => !existingWaivers.some((w: any) => w.category === iw.category && (w.view ?? view) === (iw.view ?? view)))
+              .map((iw: any) => ({ ...iw, view: iw.view ?? view }));
+
+            return {
+              ...current,
+              manually_edited: false,
+              rules: [...merged, ...newRules],
+              category_waivers: [...mergedWaivers, ...newWaivers],
+            };
+          });
+
+          // Transición de lifecycle: observed -> interviewing (E5)
+          await storage.updateLifecycleState(async (curr) => {
+            const mod = curr.modules?.[moduleName];
+            if (mod && mod.state === 'observed') {
+              curr.modules[moduleName] = {
+                ...mod,
+                state: 'interviewing',
+                updated_at: new Date().toISOString(),
+              };
+              curr.history = curr.history || [];
+              if (curr.history.length >= 50) curr.history.shift();
+              curr.history.push({
+                from: 'WORKING',
+                to: 'WORKING',
+                at: new Date().toISOString(),
+                reason: `Módulo '${moduleName}' en entrevista de reglas de negocio`,
+              });
+            }
+            return curr;
+          });
+
+          // Recalcular cobertura post-mutación
+          const allRules = updatedRules.rules || [];
+          const allWaivers = updatedRules.category_waivers || [];
+
+          // Construir viewCtx mínimo para coverage (sin DOM en este punto)
+          let projectRoleCountRules = 0;
+          try {
+            const ctx = await storage.getProjectContext();
+            const roles = Array.isArray((ctx as any).roles) ? (ctx as any).roles : [];
+            projectRoleCountRules = roles.length;
+          } catch { /* sin contexto */ }
+
+          const viewCtxMin: ViewDiscoveryContext = {
+            module: moduleName,
+            view,
+            forms: [],
+            storage_state_used: false,
+            is_auth_view: false,
+          };
+          const applicableCats = computeApplicableCategories(viewCtxMin, projectRoleCountRules);
+          const cov = computeCoverage(applicableCats, allRules, allWaivers, view);
+          const nextQs = generateNextInterviewBatch(viewCtxMin, allRules, applicableCats, allWaivers);
+
+          const siguienteAccionRules = cov.completa
+            ? {
+                tipo: 'trabajo',
+                descripcion: `Entrevista de '${moduleName}' (vista: ${view}) completada. Todas las categorías cubiertas.`,
+                tool: 'qap_discover',
+              }
+            : {
+                tipo: 'entrevista_vista',
+                descripcion: `Entrevista en curso para '${moduleName}' (vista: ${view}). Categorías pendientes: ${Object.entries(cov.categorias).filter(([, v]) => v.aplicable && !v.cubierta).map(([k]) => k).join(', ')}.`,
+                tool: 'qap_rules_set',
+                module: moduleName,
+                view,
+                preguntas: nextQs,
+                cobertura: {
+                  completa: cov.completa,
+                  categorias_aplicables: applicableCats,
+                  categorias_cubiertas: Object.entries(cov.categorias).filter(([, v]) => v.aplicable && v.cubierta).map(([k]) => k),
+                  inferidas_pendientes: cov.inferidas_pendientes,
+                },
+              };
+
+          return {
+            content: [{
+              type: 'text',
+              text: JSON.stringify({
+                status: 'success',
+                directorio_objetivo: rootDir,
+                message: `✔ Reglas actualizadas para módulo '${moduleName}' (vista: ${view})`,
+                module: moduleName,
+                view,
+                rules_guardadas: incomingRules.length,
+                waivers_guardados: incomingWaivers.length,
+                rules_total: allRules.length,
+                waivers_total: allWaivers.length,
+                cobertura: cov,
+                cobertura_completa: cov.completa,
+                siguiente_accion: siguienteAccionRules,
+              }, null, 2),
+            }],
+          };
+        }
+
         default:
           return {
             isError: true,
@@ -1377,6 +2887,7 @@ export function createMcpServer(): Server {
             ],
           };
       }
+
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       return {

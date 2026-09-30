@@ -30,8 +30,36 @@ export interface LaunchBrowserOptions {
 export interface DiscoveredInput {
   key: string;
   selector: string;
+  /** Tipo HTML: text, password, email, tel, number, date, etc. */
   type: string;
+  /** Placeholder sanitizado (truncado, sin valores de password). DATO NO CONFIABLE. */
   placeholder: string | null;
+  /** Atributo name del input */
+  name?: string;
+  /** Atributo id del input */
+  id?: string;
+  /** Etiqueta sanitizada: label / aria-label / placeholder (truncada a 60 chars). DATO NO CONFIABLE. */
+  label?: string;
+  /** Valor del atributo autocomplete */
+  autocomplete?: string;
+  /** Si el campo es requerido en el DOM */
+  required?: boolean;
+  /** Longitud mínima (minlength) */
+  minlength?: number;
+  /** Longitud máxima (maxlength) */
+  maxlength?: number;
+  /** Patrón de validación HTML (truncado a 120 chars) */
+  pattern?: string;
+  /** Mínimo numérico o de fecha */
+  min?: string;
+  /** Máximo numérico o de fecha */
+  max?: string;
+  /** Si el campo es hidden */
+  hidden?: boolean;
+  /** Si el campo es disabled */
+  disabled?: boolean;
+  /** ID del formulario al que pertenece */
+  formId?: string;
 }
 
 export interface DiscoveredButton {
@@ -52,7 +80,10 @@ export interface DiscoveredForm {
   selector: string;
   inputs: DiscoveredInput[];
   fields: string[];
+  /** Selector del botón de envío del formulario */
+  submitSelector?: string;
 }
+
 
 /**
  * Estrategia de lanzamiento de navegador en cascada multiplataforma.
@@ -343,6 +374,13 @@ export class PlaywrightAdapter implements IDiscoverer {
   private async extractForms(page: Page): Promise<DiscoveredForm[]> {
     try {
       const forms = await page.$$eval('form', (formList) => {
+        /** Sanitiza cadenas del DOM: sin ctrl, sin html, truncado a 60 chars. DATO NO CONFIABLE */
+        function sanitizeDom(raw: string | null | undefined): string | undefined {
+          if (!raw) return undefined;
+          const s = raw.replace(/[\r\n\t\x00-\x1F\x7F]/g, ' ').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().slice(0, 60);
+          return s || undefined;
+        }
+
         return formList.map((form, formIdx) => {
           const formId = form.getAttribute('id') || form.getAttribute('name') || `form-${formIdx + 1}`;
           const formSelector = form.id
@@ -351,65 +389,97 @@ export class PlaywrightAdapter implements IDiscoverer {
             ? `form[name="${form.getAttribute('name')}"]`
             : `form:nth-of-type(${formIdx + 1})`;
 
+          // Selector del botón de envío del formulario
+          const submitBtn = form.querySelector('button[type="submit"], input[type="submit"], button:not([type])');
+          let submitSelector: string | undefined;
+          if (submitBtn) {
+            const sbId = (submitBtn as HTMLElement).id;
+            const sbText = sanitizeDom(submitBtn.textContent);
+            if (sbId) submitSelector = `#${sbId}`;
+            else if (sbText) submitSelector = `button:has-text("${sbText.replace(/"/g, '\\"')}")`;
+            else submitSelector = 'button[type="submit"]';
+          }
+
           const rawInputs = Array.from(form.querySelectorAll('input, select, textarea'));
           const inputs = rawInputs.map((el, idx) => {
             const tag = el.tagName.toLowerCase();
-            const id = el.id ? el.id.trim() : '';
-            const name = el.getAttribute('name') ? el.getAttribute('name')!.trim() : '';
+            const elId = el.id ? el.id.trim() : '';
+            const elName = el.getAttribute('name') ? el.getAttribute('name')!.trim() : '';
             const testId = (el.getAttribute('data-testid') || (el as HTMLElement).dataset?.testid || '').trim();
             const rawType = (
               el.getAttribute('type') ||
               (tag === 'textarea' ? 'textarea' : tag === 'select' ? 'select' : 'text')
             ).trim().toLowerCase();
 
+            // PROHIBIDO: extraer el.value o contenido de password
+            const isPasswordType = rawType === 'password';
+
             // Selector por prioridad: id -> name -> data-testid -> type
             let selector = '';
-            if (id) {
-              selector = `#${id}`;
-            } else if (name) {
-              selector = `${tag}[name="${name}"]`;
-            } else if (testId) {
-              selector = `[data-testid="${testId}"]`;
-            } else if (rawType && tag === 'input') {
-              selector = `input[type="${rawType}"]`;
-            } else {
-              selector = tag;
-            }
+            if (elId) selector = `#${elId}`;
+            else if (elName) selector = `${tag}[name="${elName}"]`;
+            else if (testId) selector = `[data-testid="${testId}"]`;
+            else if (rawType && tag === 'input') selector = `input[type="${rawType}"]`;
+            else selector = tag;
 
-            // Sanitización de placeholder y prohibición de valores enmascarados de password
+            // Placeholder sanitizado — NUNCA para passwords
             const rawPlaceholder = el.getAttribute('placeholder');
             let placeholder: string | null = null;
-            if (rawPlaceholder) {
+            if (rawPlaceholder && !isPasswordType) {
               const trimmed = rawPlaceholder.trim();
-              const isMaskedPassword =
-                /^[\u2022\u25cf\*\.\s]+$/.test(trimmed) ||
-                trimmed.includes('•') ||
-                trimmed.includes('â€¢') ||
-                (rawType === 'password' && /^[\u2022\u25cf\*\.\s\u00e2\u20ac\u00a2]+$/.test(trimmed));
-              if (!isMaskedPassword && trimmed.length > 0) {
-                placeholder = trimmed;
+              const isMasked = /^[\u2022\u25cf\*\.\s]+$/.test(trimmed) || trimmed.includes('•');
+              if (!isMasked && trimmed.length > 0) {
+                placeholder = trimmed.replace(/[\r\n\t]/g, ' ').slice(0, 60);
               }
             }
 
-            // Key identificadora lógica
-            let key = name || id || testId;
-            if (!key && placeholder) {
-              key = placeholder
-                .toLowerCase()
-                .normalize('NFD')
-                .replace(/[\u0300-\u036f]/g, '')
-                .replace(/[^a-z0-9_-]+/gi, '_')
-                .replace(/^_+|_+$/g, '');
-            }
-            if (!key) {
-              key = rawType ? `${rawType}-${idx + 1}` : `${tag}-${idx + 1}`;
+            // Etiqueta: aria-label -> label[for=id] -> placeholder (no para passwords)
+            let label: string | undefined;
+            if (!isPasswordType) {
+              const ariaLabel = sanitizeDom(el.getAttribute('aria-label'));
+              let associatedLabel: string | undefined;
+              if (elId) {
+                const labelEl = form.querySelector(`label[for="${elId}"]`);
+                if (labelEl) associatedLabel = sanitizeDom(labelEl.textContent);
+              }
+              label = ariaLabel || associatedLabel || (placeholder ? sanitizeDom(placeholder) : undefined);
             }
 
+            // Atributos de validación
+            const required = el.hasAttribute('required');
+            const minlengthRaw = el.getAttribute('minlength');
+            const maxlengthRaw = el.getAttribute('maxlength');
+            const minlength = minlengthRaw !== null ? parseInt(minlengthRaw, 10) : undefined;
+            const maxlength = maxlengthRaw !== null ? parseInt(maxlengthRaw, 10) : undefined;
+            const pattern = !isPasswordType ? (el.getAttribute('pattern')?.slice(0, 120) || undefined) : undefined;
+            const minVal = el.getAttribute('min') || undefined;
+            const maxVal = el.getAttribute('max') || undefined;
+            const autocomplete = !isPasswordType ? (el.getAttribute('autocomplete') || undefined) : undefined;
+            const hidden = rawType === 'hidden';
+            const disabled = (el as HTMLInputElement).disabled;
+
+            // Key lógica
+            let key = elName || elId || testId;
+            if (!key && placeholder) {
+              key = placeholder.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9_-]+/gi, '_').replace(/^_+|_+$/g, '');
+            }
+            if (!key) key = rawType ? `${rawType}-${idx + 1}` : `${tag}-${idx + 1}`;
+
             return {
-              key,
-              selector,
-              type: rawType,
-              placeholder,
+              key, selector, type: rawType, placeholder,
+              name: elName || undefined,
+              id: elId || undefined,
+              label,
+              autocomplete,
+              required: required || undefined,
+              minlength: (minlength !== undefined && !isNaN(minlength)) ? minlength : undefined,
+              maxlength: (maxlength !== undefined && !isNaN(maxlength)) ? maxlength : undefined,
+              pattern,
+              min: minVal,
+              max: maxVal,
+              hidden: hidden || undefined,
+              disabled: disabled || undefined,
+              formId,
             };
           });
 
@@ -418,69 +488,100 @@ export class PlaywrightAdapter implements IDiscoverer {
             selector: formSelector,
             inputs,
             fields: inputs.map((inp) => inp.selector),
+            submitSelector,
           };
         });
       });
+
+
 
       // Extraer inputs huérfanos fuera de tags <form> (comunes en React / SPAs)
       const standaloneInputs = await page.$$eval(
         'input:not(form input), select:not(form select), textarea:not(form textarea)',
         (elements) => {
+          function sanitizeDom(raw: string | null | undefined): string | undefined {
+            if (!raw) return undefined;
+            const s = raw.replace(/[\r\n\t\x00-\x1F\x7F]/g, ' ').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().slice(0, 60);
+            return s || undefined;
+          }
+
           return elements.map((el, idx) => {
             const tag = el.tagName.toLowerCase();
-            const id = el.id ? el.id.trim() : '';
-            const name = el.getAttribute('name') ? el.getAttribute('name')!.trim() : '';
+            const elId = el.id ? el.id.trim() : '';
+            const elName = el.getAttribute('name') ? el.getAttribute('name')!.trim() : '';
             const testId = (el.getAttribute('data-testid') || (el as HTMLElement).dataset?.testid || '').trim();
             const rawType = (
               el.getAttribute('type') ||
               (tag === 'textarea' ? 'textarea' : tag === 'select' ? 'select' : 'text')
             ).trim().toLowerCase();
 
+            // PROHIBIDO: extraer el.value o contenido de password
+            const isPasswordType = rawType === 'password';
+
             let selector = '';
-            if (id) {
-              selector = `#${id}`;
-            } else if (name) {
-              selector = `${tag}[name="${name}"]`;
-            } else if (testId) {
-              selector = `[data-testid="${testId}"]`;
-            } else if (rawType && tag === 'input') {
-              selector = `input[type="${rawType}"]`;
-            } else {
-              selector = tag;
-            }
+            if (elId) selector = `#${elId}`;
+            else if (elName) selector = `${tag}[name="${elName}"]`;
+            else if (testId) selector = `[data-testid="${testId}"]`;
+            else if (rawType && tag === 'input') selector = `input[type="${rawType}"]`;
+            else selector = tag;
 
             const rawPlaceholder = el.getAttribute('placeholder');
             let placeholder: string | null = null;
-            if (rawPlaceholder) {
+            if (rawPlaceholder && !isPasswordType) {
               const trimmed = rawPlaceholder.trim();
-              const isMaskedPassword =
-                /^[\u2022\u25cf\*\.\s]+$/.test(trimmed) ||
-                trimmed.includes('•') ||
-                trimmed.includes('â€¢') ||
-                (rawType === 'password' && /^[\u2022\u25cf\*\.\s\u00e2\u20ac\u00a2]+$/.test(trimmed));
-              if (!isMaskedPassword && trimmed.length > 0) {
-                placeholder = trimmed;
+              const isMasked = /^[\u2022\u25cf\*\.\s]+$/.test(trimmed) || trimmed.includes('•');
+              if (!isMasked && trimmed.length > 0) {
+                placeholder = trimmed.replace(/[\r\n\t]/g, ' ').slice(0, 60);
               }
             }
 
-            let key = name || id || testId;
+            let label: string | undefined;
+            if (!isPasswordType) {
+              const ariaLabel = sanitizeDom(el.getAttribute('aria-label'));
+              let associatedLabel: string | undefined;
+              if (elId) {
+                const labelEl = document.querySelector(`label[for="${elId}"]`);
+                if (labelEl) associatedLabel = sanitizeDom(labelEl.textContent);
+              }
+              label = ariaLabel || associatedLabel || (placeholder ? sanitizeDom(placeholder) : undefined);
+            }
+
+            const required = el.hasAttribute('required');
+            const minlengthRaw = el.getAttribute('minlength');
+            const maxlengthRaw = el.getAttribute('maxlength');
+            const minlength = minlengthRaw !== null ? parseInt(minlengthRaw, 10) : undefined;
+            const maxlength = maxlengthRaw !== null ? parseInt(maxlengthRaw, 10) : undefined;
+            const pattern = !isPasswordType ? (el.getAttribute('pattern')?.slice(0, 120) || undefined) : undefined;
+            const minVal = el.getAttribute('min') || undefined;
+            const maxVal = el.getAttribute('max') || undefined;
+            const autocomplete = !isPasswordType ? (el.getAttribute('autocomplete') || undefined) : undefined;
+            const hidden = rawType === 'hidden';
+            const disabled = (el as HTMLInputElement).disabled;
+
+            let key = elName || elId || testId;
             if (!key && placeholder) {
-              key = placeholder
-                .toLowerCase()
-                .normalize('NFD')
-                .replace(/[\u0300-\u036f]/g, '')
-                .replace(/[^a-z0-9_-]+/gi, '_')
-                .replace(/^_+|_+$/g, '');
+              key = placeholder.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9_-]+/gi, '_').replace(/^_+|_+$/g, '');
             }
-            if (!key) {
-              key = rawType ? `${rawType}-${idx + 1}` : `${tag}-${idx + 1}`;
-            }
+            if (!key) key = rawType ? `${rawType}-${idx + 1}` : `${tag}-${idx + 1}`;
 
             return {
               key,
               selector,
               type: rawType,
               placeholder,
+              name: elName || undefined,
+              id: elId || undefined,
+              label,
+              autocomplete,
+              required: required || undefined,
+              minlength: (minlength !== undefined && !isNaN(minlength)) ? minlength : undefined,
+              maxlength: (maxlength !== undefined && !isNaN(maxlength)) ? maxlength : undefined,
+              pattern,
+              min: minVal,
+              max: maxVal,
+              hidden: hidden || undefined,
+              disabled: disabled || undefined,
+              formId: 'standalone',
             };
           });
         }
@@ -492,6 +593,7 @@ export class PlaywrightAdapter implements IDiscoverer {
           selector: 'body',
           inputs: standaloneInputs,
           fields: standaloneInputs.map((inp) => inp.selector),
+          submitSelector: undefined,
         });
       }
 
