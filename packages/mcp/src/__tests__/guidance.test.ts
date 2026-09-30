@@ -65,7 +65,7 @@ describe('Módulo de Guía Conversacional por Fase (E6)', () => {
     expect(res.siguiente_accion.tipo).toBe('trabajo');
     expect(res.siguiente_accion.tool).toBe('qap_discover');
     expect(res.siguiente_accion.descripcion).toContain("'checkout' en ruta '/cart'");
-    expect(res.opciones).toContain('Explorar checkout');
+    expect(res.opciones).toHaveLength(0);
   });
 
   it('WORKING: debe priorizar módulo en interviewing con tipo entrevista_vista y tool qap_rules_set', () => {
@@ -98,9 +98,9 @@ describe('Módulo de Guía Conversacional por Fase (E6)', () => {
     });
 
     expect(res.fase).toBe('WORKING');
-    expect(res.siguiente_accion.tipo).toBe('trabajo');
-    expect(res.siguiente_accion.tool).toBe('qap_session_plan');
-    expect(res.siguiente_accion.descripcion).toContain('ampliar el plan con nuevos módulos');
+    expect(res.siguiente_accion.tipo).toBe('decision');
+    expect(res.siguiente_accion.tool).toBe('qap_report');
+    expect(res.siguiente_accion.descripcion).toContain('cobertura completa');
   });
 
   it('WRAP_UP: debe indicar que la nueva sesión no está implementada aún', () => {

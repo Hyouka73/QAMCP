@@ -20,7 +20,7 @@ export interface PhaseGuidanceOptions {
   faltantes?: Array<{ campo: string; motivo: string }>;
   suggestedModules?: Array<{ module: string; path: string; priority?: string }>;
   plan?: Array<{ module: string; path: string; priority: string; status: string }>;
-  modules?: Record<string, { state: string }>;
+  modules?: Record<string, { state: string; hasPendingHypotheses?: boolean }>;
 }
 
 export interface GuidanceResult {
@@ -117,32 +117,50 @@ export function getPhaseGuidance(
     }
 
     case 'WORKING': {
-      // 1. Prioridad: módulos en interviewing que requieren completar entrevista de vista
+      // 1. Prioridad: módulos en interviewing, o módulos en observed con hipótesis pendientes
       const modulesEntries = Object.entries(options.modules ?? {});
-      const nextInterviewing = modulesEntries.find(([_, info]) => info.state === 'interviewing');
+      const nextInterview = modulesEntries.find(([, info]) => {
+        if (info.state === 'interviewing') return true;
+        if (info.state === 'observed' && info.hasPendingHypotheses !== false) {
+          return info.hasPendingHypotheses === true;
+        }
+        return false;
+      });
 
-      if (nextInterviewing) {
-        const [modName] = nextInterviewing;
+      if (nextInterview) {
+        const [modName, info] = nextInterview;
         return {
           fase: 'WORKING',
           siguiente_accion: {
             tipo: 'entrevista_vista',
-            descripcion: `El módulo '${modName}' tiene una entrevista de vista pendiente con hipótesis y preguntas sobre reglas de negocio. Registra sus reglas con qap_rules_set.`,
+            descripcion: info.state === 'observed'
+              ? `El módulo '${modName}' fue descubierto y tiene hipótesis sobre reglas de negocio pendientes. Registra sus reglas con qap_rules_set.`
+              : `El módulo '${modName}' tiene una entrevista de vista pendiente con hipótesis y preguntas sobre reglas de negocio. Registra sus reglas con qap_rules_set.`,
             tool: 'qap_rules_set',
           },
           pregunta: `El módulo '${modName}' requiere completar su entrevista de vista para registrar reglas de negocio. ¿Deseas responder ahora con qap_rules_set?`,
-          opciones: [`Responder entrevista de ${modName} (qap_rules_set)`, 'Ver otros módulos'],
+          opciones: [`Responder entrevista de ${modName} (qap_rules_set)`],
         };
       }
 
-      // 2. Siguiente módulo planificado
+      // 2. Siguiente módulo planificado ordenado por prioridad high > medium > low, luego orden del plan
+      const PRIORITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
       const plan = options.plan ?? [];
-      const nextPlanned = plan.find((item) => {
-        const modState = options.modules?.[item.module]?.state;
-        return modState === 'planned';
-      });
+      const plannedItems = plan
+        .map((item, index) => ({ item, index }))
+        .filter(({ item }) => {
+          const modState = options.modules?.[item.module]?.state;
+          return modState === 'planned';
+        })
+        .sort((a, b) => {
+          const pA = PRIORITY_ORDER[a.item.priority?.toLowerCase() ?? 'medium'] ?? 1;
+          const pB = PRIORITY_ORDER[b.item.priority?.toLowerCase() ?? 'medium'] ?? 1;
+          if (pA !== pB) return pA - pB;
+          return a.index - b.index;
+        });
 
-      if (nextPlanned) {
+      if (plannedItems.length > 0) {
+        const nextPlanned = plannedItems[0].item;
         return {
           fase: 'WORKING',
           siguiente_accion: {
@@ -150,21 +168,21 @@ export function getPhaseGuidance(
             descripcion: `Siguiente módulo planificado para exploración: '${nextPlanned.module}' en ruta '${nextPlanned.path}'.`,
             tool: 'qap_discover',
           },
-          pregunta: `¿Deseas iniciar la exploración del módulo '${nextPlanned.module}' (${nextPlanned.path})?`,
-          opciones: [`Explorar ${nextPlanned.module}`, 'Ver otros módulos'],
+          pregunta: `Siguiente módulo planificado para exploración: '${nextPlanned.module}' (${nextPlanned.path}). Ejecuta qap_discover para iniciar.`,
+          opciones: [], // T4: sin pregunta de confirmación, sin "Ver otros módulos", sin botón de una sola opción
         };
       }
 
-      // 3. Si no hay planned ni interviewing, resumir pendientes o módulos observados
+      // 3. Si no hay planned, observed ni interviewing: todos los módulos del plan tienen cobertura completa
       return {
         fase: 'WORKING',
         siguiente_accion: {
-          tipo: 'trabajo',
-          descripcion: 'Todos los módulos planificados en la sesión actual han sido observados o procesados. Puedes ampliar el plan con nuevos módulos usando qap_session_plan.',
-          tool: 'qap_session_plan',
+          tipo: 'decision',
+          descripcion: 'Todos los módulos planificados en la sesión actual tienen cobertura completa. Puedes generar reportes con qap_report o ampliar el plan con nuevos módulos usando qap_session_plan.',
+          tool: 'qap_report',
         },
-        pregunta: 'No hay más módulos pendientes de descubrimiento en el plan actual. ¿Deseas ampliar el plan con nuevos módulos?',
-        opciones: ['Agregar nuevos módulos', 'Ver reportes'],
+        pregunta: 'Todos los módulos del plan tienen cobertura completa. ¿Deseas generar el reporte final o ampliar el plan?',
+        opciones: ['Generar reporte final (qap_report)', 'Ampliar plan de sesión (qap_session_plan)'],
       };
     }
 

@@ -23,7 +23,7 @@ import {
   type Prompt,
 } from '@modelcontextprotocol/sdk/types.js';
 import YAML from 'yaml';
-import { SchemaValidator, type AuthProfile, type ModuleSpec, type ProjectPhase } from '@qap/shared';
+import { SchemaValidator, type AuthProfile, type ModuleSpec, type ProjectPhase, type ModuleLifecycleState } from '@qap/shared';
 import { FileSystemStorage, validateDefinitions, parsePrdContent } from '@qap/knowledge';
 import {
   canExitOnboarding,
@@ -709,15 +709,33 @@ export function createMcpServer(): Server {
           }
 
           const estadosModulos: Record<string, string> = {};
+          const modulesGuidance: Record<string, { state: string; hasPendingHypotheses?: boolean }> = {};
           for (const [k, v] of Object.entries(lifecycleState.modules || {})) {
             estadosModulos[k] = v.state;
+            let hasPendingHypotheses = false;
+            if (v.state === 'observed' || v.state === 'interviewing') {
+              try {
+                const rulesFile = await storage.getModuleRules(k);
+                const rules = rulesFile?.rules || [];
+                hasPendingHypotheses = rules.some((r: any) => r.source === 'dom' && r.status === 'inferred');
+              } catch {
+                hasPendingHypotheses = false;
+              }
+            }
+            modulesGuidance[k] = {
+              state: v.state,
+              hasPendingHypotheses,
+            };
           }
 
           const guidance = getPhaseGuidance(currentPhase, {
             faltantes,
             plan: lifecycleState.session?.plan,
-            modules: lifecycleState.modules as any,
+            modules: modulesGuidance as any,
           });
+
+          const stateModuleCount = Object.keys(lifecycleState.modules || {}).length;
+          const totalModules = Math.max(moduleCount, stateModuleCount);
 
           return {
             content: [
@@ -735,7 +753,7 @@ export function createMcpServer(): Server {
                     projectName: projectName !== 'No inicializado' ? projectName : basename(rootDir),
                     environments,
                     stats: {
-                      modules: moduleCount,
+                      modules: totalModules,
                       authProfiles: profileCount,
                       executions: executionCount,
                     },
@@ -2260,8 +2278,8 @@ export function createMcpServer(): Server {
             forms: (discoveredData.forms || []).map((f: any) => ({
               id: f.id || 'form-1',
               selector: f.selector || 'form',
-              fields: (f.inputs || []).map((inp: any) => ({
-                key: inp.key || inp.name || 'field',
+              fields: ((f.inputs || f.fields || []) as any[]).map((inp: any) => ({
+                key: inp.key || inp.name || inp.id || 'field',
                 type: inp.type || 'text',
                 name: inp.name,
                 id: inp.id,
@@ -2288,10 +2306,15 @@ export function createMcpServer(): Server {
 
           // Persistir hipótesis en rules.yaml del módulo (atómico, E4)
           let persistedRulesCount = 0;
+          let manuallyEditedSkipped = false;
           if (domHypotheses.length > 0) {
             const updatedRules = await storage.updateModuleRules(name, (current) => {
+              if (current.manually_edited) {
+                manuallyEditedSkipped = true;
+                return current;
+              }
               const existing = current.rules || [];
-              const existingIds = new Set(existing.map((r) => r.id));
+              const existingIds = new Set(existing.map((r: any) => r.id));
               const newHypotheses = domHypotheses.filter((h) => !existingIds.has(h.id));
               return {
                 ...current,
@@ -2299,7 +2322,7 @@ export function createMcpServer(): Server {
               };
             });
             const allRules = updatedRules.rules || [];
-            persistedRulesCount = allRules.filter((r) => r.source === 'dom' && r.status === 'inferred').length;
+            persistedRulesCount = allRules.filter((r: any) => r.source === 'dom' && r.status === 'inferred').length;
           }
 
           // Calcular cobertura inicial
@@ -2319,29 +2342,56 @@ export function createMcpServer(): Server {
           const coverage = computeCoverage(applicableCategories, currentRules, currentWaivers, 'default');
           const nextQuestions = generateNextInterviewBatch(viewCtx, currentRules, applicableCategories, currentWaivers);
 
-          // E4: Construir siguiente_accion tipo entrevista_vista
-          const siguienteAccion = {
-            tipo: 'entrevista_vista',
-            descripcion: `Entrevista de reglas de negocio para el módulo '${name}' (vista: default). Cobertura actual: ${Object.values(coverage.categorias).filter((c) => c.cubierta).length}/${applicableCategories.length} categorías.`,
-            tool: 'qap_rules_set',
-            module: name,
-            view: 'default',
-            preguntas: nextQuestions,
-            cobertura: {
-              completa: coverage.completa,
-              categorias_aplicables: applicableCategories,
-              categorias_cubiertas: Object.entries(coverage.categorias)
-                .filter(([, v]) => v.aplicable && v.cubierta)
-                .map(([k]) => k),
-              inferidas_pendientes: coverage.inferidas_pendientes,
-            },
-          };
+          // Rutas detectadas fuera del plan (máx 10)
+          const plannedPaths = new Set((lifecycleState.session?.plan || []).map((p: any) => p.path));
+          plannedPaths.add(route);
+          const rawDetectedRoutes: string[] = [
+            ...(discoveredData.routes || []),
+            ...(discoveredData.links || []).map((l: any) => (typeof l === 'string' ? l : l.href || l.url || '')),
+          ];
+          const rutasDetectadasFueraDelPlan = rawDetectedRoutes
+            .map((r) => r.split('?')[0].split('#')[0].trim())
+            .filter((r) => r.startsWith('/') && !plannedPaths.has(r))
+            .filter((r, idx, arr) => arr.indexOf(r) === idx)
+            .slice(0, 10);
+
+          // E4: Construir siguiente_accion tipo entrevista_vista (o decision ante fallo de Playwright, T9)
+          const isPlaywrightFailure = !playwrightUsed || Boolean(playwrightError);
+          const siguienteAccion = isPlaywrightFailure
+            ? {
+                tipo: 'decision',
+                descripcion: `Falló la exploración con Playwright para el módulo '${name}': ${playwrightError || 'Error de navegación'}. Decide si reintentar con otra URL, verificar servidor o continuar manualmente.`,
+                tool: 'qap_discover',
+                opciones: ['Reintentar qap_discover', 'Verificar servidor o URL', 'Continuar con otro módulo'],
+              }
+            : {
+                tipo: 'entrevista_vista',
+                descripcion: `Entrevista de reglas de negocio para el módulo '${name}' (vista: default). Cobertura actual: ${Object.values(coverage.categorias).filter((c) => c.cubierta).length}/${applicableCategories.length} categorías.`,
+                tool: 'qap_rules_set',
+                module: name,
+                modulo: name,
+                view: 'default',
+                vista: 'default',
+                preguntas: nextQuestions,
+                categorias_aplicables: applicableCategories,
+                rutas_detectadas_fuera_del_plan: rutasDetectadasFueraDelPlan,
+                cobertura: {
+                  completa: coverage.completa,
+                  categorias_aplicables: applicableCategories,
+                  categorias_cubiertas: Object.entries(coverage.categorias)
+                    .filter(([, v]) => v.aplicable && v.cubierta)
+                    .map(([k]) => k),
+                  inferidas_pendientes: coverage.inferidas_pendientes,
+                },
+              };
 
           // E0a: NO incluir accion_inmediata_requerida ni directiva_estricta
           const responsePayload: Record<string, unknown> = {
             status: 'success',
             directorio_objetivo: rootDir,
-            message: `✔ Módulo '${name}' descubierto y persistido en .qa/modules/${name}/`,
+            message: manuallyEditedSkipped
+              ? `✔ Módulo '${name}' descubierto. Nota: rules.yaml tiene manually_edited: true, no se insertaron nuevas hipótesis.`
+              : `✔ Módulo '${name}' descubierto y persistido en .qa/modules/${name}/`,
             module: summaryData,
             view: viewContext,
             playwright_status: playwrightStatus,
@@ -2351,6 +2401,9 @@ export function createMcpServer(): Server {
             storage_state_used: storageStateUsed,
             headed_disponible: true,
             hipotesis_dom_persistidas: persistedRulesCount,
+            manually_edited_ignorado: manuallyEditedSkipped || undefined,
+            rutas_detectadas_fuera_del_plan: rutasDetectadasFueraDelPlan,
+            categorias_aplicables: applicableCategories,
             siguiente_accion: siguienteAccion,
           };
 
@@ -2739,19 +2792,229 @@ export function createMcpServer(): Server {
           }
 
           const storage = new FileSystemStorage({ rootDir });
+          const lifecycleState = await storage.getLifecycleState();
+          const currentPhase = lifecycleState.phase;
+
+          // Contrato blocked: solo permitido en WORKING (T10)
+          if (currentPhase !== 'WORKING') {
+            const desbloquearTool = currentPhase === 'ONBOARDING' ? 'qap_context_set' : 'qap_session_plan';
+            const desbloquearDesc = currentPhase === 'ONBOARDING'
+              ? 'Completa el contexto inicial del proyecto con qap_context_set.'
+              : 'Define el plan de sesión con qap_session_plan.';
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(
+                    {
+                      status: 'blocked',
+                      directorio_objetivo: rootDir,
+                      fase: currentPhase,
+                      razon: `No se puede ejecutar qap_rules_set en la fase ${currentPhase}. Solo está permitido en la fase WORKING.`,
+                      desbloquear_con: {
+                        tool: desbloquearTool,
+                        descripcion: desbloquearDesc,
+                      },
+                      siguiente_accion: {
+                        tipo: 'decision',
+                        descripcion: `Avanza el ciclo de vida a la fase WORKING para configurar reglas.`,
+                        tool: desbloquearTool,
+                      },
+                      pregunta: `La fase actual es ${currentPhase}. Debes avanzar a WORKING antes de registrar reglas de negocio.`,
+                      opciones: [`Continuar con ${desbloquearTool}`],
+                    },
+                    null,
+                    2
+                  ),
+                },
+              ],
+            };
+          }
+
+          // Contrato blocked: módulo debe estar registrado (T10)
+          const modEntry = lifecycleState.modules?.[moduleName];
+          if (!modEntry) {
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(
+                    {
+                      status: 'blocked',
+                      directorio_objetivo: rootDir,
+                      fase: 'WORKING',
+                      razon: `El módulo '${moduleName}' no está registrado en el plan de sesión ni en el estado del proyecto.`,
+                      desbloquear_con: {
+                        tool: 'qap_session_plan',
+                        descripcion: `Registra el módulo '${moduleName}' en el plan con qap_session_plan antes de configurar sus reglas.`,
+                      },
+                      siguiente_accion: {
+                        tipo: 'decision',
+                        descripcion: `Registra el módulo '${moduleName}' usando qap_session_plan.`,
+                        tool: 'qap_session_plan',
+                      },
+                      pregunta: `El módulo '${moduleName}' no forma parte del plan. ¿Deseas agregarlo con qap_session_plan?`,
+                      opciones: ['Registrar módulo con qap_session_plan', 'Ver estado del proyecto (qap_status)'],
+                    },
+                    null,
+                    2
+                  ),
+                },
+              ],
+            };
+          }
+
+          // Contrato blocked: módulo planned debe descubrirse primero (T10)
+          if (modEntry.state === 'planned') {
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(
+                    {
+                      status: 'blocked',
+                      directorio_objetivo: rootDir,
+                      fase: 'WORKING',
+                      razon: `El módulo '${moduleName}' está en estado 'planned'. Debes descubrirlo primero con qap_discover antes de registrar sus reglas.`,
+                      desbloquear_con: {
+                        tool: 'qap_discover',
+                        descripcion: `Ejecuta qap_discover para explorar y mapear el módulo '${moduleName}'.`,
+                      },
+                      siguiente_accion: {
+                        tipo: 'trabajo',
+                        descripcion: `Descubre el módulo '${moduleName}' con qap_discover.`,
+                        tool: 'qap_discover',
+                      },
+                      pregunta: `El módulo '${moduleName}' está pendiente de exploración. ¿Deseas descubrirlo ahora con qap_discover?`,
+                      opciones: [`Descubrir ${moduleName} (qap_discover)`],
+                    },
+                    null,
+                    2
+                  ),
+                },
+              ],
+            };
+          }
+
+          // Contrato blocked: módulo waived o closed no admite reglas (T10)
+          if (modEntry.state === 'waived' || modEntry.state === 'closed') {
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(
+                    {
+                      status: 'blocked',
+                      directorio_objetivo: rootDir,
+                      fase: 'WORKING',
+                      razon: `El módulo '${moduleName}' se encuentra en estado '${modEntry.state}' y sus reglas no pueden ser modificadas.`,
+                      desbloquear_con: {
+                        tool: 'qap_session_plan',
+                        descripcion: 'Reactiva el módulo en el plan de sesión o selecciona otro módulo activo.',
+                      },
+                      siguiente_accion: {
+                        tipo: 'decision',
+                        descripcion: `El módulo '${moduleName}' está cerrado (${modEntry.state}). ¿Deseas trabajar en otro módulo?`,
+                        tool: 'qap_status',
+                      },
+                      pregunta: `El módulo '${moduleName}' está cerrado (${modEntry.state}).`,
+                      opciones: ['Ver estado del proyecto (qap_status)'],
+                    },
+                    null,
+                    2
+                  ),
+                },
+              ],
+            };
+          }
+
           const view = args.view ? String(args.view) : 'default';
           const incomingRules = Array.isArray(args.rules) ? args.rules : [];
           const incomingWaivers = Array.isArray(args.category_waivers) ? args.category_waivers : [];
 
-          // Upsert atómico vía updateModuleRules (E5)
+          // Validar lote completo antes de cualquier mutación (T12)
+          const VALID_CATEGORIES = new Set(['proposito', 'actor', 'campo', 'accion', 'error', 'dato', 'sensibilidad']);
+          const VALID_STATUSES = new Set(['inferred', 'confirmed', 'rejected', 'deferred']);
+          const VALID_SOURCES = new Set(['dom', 'prd', 'user']);
+
+          for (const rule of incomingRules) {
+            if (!rule.description || typeof rule.description !== 'string' || rule.description.trim().length === 0) {
+              return {
+                isError: true,
+                content: [{ type: 'text', text: JSON.stringify({ status: 'error', error: "Regla inválida: 'description' es requerida y no puede ser vacía. Lote rechazado por completo." }, null, 2) }],
+              };
+            }
+            if (rule.category && !VALID_CATEGORIES.has(rule.category)) {
+              return {
+                isError: true,
+                content: [{ type: 'text', text: JSON.stringify({ status: 'error', error: `Categoría inválida '${rule.category}' en regla '${rule.id || 'nueva'}'. Categorías válidas: ${Array.from(VALID_CATEGORIES).join(', ')}. Lote rechazado por completo.` }, null, 2) }],
+              };
+            }
+            if (rule.status && !VALID_STATUSES.has(rule.status)) {
+              return {
+                isError: true,
+                content: [{ type: 'text', text: JSON.stringify({ status: 'error', error: `Estado inválido '${rule.status}' en regla '${rule.id || 'nueva'}'. Estados válidos: ${Array.from(VALID_STATUSES).join(', ')}. Lote rechazado por completo.` }, null, 2) }],
+              };
+            }
+            if (rule.source && !VALID_SOURCES.has(rule.source)) {
+              return {
+                isError: true,
+                content: [{ type: 'text', text: JSON.stringify({ status: 'error', error: `Fuente inválida '${rule.source}' en regla '${rule.id || 'nueva'}'. Fuentes válidas: ${Array.from(VALID_SOURCES).join(', ')}. Lote rechazado por completo.` }, null, 2) }],
+              };
+            }
+          }
+
+          for (const waiver of incomingWaivers) {
+            if (!waiver.category || !VALID_CATEGORIES.has(waiver.category)) {
+              return {
+                isError: true,
+                content: [{ type: 'text', text: JSON.stringify({ status: 'error', error: 'Categoría inválida o ausente en waiver. Lote rechazado por completo.' }, null, 2) }],
+              };
+            }
+            if (!waiver.reason || typeof waiver.reason !== 'string' || waiver.reason.trim().length === 0) {
+              return {
+                isError: true,
+                content: [{ type: 'text', text: JSON.stringify({ status: 'error', error: `Waiver para categoría '${waiver.category}' requiere un 'reason' no vacío. Lote rechazado por completo.` }, null, 2) }],
+              };
+            }
+            if (waiver.source && waiver.source !== 'user') {
+              return {
+                isError: true,
+                content: [{ type: 'text', text: JSON.stringify({ status: 'error', error: "Waivers solo pueden tener source 'user'. Lote rechazado por completo." }, null, 2) }],
+              };
+            }
+          }
+
+          const reglasIgnoradas: Array<{ id: string; motivo: string }> = [];
+
+          // Upsert atómico vía updateModuleRules (E5, T11, T12)
           const updatedRules = await storage.updateModuleRules(moduleName, (current) => {
             const existing = current.rules || [];
             const existingIds = new Set(existing.map((r: any) => r.id));
 
-            // Upsert: actualizar existentes por id, agregar nuevos
+            // Calcular número secuencial para ids R-001, R-002... (T11)
+            let maxRNum = 0;
+            for (const r of existing) {
+              const match = /^R-(\d+)$/.exec(r.id);
+              if (match) {
+                const n = parseInt(match[1], 10);
+                if (n > maxRNum) maxRNum = n;
+              }
+            }
+
+            // Upsert: actualizar existentes por id (respetando no-downgrade), agregar nuevos
             const merged = existing.map((r: any) => {
               const incoming = incomingRules.find((ir: any) => ir.id === r.id);
               if (incoming) {
+                // T12 No-downgrade: regla source user confirmed no se sobrescribe con dom/prd
+                if (r.source === 'user' && r.status === 'confirmed' && incoming.source && incoming.source !== 'user') {
+                  reglasIgnoradas.push({
+                    id: r.id,
+                    motivo: `No-downgrade: la regla confirmada por usuario '${r.id}' no puede sobrescribirse con fuente '${incoming.source}'.`,
+                  });
+                  return r;
+                }
+
                 return {
                   ...r,
                   ...incoming,
@@ -2764,23 +3027,30 @@ export function createMcpServer(): Server {
             });
 
             const newRules = incomingRules
-              .filter((ir: any) => !existingIds.has(ir.id))
-              .map((ir: any) => ({
-                ...ir,
-                view: ir.view ?? view,
-                source: ir.source ?? 'user',
-                evidence: ir.evidence ? ir.evidence.slice(0, 120) : undefined,
-              }));
+              .filter((ir: any) => !ir.id || !existingIds.has(ir.id))
+              .map((ir: any) => {
+                const ruleId = ir.id || `R-${String(++maxRNum).padStart(3, '0')}`;
+                return {
+                  ...ir,
+                  id: ruleId,
+                  view: ir.view ?? view,
+                  source: ir.source ?? 'user',
+                  status: ir.status ?? 'confirmed',
+                  evidence: ir.evidence ? ir.evidence.slice(0, 120) : undefined,
+                };
+              });
 
             // Upsert waivers por view+category
             const existingWaivers = current.category_waivers || [];
             const mergedWaivers = existingWaivers.map((w: any) => {
               const incoming = incomingWaivers.find((iw: any) => iw.category === w.category && (iw.view ?? view) === (w.view ?? view));
-              return incoming ? { ...w, ...incoming, view: incoming.view ?? view } : w;
+              return incoming
+                ? { ...w, ...incoming, view: incoming.view ?? view, source: 'user', reason: incoming.reason.trim() }
+                : w;
             });
             const newWaivers = incomingWaivers
               .filter((iw: any) => !existingWaivers.some((w: any) => w.category === iw.category && (w.view ?? view) === (iw.view ?? view)))
-              .map((iw: any) => ({ ...iw, view: iw.view ?? view }));
+              .map((iw: any) => ({ ...iw, view: iw.view ?? view, source: 'user', reason: iw.reason.trim() }));
 
             return {
               ...current,
@@ -2790,32 +3060,11 @@ export function createMcpServer(): Server {
             };
           });
 
-          // Transición de lifecycle: observed -> interviewing (E5)
-          await storage.updateLifecycleState(async (curr) => {
-            const mod = curr.modules?.[moduleName];
-            if (mod && mod.state === 'observed') {
-              curr.modules[moduleName] = {
-                ...mod,
-                state: 'interviewing',
-                updated_at: new Date().toISOString(),
-              };
-              curr.history = curr.history || [];
-              if (curr.history.length >= 50) curr.history.shift();
-              curr.history.push({
-                from: 'WORKING',
-                to: 'WORKING',
-                at: new Date().toISOString(),
-                reason: `Módulo '${moduleName}' en entrevista de reglas de negocio`,
-              });
-            }
-            return curr;
-          });
-
           // Recalcular cobertura post-mutación
           const allRules = updatedRules.rules || [];
           const allWaivers = updatedRules.category_waivers || [];
 
-          // Construir viewCtx mínimo para coverage (sin DOM en este punto)
+          // Construir viewCtx mínimo para coverage
           let projectRoleCountRules = 0;
           try {
             const ctx = await storage.getProjectContext();
@@ -2823,16 +3072,84 @@ export function createMcpServer(): Server {
             projectRoleCountRules = roles.length;
           } catch { /* sin contexto */ }
 
-          const viewCtxMin: ViewDiscoveryContext = {
+          let formsForView: DomForm[] = [];
+          let buttonsForView: any[] = [];
+          let storageStateUsed = false;
+          const selectorsPath = join(rootDir, '.qa', 'modules', moduleName, 'views', view, 'selectors.json');
+          const contextPath = join(rootDir, '.qa', 'modules', moduleName, 'views', view, 'context.yaml');
+          if (existsSync(selectorsPath)) {
+            try {
+              const sel = JSON.parse(readFileSync(selectorsPath, 'utf-8'));
+              formsForView = ((sel.selectors?.forms || []) as any[]).map((f: any) => ({
+                id: f.id || 'form-1',
+                selector: f.selector || 'form',
+                fields: ((f.inputs || f.fields || []) as any[]).map((inp: any) => ({
+                  key: inp.key || inp.name || inp.id || 'field',
+                  type: inp.type || 'text',
+                  name: inp.name,
+                  id: inp.id,
+                  label: inp.label,
+                  required: inp.required,
+                  minlength: inp.minlength,
+                  maxlength: inp.maxlength,
+                  pattern: inp.pattern,
+                })),
+              }));
+              buttonsForView = sel.selectors?.buttons || [];
+            } catch { /* fallback */ }
+          }
+          if (existsSync(contextPath)) {
+            try {
+              const ctxData = YAML.parse(readFileSync(contextPath, 'utf-8'));
+              storageStateUsed = Boolean(ctxData?.storage_state_used);
+            } catch { /* fallback */ }
+          }
+
+          const viewCtx: ViewDiscoveryContext = {
             module: moduleName,
             view,
-            forms: [],
-            storage_state_used: false,
+            forms: formsForView,
+            buttons: buttonsForView,
+            storage_state_used: storageStateUsed,
             is_auth_view: false,
           };
-          const applicableCats = computeApplicableCategories(viewCtxMin, projectRoleCountRules);
+          const applicableCats = computeApplicableCategories(viewCtx, projectRoleCountRules);
           const cov = computeCoverage(applicableCats, allRules, allWaivers, view);
-          const nextQs = generateNextInterviewBatch(viewCtxMin, allRules, applicableCats, allWaivers);
+          const nextQs = generateNextInterviewBatch(viewCtx, allRules, applicableCats, allWaivers);
+
+          // Transición de lifecycle: observed -> interviewing -> consolidated si completa (T11, T14)
+          let targetModuleState: ModuleLifecycleState = modEntry.state;
+          if (cov.completa) {
+            targetModuleState = 'consolidated';
+          } else if (modEntry.state === 'observed') {
+            targetModuleState = 'interviewing';
+          }
+
+          if (targetModuleState !== modEntry.state) {
+            await storage.updateLifecycleState(async (curr) => {
+              const mod = curr.modules?.[moduleName];
+              if (mod) {
+                curr.modules[moduleName] = {
+                  ...mod,
+                  state: targetModuleState,
+                  updated_at: new Date().toISOString(),
+                };
+                if (curr.session?.plan) {
+                  const pItem = curr.session.plan.find((p: any) => p.module === moduleName);
+                  if (pItem) pItem.status = targetModuleState;
+                }
+                curr.history = curr.history || [];
+                if (curr.history.length >= 50) curr.history.shift();
+                curr.history.push({
+                  from: 'WORKING',
+                  to: 'WORKING',
+                  at: new Date().toISOString(),
+                  reason: `Módulo '${moduleName}' en estado '${targetModuleState}' tras qap_rules_set`,
+                });
+              }
+              return curr;
+            });
+          }
 
           const siguienteAccionRules = cov.completa
             ? {
@@ -2864,10 +3181,12 @@ export function createMcpServer(): Server {
                 message: `✔ Reglas actualizadas para módulo '${moduleName}' (vista: ${view})`,
                 module: moduleName,
                 view,
+                state: targetModuleState,
                 rules_guardadas: incomingRules.length,
                 waivers_guardados: incomingWaivers.length,
                 rules_total: allRules.length,
                 waivers_total: allWaivers.length,
+                reglas_ignoradas: reglasIgnoradas.length > 0 ? reglasIgnoradas : undefined,
                 cobertura: cov,
                 cobertura_completa: cov.completa,
                 siguiente_accion: siguienteAccionRules,

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-return */
 /**
  * Storage Mock — S3-001 (QAP v2.1)
  *

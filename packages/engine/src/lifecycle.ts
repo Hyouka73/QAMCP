@@ -280,9 +280,9 @@ export function canExitScoping(
 ): GateResult {
   const faltantes: GateFaltante[] = [];
   const session: LifecycleSession | undefined | null =
-    (sessionOrState && 'session' in sessionOrState && (sessionOrState as LifecycleState).session)
-      ? (sessionOrState as LifecycleState).session
-      : (sessionOrState as LifecycleSession);
+    sessionOrState && 'session' in sessionOrState
+      ? sessionOrState.session
+      : sessionOrState;
 
   // 1. Plan de sesión
   const plan = session?.plan;

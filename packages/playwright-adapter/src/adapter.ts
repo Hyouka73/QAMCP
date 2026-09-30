@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
+
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright-core';
 import type { IDiscoverer } from '@qap/engine';
 import type { ModuleSpec, Module } from '@qap/shared';
@@ -122,7 +123,7 @@ export async function launchBrowser(options: LaunchBrowserOptions = {}): Promise
           ? "No se encontró un navegador compatible en el sistema (Google Chrome, Microsoft Edge ni Chromium de Playwright). Instala Google Chrome o ejecuta 'npx playwright install chromium'."
           : `No se pudo iniciar ningún navegador compatible en el sistema. Errores: Chrome (${chromeMsg}), Edge (${edgeMsg}), Chromium (${defaultMsg})`;
 
-        throw new Error(detail);
+        throw new Error(detail, { cause: defaultErr });
       }
     }
   }
@@ -146,7 +147,7 @@ export class PlaywrightAdapter implements IDiscoverer {
       this.options.headed ??
       (this.options.headless !== undefined ? !this.options.headless : false);
 
-    let browser: Browser | null = null;
+    let browser: Browser;
     let context: BrowserContext | null = null;
 
     try {
@@ -331,7 +332,7 @@ export class PlaywrightAdapter implements IDiscoverer {
           const text = rawText.replace(/\s+/g, ' ');
 
           // Prioridad de selector: a:has-text("${texto}") o a[href="${href}"]
-          let selector = '';
+          let selector: string;
           if (text) {
             selector = `a:has-text("${text.replace(/"/g, '\\"')}")`;
           } else {
@@ -377,6 +378,7 @@ export class PlaywrightAdapter implements IDiscoverer {
         /** Sanitiza cadenas del DOM: sin ctrl, sin html, truncado a 60 chars. DATO NO CONFIABLE */
         function sanitizeDom(raw: string | null | undefined): string | undefined {
           if (!raw) return undefined;
+          // eslint-disable-next-line no-control-regex
           const s = raw.replace(/[\r\n\t\x00-\x1F\x7F]/g, ' ').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().slice(0, 60);
           return s || undefined;
         }
@@ -415,7 +417,7 @@ export class PlaywrightAdapter implements IDiscoverer {
             const isPasswordType = rawType === 'password';
 
             // Selector por prioridad: id -> name -> data-testid -> type
-            let selector = '';
+            let selector: string;
             if (elId) selector = `#${elId}`;
             else if (elName) selector = `${tag}[name="${elName}"]`;
             else if (testId) selector = `[data-testid="${testId}"]`;
@@ -427,7 +429,7 @@ export class PlaywrightAdapter implements IDiscoverer {
             let placeholder: string | null = null;
             if (rawPlaceholder && !isPasswordType) {
               const trimmed = rawPlaceholder.trim();
-              const isMasked = /^[\u2022\u25cf\*\.\s]+$/.test(trimmed) || trimmed.includes('•');
+              const isMasked = /^[\u2022\u25cf*.\s]+$/.test(trimmed) || trimmed.includes('•');
               if (!isMasked && trimmed.length > 0) {
                 placeholder = trimmed.replace(/[\r\n\t]/g, ' ').slice(0, 60);
               }
@@ -501,6 +503,7 @@ export class PlaywrightAdapter implements IDiscoverer {
         (elements) => {
           function sanitizeDom(raw: string | null | undefined): string | undefined {
             if (!raw) return undefined;
+            // eslint-disable-next-line no-control-regex
             const s = raw.replace(/[\r\n\t\x00-\x1F\x7F]/g, ' ').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().slice(0, 60);
             return s || undefined;
           }
@@ -518,7 +521,7 @@ export class PlaywrightAdapter implements IDiscoverer {
             // PROHIBIDO: extraer el.value o contenido de password
             const isPasswordType = rawType === 'password';
 
-            let selector = '';
+            let selector: string;
             if (elId) selector = `#${elId}`;
             else if (elName) selector = `${tag}[name="${elName}"]`;
             else if (testId) selector = `[data-testid="${testId}"]`;
@@ -529,7 +532,7 @@ export class PlaywrightAdapter implements IDiscoverer {
             let placeholder: string | null = null;
             if (rawPlaceholder && !isPasswordType) {
               const trimmed = rawPlaceholder.trim();
-              const isMasked = /^[\u2022\u25cf\*\.\s]+$/.test(trimmed) || trimmed.includes('•');
+              const isMasked = /^[\u2022\u25cf*.\s]+$/.test(trimmed) || trimmed.includes('•');
               if (!isMasked && trimmed.length > 0) {
                 placeholder = trimmed.replace(/[\r\n\t]/g, ' ').slice(0, 60);
               }
@@ -622,7 +625,7 @@ export class PlaywrightAdapter implements IDiscoverer {
             const testId = (el.getAttribute('data-testid') || (el as HTMLElement).dataset?.testid || '').trim();
             const type = (el.getAttribute('type') || '').trim().toLowerCase();
 
-            let text = '';
+            let text: string;
             if (tag === 'input') {
               text = ((el as HTMLInputElement).value || el.getAttribute('aria-label') || '').trim();
             } else {
@@ -631,7 +634,7 @@ export class PlaywrightAdapter implements IDiscoverer {
             text = text.replace(/\s+/g, ' ');
 
             // Prioridad: id → data-testid → button:has-text("${texto}") → button[type="submit"]
-            let selector = '';
+            let selector: string;
             if (id) {
               selector = `#${id}`;
             } else if (testId) {

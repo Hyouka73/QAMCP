@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+
 import { SchemaValidator } from '../validator/schema-validator.js';
 import type { ProjectContext } from '../types/project-context.type.js';
 

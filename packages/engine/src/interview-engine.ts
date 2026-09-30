@@ -211,12 +211,16 @@ export function generateDomHypotheses(
     if (field.hidden || field.disabled) continue;
 
     const fieldKey = field.key || field.name || field.id || 'field';
+    const isPassword = field.type === 'password';
+    const cleanLabel = field.label && !isPassword ? sanitizeDomString(field.label) : undefined;
+    const cleanFieldKey = sanitizeDomString(fieldKey);
+    const displayLabel = cleanLabel || cleanFieldKey;
 
     // Regla: campo requerido
     if (field.required) {
       rules.push({
         id: buildInferredRuleId(view, fieldKey, 'required'),
-        description: `El campo "${field.label ?? fieldKey}" es obligatorio en el DOM (required).`,
+        description: `El campo "${displayLabel}" es obligatorio en el DOM (required).`,
         category: 'campo',
         status: 'inferred',
         source: 'dom',
@@ -248,7 +252,7 @@ export function generateDomHypotheses(
           evidence: field.type === 'email'
             ? 'type="email"'
             : field.pattern
-            ? `pattern="${field.pattern.slice(0, 60)}"`
+            ? `pattern="${sanitizeDomString(field.pattern)}"`
             : `type="${field.type}"`,
         });
       }
@@ -257,13 +261,13 @@ export function generateDomHypotheses(
     if (field.pattern && field.type === 'text' && !isFieldSensitive(field)) {
       rules.push({
         id: buildInferredRuleId(view, fieldKey, 'pattern'),
-        description: `El campo "${field.label ?? fieldKey}" tiene un patrón de validación HTML: "${field.pattern.slice(0, 60)}".`,
+        description: `El campo "${displayLabel}" tiene un patrón de validación HTML: "${sanitizeDomString(field.pattern)}".`,
         category: 'campo',
         status: 'inferred',
         source: 'dom',
         view,
         field: fieldKey,
-        evidence: `pattern="${field.pattern.slice(0, 60)}"`,
+        evidence: `pattern="${sanitizeDomString(field.pattern)}"`,
       });
     }
 
@@ -271,7 +275,7 @@ export function generateDomHypotheses(
     if (field.minlength !== undefined && field.minlength > 0) {
       rules.push({
         id: buildInferredRuleId(view, fieldKey, 'minlength'),
-        description: `El campo "${field.label ?? fieldKey}" requiere al menos ${field.minlength} caracteres.`,
+        description: `El campo "${displayLabel}" requiere al menos ${field.minlength} caracteres.`,
         category: 'campo',
         status: 'inferred',
         source: 'dom',
@@ -284,7 +288,7 @@ export function generateDomHypotheses(
     if (field.maxlength !== undefined && field.maxlength > 0) {
       rules.push({
         id: buildInferredRuleId(view, fieldKey, 'maxlength'),
-        description: `El campo "${field.label ?? fieldKey}" acepta máximo ${field.maxlength} caracteres.`,
+        description: `El campo "${displayLabel}" acepta máximo ${field.maxlength} caracteres.`,
         category: 'campo',
         status: 'inferred',
         source: 'dom',
@@ -298,7 +302,7 @@ export function generateDomHypotheses(
     if (field.min !== undefined) {
       rules.push({
         id: buildInferredRuleId(view, fieldKey, 'min'),
-        description: `El campo "${field.label ?? fieldKey}" tiene valor mínimo ${field.min}.`,
+        description: `El campo "${displayLabel}" tiene valor mínimo ${field.min}.`,
         category: 'campo',
         status: 'inferred',
         source: 'dom',
@@ -311,7 +315,7 @@ export function generateDomHypotheses(
     if (field.max !== undefined) {
       rules.push({
         id: buildInferredRuleId(view, fieldKey, 'max'),
-        description: `El campo "${field.label ?? fieldKey}" tiene valor máximo ${field.max}.`,
+        description: `El campo "${displayLabel}" tiene valor máximo ${field.max}.`,
         category: 'campo',
         status: 'inferred',
         source: 'dom',
@@ -325,7 +329,7 @@ export function generateDomHypotheses(
     if (isFieldSensitive(field)) {
       rules.push({
         id: buildInferredRuleId(view, fieldKey, 'sensibilidad'),
-        description: `El campo "${field.label ?? fieldKey}" maneja datos sensibles. Confirma las medidas de protección requeridas.`,
+        description: `El campo "${displayLabel}" maneja datos sensibles. Confirma las medidas de protección requeridas.`,
         category: 'sensibilidad',
         status: 'inferred',
         source: 'dom',
@@ -561,7 +565,9 @@ export function generateNextInterviewBatch(
     ...(ctx.standaloneFields ?? []),
   ].filter((f) => !f.hidden && !f.disabled);
 
-  const sensitiveFields = allFields.filter(isFieldSensitive).map((f) => f.label ?? f.key);
+  const sensitiveFields = allFields
+    .filter(isFieldSensitive)
+    .map((f) => (f.type !== 'password' && f.label ? sanitizeDomString(f.label) : sanitizeDomString(f.key)));
   const actionButtons = (ctx.buttons ?? []).filter(
     (b) => !/^(ir|ir a|volver|regresar|cancelar|cerrar|salir|back|close|cancel)/i.test(b.text)
   );
@@ -587,7 +593,7 @@ export function generateNextInterviewBatch(
             id: `${view}.accion.${btn.key}`,
             tipo: 'abierta',
             categoria: 'accion',
-            texto: QUESTION_TEMPLATES.accion(btn.text || btn.key),
+            texto: QUESTION_TEMPLATES.accion(sanitizeDomString(btn.text) || sanitizeDomString(btn.key)),
           });
         }
         break;
@@ -619,7 +625,7 @@ export function generateNextInterviewBatch(
             id: `${view}.error.${form.id}`,
             tipo: 'abierta',
             categoria: 'error',
-            texto: QUESTION_TEMPLATES.error_form(form.id),
+            texto: QUESTION_TEMPLATES.error_form(sanitizeDomString(form.id)),
           });
         }
         break;
@@ -657,14 +663,16 @@ const MAX_DOM_STRING_LENGTH = 60;
 /**
  * Sanitiza texto proveniente del DOM:
  * - Elimina saltos de línea y caracteres de control
- * - Elimina marcado HTML residual
+ * - Elimina marcado HTML residual y markdown
  * - Trunca a 60 caracteres
  */
 export function sanitizeDomString(raw: string | undefined | null): string {
   if (!raw) return '';
   return raw
+    // eslint-disable-next-line no-control-regex
     .replace(/[\r\n\t\x00-\x1F\x7F]/g, ' ')  // caracteres de control -> espacio
     .replace(/<[^>]*>/g, '')                   // tags HTML residuales
+    .replace(/[*_#`~[\]]/g, '')               // marcado markdown residual
     .replace(/\s+/g, ' ')                      // colapsar espacios
     .trim()
     .slice(0, MAX_DOM_STRING_LENGTH);
