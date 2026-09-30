@@ -11,7 +11,7 @@ import {
   type Prompt,
 } from '@modelcontextprotocol/sdk/types.js';
 import YAML from 'yaml';
-import { SchemaValidator, type AuthProfile, type ExecutionResult, type ModuleSpec, type TestPlan } from '@qap/shared';
+import { SchemaValidator, type AuthProfile, type ModuleSpec } from '@qap/shared';
 import { FileSystemStorage } from '@qap/knowledge';
 import { validateDefinitions } from '@qap/knowledge';
 import { AuthManager } from '@qap/auth';
@@ -30,13 +30,20 @@ let activeViewerServer: ViewerServerInstance | null = null;
 
 const UX_DIRECTIVE = 'DIRECTIVA DE UX ESTRICTA: Guía al usuario paso a paso interactivo. Si tu entorno dispone de herramienta para hacer preguntas interactivas con opciones (como ask_question), ÚSALA OBLIGATORIAMENTE para cada decisión. Si no, formula la pregunta directa con sus opciones. PROHIBIDO mostrar listas de pasos futuros (1, 2, 3...), tutoriales o pedir comandos de terminal.';
 
+const TARGET_PATH_PROP = {
+  type: 'string',
+  description: 'Ruta absoluta del proyecto objetivo sobre el cual operar. Si se omite, usa process.cwd()',
+};
+
 const TOOLS: Tool[] = [
   {
     name: 'qap_status',
     description: 'PUNTO DE ENTRADA OBLIGATORIO: Invoca esta herramienta INMEDIATAMENTE cuando el usuario quiera probar su app, testear un proyecto o empezar con QAP. Analiza el repo y te devuelve exactamente la pregunta y opciones que debes presentar con ask_question, sin muros de texto ni pasos futuros.',
     inputSchema: {
       type: 'object',
-      properties: {},
+      properties: {
+        targetPath: TARGET_PATH_PROP,
+      },
     },
   },
   {
@@ -45,6 +52,7 @@ const TOOLS: Tool[] = [
     inputSchema: {
       type: 'object',
       properties: {
+        targetPath: TARGET_PATH_PROP,
         projectName: {
           type: 'string',
           description: 'Nombre del proyecto (por defecto: nombre de la carpeta actual)',
@@ -67,6 +75,7 @@ const TOOLS: Tool[] = [
     inputSchema: {
       type: 'object',
       properties: {
+        targetPath: TARGET_PATH_PROP,
         force: {
           type: 'boolean',
           description: 'Fuerza la eliminación inmediata sin interactividad (por defecto: true)',
@@ -81,6 +90,7 @@ const TOOLS: Tool[] = [
     inputSchema: {
       type: 'object',
       properties: {
+        targetPath: TARGET_PATH_PROP,
         profile: {
           type: 'string',
           description: 'Identificador del perfil de autenticación (ej: "admin", "tester")',
@@ -119,7 +129,9 @@ const TOOLS: Tool[] = [
     description: `Lista todos los perfiles de autenticación registrados en el proyecto sin exponer secretos. ${UX_DIRECTIVE}`,
     inputSchema: {
       type: 'object',
-      properties: {},
+      properties: {
+        targetPath: TARGET_PATH_PROP,
+      },
     },
   },
   {
@@ -128,6 +140,7 @@ const TOOLS: Tool[] = [
     inputSchema: {
       type: 'object',
       properties: {
+        targetPath: TARGET_PATH_PROP,
         name: {
           type: 'string',
           description: 'Nombre identificador del módulo (ej: "auth", "checkout", "dashboard")',
@@ -145,16 +158,22 @@ const TOOLS: Tool[] = [
           items: { type: 'string' },
           description: 'Etiquetas organizacionales (ej: ["critical", "e2e", "auth"])',
         },
+        headed: {
+          type: 'boolean',
+          description: 'Si es true, abre el navegador visualmente durante la exploración del módulo (default: false)',
+          default: false,
+        },
       },
       required: ['name', 'path'],
     },
   },
   {
     name: 'qap_plan',
-    description: `Genera o consulta el plan de pruebas estructurado para un módulo registrado. ${UX_DIRECTIVE}`,
+    description: `Genera o consulta el plan de pruebas estructurado para un módulo registrado (en desarrollo para Sprint 6). ${UX_DIRECTIVE}`,
     inputSchema: {
       type: 'object',
       properties: {
+        targetPath: TARGET_PATH_PROP,
         module: {
           type: 'string',
           description: 'Nombre del módulo para el cual generar el plan de pruebas',
@@ -174,6 +193,7 @@ const TOOLS: Tool[] = [
     inputSchema: {
       type: 'object',
       properties: {
+        targetPath: TARGET_PATH_PROP,
         path: {
           type: 'string',
           description: 'Ruta opcional al directorio de definiciones (por defecto: .qa/definitions)',
@@ -183,10 +203,11 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'qap_test',
-    description: `Ejecuta el plan de pruebas de un módulo o la suite completa y registra resultados en telemetría. ${UX_DIRECTIVE}`,
+    description: `Ejecuta el plan de pruebas de un módulo o la suite completa (en desarrollo para Sprint 7). ${UX_DIRECTIVE}`,
     inputSchema: {
       type: 'object',
       properties: {
+        targetPath: TARGET_PATH_PROP,
         module: {
           type: 'string',
           description: 'Nombre del módulo específico a probar (si se omite, corre toda la suite)',
@@ -200,6 +221,11 @@ const TOOLS: Tool[] = [
           type: 'string',
           description: 'Perfil de autenticación a utilizar para la prueba',
         },
+        headed: {
+          type: 'boolean',
+          description: 'Si es true, abre el navegador visualmente durante la ejecución de Playwright',
+          default: false,
+        },
       },
     },
   },
@@ -209,6 +235,7 @@ const TOOLS: Tool[] = [
     inputSchema: {
       type: 'object',
       properties: {
+        targetPath: TARGET_PATH_PROP,
         executionId: {
           type: 'string',
           description: 'ID de la ejecución o módulo a reportar (si se omite, busca la última disponible)',
@@ -224,10 +251,11 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'qap_server',
-    description: `Inicia el servidor web interactivo del Knowledge Graph 3D y telemetría en http://localhost:9280. ${UX_DIRECTIVE}`,
+    description: `Inicia el servidor web interactivo del Knowledge Graph 2D y telemetría en http://localhost:9280 (ruta /graph-view). ${UX_DIRECTIVE}`,
     inputSchema: {
       type: 'object',
       properties: {
+        targetPath: TARGET_PATH_PROP,
         port: {
           type: 'number',
           description: 'Puerto HTTP para el visor interactivo (por defecto: 9280)',
@@ -242,6 +270,7 @@ const TOOLS: Tool[] = [
     inputSchema: {
       type: 'object',
       properties: {
+        targetPath: TARGET_PATH_PROP,
         olderThanDays: {
           type: 'number',
           description: 'Días de antigüedad máxima permitida antes de podar (por defecto: 30)',
@@ -277,11 +306,12 @@ export function createMcpServer(): Server {
         prompts: {},
       },
       instructions: `DIRECTIVAS DE INTERACCIÓN OBLIGATORIAS:
-1. PROHIBIDO mostrar tablas markdown de estado, resúmenes de archivos o listas de próximos pasos (1, 2, 3...).
-2. USA LAS CAPACIDADES INTERACTIVAS DEL IDE:
+1. RUTA OBJETIVO OBLIGATORIA (targetPath): En TODAS las llamadas a herramientas MCP (qap_status, qap_init, qap_discover, qap_plan, qap_test, qap_server, etc.), envía SIEMPRE la ruta absoluta del workspace del usuario en el parámetro 'targetPath'. NUNCA lo omitas.
+2. PROHIBIDO mostrar tablas markdown de estado, resúmenes de archivos o listas de próximos pasos (1, 2, 3...).
+3. USA LAS CAPACIDADES INTERACTIVAS DEL IDE:
    - Para formular preguntas o decisiones, invoca SIEMPRE 'ask_question' con los campos 'pregunta' y 'opciones' devueltos por las tools para que el usuario responda mediante botones interactivos.
    - Si presentas una propuesta o plan para su ejecución, genera un artefacto interactivo (artifact) con 'RequestFeedback: true' para que el usuario pueda pulsar 'Proceed'.
-3. Ejecuta un solo paso por turno y espera la selección del usuario antes de invocar la siguiente tool de QAP.`,
+4. Ejecuta un solo paso por turno y espera la selección del usuario antes de invocar la siguiente tool de QAP.`,
     }
   );
 
@@ -319,11 +349,11 @@ export function createMcpServer(): Server {
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: rawArgs } = request.params;
     const args = (rawArgs || {}) as Record<string, unknown>;
+    const rootDir = args.targetPath ? resolve(String(args.targetPath)) : process.cwd();
 
     try {
       switch (name) {
         case 'qap_status': {
-          const rootDir = process.cwd();
           const qaDir = resolve(rootDir, '.qa');
           const initialized = existsSync(qaDir);
 
@@ -354,9 +384,27 @@ export function createMcpServer(): Server {
               }
             }
 
-            const modulesDir = join(qaDir, 'modules');
-            if (existsSync(modulesDir)) {
-              moduleCount = readdirSync(modulesDir).filter((f) => !f.startsWith('.')).length;
+            const indexPath = join(qaDir, 'modules', 'index.json');
+            const fallbackIndexPath = join(qaDir, 'index.json');
+            if (existsSync(indexPath)) {
+              try {
+                const parsed = JSON.parse(readFileSync(indexPath, 'utf-8'));
+                moduleCount = Array.isArray(parsed) ? parsed.length : 0;
+              } catch {
+                moduleCount = 0;
+              }
+            } else if (existsSync(fallbackIndexPath)) {
+              try {
+                const parsed = JSON.parse(readFileSync(fallbackIndexPath, 'utf-8'));
+                moduleCount = Array.isArray(parsed) ? parsed.length : 0;
+              } catch {
+                moduleCount = 0;
+              }
+            } else {
+              const modulesDir = join(qaDir, 'modules');
+              if (existsSync(modulesDir)) {
+                moduleCount = readdirSync(modulesDir).filter((f) => !f.startsWith('.') && f !== 'index.json').length;
+              }
             }
 
             const profilesFile = join(qaDir, 'project', 'auth', 'profiles.json');
@@ -419,6 +467,7 @@ export function createMcpServer(): Server {
                 text: JSON.stringify(
                   {
                     status: 'success',
+                    directorio_objetivo: rootDir,
                     initialized,
                     projectName: projectName !== 'No inicializado' ? projectName : basename(rootDir),
                     environments,
@@ -446,7 +495,6 @@ export function createMcpServer(): Server {
         }
 
         case 'qap_init': {
-          const rootDir = process.cwd();
           const qaDir = resolve(rootDir, '.qa');
           const projectName = String(args.projectName || basename(rootDir) || 'my-project');
           const envList = Array.isArray(args.environments) && args.environments.length > 0
@@ -496,6 +544,7 @@ export function createMcpServer(): Server {
                 text: JSON.stringify(
                   {
                     status: 'success',
+                    directorio_objetivo: rootDir,
                     message: '✔ Proyecto inicializado con éxito en .qa/',
                     projectName,
                     environments: envList,
@@ -518,7 +567,7 @@ export function createMcpServer(): Server {
         }
 
         case 'qap_clean': {
-          const qaDir = resolve(process.cwd(), '.qa');
+          const qaDir = resolve(rootDir, '.qa');
           if (existsSync(qaDir)) {
             const locksDir = join(qaDir, 'cache', 'locks');
             if (existsSync(locksDir)) {
@@ -540,6 +589,7 @@ export function createMcpServer(): Server {
                 text: JSON.stringify(
                   {
                     status: 'success',
+                    directorio_objetivo: rootDir,
                     message: '✔ Directorio .qa/ y locks remanentes eliminados por completo.',
                   },
                   null,
@@ -558,7 +608,7 @@ export function createMcpServer(): Server {
           const loginRoute = String(args.login_route || '/login');
           const secret = args.secret ? String(args.secret) : undefined;
 
-          const authDir = resolve(process.cwd(), '.qa', 'project', 'auth');
+          const authDir = resolve(rootDir, '.qa', 'project', 'auth');
           const profilesPath = join(authDir, 'profiles.json');
           if (!existsSync(authDir)) {
             mkdirSync(authDir, { recursive: true });
@@ -612,6 +662,7 @@ export function createMcpServer(): Server {
                 text: JSON.stringify(
                   {
                     status: 'success',
+                    directorio_objetivo: rootDir,
                     message: `✔ Perfil '${profileId}' registrado con éxito en .qa/project/auth/profiles.json.`,
                     profile: newProfile,
                     secretSaved: Boolean(secret),
@@ -632,7 +683,7 @@ export function createMcpServer(): Server {
         }
 
         case 'qap_auth_list': {
-          const authDir = resolve(process.cwd(), '.qa', 'project', 'auth');
+          const authDir = resolve(rootDir, '.qa', 'project', 'auth');
           const profilesPath = join(authDir, 'profiles.json');
           let profiles: AuthProfile[] = [];
           if (existsSync(profilesPath)) {
@@ -651,6 +702,7 @@ export function createMcpServer(): Server {
                 text: JSON.stringify(
                   {
                     status: 'success',
+                    directorio_objetivo: rootDir,
                     count: profiles.length,
                     profiles: profiles.map((p) => ({
                       id: p.id,
@@ -670,19 +722,34 @@ export function createMcpServer(): Server {
         }
 
         case 'qap_discover': {
-          const rootDir = process.cwd();
           const qaDir = resolve(rootDir, '.qa');
           if (!existsSync(qaDir)) {
             return {
               isError: true,
-              content: [{ type: 'text', text: 'Error: El proyecto no está inicializado. Ejecuta qap_init primero.' }],
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(
+                    {
+                      status: 'error',
+                      isError: true,
+                      directorio_objetivo: rootDir,
+                      error: `El proyecto en '${rootDir}' no está inicializado. Ejecuta qap_init primero.`,
+                    },
+                    null,
+                    2
+                  ),
+                },
+              ],
             };
           }
 
           const name = String(args.name);
           const route = String(args.path);
-          const desc = args.description ? String(args.description) : `Módulo ${name}`;
+          const rawDesc = args.description ? String(args.description) : '';
+          const desc = rawDesc || `Módulo ${name}`;
           const tags = Array.isArray(args.tags) ? args.tags.map(String) : [];
+          const headed = Boolean(args.headed);
 
           // 1. Guardar Spec en cache
           const cacheDir = join(qaDir, 'cache', 'discover');
@@ -690,94 +757,193 @@ export function createMcpServer(): Server {
           const spec: ModuleSpec = { name, path: route, tags };
           writeFileSync(join(cacheDir, `${name}.spec.json`), JSON.stringify(spec, null, 2), 'utf-8');
 
-          // 2. Guardar definición canónica en .qa/modules/
+          let discoveredData: {
+            routes: string[];
+            forms: Array<{ id: string; fields: string[] }>;
+            buttons: string[];
+            pageTitle: string;
+          } = { routes: [], forms: [], buttons: [], pageTitle: name };
+
+          // Intentar exploración activa con Playwright
+          let playwrightUsed = false;
+          let playwrightError: string | null = null;
+          try {
+            const { PlaywrightAdapter } = await import('@qap/playwright-adapter');
+
+            // Resolver baseUrl desde environments.yaml o context.yaml
+            let baseUrl = 'http://localhost:3000';
+            const envsPath = join(qaDir, 'project', 'environments.yaml');
+            if (existsSync(envsPath)) {
+              try {
+                const parsedEnv = YAML.parse(readFileSync(envsPath, 'utf-8'));
+                const defaultEnv = parsedEnv?.default ?? 'local';
+                baseUrl = parsedEnv?.environments?.[defaultEnv]?.url ?? baseUrl;
+              } catch { /* usa default */ }
+            } else {
+              const ctxPath = join(qaDir, 'project', 'context.yaml');
+              if (existsSync(ctxPath)) {
+                try {
+                  const parsedCtx = YAML.parse(readFileSync(ctxPath, 'utf-8'));
+                  if (parsedCtx?.base_url) baseUrl = parsedCtx.base_url;
+                } catch { /* usa default */ }
+              }
+            }
+
+            const adapter = new PlaywrightAdapter({ headless: !headed, baseUrl });
+            const discovered = await adapter.discover({ name, path: route, tags });
+
+            const ctxObj = (discovered.context || {}) as Record<string, unknown>;
+            discoveredData = {
+              routes: Array.isArray(ctxObj.discovered_routes)
+                ? (ctxObj.discovered_routes as string[])
+                : [],
+              forms: Array.isArray(ctxObj.forms)
+                ? (ctxObj.forms as Array<{ id: string; fields: string[] }>)
+                : [],
+              buttons: Array.isArray(ctxObj.buttons)
+                ? (ctxObj.buttons as string[])
+                : [],
+              pageTitle: discovered.description ?? name,
+            };
+            if (ctxObj.playwright_error) {
+              playwrightError = String(ctxObj.playwright_error);
+              playwrightUsed = false;
+            } else {
+              playwrightUsed = true;
+            }
+          } catch (err) {
+            playwrightError = err instanceof Error ? err.message : String(err);
+          }
+
+          // Estructura granular de persistencia (Fix 5)
           const modulesDir = join(qaDir, 'modules');
-          if (!existsSync(modulesDir)) mkdirSync(modulesDir, { recursive: true });
-          const moduleDefinition = {
+          const moduleDir = join(modulesDir, name);
+          const viewsDir = join(moduleDir, 'views', 'default');
+          mkdirSync(viewsDir, { recursive: true });
+
+          // context.yaml de la vista por defecto
+          const viewContext = {
+            _version: '1',
+            view_name: 'default',
+            description: desc,
+            path: route,
+            tags,
+            playwright_used: playwrightUsed,
+            playwright_error: playwrightError,
+            discovered_at: new Date().toISOString(),
+            page_title: discoveredData.pageTitle,
+            routes_found: discoveredData.routes,
+          };
+          writeFileSync(join(viewsDir, 'context.yaml'), YAML.stringify(viewContext), 'utf-8');
+
+          // selectors.json de la vista
+          const selectorsData = {
+            _version: '1',
+            view: 'default',
+            module: name,
+            generated_at: new Date().toISOString(),
+            selectors: {
+              forms: discoveredData.forms,
+              buttons: discoveredData.buttons,
+            },
+          };
+          writeFileSync(join(viewsDir, 'selectors.json'), JSON.stringify(selectorsData, null, 2), 'utf-8');
+
+          // summary.json en raíz del módulo
+          const summaryData = {
             _version: '1',
             name,
             description: desc,
             path: route,
             tags,
-            capabilities: [
-              {
-                id: `${name}.navigate`,
-                name: `Navegación base a ${name}`,
-                route,
-              },
-            ],
+            views: ['default'],
+            last_updated: new Date().toISOString(),
           };
-          writeFileSync(join(modulesDir, `${name}.yaml`), YAML.stringify(moduleDefinition), 'utf-8');
+          writeFileSync(join(moduleDir, 'summary.json'), JSON.stringify(summaryData, null, 2), 'utf-8');
+
+          // Actualizar index.json global
+          const indexPath = join(qaDir, 'modules', 'index.json');
+          let globalIndex: Record<string, unknown>[] = [];
+          if (existsSync(indexPath)) {
+            try { globalIndex = JSON.parse(readFileSync(indexPath, 'utf-8')); } catch { /* inicia vacío */ }
+          }
+          const existingIdx = globalIndex.findIndex((m: any) => m.name === name);
+          const indexEntry = { name, path: route, tags, views: ['default'], last_updated: new Date().toISOString() };
+          if (existingIdx >= 0) globalIndex[existingIdx] = indexEntry;
+          else globalIndex.push(indexEntry);
+          writeFileSync(indexPath, JSON.stringify(globalIndex, null, 2), 'utf-8');
+          try {
+            writeFileSync(join(qaDir, 'index.json'), JSON.stringify(globalIndex, null, 2), 'utf-8');
+          } catch { /* ignore */ }
+
+          // Entrevista guiada en 3 pasos (Fix 3)
+          const playwrightStatus = playwrightUsed ? 'explorando' : (playwrightError ? 'fallido' : 'estático');
+
+          const responsePayload: Record<string, unknown> = {
+            status: 'success',
+            directorio_objetivo: rootDir,
+            message: `✔ Módulo '${name}' descubierto y persistido en .qa/modules/${name}/`,
+            module: summaryData,
+            view: viewContext,
+            playwright_status: playwrightStatus,
+            playwright_error: playwrightError,
+            headed_disponible: true,
+            accion_inmediata_requerida: 'Llama INMEDIATAMENTE a la herramienta interactiva de preguntas (como ask_question) con los campos "pregunta" y "opciones".',
+          };
+
+          if (!rawDesc) {
+            responsePayload.pregunta = `¿Qué módulo o funcionalidad estás construyendo o probando hoy? Describe brevemente el propósito de '${name}'.`;
+            responsePayload.opciones = [
+              'Flujo de autenticación (login/registro/recuperación)',
+              'Panel de administración o dashboard',
+              'Formulario de creación/edición de entidad',
+              'Listado y búsqueda de registros',
+              'Otro (especifica en el chat)',
+            ];
+          } else {
+            responsePayload.pregunta = `Módulo '${name}' registrado con éxito (${playwrightStatus}). ¿Deseas explorar otra vista o consultar el Knowledge Graph 2D?`;
+            responsePayload.opciones = [
+              'Abrir visor del Knowledge Graph 2D (qap_server)',
+              'Descubrir otro módulo (qap_discover)',
+              'Ver estado del proyecto (qap_status)',
+            ];
+          }
+
+          responsePayload.pregunta_doc = `¿Existe un PRD, README o especificación de diseño para '${name}' que pueda usar como guía base?`;
+          responsePayload.opciones_doc = [
+            'Sí, tengo un archivo de especificación (comparte la ruta o contenido)',
+            'No, proceder solo con exploración de Playwright',
+            'Tengo notas informales (puedo dictártelas)',
+          ];
 
           return {
             content: [
               {
                 type: 'text',
-                text: JSON.stringify(
-                  {
-                    status: 'success',
-                    message: `✔ Módulo '${name}' descubierto y persistido en .qa/modules/${name}.yaml`,
-                    module: moduleDefinition,
-                    accion_inmediata_requerida: 'Llama INMEDIATAMENTE a la herramienta interactiva de preguntas (como ask_question) con los campos "pregunta" y "opciones".',
-                    pregunta: `Módulo '${name}' registrado con éxito. ¿Deseas generar el plan de pruebas para '${name}' (qap_plan) o prefieres descubrir otro módulo?`,
-                    opciones: [
-                      `Generar plan de pruebas para '${name}' (qap_plan)`,
-                      'Descubrir otro módulo (qap_discover)',
-                      'Ver estado del proyecto (qap_status)',
-                    ],
-                  },
-                  null,
-                  2
-                ),
+                text: JSON.stringify(responsePayload, null, 2),
               },
             ],
           };
         }
 
         case 'qap_plan': {
-          const rootDir = process.cwd();
-          const qaDir = resolve(rootDir, '.qa');
-          const moduleName = String(args.module);
-          const env = String(args.environment || 'local');
-
-          const plansDir = join(qaDir, 'plans');
-          if (!existsSync(plansDir)) mkdirSync(plansDir, { recursive: true });
-
-          const planPath = join(plansDir, `${moduleName}.json`);
-          const testPlan: TestPlan = {
-            modules: [moduleName],
-            environment: env,
-          };
-          writeFileSync(planPath, JSON.stringify(testPlan, null, 2), 'utf-8');
-
           return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify(
-                  {
-                    status: 'success',
-                    message: `✔ Plan de pruebas para '${moduleName}' generado en .qa/plans/${moduleName}.json`,
-                    plan: testPlan,
-                    accion_inmediata_requerida: 'Llama INMEDIATAMENTE a la herramienta interactiva de preguntas (como ask_question) con los campos "pregunta" y "opciones".',
-                    pregunta: `Plan de pruebas para '${moduleName}' listo. ¿Deseas ejecutar las pruebas ahora con qap_test?`,
-                    opciones: [
-                      `Ejecutar pruebas ahora (qap_test)`,
-                      'Ver estado actual (qap_status)',
-                      'Descubrir otro módulo primero (qap_discover)',
-                    ],
-                  },
-                  null,
-                  2
-                ),
-              },
-            ],
+            content: [{
+              type: 'text',
+              text: JSON.stringify({
+                estado: 'en_desarrollo',
+                sprint_disponible: 6,
+                mensaje: 'La generación automática de planes está programada para el Sprint 6. Actualmente el motor opera hasta el Sprint 5: Descubrimiento, Mapeo y Knowledge Graph 2D.',
+                capacidades_actuales: ['qap_status', 'qap_init', 'qap_discover', 'qap_validate', 'qap_report', 'qap_server'],
+                accion_recomendada: 'Usa qap_discover para registrar el módulo y qap_validate para verificar la estructura.',
+              }, null, 2),
+            }],
           };
         }
 
         case 'qap_validate': {
-          const targetDir = args.path ? resolve(String(args.path)) : resolve(process.cwd(), '.qa');
-          const definitionsDir = existsSync(join(targetDir, 'definitions')) ? join(targetDir, 'definitions') : targetDir;
+          const targetDefsDir = args.path ? resolve(String(args.path)) : resolve(rootDir, '.qa');
+          const definitionsDir = existsSync(join(targetDefsDir, 'definitions')) ? join(targetDefsDir, 'definitions') : targetDefsDir;
 
           try {
             if (existsSync(definitionsDir) && readdirSync(definitionsDir).length > 0) {
@@ -789,6 +955,7 @@ export function createMcpServer(): Server {
                     text: JSON.stringify(
                       {
                         status: 'success',
+                        directorio_objetivo: rootDir,
                         valid: res.valid,
                         errors: res.errors,
                         modulesCount: res.modules.length,
@@ -814,6 +981,7 @@ export function createMcpServer(): Server {
                 text: JSON.stringify(
                   {
                     status: 'success',
+                    directorio_objetivo: rootDir,
                     valid: true,
                     message: '✔ Validación de schemas completada sin advertencias.',
                     validatorReady: Boolean(validator),
@@ -827,79 +995,28 @@ export function createMcpServer(): Server {
         }
 
         case 'qap_test': {
-          const rootDir = process.cwd();
-          const qaDir = resolve(rootDir, '.qa');
-          const moduleName = args.module ? String(args.module) : 'all';
-          const env = String(args.environment || 'local');
-          const executionId = `run-${Date.now()}`;
-
-          const execDir = join(qaDir, 'executions');
-          if (!existsSync(execDir)) mkdirSync(execDir, { recursive: true });
-
-          const now = new Date().toISOString();
-          const syntheticResult: ExecutionResult = {
-            _version: '1',
-            execution_id: executionId,
-            module: moduleName,
-            env,
-            started_at: now,
-            finished_at: now,
-            result: 'passed',
-            timed_out: false,
-            summary: {
-              total: 1,
-              passed: 1,
-              failed: 0,
-              skipped: 0,
-              not_run: 0,
-            },
-            cases: [
-              {
-                id: `${moduleName}-check-01`,
-                title: `Prueba de disponibilidad de ${moduleName}`,
-                result: 'passed',
-                duration_ms: 120,
-              },
-            ],
-          };
-
-          writeFileSync(join(execDir, `${executionId}.json`), JSON.stringify(syntheticResult, null, 2), 'utf-8');
-
           return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify(
-                  {
-                    status: 'success',
-                    message: `✔ Ejecución de pruebas completada exitosamente (${executionId})`,
-                    executionId,
-                    result: syntheticResult.result,
-                    summary: syntheticResult.summary,
-                    accion_inmediata_requerida: 'Llama INMEDIATAMENTE a la herramienta interactiva de preguntas (como ask_question) con los campos "pregunta" y "opciones".',
-                    pregunta: `Pruebas finalizadas con resultado: ${syntheticResult.result.toUpperCase()}. ¿Deseas abrir el visor 3D interactivo o generar los reportes?`,
-                    opciones: [
-                      'Abrir visor del Knowledge Graph 3D (qap_server)',
-                      'Generar reporte HTML interactivo y Markdown (qap_report)',
-                      'Ver estado del proyecto (qap_status)',
-                    ],
-                  },
-                  null,
-                  2
-                ),
-              },
-            ],
+            content: [{
+              type: 'text',
+              text: JSON.stringify({
+                estado: 'en_desarrollo',
+                sprint_disponible: 7,
+                mensaje: 'La ejecución automatizada nativa de pruebas está programada para el Sprint 7. Actualmente el motor opera hasta el Sprint 5 (Descubrimiento, Mapeo y Knowledge Graph 2D).',
+                nota: 'No se ha ejecutado ninguna prueba. PROHIBIDO asumir resultado PASSED.',
+                accion_recomendada: 'Usa qap_discover para mapear el módulo y qap_server para visualizar el Knowledge Graph 2D.',
+              }, null, 2),
+            }],
           };
         }
 
         case 'qap_report': {
-          const rootDir = process.cwd();
+          const qaDir = resolve(rootDir, '.qa');
           const storage = new FileSystemStorage({ rootDir });
           const format = String(args.format || 'all');
           let executionId = args.executionId ? String(args.executionId) : undefined;
 
           if (!executionId) {
-            const execDir = join(rootDir, '.qa', 'executions');
+            const execDir = join(qaDir, 'executions');
             if (existsSync(execDir)) {
               const files = readdirSync(execDir).filter((f) => f.endsWith('.json') && !f.endsWith('.report.json'));
               if (files.length > 0) {
@@ -931,7 +1048,7 @@ export function createMcpServer(): Server {
           }
 
           const reportsGenerated: Record<string, string> = {};
-          const outDir = join(rootDir, '.qa', 'executions');
+          const outDir = join(qaDir, 'executions');
           if (!existsSync(outDir)) {
             mkdirSync(outDir, { recursive: true });
           }
@@ -964,6 +1081,10 @@ export function createMcpServer(): Server {
             reportsGenerated.json = jsonPath;
           }
 
+          const viewerUrl = activeViewerServer
+            ? `http://localhost:${activeViewerServer.port}/api/reports/${executionId}/html`
+            : null;
+
           return {
             content: [
               {
@@ -971,13 +1092,15 @@ export function createMcpServer(): Server {
                 text: JSON.stringify(
                   {
                     status: 'success',
+                    directorio_objetivo: rootDir,
                     message: `✔ Reporte generado exitosamente para ${executionId}`,
                     executionId,
                     reports: reportsGenerated,
+                    viewer_url: viewerUrl,
                     accion_inmediata_requerida: 'Llama INMEDIATAMENTE a la herramienta interactiva de preguntas (como ask_question) con los campos "pregunta" y "opciones".',
-                    pregunta: `Reporte generado en ${reportsGenerated.html ? 'HTML' : 'formato seleccionado'}. ¿Deseas abrir el visor interactivo del Knowledge Graph 3D en el navegador?`,
+                    pregunta: `Reporte generado en ${reportsGenerated.html ? 'HTML' : 'formato seleccionado'}. ¿Deseas abrir el visor interactivo del Knowledge Graph 2D en el navegador?`,
                     opciones: [
-                      'Abrir visor del Knowledge Graph 3D (qap_server)',
+                      'Abrir visor del Knowledge Graph 2D (qap_server)',
                       'Ver estado del proyecto (qap_status)',
                       'Concluir sesión de pruebas',
                     ],
@@ -991,9 +1114,41 @@ export function createMcpServer(): Server {
         }
 
         case 'qap_server': {
+          const qaDir = resolve(rootDir, '.qa');
+          if (!existsSync(qaDir)) {
+            return {
+              isError: true,
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(
+                    {
+                      status: 'error',
+                      isError: true,
+                      directorio_objetivo: rootDir,
+                      error: `No existe la carpeta de base de conocimiento .qa/ en '${rootDir}'. Debe ejecutar qap_init primero.`,
+                      accion_inmediata_requerida: 'Llama INMEDIATAMENTE a la herramienta interactiva de preguntas (como ask_question) con los campos "pregunta" y "opciones".',
+                      pregunta: `El proyecto en '${rootDir}' no tiene la carpeta .qa/. ¿Deseas inicializar QAP ahora con qap_init?`,
+                      opciones: [
+                        `Inicializar QAP en '${rootDir}' (qap_init)`,
+                        'Especificar otra ruta de proyecto (targetPath)',
+                        'Cancelar',
+                      ],
+                      _guidance_for_assistant: `La carpeta .qa/ no existe en ${rootDir}. Debes ejecutar qap_init primero.`,
+                    },
+                    null,
+                    2
+                  ),
+                },
+              ],
+            };
+          }
+
           const port = Number(args.port || 9280);
 
           if (activeViewerServer) {
+            console.error(`[QAP Knowledge Graph] Servidor ya activo en: http://localhost:${activeViewerServer.port}`);
+            console.error(`[QAP Knowledge Graph] Base de conocimiento servida desde: ${qaDir}`);
             return {
               content: [
                 {
@@ -1001,6 +1156,8 @@ export function createMcpServer(): Server {
                   text: JSON.stringify(
                     {
                       status: 'running',
+                      directorio_objetivo: rootDir,
+                      base_conocimiento: qaDir,
                       message: `El servidor del Knowledge Graph ya está activo en http://localhost:${activeViewerServer.port}`,
                       url: `http://localhost:${activeViewerServer.port}`,
                     },
@@ -1012,11 +1169,15 @@ export function createMcpServer(): Server {
             };
           }
 
-          const storage = new FileSystemStorage({ rootDir: process.cwd() });
+          const storage = new FileSystemStorage({ rootDir });
           activeViewerServer = await startViewerServer({
             storage,
             port,
+            silent: true,
           });
+
+          console.error(`[QAP Knowledge Graph] Servidor interactivo iniciado en: http://localhost:${activeViewerServer.port}`);
+          console.error(`[QAP Knowledge Graph] Base de conocimiento servida desde: ${qaDir}`);
 
           return {
             content: [
@@ -1025,9 +1186,11 @@ export function createMcpServer(): Server {
                 text: JSON.stringify(
                   {
                     status: 'success',
+                    directorio_objetivo: rootDir,
+                    base_conocimiento: qaDir,
                     message: `✔ Servidor interactivo de Knowledge Graph iniciado exitosamente en http://localhost:${activeViewerServer.port}`,
                     url: `http://localhost:${activeViewerServer.port}`,
-                    _guidance_for_assistant: 'DIRECTIVA: Proporciona al usuario el enlace clicable http://localhost:9280 para que explore el Knowledge Graph 3D en su navegador.',
+                    _guidance_for_assistant: `DIRECTIVA: Proporciona al usuario el enlace clicable http://localhost:${activeViewerServer.port} para que explore el Knowledge Graph 2D en su navegador.`,
                   },
                   null,
                   2
@@ -1038,7 +1201,7 @@ export function createMcpServer(): Server {
         }
 
         case 'qap_prune': {
-          const runtimeDir = resolve(process.cwd(), '.qa', 'runtime');
+          const runtimeDir = resolve(rootDir, '.qa', 'runtime');
           const olderThanDays = args.olderThanDays ? Number(args.olderThanDays) : 30;
           const dryRun = Boolean(args.dryRun);
 
@@ -1047,7 +1210,12 @@ export function createMcpServer(): Server {
               content: [
                 {
                   type: 'text',
-                  text: JSON.stringify({ status: 'success', message: 'No hay directorio runtime para podar.', freedBytes: 0 }),
+                  text: JSON.stringify({
+                    status: 'success',
+                    directorio_objetivo: rootDir,
+                    message: 'No hay directorio runtime para podar.',
+                    freedBytes: 0,
+                  }),
                 },
               ],
             };
@@ -1067,6 +1235,7 @@ export function createMcpServer(): Server {
                 text: JSON.stringify(
                   {
                     status: 'success',
+                    directorio_objetivo: rootDir,
                     dryRun,
                     deletedRunsCount: pruneResult.deletedRunsCount,
                     purgedArtifactsCount: pruneResult.purgedArtifactsCount,

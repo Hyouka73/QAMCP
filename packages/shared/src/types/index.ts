@@ -95,3 +95,12 @@ export type {
   GuardrailCategory,
   GuardrailDefinition,
 } from './guardrails.js';
+
+// Knowledge Granular Architecture (Sprint 5)
+export type {
+  ModuleViewContext,
+  ModuleViewSelectors,
+  ModuleSummary,
+  KnowledgeIndex,
+} from './knowledge-granular.type.js';
+

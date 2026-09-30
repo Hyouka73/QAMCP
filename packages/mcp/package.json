@@ -23,8 +23,10 @@
     "@qap/auth": "workspace:*",
     "@qap/engine": "workspace:*",
     "@qap/knowledge": "workspace:*",
+    "@qap/playwright-adapter": "workspace:*",
     "@qap/reporter": "workspace:*",
     "@qap/shared": "workspace:*",
+    "playwright-core": "^1.62.1",
     "yaml": "^2.9.0"
   },
   "devDependencies": {

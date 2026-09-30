@@ -5,6 +5,37 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createMcpServer } from '../server.js';
 import { ListToolsRequestSchema, CallToolRequestSchema, ListPromptsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 
+vi.mock('playwright-core', () => ({
+  chromium: {
+    launch: vi.fn().mockImplementation(async (opts?: { headless?: boolean }) => ({
+      newPage: vi.fn().mockResolvedValue({
+        goto: vi.fn().mockResolvedValue(null),
+        title: vi.fn().mockResolvedValue('Mocked Page Title'),
+      }),
+      close: vi.fn().mockResolvedValue(undefined),
+    })),
+  },
+}));
+
+vi.mock('@qap/playwright-adapter', () => ({
+  PlaywrightAdapter: class {
+    async discover(spec: { name: string; path: string; tags?: string[] }) {
+      return {
+        name: spec.name,
+        path: spec.path,
+        description: `Módulo ${spec.name}`,
+        tags: spec.tags ?? [],
+        cases: [],
+        context: {
+          discovered_routes: [spec.path, `${spec.path}/sub`],
+          forms: [{ id: `${spec.name}-form`, fields: ['user', 'pass'] }],
+          buttons: ['Enviar'],
+        },
+      };
+    }
+  },
+}));
+
 describe('Suite MCP Server QAP v2.1 / v2.1.2', () => {
   let tempDir: string;
   let originalCwd: () => string;
@@ -103,7 +134,7 @@ describe('Suite MCP Server QAP v2.1 / v2.1.2', () => {
     expect(parsedAfter._guidance_for_assistant).toContain('qap_discover');
   });
 
-  it('debe descubrir modulos y generar planes con qap_discover y qap_plan', async () => {
+  it('debe descubrir modulos y responder en desarrollo para qap_plan y qap_test', async () => {
     const server = createMcpServer();
     // @ts-expect-error accessing internal request handler
     const handler = server._requestHandlers.get(CallToolRequestSchema.shape.method.value);
@@ -120,15 +151,26 @@ describe('Suite MCP Server QAP v2.1 / v2.1.2', () => {
             name: 'auth',
             path: '/login',
             tags: ['critical', 'auth'],
+            headed: true,
           },
         },
       },
       {}
     );
     expect(discoverResult.isError).toBeFalsy();
-    expect(existsSync(join(tempDir, '.qa', 'modules', 'auth.yaml'))).toBe(true);
+    const parsedDiscover = JSON.parse(discoverResult.content[0].text);
+    expect(parsedDiscover.status).toBe('success');
+    expect(parsedDiscover.playwright_status).toBe('explorando');
+    expect(parsedDiscover.pregunta).toBeDefined();
+    expect(parsedDiscover.pregunta_doc).toBeDefined();
 
-    // Generar plan
+    // Validar estructura granular en disco
+    expect(existsSync(join(tempDir, '.qa', 'modules', 'auth', 'summary.json'))).toBe(true);
+    expect(existsSync(join(tempDir, '.qa', 'modules', 'auth', 'views', 'default', 'context.yaml'))).toBe(true);
+    expect(existsSync(join(tempDir, '.qa', 'modules', 'auth', 'views', 'default', 'selectors.json'))).toBe(true);
+    expect(existsSync(join(tempDir, '.qa', 'modules', 'index.json'))).toBe(true);
+
+    // Generar/consultar plan (en_desarrollo Sprint 6)
     const planResult = await handler(
       {
         method: 'tools/call',
@@ -142,9 +184,11 @@ describe('Suite MCP Server QAP v2.1 / v2.1.2', () => {
       {}
     );
     expect(planResult.isError).toBeFalsy();
-    expect(existsSync(join(tempDir, '.qa', 'plans', 'auth.json'))).toBe(true);
+    const parsedPlan = JSON.parse(planResult.content[0].text);
+    expect(parsedPlan.estado).toBe('en_desarrollo');
+    expect(parsedPlan.sprint_disponible).toBe(6);
 
-    // Ejecutar prueba
+    // Ejecutar prueba (en_desarrollo Sprint 7)
     const testResult = await handler(
       {
         method: 'tools/call',
@@ -152,6 +196,7 @@ describe('Suite MCP Server QAP v2.1 / v2.1.2', () => {
           name: 'qap_test',
           arguments: {
             module: 'auth',
+            headed: true,
           },
         },
       },
@@ -159,8 +204,9 @@ describe('Suite MCP Server QAP v2.1 / v2.1.2', () => {
     );
     expect(testResult.isError).toBeFalsy();
     const parsedTest = JSON.parse(testResult.content[0].text);
-    expect(parsedTest.status).toBe('success');
-    expect(parsedTest.result).toBe('passed');
+    expect(parsedTest.estado).toBe('en_desarrollo');
+    expect(parsedTest.sprint_disponible).toBe(7);
+    expect(parsedTest.nota).toContain('PROHIBIDO asumir resultado PASSED');
   });
 
   it('debe registrar un perfil de autenticacion con qap_auth_add y listar con qap_auth_list', async () => {
@@ -190,6 +236,7 @@ describe('Suite MCP Server QAP v2.1 / v2.1.2', () => {
     const parsed = JSON.parse(authResult.content[0].text);
     expect(parsed.status).toBe('success');
     expect(parsed.profile.id).toBe('admin-user');
+    expect(parsed.directorio_objetivo).toBe(tempDir);
     expect(existsSync(join(tempDir, '.qa', 'project', 'auth', 'profiles.json'))).toBe(true);
 
     // Listar
@@ -197,6 +244,7 @@ describe('Suite MCP Server QAP v2.1 / v2.1.2', () => {
     const parsedList = JSON.parse(listResult.content[0].text);
     expect(parsedList.count).toBe(1);
     expect(parsedList.profiles[0].id).toBe('admin-user');
+    expect(parsedList.directorio_objetivo).toBe(tempDir);
   });
 
   it('debe generar reportes con qap_report y limpiar con qap_clean', async () => {
@@ -220,6 +268,7 @@ describe('Suite MCP Server QAP v2.1 / v2.1.2', () => {
     expect(reportResult.isError).toBeFalsy();
     const parsedReport = JSON.parse(reportResult.content[0].text);
     expect(parsedReport.status).toBe('success');
+    expect(parsedReport.directorio_objetivo).toBe(tempDir);
     expect(parsedReport.reports.html).toBeDefined();
 
     // Resetear con clean
@@ -234,6 +283,82 @@ describe('Suite MCP Server QAP v2.1 / v2.1.2', () => {
       {}
     );
     expect(cleanResult.isError).toBeFalsy();
+    const parsedClean = JSON.parse(cleanResult.content[0].text);
+    expect(parsedClean.directorio_objetivo).toBe(tempDir);
     expect(existsSync(join(tempDir, '.qa'))).toBe(false);
+  });
+
+  it('debe operar sobre targetPath independiente de cwd y validar qap_server', async () => {
+    const customTargetDir = mkdtempSync(join(tmpdir(), 'qap-custom-target-'));
+    try {
+      const server = createMcpServer();
+      // @ts-expect-error accessing internal request handler
+      const handler = server._requestHandlers.get(CallToolRequestSchema.shape.method.value);
+
+      // 1. qap_server debe fallar si .qa/ no existe en targetPath
+      const serverFail = await handler(
+        {
+          method: 'tools/call',
+          params: {
+            name: 'qap_server',
+            arguments: { targetPath: customTargetDir },
+          },
+        },
+        {}
+      );
+      expect(serverFail.isError).toBe(true);
+      const parsedServerFail = JSON.parse(serverFail.content[0].text);
+      expect(parsedServerFail.directorio_objetivo).toBe(customTargetDir);
+      expect(parsedServerFail.error).toContain('No existe la carpeta de base de conocimiento .qa/');
+
+      // 2. Inicializar en targetPath
+      const initResult = await handler(
+        {
+          method: 'tools/call',
+          params: {
+            name: 'qap_init',
+            arguments: { targetPath: customTargetDir, projectName: 'custom-proj' },
+          },
+        },
+        {}
+      );
+      const parsedInit = JSON.parse(initResult.content[0].text);
+      expect(parsedInit.directorio_objetivo).toBe(customTargetDir);
+      expect(existsSync(join(customTargetDir, '.qa', 'project', 'context.yaml'))).toBe(true);
+
+      // 3. Status en targetPath
+      const statusResult = await handler(
+        {
+          method: 'tools/call',
+          params: {
+            name: 'qap_status',
+            arguments: { targetPath: customTargetDir },
+          },
+        },
+        {}
+      );
+      const parsedStatus = JSON.parse(statusResult.content[0].text);
+      expect(parsedStatus.initialized).toBe(true);
+      expect(parsedStatus.directorio_objetivo).toBe(customTargetDir);
+      expect(parsedStatus.projectName).toBe('custom-proj');
+
+      // 4. qap_server con targetPath válido
+      const serverResult = await handler(
+        {
+          method: 'tools/call',
+          params: {
+            name: 'qap_server',
+            arguments: { targetPath: customTargetDir, port: 9555 },
+          },
+        },
+        {}
+      );
+      const parsedServer = JSON.parse(serverResult.content[0].text);
+      expect(parsedServer.directorio_objetivo).toBe(customTargetDir);
+      expect(parsedServer.base_conocimiento).toBe(join(customTargetDir, '.qa'));
+      expect(parsedServer.url).toBeDefined();
+    } finally {
+      rmSync(customTargetDir, { recursive: true, force: true });
+    }
   });
 });

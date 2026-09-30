@@ -205,7 +205,19 @@ export class FileSystemStorage implements IStorage {
   // ---------------------------------------------------------------------
 
   async listModules(): Promise<string[]> {
-    return this.list('.qa/modules');
+    const indexPath = join('.qa/modules', 'index.json');
+    if (await this.exists(indexPath)) {
+      try {
+        const index = await this.readJson<Array<{ name: string }>>(indexPath);
+        if (Array.isArray(index)) {
+          return index.map((m) => m.name);
+        }
+      } catch {
+        // Fallback to directory listing
+      }
+    }
+    const items = await this.list('.qa/modules');
+    return items.filter((f) => !f.startsWith('.') && f !== 'index.json');
   }
 
   async hasModule(moduleName: string): Promise<boolean> {
@@ -213,6 +225,10 @@ export class FileSystemStorage implements IStorage {
   }
 
   async getModuleContext(moduleName: string): Promise<ModuleContext> {
+    const defaultViewPath = join('.qa/modules', moduleName, 'views', 'default', 'context.yaml');
+    if (await this.exists(defaultViewPath)) {
+      return this.readYaml<ModuleContext>(defaultViewPath);
+    }
     return this.readYaml<ModuleContext>(join('.qa/modules', moduleName, 'context.yaml'));
   }
 
@@ -241,6 +257,10 @@ export class FileSystemStorage implements IStorage {
   }
 
   async getModuleSelectors(moduleName: string): Promise<ModuleSelectors> {
+    const defaultViewPath = join('.qa/modules', moduleName, 'views', 'default', 'selectors.json');
+    if (await this.exists(defaultViewPath)) {
+      return this.readJson<ModuleSelectors>(defaultViewPath);
+    }
     return this.readJson<ModuleSelectors>(join('.qa/modules', moduleName, 'selectors.json'));
   }
 

@@ -32,15 +32,19 @@ for (const tool of toolsResult.tools) {
 const instructionsContent = `# Instrucciones de QAP (qap-mcp) para el Asistente
 
 ## Directivas Críticas de Interacción y Experiencia de Usuario:
-1. **PROHIBIDO los muros de texto**:
+1. **PARÁMETRO \`targetPath\` OBLIGATORIO**:
+   - En TODAS las llamadas a las herramientas de \`qap-mcp\` (\`qap_status\`, \`qap_init\`, \`qap_discover\`, \`qap_plan\`, \`qap_validate\`, \`qap_test\`, \`qap_report\`, \`qap_server\`, \`qap_clean\`, \`qap_auth_add\`, \`qap_auth_list\`, \`qap_prune\`), debes enviar SIEMPRE la ruta absoluta del workspace abierto en el parámetro \`targetPath\`.
+   - NUNCA omitas este parámetro, para asegurar que el motor opere exactamente sobre la carpeta del proyecto del usuario y no en el directorio de ejecución del proceso MCP.
+
+2. **PROHIBIDO los muros de texto**:
    - NUNCA generes tablas de estado largas con parámetros del proyecto.
    - NUNCA generes explicaciones de arquitectura o listas de 4 pasos futuros (1, 2, 3...).
 
-2. **USA LAS CAPACIDADES INTERACTIVAS DEL IDE**:
+3. **USA LAS CAPACIDADES INTERACTIVAS DEL IDE**:
    - Cuando necesites confirmación, aprobación o selecciones del usuario, llama OBLIGATORIAMENTE a la herramienta interactiva **\`ask_question\`** con las opciones seleccionables (botones interactivos del IDE).
    - O crea un artefacto (**artifact**) con **\`RequestFeedback: true\`** si presentas un plan estructurado o configuración para que el usuario disponga del botón "Proceed".
 
-3. **Flujo Paso a Paso Guiado**:
+4. **Flujo Paso a Paso Guiado**:
    - Cada herramienta de QAP te devuelve los campos \`pregunta\` y \`opciones\`.
    - Utiliza esos campos directamente en \`ask_question\` para que el usuario responda con un solo clic.
    - Espera la respuesta antes de ejecutar la siguiente herramienta del ciclo (\`qap_init\`, \`qap_discover\`, \`qap_plan\`, \`qap_test\`, \`qap_report\`).

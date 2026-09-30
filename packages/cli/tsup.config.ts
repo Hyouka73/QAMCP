@@ -5,8 +5,9 @@ export default defineConfig({
   format: ['esm'],
   platform: 'node',
   target: 'node18',
-  clean: true,
+  clean: false,
   minify: false,
+  external: ['playwright-core', 'chromium-bidi', 'keytar'],
   banner: {
     js: `#!/usr/bin/env node
 import { createRequire as __qapCreateRequire } from 'node:module';

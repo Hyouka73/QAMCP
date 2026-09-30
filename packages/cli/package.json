@@ -21,6 +21,8 @@
     "@inquirer/prompts": "^8.6.0",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "commander": "^15.0.0",
+    "keytar": "^7.9.0",
+    "playwright-core": "^1.63.0",
     "yaml": "^2.9.0"
   },
   "devDependencies": {

@@ -7,6 +7,7 @@ export default defineConfig({
   platform: 'node',
   clean: true,
   dts: true,
+  external: ['playwright-core'],
   banner: {
     js: `#!/usr/bin/env node
 import { createRequire as __qapMcpCreateRequire } from 'node:module';

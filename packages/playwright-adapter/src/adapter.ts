@@ -1,28 +1,68 @@
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { chromium, type Browser, type Page } from 'playwright-core';
 import type { IDiscoverer } from '@qap/engine';
 import type { ModuleSpec, Module } from '@qap/shared';
 
 export interface PlaywrightAdapterOptions {
   /** Si el navegador corre sin interfaz visible. Por defecto true. */
   headless?: boolean;
+  /** Si el navegador corre con interfaz visible. Alias complementario de headless. */
+  headed?: boolean;
   /** URL base contra la cual se resuelven las rutas relativas de los modulos. */
   baseUrl?: string;
 }
 
-interface McpToolTextContent {
-  type: 'text';
-  text: string;
+export interface LaunchBrowserOptions {
+  /** Si es true, inicia el navegador con ventana visible. Por defecto false (headless). */
+  headed?: boolean;
 }
 
 /**
- * Adaptador de descubrimiento (S4-001).
- * Implementa IDiscoverer interactuando con Playwright a traves del
- * protocolo MCP (Model Context Protocol): lanza el servidor oficial
- * @playwright/mcp como subproceso via stdio, y opera el navegador
- * exclusivamente mediante llamadas a herramientas MCP
- * (browser_navigate, browser_snapshot), sin usar playwright-core
- * de forma directa.
+ * Estrategia de lanzamiento de navegador en cascada multiplataforma.
+ * 1. Intenta canal 'chrome' instalado en el sistema (Windows / macOS).
+ * 2. Si falla: intenta canal 'msedge' instalado en el sistema.
+ * 3. Si falla: intenta Chromium por defecto de Playwright.
+ * 4. Si todos fallan por falta de binarios (Executable doesn't exist), captura el error
+ *    y lanza una excepción clara indicando que no se encontró un navegador compatible en el sistema.
+ */
+export async function launchBrowser(options: LaunchBrowserOptions = {}): Promise<Browser> {
+  const isHeadless = !options.headed;
+
+  // 1. Intentar Chrome del sistema
+  try {
+    return await chromium.launch({ channel: 'chrome', headless: isHeadless });
+  } catch (chromeErr) {
+    // 2. Si falla: intentar Microsoft Edge del sistema
+    try {
+      return await chromium.launch({ channel: 'msedge', headless: isHeadless });
+    } catch (edgeErr) {
+      // 3. Si falla: intentar Chromium por defecto empaquetado por Playwright
+      try {
+        return await chromium.launch({ headless: isHeadless });
+      } catch (defaultErr) {
+        // 4. Si todos fallan por falta de binarios (Executable doesn't exist)
+        const chromeMsg = chromeErr instanceof Error ? chromeErr.message : String(chromeErr);
+        const edgeMsg = edgeErr instanceof Error ? edgeErr.message : String(edgeErr);
+        const defaultMsg = defaultErr instanceof Error ? defaultErr.message : String(defaultErr);
+
+        const isMissingBinary =
+          /executable doesn't exist/i.test(chromeMsg) ||
+          /executable doesn't exist/i.test(edgeMsg) ||
+          /executable doesn't exist/i.test(defaultMsg);
+
+        const detail = isMissingBinary
+          ? "No se encontró un navegador compatible en el sistema (Google Chrome, Microsoft Edge ni Chromium de Playwright). Instala Google Chrome o ejecuta 'npx playwright install chromium'."
+          : `No se pudo iniciar ningún navegador compatible en el sistema. Errores: Chrome (${chromeMsg}), Edge (${edgeMsg}), Chromium (${defaultMsg})`;
+
+        throw new Error(detail);
+      }
+    }
+  }
+}
+
+/**
+ * Adaptador de descubrimiento Playwright con soporte para SPAs (React / Vite).
+ * Implementa IDiscoverer navegando directamente con playwright-core,
+ * esperando activamente a la hidratación del DOM y extrayendo rutas, botones y formularios.
  */
 export class PlaywrightAdapter implements IDiscoverer {
   constructor(private options: PlaywrightAdapterOptions = {}) {}
@@ -32,26 +72,48 @@ export class PlaywrightAdapter implements IDiscoverer {
       throw new Error(`El modulo '${spec.name}' no define una ruta (path) para explorar`);
     }
 
-    const targetUrl = this.resolveUrl(spec.path);
+    const headed =
+      this.options.headed ??
+      (this.options.headless !== undefined ? !this.options.headless : false);
 
-    const transport = new StdioClientTransport({
-      command: 'npx',
-      args: [
-        '@playwright/mcp@latest',
-        ...(this.options.headless === false ? [] : ['--headless']),
-      ],
-    });
-
-    const client = new Client({ name: 'qap-playwright-adapter', version: '1.0.0' }, { capabilities: {} });
+    let browser: Browser | null = null;
 
     try {
-      await client.connect(transport);
+      browser = await launchBrowser({ headed });
+    } catch (err) {
+      const playwrightError = err instanceof Error ? err.message : String(err);
+      return {
+        name: spec.name,
+        path: spec.path,
+        description: spec.name,
+        tags: spec.tags ?? [],
+        cases: [],
+        context: {
+          discovered_routes: [],
+          discovered_at: new Date().toISOString(),
+          forms: [],
+          buttons: [],
+          playwright_used: false,
+          playwright_error: playwrightError,
+        },
+      };
+    }
 
-      await this.callTool(client, 'browser_navigate', { url: targetUrl });
+    try {
+      const page = await browser.newPage();
+      const targetUrl = this.resolveUrl(spec.path);
 
-      const snapshotText = await this.callTool(client, 'browser_snapshot', {});
-      const description = this.extractTitle(snapshotText);
-      const discoveredRoutes = this.extractRoutesFromSnapshot(snapshotText);
+      await page.goto(targetUrl, { waitUntil: 'networkidle', timeout: 30000 });
+      // Esperar a que React monte componentes en el root
+      await page.waitForSelector('#root > *, main, form, input, button, a[href]', { timeout: 10000 }).catch(() => {});
+      await page.waitForTimeout(1000); // margen para renderizado y transiciones
+
+      const title = await page.title();
+      const description = title && title.trim() ? title.trim() : spec.name;
+
+      const discoveredRoutes = await this.extractRoutes(page);
+      const forms = await this.extractForms(page);
+      const buttons = await this.extractButtons(page);
 
       return {
         name: spec.name,
@@ -62,26 +124,34 @@ export class PlaywrightAdapter implements IDiscoverer {
         context: {
           discovered_routes: discoveredRoutes,
           discovered_at: new Date().toISOString(),
+          forms,
+          buttons,
+          playwright_used: true,
+          playwright_error: null,
+        },
+      };
+    } catch (err) {
+      const playwrightError = err instanceof Error ? err.message : String(err);
+      return {
+        name: spec.name,
+        path: spec.path,
+        description: spec.name,
+        tags: spec.tags ?? [],
+        cases: [],
+        context: {
+          discovered_routes: [],
+          discovered_at: new Date().toISOString(),
+          forms: [],
+          buttons: [],
+          playwright_used: false,
+          playwright_error: playwrightError,
         },
       };
     } finally {
-      await client.close().catch(() => {});
+      if (browser) {
+        await browser.close().catch(() => {});
+      }
     }
-  }
-
-  /**
-   * Invoca una herramienta MCP expuesta por el servidor @playwright/mcp
-   * y devuelve el contenido de texto de la respuesta.
-   */
-  private async callTool(
-    client: Client,
-    name: string,
-    args: Record<string, unknown>
-  ): Promise<string> {
-    const result = await client.callTool({ name, arguments: args });
-    const content = result.content as McpToolTextContent[] | undefined;
-    const textBlock = content?.find((c) => c.type === 'text');
-    return textBlock?.text ?? '';
   }
 
   private resolveUrl(path: string): string {
@@ -91,21 +161,85 @@ export class PlaywrightAdapter implements IDiscoverer {
   }
 
   /**
-   * El snapshot de accesibilidad de @playwright/mcp incluye el titulo
-   * de la pagina en su primera linea, con el formato: "- Page Title: X"
-   * o similar segun la version del servidor.
+   * Extrae rutas de enlaces (a[href]) encontrados en el DOM.
    */
-  private extractTitle(snapshotText: string): string {
-    const match = snapshotText.match(/Page (?:Title|title):\s*(.+)/);
-    return match ? match[1].trim() : 'Sin titulo';
+  private async extractRoutes(page: Page): Promise<string[]> {
+    try {
+      return await page.$$eval('a[href]', (anchors) => {
+        const routes: string[] = [];
+        for (const a of anchors) {
+          const href = a.getAttribute('href');
+          if (href && !href.startsWith('#') && !href.startsWith('javascript:')) {
+            routes.push(href);
+          }
+        }
+        return Array.from(new Set(routes));
+      });
+    } catch {
+      return [];
+    }
   }
 
   /**
-   * Extrae rutas de enlaces (href) presentes en el snapshot de accesibilidad.
+   * Extrae formularios e inputs presentes en el DOM hidratado.
    */
-   private extractRoutesFromSnapshot(snapshotText: string): string[] {
-    const urlMatches = snapshotText.matchAll(/\/url:\s*(\S+)/g);
-    const routes = Array.from(urlMatches, (m) => m[1]);
-    return Array.from(new Set(routes));
+  private async extractForms(page: Page): Promise<Array<{ id: string; fields: string[] }>> {
+    try {
+      const forms = await page.$$eval('form', (formList) => {
+        return formList.map((form, idx) => {
+          const id = form.getAttribute('id') || form.getAttribute('name') || `form-${idx + 1}`;
+          const inputs = Array.from(form.querySelectorAll('input, select, textarea'));
+          const fields = inputs
+            .map((input) => input.getAttribute('name') || input.getAttribute('id') || input.getAttribute('placeholder') || '')
+            .filter((field) => field.length > 0);
+          return { id, fields: Array.from(new Set(fields)) };
+        });
+      });
+
+      if (forms.length > 0) return forms;
+
+      // Soporte para SPAs donde los inputs están dentro de divs/containers sin tag <form>
+      const standaloneInputs = await page.$$eval('input, select, textarea', (inputs) => {
+        return inputs
+          .map((input) => input.getAttribute('name') || input.getAttribute('id') || input.getAttribute('placeholder') || '')
+          .filter((field) => field.length > 0);
+      });
+
+      if (standaloneInputs.length > 0) {
+        return [{ id: 'form-default', fields: Array.from(new Set(standaloneInputs)) }];
+      }
+
+      return [];
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Extrae botones interactivos presentes en el DOM hidratado.
+   */
+  private async extractButtons(page: Page): Promise<string[]> {
+    try {
+      return await page.$$eval(
+        'button, input[type="button"], input[type="submit"], [role="button"]',
+        (elements) => {
+          const list: string[] = [];
+          for (const el of elements) {
+            const text = (
+              el.textContent ||
+              (el as HTMLInputElement).value ||
+              el.getAttribute('aria-label') ||
+              ''
+            ).trim();
+            if (text && !list.includes(text)) {
+              list.push(text);
+            }
+          }
+          return list;
+        }
+      );
+    } catch {
+      return [];
+    }
   }
 }
