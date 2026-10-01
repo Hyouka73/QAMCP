@@ -12,4 +12,4 @@ export * from './evaluator/prerequisite-evaluator.js';
 export * from './graph/cycle-detector.js';
 export * from './loader/definitions-loader.js';
 export * from './loader/guardrails-loader.js';
-
+export * from './document-detector.js';

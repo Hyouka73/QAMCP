@@ -1,7 +1,10 @@
+/* global console */
 import { writeFileSync, mkdirSync, existsSync } from 'node:fs';
-import { resolve, join } from 'node:path';
-import { createMcpServer } from '../packages/mcp/dist/index.js';
+import { join } from 'node:path';
+
 import { ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+
+import { createMcpServer } from '../packages/mcp/dist/index.js';
 
 const targetDir = 'C:/Users/Judirico/.gemini/antigravity-ide/mcp/qap-mcp';
 
@@ -40,23 +43,20 @@ const instructionsContent = `# Instrucciones de QAP (qap-mcp) para el Asistente
    - NUNCA generes tablas de estado largas con parámetros del proyecto.
    - NUNCA generes explicaciones de arquitectura o listas de 4 pasos futuros (1, 2, 3...).
 
-3. **USA LAS CAPACIDADES INTERACTIVAS DEL IDE**:
-   - Cuando necesites confirmación, aprobación o selecciones del usuario, llama OBLIGATORIAMENTE a la herramienta interactiva **\`ask_question\`** con las opciones seleccionables (botones interactivos del IDE).
-   - O crea un artefacto (**artifact**) con **\`RequestFeedback: true\`** si presentas un plan estructurado o configuración para que el usuario disponga del botón "Proceed".
+3. **PREGUNTAS ESTRUCTURADAS CON \`ask_question\`**:
+   - Cuando siguiente_accion trae pregunta, presentala con la herramienta ask_question: UNA sola pregunta por llamada, usando texto, formato y opciones tal cual (no inventes, reordenes ni agregues opciones). Deja siempre disponible la respuesta libre. Si formato es abierta, haz esa unica pregunta en texto y espera. Nunca agrupes varias preguntas en un mensaje ni preguntes algo que siguiente_accion no pidio. Si ask_question no existe en tu cliente, haz la misma pregunta en texto con las opciones numeradas, una a la vez.
 
-4. **Flujo Paso a Paso Guiado**:
-   - Cada herramienta de QAP te devuelve los campos \`pregunta\` y \`opciones\`.
-   - Utiliza esos campos directamente en \`ask_question\` para que el usuario responda con un solo clic.
-   - Espera la respuesta antes de ejecutar la siguiente herramienta del ciclo (\`qap_init\`, \`qap_discover\`, \`qap_plan\`, \`qap_test\`, \`qap_report\`).
+4. **REGISTRO DE RESPUESTAS**:
+   - Tras cada respuesta, registrala con la tool de pregunta.registrar_con y sigue la nueva siguiente_accion. Si el usuario eligio una opcion usa su efecto; si escribio texto libre, registralo con source user y con sus palabras. Nunca registres como source user algo que el usuario no dijo ni eligio.
 
-5. **ENTREVISTA EN UN SOLO MENSAJE**:
-   - Cuando \`siguiente_accion.tipo\` sea "entrevista", formula las preguntas listadas en un solo mensaje, en texto libre, sin botones interactivos.
+5. **Flujo Paso a Paso Guiado**:
+   - Ejecuta un solo paso por turno y espera la selección del usuario antes de invocar la siguiente tool de QAP.
 
-6. **RESPUESTA A TOOLS BLOQUEADAS**:
+6. **REGLAS DE NEGOCIO CONFIRMADAS**:
+   - NUNCA llames qap_rules_set con datos no confirmados por el usuario.
+
+7. **RESPUESTA A TOOLS BLOQUEADAS**:
    - Si una tool responde con status "blocked", sigue obligatoriamente la indicación de \`desbloquear_con\` y no intentes rodearla.
-
-7. **INTEGRIDAD DE PROCEDENCIA DE DATOS**:
-   - NUNCA registres con source "user" algo que el usuario no haya dicho o confirmado explícitamente.
 
 8. **CONFIRMACIÓN DE HIPÓTESIS DOM**:
    - Para hipótesis DOM (source "dom", status "inferred"): CONFIRMA cada una con el usuario antes de marcarla como "confirmed". Presenta las hipótesis al usuario y pregunta cuáles son correctas.
@@ -65,10 +65,10 @@ const instructionsContent = `# Instrucciones de QAP (qap-mcp) para el Asistente
    - Presenta al usuario el resumen de cierre del módulo y llama \`qap_module_close\` solo con su confirmación explícita (\`user_confirmed: true\`).
 
 10. **DECLARACIÓN DE WAIVERS**:
-   - Declara un waiver únicamente cuando el usuario haya dicho que la categoría no aplica, citando su razón (mínimo 15 caracteres).
+    - Declara un waiver únicamente cuando el usuario haya dicho que la categoría no aplica, citando su razón (mínimo 15 caracteres).
 
 11. **RESUMEN DE REPORTE DE BRECHAS**:
-   - Al cerrar la sesión, presenta al usuario el resumen del reporte de brechas generado.
+    - Al cerrar la sesión, presenta al usuario el resumen del reporte de brechas generado.
 `;
 
 writeFileSync(join(targetDir, 'instructions.md'), instructionsContent, 'utf-8');

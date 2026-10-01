@@ -211,12 +211,10 @@ describe('P3 Suite de Verificación MCP (T3 - T15)', () => {
     expect(parsed.siguiente_accion.tool).toBe('qap_discover');
     expect(parsed.siguiente_accion.descripcion).toContain('checkout');
 
-    // Sin pregunta de confirmación ni "Ver otros módulos"
+    // Sin pregunta ni opciones heredadas top-level
     expect(text).not.toContain('Ver otros módulos');
-    expect(parsed.pregunta).not.toMatch(/confirm/i);
-
-    // Sin botón de una sola opción
-    expect(parsed.opciones).toHaveLength(0);
+    expect(parsed.pregunta).toBeUndefined();
+    expect(parsed.opciones).toBeUndefined();
 
     // stats.modules refleja los módulos registrados en lifecycle
     expect(parsed.stats.modules).toBe(1);
@@ -290,8 +288,8 @@ describe('P3 Suite de Verificación MCP (T3 - T15)', () => {
     expect(parsed.siguiente_accion.tool).toBe('qap_rules_set');
     expect(parsed.siguiente_accion.modulo).toBe('auth');
     expect(parsed.siguiente_accion.vista).toBe('default');
-    expect(parsed.siguiente_accion.preguntas.length).toBeGreaterThan(0);
-    expect(parsed.siguiente_accion.preguntas.length).toBeLessThanOrEqual(5);
+    expect(parsed.siguiente_accion.pregunta).toBeDefined();
+    expect(parsed.siguiente_accion.preguntas).toBeUndefined();
 
     // Contiene categorias_aplicables y rutas_detectadas_fuera_del_plan
     expect(Array.isArray(parsed.categorias_aplicables)).toBe(true);
@@ -643,8 +641,9 @@ describe('P3 Suite de Verificación MCP (T3 - T15)', () => {
     });
 
     const statusD = await callTool('qap_status', {});
-    expect(statusD.parsed.siguiente_accion.tipo).toBe('trabajo');
+    expect(statusD.parsed.siguiente_accion.tipo).toBe('decision');
     expect(statusD.parsed.siguiente_accion.tool).toBe('qap_module_close');
+    expect(statusD.parsed.siguiente_accion.pregunta).toBeDefined();
   });
 
   // T15

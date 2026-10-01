@@ -1,19 +1,24 @@
 /**
- * Módulo de Guía Conversacional por Fase de QAP (E6 / P3.1)
+ * Módulo de Guía Conversacional por Fase de QAP (E6 / P4.2)
  *
- * Genera la `siguiente_accion` tipificada y preguntas contextuales
- * según la fase activa del proyecto y los requerimientos vigentes.
- *
- * Directivas de E0b:
- * - En toda respuesta con siguiente_accion de tipo "trabajo" o "entrevista_vista",
- *   `pregunta` es una instrucción o el texto de las preguntas (NUNCA "¿Deseas…?")
- *   y `opciones` es [].
- * - Solo el tipo "decision" puede llevar opciones, y con >= 2 alternativas reales.
- * - Ninguna guía recomienda qap_report mientras no existan ejecuciones reales.
+ * Genera la `siguiente_accion` tipificada y preguntas estructuradas
+ * según el contrato canónico de Pregunta (P4.2):
+ * - Una sola pregunta estructurada pendiente a la vez en `siguiente_accion.pregunta`
+ * - Sin cadenas de preguntas agregadas, sin pregunta aplanada y sin opciones de nivel superior.
+ * - Toda pregunta pasa por el validador puro validarPregunta.
  */
 
-import type { ProjectPhase, RuleCategory } from '@qap/shared';
-import type { CoverageResult, InterviewQuestion } from '@qap/engine';
+import type { ProjectPhase, RuleCategory, LifecycleState } from '@qap/shared';
+import type {
+  CoverageResult,
+  InterviewQuestion,
+  Pregunta,
+  Opcion,
+  CanExitOnboardingContext,
+  CanExitOnboardingEnvironments,
+  HallazgosProyectoMin,
+} from '@qap/engine';
+import { obtenerSiguientePreguntaOnboarding } from '@qap/engine';
 
 export type AccionTipo = 'entrevista' | 'entrevista_vista' | 'decision' | 'trabajo';
 
@@ -25,7 +30,8 @@ export interface SiguienteAccion {
   modulo?: string;
   view?: string;
   vista?: string;
-  preguntas?: Array<InterviewQuestion | Record<string, unknown> | string>;
+  pregunta?: Pregunta;
+  restantes_en_lote?: number;
   categorias_aplicables?: RuleCategory[];
   cobertura?: {
     completa: boolean;
@@ -34,14 +40,13 @@ export interface SiguienteAccion {
     inferidas_pendientes: number;
   };
   rutas_detectadas_fuera_del_plan?: string[];
-  opciones?: string[];
 }
 
 export interface BuildInterviewActionParams {
   module: string;
   view?: string;
   route?: string;
-  questions: Array<InterviewQuestion | Record<string, unknown> | string>;
+  questions: Array<InterviewQuestion | Pregunta>;
   applicableCategories: RuleCategory[];
   coverage: CoverageResult;
   rutasDetectadasFueraDelPlan?: string[];
@@ -49,7 +54,7 @@ export interface BuildInterviewActionParams {
 
 /**
  * Función compartida por qap_discover, qap_rules_set y qap_status
- * para construir de forma unificada la siguiente_accion de tipo "entrevista_vista" (E0a).
+ * para construir de forma unificada la siguiente_accion de tipo "entrevista_vista" (E3a).
  */
 export function buildInterviewNextAction(params: BuildInterviewActionParams): SiguienteAccion {
   const view = params.view || 'default';
@@ -61,6 +66,9 @@ export function buildInterviewNextAction(params: BuildInterviewActionParams): Si
     ? `Entrevista en curso para '${params.module}' (vista: ${view}). Categorías pendientes: ${missingCats.join(', ')}.`
     : `Entrevista de reglas de negocio para el módulo '${params.module}' (vista: ${view}). Cobertura: ${Object.values(params.coverage.categorias).filter((c) => c.cubierta).length}/${params.applicableCategories.length} categorías.`;
 
+  const firstQuestion = params.questions[0] as Pregunta | undefined;
+  const restantes = Math.max(0, params.questions.length - 1);
+
   const accion: SiguienteAccion = {
     tipo: 'entrevista_vista',
     descripcion,
@@ -69,7 +77,8 @@ export function buildInterviewNextAction(params: BuildInterviewActionParams): Si
     modulo: params.module,
     view,
     vista: view,
-    preguntas: params.questions,
+    pregunta: firstQuestion,
+    restantes_en_lote: restantes,
     categorias_aplicables: params.applicableCategories,
     cobertura: {
       completa: params.coverage.completa,
@@ -89,43 +98,22 @@ export function buildInterviewNextAction(params: BuildInterviewActionParams): Si
 }
 
 export interface PhaseGuidanceOptions {
+  context?: CanExitOnboardingContext | null;
+  lifecycle?: LifecycleState | null;
+  hallazgos?: HallazgosProyectoMin | null;
   faltantes?: Array<{ campo: string; motivo: string }>;
   suggestedModules?: Array<{ module: string; path: string; priority?: string }>;
   plan?: Array<{ module: string; path: string; priority: string; status: string }>;
   modules?: Record<string, { state: string; hasPendingHypotheses?: boolean }>;
   interviewAction?: SiguienteAccion;
   reportPath?: string;
+  environments?: CanExitOnboardingEnvironments | null;
 }
 
 export interface GuidanceResult {
   fase: ProjectPhase;
   siguiente_accion: SiguienteAccion;
-  pregunta: string;
-  opciones: string[];
 }
-
-const ONBOARDING_QUESTIONS_ORDER = [
-  {
-    campo: 'source_of_truth',
-    pregunta: '1. Fuente de verdad: ¿Existe algún documento de especificación (PRD, README, OpenAPI o notas) que defina el sistema, o definimos el alcance desde cero?',
-  },
-  {
-    campo: 'objective',
-    pregunta: '2. Objetivo del proyecto: ¿Cuál es el propósito central de la aplicación y qué dolor o necesidad de negocio resuelve?',
-  },
-  {
-    campo: 'roles',
-    pregunta: '3. Roles de usuario: ¿Qué tipos de usuarios o actores interactúan con el sistema (ej: cliente, administrador, auditor)?',
-  },
-  {
-    campo: 'critical_flows',
-    pregunta: '4. Flujos críticos: ¿Cuáles son las rutas o procesos de negocio más importantes que no pueden fallar?',
-  },
-  {
-    campo: 'environments',
-    pregunta: '5. Entorno de pruebas: ¿Cuál es la URL base y entorno configurado para ejecutar las pruebas (ej: http://localhost:3000)?',
-  },
-];
 
 export function getPhaseGuidance(
   phase: ProjectPhase,
@@ -133,37 +121,26 @@ export function getPhaseGuidance(
 ): GuidanceResult {
   switch (phase) {
     case 'ONBOARDING': {
-      const faltantesCampos = new Set(options.faltantes?.map((f) => f.campo) ?? []);
+      const q = obtenerSiguientePreguntaOnboarding(
+        options.context,
+        options.lifecycle,
+        options.hallazgos,
+        options.environments
+      );
 
-      // Filtrar preguntas según los campos faltantes en el orden canónico estricto
-      const relevantQuestions = ONBOARDING_QUESTIONS_ORDER
-        .filter((q) => {
-          if (!options.faltantes || options.faltantes.length === 0) return true;
-          return faltantesCampos.has(q.campo);
-        })
-        .slice(0, 5)
-        .map((q) => q.pregunta);
-
-      const preguntas = relevantQuestions.length > 0
-        ? relevantQuestions
-        : [
-            '1. Fuente de verdad: ¿Existe PRD, README o especificación técnica?',
-            '2. Objetivo del proyecto: ¿Cuál es el propósito y dolor de negocio que resuelve?',
-            '3. Roles de usuario: ¿Qué tipos de usuarios interactúan con la plataforma?',
-            '4. Flujos críticos: ¿Cuáles son los flujos prioritarios de negocio?',
-            '5. Entorno: ¿Cuál es la URL base del sistema?',
-          ];
+      if (!q) {
+        // Todas las compuertas de onboarding pasaron; avanzar a SCOPING
+        return getPhaseGuidance('SCOPING', options);
+      }
 
       return {
         fase: 'ONBOARDING',
         siguiente_accion: {
           tipo: 'entrevista',
-          descripcion: 'Responde a las siguientes preguntas en un solo mensaje de texto libre para completar el contexto inicial del proyecto.',
-          tool: 'qap_context_set',
-          preguntas,
+          descripcion: `Pregunta pendiente de onboarding (${q.id}). Preséntala al usuario usando la herramienta interactiva ask_question.`,
+          tool: q.registrar_con.tool,
+          pregunta: q,
         },
-        pregunta: `Para iniciar con el análisis de calidad, por favor responde a las siguientes preguntas en un solo mensaje:\n\n${preguntas.join('\n\n')}`,
-        opciones: [], // Preguntas abiertas: sin opciones de botón
       };
     }
 
@@ -174,9 +151,28 @@ export function getPhaseGuidance(
         descripcion += ` Módulos sugeridos extraídos del documento: ${sugeridos}.`;
       }
 
-      const opciones = options.suggestedModules && options.suggestedModules.length > 0
-        ? options.suggestedModules.map((m) => `Registrar ${m.module} (${m.path})`)
-        : ['Definir módulos manualmente', 'Consultar especificación del proyecto'];
+      const scopingOptions: Opcion[] = options.suggestedModules && options.suggestedModules.length > 0
+        ? [
+            ...options.suggestedModules.map((m, idx) => ({
+              id: `modulo_${m.module}`,
+              etiqueta: `Registrar ${m.module} (${m.path})`,
+              recomendada: idx === 0,
+            })),
+            { id: 'manual', etiqueta: 'Definir módulos manualmente' },
+          ]
+        : [
+            { id: 'manual', etiqueta: 'Definir módulos manualmente', recomendada: true },
+            { id: 'consultar', etiqueta: 'Consultar especificación del proyecto' },
+          ];
+
+      const scopingPregunta: Pregunta = {
+        id: 'scoping.definir_plan',
+        texto: 'Define los módulos prioritarios a verificar en esta sesión y especifica si la aplicación requiere autenticación:',
+        formato: 'una_opcion',
+        opciones: scopingOptions,
+        permite_otra: true,
+        registrar_con: { tool: 'qap_session_plan', campo: 'plan' },
+      };
 
       return {
         fase: 'SCOPING',
@@ -184,37 +180,17 @@ export function getPhaseGuidance(
           tipo: 'decision',
           descripcion,
           tool: 'qap_session_plan',
+          pregunta: scopingPregunta,
         },
-        pregunta: 'Define los módulos prioritarios a verificar en esta sesión y especifica si la aplicación requiere autenticación (qap_session_plan).',
-        opciones,
       };
     }
 
     case 'WORKING': {
-      // 1. Reanudación de entrevista si se proporciona acción compartida precalculada (E0a)
+      // 1. Reanudación de entrevista si se proporciona acción compartida precalculada (E0a / E3a)
       if (options.interviewAction) {
-        const action = options.interviewAction;
-        const qList = action.preguntas || [];
-        const formattedQuestions = qList
-          .map((q) => {
-            if (typeof q === 'string') return q;
-            if (q && typeof q === 'object' && 'texto' in q) {
-              const val = (q as { texto?: unknown }).texto;
-              return typeof val === 'string' ? val : '';
-            }
-            return '';
-          })
-          .filter((t): t is string => t.length > 0);
-
-        const pregunta = formattedQuestions.length > 0
-          ? `Preguntas de entrevista de reglas para el módulo '${action.module}' (vista: ${action.view}):\n\n${formattedQuestions.join('\n\n')}`
-          : `El módulo '${action.module}' requiere completar su entrevista de vista. Registra sus reglas de negocio con qap_rules_set.`;
-
         return {
           fase: 'WORKING',
-          siguiente_accion: action,
-          pregunta,
-          opciones: [], // E0b: sin permisos ni botones de una sola opción
+          siguiente_accion: options.interviewAction,
         };
       }
 
@@ -230,6 +206,15 @@ export function getPhaseGuidance(
 
       if (nextInterview) {
         const [modName, info] = nextInterview;
+        const interviewPregunta: Pregunta = {
+          id: `modulo.${modName}.entrevista`,
+          texto: `El módulo '${modName}' tiene una entrevista de vista pendiente con hipótesis y preguntas sobre reglas de negocio. Registra sus reglas con qap_rules_set:`,
+          formato: 'abierta',
+          opciones: [],
+          permite_otra: true,
+          registrar_con: { tool: 'qap_rules_set', campo: 'rules' },
+        };
+
         return {
           fase: 'WORKING',
           siguiente_accion: {
@@ -239,11 +224,12 @@ export function getPhaseGuidance(
               : `El módulo '${modName}' tiene una entrevista de vista pendiente con hipótesis y preguntas sobre reglas de negocio. Registra sus reglas con qap_rules_set.`,
             tool: 'qap_rules_set',
             module: modName,
+            modulo: modName,
             view: 'default',
-            preguntas: [],
+            vista: 'default',
+            pregunta: interviewPregunta,
+            restantes_en_lote: 0,
           },
-          pregunta: `El módulo '${modName}' requiere completar su entrevista de vista. Registra sus reglas de negocio con qap_rules_set.`,
-          opciones: [], // E0b: opciones estrictamente vacías
         };
       }
 
@@ -269,63 +255,96 @@ export function getPhaseGuidance(
           fase: 'WORKING',
           siguiente_accion: {
             tipo: 'trabajo',
-            descripcion: `Siguiente módulo planificado para exploración: '${nextPlanned.module}' en ruta '${nextPlanned.path}'.`,
+            descripcion: `Siguiente módulo planificado para exploración: '${nextPlanned.module}' en ruta '${nextPlanned.path}'. Ejecuta qap_discover para iniciar.`,
             tool: 'qap_discover',
+            module: nextPlanned.module,
+            modulo: nextPlanned.module,
           },
-          pregunta: `Siguiente módulo planificado para exploración: '${nextPlanned.module}' (${nextPlanned.path}). Ejecuta qap_discover para iniciar.`,
-          opciones: [], // E0b: sin opciones
         };
       }
 
-      // 3. Revisar si hay módulos en consolidated que requieran cierre formal (E2)
+      // 3. Revisar si hay módulos en consolidated que requieran cierre formal (E2 / E4)
       const consolidatedModules = Object.entries(options.modules ?? {}).filter(
         ([, info]) => info.state === 'consolidated'
       );
       if (consolidatedModules.length > 0) {
         const [modName] = consolidatedModules[0];
+        const closePregunta: Pregunta = {
+          id: `modulo.${modName}.cierre`,
+          texto: `El módulo '${modName}' ha completado su cobertura de reglas (consolidated). Confirma la acción para proceder:`,
+          formato: 'una_opcion',
+          opciones: [
+            { id: 'cerrar', etiqueta: `Cerrar módulo '${modName}' formalmente`, recomendada: true, efecto: { estado: 'confirmed' } },
+            { id: 'revisar', etiqueta: 'Revisar reglas antes de cerrar' },
+          ],
+          permite_otra: true,
+          registrar_con: { tool: 'qap_module_close', campo: 'action' },
+        };
+
         return {
           fase: 'WORKING',
           siguiente_accion: {
-            tipo: 'trabajo',
-            descripcion: `El módulo '${modName}' ha completado su cobertura de reglas (consolidated). Presenta el resumen al usuario y, con su confirmación explícita, ejecuta qap_module_close.`,
+            tipo: 'decision',
+            descripcion: `El módulo '${modName}' ha alcanzado cobertura completa. Presenta el resumen al usuario y llama a qap_module_close con user_confirmed: true para cerrar el módulo.`,
             tool: 'qap_module_close',
+            module: modName,
+            modulo: modName,
+            pregunta: closePregunta,
           },
-          pregunta: `El módulo '${modName}' ha alcanzado cobertura completa. Presenta el resumen al usuario y llama a qap_module_close con user_confirmed: true para cerrar el módulo.`,
-          opciones: [],
         };
       }
 
-      // 4. Si todos los módulos del plan están en closed o waived: listos para cerrar sesión (E3)
+      // 4. Si todos los módulos del plan están en closed o waived: listos para cerrar sesión (E3 / E4)
+      const sessionClosePregunta: Pregunta = {
+        id: 'session.cerrar_sesion',
+        texto: 'Todos los módulos de la sesión han finalizado su ciclo de vida. Confirma el cierre de la sesión para generar el reporte de brechas:',
+        formato: 'una_opcion',
+        opciones: [
+          { id: 'cerrar_sesion', etiqueta: 'Cerrar sesión y generar reporte de brechas', recomendada: true },
+          { id: 'ampliar_plan', etiqueta: 'Ampliar plan con otro módulo' },
+        ],
+        permite_otra: true,
+        registrar_con: { tool: 'qap_session_close', campo: 'action' },
+      };
+
       return {
         fase: 'WORKING',
         siguiente_accion: {
-          tipo: 'trabajo',
+          tipo: 'decision',
           descripcion: 'Todos los módulos planificados en la sesión actual están cerrados o renunciados. Procede a cerrar la sesión con qap_session_close.',
           tool: 'qap_session_close',
+          pregunta: sessionClosePregunta,
         },
-        pregunta: 'Todos los módulos de la sesión han finalizado su ciclo de vida. Ejecuta qap_session_close para cerrar la sesión y generar el reporte final de brechas.',
-        opciones: [],
       };
     }
 
     case 'WRAP_UP':
     default: {
       const reportMsg = options.reportPath
-        ? ` Reporte de brechas generado en: ${options.reportPath}.`
+        ? `Reporte de brechas generado en: ${options.reportPath}.`
         : '';
+      const wrapUpPregunta: Pregunta = {
+        id: 'wrap_up.decision',
+        texto: reportMsg
+          ? `La sesión actual ha concluido en la fase WRAP_UP. ${reportMsg} Selecciona la siguiente acción:`
+          : 'La sesión actual ha concluido en la fase WRAP_UP. Selecciona la siguiente acción:',
+        formato: 'una_opcion',
+        opciones: [
+          { id: 'qap_server', etiqueta: 'Explorar Knowledge Graph interactivo (qap_server)', recomendada: true },
+          { id: 'qap_session_plan', etiqueta: 'Iniciar nueva sesión de pruebas (qap_session_plan)' },
+        ],
+        permite_otra: true,
+        registrar_con: { tool: 'qap_server', campo: 'action' },
+      };
 
       return {
         fase: 'WRAP_UP',
         siguiente_accion: {
           tipo: 'decision',
-          descripcion: `La sesión actual ha concluido en la fase WRAP_UP.${reportMsg} Puedes explorar el Knowledge Graph con qap_server o iniciar una nueva sesión de pruebas con qap_session_plan.`,
+          descripcion: `La sesión actual ha concluido en la fase WRAP_UP.${reportMsg ? ` ${reportMsg}` : ''} Puedes explorar el Knowledge Graph con qap_server o iniciar una nueva sesión de pruebas con qap_session_plan.`,
           tool: 'qap_server',
+          pregunta: wrapUpPregunta,
         },
-        pregunta: `La sesión ha concluido exitosamente.${reportMsg} ¿Deseas explorar el Knowledge Graph interactivo o iniciar una nueva sesión de pruebas?`,
-        opciones: [
-          'Explorar Knowledge Graph (qap_server)',
-          'Iniciar nueva sesión de pruebas (qap_session_plan)',
-        ], // E0b: >= 2 opciones reales
       };
     }
   }

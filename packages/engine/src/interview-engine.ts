@@ -16,6 +16,8 @@ import type {
   CategoryWaiver,
 } from '@qap/shared';
 
+import type { Pregunta, Opcion } from './pregunta.js';
+
 // ---------------------------------------------------------------------------
 // Constantes configurables (E3.1 — heurística de sensibilidad)
 // ---------------------------------------------------------------------------
@@ -110,11 +112,9 @@ export interface ViewDiscoveryContext {
 }
 
 /** Pregunta generada para la entrevista */
-export interface InterviewQuestion {
-  id: string;
+export interface InterviewQuestion extends Pregunta {
   tipo: 'confirmar_hipotesis' | 'abierta';
   categoria: RuleCategory;
-  texto: string;
   /** Solo para tipo "confirmar_hipotesis": ids + enunciados de hipótesis */
   hipotesis_ids?: Array<{ id: string; texto: string }>;
 }
@@ -646,11 +646,51 @@ export function generateNextInterviewBatch(
   );
 
   if (pendingHypotheses.length > 0) {
+    const listado = pendingHypotheses
+      .map((h) => `- [${h.id}] ${sanitizeDomString(h.description)}`)
+      .join('\n');
+    const texto = `Se detectaron ${pendingHypotheses.length} hipótesis sobre reglas de negocio para el módulo ${targetLabel}:\n${listado}\n\nSelecciona una opción para confirmar o corregir:`;
+
+    const confirmOptions: Opcion[] = [
+      { id: 'confirmo_todas', etiqueta: 'Confirmo todas', recomendada: true, efecto: { estado: 'confirmed' } },
+      { id: 'corregir_alguna', etiqueta: 'Quiero corregir alguna', efecto: { abre_seguimiento: true } },
+      { id: 'dejo_pendientes', etiqueta: 'Las dejo pendientes', efecto: { estado: 'deferred' } },
+    ];
+
+    const rejectOptions: Opcion[] = pendingHypotheses.length >= 2
+      ? pendingHypotheses.map((h) => ({
+          id: h.id,
+          etiqueta: `Rechazar: [${h.id}] ${sanitizeDomString(h.description)}`,
+          efecto: { estado: 'rejected' },
+        }))
+      : [
+          {
+            id: pendingHypotheses[0].id,
+            etiqueta: `Rechazar: [${pendingHypotheses[0].id}] ${sanitizeDomString(pendingHypotheses[0].description)}`,
+            efecto: { estado: 'rejected' },
+          },
+          { id: 'ninguna', etiqueta: 'Mantener todas sin cambios' },
+        ];
+
+    const seguimiento: Pregunta = {
+      id: `${view}.corregir_hipotesis`,
+      texto: 'Selecciona las hipótesis que sean incorrectas para rechazarlas:',
+      formato: 'multiple',
+      opciones: rejectOptions,
+      permite_otra: true,
+      registrar_con: { tool: 'qap_rules_set', campo: 'rules' },
+    };
+
     questions.push({
       id: `${view}.confirmar_hipotesis`,
       tipo: 'confirmar_hipotesis',
       categoria: 'campo',
-      texto: QUESTION_TEMPLATES.confirmar_hipotesis(pendingHypotheses.length),
+      texto,
+      formato: 'una_opcion',
+      opciones: confirmOptions,
+      permite_otra: false,
+      registrar_con: { tool: 'qap_rules_set', campo: 'rules' },
+      seguimiento,
       hipotesis_ids: pendingHypotheses.map((h) => ({ id: h.id, texto: h.description })),
     });
   }
@@ -697,6 +737,14 @@ export function generateNextInterviewBatch(
           tipo: 'abierta',
           categoria: 'sensibilidad',
           texto: QUESTION_TEMPLATES.sensibilidad(sensitiveFields.length > 0 ? sensitiveFields : ['campo sensible detectado']),
+          formato: 'una_opcion',
+          opciones: [
+            { id: 'confirmar_sensibilidad', etiqueta: 'Confirmar manejo seguro y enmascaramiento de datos sensibles', recomendada: true, efecto: { estado: 'confirmed' } },
+            { id: 'deferir_sensibilidad', etiqueta: 'Revisar sensibilidad más adelante', efecto: { estado: 'deferred' } },
+            { id: 'waiver_sensibilidad', etiqueta: 'No se consideran datos sensibles en esta vista', efecto: { estado: 'rejected' } },
+          ],
+          permite_otra: true,
+          registrar_con: { tool: 'qap_rules_set', campo: 'rules' },
         });
         break;
 
@@ -708,6 +756,14 @@ export function generateNextInterviewBatch(
             tipo: 'abierta',
             categoria: 'accion',
             texto: QUESTION_TEMPLATES.accion(sanitizeDomString(btn.text) || sanitizeDomString(btn.key), targetLabel),
+            formato: 'una_opcion',
+            opciones: [
+              { id: 'validar_accion', etiqueta: 'Validar esta acción y su flujo de negocio', recomendada: true, efecto: { estado: 'confirmed' } },
+              { id: 'deferir_accion', etiqueta: 'Dejar pendiente de validación', efecto: { estado: 'deferred' } },
+              { id: 'waiver_accion', etiqueta: 'No aplica validación adicional para esta acción', efecto: { estado: 'rejected' } },
+            ],
+            permite_otra: true,
+            registrar_con: { tool: 'qap_rules_set', campo: 'rules' },
           });
         }
         break;
@@ -719,16 +775,31 @@ export function generateNextInterviewBatch(
           tipo: 'abierta',
           categoria: 'actor',
           texto: QUESTION_TEMPLATES.actor(targetLabel),
+          formato: 'una_opcion',
+          opciones: [
+            { id: 'confirmar_actor', etiqueta: 'Módulo accesible para los roles asignados', recomendada: true, efecto: { estado: 'confirmed' } },
+            { id: 'deferir_actor', etiqueta: 'Dejar definición de actores para después', efecto: { estado: 'deferred' } },
+            { id: 'waiver_actor', etiqueta: 'Disponible para todo público sin restricción de rol', efecto: { estado: 'rejected' } },
+          ],
+          permite_otra: true,
+          registrar_con: { tool: 'qap_rules_set', campo: 'rules' },
         });
         break;
 
       case 'campo':
-        // Sin hipótesis pendientes pero aún sin reglas confirmadas de campo
         questions.push({
           id: `${view}.campo`,
           tipo: 'abierta',
           categoria: 'campo',
-          texto: `¿Hay validaciones de negocio adicionales para los campos del módulo ${targetLabel} que no estén en el DOM? (unicidad, rangos, interdependencias)`,
+          texto: `Identifica validaciones de negocio adicionales para los campos del módulo ${targetLabel}:`,
+          formato: 'una_opcion',
+          opciones: [
+            { id: 'confirmar_campo', etiqueta: 'Aplicar validaciones adicionales de unicidad o formato', recomendada: true, efecto: { estado: 'confirmed' } },
+            { id: 'deferir_campo', etiqueta: 'Dejar validaciones de campos para después', efecto: { estado: 'deferred' } },
+            { id: 'waiver_campo', etiqueta: 'Las validaciones HTML del DOM son suficientes', efecto: { estado: 'rejected' } },
+          ],
+          permite_otra: true,
+          registrar_con: { tool: 'qap_rules_set', campo: 'rules' },
         });
         break;
 
@@ -738,6 +809,14 @@ export function generateNextInterviewBatch(
           tipo: 'abierta',
           categoria: 'error',
           texto: QUESTION_TEMPLATES.error_form(targetLabel),
+          formato: 'una_opcion',
+          opciones: [
+            { id: 'confirmar_error', etiqueta: 'Requiere validación de mensajes de error de negocio', recomendada: true, efecto: { estado: 'confirmed' } },
+            { id: 'deferir_error', etiqueta: 'Dejar manejo de errores para después', efecto: { estado: 'deferred' } },
+            { id: 'waiver_error', etiqueta: 'No aplican validaciones de error específicas en esta vista', efecto: { estado: 'rejected' } },
+          ],
+          permite_otra: true,
+          registrar_con: { tool: 'qap_rules_set', campo: 'rules' },
         });
         break;
       }
@@ -748,6 +827,13 @@ export function generateNextInterviewBatch(
           tipo: 'abierta',
           categoria: 'proposito',
           texto: QUESTION_TEMPLATES.proposito(targetLabel),
+          formato: 'una_opcion',
+          opciones: [
+            { id: 'confirmar_proposito', etiqueta: 'Confirmar propósito y comportamiento esperado', recomendada: true, efecto: { estado: 'confirmed' } },
+            { id: 'deferir_proposito', etiqueta: 'Definir propósito más adelante', efecto: { estado: 'deferred' } },
+          ],
+          permite_otra: true,
+          registrar_con: { tool: 'qap_rules_set', campo: 'rules' },
         });
         break;
 
@@ -757,6 +843,14 @@ export function generateNextInterviewBatch(
           tipo: 'abierta',
           categoria: 'dato',
           texto: QUESTION_TEMPLATES.dato(targetLabel),
+          formato: 'una_opcion',
+          opciones: [
+            { id: 'confirmar_dato', etiqueta: 'Verificar persistencia e integridad de datos', recomendada: true, efecto: { estado: 'confirmed' } },
+            { id: 'deferir_dato', etiqueta: 'Dejar reglas de datos para después', efecto: { estado: 'deferred' } },
+            { id: 'waiver_dato', etiqueta: 'No se manejan datos adicionales en esta vista', efecto: { estado: 'rejected' } },
+          ],
+          permite_otra: true,
+          registrar_con: { tool: 'qap_rules_set', campo: 'rules' },
         });
         break;
     }

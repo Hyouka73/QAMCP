@@ -139,8 +139,8 @@ describe('Lifecycle V3 E2E & Verification Suite (E0 - E3)', () => {
     expect(statusObs.parsed.siguiente_accion.tipo).toBe('entrevista_vista');
     expect(statusObs.parsed.siguiente_accion.module).toBe('auth');
     expect(statusObs.parsed.siguiente_accion.view).toBe('default');
-    expect(statusObs.parsed.siguiente_accion.preguntas).toBeDefined();
-    expect(statusObs.parsed.siguiente_accion.preguntas.length).toBeGreaterThan(0);
+    expect(statusObs.parsed.siguiente_accion.pregunta).toBeDefined();
+    expect(statusObs.parsed.siguiente_accion.preguntas).toBeUndefined();
     expect(statusObs.parsed.siguiente_accion.cobertura).toBeDefined();
 
     // Transicionar a interviewing con una regla parcial
@@ -155,14 +155,15 @@ describe('Lifecycle V3 E2E & Verification Suite (E0 - E3)', () => {
     expect(rulesPartial.parsed.siguiente_accion.tipo).toBe('entrevista_vista');
     expect(rulesPartial.parsed.siguiente_accion.module).toBe('auth');
     expect(rulesPartial.parsed.siguiente_accion.view).toBe('default');
-    expect(rulesPartial.parsed.siguiente_accion.preguntas.length).toBeGreaterThan(0);
+    expect(rulesPartial.parsed.siguiente_accion.pregunta).toBeDefined();
+    expect(rulesPartial.parsed.siguiente_accion.preguntas).toBeUndefined();
 
     // Llamar a qap_status: debe devolver EXACTAMENTE la misma siguiente_accion que qap_rules_set
     const statusInterviewing = await callTool('qap_status', {});
     expect(statusInterviewing.parsed.siguiente_accion.tipo).toBe('entrevista_vista');
     expect(statusInterviewing.parsed.siguiente_accion.module).toBe('auth');
     expect(statusInterviewing.parsed.siguiente_accion.view).toBe('default');
-    expect(statusInterviewing.parsed.siguiente_accion.preguntas).toEqual(rulesPartial.parsed.siguiente_accion.preguntas);
+    expect(statusInterviewing.parsed.siguiente_accion.pregunta).toEqual(rulesPartial.parsed.siguiente_accion.pregunta);
     expect(statusInterviewing.parsed.siguiente_accion.cobertura).toEqual(rulesPartial.parsed.siguiente_accion.cobertura);
   });
 
@@ -196,24 +197,20 @@ describe('Lifecycle V3 E2E & Verification Suite (E0 - E3)', () => {
       const sa = r.parsed.siguiente_accion;
       if (!sa) continue;
 
-      // Si tipo es trabajo o entrevista_vista
-      if (sa.tipo === 'trabajo' || sa.tipo === 'entrevista_vista') {
-        if (r.parsed.pregunta) {
-          expect(r.parsed.pregunta).not.toContain('¿Deseas');
-          expect(r.parsed.pregunta).not.toContain('¿Quieres');
-        }
-        expect(r.parsed.opciones).toEqual([]);
-      }
+      // P4.2: En respuestas con siguiente_accion, no existen top-level pregunta ni opciones
+      expect(r.parsed.pregunta).toBeUndefined();
+      expect(r.parsed.opciones).toBeUndefined();
+      expect(sa.preguntas).toBeUndefined();
 
-      // En toda respuesta, opciones NUNCA puede tener longitud 1
-      if (Array.isArray(r.parsed.opciones)) {
-        expect(r.parsed.opciones.length).not.toBe(1);
-      }
-
-      // Solo si tipo es decision puede llevar opciones, y con >= 2
+      // En decisión, sa.pregunta lleva >= 2 opciones
       if (sa.tipo === 'decision') {
-        expect(Array.isArray(r.parsed.opciones)).toBe(true);
-        expect(r.parsed.opciones.length).toBeGreaterThanOrEqual(2);
+        expect(sa.pregunta).toBeDefined();
+        expect(sa.pregunta.opciones.length).toBeGreaterThanOrEqual(2);
+      }
+
+      // En entrevista o entrevista_vista, sa.pregunta debe existir
+      if (sa.tipo === 'entrevista' || sa.tipo === 'entrevista_vista') {
+        expect(sa.pregunta).toBeDefined();
       }
     }
   });
@@ -457,7 +454,8 @@ describe('Lifecycle V3 E2E & Verification Suite (E0 - E3)', () => {
     const statusWrapUp = await callTool('qap_status', {});
     expect(statusWrapUp.parsed.fase).toBe('WRAP_UP');
     expect(statusWrapUp.parsed.siguiente_accion.tipo).toBe('decision');
-    expect(statusWrapUp.parsed.opciones.length).toBeGreaterThanOrEqual(2);
+    expect(statusWrapUp.parsed.siguiente_accion.pregunta.opciones.length).toBeGreaterThanOrEqual(2);
+    expect(statusWrapUp.parsed.opciones).toBeUndefined();
     expect(statusWrapUp.parsed.siguiente_accion.descripcion).toContain(reportMdPath);
 
     // 4. qap_discover y qap_rules_set bloqueadas en WRAP_UP
@@ -552,7 +550,8 @@ describe('Lifecycle V3 E2E & Verification Suite (E0 - E3)', () => {
     const r6 = await callTool('qap_status', {});
     expect(r6.parsed.siguiente_accion.tipo).toBe('entrevista_vista');
     expect(r6.parsed.siguiente_accion.module).toBe('moduloA');
-    expect(r6.parsed.siguiente_accion.preguntas.length).toBeGreaterThan(0);
+    expect(r6.parsed.siguiente_accion.pregunta).toBeDefined();
+    expect(r6.parsed.siguiente_accion.preguntas).toBeUndefined();
 
     // 7. rules_set que completa (consolidated + resumen)
     const docA = YAML.parse(readFileSync(join(tempDir, '.qa', 'modules', 'moduloA', 'rules.yaml'), 'utf-8'));
@@ -608,8 +607,8 @@ describe('Lifecycle V3 E2E & Verification Suite (E0 - E3)', () => {
     // 12. status WRAP_UP
     const r12 = await callTool('qap_status', {});
     expect(r12.parsed.fase).toBe('WRAP_UP');
-    expect(r12.parsed.siguiente_accion.tipo).toBe('decision');
-    expect(r12.parsed.opciones.length).toBeGreaterThanOrEqual(2);
+    expect(r12.parsed.siguiente_accion.pregunta.opciones.length).toBeGreaterThanOrEqual(2);
+    expect(r12.parsed.opciones).toBeUndefined();
 
     // 13. session_plan nueva sesión
     const r13 = await callTool('qap_session_plan', {

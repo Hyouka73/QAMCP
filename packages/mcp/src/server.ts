@@ -24,7 +24,7 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import YAML from 'yaml';
 import { SchemaValidator, type AuthProfile, type ModuleSpec, type ProjectPhase, type ModuleLifecycleState } from '@qap/shared';
-import { FileSystemStorage, validateDefinitions, parsePrdContent } from '@qap/knowledge';
+import { FileSystemStorage, validateDefinitions, parsePrdContent, detectarDocumentosProyecto } from '@qap/knowledge';
 import {
   canExitOnboarding,
   canExitScoping,
@@ -39,9 +39,11 @@ import {
   computeApplicableCategories,
   computeCoverage,
   generateNextInterviewBatch,
+  obtenerSiguientePreguntaOnboarding,
   type ViewDiscoveryContext,
   type DomField,
   type DomForm,
+  type Pregunta,
 } from '@qap/engine';
 import { AuthManager } from '@qap/auth';
 import {
@@ -58,6 +60,27 @@ import {
 import { getPhaseGuidance, buildInterviewNextAction, type SiguienteAccion } from './guidance.js';
 
 let activeViewerServer: ViewerServerInstance | null = null;
+
+function makeDecisionQuestion(
+  id: string,
+  texto: string,
+  opciones: Array<{ id: string; etiqueta: string; recomendada?: boolean }>,
+  permiteOtra = true,
+  registrarCon: { tool: string; campo: string } = { tool: 'qap_session_plan', campo: 'action' }
+): Pregunta {
+  return {
+    id,
+    texto,
+    formato: 'una_opcion',
+    opciones: opciones.map((o, idx) => ({
+      id: o.id,
+      etiqueta: o.etiqueta,
+      recomendada: o.recomendada ?? (idx === 0),
+    })),
+    permite_otra: permiteOtra,
+    registrar_con: registrarCon,
+  };
+}
 
 const UX_DIRECTIVE = 'DIRECTIVA DE UX ESTRICTA: Guía al usuario paso a paso interactivo. Si tu entorno dispone de herramienta para hacer preguntas interactivas con opciones (como ask_question), ÚSALA OBLIGATORIAMENTE para cada decisión. Si no, formula la pregunta directa con sus opciones. PROHIBIDO mostrar listas de pasos futuros (1, 2, 3...), tutoriales o pedir comandos de terminal.';
 
@@ -630,18 +653,15 @@ export function createMcpServer(): Server {
       instructions: `DIRECTIVAS DE INTERACCIÓN OBLIGATORIAS (QAP v3.0):
 1. RUTA OBJETIVO OBLIGATORIA (targetPath): En TODAS las llamadas a herramientas MCP, envía SIEMPRE la ruta absoluta del workspace del usuario en el parámetro 'targetPath'. NUNCA lo omitas.
 2. PROHIBIDO mostrar tablas markdown de estado, resúmenes de archivos o listas de próximos pasos (1, 2, 3...).
-3. USA LAS CAPACIDADES INTERACTIVAS DEL IDE:
-   - Para formular preguntas o decisiones, invoca SIEMPRE 'ask_question' con los campos 'pregunta' y 'opciones' devueltos por las tools.
-   - Si presentas una propuesta o plan para su ejecución, genera un artefacto interactivo (artifact) con 'RequestFeedback: true' para que el usuario pueda pulsar 'Proceed'.
-4. Ejecuta un solo paso por turno y espera la selección del usuario antes de invocar la siguiente tool de QAP.
-5. Cuando 'siguiente_accion.tipo' sea "entrevista", formula las preguntas listadas en un solo mensaje, en texto libre y sin botones.
-6. Cuando 'siguiente_accion.tipo' sea "entrevista_vista": presenta la lista de preguntas de la entrevista (campo 'preguntas') y espera respuesta del usuario antes de llamar qap_rules_set. NUNCA llames qap_rules_set con datos no confirmados por el usuario.
+3. Cuando siguiente_accion trae pregunta, presentala con la herramienta ask_question: UNA sola pregunta por llamada, usando texto, formato y opciones tal cual (no inventes, reordenes ni agregues opciones). Deja siempre disponible la respuesta libre. Si formato es abierta, haz esa unica pregunta en texto y espera. Nunca agrupes varias preguntas en un mensaje ni preguntes algo que siguiente_accion no pidio. Si ask_question no existe en tu cliente, haz la misma pregunta en texto con las opciones numeradas, una a la vez.
+4. Tras cada respuesta, registrala con la tool de pregunta.registrar_con y sigue la nueva siguiente_accion. Si el usuario eligio una opcion usa su efecto; si escribio texto libre, registralo con source user y con sus palabras. Nunca registres como source user algo que el usuario no dijo ni eligio.
+5. Ejecuta un solo paso por turno y espera la selección del usuario antes de invocar la siguiente tool de QAP.
+6. NUNCA llames qap_rules_set con datos no confirmados por el usuario.
 7. Si una tool responde con status "blocked", sigue obligatoriamente 'desbloquear_con' y no intentes rodear el bloqueo.
-8. NUNCA registres con source "user" algo que el usuario no haya confirmado o dicho explícitamente.
-9. Para hipótesis DOM (source "dom", status "inferred"): CONFIRMA cada una con el usuario antes de marcarla como "confirmed". Presenta las hipótesis al usuario y pregunta cuáles son correctas.
-10. Presenta al usuario el resumen de cierre del módulo y llama qap_module_close solo con su confirmación explícita (user_confirmed: true).
-11. Declara un waiver únicamente cuando el usuario haya dicho que la categoría no aplica, citando su razón (mínimo 15 caracteres).
-12. Al cerrar la sesión, presenta al usuario el resumen del reporte de brechas generado.`,
+8. Para hipótesis DOM (source "dom", status "inferred"): CONFIRMA cada una con el usuario antes de marcarla como "confirmed". Presenta las hipótesis al usuario y pregunta cuáles son correctas.
+9. Presenta al usuario el resumen de cierre del módulo y llama qap_module_close solo con su confirmación explícita (user_confirmed: true).
+10. Declara un waiver únicamente cuando el usuario haya dicho que la categoría no aplica, citando su razón (mínimo 15 caracteres).
+11. Al cerrar la sesión, presenta al usuario el resumen del reporte de brechas generado.`,
     }
   );
 
@@ -780,14 +800,10 @@ export function createMcpServer(): Server {
             }
           }
 
-          if (!initialized) {
-            const question = `Detecté tu servicio en ${detectedUrl} (${detectedLabel}). ¿Deseas inicializar QAP para este servicio o prefieres otra URL?`;
-            const options = [
-              `Sí, inicializar QAP para ${detectedUrl}`,
-              'Usar otra URL o puerto',
-              'Cancelar',
-            ];
+          const hallazgos = detectarDocumentosProyecto(rootDir);
 
+          if (!initialized) {
+            const preg = obtenerSiguientePreguntaOnboarding(null, null, hallazgos, null);
             return {
               content: [
                 {
@@ -806,9 +822,14 @@ export function createMcpServer(): Server {
                       },
                       validatorReady: Boolean(validator),
                       detectedService: { url: detectedUrl, label: detectedLabel },
-                      pregunta: question,
-                      opciones: options,
-                      _guidance_for_assistant: 'NO expliques listas de pasos futuros. Haz al usuario la pregunta con ask_question: ' + question,
+                      hallazgos_workspace: hallazgos,
+                      siguiente_accion: {
+                        tipo: 'entrevista',
+                        descripcion: 'Proyecto no inicializado. Comienza el onboarding respondiendo a la fuente de verdad.',
+                        tool: 'qap_init',
+                        pregunta: preg ?? undefined,
+                      },
+                      _guidance_for_assistant: 'NO expliques listas de pasos futuros. Haz al usuario la pregunta con ask_question: ' + (preg?.texto || ''),
                     },
                     null,
                     2
@@ -919,6 +940,10 @@ export function createMcpServer(): Server {
             modules: modulesGuidance as any,
             interviewAction,
             reportPath,
+            hallazgos,
+            context: parsedContext,
+            lifecycle: lifecycleState,
+            environments: parsedEnv,
           });
 
           const stateModuleCount = Object.keys(lifecycleState.modules || {}).length;
@@ -937,6 +962,7 @@ export function createMcpServer(): Server {
                     estados_modulos: estadosModulos,
                     faltantes,
                     siguiente_accion: guidance.siguiente_accion,
+                    hallazgos_workspace: hallazgos,
                     projectName: projectName !== 'No inicializado' ? projectName : basename(rootDir),
                     environments,
                     stats: {
@@ -946,8 +972,6 @@ export function createMcpServer(): Server {
                     },
                     validatorReady: Boolean(validator),
                     detectedService: { url: detectedUrl, label: detectedLabel },
-                    pregunta: guidance.pregunta,
-                    opciones: guidance.opciones,
                     _guidance_for_assistant: `Fase actual: ${currentPhase}. Siguiente acción: ${guidance.siguiente_accion.descripcion}`,
                   },
                   null,
@@ -1051,7 +1075,14 @@ export function createMcpServer(): Server {
           }
 
           const gate = canExitOnboarding(ctxObj, envObj);
-          const guidance = getPhaseGuidance('ONBOARDING', { faltantes: gate.faltantes });
+          const hallazgos = detectarDocumentosProyecto(rootDir);
+          const guidance = getPhaseGuidance('ONBOARDING', {
+            faltantes: gate.faltantes,
+            hallazgos,
+            context: ctxObj,
+            environments: envObj,
+            lifecycle: currentLifecycle,
+          });
 
           return {
             content: [
@@ -1066,13 +1097,12 @@ export function createMcpServer(): Server {
                     environments: envList,
                     directories: allowedDirs.map((p) => p.replace(rootDir, '')),
                     ya_existia: yaExistia,
+                    hallazgos_workspace: hallazgos,
                     lifecycle: {
                       phase: finalPhase,
                     },
                     fase: finalPhase,
                     siguiente_accion: guidance.siguiente_accion,
-                    pregunta: guidance.pregunta,
-                    opciones: guidance.opciones,
                     _guidance_for_assistant: `Fase actual: ${finalPhase}. Siguiente acción: ${guidance.siguiente_accion.descripcion}`,
                   },
                   null,
@@ -1207,8 +1237,6 @@ export function createMcpServer(): Server {
                     secretSaved: Boolean(secret),
                     fase: currentPhase,
                     siguiente_accion: guidance.siguiente_accion,
-                    pregunta: guidance.pregunta,
-                    opciones: guidance.opciones,
                   },
                   null,
                   2
@@ -1323,12 +1351,13 @@ export function createMcpServer(): Server {
           if (Array.isArray(args.roles)) {
             existingContext.roles = existingContext.roles || [];
             for (const r of args.roles) {
-              if (!r || typeof r !== 'object') continue;
-              const roleName = String(r.name || '').trim();
+              if (!r) continue;
+              const roleName = typeof r === 'string' ? r.trim() : String(r.name || '').trim();
               if (!roleName) continue;
-              const rSource = (r.source && r.source !== 'inferred' && ['user', 'prd'].includes(r.source))
-                ? r.source
-                : (callerSource ?? (r.source === 'inferred' ? 'inferred' : defaultSource));
+              const rObj = typeof r === 'object' ? r : {};
+              const rSource = (rObj.source && rObj.source !== 'inferred' && ['user', 'prd'].includes(rObj.source))
+                ? rObj.source
+                : (callerSource ?? (rObj.source === 'inferred' ? 'inferred' : defaultSource));
               const exIdx = existingContext.roles.findIndex((er: any) => er.name === roleName);
               if (exIdx >= 0) {
                 const exRole = existingContext.roles[exIdx];
@@ -1340,14 +1369,14 @@ export function createMcpServer(): Server {
                 } else {
                   existingContext.roles[exIdx] = {
                     name: roleName,
-                    description: r.description !== undefined ? String(r.description) : exRole.description,
+                    description: rObj.description !== undefined ? String(rObj.description) : exRole.description,
                     source: rSource,
                   };
                 }
               } else {
                 existingContext.roles.push({
                   name: roleName,
-                  description: r.description !== undefined ? String(r.description) : undefined,
+                  description: rObj.description !== undefined ? String(rObj.description) : undefined,
                   source: rSource,
                 });
               }
@@ -1358,12 +1387,13 @@ export function createMcpServer(): Server {
           if (Array.isArray(args.critical_flows)) {
             existingContext.critical_flows = existingContext.critical_flows || [];
             for (const f of args.critical_flows) {
-              if (!f || typeof f !== 'object') continue;
-              const flowName = String(f.name || '').trim();
+              if (!f) continue;
+              const flowName = typeof f === 'string' ? f.trim() : String(f.name || '').trim();
               if (!flowName) continue;
-              const fSource = (f.source && f.source !== 'inferred' && ['user', 'prd'].includes(f.source))
-                ? f.source
-                : (callerSource ?? (f.source === 'inferred' ? 'inferred' : defaultSource));
+              const fObj = typeof f === 'object' ? f : {};
+              const fSource = (fObj.source && fObj.source !== 'inferred' && ['user', 'prd'].includes(fObj.source))
+                ? fObj.source
+                : (callerSource ?? (fObj.source === 'inferred' ? 'inferred' : defaultSource));
               const exIdx = existingContext.critical_flows.findIndex((ef: any) => ef.name === flowName);
               if (exIdx >= 0) {
                 const exFlow = existingContext.critical_flows[exIdx];
@@ -1375,16 +1405,16 @@ export function createMcpServer(): Server {
                 } else {
                   existingContext.critical_flows[exIdx] = {
                     name: flowName,
-                    description: f.description !== undefined ? String(f.description) : exFlow.description,
-                    priority: f.priority !== undefined ? String(f.priority) : exFlow.priority,
+                    description: fObj.description !== undefined ? String(fObj.description) : exFlow.description,
+                    priority: fObj.priority !== undefined ? String(fObj.priority) : exFlow.priority,
                     source: fSource,
                   };
                 }
               } else {
                 existingContext.critical_flows.push({
                   name: flowName,
-                  description: f.description !== undefined ? String(f.description) : undefined,
-                  priority: f.priority !== undefined ? String(f.priority) : undefined,
+                  description: fObj.description !== undefined ? String(fObj.description) : undefined,
+                  priority: fObj.priority !== undefined ? String(fObj.priority) : undefined,
                   source: fSource,
                 });
               }
@@ -1470,8 +1500,12 @@ export function createMcpServer(): Server {
             return curr;
           });
 
+          const hallazgos = detectarDocumentosProyecto(rootDir);
           const guidance = getPhaseGuidance(finalPhase, {
             faltantes: gateRes.faltantes,
+            hallazgos,
+            context: existingContext,
+            environments: parsedEnv,
           });
 
           return {
@@ -1488,8 +1522,6 @@ export function createMcpServer(): Server {
                     ignored_downgrades: ignoredDowngrades.length > 0 ? ignoredDowngrades : undefined,
                     context: existingContext,
                     siguiente_accion: guidance.siguiente_accion,
-                    pregunta: guidance.pregunta,
-                    opciones: guidance.opciones,
                   },
                   null,
                   2
@@ -1522,7 +1554,8 @@ export function createMcpServer(): Server {
             };
           }
 
-          const hasDocPath = Boolean(args.docPath);
+          const inputDocPath = args.docPath || args.path;
+          const hasDocPath = Boolean(inputDocPath);
           const hasDocContent = Boolean(args.docContent);
           if ((hasDocPath && hasDocContent) || (!hasDocPath && !hasDocContent)) {
             return {
@@ -1535,7 +1568,7 @@ export function createMcpServer(): Server {
                       status: 'error',
                       isError: true,
                       directorio_objetivo: rootDir,
-                      error: 'Debe proporcionarse exactamente uno de docPath o docContent.',
+                      error: 'Debe proporcionarse exactamente uno de docPath (o path) o docContent.',
                     },
                     null,
                     2
@@ -1549,7 +1582,7 @@ export function createMcpServer(): Server {
           let docRef = '';
 
           if (hasDocPath) {
-            const rawPath = String(args.docPath);
+            const rawPath = String(inputDocPath);
             const ext = extname(rawPath).toLowerCase();
             if (!['.md', '.markdown', '.txt'].includes(ext)) {
               return {
@@ -1742,9 +1775,12 @@ export function createMcpServer(): Server {
             { campo: 'roles', motivo: 'sin confirmar (extraídos como inferred)' },
           ];
 
+          const hallazgos = detectarDocumentosProyecto(rootDir);
           const guidance = getPhaseGuidance(lifecycleState.phase, {
             faltantes,
             suggestedModules,
+            hallazgos,
+            context: currentContext,
           });
 
           return {
@@ -1766,8 +1802,6 @@ export function createMcpServer(): Server {
                     solicitud_confirmacion: 'Presenta estas propuestas al usuario. Si las confirma tal cual, regístralas con qap_context_set (source: "prd"). Si las corrige, usa source: "user".',
                     faltantes,
                     siguiente_accion: guidance.siguiente_accion,
-                    pregunta: guidance.pregunta,
-                    opciones: guidance.opciones,
                   },
                   null,
                   2
@@ -1809,7 +1843,14 @@ export function createMcpServer(): Server {
             const parsedContext = existsSync(ctxPath) ? YAML.parse(readFileSync(ctxPath, 'utf-8')) : null;
             const parsedEnv = existsSync(envsPath) ? YAML.parse(readFileSync(envsPath, 'utf-8')) : null;
             const gate = canExitOnboarding(parsedContext, parsedEnv);
-            const guidance = getPhaseGuidance('ONBOARDING', { faltantes: gate.faltantes });
+            const hallazgos = detectarDocumentosProyecto(rootDir);
+            const guidance = getPhaseGuidance('ONBOARDING', {
+              faltantes: gate.faltantes,
+              hallazgos,
+              context: parsedContext,
+              environments: parsedEnv,
+              lifecycle: lifecycleState,
+            });
             return {
               content: [
                 {
@@ -1826,8 +1867,6 @@ export function createMcpServer(): Server {
                       },
                       faltantes: gate.faltantes,
                       siguiente_accion: guidance.siguiente_accion,
-                      pregunta: guidance.pregunta,
-                      opciones: guidance.opciones,
                     },
                     null,
                     2
@@ -2093,8 +2132,6 @@ export function createMcpServer(): Server {
                     auth: freshState.session?.auth,
                     faltantes: freshState.phase === 'WORKING' ? [] : scopingGateRes.faltantes,
                     siguiente_accion: guidance.siguiente_accion,
-                    pregunta: guidance.pregunta,
-                    opciones: guidance.opciones,
                   },
                   null,
                   2
@@ -2144,7 +2181,14 @@ export function createMcpServer(): Server {
             const parsedContext = existsSync(ctxPath) ? YAML.parse(readFileSync(ctxPath, 'utf-8')) : null;
             const parsedEnv = existsSync(envsPath) ? YAML.parse(readFileSync(envsPath, 'utf-8')) : null;
             const gate = canExitOnboarding(parsedContext, parsedEnv);
-            const guidance = getPhaseGuidance('ONBOARDING', { faltantes: gate.faltantes });
+            const hallazgos = detectarDocumentosProyecto(rootDir);
+            const guidance = getPhaseGuidance('ONBOARDING', {
+              faltantes: gate.faltantes,
+              hallazgos,
+              context: parsedContext,
+              environments: parsedEnv,
+              lifecycle: lifecycleState,
+            });
             return {
               content: [
                 {
@@ -2161,8 +2205,6 @@ export function createMcpServer(): Server {
                       },
                       faltantes: gate.faltantes,
                       siguiente_accion: guidance.siguiente_accion,
-                      pregunta: guidance.pregunta,
-                      opciones: guidance.opciones,
                     },
                     null,
                     2
@@ -2199,8 +2241,6 @@ export function createMcpServer(): Server {
                       },
                       faltantes: gate.faltantes,
                       siguiente_accion: guidance.siguiente_accion,
-                      pregunta: guidance.pregunta,
-                      opciones: guidance.opciones,
                     },
                     null,
                     2
@@ -2229,10 +2269,15 @@ export function createMcpServer(): Server {
                         tipo: 'decision',
                         descripcion: 'La sesión actual ha concluido en WRAP_UP. Inicia una nueva sesión con qap_session_plan o revisa el Knowledge Graph con qap_server.',
                         tool: 'qap_session_plan',
-                        opciones: ['Iniciar nueva sesión con qap_session_plan', 'Revisar Knowledge Graph con qap_server'],
+                        pregunta: makeDecisionQuestion(
+                          'decision_wrap_up',
+                          'La sesión ha finalizado. Puedes iniciar una nueva sesión con qap_session_plan o revisar el Knowledge Graph con qap_server.',
+                          [
+                            { id: 'plan', etiqueta: 'Iniciar nueva sesión con qap_session_plan', recomendada: true },
+                            { id: 'server', etiqueta: 'Revisar Knowledge Graph con qap_server' },
+                          ]
+                        ),
                       },
-                      pregunta: 'La sesión ha finalizado. Puedes iniciar una nueva sesión con qap_session_plan o revisar el Knowledge Graph con qap_server.',
-                      opciones: ['Iniciar nueva sesión con qap_session_plan', 'Revisar Knowledge Graph con qap_server'],
                     },
                     null,
                     2
@@ -2263,10 +2308,15 @@ export function createMcpServer(): Server {
                         tipo: 'decision',
                         descripcion: `Registra el módulo '${name}' usando qap_session_plan o consulta el estado del proyecto.`,
                         tool: 'qap_session_plan',
-                        opciones: ['Registrar módulo con qap_session_plan', 'Ver estado del proyecto (qap_status)'],
+                        pregunta: makeDecisionQuestion(
+                          'decision_modulo_no_en_plan',
+                          `El módulo '${name}' no forma parte del plan. Registra el módulo con qap_session_plan o consulta el estado del proyecto con qap_status.`,
+                          [
+                            { id: 'registrar', etiqueta: 'Registrar módulo con qap_session_plan', recomendada: true },
+                            { id: 'status', etiqueta: 'Ver estado del proyecto (qap_status)' },
+                          ]
+                        ),
                       },
-                      pregunta: `El módulo '${name}' no forma parte del plan. Registra el módulo con qap_session_plan o consulta el estado del proyecto con qap_status.`,
-                      opciones: ['Registrar módulo con qap_session_plan', 'Ver estado del proyecto (qap_status)'],
                     },
                     null,
                     2
@@ -2297,8 +2347,6 @@ export function createMcpServer(): Server {
                         descripcion: `El módulo '${name}' está finalizado (${modEntry.state}). Selecciona otro módulo del plan.`,
                         tool: 'qap_status',
                       },
-                      pregunta: `El módulo '${name}' está finalizado (${modEntry.state}). Selecciona otro módulo activo del plan o consulta el estado.`,
-                      opciones: [],
                     },
                     null,
                     2
@@ -2600,7 +2648,17 @@ export function createMcpServer(): Server {
                 tipo: 'decision' as const,
                 descripcion: `Falló la exploración con Playwright para el módulo '${name}': ${playwrightError || 'Error de navegación'}. Decide si reintentar con otra URL, verificar servidor o continuar manualmente.`,
                 tool: 'qap_discover',
-                opciones: ['Reintentar qap_discover', 'Verificar servidor o URL', 'Continuar con otro módulo'],
+                pregunta: makeDecisionQuestion(
+                  'decision_fallo_playwright',
+                  `Falló la exploración con Playwright para el módulo '${name}'. Selecciona cómo proceder:`,
+                  [
+                    { id: 'reintentar', etiqueta: 'Reintentar qap_discover', recomendada: true },
+                    { id: 'verificar', etiqueta: 'Verificar servidor o URL' },
+                    { id: 'otro_modulo', etiqueta: 'Continuar con otro módulo' },
+                  ],
+                  true,
+                  { tool: 'qap_discover', campo: 'action' }
+                ),
               }
             : buildInterviewNextAction({
                 module: name,
@@ -2802,8 +2860,6 @@ export function createMcpServer(): Server {
                         descripcion: 'No hay ejecuciones registradas para generar reportes. Consulta el estado del proyecto con qap_status.',
                         tool: 'qap_status',
                       },
-                      pregunta: 'No hay ejecuciones registradas en .qa/executions/. Consulta el estado del proyecto con qap_status.',
-                      opciones: [],
                     },
                     null,
                     2
@@ -2838,8 +2894,6 @@ export function createMcpServer(): Server {
                         descripcion: `Resultado de ejecución '${executionId}' no encontrado. Consulta el estado con qap_status.`,
                         tool: 'qap_status',
                       },
-                      pregunta: `La ejecución '${executionId}' no fue encontrada. Consulta el estado con qap_status.`,
-                      opciones: [],
                     },
                     null,
                     2
@@ -2899,12 +2953,22 @@ export function createMcpServer(): Server {
                     executionId,
                     reports: reportsGenerated,
                     viewer_url: viewerUrl,
-                    pregunta: `Reporte generado en ${reportsGenerated.html ? 'HTML' : 'formato seleccionado'}. ¿Deseas abrir el visor interactivo del Knowledge Graph 2D en el navegador?`,
-                    opciones: [
-                      'Abrir visor del Knowledge Graph 2D (qap_server)',
-                      'Ver estado del proyecto (qap_status)',
-                      'Concluir sesión de pruebas',
-                    ],
+                    siguiente_accion: {
+                      tipo: 'decision',
+                      descripcion: 'Reporte generado. Elige si abrir el visor interactivo o consultar el estado.',
+                      tool: 'qap_server',
+                      pregunta: makeDecisionQuestion(
+                        'decision_post_reporte',
+                        `Reporte generado en ${reportsGenerated.html ? 'HTML' : 'formato seleccionado'}. Selecciona la siguiente acción para visualizar o consultar el estado:`,
+                        [
+                          { id: 'server', etiqueta: 'Abrir visor del Knowledge Graph 2D (qap_server)', recomendada: true },
+                          { id: 'status', etiqueta: 'Ver estado del proyecto (qap_status)' },
+                          { id: 'concluir', etiqueta: 'Concluir sesión de pruebas' },
+                        ],
+                        true,
+                        { tool: 'qap_server', campo: 'action' }
+                      ),
+                    },
                   },
                   null,
                   2
@@ -2928,12 +2992,6 @@ export function createMcpServer(): Server {
                       isError: true,
                       directorio_objetivo: rootDir,
                       error: `No existe la carpeta de base de conocimiento .qa/ en '${rootDir}'. Debe ejecutar qap_init primero.`,
-                      pregunta: `El proyecto en '${rootDir}' no tiene la carpeta .qa/. ¿Deseas inicializar QAP ahora con qap_init?`,
-                      opciones: [
-                        `Inicializar QAP en '${rootDir}' (qap_init)`,
-                        'Especificar otra ruta de proyecto (targetPath)',
-                        'Cancelar',
-                      ],
                       _guidance_for_assistant: `La carpeta .qa/ no existe en ${rootDir}. Debes ejecutar qap_init primero.`,
                     },
                     null,
@@ -3083,10 +3141,15 @@ export function createMcpServer(): Server {
                           tipo: 'decision',
                           descripcion: 'La sesión actual ha concluido en WRAP_UP. Inicia una nueva sesión con qap_session_plan o revisa el Knowledge Graph con qap_server.',
                           tool: 'qap_session_plan',
-                          opciones: ['Iniciar nueva sesión con qap_session_plan', 'Revisar Knowledge Graph con qap_server'],
+                          pregunta: makeDecisionQuestion(
+                            'decision_wrap_up',
+                            'La sesión ha finalizado. Puedes iniciar una nueva sesión con qap_session_plan o revisar el Knowledge Graph con qap_server.',
+                            [
+                              { id: 'plan', etiqueta: 'Iniciar nueva sesión con qap_session_plan', recomendada: true },
+                              { id: 'server', etiqueta: 'Revisar Knowledge Graph con qap_server' },
+                            ]
+                          ),
                         },
-                        pregunta: 'La sesión ha finalizado. Puedes iniciar una nueva sesión con qap_session_plan o revisar el Knowledge Graph con qap_server.',
-                        opciones: ['Iniciar nueva sesión con qap_session_plan', 'Revisar Knowledge Graph con qap_server'],
                       },
                       null,
                       2
@@ -3116,8 +3179,6 @@ export function createMcpServer(): Server {
                         descripcion: desbloquearDesc,
                       },
                       siguiente_accion: guidance.siguiente_accion,
-                      pregunta: guidance.pregunta,
-                      opciones: guidance.opciones,
                     },
                     null,
                     2
@@ -3148,10 +3209,15 @@ export function createMcpServer(): Server {
                         tipo: 'decision',
                         descripcion: `Registra el módulo '${moduleName}' usando qap_session_plan o consulta el estado del proyecto con qap_status.`,
                         tool: 'qap_session_plan',
-                        opciones: ['Registrar módulo con qap_session_plan', 'Ver estado del proyecto (qap_status)'],
+                        pregunta: makeDecisionQuestion(
+                          'decision_modulo_no_en_plan',
+                          `El módulo '${moduleName}' no forma parte del plan. Registra el módulo con qap_session_plan o consulta el estado del proyecto con qap_status.`,
+                          [
+                            { id: 'registrar', etiqueta: 'Registrar módulo con qap_session_plan', recomendada: true },
+                            { id: 'status', etiqueta: 'Ver estado del proyecto (qap_status)' },
+                          ]
+                        ),
                       },
-                      pregunta: `El módulo '${moduleName}' no forma parte del plan. Registra el módulo con qap_session_plan o consulta el estado del proyecto con qap_status.`,
-                      opciones: ['Registrar módulo con qap_session_plan', 'Ver estado del proyecto (qap_status)'],
                     },
                     null,
                     2
@@ -3182,8 +3248,6 @@ export function createMcpServer(): Server {
                         descripcion: `Descubre el módulo '${moduleName}' con qap_discover.`,
                         tool: 'qap_discover',
                       },
-                      pregunta: `El módulo '${moduleName}' está en estado 'planned'. Ejecuta qap_discover para mapear el módulo antes de registrar sus reglas.`,
-                      opciones: [],
                     },
                     null,
                     2
@@ -3214,8 +3278,6 @@ export function createMcpServer(): Server {
                         descripcion: `El módulo '${moduleName}' se encuentra finalizado (${modEntry.state}). Selecciona otro módulo activo del plan.`,
                         tool: 'qap_status',
                       },
-                      pregunta: `El módulo '${moduleName}' se encuentra finalizado (${modEntry.state}). Sus reglas no pueden ser modificadas. Consulta el estado del proyecto para continuar.`,
-                      opciones: [],
                     },
                     null,
                     2
@@ -3562,8 +3624,6 @@ export function createMcpServer(): Server {
                     descripcion: `La fase actual es ${lifecycleState.phase}. Consulta el estado con qap_status.`,
                     tool: 'qap_status',
                   },
-                  pregunta: `La fase actual es ${lifecycleState.phase}. Debes estar en WORKING para cerrar o renunciar a módulos.`,
-                  opciones: [],
                 }, null, 2),
               }],
             };
@@ -3588,10 +3648,15 @@ export function createMcpServer(): Server {
                     tipo: 'decision',
                     descripcion: `Registra el módulo '${moduleName}' usando qap_session_plan o consulta el estado con qap_status.`,
                     tool: 'qap_session_plan',
-                    opciones: ['Registrar módulo con qap_session_plan', 'Ver estado del proyecto (qap_status)'],
+                    pregunta: makeDecisionQuestion(
+                      'decision_modulo_no_en_plan',
+                      `El módulo '${moduleName}' no forma parte del plan. Registra el módulo con qap_session_plan o consulta el estado del proyecto con qap_status.`,
+                      [
+                        { id: 'registrar', etiqueta: 'Registrar módulo con qap_session_plan', recomendada: true },
+                        { id: 'status', etiqueta: 'Ver estado del proyecto (qap_status)' },
+                      ]
+                    ),
                   },
-                  pregunta: `El módulo '${moduleName}' no forma parte del plan. Registra el módulo con qap_session_plan o consulta el estado del proyecto con qap_status.`,
-                  opciones: ['Registrar módulo con qap_session_plan', 'Ver estado del proyecto (qap_status)'],
                 }, null, 2),
               }],
             };
@@ -3616,8 +3681,6 @@ export function createMcpServer(): Server {
                     descripcion: `El módulo '${moduleName}' ya está en estado terminal '${modEntry.state}'. Consulta el estado del proyecto con qap_status.`,
                     tool: 'qap_status',
                   },
-                  pregunta: `El módulo '${moduleName}' ya está finalizado (${modEntry.state}). Selecciona otro módulo o consulta el estado del proyecto.`,
-                  opciones: [],
                 }, null, 2),
               }],
             };
@@ -3642,8 +3705,6 @@ export function createMcpServer(): Server {
                     descripcion: `Presenta el resumen del módulo '${moduleName}' al usuario y solicita su confirmación explícita antes de llamar qap_module_close.`,
                     tool: 'qap_module_close',
                   },
-                  pregunta: `Debes presentar el resumen de reglas y waivers de '${moduleName}' al usuario y obtener su confirmación explícita antes de ejecutar el cierre o renuncia.`,
-                  opciones: [],
                 }, null, 2),
               }],
             };
@@ -3690,8 +3751,6 @@ export function createMcpServer(): Server {
                       descripcion: `Completa la cobertura de reglas de '${moduleName}' con qap_rules_set para transicionar a consolidated.`,
                       tool: 'qap_rules_set',
                     },
-                    pregunta: `El módulo '${moduleName}' está en estado '${modEntry.state}'. Debes completar la cobertura de reglas con qap_rules_set antes de cerrarlo.`,
-                    opciones: [],
                   }, null, 2),
                 }],
               };
@@ -3716,8 +3775,6 @@ export function createMcpServer(): Server {
                       descripcion: `Resuelve los requisitos pendientes de '${moduleName}' con qap_rules_set.`,
                       tool: 'qap_rules_set',
                     },
-                    pregunta: `El módulo '${moduleName}' no puede cerrarse aún: ${closeGate.reason}. Ejecuta qap_rules_set para resolverlo.`,
-                    opciones: [],
                   }, null, 2),
                 }],
               };
@@ -3741,8 +3798,6 @@ export function createMcpServer(): Server {
                       descripcion: `Especifica una justificación de al menos 15 caracteres para renunciar al módulo '${moduleName}'.`,
                       tool: 'qap_module_close',
                     },
-                    pregunta: `La renuncia al módulo '${moduleName}' requiere una justificación detallada de al menos 15 caracteres.`,
-                    opciones: [],
                   }, null, 2),
                 }],
               };
@@ -3790,21 +3845,18 @@ export function createMcpServer(): Server {
           });
 
           let sigAccion: SiguienteAccion;
-          let preg: string;
           if (nextPlanned) {
             sigAccion = {
               tipo: 'trabajo',
               descripcion: `Módulo '${moduleName}' ${action === 'close' ? 'cerrado' : 'renunciado'}. Siguiente módulo planificado: '${nextPlanned.module}' en ruta '${nextPlanned.path}'.`,
               tool: 'qap_discover',
             };
-            preg = `Módulo '${moduleName}' finalizado. Siguiente módulo planificado: '${nextPlanned.module}' (${nextPlanned.path}). Ejecuta qap_discover para explorarlo.`;
           } else {
             sigAccion = {
               tipo: 'trabajo',
               descripcion: `Módulo '${moduleName}' ${action === 'close' ? 'cerrado' : 'renunciado'}. Todos los módulos del plan han finalizado. Procede a cerrar la sesión con qap_session_close.`,
               tool: 'qap_session_close',
             };
-            preg = 'Todos los módulos de la sesión han finalizado su ciclo de vida. Ejecuta qap_session_close para cerrar la sesión y generar el reporte final de brechas.';
           }
 
           return {
@@ -3821,8 +3873,6 @@ export function createMcpServer(): Server {
                 reason: action === 'waive' ? reasonStr : undefined,
                 resumen: summary,
                 siguiente_accion: sigAccion,
-                pregunta: preg,
-                opciones: [],
               }, null, 2),
             }],
           };
@@ -3850,8 +3900,6 @@ export function createMcpServer(): Server {
                     descripcion: `La fase actual es ${lifecycleState.phase}. Consulta el estado con qap_status.`,
                     tool: 'qap_status',
                   },
-                  pregunta: `La fase actual es ${lifecycleState.phase}. Debes estar en WORKING para cerrar la sesión.`,
-                  opciones: [],
                 }, null, 2),
               }],
             };
@@ -3877,8 +3925,6 @@ export function createMcpServer(): Server {
                     descripcion: 'Existen módulos pendientes de cerrar o renunciar antes de concluir la sesión.',
                     tool: 'qap_module_close',
                   },
-                  pregunta: `No es posible cerrar la sesión: hay módulos pendientes de finalizar (${workingGate.faltantes.map((f: any) => `${f.modulo}: ${f.motivo}`).join(', ')}).`,
-                  opciones: [],
                 }, null, 2),
               }],
             };
@@ -3956,16 +4002,17 @@ export function createMcpServer(): Server {
                   tipo: 'decision',
                   descripcion: `Sesión concluida. Reporte de brechas generado en ${reportFilePath}. Puedes revisar el Knowledge Graph (qap_server) o iniciar una nueva sesión (qap_session_plan).`,
                   tool: 'qap_server',
-                  opciones: [
-                    'Revisar Knowledge Graph interactivo (qap_server)',
-                    'Iniciar nueva sesión de pruebas (qap_session_plan)',
-                  ],
+                  pregunta: makeDecisionQuestion(
+                    'decision_post_cierre_sesion',
+                    `La sesión ha finalizado exitosamente. El reporte de brechas está disponible en ${reportFilePath}. Selecciona si explorar el Knowledge Graph con qap_server o iniciar una nueva sesión con qap_session_plan.`,
+                    [
+                      { id: 'server', etiqueta: 'Revisar Knowledge Graph interactivo (qap_server)', recomendada: true },
+                      { id: 'plan', etiqueta: 'Iniciar nueva sesión de pruebas (qap_session_plan)' },
+                    ],
+                    true,
+                    { tool: 'qap_server', campo: 'action' }
+                  ),
                 },
-                pregunta: `La sesión ha finalizado exitosamente. El reporte de brechas está disponible en ${reportFilePath}. Selecciona si deseas revisar el Knowledge Graph con qap_server o iniciar una nueva sesión con qap_session_plan.`,
-                opciones: [
-                  'Revisar Knowledge Graph interactivo (qap_server)',
-                  'Iniciar nueva sesión de pruebas (qap_session_plan)',
-                ],
               }, null, 2),
             }],
           };

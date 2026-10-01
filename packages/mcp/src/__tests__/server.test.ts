@@ -1423,9 +1423,10 @@ describe('Suite MCP Server QAP v2.1 / v2.1.2', () => {
     const status1 = await handler({ method: 'tools/call', params: { name: 'qap_status', arguments: {} } }, {});
     const pStatus1 = JSON.parse(status1.content[0].text);
     expect(pStatus1.fase).toBe('ONBOARDING');
-    expect(pStatus1.siguiente_accion.tipo).toBe('entrevista');
-    expect(pStatus1.siguiente_accion.preguntas.length).toBeGreaterThanOrEqual(4);
-    expect(pStatus1.opciones).toEqual([]); // Preguntas abiertas
+    expect(pStatus1.siguiente_accion.pregunta).toBeDefined();
+    expect(pStatus1.siguiente_accion.pregunta.id).toBe('onboarding.fuente_de_verdad');
+    expect(pStatus1.siguiente_accion.preguntas).toBeUndefined();
+    expect(pStatus1.opciones).toBeUndefined();
 
     // Paso 3: intento de discover prematuro bloqueado
     const discPremature = await handler(
