@@ -18,16 +18,17 @@
 import type { Command } from 'commander';
 
 import { NotImplementedError } from './errors.js';
-import { handleInitCommand } from './commands/init.js';
 import { handleAuthAdd, handleAuthList, handleAuthSetSecret, handleAuthRemove } from './commands/auth/index.js';
 import { handleRun } from './commands/runner/index.js';
 import { handleStatus } from './commands/status/index.js';
 import { handleConfigShow, handleConfigSet } from './commands/config/index.js';
 import { handleDiscover } from './commands/discover.js';
 import { handleReport } from './commands/report.js';
+import { handleInitCommand } from './commands/init.js';
 import { handleValidate } from './commands/validate.js';
 import { handlePrune } from './commands/prune.js';
 import { handleRuntimeReindex } from './commands/reindex.js';
+import { handlePlan } from './commands/plan.js';
 
 interface CommandDefinition {
   /** Nombre del subcomando, p.ej. "test" -> `qap test`. */
@@ -39,7 +40,6 @@ interface CommandDefinition {
 
 // Mantenemos los placeholders eliminando 'status' y 'report' que ahora tienen implementación real
 const COMMANDS: readonly CommandDefinition[] = [
-  { name: 'plan', description: 'Genera el plan de pruebas de un módulo.', args: '<module>' },
   { name: 'test', description: 'Ejecuta el plan de pruebas de un módulo.', args: '<module>' },
   { name: 'update', description: 'Actualiza un módulo ya descubierto.', args: '<module>' },
   { name: 'context', description: 'Muestra el contexto (local o global) de un módulo.', args: '[module]' },
@@ -47,13 +47,21 @@ const COMMANDS: readonly CommandDefinition[] = [
 ];
 
 export function registerCommands(program: Command): void {
-  // 1. Registrar el comando `init` con su implementación real
+  // 1. Registrar el comando `init` con su implementaciÃ³n real
   program
     .command('init')
     .description('Inicializa la estructura .qa/ en el proyecto actual')
-    .option('-c, --config <path>', 'Ruta al archivo JSON de configuración para modo silencioso')
+    .option('-c, --config <path>', 'Ruta al archivo JSON de configuraciÃ³n para modo silencioso')
     .action(async (options: { config?: string }) => {
       await handleInitCommand(options);
+    });
+
+  // 1b. Subcomando 'plan' (Tarea S6-001)
+  program
+    .command('plan <module>')
+    .description('Genera la matriz de pruebas del mÃ³dulo calculando checksum de configuraciÃ³n.')
+    .action(async (moduleName: string) => {
+      await handlePlan(moduleName);
     });
 
   // 2. Grupo de subcomandos 'auth' (Tarea S2-003)
