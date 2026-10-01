@@ -452,14 +452,13 @@ describe('Lifecycle Transitions (E2 & Criterio 1)', () => {
       });
     });
 
-    it('canExitWorking y canExitWrapUp deben indicar explícitamente no implementado aún', () => {
+    it('canExitWorking debe fallar con plan vacío y canExitWrapUp debe permitir pasar', () => {
       const working = canExitWorking();
       expect(working.passed).toBe(false);
-      expect(working.reason).toBe('no implementado aún');
+      expect(working.reason).toContain('plan de sesión está vacío');
 
       const wrapUp = canExitWrapUp();
-      expect(wrapUp.passed).toBe(false);
-      expect(wrapUp.reason).toBe('no implementado aún');
+      expect(wrapUp.passed).toBe(true);
     });
 
     it('transitionProject debe evaluar compuertas cuando checkGates es true', () => {

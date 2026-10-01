@@ -33,7 +33,7 @@ const instructionsContent = `# Instrucciones de QAP (qap-mcp) para el Asistente
 
 ## Directivas Críticas de Interacción y Experiencia de Usuario:
 1. **PARÁMETRO \`targetPath\` OBLIGATORIO**:
-   - En TODAS las llamadas a las herramientas de \`qap-mcp\` (\`qap_status\`, \`qap_init\`, \`qap_discover\`, \`qap_plan\`, \`qap_validate\`, \`qap_test\`, \`qap_report\`, \`qap_server\`, \`qap_clean\`, \`qap_auth_add\`, \`qap_auth_list\`, \`qap_prune\`), debes enviar SIEMPRE la ruta absoluta del workspace abierto en el parámetro \`targetPath\`.
+   - En TODAS las llamadas a las herramientas de \`qap-mcp\` (\`qap_status\`, \`qap_init\`, \`qap_clean\`, \`qap_auth_add\`, \`qap_auth_list\`, \`qap_context_set\`, \`qap_context_ingest\`, \`qap_session_plan\`, \`qap_discover\`, \`qap_rules_set\`, \`qap_module_close\`, \`qap_session_close\`, \`qap_plan\`, \`qap_validate\`, \`qap_test\`, \`qap_report\`, \`qap_server\`, \`qap_prune\`), debes enviar SIEMPRE la ruta absoluta del workspace abierto en el parámetro \`targetPath\`.
    - NUNCA omitas este parámetro, para asegurar que el motor opere exactamente sobre la carpeta del proyecto del usuario y no en el directorio de ejecución del proceso MCP.
 
 2. **PROHIBIDO los muros de texto**:
@@ -57,6 +57,18 @@ const instructionsContent = `# Instrucciones de QAP (qap-mcp) para el Asistente
 
 7. **INTEGRIDAD DE PROCEDENCIA DE DATOS**:
    - NUNCA registres con source "user" algo que el usuario no haya dicho o confirmado explícitamente.
+
+8. **CONFIRMACIÓN DE HIPÓTESIS DOM**:
+   - Para hipótesis DOM (source "dom", status "inferred"): CONFIRMA cada una con el usuario antes de marcarla como "confirmed". Presenta las hipótesis al usuario y pregunta cuáles son correctas.
+
+9. **CONFIRMACIÓN EXPLÍCITA PARA CIERRE DE MÓDULO**:
+   - Presenta al usuario el resumen de cierre del módulo y llama \`qap_module_close\` solo con su confirmación explícita (\`user_confirmed: true\`).
+
+10. **DECLARACIÓN DE WAIVERS**:
+   - Declara un waiver únicamente cuando el usuario haya dicho que la categoría no aplica, citando su razón (mínimo 15 caracteres).
+
+11. **RESUMEN DE REPORTE DE BRECHAS**:
+   - Al cerrar la sesión, presenta al usuario el resumen del reporte de brechas generado.
 `;
 
 writeFileSync(join(targetDir, 'instructions.md'), instructionsContent, 'utf-8');

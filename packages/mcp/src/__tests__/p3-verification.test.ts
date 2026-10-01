@@ -601,11 +601,11 @@ describe('P3 Suite de Verificación MCP (T3 - T15)', () => {
       view: 'default',
       rules: inferredAuth,
       category_waivers: [
-        { category: 'actor', reason: 'Waiver' },
-        { category: 'accion', reason: 'Waiver' },
-        { category: 'error', reason: 'Waiver' },
-        { category: 'dato', reason: 'Waiver' },
-        { category: 'sensibilidad', reason: 'Waiver' },
+        { category: 'actor', reason: 'Categoría no aplicable para este módulo' },
+        { category: 'accion', reason: 'Categoría no aplicable para este módulo' },
+        { category: 'error', reason: 'Categoría no aplicable para este módulo' },
+        { category: 'dato', reason: 'Categoría no aplicable para este módulo' },
+        { category: 'sensibilidad', reason: 'Categoría no aplicable para este módulo' },
       ],
     });
 
@@ -615,7 +615,7 @@ describe('P3 Suite de Verificación MCP (T3 - T15)', () => {
     expect(statusC.parsed.siguiente_accion.tool).toBe('qap_discover');
     expect(statusC.parsed.siguiente_accion.descripcion).toContain('pagos');
 
-    // (d) Todos completos -> tipo decision
+    // (d) Todos los módulos completados (consolidated) -> propone cierre de módulo con qap_module_close
     // Descubrir y completar pagos
     await callTool('qap_discover', { name: 'pagos', path: '/pay' });
     const pagosRulesDoc = YAML.parse(readFileSync(join(tempDir, '.qa', 'modules', 'pagos', 'rules.yaml'), 'utf-8'));
@@ -623,22 +623,28 @@ describe('P3 Suite de Verificación MCP (T3 - T15)', () => {
     await callTool('qap_rules_set', {
       module: 'pagos',
       view: 'default',
-      rules: inferredPagos,
+      rules: [
+        ...inferredPagos,
+        {
+          category: 'proposito',
+          description: 'Módulo de pagos y transacciones del sistema',
+          source: 'user',
+          status: 'confirmed',
+        },
+      ],
       category_waivers: [
-        { category: 'proposito', reason: 'Waiver' },
-        { category: 'actor', reason: 'Waiver' },
-        { category: 'campo', reason: 'Waiver' },
-        { category: 'accion', reason: 'Waiver' },
-        { category: 'error', reason: 'Waiver' },
-        { category: 'dato', reason: 'Waiver' },
-        { category: 'sensibilidad', reason: 'Waiver' },
+        { category: 'actor', reason: 'Categoría no aplicable para este módulo' },
+        { category: 'campo', reason: 'Categoría no aplicable para este módulo' },
+        { category: 'accion', reason: 'Categoría no aplicable para este módulo' },
+        { category: 'error', reason: 'Categoría no aplicable para este módulo' },
+        { category: 'dato', reason: 'Categoría no aplicable para este módulo' },
+        { category: 'sensibilidad', reason: 'Categoría no aplicable para este módulo' },
       ],
     });
 
     const statusD = await callTool('qap_status', {});
-    expect(statusD.parsed.siguiente_accion.tipo).toBe('decision');
-    expect(statusD.parsed.siguiente_accion.tool).toBe('qap_report');
-    expect(statusD.parsed.siguiente_accion.descripcion).toContain('cobertura completa');
+    expect(statusD.parsed.siguiente_accion.tipo).toBe('trabajo');
+    expect(statusD.parsed.siguiente_accion.tool).toBe('qap_module_close');
   });
 
   // T15
@@ -704,12 +710,12 @@ describe('P3 Suite de Verificación MCP (T3 - T15)', () => {
       view: 'default',
       rules: inferredA,
       category_waivers: [
-        { category: 'actor', reason: 'W' },
-        { category: 'campo', reason: 'W' },
-        { category: 'accion', reason: 'W' },
-        { category: 'error', reason: 'W' },
-        { category: 'dato', reason: 'W' },
-        { category: 'sensibilidad', reason: 'W' },
+        { category: 'actor', reason: 'Categoría no aplicable en esta vista' },
+        { category: 'campo', reason: 'Categoría no aplicable en esta vista' },
+        { category: 'accion', reason: 'Categoría no aplicable en esta vista' },
+        { category: 'error', reason: 'Categoría no aplicable en esta vista' },
+        { category: 'dato', reason: 'Categoría no aplicable en esta vista' },
+        { category: 'sensibilidad', reason: 'Categoría no aplicable en esta vista' },
       ],
     });
     verifyNoLoopText(r7.text);

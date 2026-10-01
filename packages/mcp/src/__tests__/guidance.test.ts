@@ -84,10 +84,11 @@ describe('Módulo de Guía Conversacional por Fase (E6)', () => {
     expect(res.siguiente_accion.tipo).toBe('entrevista_vista');
     expect(res.siguiente_accion.tool).toBe('qap_rules_set');
     expect(res.siguiente_accion.descripcion).toContain("'auth'");
-    expect(res.opciones.some((o) => o.includes('qap_rules_set'))).toBe(true);
+    // E0b: en respuestas de tipo entrevista_vista, opciones es []
+    expect(res.opciones).toEqual([]);
   });
 
-  it('WORKING: debe resumir pendientes si no hay módulos planned en la sesión', () => {
+  it('WORKING: debe dirigir a qap_session_close si no hay módulos planned en la sesión', () => {
     const res = getPhaseGuidance('WORKING', {
       plan: [
         { module: 'auth', path: '/login', priority: 'high', status: 'observed' },
@@ -98,15 +99,16 @@ describe('Módulo de Guía Conversacional por Fase (E6)', () => {
     });
 
     expect(res.fase).toBe('WORKING');
-    expect(res.siguiente_accion.tipo).toBe('decision');
-    expect(res.siguiente_accion.tool).toBe('qap_report');
-    expect(res.siguiente_accion.descripcion).toContain('cobertura completa');
+    expect(res.siguiente_accion.tipo).toBe('trabajo');
+    expect(res.siguiente_accion.tool).toBe('qap_session_close');
+    expect(res.siguiente_accion.descripcion).toContain('qap_session_close');
   });
 
-  it('WRAP_UP: debe indicar que la nueva sesión no está implementada aún', () => {
+  it('WRAP_UP: debe ofrecer decisión con opciones de Knowledge Graph y nueva sesión', () => {
     const res = getPhaseGuidance('WRAP_UP');
     expect(res.fase).toBe('WRAP_UP');
     expect(res.siguiente_accion.tipo).toBe('decision');
-    expect(res.siguiente_accion.descripcion).toContain('Nueva sesión aún no implementada');
+    expect(res.siguiente_accion.descripcion).toContain('qap_session_plan');
+    expect(res.opciones.length).toBeGreaterThanOrEqual(2);
   });
 });

@@ -11,9 +11,13 @@ import type {
   ModuleLifecycleState,
   ModuleStateInfo,
   TransitionHistoryEntry,
+  RuleEntry,
+  RuleCategory,
+  CategoryWaiver,
 } from '@qap/shared';
 
 import type { ProjectContext } from './ports.js';
+import { computeCoverage, type CoverageResult } from './interview-engine.js';
 
 export type LifecycleSession = LifecycleState['session'];
 
@@ -43,7 +47,7 @@ export const MODULE_TRANSITIONS: Record<ModuleLifecycleState, readonly ModuleLif
   planned: ['observed', 'waived'],
   observed: ['interviewing', 'waived'],
   interviewing: ['consolidated', 'observed', 'waived'],
-  consolidated: ['closed', 'waived'],
+  consolidated: ['interviewing', 'closed', 'waived'],
   closed: [],
   waived: [],
 };
@@ -351,17 +355,137 @@ export function canExitScoping(
 }
 
 /**
- * Compuerta de salida: WORKING -> WRAP_UP
+ * Compuerta pura de cierre de módulo: canCloseModule (E2)
+ *
+ * Pasa SOLO si:
+ * 1. La cobertura de la vista es completa (completa: true)
+ * 2. No existen reglas inferidas pendientes (inferidas_pendientes == 0)
  */
-export function canExitWorking(): GateResult {
-  return { passed: false, faltantes: [{ campo: 'working', motivo: 'no implementado aún' }], reason: 'no implementado aún' };
+export interface CanCloseModuleResult {
+  passed: boolean;
+  reason?: string;
+  coverage: CoverageResult;
+}
+
+export function canCloseModule(
+  rules: RuleEntry[],
+  waivers: CategoryWaiver[],
+  applicableCategories: RuleCategory[],
+  view: string = 'default'
+): CanCloseModuleResult {
+  const coverage = computeCoverage(applicableCategories, rules, waivers, view);
+  if (coverage.inferidas_pendientes > 0) {
+    return {
+      passed: false,
+      reason: `El módulo no cumple la compuerta canCloseModule: existen ${coverage.inferidas_pendientes} regla(s) inferida(s) pendiente(s) de resolución.`,
+      coverage,
+    };
+  }
+  if (!coverage.completa) {
+    const missing = Object.entries(coverage.categorias)
+      .filter(([, v]) => v.aplicable && !v.cubierta)
+      .map(([k]) => k);
+    return {
+      passed: false,
+      reason: `El módulo no cumple la compuerta canCloseModule: cobertura incompleta. Categorías pendientes: ${missing.join(', ')}.`,
+      coverage,
+    };
+  }
+  return {
+    passed: true,
+    coverage,
+  };
+}
+
+export interface ExitWorkingFaltante {
+  modulo: string;
+  estado: string;
+  campo: string;
+  motivo: string;
+}
+
+export interface CanExitWorkingResult {
+  passed: boolean;
+  faltantes: ExitWorkingFaltante[];
+  reason?: string;
+}
+
+/**
+ * Compuerta de salida: WORKING -> WRAP_UP (E3)
+ *
+ * Pasa SOLO si:
+ * 1. session.plan no está vacío
+ * 2. Todos los módulos del plan están en estado 'closed' o 'waived' (con su reason no vacía)
+ * Proyectos legacy con plan vacío: no pasa; el motivo indica registrar el plan con qap_session_plan.
+ */
+export function canExitWorking(
+  sessionOrState?: LifecycleSession | LifecycleState | null,
+  modulesState?: Record<string, ModuleStateInfo> | null
+): CanExitWorkingResult {
+  const session: LifecycleSession | undefined | null =
+    sessionOrState && 'session' in sessionOrState
+      ? sessionOrState.session
+      : sessionOrState;
+
+  const modules: Record<string, ModuleStateInfo> =
+    modulesState ??
+    (sessionOrState && 'modules' in sessionOrState
+      ? sessionOrState.modules
+      : {});
+
+  const plan = session?.plan;
+  if (!plan || !Array.isArray(plan) || plan.length === 0) {
+    return {
+      passed: false,
+      faltantes: [],
+      reason: 'El plan de sesión está vacío. Registra el plan con qap_session_plan antes de cerrar la sesión.',
+    };
+  }
+
+  const faltantes: ExitWorkingFaltante[] = [];
+  for (const item of plan) {
+    const modName = item.module;
+    const modInfo = modules[modName];
+    const currentState = modInfo?.state;
+
+    if (currentState === 'closed') {
+      continue;
+    }
+    if (currentState === 'waived') {
+      if (!modInfo.waived_reason || modInfo.waived_reason.trim().length === 0) {
+        faltantes.push({
+          modulo: modName,
+          estado: 'waived (sin justificación)',
+          campo: `modules.${modName}`,
+          motivo: 'waived exige waived_reason',
+        });
+      }
+      continue;
+    }
+
+    faltantes.push({
+      modulo: modName,
+      estado: currentState || 'desconocido',
+      campo: `modules.${modName}`,
+      motivo: `estado actual '${currentState || 'desconocido'}' no es terminal (closed o waived)`,
+    });
+  }
+
+  const passed = faltantes.length === 0;
+  return {
+    passed,
+    faltantes,
+    reason: passed
+      ? undefined
+      : `Existen módulos pendientes en el plan de sesión que no han sido cerrados ni renunciados: ${faltantes.map((f) => `${f.modulo} (${f.estado})`).join(', ')}.`,
+  };
 }
 
 /**
  * Compuerta de salida: WRAP_UP -> SCOPING
  */
 export function canExitWrapUp(): GateResult {
-  return { passed: false, faltantes: [{ campo: 'wrap_up', motivo: 'no implementado aún' }], reason: 'no implementado aún' };
+  return { passed: true, faltantes: [] };
 }
 
 // ---------------------------------------------------------------------------
@@ -518,7 +642,7 @@ export function transitionProject(
         };
       }
     } else if (state.phase === 'WORKING') {
-      const gate = canExitWorking();
+      const gate = canExitWorking(state);
       if (!gate.passed) {
         return {
           success: false,
@@ -601,6 +725,7 @@ export function transitionModule(
     from: `${moduleName}:${current.state}`,
     to: `${moduleName}:${toState}`,
     at: now,
+    module: moduleName,
     ...(options?.reason || options?.waived_reason
       ? { reason: options.reason || options.waived_reason }
       : {}),

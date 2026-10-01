@@ -1,11 +1,19 @@
 /**
- * Módulo de Guía Conversacional por Fase de QAP (E6)
+ * Módulo de Guía Conversacional por Fase de QAP (E6 / P3.1)
  *
  * Genera la `siguiente_accion` tipificada y preguntas contextuales
  * según la fase activa del proyecto y los requerimientos vigentes.
+ *
+ * Directivas de E0b:
+ * - En toda respuesta con siguiente_accion de tipo "trabajo" o "entrevista_vista",
+ *   `pregunta` es una instrucción o el texto de las preguntas (NUNCA "¿Deseas…?")
+ *   y `opciones` es [].
+ * - Solo el tipo "decision" puede llevar opciones, y con >= 2 alternativas reales.
+ * - Ninguna guía recomienda qap_report mientras no existan ejecuciones reales.
  */
 
-import type { ProjectPhase } from '@qap/shared';
+import type { ProjectPhase, RuleCategory } from '@qap/shared';
+import type { CoverageResult, InterviewQuestion } from '@qap/engine';
 
 export type AccionTipo = 'entrevista' | 'entrevista_vista' | 'decision' | 'trabajo';
 
@@ -13,7 +21,71 @@ export interface SiguienteAccion {
   tipo: AccionTipo;
   descripcion: string;
   tool?: string;
-  preguntas?: string[];
+  module?: string;
+  modulo?: string;
+  view?: string;
+  vista?: string;
+  preguntas?: Array<InterviewQuestion | Record<string, unknown> | string>;
+  categorias_aplicables?: RuleCategory[];
+  cobertura?: {
+    completa: boolean;
+    categorias_aplicables: RuleCategory[];
+    categorias_cubiertas: string[];
+    inferidas_pendientes: number;
+  };
+  rutas_detectadas_fuera_del_plan?: string[];
+  opciones?: string[];
+}
+
+export interface BuildInterviewActionParams {
+  module: string;
+  view?: string;
+  route?: string;
+  questions: Array<InterviewQuestion | Record<string, unknown> | string>;
+  applicableCategories: RuleCategory[];
+  coverage: CoverageResult;
+  rutasDetectadasFueraDelPlan?: string[];
+}
+
+/**
+ * Función compartida por qap_discover, qap_rules_set y qap_status
+ * para construir de forma unificada la siguiente_accion de tipo "entrevista_vista" (E0a).
+ */
+export function buildInterviewNextAction(params: BuildInterviewActionParams): SiguienteAccion {
+  const view = params.view || 'default';
+  const missingCats = Object.entries(params.coverage.categorias)
+    .filter(([, v]) => v.aplicable && !v.cubierta)
+    .map(([k]) => k);
+
+  const descripcion = missingCats.length > 0
+    ? `Entrevista en curso para '${params.module}' (vista: ${view}). Categorías pendientes: ${missingCats.join(', ')}.`
+    : `Entrevista de reglas de negocio para el módulo '${params.module}' (vista: ${view}). Cobertura: ${Object.values(params.coverage.categorias).filter((c) => c.cubierta).length}/${params.applicableCategories.length} categorías.`;
+
+  const accion: SiguienteAccion = {
+    tipo: 'entrevista_vista',
+    descripcion,
+    tool: 'qap_rules_set',
+    module: params.module,
+    modulo: params.module,
+    view,
+    vista: view,
+    preguntas: params.questions,
+    categorias_aplicables: params.applicableCategories,
+    cobertura: {
+      completa: params.coverage.completa,
+      categorias_aplicables: params.applicableCategories,
+      categorias_cubiertas: Object.entries(params.coverage.categorias)
+        .filter(([, v]) => v.aplicable && v.cubierta)
+        .map(([k]) => k),
+      inferidas_pendientes: params.coverage.inferidas_pendientes,
+    },
+  };
+
+  if (params.rutasDetectadasFueraDelPlan && params.rutasDetectadasFueraDelPlan.length > 0) {
+    accion.rutas_detectadas_fuera_del_plan = params.rutasDetectadasFueraDelPlan;
+  }
+
+  return accion;
 }
 
 export interface PhaseGuidanceOptions {
@@ -21,6 +93,8 @@ export interface PhaseGuidanceOptions {
   suggestedModules?: Array<{ module: string; path: string; priority?: string }>;
   plan?: Array<{ module: string; path: string; priority: string; status: string }>;
   modules?: Record<string, { state: string; hasPendingHypotheses?: boolean }>;
+  interviewAction?: SiguienteAccion;
+  reportPath?: string;
 }
 
 export interface GuidanceResult {
@@ -102,7 +176,7 @@ export function getPhaseGuidance(
 
       const opciones = options.suggestedModules && options.suggestedModules.length > 0
         ? options.suggestedModules.map((m) => `Registrar ${m.module} (${m.path})`)
-        : ['Definir módulos manualmente'];
+        : ['Definir módulos manualmente', 'Consultar especificación del proyecto'];
 
       return {
         fase: 'SCOPING',
@@ -117,7 +191,34 @@ export function getPhaseGuidance(
     }
 
     case 'WORKING': {
-      // 1. Prioridad: módulos en interviewing, o módulos en observed con hipótesis pendientes
+      // 1. Reanudación de entrevista si se proporciona acción compartida precalculada (E0a)
+      if (options.interviewAction) {
+        const action = options.interviewAction;
+        const qList = action.preguntas || [];
+        const formattedQuestions = qList
+          .map((q) => {
+            if (typeof q === 'string') return q;
+            if (q && typeof q === 'object' && 'texto' in q) {
+              const val = (q as { texto?: unknown }).texto;
+              return typeof val === 'string' ? val : '';
+            }
+            return '';
+          })
+          .filter((t): t is string => t.length > 0);
+
+        const pregunta = formattedQuestions.length > 0
+          ? `Preguntas de entrevista de reglas para el módulo '${action.module}' (vista: ${action.view}):\n\n${formattedQuestions.join('\n\n')}`
+          : `El módulo '${action.module}' requiere completar su entrevista de vista. Registra sus reglas de negocio con qap_rules_set.`;
+
+        return {
+          fase: 'WORKING',
+          siguiente_accion: action,
+          pregunta,
+          opciones: [], // E0b: sin permisos ni botones de una sola opción
+        };
+      }
+
+      // 1b. Prioridad: módulos en interviewing, o módulos en observed con hipótesis pendientes
       const modulesEntries = Object.entries(options.modules ?? {});
       const nextInterview = modulesEntries.find(([, info]) => {
         if (info.state === 'interviewing') return true;
@@ -137,9 +238,12 @@ export function getPhaseGuidance(
               ? `El módulo '${modName}' fue descubierto y tiene hipótesis sobre reglas de negocio pendientes. Registra sus reglas con qap_rules_set.`
               : `El módulo '${modName}' tiene una entrevista de vista pendiente con hipótesis y preguntas sobre reglas de negocio. Registra sus reglas con qap_rules_set.`,
             tool: 'qap_rules_set',
+            module: modName,
+            view: 'default',
+            preguntas: [],
           },
-          pregunta: `El módulo '${modName}' requiere completar su entrevista de vista para registrar reglas de negocio. ¿Deseas responder ahora con qap_rules_set?`,
-          opciones: [`Responder entrevista de ${modName} (qap_rules_set)`],
+          pregunta: `El módulo '${modName}' requiere completar su entrevista de vista. Registra sus reglas de negocio con qap_rules_set.`,
+          opciones: [], // E0b: opciones estrictamente vacías
         };
       }
 
@@ -169,34 +273,59 @@ export function getPhaseGuidance(
             tool: 'qap_discover',
           },
           pregunta: `Siguiente módulo planificado para exploración: '${nextPlanned.module}' (${nextPlanned.path}). Ejecuta qap_discover para iniciar.`,
-          opciones: [], // T4: sin pregunta de confirmación, sin "Ver otros módulos", sin botón de una sola opción
+          opciones: [], // E0b: sin opciones
         };
       }
 
-      // 3. Si no hay planned, observed ni interviewing: todos los módulos del plan tienen cobertura completa
+      // 3. Revisar si hay módulos en consolidated que requieran cierre formal (E2)
+      const consolidatedModules = Object.entries(options.modules ?? {}).filter(
+        ([, info]) => info.state === 'consolidated'
+      );
+      if (consolidatedModules.length > 0) {
+        const [modName] = consolidatedModules[0];
+        return {
+          fase: 'WORKING',
+          siguiente_accion: {
+            tipo: 'trabajo',
+            descripcion: `El módulo '${modName}' ha completado su cobertura de reglas (consolidated). Presenta el resumen al usuario y, con su confirmación explícita, ejecuta qap_module_close.`,
+            tool: 'qap_module_close',
+          },
+          pregunta: `El módulo '${modName}' ha alcanzado cobertura completa. Presenta el resumen al usuario y llama a qap_module_close con user_confirmed: true para cerrar el módulo.`,
+          opciones: [],
+        };
+      }
+
+      // 4. Si todos los módulos del plan están en closed o waived: listos para cerrar sesión (E3)
       return {
         fase: 'WORKING',
         siguiente_accion: {
-          tipo: 'decision',
-          descripcion: 'Todos los módulos planificados en la sesión actual tienen cobertura completa. Puedes generar reportes con qap_report o ampliar el plan con nuevos módulos usando qap_session_plan.',
-          tool: 'qap_report',
+          tipo: 'trabajo',
+          descripcion: 'Todos los módulos planificados en la sesión actual están cerrados o renunciados. Procede a cerrar la sesión con qap_session_close.',
+          tool: 'qap_session_close',
         },
-        pregunta: 'Todos los módulos del plan tienen cobertura completa. ¿Deseas generar el reporte final o ampliar el plan?',
-        opciones: ['Generar reporte final (qap_report)', 'Ampliar plan de sesión (qap_session_plan)'],
+        pregunta: 'Todos los módulos de la sesión han finalizado su ciclo de vida. Ejecuta qap_session_close para cerrar la sesión y generar el reporte final de brechas.',
+        opciones: [],
       };
     }
 
     case 'WRAP_UP':
     default: {
+      const reportMsg = options.reportPath
+        ? ` Reporte de brechas generado en: ${options.reportPath}.`
+        : '';
+
       return {
         fase: 'WRAP_UP',
         siguiente_accion: {
           tipo: 'decision',
-          descripcion: 'La sesión actual ha concluido. Nueva sesión aún no implementada.',
-          tool: 'none',
+          descripcion: `La sesión actual ha concluido en la fase WRAP_UP.${reportMsg} Puedes explorar el Knowledge Graph con qap_server o iniciar una nueva sesión de pruebas con qap_session_plan.`,
+          tool: 'qap_server',
         },
-        pregunta: 'Sesión concluida. Nueva sesión aún no implementada.',
-        opciones: [],
+        pregunta: `La sesión ha concluido exitosamente.${reportMsg} ¿Deseas explorar el Knowledge Graph interactivo o iniciar una nueva sesión de pruebas?`,
+        opciones: [
+          'Explorar Knowledge Graph (qap_server)',
+          'Iniciar nueva sesión de pruebas (qap_session_plan)',
+        ], // E0b: >= 2 opciones reales
       };
     }
   }

@@ -28,6 +28,12 @@ import { FileSystemStorage, validateDefinitions, parsePrdContent } from '@qap/kn
 import {
   canExitOnboarding,
   canExitScoping,
+  canExitWorking,
+  canCloseModule,
+  transitionModule,
+  transitionProject,
+  validateWaiversBatch,
+  generateSessionGapReport,
   assertLifecycleStateInvariants,
   generateDomHypotheses,
   computeApplicableCategories,
@@ -49,7 +55,7 @@ import {
   type ViewerServerInstance,
 } from '@qap/reporter';
 
-import { getPhaseGuidance } from './guidance.js';
+import { getPhaseGuidance, buildInterviewNextAction, type SiguienteAccion } from './guidance.js';
 
 let activeViewerServer: ViewerServerInstance | null = null;
 
@@ -59,6 +65,84 @@ const TARGET_PATH_PROP = {
   type: 'string',
   description: 'Ruta absoluta del proyecto objetivo sobre el cual operar. Si se omite, usa process.cwd()',
 };
+
+function buildViewDiscoveryContext(
+  rootDir: string,
+  moduleName: string,
+  view: string = 'default',
+  route: string = ''
+): ViewDiscoveryContext {
+  let formsForView: DomForm[] = [];
+  let buttonsForView: any[] = [];
+  let storageStateUsed = false;
+  const selectorsPath = join(rootDir, '.qa', 'modules', moduleName, 'views', view, 'selectors.json');
+  const contextPath = join(rootDir, '.qa', 'modules', moduleName, 'views', view, 'context.yaml');
+  if (existsSync(selectorsPath)) {
+    try {
+      const sel = JSON.parse(readFileSync(selectorsPath, 'utf-8'));
+      formsForView = ((sel.selectors?.forms || []) as any[]).map((f: any) => ({
+        id: f.id || 'form-1',
+        selector: f.selector || 'form',
+        fields: ((f.inputs || f.fields || []) as any[]).map((inp: any) => ({
+          key: inp.key || inp.name || inp.id || 'field',
+          type: inp.type || 'text',
+          name: inp.name,
+          id: inp.id,
+          label: inp.label,
+          required: inp.required,
+          minlength: inp.minlength,
+          maxlength: inp.maxlength,
+          pattern: inp.pattern,
+        })),
+      }));
+      buttonsForView = sel.selectors?.buttons || [];
+    } catch { /* ignore */ }
+  }
+  if (existsSync(contextPath)) {
+    try {
+      const ctxData = YAML.parse(readFileSync(contextPath, 'utf-8'));
+      storageStateUsed = Boolean(ctxData?.storage_state_used);
+    } catch { /* ignore */ }
+  }
+  return {
+    module: moduleName,
+    view,
+    route,
+    forms: formsForView,
+    buttons: buttonsForView,
+    storage_state_used: storageStateUsed,
+    is_auth_view: false,
+  };
+}
+
+function buildModuleSummary(rules: any[], waivers: any[]) {
+  const porStatus: Record<string, number> = { confirmed: 0, deferred: 0, inferred: 0 };
+  const porSource: Record<string, number> = { dom: 0, prd: 0, user: 0 };
+  const deferredRules: Array<{ id: string; description: string }> = [];
+
+  for (const r of rules || []) {
+    if (r.status) porStatus[r.status] = (porStatus[r.status] || 0) + 1;
+    if (r.source) porSource[r.source] = (porSource[r.source] || 0) + 1;
+    if (r.status === 'deferred') {
+      deferredRules.push({ id: r.id, description: r.description });
+    }
+  }
+
+  const waiversList = (waivers || []).map((w: any) => ({
+    category: w.category,
+    reason: w.reason,
+    source: w.source || 'user',
+  }));
+
+  return {
+    reglas_por_status: porStatus,
+    reglas_por_source: porSource,
+    waivers: waiversList,
+    reglas_deferred: deferredRules,
+    total_reglas: (rules || []).length,
+    total_waivers: (waivers || []).length,
+  };
+}
 
 const TOOLS: Tool[] = [
   {
@@ -483,6 +567,44 @@ const TOOLS: Tool[] = [
       required: ['module'],
     },
   },
+  {
+    name: 'qap_module_close',
+    description: 'Cierra formalmente un módulo consolidado (action: "close") o renuncia a él con justificación (action: "waive"). Requiere confirmación explícita del usuario (user_confirmed: true).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        targetPath: TARGET_PATH_PROP,
+        module: {
+          type: 'string',
+          description: 'Identificador del módulo a cerrar o renunciar',
+        },
+        action: {
+          type: 'string',
+          enum: ['close', 'waive'],
+          description: "Acción a realizar: 'close' (exige estado consolidated) o 'waive' (exige reason de >= 15 caracteres)",
+        },
+        user_confirmed: {
+          type: 'boolean',
+          description: 'Debe ser true indicando confirmación explícita del usuario tras ver el resumen del módulo',
+        },
+        reason: {
+          type: 'string',
+          description: "Motivo justificado para action: 'waive' (obligatorio, >= 15 caracteres tras trim)",
+        },
+      },
+      required: ['module', 'action', 'user_confirmed'],
+    },
+  },
+  {
+    name: 'qap_session_close',
+    description: 'Cierra la sesión de trabajo activa cuando todos sus módulos están closed o waived, genera el reporte de brechas (.qa/project/sessions/<session_id>.report.md) y transiciona el proyecto a WRAP_UP.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        targetPath: TARGET_PATH_PROP,
+      },
+    },
+  },
 ];
 
 
@@ -516,7 +638,10 @@ export function createMcpServer(): Server {
 6. Cuando 'siguiente_accion.tipo' sea "entrevista_vista": presenta la lista de preguntas de la entrevista (campo 'preguntas') y espera respuesta del usuario antes de llamar qap_rules_set. NUNCA llames qap_rules_set con datos no confirmados por el usuario.
 7. Si una tool responde con status "blocked", sigue obligatoriamente 'desbloquear_con' y no intentes rodear el bloqueo.
 8. NUNCA registres con source "user" algo que el usuario no haya confirmado o dicho explícitamente.
-9. Para hipótesis DOM (source "dom", status "inferred"): CONFIRMA cada una con el usuario antes de marcarla como "confirmed". Presenta las hipótesis al usuario y pregunta cuáles son correctas.`,
+9. Para hipótesis DOM (source "dom", status "inferred"): CONFIRMA cada una con el usuario antes de marcarla como "confirmed". Presenta las hipótesis al usuario y pregunta cuáles son correctas.
+10. Presenta al usuario el resumen de cierre del módulo y llama qap_module_close solo con su confirmación explícita (user_confirmed: true).
+11. Declara un waiver únicamente cuando el usuario haya dicho que la categoría no aplica, citando su razón (mínimo 15 caracteres).
+12. Al cerrar la sesión, presenta al usuario el resumen del reporte de brechas generado.`,
     }
   );
 
@@ -728,10 +853,72 @@ export function createMcpServer(): Server {
             };
           }
 
+          let interviewAction: SiguienteAccion | undefined;
+          if (currentPhase === 'WORKING') {
+            const planModules = (lifecycleState.session?.plan || []).map((p: any) => p.module);
+            const candidateModules = [
+              ...planModules,
+              ...Object.keys(lifecycleState.modules || {}).filter((m) => !planModules.includes(m)),
+            ];
+
+            for (const modName of candidateModules) {
+              const modState = lifecycleState.modules?.[modName]?.state;
+              if (modState === 'interviewing' || modState === 'observed') {
+                const planItem = (lifecycleState.session?.plan || []).find((p: any) => p.module === modName);
+                const route = planItem?.path || '';
+                const vContext = buildViewDiscoveryContext(rootDir, modName, 'default', route);
+                let rulesList: any[] = [];
+                let waiversList: any[] = [];
+                try {
+                  const rf = await storage.getModuleRules(modName);
+                  rulesList = rf?.rules || [];
+                  waiversList = rf?.category_waivers || [];
+                } catch { /* empty */ }
+
+                const appCats = computeApplicableCategories(vContext, parsedContext?.roles?.length || 0);
+                const cov = computeCoverage(appCats, rulesList, waiversList, 'default');
+                if (!cov.completa) {
+                  const nextQs = generateNextInterviewBatch(vContext, rulesList, appCats, waiversList);
+                  interviewAction = buildInterviewNextAction({
+                    module: modName,
+                    view: 'default',
+                    route,
+                    questions: nextQs,
+                    applicableCategories: appCats,
+                    coverage: cov,
+                  });
+                  break;
+                }
+              }
+            }
+          }
+
+          let reportPath: string | undefined;
+          if (currentPhase === 'WRAP_UP') {
+            const sessionsDir = join(qaDir, 'project', 'sessions');
+            if (lifecycleState.session?.id) {
+              const candidate = join(sessionsDir, `${lifecycleState.session.id}.report.md`);
+              if (existsSync(candidate)) {
+                reportPath = candidate;
+              }
+            }
+            if (!reportPath && existsSync(sessionsDir)) {
+              try {
+                const reports = readdirSync(sessionsDir).filter((f) => f.endsWith('.report.md'));
+                if (reports.length > 0) {
+                  reports.sort().reverse();
+                  reportPath = join(sessionsDir, reports[0]);
+                }
+              } catch { /* empty */ }
+            }
+          }
+
           const guidance = getPhaseGuidance(currentPhase, {
             faltantes,
             plan: lifecycleState.session?.plan,
             modules: modulesGuidance as any,
+            interviewAction,
+            reportPath,
           });
 
           const stateModuleCount = Object.keys(lifecycleState.modules || {}).length;
@@ -1650,38 +1837,10 @@ export function createMcpServer(): Server {
             };
           }
 
-          if (lifecycleState.phase === 'WRAP_UP') {
-            return {
-              content: [
-                {
-                  type: 'text',
-                  text: JSON.stringify(
-                    {
-                      status: 'blocked',
-                      directorio_objetivo: rootDir,
-                      fase: 'WRAP_UP',
-                      razon: 'El proyecto se encuentra en la fase WRAP_UP. Nueva sesión aún no implementada.',
-                      desbloquear_con: {
-                        tool: 'qap_session_plan',
-                        descripcion: 'Nueva sesión aún no implementada',
-                      },
-                      siguiente_accion: {
-                        tipo: 'decision',
-                        descripcion: 'La sesión ha concluido en WRAP_UP. Nueva sesión aún no implementada.',
-                      },
-                      pregunta: 'La sesión ha finalizado. Nueva sesión aún no implementada.',
-                      opciones: [],
-                    },
-                    null,
-                    2
-                  ),
-                },
-              ],
-            };
-          }
-
           // Validación atómica del lote
-          const rawModules = args.modules;
+          const rawModules = Array.isArray(args.modules)
+            ? args.modules
+            : (Array.isArray(args.plan) ? args.plan : undefined);
           if (!Array.isArray(rawModules) || rawModules.length === 0) {
             return {
               isError: true,
@@ -1721,6 +1880,20 @@ export function createMcpServer(): Server {
                 content: [{ type: 'text', text: JSON.stringify({ status: 'error', error: 'Nombre de módulo no puede estar vacío.' }, null, 2) }],
               };
             }
+            if (lifecycleState.phase === 'WRAP_UP' && lifecycleState.modules?.[mName]?.state === 'closed') {
+              return {
+                isError: true,
+                content: [{
+                  type: 'text',
+                  text: JSON.stringify({
+                    status: 'error',
+                    isError: true,
+                    directorio_objetivo: rootDir,
+                    error: `El módulo '${mName}' ya se encuentra cerrado formalmente (closed) en una sesión previa y no puede ser reabierto. Lote rechazado por completo.`,
+                  }, null, 2),
+                }],
+              };
+            }
             if (!mPath || !mPath.startsWith('/')) {
               return {
                 isError: true,
@@ -1757,6 +1930,67 @@ export function createMcpServer(): Server {
           await storage.updateLifecycleState(async (curr) => {
             curr.session = curr.session || { id: `session_${randomUUID().slice(0, 8)}`, started_at: new Date().toISOString(), plan: [] };
             curr.modules = curr.modules || {};
+
+            if (curr.phase === 'WRAP_UP') {
+              curr.phase = 'SCOPING';
+              curr.history = curr.history || [];
+              curr.history.push({
+                from: 'WRAP_UP',
+                to: 'SCOPING',
+                at: new Date().toISOString(),
+                reason: 'Inicio de nueva sesión de trabajo desde WRAP_UP',
+              });
+
+              const prevAuth = curr.session?.auth;
+              let sessionAuth = prevAuth || { required: false };
+              if (args.auth && typeof args.auth === 'object') {
+                const a = args.auth as Record<string, any>;
+                sessionAuth = {
+                  required: Boolean(a.required),
+                  profile: a.profile !== undefined ? String(a.profile) : undefined,
+                };
+              }
+
+              curr.session = {
+                id: randomUUID(),
+                started_at: new Date().toISOString(),
+                auth: sessionAuth,
+                plan: rawModules.map((m: any) => ({
+                  module: String(m.module).trim(),
+                  path: String(m.path).trim(),
+                  priority: String(m.priority).trim(),
+                  status: 'planned',
+                })),
+              };
+
+              curr.modules = curr.modules || {};
+              for (const item of curr.session.plan) {
+                if (!curr.modules[item.module]) {
+                  curr.modules[item.module] = {
+                    state: 'planned',
+                    updated_at: new Date().toISOString(),
+                  };
+                }
+              }
+
+              assertLifecycleStateInvariants(curr);
+              scopingGateRes = canExitScoping(curr, registeredProfiles);
+
+              if (scopingGateRes.passed) {
+                curr.phase = 'WORKING';
+                curr.history.push({
+                  from: 'SCOPING',
+                  to: 'WORKING',
+                  at: new Date().toISOString(),
+                  reason: 'Compuerta de salida de SCOPING superada exitosamente en nueva sesión',
+                });
+              }
+              if (curr.history.length > 50) {
+                curr.history = curr.history.slice(-50);
+              }
+              updatedPhase = curr.phase;
+              return curr;
+            }
 
             if (curr.phase === 'SCOPING') {
               if (args.auth && typeof args.auth === 'object') {
@@ -1986,17 +2220,19 @@ export function createMcpServer(): Server {
                       status: 'blocked',
                       directorio_objetivo: rootDir,
                       fase: 'WRAP_UP',
-                      razon: 'La sesión actual ha concluido en WRAP_UP. Nueva sesión aún no implementada.',
+                      razon: 'La sesión actual ha concluido en la fase WRAP_UP. Inicia una nueva sesión con qap_session_plan o revisa el Knowledge Graph con qap_server.',
                       desbloquear_con: {
                         tool: 'qap_session_plan',
-                        descripcion: 'Nueva sesión aún no implementada',
+                        descripcion: 'Inicia una nueva sesión de trabajo con qap_session_plan.',
                       },
                       siguiente_accion: {
                         tipo: 'decision',
-                        descripcion: 'La sesión actual ha concluido en WRAP_UP. Nueva sesión aún no implementada.',
+                        descripcion: 'La sesión actual ha concluido en WRAP_UP. Inicia una nueva sesión con qap_session_plan o revisa el Knowledge Graph con qap_server.',
+                        tool: 'qap_session_plan',
+                        opciones: ['Iniciar nueva sesión con qap_session_plan', 'Revisar Knowledge Graph con qap_server'],
                       },
-                      pregunta: 'La sesión ha finalizado. Nueva sesión aún no implementada.',
-                      opciones: [],
+                      pregunta: 'La sesión ha finalizado. Puedes iniciar una nueva sesión con qap_session_plan o revisar el Knowledge Graph con qap_server.',
+                      opciones: ['Iniciar nueva sesión con qap_session_plan', 'Revisar Knowledge Graph con qap_server'],
                     },
                     null,
                     2
@@ -2025,10 +2261,11 @@ export function createMcpServer(): Server {
                       },
                       siguiente_accion: {
                         tipo: 'decision',
-                        descripcion: `Registra el módulo '${name}' usando qap_session_plan.`,
+                        descripcion: `Registra el módulo '${name}' usando qap_session_plan o consulta el estado del proyecto.`,
                         tool: 'qap_session_plan',
+                        opciones: ['Registrar módulo con qap_session_plan', 'Ver estado del proyecto (qap_status)'],
                       },
-                      pregunta: `El módulo '${name}' no forma parte del plan. ¿Deseas agregarlo con qap_session_plan?`,
+                      pregunta: `El módulo '${name}' no forma parte del plan. Registra el módulo con qap_session_plan o consulta el estado del proyecto con qap_status.`,
                       opciones: ['Registrar módulo con qap_session_plan', 'Ver estado del proyecto (qap_status)'],
                     },
                     null,
@@ -2050,17 +2287,18 @@ export function createMcpServer(): Server {
                       status: 'blocked',
                       directorio_objetivo: rootDir,
                       fase: 'WORKING',
-                      razon: `El módulo '${name}' ya se encuentra en estado '${modEntry.state}' y no puede ser redescubierto.`,
+                      razon: `El módulo '${name}' ya se encuentra en estado terminal '${modEntry.state}' y no puede ser redescubierto.`,
                       desbloquear_con: {
                         tool: 'qap_session_plan',
-                        descripcion: 'Registra un nuevo módulo o reactiva el plan con qap_session_plan.',
+                        descripcion: 'Registra un nuevo módulo en el plan o selecciona otro módulo activo.',
                       },
                       siguiente_accion: {
                         tipo: 'trabajo',
-                        descripcion: `Selecciona otro módulo del plan que no esté ${modEntry.state}.`,
+                        descripcion: `El módulo '${name}' está finalizado (${modEntry.state}). Selecciona otro módulo del plan.`,
+                        tool: 'qap_status',
                       },
-                      pregunta: `El módulo '${name}' está cerrado (${modEntry.state}). ¿Deseas trabajar en otro módulo?`,
-                      opciones: ['Ver estado del proyecto (qap_status)'],
+                      pregunta: `El módulo '${name}' está finalizado (${modEntry.state}). Selecciona otro módulo activo del plan o consulta el estado.`,
+                      opciones: [],
                     },
                     null,
                     2
@@ -2359,31 +2597,20 @@ export function createMcpServer(): Server {
           const isPlaywrightFailure = !playwrightUsed || Boolean(playwrightError);
           const siguienteAccion = isPlaywrightFailure
             ? {
-                tipo: 'decision',
+                tipo: 'decision' as const,
                 descripcion: `Falló la exploración con Playwright para el módulo '${name}': ${playwrightError || 'Error de navegación'}. Decide si reintentar con otra URL, verificar servidor o continuar manualmente.`,
                 tool: 'qap_discover',
                 opciones: ['Reintentar qap_discover', 'Verificar servidor o URL', 'Continuar con otro módulo'],
               }
-            : {
-                tipo: 'entrevista_vista',
-                descripcion: `Entrevista de reglas de negocio para el módulo '${name}' (vista: default). Cobertura actual: ${Object.values(coverage.categorias).filter((c) => c.cubierta).length}/${applicableCategories.length} categorías.`,
-                tool: 'qap_rules_set',
+            : buildInterviewNextAction({
                 module: name,
-                modulo: name,
                 view: 'default',
-                vista: 'default',
-                preguntas: nextQuestions,
-                categorias_aplicables: applicableCategories,
-                rutas_detectadas_fuera_del_plan: rutasDetectadasFueraDelPlan,
-                cobertura: {
-                  completa: coverage.completa,
-                  categorias_aplicables: applicableCategories,
-                  categorias_cubiertas: Object.entries(coverage.categorias)
-                    .filter(([, v]) => v.aplicable && v.cubierta)
-                    .map(([k]) => k),
-                  inferidas_pendientes: coverage.inferidas_pendientes,
-                },
-              };
+                route,
+                questions: nextQuestions,
+                applicableCategories,
+                coverage,
+                rutasDetectadasFueraDelPlan,
+              });
 
           // E0a: NO incluir accion_inmediata_requerida ni directiva_estricta
           const responsePayload: Record<string, unknown> = {
@@ -2407,29 +2634,27 @@ export function createMcpServer(): Server {
             siguiente_accion: siguienteAccion,
           };
 
-          // E0b: Transición planned -> observed SIN fallback .status
+          // E0b: Transición a través de transitionModule (con soporte a regresión consolidated -> interviewing)
           await storage.updateLifecycleState(async (curr) => {
             const mod = curr.modules?.[name];
             if (mod && mod.state === 'planned') {
-              curr.modules[name] = {
-                ...mod,
-                state: 'observed',
-                updated_at: new Date().toISOString(),
-              };
+              const trans = transitionModule(curr, name, 'observed', { reason: `Módulo '${name}' observado tras descubrimiento exitoso` });
+              if (trans.state) curr = trans.state;
               if (curr.session?.plan) {
                 const item = curr.session.plan.find((p) => p.module === name);
                 if (item && item.status === 'planned') {
                   item.status = 'observed';
                 }
               }
-              curr.history = curr.history || [];
-              if (curr.history.length >= 50) curr.history.shift();
-              curr.history.push({
-                from: 'WORKING',
-                to: 'WORKING',
-                at: new Date().toISOString(),
-                reason: `Módulo '${name}' observado tras descubrimiento exitoso`,
-              });
+            } else if (mod && mod.state === 'consolidated' && !coverage.completa) {
+              const trans = transitionModule(curr, name, 'interviewing', { reason: `Regresión de cobertura tras re-discover en '${name}'` });
+              if (trans.state) curr = trans.state;
+              if (curr.session?.plan) {
+                const item = curr.session.plan.find((p) => p.module === name);
+                if (item) {
+                  item.status = 'interviewing';
+                }
+              }
             }
             return curr;
           });
@@ -2464,6 +2689,8 @@ export function createMcpServer(): Server {
                   'qap_session_plan',
                   'qap_discover',
                   'qap_rules_set',
+                  'qap_module_close',
+                  'qap_session_close',
                   'qap_validate',
                   'qap_report',
                   'qap_server',
@@ -2550,35 +2777,75 @@ export function createMcpServer(): Server {
           const format = String(args.format || 'all');
           let executionId = args.executionId ? String(args.executionId) : undefined;
 
-          if (!executionId) {
-            const execDir = join(qaDir, 'executions');
-            if (existsSync(execDir)) {
-              const files = readdirSync(execDir).filter((f) => f.endsWith('.json') && !f.endsWith('.report.json'));
-              if (files.length > 0) {
-                files.sort().reverse();
-                executionId = files[0].replace('.json', '');
-              }
-            }
+          const execDir = join(qaDir, 'executions');
+          let executionFiles: string[] = [];
+          if (existsSync(execDir)) {
+            executionFiles = readdirSync(execDir).filter((f) => f.endsWith('.json') && !f.endsWith('.report.json'));
+          }
+
+          if (executionFiles.length === 0) {
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(
+                    {
+                      status: 'blocked',
+                      directorio_objetivo: rootDir,
+                      razon: 'Los reportes de ejecución requieren ejecuciones reales registradas; no existen ejecuciones previas en .qa/executions/ (el runner de pruebas aún no existe en este sprint).',
+                      desbloquear_con: {
+                        tool: 'qap_status',
+                        descripcion: 'Ejecuta pruebas cuando el runner esté disponible o consulta el estado actual con qap_status.',
+                      },
+                      siguiente_accion: {
+                        tipo: 'trabajo',
+                        descripcion: 'No hay ejecuciones registradas para generar reportes. Consulta el estado del proyecto con qap_status.',
+                        tool: 'qap_status',
+                      },
+                      pregunta: 'No hay ejecuciones registradas en .qa/executions/. Consulta el estado del proyecto con qap_status.',
+                      opciones: [],
+                    },
+                    null,
+                    2
+                  ),
+                },
+              ],
+            };
           }
 
           if (!executionId) {
-            executionId = 'latest';
+            executionFiles.sort().reverse();
+            executionId = executionFiles[0].replace('.json', '');
           }
 
-          let execResult = await storage.getExecutionResult(executionId);
+          const execResult = await storage.getExecutionResult(executionId);
           if (!execResult) {
-            const now = new Date().toISOString();
-            execResult = {
-              _version: '1',
-              execution_id: executionId,
-              module: executionId,
-              env: 'local',
-              started_at: now,
-              finished_at: now,
-              result: 'passed',
-              timed_out: false,
-              summary: { total: 0, passed: 0, failed: 0, skipped: 0, not_run: 0 },
-              cases: [],
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(
+                    {
+                      status: 'blocked',
+                      directorio_objetivo: rootDir,
+                      razon: `No se encontró el resultado de ejecución para el id '${executionId}'.`,
+                      desbloquear_con: {
+                        tool: 'qap_status',
+                        descripcion: 'Consulta el estado del proyecto con qap_status.',
+                      },
+                      siguiente_accion: {
+                        tipo: 'trabajo',
+                        descripcion: `Resultado de ejecución '${executionId}' no encontrado. Consulta el estado con qap_status.`,
+                        tool: 'qap_status',
+                      },
+                      pregunta: `La ejecución '${executionId}' no fue encontrada. Consulta el estado con qap_status.`,
+                      opciones: [],
+                    },
+                    null,
+                    2
+                  ),
+                },
+              ],
             };
           }
 
@@ -2797,10 +3064,43 @@ export function createMcpServer(): Server {
 
           // Contrato blocked: solo permitido en WORKING (T10)
           if (currentPhase !== 'WORKING') {
+            if (currentPhase === 'WRAP_UP') {
+              return {
+                content: [
+                  {
+                    type: 'text',
+                    text: JSON.stringify(
+                      {
+                        status: 'blocked',
+                        directorio_objetivo: rootDir,
+                        fase: 'WRAP_UP',
+                        razon: 'La sesión actual ha concluido en la fase WRAP_UP. Inicia una nueva sesión con qap_session_plan o revisa el Knowledge Graph con qap_server.',
+                        desbloquear_con: {
+                          tool: 'qap_session_plan',
+                          descripcion: 'Inicia una nueva sesión de trabajo con qap_session_plan.',
+                        },
+                        siguiente_accion: {
+                          tipo: 'decision',
+                          descripcion: 'La sesión actual ha concluido en WRAP_UP. Inicia una nueva sesión con qap_session_plan o revisa el Knowledge Graph con qap_server.',
+                          tool: 'qap_session_plan',
+                          opciones: ['Iniciar nueva sesión con qap_session_plan', 'Revisar Knowledge Graph con qap_server'],
+                        },
+                        pregunta: 'La sesión ha finalizado. Puedes iniciar una nueva sesión con qap_session_plan o revisar el Knowledge Graph con qap_server.',
+                        opciones: ['Iniciar nueva sesión con qap_session_plan', 'Revisar Knowledge Graph con qap_server'],
+                      },
+                      null,
+                      2
+                    ),
+                  },
+                ],
+              };
+            }
+
             const desbloquearTool = currentPhase === 'ONBOARDING' ? 'qap_context_set' : 'qap_session_plan';
             const desbloquearDesc = currentPhase === 'ONBOARDING'
               ? 'Completa el contexto inicial del proyecto con qap_context_set.'
               : 'Define el plan de sesión con qap_session_plan.';
+            const guidance = getPhaseGuidance(currentPhase);
             return {
               content: [
                 {
@@ -2815,13 +3115,9 @@ export function createMcpServer(): Server {
                         tool: desbloquearTool,
                         descripcion: desbloquearDesc,
                       },
-                      siguiente_accion: {
-                        tipo: 'decision',
-                        descripcion: `Avanza el ciclo de vida a la fase WORKING para configurar reglas.`,
-                        tool: desbloquearTool,
-                      },
-                      pregunta: `La fase actual es ${currentPhase}. Debes avanzar a WORKING antes de registrar reglas de negocio.`,
-                      opciones: [`Continuar con ${desbloquearTool}`],
+                      siguiente_accion: guidance.siguiente_accion,
+                      pregunta: guidance.pregunta,
+                      opciones: guidance.opciones,
                     },
                     null,
                     2
@@ -2850,10 +3146,11 @@ export function createMcpServer(): Server {
                       },
                       siguiente_accion: {
                         tipo: 'decision',
-                        descripcion: `Registra el módulo '${moduleName}' usando qap_session_plan.`,
+                        descripcion: `Registra el módulo '${moduleName}' usando qap_session_plan o consulta el estado del proyecto con qap_status.`,
                         tool: 'qap_session_plan',
+                        opciones: ['Registrar módulo con qap_session_plan', 'Ver estado del proyecto (qap_status)'],
                       },
-                      pregunta: `El módulo '${moduleName}' no forma parte del plan. ¿Deseas agregarlo con qap_session_plan?`,
+                      pregunta: `El módulo '${moduleName}' no forma parte del plan. Registra el módulo con qap_session_plan o consulta el estado del proyecto con qap_status.`,
                       opciones: ['Registrar módulo con qap_session_plan', 'Ver estado del proyecto (qap_status)'],
                     },
                     null,
@@ -2885,8 +3182,8 @@ export function createMcpServer(): Server {
                         descripcion: `Descubre el módulo '${moduleName}' con qap_discover.`,
                         tool: 'qap_discover',
                       },
-                      pregunta: `El módulo '${moduleName}' está pendiente de exploración. ¿Deseas descubrirlo ahora con qap_discover?`,
-                      opciones: [`Descubrir ${moduleName} (qap_discover)`],
+                      pregunta: `El módulo '${moduleName}' está en estado 'planned'. Ejecuta qap_discover para mapear el módulo antes de registrar sus reglas.`,
+                      opciones: [],
                     },
                     null,
                     2
@@ -2909,16 +3206,16 @@ export function createMcpServer(): Server {
                       fase: 'WORKING',
                       razon: `El módulo '${moduleName}' se encuentra en estado '${modEntry.state}' y sus reglas no pueden ser modificadas.`,
                       desbloquear_con: {
-                        tool: 'qap_session_plan',
-                        descripcion: 'Reactiva el módulo en el plan de sesión o selecciona otro módulo activo.',
+                        tool: 'qap_status',
+                        descripcion: 'Selecciona otro módulo activo del plan o consulta el estado con qap_status.',
                       },
                       siguiente_accion: {
-                        tipo: 'decision',
-                        descripcion: `El módulo '${moduleName}' está cerrado (${modEntry.state}). ¿Deseas trabajar en otro módulo?`,
+                        tipo: 'trabajo',
+                        descripcion: `El módulo '${moduleName}' se encuentra finalizado (${modEntry.state}). Selecciona otro módulo activo del plan.`,
                         tool: 'qap_status',
                       },
-                      pregunta: `El módulo '${moduleName}' está cerrado (${modEntry.state}).`,
-                      opciones: ['Ver estado del proyecto (qap_status)'],
+                      pregunta: `El módulo '${moduleName}' se encuentra finalizado (${modEntry.state}). Sus reglas no pueden ser modificadas. Consulta el estado del proyecto para continuar.`,
+                      opciones: [],
                     },
                     null,
                     2
@@ -2964,23 +3261,21 @@ export function createMcpServer(): Server {
             }
           }
 
-          for (const waiver of incomingWaivers) {
-            if (!waiver.category || !VALID_CATEGORIES.has(waiver.category)) {
+          if (incomingWaivers.length > 0) {
+            const waiverValidation = validateWaiversBatch(incomingWaivers);
+            if (!waiverValidation.valid) {
               return {
                 isError: true,
-                content: [{ type: 'text', text: JSON.stringify({ status: 'error', error: 'Categoría inválida o ausente en waiver. Lote rechazado por completo.' }, null, 2) }],
-              };
-            }
-            if (!waiver.reason || typeof waiver.reason !== 'string' || waiver.reason.trim().length === 0) {
-              return {
-                isError: true,
-                content: [{ type: 'text', text: JSON.stringify({ status: 'error', error: `Waiver para categoría '${waiver.category}' requiere un 'reason' no vacío. Lote rechazado por completo.` }, null, 2) }],
-              };
-            }
-            if (waiver.source && waiver.source !== 'user') {
-              return {
-                isError: true,
-                content: [{ type: 'text', text: JSON.stringify({ status: 'error', error: "Waivers solo pueden tener source 'user'. Lote rechazado por completo." }, null, 2) }],
+                content: [{
+                  type: 'text',
+                  text: JSON.stringify({
+                    status: 'error',
+                    isError: true,
+                    directorio_objetivo: rootDir,
+                    error: `Lote de waivers inválido: ${waiverValidation.error}. Lote rechazado por completo.`,
+                    errores: [waiverValidation.error],
+                  }, null, 2),
+                }],
               };
             }
           }
@@ -3098,16 +3393,23 @@ export function createMcpServer(): Server {
               buttonsForView = sel.selectors?.buttons || [];
             } catch { /* fallback */ }
           }
+          let routeForView: string | undefined;
           if (existsSync(contextPath)) {
             try {
               const ctxData = YAML.parse(readFileSync(contextPath, 'utf-8'));
               storageStateUsed = Boolean(ctxData?.storage_state_used);
+              routeForView = ctxData?.route;
             } catch { /* fallback */ }
+          }
+          if (!routeForView && lifecycleState.session?.plan) {
+            const planItem = lifecycleState.session.plan.find((p: any) => p.module === moduleName);
+            if (planItem) routeForView = planItem.path;
           }
 
           const viewCtx: ViewDiscoveryContext = {
             module: moduleName,
             view,
+            route: routeForView,
             forms: formsForView,
             buttons: buttonsForView,
             storage_state_used: storageStateUsed,
@@ -3117,60 +3419,79 @@ export function createMcpServer(): Server {
           const cov = computeCoverage(applicableCats, allRules, allWaivers, view);
           const nextQs = generateNextInterviewBatch(viewCtx, allRules, applicableCats, allWaivers);
 
-          // Transición de lifecycle: observed -> interviewing -> consolidated si completa (T11, T14)
+          // Transición de lifecycle: siempre a través de transitionModule (E1)
           let targetModuleState: ModuleLifecycleState = modEntry.state;
           if (cov.completa) {
             targetModuleState = 'consolidated';
+          } else if (modEntry.state === 'consolidated' && !cov.completa) {
+            targetModuleState = 'interviewing';
           } else if (modEntry.state === 'observed') {
             targetModuleState = 'interviewing';
           }
 
           if (targetModuleState !== modEntry.state) {
             await storage.updateLifecycleState(async (curr) => {
-              const mod = curr.modules?.[moduleName];
-              if (mod) {
-                curr.modules[moduleName] = {
-                  ...mod,
-                  state: targetModuleState,
-                  updated_at: new Date().toISOString(),
-                };
-                if (curr.session?.plan) {
-                  const pItem = curr.session.plan.find((p: any) => p.module === moduleName);
-                  if (pItem) pItem.status = targetModuleState;
-                }
-                curr.history = curr.history || [];
-                if (curr.history.length >= 50) curr.history.shift();
-                curr.history.push({
-                  from: 'WORKING',
-                  to: 'WORKING',
-                  at: new Date().toISOString(),
-                  reason: `Módulo '${moduleName}' en estado '${targetModuleState}' tras qap_rules_set`,
+              // Si estaba en observed y el objetivo es consolidated, transicionar primero a interviewing
+              if (modEntry.state === 'observed' && targetModuleState === 'consolidated') {
+                const step1 = transitionModule(curr, moduleName, 'interviewing', {
+                  reason: `Inicio de entrevista para módulo '${moduleName}'`,
                 });
+                if (step1.state) curr = step1.state;
+              }
+
+              const trans = transitionModule(
+                curr,
+                moduleName,
+                targetModuleState,
+                {
+                  reason: targetModuleState === 'consolidated'
+                    ? `Módulo '${moduleName}' alcanza estado consolidated (cobertura completa)`
+                    : targetModuleState === 'interviewing' && modEntry.state === 'consolidated'
+                    ? `Regresión de cobertura en módulo '${moduleName}': vuelve a interviewing`
+                    : `Módulo '${moduleName}' en estado '${targetModuleState}' tras qap_rules_set`,
+                }
+              );
+              if (trans.state) curr = trans.state;
+              if (curr.session?.plan) {
+                const pItem = curr.session.plan.find((p: any) => p.module === moduleName);
+                if (pItem) pItem.status = targetModuleState;
               }
               return curr;
             });
           }
 
-          const siguienteAccionRules = cov.completa
-            ? {
-                tipo: 'trabajo',
-                descripcion: `Entrevista de '${moduleName}' (vista: ${view}) completada. Todas las categorías cubiertas.`,
-                tool: 'qap_discover',
-              }
-            : {
-                tipo: 'entrevista_vista',
-                descripcion: `Entrevista en curso para '${moduleName}' (vista: ${view}). Categorías pendientes: ${Object.entries(cov.categorias).filter(([, v]) => v.aplicable && !v.cubierta).map(([k]) => k).join(', ')}.`,
-                tool: 'qap_rules_set',
-                module: moduleName,
-                view,
-                preguntas: nextQs,
-                cobertura: {
-                  completa: cov.completa,
-                  categorias_aplicables: applicableCats,
-                  categorias_cubiertas: Object.entries(cov.categorias).filter(([, v]) => v.aplicable && v.cubierta).map(([k]) => k),
-                  inferidas_pendientes: cov.inferidas_pendientes,
-                },
-              };
+          let siguienteAccionRules: SiguienteAccion;
+          let moduleSummary: ReturnType<typeof buildModuleSummary> | undefined;
+
+          if (cov.completa) {
+            moduleSummary = buildModuleSummary(allRules, allWaivers);
+            const freshState = await storage.getLifecycleState();
+            const plan = freshState.session?.plan || [];
+            const nextPlanned = plan.find((p: any) => {
+              const st = freshState.modules?.[p.module]?.state;
+              return st !== 'closed' && st !== 'waived' && p.module !== moduleName;
+            });
+
+            const nextModuleName = nextPlanned?.module;
+            const desc = nextModuleName
+              ? `El módulo '${moduleName}' ha completado su cobertura de reglas (consolidated). Presenta este resumen al usuario y, solo con su confirmación explícita, ejecuta qap_module_close para cerrar el módulo y continuar con '${nextModuleName}'.`
+              : `El módulo '${moduleName}' ha completado su cobertura de reglas (consolidated). Todos los módulos del plan han sido procesados. Presenta este resumen al usuario y, solo con su confirmación explícita, ejecuta qap_module_close para cerrarlo y proceder al cierre de sesión.`;
+
+            siguienteAccionRules = {
+              tipo: 'trabajo',
+              descripcion: desc,
+              tool: 'qap_module_close',
+              module: moduleName,
+            };
+          } else {
+            siguienteAccionRules = buildInterviewNextAction({
+              module: moduleName,
+              view,
+              questions: nextQs,
+              applicableCategories: applicableCats,
+              coverage: cov,
+            });
+          }
 
           return {
             content: [{
@@ -3182,14 +3503,469 @@ export function createMcpServer(): Server {
                 module: moduleName,
                 view,
                 state: targetModuleState,
+                modulo_estado: targetModuleState,
                 rules_guardadas: incomingRules.length,
                 waivers_guardados: incomingWaivers.length,
                 rules_total: allRules.length,
                 waivers_total: allWaivers.length,
                 reglas_ignoradas: reglasIgnoradas.length > 0 ? reglasIgnoradas : undefined,
+                resumen_cierre: moduleSummary,
                 cobertura: cov,
                 cobertura_completa: cov.completa,
                 siguiente_accion: siguienteAccionRules,
+              }, null, 2),
+            }],
+          };
+        }
+
+        case 'qap_module_close': {
+          const moduleName = args.module ? String(args.module).trim() : '';
+          const action = args.action ? String(args.action).trim() : '';
+          const userConfirmed = args.user_confirmed === true;
+          const reasonStr = typeof args.reason === 'string' ? args.reason.trim() : '';
+
+          if (!moduleName || !action) {
+            return {
+              isError: true,
+              content: [{
+                type: 'text',
+                text: JSON.stringify({
+                  status: 'error',
+                  isError: true,
+                  directorio_objetivo: rootDir,
+                  error: "Los parámetros 'module' y 'action' son obligatorios.",
+                }, null, 2),
+              }],
+            };
+          }
+
+          const storage = new FileSystemStorage({ rootDir });
+          const lifecycleState = await storage.getLifecycleState();
+
+          // 1. Bloqueado si la fase no es WORKING
+          if (lifecycleState.phase !== 'WORKING') {
+            const desbloquearTool = lifecycleState.phase === 'WRAP_UP' ? 'qap_session_plan' : 'qap_status';
+            return {
+              content: [{
+                type: 'text',
+                text: JSON.stringify({
+                  status: 'blocked',
+                  directorio_objetivo: rootDir,
+                  fase: lifecycleState.phase,
+                  razon: `No se puede ejecutar qap_module_close en la fase ${lifecycleState.phase}. Solo está permitido en la fase WORKING.`,
+                  desbloquear_con: {
+                    tool: desbloquearTool,
+                    descripcion: 'Avanza el ciclo de vida a la fase WORKING.',
+                  },
+                  siguiente_accion: {
+                    tipo: 'trabajo',
+                    descripcion: `La fase actual es ${lifecycleState.phase}. Consulta el estado con qap_status.`,
+                    tool: 'qap_status',
+                  },
+                  pregunta: `La fase actual es ${lifecycleState.phase}. Debes estar en WORKING para cerrar o renunciar a módulos.`,
+                  opciones: [],
+                }, null, 2),
+              }],
+            };
+          }
+
+          // 2. Bloqueado si el módulo no está registrado
+          const modEntry = lifecycleState.modules?.[moduleName];
+          if (!modEntry) {
+            return {
+              content: [{
+                type: 'text',
+                text: JSON.stringify({
+                  status: 'blocked',
+                  directorio_objetivo: rootDir,
+                  fase: 'WORKING',
+                  razon: `El módulo '${moduleName}' no está registrado en el plan de sesión ni en el estado del proyecto.`,
+                  desbloquear_con: {
+                    tool: 'qap_session_plan',
+                    descripcion: `Registra el módulo '${moduleName}' en el plan con qap_session_plan.`,
+                  },
+                  siguiente_accion: {
+                    tipo: 'decision',
+                    descripcion: `Registra el módulo '${moduleName}' usando qap_session_plan o consulta el estado con qap_status.`,
+                    tool: 'qap_session_plan',
+                    opciones: ['Registrar módulo con qap_session_plan', 'Ver estado del proyecto (qap_status)'],
+                  },
+                  pregunta: `El módulo '${moduleName}' no forma parte del plan. Registra el módulo con qap_session_plan o consulta el estado del proyecto con qap_status.`,
+                  opciones: ['Registrar módulo con qap_session_plan', 'Ver estado del proyecto (qap_status)'],
+                }, null, 2),
+              }],
+            };
+          }
+
+          // 3. Bloqueado si ya es closed o waived
+          if (modEntry.state === 'closed' || modEntry.state === 'waived') {
+            return {
+              content: [{
+                type: 'text',
+                text: JSON.stringify({
+                  status: 'blocked',
+                  directorio_objetivo: rootDir,
+                  fase: 'WORKING',
+                  razon: `El módulo '${moduleName}' ya se encuentra en estado terminal '${modEntry.state}' y no puede cerrarse ni renunciarse de nuevo.`,
+                  desbloquear_con: {
+                    tool: 'qap_status',
+                    descripcion: 'Selecciona otro módulo activo del plan o consulta el estado con qap_status.',
+                  },
+                  siguiente_accion: {
+                    tipo: 'trabajo',
+                    descripcion: `El módulo '${moduleName}' ya está en estado terminal '${modEntry.state}'. Consulta el estado del proyecto con qap_status.`,
+                    tool: 'qap_status',
+                  },
+                  pregunta: `El módulo '${moduleName}' ya está finalizado (${modEntry.state}). Selecciona otro módulo o consulta el estado del proyecto.`,
+                  opciones: [],
+                }, null, 2),
+              }],
+            };
+          }
+
+          // 4. Bloqueado si user_confirmed no es true
+          if (!userConfirmed) {
+            return {
+              content: [{
+                type: 'text',
+                text: JSON.stringify({
+                  status: 'blocked',
+                  directorio_objetivo: rootDir,
+                  fase: 'WORKING',
+                  razon: 'El cierre o renuncia de un módulo exige confirmación explícita del usuario (user_confirmed: true) tras presentarle el resumen del módulo.',
+                  desbloquear_con: {
+                    tool: 'qap_module_close',
+                    descripcion: 'Presenta el resumen del módulo al usuario y reintenta con user_confirmed: true.',
+                  },
+                  siguiente_accion: {
+                    tipo: 'trabajo',
+                    descripcion: `Presenta el resumen del módulo '${moduleName}' al usuario y solicita su confirmación explícita antes de llamar qap_module_close.`,
+                    tool: 'qap_module_close',
+                  },
+                  pregunta: `Debes presentar el resumen de reglas y waivers de '${moduleName}' al usuario y obtener su confirmación explícita antes de ejecutar el cierre o renuncia.`,
+                  opciones: [],
+                }, null, 2),
+              }],
+            };
+          }
+
+          let rulesList: any[] = [];
+          let waiversList: any[] = [];
+          try {
+            const rf = await storage.getModuleRules(moduleName);
+            rulesList = rf?.rules || [];
+            waiversList = rf?.category_waivers || [];
+          } catch { /* empty */ }
+
+          const planItem = (lifecycleState.session?.plan || []).find((p: any) => p.module === moduleName);
+          const route = planItem?.path || '';
+          const vContext = buildViewDiscoveryContext(rootDir, moduleName, 'default', route);
+
+          let projectRoleCountClose = 0;
+          try {
+            const ctx = await storage.getProjectContext();
+            const roles = Array.isArray((ctx as any).roles) ? (ctx as any).roles : [];
+            projectRoleCountClose = roles.length;
+          } catch { /* sin contexto */ }
+
+          const appCats = computeApplicableCategories(vContext, projectRoleCountClose);
+
+          // 5. Validación por action
+          if (action === 'close') {
+            if (modEntry.state !== 'consolidated') {
+              return {
+                content: [{
+                  type: 'text',
+                  text: JSON.stringify({
+                    status: 'blocked',
+                    directorio_objetivo: rootDir,
+                    fase: 'WORKING',
+                    razon: `Solo los módulos en estado 'consolidated' pueden cerrarse con action: 'close'. El módulo '${moduleName}' está en estado '${modEntry.state}'.`,
+                    desbloquear_con: {
+                      tool: 'qap_rules_set',
+                      descripcion: 'Completa la cobertura de reglas de la vista para alcanzar el estado consolidated.',
+                    },
+                    siguiente_accion: {
+                      tipo: 'trabajo',
+                      descripcion: `Completa la cobertura de reglas de '${moduleName}' con qap_rules_set para transicionar a consolidated.`,
+                      tool: 'qap_rules_set',
+                    },
+                    pregunta: `El módulo '${moduleName}' está en estado '${modEntry.state}'. Debes completar la cobertura de reglas con qap_rules_set antes de cerrarlo.`,
+                    opciones: [],
+                  }, null, 2),
+                }],
+              };
+            }
+
+            const closeGate = canCloseModule(rulesList, waiversList, appCats, 'default');
+            if (!closeGate.passed) {
+              return {
+                content: [{
+                  type: 'text',
+                  text: JSON.stringify({
+                    status: 'blocked',
+                    directorio_objetivo: rootDir,
+                    fase: 'WORKING',
+                    razon: `El módulo '${moduleName}' no cumple los requisitos para cierre: ${closeGate.reason}`,
+                    desbloquear_con: {
+                      tool: 'qap_rules_set',
+                      descripcion: 'Confirma o resuelve las hipótesis pendientes con qap_rules_set.',
+                    },
+                    siguiente_accion: {
+                      tipo: 'trabajo',
+                      descripcion: `Resuelve los requisitos pendientes de '${moduleName}' con qap_rules_set.`,
+                      tool: 'qap_rules_set',
+                    },
+                    pregunta: `El módulo '${moduleName}' no puede cerrarse aún: ${closeGate.reason}. Ejecuta qap_rules_set para resolverlo.`,
+                    opciones: [],
+                  }, null, 2),
+                }],
+              };
+            }
+          } else if (action === 'waive') {
+            if (reasonStr.length < 15) {
+              return {
+                content: [{
+                  type: 'text',
+                  text: JSON.stringify({
+                    status: 'blocked',
+                    directorio_objetivo: rootDir,
+                    fase: 'WORKING',
+                    razon: `La renuncia a un módulo (action: "waive") exige una justificación (reason) de al menos 15 caracteres tras trim. Se recibieron ${reasonStr.length} caracteres.`,
+                    desbloquear_con: {
+                      tool: 'qap_module_close',
+                      descripcion: 'Proporciona una razón justificada de al menos 15 caracteres.',
+                    },
+                    siguiente_accion: {
+                      tipo: 'trabajo',
+                      descripcion: `Especifica una justificación de al menos 15 caracteres para renunciar al módulo '${moduleName}'.`,
+                      tool: 'qap_module_close',
+                    },
+                    pregunta: `La renuncia al módulo '${moduleName}' requiere una justificación detallada de al menos 15 caracteres.`,
+                    opciones: [],
+                  }, null, 2),
+                }],
+              };
+            }
+          } else {
+            return {
+              isError: true,
+              content: [{
+                type: 'text',
+                text: JSON.stringify({
+                  status: 'error',
+                  isError: true,
+                  directorio_objetivo: rootDir,
+                  error: `Acción '${action}' no reconocida. Acciones válidas: 'close', 'waive'.`,
+                }, null, 2),
+              }],
+            };
+          }
+
+          // Ejecutar transición
+          const targetState: ModuleLifecycleState = action === 'close' ? 'closed' : 'waived';
+          await storage.updateLifecycleState(async (curr) => {
+            const trans = transitionModule(
+              curr,
+              moduleName,
+              targetState,
+              action === 'close'
+                ? { reason: `Módulo '${moduleName}' cerrado formalmente tras verificar cobertura completa` }
+                : { waived_reason: reasonStr, reason: `Módulo '${moduleName}' renunciado (waived). Motivo: ${reasonStr}` }
+            );
+            if (trans.state) curr = trans.state;
+            if (curr.session?.plan) {
+              const pItem = curr.session.plan.find((p: any) => p.module === moduleName);
+              if (pItem) pItem.status = targetState;
+            }
+            return curr;
+          });
+
+          const summary = buildModuleSummary(rulesList, waiversList);
+          const freshState = await storage.getLifecycleState();
+          const plan = freshState.session?.plan || [];
+          const nextPlanned = plan.find((p: any) => {
+            const st = freshState.modules?.[p.module]?.state;
+            return st !== 'closed' && st !== 'waived';
+          });
+
+          let sigAccion: SiguienteAccion;
+          let preg: string;
+          if (nextPlanned) {
+            sigAccion = {
+              tipo: 'trabajo',
+              descripcion: `Módulo '${moduleName}' ${action === 'close' ? 'cerrado' : 'renunciado'}. Siguiente módulo planificado: '${nextPlanned.module}' en ruta '${nextPlanned.path}'.`,
+              tool: 'qap_discover',
+            };
+            preg = `Módulo '${moduleName}' finalizado. Siguiente módulo planificado: '${nextPlanned.module}' (${nextPlanned.path}). Ejecuta qap_discover para explorarlo.`;
+          } else {
+            sigAccion = {
+              tipo: 'trabajo',
+              descripcion: `Módulo '${moduleName}' ${action === 'close' ? 'cerrado' : 'renunciado'}. Todos los módulos del plan han finalizado. Procede a cerrar la sesión con qap_session_close.`,
+              tool: 'qap_session_close',
+            };
+            preg = 'Todos los módulos de la sesión han finalizado su ciclo de vida. Ejecuta qap_session_close para cerrar la sesión y generar el reporte final de brechas.';
+          }
+
+          return {
+            content: [{
+              type: 'text',
+              text: JSON.stringify({
+                status: 'success',
+                directorio_objetivo: rootDir,
+                message: `✔ Módulo '${moduleName}' ${action === 'close' ? 'cerrado formalmente (closed)' : 'renunciado (waived)'}.`,
+                module: moduleName,
+                action,
+                state: targetState,
+                estado: targetState,
+                reason: action === 'waive' ? reasonStr : undefined,
+                resumen: summary,
+                siguiente_accion: sigAccion,
+                pregunta: preg,
+                opciones: [],
+              }, null, 2),
+            }],
+          };
+        }
+
+        case 'qap_session_close': {
+          const storage = new FileSystemStorage({ rootDir });
+          const lifecycleState = await storage.getLifecycleState();
+
+          if (lifecycleState.phase !== 'WORKING') {
+            return {
+              content: [{
+                type: 'text',
+                text: JSON.stringify({
+                  status: 'blocked',
+                  directorio_objetivo: rootDir,
+                  fase: lifecycleState.phase,
+                  razon: `No se puede ejecutar qap_session_close en la fase ${lifecycleState.phase}. Solo está permitido en la fase WORKING.`,
+                  desbloquear_con: {
+                    tool: lifecycleState.phase === 'WRAP_UP' ? 'qap_session_plan' : 'qap_status',
+                    descripcion: 'Avanza el ciclo de vida a la fase WORKING.',
+                  },
+                  siguiente_accion: {
+                    tipo: 'trabajo',
+                    descripcion: `La fase actual es ${lifecycleState.phase}. Consulta el estado con qap_status.`,
+                    tool: 'qap_status',
+                  },
+                  pregunta: `La fase actual es ${lifecycleState.phase}. Debes estar en WORKING para cerrar la sesión.`,
+                  opciones: [],
+                }, null, 2),
+              }],
+            };
+          }
+
+          const workingGate = canExitWorking(lifecycleState);
+          if (!workingGate.passed) {
+            return {
+              content: [{
+                type: 'text',
+                text: JSON.stringify({
+                  status: 'blocked',
+                  directorio_objetivo: rootDir,
+                  fase: 'WORKING',
+                  razon: 'No se puede cerrar la sesión de trabajo: aún existen módulos pendientes en el plan o el plan no ha sido definido.',
+                  faltantes: workingGate.faltantes,
+                  desbloquear_con: {
+                    tool: 'qap_module_close',
+                    descripcion: 'Cierra o renuncia a los módulos pendientes del plan con qap_module_close.',
+                  },
+                  siguiente_accion: {
+                    tipo: 'trabajo',
+                    descripcion: 'Existen módulos pendientes de cerrar o renunciar antes de concluir la sesión.',
+                    tool: 'qap_module_close',
+                  },
+                  pregunta: `No es posible cerrar la sesión: hay módulos pendientes de finalizar (${workingGate.faltantes.map((f: any) => `${f.modulo}: ${f.motivo}`).join(', ')}).`,
+                  opciones: [],
+                }, null, 2),
+              }],
+            };
+          }
+
+          // Cierre exitoso y transición a WRAP_UP
+          const qaDir = resolve(rootDir, '.qa');
+          const contextPath = join(qaDir, 'project', 'context.yaml');
+          let parsedContext: any = null;
+          if (existsSync(contextPath)) {
+            try {
+              parsedContext = YAML.parse(readFileSync(contextPath, 'utf-8'));
+            } catch { /* empty */ }
+          }
+
+          const sessionId = lifecycleState.session?.id || randomUUID();
+          const startedAt = lifecycleState.session?.started_at || new Date().toISOString();
+          const closedAt = new Date().toISOString();
+
+          // Recopilar módulos para el reporte de brechas
+          const allModuleNames = new Set([
+            ...(lifecycleState.session?.plan || []).map((p: any) => p.module),
+            ...Object.keys(lifecycleState.modules || {}),
+          ]);
+
+          const moduleRulesMap: Record<string, { rules?: any[]; category_waivers?: any[] }> = {};
+          for (const mName of allModuleNames) {
+            try {
+              const rf = await storage.getModuleRules(mName);
+              moduleRulesMap[mName] = {
+                rules: rf?.rules || [],
+                category_waivers: rf?.category_waivers || [],
+              };
+            } catch {
+              moduleRulesMap[mName] = { rules: [], category_waivers: [] };
+            }
+          }
+
+          const gapReportMd = generateSessionGapReport({
+            sessionId,
+            startedAt,
+            closedAt,
+            projectContext: parsedContext,
+            plan: lifecycleState.session?.plan || [],
+            modules: lifecycleState.modules || {},
+            moduleRules: moduleRulesMap,
+          });
+
+          const sessionsDir = join(qaDir, 'project', 'sessions');
+          if (!existsSync(sessionsDir)) {
+            mkdirSync(sessionsDir, { recursive: true });
+          }
+
+          const reportFilePath = join(sessionsDir, `${sessionId}.report.md`);
+          writeFileSync(reportFilePath, gapReportMd, 'utf-8');
+
+          await storage.updateLifecycleState(async (curr) => {
+            const trans = transitionProject(curr, 'WRAP_UP', 'Sesión cerrada exitosamente: todos los módulos del plan finalizados');
+            if (trans.state) curr = trans.state;
+            return curr;
+          });
+
+          return {
+            content: [{
+              type: 'text',
+              text: JSON.stringify({
+                status: 'success',
+                directorio_objetivo: rootDir,
+                message: `✔ Sesión '${sessionId}' cerrada exitosamente. Proyecto transicionado a fase WRAP_UP.`,
+                fase: 'WRAP_UP',
+                session_id: sessionId,
+                report_path: reportFilePath,
+                reporte_brechas_path: reportFilePath,
+                siguiente_accion: {
+                  tipo: 'decision',
+                  descripcion: `Sesión concluida. Reporte de brechas generado en ${reportFilePath}. Puedes revisar el Knowledge Graph (qap_server) o iniciar una nueva sesión (qap_session_plan).`,
+                  tool: 'qap_server',
+                  opciones: [
+                    'Revisar Knowledge Graph interactivo (qap_server)',
+                    'Iniciar nueva sesión de pruebas (qap_session_plan)',
+                  ],
+                },
+                pregunta: `La sesión ha finalizado exitosamente. El reporte de brechas está disponible en ${reportFilePath}. Selecciona si deseas revisar el Knowledge Graph con qap_server o iniciar una nueva sesión con qap_session_plan.`,
+                opciones: [
+                  'Revisar Knowledge Graph interactivo (qap_server)',
+                  'Iniciar nueva sesión de pruebas (qap_session_plan)',
+                ],
               }, null, 2),
             }],
           };

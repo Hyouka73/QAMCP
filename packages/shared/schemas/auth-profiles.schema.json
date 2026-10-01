@@ -9,6 +9,7 @@
   "properties": {
     "_version": {
       "type": "string",
+      "const": "1",
       "description": "Schema version for evolution tracking"
     },
     "profiles": {
@@ -36,6 +37,10 @@
             "enum": ["keychain", "env"],
             "description": "Source of credentials (keychain or environment variable)"
           },
+          "env_var": {
+            "type": "string",
+            "description": "Nombre de la variable de entorno a leer cuando credential_source es 'env'"
+          },
           "login_mode": {
             "type": "string",
             "enum": ["auto", "handoff"],
@@ -45,6 +50,15 @@
             "type": "string",
             "description": "Route or path for the login page",
             "default": ""
+          },
+          "handoff_timeout_ms": {
+            "type": "integer",
+            "description": "Tiempo maximo de espera en ms para intervencion manual en login_mode=handoff",
+            "minimum": 0
+          },
+          "handoff_message": {
+          "type": "string",
+          "description": "Mensaje mostrado al usuario durante login_mode=handoff, indicando que debe completar el login manualmente"
           },
           "session_cache": {
             "type": "object",
@@ -72,7 +86,7 @@
             "properties": {
               "type": {
                 "type": "string",
-                "enum": ["url_contains", "url_equals", "selector_visible", "selector_exists"],
+                "enum": ["url_contains", "selector_present"],
                 "description": "Type of condition to check"
               },
               "value": {

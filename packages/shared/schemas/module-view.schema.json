@@ -1,0 +1,91 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "qap://schemas/module-view.schema.json",
+  "title": "Module View Context Configuration",
+  "description": "Schema for context.yaml of a module view (.qa/modules/<name>/views/<view>/context.yaml)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "_version",
+    "view_name",
+    "description",
+    "path",
+    "current_url",
+    "tags",
+    "is_auth_view",
+    "session_saved",
+    "storage_state_used",
+    "playwright_used",
+    "playwright_error",
+    "discovered_at",
+    "page_title",
+    "routes_found"
+  ],
+  "properties": {
+    "_version": {
+      "type": "string",
+      "description": "Schema version for evolution tracking"
+    },
+    "view_name": {
+      "type": "string",
+      "description": "Name of the view"
+    },
+    "description": {
+      "type": "string",
+      "description": "Description of the view"
+    },
+    "path": {
+      "type": "string",
+      "description": "Route path of the view"
+    },
+    "current_url": {
+      "type": "string",
+      "description": "Resolved URL of the view"
+    },
+    "tags": {
+      "type": "array",
+      "description": "Tags associated with the view",
+      "items": {
+        "type": "string"
+      }
+    },
+    "is_auth_view": {
+      "type": "boolean",
+      "description": "Whether this view is an authentication view"
+    },
+    "session_saved": {
+      "type": "boolean",
+      "description": "Whether session state was saved"
+    },
+    "storage_state_used": {
+      "type": "boolean",
+      "description": "Whether existing storageState was used"
+    },
+    "playwright_used": {
+      "type": "boolean",
+      "description": "Whether Playwright was used to discover the view"
+    },
+    "playwright_error": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Error encountered during Playwright discovery, if any"
+    },
+    "discovered_at": {
+      "type": "string",
+      "description": "Timestamp when the view was discovered"
+    },
+    "page_title": {
+      "type": "string",
+      "description": "Page title discovered"
+    },
+    "routes_found": {
+      "type": "array",
+      "description": "Routes discovered from this view",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

@@ -95,6 +95,8 @@ export interface ViewDiscoveryContext {
   module: string;
   /** Nombre de la vista */
   view: string;
+  /** Ruta URL del módulo o vista (ej: '/auth/login') */
+  route?: string;
   /** Formularios descubiertos */
   forms?: DomForm[];
   /** Campos independientes (fuera de formulario) */
@@ -118,36 +120,146 @@ export interface InterviewQuestion {
 }
 
 // ---------------------------------------------------------------------------
-// Plantillas de preguntas (E3.4 — textos en módulo separado)
+// Intención de botones para acción (E0d)
+// ---------------------------------------------------------------------------
+
+export type ActionIntent = 'auth' | 'destructive' | 'save' | 'search' | 'generic';
+
+export interface ActionIntentPattern {
+  intent: ActionIntent;
+  pattern: RegExp;
+}
+
+export const ACTION_INTENT_PATTERNS: ActionIntentPattern[] = [
+  {
+    intent: 'auth',
+    pattern: /\b(iniciar\s*sesi[oó]n|login|sign\s*in|entrar|acceder|ingresar)\b/i,
+  },
+  {
+    intent: 'destructive',
+    pattern: /\b(eliminar|borrar|delete|remove|destruir|baja)\b/i,
+  },
+  {
+    intent: 'save',
+    pattern: /\b(guardar|crear|enviar|save|create|submit|registrar|actualizar)\b/i,
+  },
+  {
+    intent: 'search',
+    pattern: /\b(buscar|search|filtrar|filter|consultar)\b/i,
+  },
+];
+
+export const ACTION_TEMPLATES: Record<ActionIntent, (buttonText: string, targetLabel?: string) => string> = {
+  auth: (buttonText: string, targetLabel?: string) =>
+    `El botón "${buttonText}" gestiona autenticación en el módulo ${targetLabel || 'actual'}. ¿Qué comportamiento debe tener ante credenciales incorrectas, bloqueo de cuenta por intentos fallidos, duración de sesión y redirección según rol?`,
+
+  destructive: (buttonText: string, targetLabel?: string) =>
+    `El botón "${buttonText}" ejecuta una acción destructiva en el módulo ${targetLabel || 'actual'}. ¿Se requiere diálogo de confirmación previa, la operación es reversible o soft-delete, y qué permisos o roles se exigen?`,
+
+  save: (buttonText: string, targetLabel?: string) =>
+    `El botón "${buttonText}" guarda o envía información en el módulo ${targetLabel || 'actual'}. ¿Qué validaciones de negocio se aplican antes de persistir, qué efectos secundarios existen y cómo se previene el envío de duplicados?`,
+
+  search: (buttonText: string, targetLabel?: string) =>
+    `El botón "${buttonText}" realiza búsquedas o filtrado en el módulo ${targetLabel || 'actual'}. ¿Cuáles son los criterios de coincidencia, límites de paginación y comportamiento ante resultados vacíos?`,
+
+  generic: (buttonText: string, targetLabel?: string) =>
+    `El botón "${buttonText}" aparenta cambiar estado en el módulo ${targetLabel || 'actual'}. ¿Qué efectos secundarios tiene esta acción (creación, modificación, eliminación, envío externo)? ¿Tiene precondiciones?`,
+};
+
+export function detectActionIntent(buttonText: string): ActionIntent {
+  const clean = sanitizeDomString(buttonText).toLowerCase();
+  for (const { intent, pattern } of ACTION_INTENT_PATTERNS) {
+    if (pattern.test(clean)) {
+      return intent;
+    }
+  }
+  return 'generic';
+}
+
+export function getActionButtonQuestion(buttonText: string, targetLabel?: string): string {
+  const intent = detectActionIntent(buttonText);
+  return ACTION_TEMPLATES[intent](sanitizeDomString(buttonText) || 'Acción', targetLabel);
+}
+
+// ---------------------------------------------------------------------------
+// Plantillas de preguntas (E0d — enunciados contextuales sin ids internos)
 // ---------------------------------------------------------------------------
 
 /**
- * Plantillas de preguntas en español parametrizadas por vista y campo.
- * La separación del texto de la lógica permite cambiar el idioma sin
- * modificar el motor.
+ * Plantillas de preguntas en español parametrizadas por módulo y ruta.
+ * NUNCA usan el id interno de vista ("default") ni ids de formulario ("form-1").
  */
 export const QUESTION_TEMPLATES = {
-  proposito: (view: string) =>
-    `¿Cuál es el propósito de negocio de la vista "${view}"? Describe qué acción realiza el usuario y qué resultado espera.`,
+  proposito: (targetLabel: string) =>
+    `¿Cuál es el propósito de negocio del módulo ${targetLabel}? Describe qué acción realiza el usuario y qué resultado espera.`,
 
-  actor: (view: string) =>
-    `¿Qué roles o usuarios tienen acceso a la vista "${view}"? ¿Hay restricciones de permisos?`,
+  actor: (targetLabel: string) =>
+    `¿Qué roles o usuarios tienen acceso al módulo ${targetLabel}? ¿Hay restricciones de permisos?`,
 
   confirmar_hipotesis: (count: number) =>
     `El DOM sugiere ${count} regla(s). Por favor confirma si son correctas o corrige por id:`,
 
-  error_form: (formId: string) =>
-    `Para el formulario "${formId}": ¿Qué mensajes de error debe mostrar el sistema cuando la validación falla? ¿Hay reglas de unicidad, rangos de negocio u otras restricciones no visibles en el DOM?`,
+  error_form: (targetLabel: string) =>
+    `Para los formularios del módulo ${targetLabel}: ¿Qué mensajes de error debe mostrar el sistema cuando la validación falla? ¿Hay reglas de unicidad, rangos de negocio u otras restricciones no visibles en el DOM?`,
 
-  accion: (buttonText: string) =>
-    `El botón "${buttonText}" aparenta cambiar estado. ¿Qué efectos secundarios tiene esta acción (creación, modificación, eliminación, envío externo)? ¿Tiene precondiciones?`,
+  accion: (buttonText: string, targetLabel?: string) =>
+    getActionButtonQuestion(buttonText, targetLabel),
 
-  dato: (view: string) =>
-    `¿Qué datos ingresados en "${view}" son persistidos o enviados a sistemas externos? ¿Hay datos calculados o derivados?`,
+  dato: (targetLabel: string) =>
+    `¿Qué datos ingresados en el módulo ${targetLabel} son persistidos o enviados a sistemas externos? ¿Hay datos calculados o derivados?`,
 
   sensibilidad: (fields: string[]) =>
     `Se detectaron campos posiblemente sensibles: ${fields.join(', ')}. ¿Cómo deben tratarse estos datos? (cifrado, enmascarado, retención, auditoría)`,
 } as const;
+
+// ---------------------------------------------------------------------------
+// Política de Waivers (E1 — función pura)
+// ---------------------------------------------------------------------------
+
+export interface WaiverValidationResult {
+  valid: boolean;
+  error?: string;
+}
+
+export type WaiverInput = Partial<CategoryWaiver> & { source?: string };
+
+export function validateCategoryWaiver(waiver: WaiverInput): WaiverValidationResult {
+  if (!waiver.category) {
+    return { valid: false, error: "Waiver inválido: 'category' es requerida." };
+  }
+  if (waiver.category === 'proposito') {
+    return {
+      valid: false,
+      error: "La categoría 'proposito' no se puede renunciar mediante waiver.",
+    };
+  }
+  const VALID_CATEGORIES = new Set(['actor', 'campo', 'accion', 'error', 'dato', 'sensibilidad']);
+  if (!VALID_CATEGORIES.has(waiver.category)) {
+    return { valid: false, error: `Categoría inválida para waiver: '${waiver.category}'.` };
+  }
+  const source = waiver.source ?? 'user';
+  if (source !== 'user') {
+    return { valid: false, error: "Todo waiver exige source 'user'." };
+  }
+  const reason = (waiver.reason ?? '').trim();
+  if (reason.length < 15) {
+    return {
+      valid: false,
+      error: `El reason del waiver para categoría '${waiver.category}' debe tener al menos 15 caracteres tras trim (actual: ${reason.length}).`,
+    };
+  }
+  return { valid: true };
+}
+
+export function validateWaiversBatch(waivers: WaiverInput[]): WaiverValidationResult {
+  for (const w of waivers) {
+    const res = validateCategoryWaiver(w);
+    if (!res.valid) {
+      return res;
+    }
+  }
+  return { valid: true };
+}
 
 // ---------------------------------------------------------------------------
 // E3.1 — Heurística de sensibilidad
@@ -523,6 +635,7 @@ export function generateNextInterviewBatch(
   waivers: CategoryWaiver[]
 ): InterviewQuestion[] {
   const { view } = ctx;
+  const targetLabel = ctx.route ? `'${ctx.module}' (${ctx.route})` : `'${ctx.module}'`;
   const questions: InterviewQuestion[] = [];
 
   const resolvedStatuses: RuleStatus[] = ['confirmed', 'rejected', 'deferred'];
@@ -542,7 +655,7 @@ export function generateNextInterviewBatch(
     });
   }
 
-  // 2. Preguntas abiertas por categoría sin cobertura (excluyendo campo que ya va con hipótesis)
+  // 2. Preguntas abiertas por categoría sin cobertura (excluyendo campo y sensibilidad si ya van con hipótesis)
   const openCategories = applicableCategories
     .filter((cat) => {
       // Ya cubierta por waiver
@@ -556,6 +669,8 @@ export function generateNextInterviewBatch(
     .filter((cat) => {
       // "campo" se cubrió con las hipótesis si hubiera pendientes; si no hay pendientes pero tampoco confirmados, añadir
       if (cat === 'campo' && pendingHypotheses.length > 0) return false;
+      // E0d: La sensibilidad se pregunta UNA sola vez (si ya va como hipótesis en confirmar_hipotesis, no como pregunta abierta)
+      if (cat === 'sensibilidad' && pendingHypotheses.some((h) => h.category === 'sensibilidad')) return false;
       return true;
     })
     .sort((a, b) => (CATEGORY_PRIORITY[a] ?? 99) - (CATEGORY_PRIORITY[b] ?? 99));
@@ -571,7 +686,6 @@ export function generateNextInterviewBatch(
   const actionButtons = (ctx.buttons ?? []).filter(
     (b) => !/^(ir|ir a|volver|regresar|cancelar|cerrar|salir|back|close|cancel)/i.test(b.text)
   );
-  const forms = ctx.forms ?? [];
 
   for (const cat of openCategories) {
     if (questions.length >= 5) break;
@@ -593,7 +707,7 @@ export function generateNextInterviewBatch(
             id: `${view}.accion.${btn.key}`,
             tipo: 'abierta',
             categoria: 'accion',
-            texto: QUESTION_TEMPLATES.accion(sanitizeDomString(btn.text) || sanitizeDomString(btn.key)),
+            texto: QUESTION_TEMPLATES.accion(sanitizeDomString(btn.text) || sanitizeDomString(btn.key), targetLabel),
           });
         }
         break;
@@ -604,7 +718,7 @@ export function generateNextInterviewBatch(
           id: `${view}.actor`,
           tipo: 'abierta',
           categoria: 'actor',
-          texto: QUESTION_TEMPLATES.actor(view),
+          texto: QUESTION_TEMPLATES.actor(targetLabel),
         });
         break;
 
@@ -614,20 +728,17 @@ export function generateNextInterviewBatch(
           id: `${view}.campo`,
           tipo: 'abierta',
           categoria: 'campo',
-          texto: `¿Hay validaciones de negocio adicionales para los campos de la vista "${view}" que no estén en el DOM? (unicidad, rangos, interdependencias)`,
+          texto: `¿Hay validaciones de negocio adicionales para los campos del módulo ${targetLabel} que no estén en el DOM? (unicidad, rangos, interdependencias)`,
         });
         break;
 
       case 'error': {
-        const form = forms[0];
-        if (form) {
-          questions.push({
-            id: `${view}.error.${form.id}`,
-            tipo: 'abierta',
-            categoria: 'error',
-            texto: QUESTION_TEMPLATES.error_form(sanitizeDomString(form.id)),
-          });
-        }
+        questions.push({
+          id: `${view}.error`,
+          tipo: 'abierta',
+          categoria: 'error',
+          texto: QUESTION_TEMPLATES.error_form(targetLabel),
+        });
         break;
       }
 
@@ -636,7 +747,7 @@ export function generateNextInterviewBatch(
           id: `${view}.proposito`,
           tipo: 'abierta',
           categoria: 'proposito',
-          texto: QUESTION_TEMPLATES.proposito(view),
+          texto: QUESTION_TEMPLATES.proposito(targetLabel),
         });
         break;
 
@@ -645,7 +756,7 @@ export function generateNextInterviewBatch(
           id: `${view}.dato`,
           tipo: 'abierta',
           categoria: 'dato',
-          texto: QUESTION_TEMPLATES.dato(view),
+          texto: QUESTION_TEMPLATES.dato(targetLabel),
         });
         break;
     }

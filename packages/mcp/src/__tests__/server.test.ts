@@ -145,7 +145,9 @@ describe('Suite MCP Server QAP v2.1 / v2.1.2', () => {
     expect(toolNames).toContain('qap_server');
     expect(toolNames).toContain('qap_prune');
     expect(toolNames).toContain('qap_rules_set');
-    expect(toolNames.length).toBe(16);
+    expect(toolNames).toContain('qap_module_close');
+    expect(toolNames).toContain('qap_session_close');
+    expect(toolNames.length).toBe(18);
 
     // @ts-expect-error accessing internal request handler
     const promptHandler = server._requestHandlers.get(ListPromptsRequestSchema.shape.method.value);
@@ -359,7 +361,40 @@ describe('Suite MCP Server QAP v2.1 / v2.1.2', () => {
 
     await handler({ method: 'tools/call', params: { name: 'qap_init', arguments: {} } }, {});
 
-    // Generar reporte
+    // Generar reporte sin ejecuciones debe responder blocked (E0c)
+    const blockedReportResult = await handler(
+      {
+        method: 'tools/call',
+        params: {
+          name: 'qap_report',
+          arguments: { format: 'all' },
+        },
+      },
+      {}
+    );
+    expect(blockedReportResult.isError).toBeFalsy();
+    const parsedBlocked = JSON.parse(blockedReportResult.content[0].text);
+    expect(parsedBlocked.status).toBe('blocked');
+    expect(parsedBlocked.razon).toContain('ejecuciones');
+
+    // Con una ejecución registrada en .qa/executions/, debe generar el reporte exitosamente
+    const execDir = join(tempDir, '.qa', 'executions');
+    mkdirSync(execDir, { recursive: true });
+    writeFileSync(
+      join(execDir, 'exec-test.json'),
+      JSON.stringify({
+        _version: '1',
+        execution_id: 'exec-test',
+        module: 'auth',
+        env: 'staging',
+        started_at: '2026-09-19T19:10:00Z',
+        finished_at: '2026-09-19T19:10:18Z',
+        result: 'passed',
+        timed_out: false,
+        summary: { total: 0, passed: 0, failed: 0, skipped: 0, not_run: 0 },
+        cases: [],
+      })
+    );
     const reportResult = await handler(
       {
         method: 'tools/call',

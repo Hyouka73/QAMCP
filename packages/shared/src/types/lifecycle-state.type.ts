@@ -42,6 +42,7 @@ export interface TransitionHistoryEntry {
   to: string;
   at: string;
   reason?: string;
+  module?: string;
 }
 
 export interface LifecycleState {
