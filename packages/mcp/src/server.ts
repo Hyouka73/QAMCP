@@ -8,7 +8,7 @@ import {
   rmSync,
   statSync,
 } from 'node:fs';
-import { resolve, join, basename, extname } from 'node:path';
+import { resolve, join, basename, extname, dirname, relative } from 'node:path';
 import { randomUUID } from 'node:crypto';
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
@@ -55,6 +55,7 @@ import {
   generateNextInterviewBatch,
   obtenerSiguientePreguntaOnboarding,
   sanitizeDomString,
+  generarRenderTexto,
   type ViewDiscoveryContext,
   type DomField,
   type DomForm,
@@ -95,6 +96,50 @@ function makeDecisionQuestion(
     permite_otra: permiteOtra,
     registrar_con: registrarCon,
   };
+}
+
+function buildCorrectionQuestion(campo: string, context: any): Pregunta {
+  let id = `onboarding.corregir.${campo}`;
+  let texto = '';
+  let registrarCon = { tool: 'qap_context_set', campo };
+
+  switch (campo) {
+    case 'objective': {
+      const prop = context?.objective || '';
+      texto = `Propuesta actual de objetivo: "${prop}". Escribe el objetivo corregido:`;
+      break;
+    }
+    case 'roles': {
+      const prop = (context?.roles || []).map((r: any) => r.name).join(', ');
+      texto = `Propuesta actual de roles: "${prop}". Escribe los roles corregidos (separados por coma):`;
+      break;
+    }
+    case 'critical_flows': {
+      const prop = (context?.critical_flows || []).map((f: any) => f.name).join(', ');
+      texto = `Propuesta actual de flujos críticos: "${prop}". Escribe los flujos críticos corregidos (separados por coma):`;
+      break;
+    }
+    case 'base_url': {
+      const prop = context?.base_url || '(sin definir)';
+      texto = `Propuesta actual de URL base: "${prop}". Escribe la URL base corregida:`;
+      registrarCon = { tool: 'qap_context_set', campo: 'base_url' };
+      break;
+    }
+    default:
+      texto = `Escribe el valor corregido para '${campo}':`;
+      break;
+  }
+
+  const p: Pregunta = {
+    id,
+    texto,
+    formato: 'abierta',
+    opciones: [],
+    permite_otra: true,
+    registrar_con: registrarCon,
+  };
+  p.render_texto = generarRenderTexto(p);
+  return p;
 }
 
 const UX_DIRECTIVE = 'DIRECTIVA DE UX ESTRICTA: Guía al usuario paso a paso interactivo. Si tu entorno dispone de herramienta para hacer preguntas interactivas con opciones (como ask_question), ÚSALA OBLIGATORIAMENTE para cada decisión. Si no, formula la pregunta directa con sus opciones. PROHIBIDO mostrar listas de pasos futuros (1, 2, 3...), tutoriales o pedir comandos de terminal.';
@@ -211,7 +256,7 @@ const TOOLS: Tool[] = [
         },
         baseUrl: {
           type: 'string',
-          description: 'URL base del entorno local (por defecto: "http://localhost:3000")',
+          description: 'URL base del entorno local (si no se proporciona ni se detecta en el proyecto, queda sin definir)',
         },
       },
     },
@@ -322,6 +367,13 @@ const TOOLS: Tool[] = [
         source_of_truth: {
           description: 'Declaración o referencia de la fuente de verdad del proyecto (objeto o string con la ruta)',
         },
+        base_url: {
+          type: 'string',
+          description: 'URL base del entorno de pruebas (ej: "http://localhost:3000")',
+        },
+        environments: {
+          description: 'URL base o mapa de entornos para pruebas',
+        },
         source: {
           type: 'string',
           enum: ['user', 'prd', 'inferred'],
@@ -330,7 +382,7 @@ const TOOLS: Tool[] = [
         },
         confirmar_resumen: {
           type: 'string',
-          description: 'Confirmación del resumen o acción de corrección (ej. "confirmo_todo", "corregir")',
+          description: 'Confirmación del resumen o acción de corrección (ej. "confirmo_todo", "corregir", "definir_url")',
         },
         corregir: {
           type: 'array',
@@ -677,6 +729,41 @@ const PROMPTS: Prompt[] = [
   },
 ];
 
+/**
+ * Detecta si targetPath es una subcarpeta de un repositorio mayor
+ * inspeccionando hasta 3 niveles de ancestros en busca de .git,
+ * pnpm-workspace.yaml o package.json con "workspaces" (B8).
+ */
+function detectarSubcarpetaWorkspace(rootDir: string): string | null {
+  let current = resolve(rootDir);
+  for (let i = 0; i < 3; i++) {
+    const parent = dirname(current);
+    if (!parent || parent === current) break;
+    current = parent;
+
+    const hasGit = existsSync(join(current, '.git'));
+    const hasWorkspaceYaml = existsSync(join(current, 'pnpm-workspace.yaml'));
+    let hasPkgWorkspaces = false;
+    const pkgPath = join(current, 'package.json');
+    if (existsSync(pkgPath)) {
+      try {
+        const parsedPkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
+        if (parsedPkg && parsedPkg.workspaces !== undefined) {
+          hasPkgWorkspaces = true;
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    if (hasGit || hasWorkspaceYaml || hasPkgWorkspaces) {
+      const rel = relative(current, rootDir).replace(/\\/g, '/');
+      return rel || basename(current);
+    }
+  }
+  return null;
+}
+
 export function createMcpServer(): Server {
   const server = new Server(
     {
@@ -827,6 +914,16 @@ export function createMcpServer(): Server {
 
           const scan = generarScan(rootDir);
           const hallazgos = detectarDocumentosProyecto(rootDir);
+          hallazgos.servicios = serviciosConEvidencia;
+
+          const subcarpetaRepo = scan.documentos.length === 0 ? detectarSubcarpetaWorkspace(rootDir) : null;
+          const advertencias: string[] = [];
+          if (subcarpetaRepo) {
+            advertencias.push(
+              `targetPath parece una subcarpeta del repositorio ${subcarpetaRepo}; para analizar todo el proyecto usa la raíz como targetPath`
+            );
+          }
+
           if (scan.documentos.length > 0) {
             const topDoc = scan.documentos[0];
             try {
@@ -866,6 +963,7 @@ export function createMcpServer(): Server {
                       detectedService,
                       scan,
                       hallazgos_workspace: hallazgos,
+                      advertencias,
                       siguiente_accion: {
                         tipo: 'entrevista',
                         descripcion: 'Proyecto no inicializado. Comienza el onboarding respondiendo a la fuente de verdad.',
@@ -1014,6 +1112,7 @@ export function createMcpServer(): Server {
                     siguiente_accion: guidance.siguiente_accion,
                     scan,
                     hallazgos_workspace: hallazgos,
+                    advertencias,
                     projectName: projectName !== 'No inicializado' ? projectName : basename(rootDir),
                     environments,
                     stats: {
@@ -1039,7 +1138,11 @@ export function createMcpServer(): Server {
           const envList = Array.isArray(args.environments) && args.environments.length > 0
             ? args.environments.map(String)
             : ['local'];
-          const baseUrl = String(args.baseUrl || 'http://localhost:3000');
+
+          const serviciosConEvidencia = detectarServiciosConEvidencia(rootDir);
+          const resolvedBaseUrl = (typeof args.baseUrl === 'string' && args.baseUrl.trim().length > 0)
+            ? args.baseUrl.trim()
+            : (serviciosConEvidencia.length > 0 ? serviciosConEvidencia[0].url : undefined);
 
           const allowedDirs = [
             join(qaDir, 'project'),
@@ -1063,8 +1166,10 @@ export function createMcpServer(): Server {
 
           if (!existsSync(envsPath)) {
             const envsMap: Record<string, { url: string; browser_mode: 'auto' | 'headless' | 'headed' }> = {};
-            for (const env of envList) {
-              envsMap[env] = { url: baseUrl, browser_mode: 'auto' };
+            if (resolvedBaseUrl) {
+              for (const env of envList) {
+                envsMap[env] = { url: resolvedBaseUrl, browser_mode: 'auto' };
+              }
             }
             const envsYaml = {
               _version: '1',
@@ -1075,12 +1180,12 @@ export function createMcpServer(): Server {
           }
 
           if (!existsSync(contextPath)) {
-            const contextYaml = {
+            const contextYaml: Record<string, any> = {
               _version: '1',
               project_name: projectName,
               description: `Configuración base de QA para ${projectName}`,
               tech_stack: [],
-              base_url: baseUrl,
+              ...(resolvedBaseUrl ? { base_url: resolvedBaseUrl } : {}),
               manually_edited: false,
             };
             writeFileSync(contextPath, YAML.stringify(contextYaml), 'utf-8');
@@ -1133,6 +1238,16 @@ export function createMcpServer(): Server {
           } catch { /* ignore */ }
 
           const hallazgos = detectarDocumentosProyecto(rootDir);
+          hallazgos.servicios = serviciosConEvidencia;
+
+          const subcarpetaRepo = scan.documentos.length === 0 ? detectarSubcarpetaWorkspace(rootDir) : null;
+          const advertencias: string[] = [];
+          if (subcarpetaRepo) {
+            advertencias.push(
+              `targetPath parece una subcarpeta del repositorio ${subcarpetaRepo}; para analizar todo el proyecto usa la raíz como targetPath`
+            );
+          }
+
           if (scan.documentos.length > 0) {
             const topDoc = scan.documentos[0];
             try {
@@ -1150,7 +1265,6 @@ export function createMcpServer(): Server {
             } catch { /* ignore */ }
           }
 
-          const serviciosConEvidencia = detectarServiciosConEvidencia(rootDir);
           const detectedService = serviciosConEvidencia.length > 0
             ? { url: serviciosConEvidencia[0].url, label: serviciosConEvidencia[0].label, evidencia: serviciosConEvidencia[0].evidencia }
             : undefined;
@@ -1179,6 +1293,7 @@ export function createMcpServer(): Server {
                     hallazgos_workspace: hallazgos,
                     scan,
                     detectedService,
+                    advertencias,
                     lifecycle: {
                       phase: finalPhase,
                     },
@@ -1395,7 +1510,6 @@ export function createMcpServer(): Server {
             project_name: basename(rootDir),
             description: `Configuración base de QA para ${basename(rootDir)}`,
             tech_stack: [],
-            base_url: 'http://localhost:3000',
             manually_edited: false,
           };
           if (existsSync(contextPath)) {
@@ -1410,6 +1524,82 @@ export function createMcpServer(): Server {
           const defaultSource = callerSource || 'user';
 
           const ignoredDowngrades: Array<{ field: string; reason: string }> = [];
+
+          // Gestión de estado de correcciones (B7)
+          const correctionsCachePath = join(qaDir, 'cache', 'onboarding_corrections.json');
+          let correctionsState: { pending: string[]; completed: string[] } | null = null;
+          // justCompleted: campos respondidos en esta misma llamada (necesario para isCorrection cuando correctionsState ya es null)
+          const justCompleted: string[] = [];
+          if (existsSync(correctionsCachePath)) {
+            try {
+              correctionsState = JSON.parse(readFileSync(correctionsCachePath, 'utf-8'));
+            } catch {
+              correctionsState = null;
+            }
+          }
+
+          if (args.confirmar_resumen === 'corregir' || args.corregir) {
+            const rawList = Array.isArray(args.corregir)
+              ? args.corregir
+              : (typeof args.corregir === 'string'
+                  ? [args.corregir]
+                  : (Array.isArray(args.campos)
+                      ? args.campos
+                      : (typeof args.campos === 'string' ? [args.campos] : ['objective'])));
+            const validFields = rawList.map(String).filter((f) => ['objective', 'roles', 'critical_flows', 'base_url'].includes(f));
+            correctionsState = {
+              pending: validFields.length > 0 ? validFields : ['objective'],
+              completed: [],
+            };
+            try {
+              mkdirSync(join(qaDir, 'cache'), { recursive: true });
+              writeFileSync(correctionsCachePath, JSON.stringify(correctionsState, null, 2), 'utf-8');
+            } catch { /* ignore */ }
+          } else if (correctionsState && Array.isArray(correctionsState.pending) && correctionsState.pending.length > 0) {
+            const currentField = correctionsState.pending[0];
+            let answered = false;
+            if (currentField === 'objective' && args.objective !== undefined) {
+              answered = true;
+            } else if (currentField === 'roles' && args.roles !== undefined) {
+              answered = true;
+            } else if (currentField === 'critical_flows' && args.critical_flows !== undefined) {
+              answered = true;
+            } else if (currentField === 'base_url' && (args.base_url !== undefined || args.environments !== undefined)) {
+              answered = true;
+            }
+
+            if (answered) {
+              justCompleted.push(currentField);
+              correctionsState.completed.push(currentField);
+              correctionsState.pending.shift();
+              if (correctionsState.pending.length > 0) {
+                try {
+                  writeFileSync(correctionsCachePath, JSON.stringify(correctionsState, null, 2), 'utf-8');
+                } catch { /* ignore */ }
+              } else {
+                try {
+                  rmSync(correctionsCachePath, { force: true });
+                } catch { /* ignore */ }
+                correctionsState = null;
+              }
+            }
+          }
+
+          // Soporte directo para base_url / environments
+          const rawUrl = typeof args.base_url === 'string' && args.base_url.trim().length > 0
+            ? args.base_url.trim()
+            : (typeof args.environments === 'string' && args.environments.trim().length > 0 ? args.environments.trim() : undefined);
+          if (rawUrl) {
+            existingContext.base_url = rawUrl;
+            const envsPath = join(qaDir, 'project', 'environments.yaml');
+            let envsYaml: any = existsSync(envsPath) ? YAML.parse(readFileSync(envsPath, 'utf-8')) : null;
+            if (!envsYaml) {
+              envsYaml = { _version: '1', default: 'local', environments: {} };
+            }
+            envsYaml.environments = envsYaml.environments || {};
+            envsYaml.environments.local = { url: rawUrl, browser_mode: 'auto' };
+            writeFileSync(envsPath, YAML.stringify(envsYaml), 'utf-8');
+          }
 
           // Confirmación única (E4a): Promoción de campos inferred a user cuando se confirma resumen
           if (args.confirmar_resumen === 'confirmo_todo' || args.accion === 'confirmar_resumen') {
@@ -1435,9 +1625,12 @@ export function createMcpServer(): Server {
           // 1. Objetivo
           if (args.objective !== undefined) {
             const newObj = String(args.objective);
-            const newSource = (typeof args.objective_source === 'string' && args.objective_source !== 'inferred' && ['user', 'prd'].includes(args.objective_source))
-              ? args.objective_source
-              : (callerSource ?? (args.objective_source === 'inferred' ? 'inferred' : defaultSource));
+            const isCorrection = justCompleted.includes('objective') || correctionsState?.completed.includes('objective') || (correctionsState && correctionsState.pending[0] === 'objective');
+            const newSource = isCorrection
+              ? 'user'
+              : ((typeof args.objective_source === 'string' && args.objective_source !== 'inferred' && ['user', 'prd'].includes(args.objective_source))
+                  ? args.objective_source
+                  : (callerSource ?? (args.objective_source === 'inferred' ? 'inferred' : defaultSource)));
             if (existingContext.objective_source === 'user' && newSource !== 'user') {
               ignoredDowngrades.push({
                 field: 'objective',
@@ -1451,15 +1644,23 @@ export function createMcpServer(): Server {
 
           // 2. Roles
           if (Array.isArray(args.roles)) {
-            existingContext.roles = existingContext.roles || [];
+            const isCorrection = justCompleted.includes('roles') || correctionsState?.completed.includes('roles') || (correctionsState && correctionsState.pending[0] === 'roles');
+            // En modo corrección, el array se reemplaza completamente (no merge) para que roles[0] sea el primero del nuevo array
+            if (isCorrection) {
+              existingContext.roles = [];
+            } else {
+              existingContext.roles = existingContext.roles || [];
+            }
             for (const r of args.roles) {
               if (!r) continue;
               const roleName = typeof r === 'string' ? r.trim() : String(r.name || '').trim();
               if (!roleName) continue;
               const rObj = typeof r === 'object' ? r : {};
-              const rSource = (rObj.source && rObj.source !== 'inferred' && ['user', 'prd'].includes(rObj.source))
-                ? rObj.source
-                : (callerSource ?? (rObj.source === 'inferred' ? 'inferred' : defaultSource));
+              const rSource = isCorrection
+                ? 'user'
+                : ((rObj.source && rObj.source !== 'inferred' && ['user', 'prd'].includes(rObj.source))
+                    ? rObj.source
+                    : (callerSource ?? (rObj.source === 'inferred' ? 'inferred' : defaultSource)));
               const exIdx = existingContext.roles.findIndex((er: any) => er.name === roleName);
               if (exIdx >= 0) {
                 const exRole = existingContext.roles[exIdx];
@@ -1487,15 +1688,22 @@ export function createMcpServer(): Server {
 
           // 3. Flujos críticos
           if (Array.isArray(args.critical_flows)) {
-            existingContext.critical_flows = existingContext.critical_flows || [];
+            const isCorrection = justCompleted.includes('critical_flows') || correctionsState?.completed.includes('critical_flows') || (correctionsState && correctionsState.pending[0] === 'critical_flows');
+            if (isCorrection) {
+              existingContext.critical_flows = [];
+            } else {
+              existingContext.critical_flows = existingContext.critical_flows || [];
+            }
             for (const f of args.critical_flows) {
               if (!f) continue;
               const flowName = typeof f === 'string' ? f.trim() : String(f.name || '').trim();
               if (!flowName) continue;
               const fObj = typeof f === 'object' ? f : {};
-              const fSource = (fObj.source && fObj.source !== 'inferred' && ['user', 'prd'].includes(fObj.source))
-                ? fObj.source
-                : (callerSource ?? (fObj.source === 'inferred' ? 'inferred' : defaultSource));
+              const fSource = isCorrection
+                ? 'user'
+                : ((fObj.source && fObj.source !== 'inferred' && ['user', 'prd'].includes(fObj.source))
+                    ? fObj.source
+                    : (callerSource ?? (fObj.source === 'inferred' ? 'inferred' : defaultSource)));
               const exIdx = existingContext.critical_flows.findIndex((ef: any) => ef.name === flowName);
               if (exIdx >= 0) {
                 const exFlow = existingContext.critical_flows[exIdx];
@@ -1567,7 +1775,7 @@ export function createMcpServer(): Server {
                 const rawContent = readFileSync(docAbsPath, 'utf-8');
                 const parsed = parsePrdContent(rawContent, resolved.path);
                 if (parsed.objective && existingContext.objective_source !== 'user') {
-                  existingContext.objective = sanitizeDomString(parsed.objective).slice(0, 500).trim();
+                  existingContext.objective = sanitizeDomString(parsed.objective, 2000).trim();
                   existingContext.objective_source = 'inferred';
                 }
                 if (parsed.users && parsed.users.length > 0) {
@@ -1585,21 +1793,34 @@ export function createMcpServer(): Server {
                     }
                   }
                 }
-                if (parsed.routes && parsed.routes.length > 0) {
+                // Flujos críticos solo si encabezado explícito (B1)
+                if (parsed.critical_flows && parsed.critical_flows.length > 0) {
                   existingContext.critical_flows = existingContext.critical_flows || [];
-                  for (const r of parsed.routes) {
-                    const cleanName = sanitizeDomString(r).slice(0, 100).trim();
+                  for (const cf of parsed.critical_flows) {
+                    const cleanName = sanitizeDomString(cf.name, 100).trim();
                     if (!cleanName) continue;
+                    const cleanEvidence = cf.evidence ? sanitizeDomString(cf.evidence, 200).trim() : undefined;
                     const exIdx = existingContext.critical_flows.findIndex((ef: any) => ef.name === cleanName);
                     if (exIdx >= 0) {
                       if (existingContext.critical_flows[exIdx].source !== 'user') {
                         existingContext.critical_flows[exIdx].source = 'inferred';
+                        if (cleanEvidence) existingContext.critical_flows[exIdx].evidence = cleanEvidence;
                       }
                     } else {
-                      existingContext.critical_flows.push({ name: cleanName, priority: 'medium', source: 'inferred' });
+                      existingContext.critical_flows.push({
+                        name: cleanName,
+                        priority: 'medium',
+                        source: 'inferred',
+                        ...(cleanEvidence ? { evidence: cleanEvidence } : {}),
+                      });
                     }
                   }
                 }
+                existingContext.ingest = {
+                  doc_ref: resolved.path,
+                  analyzed_by: 'heuristic',
+                  analyzed_at: new Date().toISOString(),
+                };
               } catch { /* ignore parse error */ }
             } else {
               // No resolvió a archivo físico
@@ -1692,13 +1913,27 @@ export function createMcpServer(): Server {
             return curr;
           });
 
+          const serviciosConEvidencia = detectarServiciosConEvidencia(rootDir);
           const hallazgos = detectarDocumentosProyecto(rootDir);
+          hallazgos.servicios = serviciosConEvidencia;
+
           const guidance = getPhaseGuidance(finalPhase, {
             faltantes: gateRes.faltantes,
             hallazgos,
             context: existingContext,
             environments: parsedEnv,
           });
+
+          if (correctionsState && correctionsState.pending.length > 0) {
+            const nextPendingField = correctionsState.pending[0];
+            const q = buildCorrectionQuestion(nextPendingField, existingContext);
+            guidance.siguiente_accion = {
+              tipo: 'entrevista',
+              descripcion: `Corrección solicitada por el usuario para el campo '${nextPendingField}'. Preséntala al usuario usando la herramienta interactiva ask_question.`,
+              tool: 'qap_context_set',
+              pregunta: q,
+            };
+          }
 
           return {
             content: [
@@ -1919,20 +2154,22 @@ export function createMcpServer(): Server {
           let extractedUsers: string[] = [];
           let extractedNotes = '';
           let extractedRoutes: string[] = [];
+          let parsedDocFlows: Array<{ name: string; evidence?: string }> = [];
 
           if (rawContent) {
             const parsed = parsePrdContent(rawContent, docRef);
-            extractedObjective = (parsed.objective || '').slice(0, 500).trim();
+            extractedObjective = sanitizeDomString(parsed.objective, 2000).trim();
             extractedUsers = (parsed.users || []).map((u) => u.slice(0, 50).trim()).filter(Boolean);
             extractedNotes = (parsed.notes || '').slice(0, 500).trim();
             extractedRoutes = (parsed.routes || []).map((r) => r.slice(0, 100).trim()).filter(Boolean);
+            parsedDocFlows = parsed.critical_flows || [];
           }
 
           // Propuesta estructurada del agente (E3b): prevalece sobre la heurística solo en campos no vacíos
           const propuesta = args.propuesta as IngestProposal | undefined;
           if (propuesta && typeof propuesta === 'object') {
             if (typeof propuesta.objetivo === 'string' && propuesta.objetivo.trim().length > 0) {
-              extractedObjective = sanitizeDomString(propuesta.objetivo).slice(0, 500).trim();
+              extractedObjective = sanitizeDomString(propuesta.objetivo, 2000).trim();
             }
             if (Array.isArray(propuesta.roles) && propuesta.roles.length > 0) {
               const cleanRoles = propuesta.roles
@@ -1983,7 +2220,7 @@ export function createMcpServer(): Server {
             }
           }
 
-          // Flujos críticos propuestos por el agente con evidence
+          // Flujos críticos propuestos por el agente con evidence o extraídos explícitamente (B1)
           if (propuesta && Array.isArray(propuesta.flujos_criticos) && propuesta.flujos_criticos.length > 0) {
             currentContext.critical_flows = currentContext.critical_flows || [];
             for (const pf of propuesta.flujos_criticos.slice(0, 20)) {
@@ -2006,14 +2243,25 @@ export function createMcpServer(): Server {
                 });
               }
             }
-          } else if (extractedRoutes.length > 0 && (!currentContext.critical_flows || currentContext.critical_flows.length === 0)) {
+          } else if (parsedDocFlows.length > 0) {
             currentContext.critical_flows = currentContext.critical_flows || [];
-            for (const r of extractedRoutes) {
-              const fName = sanitizeDomString(r).slice(0, 100).trim();
+            for (const cf of parsedDocFlows) {
+              const fName = sanitizeDomString(cf.name).slice(0, 100).trim();
               if (!fName) continue;
+              const fEvidence = cf.evidence ? sanitizeDomString(cf.evidence).slice(0, 150).trim() : undefined;
               const existingIdx = currentContext.critical_flows.findIndex((ef: any) => ef.name === fName);
-              if (existingIdx < 0) {
-                currentContext.critical_flows.push({ name: fName, source: 'inferred', priority: 'medium' });
+              if (existingIdx >= 0) {
+                if (currentContext.critical_flows[existingIdx].source !== 'user') {
+                  currentContext.critical_flows[existingIdx].source = 'inferred';
+                  if (fEvidence) currentContext.critical_flows[existingIdx].evidence = fEvidence;
+                }
+              } else {
+                currentContext.critical_flows.push({
+                  name: fName,
+                  source: 'inferred',
+                  priority: 'medium',
+                  ...(fEvidence ? { evidence: fEvidence } : {}),
+                });
               }
             }
           }
@@ -2027,11 +2275,13 @@ export function createMcpServer(): Server {
             currentContext.source_of_truth.notes = extractedNotes || currentContext.source_of_truth.notes;
             currentContext.source_of_truth.source = 'inferred';
           }
-          // Marcar análisis del agente como realizado en notes (E3) sin violar schema additionalProperties: false
-          const existingNotes = currentContext.source_of_truth.notes || '';
-          if (!existingNotes.includes('[agent_analyzed]')) {
-            currentContext.source_of_truth.notes = (existingNotes ? existingNotes + ' ' : '') + '[agent_analyzed]';
-          }
+
+          // Registro limpio de estado de análisis en campo propio ingest (B4)
+          currentContext.ingest = {
+            doc_ref: docRef || currentContext.source_of_truth?.ref || '',
+            analyzed_by: propuesta ? 'agent' : 'heuristic',
+            analyzed_at: new Date().toISOString(),
+          };
 
           writeFileSync(contextPath, YAML.stringify(currentContext), 'utf-8');
 
@@ -2044,7 +2294,10 @@ export function createMcpServer(): Server {
           const gateRes = canExitOnboarding(currentContext, parsedEnv);
           const faltantes = gateRes.faltantes;
 
+          const serviciosConEvidencia = detectarServiciosConEvidencia(rootDir);
           const hallazgos = detectarDocumentosProyecto(rootDir);
+          hallazgos.servicios = serviciosConEvidencia;
+
           const guidance = getPhaseGuidance(lifecycleState.phase, {
             faltantes,
             suggestedModules,
@@ -2070,7 +2323,6 @@ export function createMcpServer(): Server {
                       rutas: extractedRoutes,
                     },
                     modulos_sugeridos_para_plan: suggestedModules,
-                    solicitud_confirmacion: 'Presenta estas propuestas al usuario. Si las confirma tal cual, regístralas con qap_context_set (source: "prd"). Si las corrige, usa source: "user".',
                     faltantes,
                     siguiente_accion: guidance.siguiente_accion,
                   },
@@ -3805,16 +4057,28 @@ export function createMcpServer(): Server {
               return st !== 'closed' && st !== 'waived' && p.module !== moduleName;
             });
 
-            const nextModuleName = nextPlanned?.module;
-            const desc = nextModuleName
-              ? `El módulo '${moduleName}' ha completado su cobertura de reglas (consolidated). Presenta este resumen al usuario y, solo con su confirmación explícita, ejecuta qap_module_close para cerrar el módulo y continuar con '${nextModuleName}'.`
-              : `El módulo '${moduleName}' ha completado su cobertura de reglas (consolidated). Todos los módulos del plan han sido procesados. Presenta este resumen al usuario y, solo con su confirmación explícita, ejecuta qap_module_close para cerrarlo y proceder al cierre de sesión.`;
+            const desc = nextPlanned
+              ? `Módulo '${moduleName}' consolidado con cobertura completa de reglas. Siguiente módulo planificado: '${nextPlanned.module}'. Confirma el cierre del módulo actual antes de avanzar.`
+              : `Módulo '${moduleName}' consolidado con cobertura completa de reglas. Todos los módulos planificados están listos para cierre. Procede a cerrar este módulo con qap_module_close.`;
+
+            const closeDecisionPregunta = makeDecisionQuestion(
+              `modulo.${moduleName}.cierre`,
+              `El módulo '${moduleName}' ha completado su cobertura de reglas (consolidated). Confirma la acción para proceder:`,
+              [
+                { id: 'cerrar', etiqueta: `Cerrar módulo '${moduleName}' formalmente`, recomendada: true },
+                { id: 'revisar', etiqueta: 'Revisar reglas antes de cerrar' },
+              ],
+              true,
+              { tool: 'qap_module_close', campo: 'action' }
+            );
+            closeDecisionPregunta.render_texto = generarRenderTexto(closeDecisionPregunta);
 
             siguienteAccionRules = {
-              tipo: 'trabajo',
+              tipo: 'decision',
               descripcion: desc,
               tool: 'qap_module_close',
               module: moduleName,
+              pregunta: closeDecisionPregunta,
             };
           } else {
             siguienteAccionRules = buildInterviewNextAction({
@@ -3972,9 +4236,19 @@ export function createMcpServer(): Server {
                     descripcion: 'Presenta el resumen del módulo al usuario y reintenta con user_confirmed: true.',
                   },
                   siguiente_accion: {
-                    tipo: 'trabajo',
+                    tipo: 'decision',
                     descripcion: `Presenta el resumen del módulo '${moduleName}' al usuario y solicita su confirmación explícita antes de llamar qap_module_close.`,
                     tool: 'qap_module_close',
+                    pregunta: makeDecisionQuestion(
+                      `confirmar_cierre_modulo_${sanitizeDomString(moduleName)}`,
+                      `Se requiere confirmación del usuario para cerrar o renunciar al módulo '${moduleName}'. Selecciona cómo proceder con la acción '${action}':`,
+                      [
+                        { id: 'confirmar', etiqueta: `Confirmar ${action === 'close' ? 'cierre' : 'renuncia'} del módulo '${moduleName}'`, recomendada: true },
+                        { id: 'cancelar', etiqueta: 'Seguir refinando reglas' },
+                      ],
+                      false,
+                      { tool: 'qap_module_close', campo: 'user_confirmed' }
+                    ),
                   },
                 }, null, 2),
               }],
@@ -4065,9 +4339,19 @@ export function createMcpServer(): Server {
                       descripcion: 'Proporciona una razón justificada de al menos 15 caracteres.',
                     },
                     siguiente_accion: {
-                      tipo: 'trabajo',
+                      tipo: 'decision',
                       descripcion: `Especifica una justificación de al menos 15 caracteres para renunciar al módulo '${moduleName}'.`,
                       tool: 'qap_module_close',
+                      pregunta: makeDecisionQuestion(
+                        `motivo_renuncia_${sanitizeDomString(moduleName)}`,
+                        `Especifica la justificación para renunciar al módulo '${moduleName}' (mínimo 15 caracteres):`,
+                        [
+                          { id: 'cancelar', etiqueta: 'No renunciar y continuar con el módulo', recomendada: true },
+                          { id: 'justificar', etiqueta: 'Ingresar motivo en respuesta libre' },
+                        ],
+                        true,
+                        { tool: 'qap_module_close', campo: 'reason' }
+                      ),
                     },
                   }, null, 2),
                 }],
@@ -4124,9 +4408,19 @@ export function createMcpServer(): Server {
             };
           } else {
             sigAccion = {
-              tipo: 'trabajo',
+              tipo: 'decision',
               descripcion: `Módulo '${moduleName}' ${action === 'close' ? 'cerrado' : 'renunciado'}. Todos los módulos del plan han finalizado. Procede a cerrar la sesión con qap_session_close.`,
               tool: 'qap_session_close',
+              pregunta: makeDecisionQuestion(
+                'decision_cierre_sesion_finalizada',
+                `Todos los módulos del plan han finalizado. Selecciona la acción para concluir la sesión o continuar:`,
+                [
+                  { id: 'cerrar_sesion', etiqueta: 'Cerrar sesión de trabajo (qap_session_close)', recomendada: true },
+                  { id: 'continuar_sesion', etiqueta: 'Mantener la sesión abierta para más validaciones' },
+                ],
+                false,
+                { tool: 'qap_session_close', campo: 'confirmar' }
+              ),
             };
           }
 
@@ -4192,9 +4486,18 @@ export function createMcpServer(): Server {
                     descripcion: 'Cierra o renuncia a los módulos pendientes del plan con qap_module_close.',
                   },
                   siguiente_accion: {
-                    tipo: 'trabajo',
+                    tipo: 'decision',
                     descripcion: 'Existen módulos pendientes de cerrar o renunciar antes de concluir la sesión.',
                     tool: 'qap_module_close',
+                    pregunta: makeDecisionQuestion(
+                      'modulos_pendientes_antes_cierre',
+                      'Existen módulos pendientes en el plan. Selecciona cómo proceder:',
+                      [
+                        { id: 'cerrar_modulos', etiqueta: 'Revisar y cerrar módulos pendientes con qap_module_close', recomendada: true },
+                      ],
+                      true,
+                      { tool: 'qap_module_close', campo: 'module' }
+                    ),
                   },
                 }, null, 2),
               }],
