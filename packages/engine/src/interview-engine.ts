@@ -871,14 +871,14 @@ const MAX_DOM_STRING_LENGTH = 60;
  * - Elimina marcado HTML residual y markdown
  * - Trunca a 60 caracteres
  */
-export function sanitizeDomString(raw: string | undefined | null): string {
+export function sanitizeDomString(raw: string | undefined | null, maxLength = MAX_DOM_STRING_LENGTH): string {
   if (!raw) return '';
   return raw
     // eslint-disable-next-line no-control-regex
     .replace(/[\r\n\t\x00-\x1F\x7F]/g, ' ')  // caracteres de control -> espacio
     .replace(/<[^>]*>/g, '')                   // tags HTML residuales
-    .replace(/[*_#`~[\]]/g, '')               // marcado markdown residual
+    .replace(/[*#`~[\]]/g, '')                // marcado markdown residual (se preserva _ para nombres de archivo e identificadores)
     .replace(/\s+/g, ' ')                      // colapsar espacios
     .trim()
-    .slice(0, MAX_DOM_STRING_LENGTH);
+    .slice(0, maxLength);
 }

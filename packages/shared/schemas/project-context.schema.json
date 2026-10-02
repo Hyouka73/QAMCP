@@ -113,6 +113,10 @@
               "prd",
               "inferred"
             ]
+          },
+          "evidence": {
+            "type": "string",
+            "description": "Evidence from document source"
           }
         }
       }

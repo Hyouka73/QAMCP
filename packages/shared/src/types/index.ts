@@ -137,4 +137,19 @@ export type {
   ProjectContext,
 } from './project-context.type.js';
 
+// Project Scan (P4.3 / E1e)
+export type {
+  ProjectScan,
+  ScanDocumento,
+  ScanSubproyecto,
+  ScanServicio,
+} from './scan.type.js';
+
+// Ingest Proposal (P4.3 / E3b)
+export type {
+  IngestProposal,
+  ProposedCriticalFlow,
+} from './ingest-proposal.type.js';
+
+
 

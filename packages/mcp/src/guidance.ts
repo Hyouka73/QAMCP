@@ -18,9 +18,20 @@ import type {
   CanExitOnboardingEnvironments,
   HallazgosProyectoMin,
 } from '@qap/engine';
-import { obtenerSiguientePreguntaOnboarding } from '@qap/engine';
+import { obtenerSiguientePreguntaOnboarding, generarRenderTexto } from '@qap/engine';
 
 export type AccionTipo = 'entrevista' | 'entrevista_vista' | 'decision' | 'trabajo';
+
+/**
+ * Directivas obligatorias compartidas (<= 600 caracteres) para tools del flujo principal (P4.3 / E5c).
+ */
+export const QAP_CORE_DIRECTIVES =
+  'DIRECTIVAS OBLIGATORIAS:\n' +
+  '1. Sigue estrictamente la siguiente_accion indicada por el servidor.\n' +
+  '2. Investiga el workspace antes de preguntar: lee documentos, README y package.json.\n' +
+  '3. No pidas al usuario lo que un documento ya especifica.\n' +
+  '4. Pasos de tipo "trabajo" son autónomos y no requieren preguntar: ejecútalos y sigue la nueva siguiente_accion.\n' +
+  '5. Máximo una sola pregunta estructurada al usuario por turno.';
 
 export interface SiguienteAccion {
   tipo: AccionTipo;
@@ -67,6 +78,9 @@ export function buildInterviewNextAction(params: BuildInterviewActionParams): Si
     : `Entrevista de reglas de negocio para el módulo '${params.module}' (vista: ${view}). Cobertura: ${Object.values(params.coverage.categorias).filter((c) => c.cubierta).length}/${params.applicableCategories.length} categorías.`;
 
   const firstQuestion = params.questions[0] as Pregunta | undefined;
+  if (firstQuestion && !firstQuestion.render_texto) {
+    firstQuestion.render_texto = generarRenderTexto(firstQuestion);
+  }
   const restantes = Math.max(0, params.questions.length - 1);
 
   const accion: SiguienteAccion = {
@@ -121,6 +135,41 @@ export function getPhaseGuidance(
 ): GuidanceResult {
   switch (phase) {
     case 'ONBOARDING': {
+      // E3a: Con fuente declarada e ingerible (existente en workspace) y campos sin propuesta, siguiente_accion es tipo "trabajo"
+      const sot = options.context?.source_of_truth;
+      const isIngestibleDoc = Boolean(
+        sot?.declared &&
+        sot?.ref &&
+        sot?.type !== 'none' &&
+        options.hallazgos?.documentos &&
+        options.hallazgos.documentos.some(
+          (d) => d.path === sot.ref || d.nombre === sot.ref || d.path.endsWith(`/${sot.ref}`)
+        )
+      );
+      const agentAnalyzed = Boolean(
+        sot?.notes?.includes('[agent_analyzed]')
+      );
+      if (isIngestibleDoc && !agentAnalyzed) {
+        const hasObjectiveProposal = Boolean(
+          options.context?.objective &&
+          !/^Configuración base de QA para\s+.*$/i.test(options.context.objective.trim()) &&
+          options.context.objective.trim().length >= 10
+        );
+        const hasRolesProposal = Array.isArray(options.context?.roles) && options.context.roles.length > 0;
+        const hasFlowsProposal = Array.isArray(options.context?.critical_flows) && options.context.critical_flows.length > 0;
+
+        if (!hasObjectiveProposal || !hasRolesProposal || !hasFlowsProposal) {
+          return {
+            fase: 'ONBOARDING',
+            siguiente_accion: {
+              tipo: 'trabajo',
+              descripcion: `Lee el archivo '${sot.ref}' con tus herramientas de lectura y envía en el parámetro propuesta { objetivo, roles[], flujos_criticos[{name, evidence}], rutas[], riesgos[] } solo lo que el documento dice, sin inventar, con evidence (título de sección o <= 15 palabras). Si no puedes leer archivos, llama sin propuesta.`,
+              tool: 'qap_context_ingest',
+            },
+          };
+        }
+      }
+
       const q = obtenerSiguientePreguntaOnboarding(
         options.context,
         options.lifecycle,
@@ -131,6 +180,10 @@ export function getPhaseGuidance(
       if (!q) {
         // Todas las compuertas de onboarding pasaron; avanzar a SCOPING
         return getPhaseGuidance('SCOPING', options);
+      }
+
+      if (!q.render_texto) {
+        q.render_texto = generarRenderTexto(q);
       }
 
       return {
@@ -173,6 +226,7 @@ export function getPhaseGuidance(
         permite_otra: true,
         registrar_con: { tool: 'qap_session_plan', campo: 'plan' },
       };
+      scopingPregunta.render_texto = generarRenderTexto(scopingPregunta);
 
       return {
         fase: 'SCOPING',
@@ -214,6 +268,7 @@ export function getPhaseGuidance(
           permite_otra: true,
           registrar_con: { tool: 'qap_rules_set', campo: 'rules' },
         };
+        interviewPregunta.render_texto = generarRenderTexto(interviewPregunta);
 
         return {
           fase: 'WORKING',
@@ -280,12 +335,13 @@ export function getPhaseGuidance(
           permite_otra: true,
           registrar_con: { tool: 'qap_module_close', campo: 'action' },
         };
+        closePregunta.render_texto = generarRenderTexto(closePregunta);
 
         return {
           fase: 'WORKING',
           siguiente_accion: {
             tipo: 'decision',
-            descripcion: `El módulo '${modName}' ha alcanzado cobertura completa. Presenta el resumen al usuario y llama a qap_module_close con user_confirmed: true para cerrar el módulo.`,
+            descripcion: `El módulo '${modName}' ha alcanzado cobertura completa (consolidated). Se requiere decisión del usuario sobre el cierre formal del módulo.`,
             tool: 'qap_module_close',
             module: modName,
             modulo: modName,
@@ -306,12 +362,13 @@ export function getPhaseGuidance(
         permite_otra: true,
         registrar_con: { tool: 'qap_session_close', campo: 'action' },
       };
+      sessionClosePregunta.render_texto = generarRenderTexto(sessionClosePregunta);
 
       return {
         fase: 'WORKING',
         siguiente_accion: {
           tipo: 'decision',
-          descripcion: 'Todos los módulos planificados en la sesión actual están cerrados o renunciados. Procede a cerrar la sesión con qap_session_close.',
+          descripcion: 'Todos los módulos planificados en la sesión actual están cerrados o renunciados. Se requiere decisión del usuario sobre el cierre de la sesión (qap_session_close).',
           tool: 'qap_session_close',
           pregunta: sessionClosePregunta,
         },
@@ -336,12 +393,13 @@ export function getPhaseGuidance(
         permite_otra: true,
         registrar_con: { tool: 'qap_server', campo: 'action' },
       };
+      wrapUpPregunta.render_texto = generarRenderTexto(wrapUpPregunta);
 
       return {
         fase: 'WRAP_UP',
         siguiente_accion: {
           tipo: 'decision',
-          descripcion: `La sesión actual ha concluido en la fase WRAP_UP.${reportMsg ? ` ${reportMsg}` : ''} Puedes explorar el Knowledge Graph con qap_server o iniciar una nueva sesión de pruebas con qap_session_plan.`,
+          descripcion: `La sesión actual ha concluido en la fase WRAP_UP.${reportMsg ? ` ${reportMsg}` : ''} Se requiere decisión del usuario para explorar el Knowledge Graph (qap_server) o iniciar una nueva sesión (qap_session_plan).`,
           tool: 'qap_server',
           pregunta: wrapUpPregunta,
         },

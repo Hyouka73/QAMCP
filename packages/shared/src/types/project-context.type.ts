@@ -17,6 +17,7 @@ export interface CriticalFlow {
   description?: string;
   priority?: string;
   source?: ContextSource;
+  evidence?: string;
 }
 
 export interface SourceOfTruth {

@@ -118,4 +118,85 @@ describe('E2c: obtenerSiguientePreguntaOnboarding (Criterio 2)', () => {
     expect(q?.opciones).toHaveLength(0);
     expect(validarPregunta(q!).valid).toBe(true);
   });
+
+  it('P4.3: fuente_de_verdad usa efecto.accion en lugar de efecto.estado', () => {
+    const hallazgos = {
+      documentos: [
+        { path: 'PRD_diff.md', nombre: 'PRD_diff.md', es_ingerible: true, tamano_bytes: 1024 },
+      ],
+    };
+    const q = obtenerSiguientePreguntaOnboarding({}, null, hallazgos);
+    expect(q?.id).toBe('onboarding.fuente_de_verdad');
+    const docOpt = q?.opciones.find((o) => o.id === 'PRD_diff.md');
+    expect(docOpt?.efecto?.accion).toBe('declarar_fuente');
+    expect(docOpt?.efecto?.estado).toBeUndefined();
+
+    const noneOpt = q?.opciones.find((o) => o.id === 'none');
+    expect(noneOpt?.efecto?.accion).toBe('sin_documento');
+    expect(noneOpt?.efecto?.estado).toBeUndefined();
+  });
+
+  it('P4.3: cita la extracción preliminar en la pregunta de fuente de verdad si está disponible', () => {
+    const hallazgos = {
+      documentos: [
+        { path: 'PRD_diff.md', nombre: 'PRD_diff.md', es_ingerible: true, tamano_bytes: 1024 },
+      ],
+      preliminar: {
+        docPath: 'PRD_diff.md',
+        objetivo: 'Sistema integral de gestión de calidad',
+      },
+    };
+    const q = obtenerSiguientePreguntaOnboarding({}, null, hallazgos);
+    expect(q?.id).toBe('onboarding.fuente_de_verdad');
+    expect(q?.texto).toContain("Encontré 'PRD_diff.md'");
+    expect(q?.texto).toContain("entendí: objetivo 'Sistema integral de gestión de calidad'");
+  });
+
+  it('P4.3: emite confirmación única cuando objetivo, roles y flujos tienen propuesta', () => {
+    const ctx = {
+      source_of_truth: { type: 'prd' as const, declared: true, ref: 'PRD_diff.md', source: 'user' as const },
+      objective: 'Plataforma para automatización de pruebas',
+      objective_source: 'inferred' as const,
+      roles: [{ name: 'Admin', source: 'inferred' as const }, { name: 'Operador', source: 'inferred' as const }],
+      critical_flows: [{ name: 'Flujo E2E', source: 'inferred' as const }],
+    };
+    const q = obtenerSiguientePreguntaOnboarding(ctx, null, null);
+    expect(q).not.toBeNull();
+    expect(q?.id).toBe('onboarding.confirmar_resumen');
+    expect(q?.formato).toBe('una_opcion');
+    expect(q?.opciones).toHaveLength(2);
+    expect(q?.opciones[0].id).toBe('confirmo_todo');
+    expect(q?.opciones[0].efecto?.accion).toBe('confirmar_resumen');
+    expect(q?.opciones[1].id).toBe('corregir');
+    expect(q?.opciones[1].efecto?.accion).toBe('corregir');
+    expect(q?.opciones[1].efecto?.abre_seguimiento).toBe(true);
+    expect(q?.seguimiento).toBeDefined();
+    expect(q?.seguimiento?.id).toBe('onboarding.campos_a_corregir');
+    expect(validarPregunta(q!).valid).toBe(true);
+  });
+
+  it('P4.3: toda pregunta incluye render_texto no vacío y consistente con las opciones', () => {
+    const hallazgos = {
+      documentos: [
+        { path: 'PRD_diff.md', nombre: 'PRD_diff.md', es_ingerible: true, tamano_bytes: 1024 },
+        { path: 'README.md', nombre: 'README.md', es_ingerible: true, tamano_bytes: 500 },
+      ],
+    };
+    const q = obtenerSiguientePreguntaOnboarding({}, null, hallazgos);
+    expect(q?.render_texto).toBeDefined();
+    expect(typeof q?.render_texto).toBe('string');
+    expect(q?.render_texto).toContain('1. PRD_diff.md');
+    expect(q?.render_texto).toContain('2. README.md');
+    expect(q?.render_texto).toContain('(Responde con el número');
+  });
+
+  it('P4.3: cita documento analizado cuando faltan campos y no se encontraron propuestas', () => {
+    const ctx = {
+      source_of_truth: { type: 'prd' as const, declared: true, ref: 'PRD_diff.md', source: 'user' as const },
+    };
+    const q = obtenerSiguientePreguntaOnboarding(ctx, null, { docAnalizado: 'PRD_diff.md' });
+    expect(q?.id).toBe('onboarding.objetivo');
+    expect(q?.texto).toContain("No encontré objetivo en 'PRD_diff.md'");
+  });
 });
+

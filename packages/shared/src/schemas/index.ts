@@ -52,6 +52,8 @@ import guardrailDefinitionSchema from './guardrail-definition.schema.json' with 
 import lifecycleStateSchema from './lifecycle-state.schema.json' with { type: 'json' };
 import moduleViewSchema from './module-view.schema.json' with { type: 'json' };
 import projectContextSchema from './project-context.schema.json' with { type: 'json' };
+import scanSchema from './scan.schema.json' with { type: 'json' };
+import ingestProposalSchema from './ingest-proposal.schema.json' with { type: 'json' };
 
 export {
   authProfilesSchema,
@@ -76,6 +78,8 @@ export {
   lifecycleStateSchema,
   moduleViewSchema,
   projectContextSchema,
+  scanSchema,
+  ingestProposalSchema,
 };
 
 // Export all schemas as a record for dynamic access
@@ -103,6 +107,8 @@ export const schemas = {
   'lifecycle-state': lifecycleStateSchema,
   'module-view': moduleViewSchema,
   'project-context': projectContextSchema,
+  scan: scanSchema,
+  'ingest-proposal': ingestProposalSchema,
 } as const;
 
 // Type exports for TypeScript consumers

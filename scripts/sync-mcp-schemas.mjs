@@ -50,7 +50,7 @@ const instructionsContent = `# Instrucciones de QAP (qap-mcp) para el Asistente
    - Tras cada respuesta, registrala con la tool de pregunta.registrar_con y sigue la nueva siguiente_accion. Si el usuario eligio una opcion usa su efecto; si escribio texto libre, registralo con source user y con sus palabras. Nunca registres como source user algo que el usuario no dijo ni eligio.
 
 5. **Flujo Paso a Paso Guiado**:
-   - Ejecuta un solo paso por turno y espera la selección del usuario antes de invocar la siguiente tool de QAP.
+   - Una sola pregunta al usuario por turno; los pasos de tipo trabajo no requieren preguntar: ejecútalos y sigue la nueva siguiente_accion. Antes de preguntar algo que pueda estar en el workspace, léelo (documentos, README, package.json).
 
 6. **REGLAS DE NEGOCIO CONFIRMADAS**:
    - NUNCA llames qap_rules_set con datos no confirmados por el usuario.

@@ -2,12 +2,15 @@ import { sanitizeDomString } from './interview-engine.js';
 
 export type FormatoPregunta = 'una_opcion' | 'multiple' | 'abierta';
 
+export type AccionOpcion = 'declarar_fuente' | 'sin_documento' | 'confirmar_resumen' | 'corregir';
+
 export interface Opcion {
   id: string;
   etiqueta: string;
   recomendada?: boolean;
   efecto?: {
     estado?: 'confirmed' | 'rejected' | 'deferred';
+    accion?: AccionOpcion;
     abre_seguimiento?: boolean;
   };
 }
@@ -20,6 +23,7 @@ export interface RegistrarCon {
 export interface Pregunta {
   id: string;
   texto: string;
+  render_texto?: string;
   formato: FormatoPregunta;
   opciones: Opcion[];
   permite_otra: boolean;
@@ -89,6 +93,20 @@ export function validarPregunta(pregunta: unknown): ValidacionPreguntaResult {
         if (typeof op.etiqueta !== 'string' || !op.etiqueta.trim()) {
           errors.push(`La opción en el índice ${i} carece de una 'etiqueta' no vacía.`);
         }
+        if (op.efecto && typeof op.efecto === 'object') {
+          if (op.efecto.estado !== undefined) {
+            const estadosValidos = ['confirmed', 'rejected', 'deferred'];
+            if (!estadosValidos.includes(op.efecto.estado)) {
+              errors.push(`El estado de efecto '${op.efecto.estado}' en la opción '${op.id}' no es válido.`);
+            }
+          }
+          if (op.efecto.accion !== undefined) {
+            const accionesValidas: AccionOpcion[] = ['declarar_fuente', 'sin_documento', 'confirmar_resumen', 'corregir'];
+            if (!accionesValidas.includes(op.efecto.accion)) {
+              errors.push(`La acción de efecto '${op.efecto.accion}' en la opción '${op.id}' no es válida.`);
+            }
+          }
+        }
       }
     } else if (p.formato === 'abierta') {
       if (p.opciones.length !== 0) {
@@ -151,7 +169,14 @@ export function validarPregunta(pregunta: unknown): ValidacionPreguntaResult {
     }
   }
 
-  // 7. Seguimiento recursivo si existe
+  // 7. render_texto si está presente
+  if (p.render_texto !== undefined) {
+    if (typeof p.render_texto !== 'string' || !p.render_texto.trim()) {
+      errors.push("El campo 'render_texto' debe ser una cadena no vacía.");
+    }
+  }
+
+  // 8. Seguimiento recursivo si existe
   if (p.seguimiento !== undefined && p.seguimiento !== null) {
     const resSeg = validarPregunta(p.seguimiento);
     if (!resSeg.valid) {
@@ -163,6 +188,44 @@ export function validarPregunta(pregunta: unknown): ValidacionPreguntaResult {
     valid: errors.length === 0,
     errors,
   };
+}
+
+/**
+ * Genera una representación plana y numerada de la pregunta con indicador
+ * de respuesta libre o de opciones, lista para clientes sin ask_question.
+ */
+export function generarRenderTexto(p: {
+  texto: string;
+  formato: FormatoPregunta;
+  opciones?: Opcion[];
+  permite_otra?: boolean;
+}): string {
+  const cleanTexto = (p.texto || '').trim();
+  const lineas: string[] = [cleanTexto];
+
+  if (p.formato === 'abierta') {
+    lineas.push('');
+    lineas.push('(Escribe tu respuesta libremente)');
+    return lineas.join('\n');
+  }
+
+  const ops = p.opciones ?? [];
+  if (ops.length > 0) {
+    lineas.push('');
+    ops.forEach((op, idx) => {
+      const rec = op.recomendada ? ' [Recomendada]' : '';
+      lineas.push(`${idx + 1}. ${op.etiqueta}${rec}`);
+    });
+  }
+
+  lineas.push('');
+  if (p.permite_otra) {
+    lineas.push('(Responde con el número de tu opción o escribe una respuesta libre)');
+  } else {
+    lineas.push('(Responde con el número de tu opción elegida)');
+  }
+
+  return lineas.join('\n');
 }
 
 /**

@@ -6,10 +6,9 @@ import {
   readFileSync,
   readdirSync,
   rmSync,
-  realpathSync,
   statSync,
 } from 'node:fs';
-import { resolve, join, basename, relative, isAbsolute, extname } from 'node:path';
+import { resolve, join, basename, extname } from 'node:path';
 import { randomUUID } from 'node:crypto';
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
@@ -23,8 +22,23 @@ import {
   type Prompt,
 } from '@modelcontextprotocol/sdk/types.js';
 import YAML from 'yaml';
-import { SchemaValidator, type AuthProfile, type ModuleSpec, type ProjectPhase, type ModuleLifecycleState } from '@qap/shared';
-import { FileSystemStorage, validateDefinitions, parsePrdContent, detectarDocumentosProyecto } from '@qap/knowledge';
+import {
+  SchemaValidator,
+  type AuthProfile,
+  type ModuleSpec,
+  type ProjectPhase,
+  type ModuleLifecycleState,
+  type IngestProposal,
+} from '@qap/shared';
+import {
+  FileSystemStorage,
+  validateDefinitions,
+  parsePrdContent,
+  detectarDocumentosProyecto,
+  generarScan,
+  resolverDocumento,
+  detectarServiciosConEvidencia,
+} from '@qap/knowledge';
 import {
   canExitOnboarding,
   canExitScoping,
@@ -40,6 +54,7 @@ import {
   computeCoverage,
   generateNextInterviewBatch,
   obtenerSiguientePreguntaOnboarding,
+  sanitizeDomString,
   type ViewDiscoveryContext,
   type DomField,
   type DomForm,
@@ -57,7 +72,7 @@ import {
   type ViewerServerInstance,
 } from '@qap/reporter';
 
-import { getPhaseGuidance, buildInterviewNextAction, type SiguienteAccion } from './guidance.js';
+import { getPhaseGuidance, buildInterviewNextAction, type SiguienteAccion, QAP_CORE_DIRECTIVES } from './guidance.js';
 
 let activeViewerServer: ViewerServerInstance | null = null;
 
@@ -170,7 +185,7 @@ function buildModuleSummary(rules: any[], waivers: any[]) {
 const TOOLS: Tool[] = [
   {
     name: 'qap_status',
-    description: 'PUNTO DE ENTRADA OBLIGATORIO: Invoca esta herramienta INMEDIATAMENTE cuando el usuario quiera probar su app, testear un proyecto o empezar con QAP. Analiza el repo y te devuelve exactamente la pregunta y opciones que debes presentar con ask_question, sin muros de texto ni pasos futuros.',
+    description: `PUNTO DE ENTRADA OBLIGATORIO: Invoca esta herramienta INMEDIATAMENTE cuando el usuario quiera probar su app, testear un proyecto o empezar con QAP. Analiza el repo y te devuelve exactamente la pregunta y opciones que debes presentar con ask_question, sin muros de texto ni pasos futuros.\n\n${QAP_CORE_DIRECTIVES}`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -180,7 +195,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'qap_init',
-    description: `Inicializa la arquitectura canónica .qa/ y configuraciones base en el proyecto actual. ${UX_DIRECTIVE}`,
+    description: `Inicializa la arquitectura canónica .qa/ y configuraciones base en el proyecto actual. ${UX_DIRECTIVE}\n\n${QAP_CORE_DIRECTIVES}`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -268,7 +283,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'qap_context_set',
-    description: `Actualiza parcial e incrementalmente el contexto de negocio en .qa/project/context.yaml. Evalúa la compuerta de ONBOARDING. ${UX_DIRECTIVE}`,
+    description: `Actualiza parcial e incrementalmente el contexto de negocio en .qa/project/context.yaml. Evalúa la compuerta de ONBOARDING. ${UX_DIRECTIVE}\n\n${QAP_CORE_DIRECTIVES}`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -305,16 +320,7 @@ const TOOLS: Tool[] = [
           description: 'Flujos o procesos clave de negocio',
         },
         source_of_truth: {
-          type: 'object',
-          properties: {
-            type: { type: 'string', enum: ['prd', 'readme', 'notes', 'none'] },
-            ref: { type: 'string', description: 'Ruta o referencia documental' },
-            declared: { type: 'boolean', description: 'Declaración explícita de fuente de verdad' },
-            notes: { type: 'string', description: 'Notas informales de requerimientos' },
-            source: { type: 'string', enum: ['user', 'prd', 'inferred'] },
-          },
-          required: ['type', 'declared'],
-          description: 'Declaración de la fuente de verdad del proyecto',
+          description: 'Declaración o referencia de la fuente de verdad del proyecto (objeto o string con la ruta)',
         },
         source: {
           type: 'string',
@@ -322,12 +328,21 @@ const TOOLS: Tool[] = [
           description: 'Procedencia por defecto de los campos actualizados (por defecto: user)',
           default: 'user',
         },
+        confirmar_resumen: {
+          type: 'string',
+          description: 'Confirmación del resumen o acción de corrección (ej. "confirmo_todo", "corregir")',
+        },
+        corregir: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Lista de campos a corregir',
+        },
       },
     },
   },
   {
     name: 'qap_context_ingest',
-    description: `Ingesta y procesa un documento de requerimientos (PRD, README, spec) para extraer propuestas de contexto y plan sugerido. ${UX_DIRECTIVE}`,
+    description: `Ingesta y procesa un documento de requerimientos (PRD, README, spec) para extraer propuestas de contexto y plan sugerido. ${UX_DIRECTIVE}\n\n${QAP_CORE_DIRECTIVES}`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -339,6 +354,29 @@ const TOOLS: Tool[] = [
         docContent: {
           type: 'string',
           description: 'Contenido en texto plano o markdown del documento de especificación',
+        },
+        propuesta: {
+          type: 'object',
+          description: 'Propuesta estructurada extraída por el agente con herramientas de lectura',
+          properties: {
+            objetivo: { type: 'string' },
+            roles: { type: 'array', items: { type: 'string' } },
+            flujos_criticos: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  name: { type: 'string' },
+                  evidence: { type: 'string' },
+                },
+                required: ['name'],
+                additionalProperties: false,
+              },
+            },
+            rutas: { type: 'array', items: { type: 'string' } },
+            riesgos: { type: 'array', items: { type: 'string' } },
+          },
+          additionalProperties: false,
         },
       },
     },
@@ -655,7 +693,7 @@ export function createMcpServer(): Server {
 2. PROHIBIDO mostrar tablas markdown de estado, resúmenes de archivos o listas de próximos pasos (1, 2, 3...).
 3. Cuando siguiente_accion trae pregunta, presentala con la herramienta ask_question: UNA sola pregunta por llamada, usando texto, formato y opciones tal cual (no inventes, reordenes ni agregues opciones). Deja siempre disponible la respuesta libre. Si formato es abierta, haz esa unica pregunta en texto y espera. Nunca agrupes varias preguntas en un mensaje ni preguntes algo que siguiente_accion no pidio. Si ask_question no existe en tu cliente, haz la misma pregunta en texto con las opciones numeradas, una a la vez.
 4. Tras cada respuesta, registrala con la tool de pregunta.registrar_con y sigue la nueva siguiente_accion. Si el usuario eligio una opcion usa su efecto; si escribio texto libre, registralo con source user y con sus palabras. Nunca registres como source user algo que el usuario no dijo ni eligio.
-5. Ejecuta un solo paso por turno y espera la selección del usuario antes de invocar la siguiente tool de QAP.
+5. Una sola pregunta al usuario por turno; los pasos de tipo trabajo no requieren preguntar: ejecútalos y sigue la nueva siguiente_accion. Antes de preguntar algo que pueda estar en el workspace, léelo (documentos, README, package.json).
 6. NUNCA llames qap_rules_set con datos no confirmados por el usuario.
 7. Si una tool responde con status "blocked", sigue obligatoriamente 'desbloquear_con' y no intentes rodear el bloqueo.
 8. Para hipótesis DOM (source "dom", status "inferred"): CONFIRMA cada una con el usuario antes de marcarla como "confirmed". Presenta las hipótesis al usuario y pregunta cuáles son correctas.
@@ -781,26 +819,30 @@ export function createMcpServer(): Server {
 
           const validator = new SchemaValidator();
 
-          // Detección automática de servicios y URLs en el repo
-          let detectedUrl = 'http://localhost:3000';
-          let detectedLabel = 'puerto local';
-          const candidates = [
-            { path: 'vite.config.ts', url: 'http://localhost:5173', label: 'Frontend Vite' },
-            { path: 'vite.config.js', url: 'http://localhost:5173', label: 'Frontend Vite' },
-            { path: 'front/vite.config.ts', url: 'http://localhost:5173', label: 'Frontend Vite (front/)' },
-            { path: 'front/vite.config.js', url: 'http://localhost:5173', label: 'Frontend Vite (front/)' },
-            { path: 'next.config.js', url: 'http://localhost:3000', label: 'Next.js' },
-            { path: 'next.config.mjs', url: 'http://localhost:3000', label: 'Next.js' },
-          ];
-          for (const cand of candidates) {
-            if (existsSync(join(rootDir, cand.path))) {
-              detectedUrl = cand.url;
-              detectedLabel = cand.label;
-              break;
-            }
-          }
+          // Detección automática de servicios y URLs en el repo con evidencia (E1c / E0c)
+          const serviciosConEvidencia = detectarServiciosConEvidencia(rootDir);
+          const detectedService = serviciosConEvidencia.length > 0
+            ? { url: serviciosConEvidencia[0].url, label: serviciosConEvidencia[0].label, evidencia: serviciosConEvidencia[0].evidencia }
+            : undefined;
 
+          const scan = generarScan(rootDir);
           const hallazgos = detectarDocumentosProyecto(rootDir);
+          if (scan.documentos.length > 0) {
+            const topDoc = scan.documentos[0];
+            try {
+              const fullDocPath = resolve(rootDir, topDoc.path);
+              if (existsSync(fullDocPath)) {
+                const docRaw = readFileSync(fullDocPath, 'utf-8');
+                const parsed = parsePrdContent(docRaw, topDoc.path);
+                if (parsed.objective) {
+                  hallazgos.preliminar = {
+                    docPath: topDoc.path,
+                    objetivo: sanitizeDomString(parsed.objective).slice(0, 150).trim(),
+                  };
+                }
+              }
+            } catch { /* ignore */ }
+          }
 
           if (!initialized) {
             const preg = obtenerSiguientePreguntaOnboarding(null, null, hallazgos, null);
@@ -821,7 +863,8 @@ export function createMcpServer(): Server {
                         executions: 0,
                       },
                       validatorReady: Boolean(validator),
-                      detectedService: { url: detectedUrl, label: detectedLabel },
+                      detectedService,
+                      scan,
                       hallazgos_workspace: hallazgos,
                       siguiente_accion: {
                         tipo: 'entrevista',
@@ -949,6 +992,13 @@ export function createMcpServer(): Server {
           const stateModuleCount = Object.keys(lifecycleState.modules || {}).length;
           const totalModules = Math.max(moduleCount, stateModuleCount);
 
+          if (currentPhase === 'ONBOARDING') {
+            const scanPath = join(qaDir, 'project', 'scan.json');
+            try {
+              writeFileSync(scanPath, JSON.stringify(scan, null, 2), 'utf-8');
+            } catch { /* ignore */ }
+          }
+
           return {
             content: [
               {
@@ -962,6 +1012,7 @@ export function createMcpServer(): Server {
                     estados_modulos: estadosModulos,
                     faltantes,
                     siguiente_accion: guidance.siguiente_accion,
+                    scan,
                     hallazgos_workspace: hallazgos,
                     projectName: projectName !== 'No inicializado' ? projectName : basename(rootDir),
                     environments,
@@ -971,7 +1022,7 @@ export function createMcpServer(): Server {
                       executions: executionCount,
                     },
                     validatorReady: Boolean(validator),
-                    detectedService: { url: detectedUrl, label: detectedLabel },
+                    detectedService,
                     _guidance_for_assistant: `Fase actual: ${currentPhase}. Siguiente acción: ${guidance.siguiente_accion.descripcion}`,
                   },
                   null,
@@ -1075,7 +1126,35 @@ export function createMcpServer(): Server {
           }
 
           const gate = canExitOnboarding(ctxObj, envObj);
+          const scan = generarScan(rootDir);
+          const scanPath = join(qaDir, 'project', 'scan.json');
+          try {
+            writeFileSync(scanPath, JSON.stringify(scan, null, 2), 'utf-8');
+          } catch { /* ignore */ }
+
           const hallazgos = detectarDocumentosProyecto(rootDir);
+          if (scan.documentos.length > 0) {
+            const topDoc = scan.documentos[0];
+            try {
+              const fullDocPath = resolve(rootDir, topDoc.path);
+              if (existsSync(fullDocPath)) {
+                const docRaw = readFileSync(fullDocPath, 'utf-8');
+                const parsed = parsePrdContent(docRaw, topDoc.path);
+                if (parsed.objective) {
+                  hallazgos.preliminar = {
+                    docPath: topDoc.path,
+                    objetivo: sanitizeDomString(parsed.objective).slice(0, 150).trim(),
+                  };
+                }
+              }
+            } catch { /* ignore */ }
+          }
+
+          const serviciosConEvidencia = detectarServiciosConEvidencia(rootDir);
+          const detectedService = serviciosConEvidencia.length > 0
+            ? { url: serviciosConEvidencia[0].url, label: serviciosConEvidencia[0].label, evidencia: serviciosConEvidencia[0].evidencia }
+            : undefined;
+
           const guidance = getPhaseGuidance('ONBOARDING', {
             faltantes: gate.faltantes,
             hallazgos,
@@ -1098,6 +1177,8 @@ export function createMcpServer(): Server {
                     directories: allowedDirs.map((p) => p.replace(rootDir, '')),
                     ya_existia: yaExistia,
                     hallazgos_workspace: hallazgos,
+                    scan,
+                    detectedService,
                     lifecycle: {
                       phase: finalPhase,
                     },
@@ -1330,6 +1411,27 @@ export function createMcpServer(): Server {
 
           const ignoredDowngrades: Array<{ field: string; reason: string }> = [];
 
+          // Confirmación única (E4a): Promoción de campos inferred a user cuando se confirma resumen
+          if (args.confirmar_resumen === 'confirmo_todo' || args.accion === 'confirmar_resumen') {
+            if (existingContext.objective) {
+              existingContext.objective_source = 'user';
+            }
+            if (Array.isArray(existingContext.roles)) {
+              for (const r of existingContext.roles) {
+                r.source = 'user';
+              }
+            }
+            if (Array.isArray(existingContext.critical_flows)) {
+              for (const f of existingContext.critical_flows) {
+                f.source = 'user';
+              }
+            }
+            if (existingContext.source_of_truth) {
+              existingContext.source_of_truth.source = 'user';
+              existingContext.source_of_truth.declared = true;
+            }
+          }
+
           // 1. Objetivo
           if (args.objective !== undefined) {
             const newObj = String(args.objective);
@@ -1421,12 +1523,102 @@ export function createMcpServer(): Server {
             }
           }
 
-          // 4. Fuente de verdad
-          if (args.source_of_truth && typeof args.source_of_truth === 'object') {
+          // 4. Fuente de verdad (E1b resolución y E2a auto-ingesta determinista)
+          let sotRef: string | undefined;
+          let sotType = 'prd';
+          let sotDeclared = true;
+          let sotNotes: string | undefined;
+          let sotSource = callerSource || 'user';
+
+          if (typeof args.source_of_truth === 'string') {
+            sotRef = args.source_of_truth.trim();
+          } else if (args.source_of_truth && typeof args.source_of_truth === 'object') {
             const sot = args.source_of_truth as Record<string, any>;
-            const sotSource = (sot.source && sot.source !== 'inferred' && ['user', 'prd'].includes(sot.source))
+            sotRef = sot.ref !== undefined ? String(sot.ref).trim() : undefined;
+            sotType = sot.type || (sotRef ? 'prd' : 'none');
+            sotDeclared = sot.declared !== undefined ? Boolean(sot.declared) : true;
+            sotNotes = sot.notes !== undefined ? String(sot.notes) : undefined;
+            sotSource = (sot.source && sot.source !== 'inferred' && ['user', 'prd'].includes(sot.source))
               ? sot.source
               : (callerSource ?? (sot.source === 'inferred' ? 'inferred' : defaultSource));
+          }
+
+          if (sotRef) {
+            const resolved = resolverDocumento(rootDir, sotRef);
+            if (resolved) {
+              if (existingContext.source_of_truth?.source === 'user' && sotSource !== 'user') {
+                ignoredDowngrades.push({
+                  field: 'source_of_truth',
+                  reason: 'No se puede sobrescribir una fuente de verdad con source "user" por una con source "prd" o "inferred"',
+                });
+              } else {
+                existingContext.source_of_truth = {
+                  type: 'prd',
+                  ref: resolved.path,
+                  declared: true,
+                  notes: sotNotes || existingContext.source_of_truth?.notes,
+                  source: sotSource,
+                };
+              }
+
+              // Auto-ingesta determinista (E2a)
+              try {
+                const docAbsPath = resolve(rootDir, resolved.path);
+                const rawContent = readFileSync(docAbsPath, 'utf-8');
+                const parsed = parsePrdContent(rawContent, resolved.path);
+                if (parsed.objective && existingContext.objective_source !== 'user') {
+                  existingContext.objective = sanitizeDomString(parsed.objective).slice(0, 500).trim();
+                  existingContext.objective_source = 'inferred';
+                }
+                if (parsed.users && parsed.users.length > 0) {
+                  existingContext.roles = existingContext.roles || [];
+                  for (const u of parsed.users) {
+                    const cleanName = sanitizeDomString(u).slice(0, 50).trim();
+                    if (!cleanName) continue;
+                    const exIdx = existingContext.roles.findIndex((er: any) => er.name === cleanName);
+                    if (exIdx >= 0) {
+                      if (existingContext.roles[exIdx].source !== 'user') {
+                        existingContext.roles[exIdx].source = 'inferred';
+                      }
+                    } else {
+                      existingContext.roles.push({ name: cleanName, source: 'inferred' });
+                    }
+                  }
+                }
+                if (parsed.routes && parsed.routes.length > 0) {
+                  existingContext.critical_flows = existingContext.critical_flows || [];
+                  for (const r of parsed.routes) {
+                    const cleanName = sanitizeDomString(r).slice(0, 100).trim();
+                    if (!cleanName) continue;
+                    const exIdx = existingContext.critical_flows.findIndex((ef: any) => ef.name === cleanName);
+                    if (exIdx >= 0) {
+                      if (existingContext.critical_flows[exIdx].source !== 'user') {
+                        existingContext.critical_flows[exIdx].source = 'inferred';
+                      }
+                    } else {
+                      existingContext.critical_flows.push({ name: cleanName, priority: 'medium', source: 'inferred' });
+                    }
+                  }
+                }
+              } catch { /* ignore parse error */ }
+            } else {
+              // No resolvió a archivo físico
+              if (existingContext.source_of_truth?.source === 'user' && sotSource !== 'user') {
+                ignoredDowngrades.push({
+                  field: 'source_of_truth',
+                  reason: 'No se puede sobrescribir una fuente de verdad con source "user" por una con source "prd" o "inferred"',
+                });
+              } else {
+                existingContext.source_of_truth = {
+                  type: sotType as any,
+                  ref: sotRef,
+                  declared: sotDeclared,
+                  notes: sotNotes || existingContext.source_of_truth?.notes,
+                  source: sotSource,
+                };
+              }
+            }
+          } else if (args.source_of_truth) {
             if (existingContext.source_of_truth?.source === 'user' && sotSource !== 'user') {
               ignoredDowngrades.push({
                 field: 'source_of_truth',
@@ -1434,10 +1626,10 @@ export function createMcpServer(): Server {
               });
             } else {
               existingContext.source_of_truth = {
-                type: sot.type,
-                declared: Boolean(sot.declared),
-                ref: sot.ref !== undefined ? String(sot.ref) : existingContext.source_of_truth?.ref,
-                notes: sot.notes !== undefined ? String(sot.notes) : existingContext.source_of_truth?.notes,
+                type: sotType as any,
+                ref: undefined,
+                declared: sotDeclared,
+                notes: sotNotes || existingContext.source_of_truth?.notes,
                 source: sotSource,
               };
             }
@@ -1554,10 +1746,56 @@ export function createMcpServer(): Server {
             };
           }
 
-          const inputDocPath = args.docPath || args.path;
+          const contextPath = join(qaDir, 'project', 'context.yaml');
+          let currentContext: Record<string, any> = {
+            _version: '1',
+            project_name: basename(rootDir),
+            description: `Configuración base de QA para ${basename(rootDir)}`,
+            tech_stack: [],
+            base_url: 'http://localhost:3000',
+            manually_edited: false,
+          };
+          if (existsSync(contextPath)) {
+            try {
+              currentContext = YAML.parse(readFileSync(contextPath, 'utf-8')) || currentContext;
+            } catch { /* use default */ }
+          }
+
+          const validator = new SchemaValidator();
+          if (args.propuesta !== undefined) {
+            const pVal = validator.validateIngestProposal(args.propuesta);
+            if (!pVal.valid) {
+              return {
+                isError: true,
+                content: [
+                  {
+                    type: 'text',
+                    text: JSON.stringify(
+                      {
+                        status: 'error',
+                        isError: true,
+                        directorio_objetivo: rootDir,
+                        error: 'Error de validación contra ingest-proposal.schema.json',
+                        detalles: pVal.errors,
+                      },
+                      null,
+                      2
+                    ),
+                  },
+                ],
+              };
+            }
+          }
+
+          let inputDocPath = args.docPath || args.path;
+          if (!inputDocPath && !args.docContent && currentContext.source_of_truth?.ref) {
+            inputDocPath = currentContext.source_of_truth.ref;
+          }
           const hasDocPath = Boolean(inputDocPath);
           const hasDocContent = Boolean(args.docContent);
-          if ((hasDocPath && hasDocContent) || (!hasDocPath && !hasDocContent)) {
+          const hasPropuesta = Boolean(args.propuesta);
+
+          if (!hasDocPath && !hasDocContent && !hasPropuesta) {
             return {
               isError: true,
               content: [
@@ -1568,7 +1806,7 @@ export function createMcpServer(): Server {
                       status: 'error',
                       isError: true,
                       directorio_objetivo: rootDir,
-                      error: 'Debe proporcionarse exactamente uno de docPath (o path) o docContent.',
+                      error: 'Debe proporcionarse al menos docPath, docContent o propuesta, o contar con una fuente de verdad declarada.',
                     },
                     null,
                     2
@@ -1579,7 +1817,7 @@ export function createMcpServer(): Server {
           }
 
           let rawContent = '';
-          let docRef = '';
+          let docRef = currentContext.source_of_truth?.ref || '';
 
           if (hasDocPath) {
             const rawPath = String(inputDocPath);
@@ -1605,9 +1843,8 @@ export function createMcpServer(): Server {
               };
             }
 
-            const realWorkspace = realpathSync(rootDir);
-            const resolvedPath = resolve(rootDir, rawPath);
-            if (!existsSync(resolvedPath)) {
+            const resolved = resolverDocumento(rootDir, rawPath);
+            if (!resolved) {
               return {
                 isError: true,
                 content: [
@@ -1618,7 +1855,7 @@ export function createMcpServer(): Server {
                         status: 'error',
                         isError: true,
                         directorio_objetivo: rootDir,
-                        error: `Archivo no encontrado: ${rawPath}`,
+                        error: `Archivo no encontrado o fuera del workspace: ${rawPath}`,
                       },
                       null,
                       2
@@ -1628,30 +1865,8 @@ export function createMcpServer(): Server {
               };
             }
 
-            const realDocPath = realpathSync(resolvedPath);
-            const rel = relative(realWorkspace, realDocPath);
-            if (rel.startsWith('..') || isAbsolute(rel)) {
-              return {
-                isError: true,
-                content: [
-                  {
-                    type: 'text',
-                    text: JSON.stringify(
-                      {
-                        status: 'error',
-                        isError: true,
-                        directorio_objetivo: rootDir,
-                        error: 'Acceso denegado: el archivo resuelve fuera del workspace objetivo.',
-                      },
-                      null,
-                      2
-                    ),
-                  },
-                ],
-              };
-            }
-
-            const stats = statSync(realDocPath);
+            const docAbsPath = resolve(rootDir, resolved.path);
+            const stats = statSync(docAbsPath);
             if (stats.size > 512 * 1024) {
               return {
                 isError: true,
@@ -1673,9 +1888,9 @@ export function createMcpServer(): Server {
               };
             }
 
-            rawContent = readFileSync(realDocPath, 'utf-8');
-            docRef = rawPath;
-          } else {
+            rawContent = readFileSync(docAbsPath, 'utf-8');
+            docRef = resolved.path;
+          } else if (hasDocContent) {
             rawContent = String(args.docContent);
             if (Buffer.byteLength(rawContent, 'utf-8') > 512 * 1024) {
               return {
@@ -1700,13 +1915,44 @@ export function createMcpServer(): Server {
             docRef = 'inline_docContent';
           }
 
-          // Parsear con parsePrdContent (dato no confiable)
-          const parsed = parsePrdContent(rawContent, docRef);
+          let extractedObjective = '';
+          let extractedUsers: string[] = [];
+          let extractedNotes = '';
+          let extractedRoutes: string[] = [];
 
-          const extractedObjective = (parsed.objective || '').slice(0, 500).trim();
-          const extractedUsers = (parsed.users || []).map((u) => u.slice(0, 50).trim()).filter(Boolean);
-          const extractedNotes = (parsed.notes || '').slice(0, 500).trim();
-          const extractedRoutes = (parsed.routes || []).map((r) => r.slice(0, 100).trim()).filter(Boolean);
+          if (rawContent) {
+            const parsed = parsePrdContent(rawContent, docRef);
+            extractedObjective = (parsed.objective || '').slice(0, 500).trim();
+            extractedUsers = (parsed.users || []).map((u) => u.slice(0, 50).trim()).filter(Boolean);
+            extractedNotes = (parsed.notes || '').slice(0, 500).trim();
+            extractedRoutes = (parsed.routes || []).map((r) => r.slice(0, 100).trim()).filter(Boolean);
+          }
+
+          // Propuesta estructurada del agente (E3b): prevalece sobre la heurística solo en campos no vacíos
+          const propuesta = args.propuesta as IngestProposal | undefined;
+          if (propuesta && typeof propuesta === 'object') {
+            if (typeof propuesta.objetivo === 'string' && propuesta.objetivo.trim().length > 0) {
+              extractedObjective = sanitizeDomString(propuesta.objetivo).slice(0, 500).trim();
+            }
+            if (Array.isArray(propuesta.roles) && propuesta.roles.length > 0) {
+              const cleanRoles = propuesta.roles
+                .slice(0, 20)
+                .map((r) => sanitizeDomString(String(r || '')).slice(0, 50).trim())
+                .filter(Boolean);
+              if (cleanRoles.length > 0) {
+                extractedUsers = cleanRoles;
+              }
+            }
+            if (Array.isArray(propuesta.rutas) && propuesta.rutas.length > 0) {
+              const cleanRoutes = propuesta.rutas
+                .slice(0, 20)
+                .map((r) => sanitizeDomString(String(r || '')).slice(0, 100).trim())
+                .filter(Boolean);
+              if (cleanRoutes.length > 0) {
+                extractedRoutes = cleanRoutes;
+              }
+            }
+          }
 
           const suggestedModules = extractedRoutes.map((r) => {
             const cleanName = r.replace(/^\//, '').replace(/\//g, '-').replace(/[^a-zA-Z0-9_-]/g, '') || 'modulo';
@@ -1717,22 +1963,7 @@ export function createMcpServer(): Server {
             };
           });
 
-          // Persistir en context.yaml con source "inferred" sin sobrescribir "user"
-          const contextPath = join(qaDir, 'project', 'context.yaml');
-          let currentContext: Record<string, any> = {
-            _version: '1',
-            project_name: basename(rootDir),
-            description: `Configuración base de QA para ${basename(rootDir)}`,
-            tech_stack: [],
-            base_url: 'http://localhost:3000',
-            manually_edited: false,
-          };
-          if (existsSync(contextPath)) {
-            try {
-              currentContext = YAML.parse(readFileSync(contextPath, 'utf-8')) || currentContext;
-            } catch { /* use default */ }
-          }
-
+          // Persistir en context.yaml con source "inferred" sin sobrescribir "user" (E0b & E2c)
           if (extractedObjective && currentContext.objective_source !== 'user') {
             currentContext.objective = extractedObjective;
             currentContext.objective_source = 'inferred';
@@ -1752,14 +1983,54 @@ export function createMcpServer(): Server {
             }
           }
 
-          if (currentContext.source_of_truth?.source !== 'user') {
-            currentContext.source_of_truth = {
-              type: 'prd',
-              ref: docRef,
-              declared: false,
-              notes: extractedNotes || undefined,
-              source: 'inferred',
-            };
+          // Flujos críticos propuestos por el agente con evidence
+          if (propuesta && Array.isArray(propuesta.flujos_criticos) && propuesta.flujos_criticos.length > 0) {
+            currentContext.critical_flows = currentContext.critical_flows || [];
+            for (const pf of propuesta.flujos_criticos.slice(0, 20)) {
+              if (!pf || !pf.name) continue;
+              const fName = sanitizeDomString(String(pf.name)).slice(0, 100).trim();
+              if (!fName) continue;
+              const fEvidence = pf.evidence ? sanitizeDomString(String(pf.evidence)).slice(0, 150).trim() : undefined;
+              const existingIdx = currentContext.critical_flows.findIndex((ef: any) => ef.name === fName);
+              if (existingIdx >= 0) {
+                if (currentContext.critical_flows[existingIdx].source !== 'user') {
+                  currentContext.critical_flows[existingIdx].source = 'inferred';
+                  if (fEvidence) currentContext.critical_flows[existingIdx].evidence = fEvidence;
+                }
+              } else {
+                currentContext.critical_flows.push({
+                  name: fName,
+                  source: 'inferred',
+                  priority: 'medium',
+                  ...(fEvidence ? { evidence: fEvidence } : {}),
+                });
+              }
+            }
+          } else if (extractedRoutes.length > 0 && (!currentContext.critical_flows || currentContext.critical_flows.length === 0)) {
+            currentContext.critical_flows = currentContext.critical_flows || [];
+            for (const r of extractedRoutes) {
+              const fName = sanitizeDomString(r).slice(0, 100).trim();
+              if (!fName) continue;
+              const existingIdx = currentContext.critical_flows.findIndex((ef: any) => ef.name === fName);
+              if (existingIdx < 0) {
+                currentContext.critical_flows.push({ name: fName, source: 'inferred', priority: 'medium' });
+              }
+            }
+          }
+
+          // Actualizar source_of_truth sin degradar source "user"
+          currentContext.source_of_truth = currentContext.source_of_truth || {};
+          if (currentContext.source_of_truth.source !== 'user') {
+            currentContext.source_of_truth.type = currentContext.source_of_truth.type || 'prd';
+            currentContext.source_of_truth.ref = docRef || currentContext.source_of_truth.ref;
+            currentContext.source_of_truth.declared = currentContext.source_of_truth.declared ?? false;
+            currentContext.source_of_truth.notes = extractedNotes || currentContext.source_of_truth.notes;
+            currentContext.source_of_truth.source = 'inferred';
+          }
+          // Marcar análisis del agente como realizado en notes (E3) sin violar schema additionalProperties: false
+          const existingNotes = currentContext.source_of_truth.notes || '';
+          if (!existingNotes.includes('[agent_analyzed]')) {
+            currentContext.source_of_truth.notes = (existingNotes ? existingNotes + ' ' : '') + '[agent_analyzed]';
           }
 
           writeFileSync(contextPath, YAML.stringify(currentContext), 'utf-8');
@@ -1767,13 +2038,11 @@ export function createMcpServer(): Server {
           const storage = new FileSystemStorage({ rootDir });
           const lifecycleState = await storage.getLifecycleState();
 
-          // Reportar faltantes requeridos por E1 que parsePrdContent no extrae o que son inferred
-          const faltantes = [
-            { campo: 'source_of_truth', motivo: 'sin confirmar (declared debe ser true con source user|prd)' },
-            { campo: 'critical_flows', motivo: 'el documento no define flujos críticos (deben definirse con qap_context_set)' },
-            { campo: 'objective', motivo: 'sin confirmar (extraído como inferred)' },
-            { campo: 'roles', motivo: 'sin confirmar (extraídos como inferred)' },
-          ];
+          // Evaluar compuerta de ONBOARDING dinámicamente con canExitOnboarding (E0b fix)
+          const envsPath = join(qaDir, 'project', 'environments.yaml');
+          const parsedEnv = existsSync(envsPath) ? YAML.parse(readFileSync(envsPath, 'utf-8')) : null;
+          const gateRes = canExitOnboarding(currentContext, parsedEnv);
+          const faltantes = gateRes.faltantes;
 
           const hallazgos = detectarDocumentosProyecto(rootDir);
           const guidance = getPhaseGuidance(lifecycleState.phase, {
@@ -1781,6 +2050,7 @@ export function createMcpServer(): Server {
             suggestedModules,
             hallazgos,
             context: currentContext,
+            environments: parsedEnv,
           });
 
           return {
@@ -1794,7 +2064,8 @@ export function createMcpServer(): Server {
                     fase: lifecycleState.phase,
                     propuestas_extraidas: {
                       objetivo: extractedObjective || undefined,
-                      roles: extractedUsers.map((name) => ({ name, source: 'inferred' })),
+                      roles: (currentContext.roles || []).filter((r: any) => r.source === 'inferred'),
+                      flujos_criticos: (currentContext.critical_flows || []).filter((f: any) => f.source === 'inferred'),
                       notas: extractedNotes || undefined,
                       rutas: extractedRoutes,
                     },

@@ -328,5 +328,100 @@ describe('SchemaValidator - Suite de Pruebas Unitarias Aisladas', () => {
       expect(resultProfiles.errors).toHaveLength(0);
     });
   });
+
+  describe('Validación de scan (scan.schema.json)', () => {
+    it('debe aceptar un scan válido y completo', () => {
+      const validPayload = {
+        _version: '1',
+        scanned_at: new Date().toISOString(),
+        workspace_root: '/workspace',
+        documentos: [
+          {
+            path: 'PRD_diff.md',
+            nombre: 'PRD_diff.md',
+            es_ingerible: true,
+            tamano_bytes: 1024,
+            ranking: 0,
+          },
+        ],
+        subproyectos: [
+          {
+            path: 'front',
+            name: 'frontend',
+            framework: 'vite',
+          },
+        ],
+        servicios: [
+          {
+            url: 'http://localhost:5173',
+            label: 'Frontend Vite',
+            evidencia: 'front/vite.config.ts',
+          },
+        ],
+        package_json: {
+          name: 'my-project',
+          description: 'A test project',
+        },
+      };
+
+      const result = validator.validateScan(validPayload);
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it('debe rechazar propiedades adicionales en scan (additionalProperties false)', () => {
+      const invalidPayload = {
+        _version: '1',
+        scanned_at: new Date().toISOString(),
+        workspace_root: '/workspace',
+        documentos: [],
+        subproyectos: [],
+        servicios: [],
+        extra_prop: 'invalid',
+      };
+
+      const result = validator.validateScan(invalidPayload);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.rule === 'additionalProperties')).toBe(true);
+    });
+  });
+
+  describe('Validación de ingest-proposal (ingest-proposal.schema.json)', () => {
+    it('debe aceptar una propuesta válida dentro de los límites', () => {
+      const validProposal = {
+        objetivo: 'Objetivo de negocio',
+        roles: ['admin', 'user'],
+        flujos_criticos: [
+          { name: 'checkout', evidence: 'sección 3' },
+        ],
+        rutas: ['/login', '/checkout'],
+        riesgos: ['fuga de datos'],
+      };
+
+      const result = validator.validateIngestProposal(validProposal);
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it('debe rechazar propuesta con más de 20 roles o flujos o con additionalProperties', () => {
+      const invalidProposal = {
+        objetivo: 'Objetivo',
+        roles: new Array(21).fill('rol'),
+        flujos_criticos: [],
+      };
+
+      const result = validator.validateIngestProposal(invalidProposal);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.rule === 'maxItems')).toBe(true);
+
+      const extraPropProposal = {
+        objetivo: 'Objetivo',
+        extra_field: 'no permitido',
+      };
+      const resultExtra = validator.validateIngestProposal(extraPropProposal);
+      expect(resultExtra.valid).toBe(false);
+    });
+  });
 });
+
 

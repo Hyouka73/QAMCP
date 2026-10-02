@@ -1,0 +1,123 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "qap://schemas/scan.schema.json",
+  "title": "ProjectScan",
+  "description": "Schema for .qa/project/scan.json representing workspace scan findings",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "_version",
+    "scanned_at",
+    "workspace_root",
+    "documentos",
+    "subproyectos",
+    "servicios"
+  ],
+  "properties": {
+    "_version": {
+      "type": "string",
+      "description": "Schema version for evolution tracking"
+    },
+    "scanned_at": {
+      "type": "string",
+      "description": "ISO timestamp when the scan was executed"
+    },
+    "workspace_root": {
+      "type": "string",
+      "description": "Root directory path of the scanned workspace"
+    },
+    "documentos": {
+      "type": "array",
+      "description": "Candidate specification documents found in workspace",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "nombre",
+          "es_ingerible",
+          "tamano_bytes"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "nombre": {
+            "type": "string"
+          },
+          "es_ingerible": {
+            "type": "boolean"
+          },
+          "tamano_bytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "ranking": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "subproyectos": {
+      "type": "array",
+      "description": "Subprojects found in workspace containing package.json",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "name",
+          "framework"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "framework": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "servicios": {
+      "type": "array",
+      "description": "Services and URLs detected with concrete evidence",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "url",
+          "label",
+          "evidencia"
+        ],
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "evidencia": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "package_json": {
+      "type": "object",
+      "description": "Root package.json metadata if present",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}
