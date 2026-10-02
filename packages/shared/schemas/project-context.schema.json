@@ -162,6 +162,34 @@
           ]
         }
       }
+    },
+    "ingest": {
+      "type": "object",
+      "description": "Estado de análisis del documento ingerido",
+      "additionalProperties": false,
+      "required": [
+        "doc_ref",
+        "analyzed_by",
+        "analyzed_at"
+      ],
+      "properties": {
+        "doc_ref": {
+          "type": "string",
+          "description": "Referencia relativa al documento analizado"
+        },
+        "analyzed_by": {
+          "type": "string",
+          "enum": [
+            "heuristic",
+            "agent"
+          ],
+          "description": "Indica si el análisis fue heurístico determinista o por el agente"
+        },
+        "analyzed_at": {
+          "type": "string",
+          "description": "Timestamp ISO 8601 del análisis"
+        }
+      }
     }
   }
 }

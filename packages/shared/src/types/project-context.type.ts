@@ -28,6 +28,12 @@ export interface SourceOfTruth {
   source?: ContextSource;
 }
 
+export interface IngestState {
+  doc_ref: string;
+  analyzed_by: 'heuristic' | 'agent';
+  analyzed_at: string;
+}
+
 export interface ProjectContext {
   _version: string;
   project_name: string;
@@ -40,5 +46,6 @@ export interface ProjectContext {
   roles?: BusinessRole[];
   critical_flows?: CriticalFlow[];
   source_of_truth?: SourceOfTruth;
+  ingest?: IngestState;
   [key: string]: unknown;
 }

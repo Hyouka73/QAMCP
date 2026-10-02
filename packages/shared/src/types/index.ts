@@ -134,6 +134,7 @@ export type {
   BusinessRole,
   CriticalFlow,
   SourceOfTruth,
+  IngestState,
   ProjectContext,
 } from './project-context.type.js';
 
