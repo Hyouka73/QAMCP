@@ -1,8 +1,9 @@
+import fs from 'node:fs';
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 import {
   detectarDocumentosProyecto,
@@ -271,14 +272,41 @@ describe('E2a: detectarDocumentosProyecto (Criterio 3)', () => {
       expect(hallazgos.servicios?.some((s) => s.url === 'http://localhost:4200')).toBe(true);
     });
 
-    it('generarScan produce un ProjectScan válido', () => {
-      writeFileSync(join(tempDir, 'PRD_diff.md'), '# PRD Diff\n', 'utf-8');
+    it('B5: nunca lee .env ni .env.local y no filtra credenciales ni secretos en salida ni scan', async () => {
+      writeFileSync(join(tempDir, '.env'), 'SECRET_KEY=abc123\nDATABASE_URL=postgres://admin:supersecret@localhost:5432/db\nPORT=9999\n', 'utf-8');
+      writeFileSync(join(tempDir, '.env.local'), 'SECRET_KEY=abc123_local\nDATABASE_URL=postgres://local:localpass@localhost:5432/db\n', 'utf-8');
+      writeFileSync(join(tempDir, '.env.example'), 'PORT=8085\nAPP_URL=http://localhost:8085\n', 'utf-8');
+
+      const spy = vi.spyOn(fs, 'readFileSync');
+
+      const hallazgos = detectarDocumentosProyecto(tempDir);
       const scan = generarScan(tempDir);
-      expect(scan._version).toBe('1');
-      expect(scan.documentos).toHaveLength(1);
-      expect(scan.documentos[0].path).toBe('PRD_diff.md');
-      expect(scan.subproyectos).toBeDefined();
-      expect(scan.servicios).toBeDefined();
+
+      // 1. Assert de que no se leen .env ni .env.local
+      const readCalls = spy.mock.calls.map((c) => String(c[0]));
+      const readEnv = readCalls.some((p) => p.endsWith('.env') || p.endsWith('.env.local'));
+      expect(readEnv).toBe(false);
+
+      // 2. Assert de que "abc123" y credenciales no aparecen en ninguna salida
+      const hallazgosStr = JSON.stringify(hallazgos);
+      const scanStr = JSON.stringify(scan);
+
+      expect(hallazgosStr).not.toContain('abc123');
+      expect(hallazgosStr).not.toContain('supersecret');
+      expect(hallazgosStr).not.toContain('localpass');
+      expect(hallazgosStr).not.toContain('9999');
+
+      expect(scanStr).not.toContain('abc123');
+      expect(scanStr).not.toContain('supersecret');
+      expect(scanStr).not.toContain('localpass');
+      expect(scanStr).not.toContain('9999');
+
+      // 3. Evidencia cita archivo y clave, no valor sensible
+      const envServicio = hallazgos.servicios.find((s) => s.url === 'http://localhost:8085');
+      expect(envServicio).toBeDefined();
+      expect(envServicio?.evidencia).toBe('.env.example (PORT)');
+
+      spy.mockRestore();
     });
   });
 });

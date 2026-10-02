@@ -109,6 +109,11 @@ export interface CanExitOnboardingContext {
     declared?: boolean;
     source?: 'user' | 'prd' | 'inferred';
   };
+  ingest?: {
+    doc_ref?: string;
+    analyzed_by?: 'heuristic' | 'agent';
+    analyzed_at?: string;
+  };
   [key: string]: unknown;
 }
 

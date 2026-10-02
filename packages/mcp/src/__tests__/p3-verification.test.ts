@@ -101,8 +101,9 @@ describe('P3 Suite de Verificación MCP (T3 - T15)', () => {
   });
 
   async function callTool(name: string, args: Record<string, any> = {}) {
+    const finalArgs = name === 'qap_init' && !args.baseUrl ? { baseUrl: 'http://localhost:3000', ...args } : args;
     const res = await handler(
-      { method: 'tools/call', params: { name, arguments: args } },
+      { method: 'tools/call', params: { name, arguments: finalArgs } },
       {}
     );
     const text = res.content?.[0]?.text ?? '';

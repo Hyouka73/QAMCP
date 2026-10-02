@@ -2,7 +2,7 @@ import { sanitizeDomString } from './interview-engine.js';
 
 export type FormatoPregunta = 'una_opcion' | 'multiple' | 'abierta';
 
-export type AccionOpcion = 'declarar_fuente' | 'sin_documento' | 'confirmar_resumen' | 'corregir';
+export type AccionOpcion = 'declarar_fuente' | 'sin_documento' | 'confirmar_resumen' | 'corregir' | 'definir_url';
 
 export interface Opcion {
   id: string;
@@ -101,7 +101,7 @@ export function validarPregunta(pregunta: unknown): ValidacionPreguntaResult {
             }
           }
           if (op.efecto.accion !== undefined) {
-            const accionesValidas: AccionOpcion[] = ['declarar_fuente', 'sin_documento', 'confirmar_resumen', 'corregir'];
+            const accionesValidas: AccionOpcion[] = ['declarar_fuente', 'sin_documento', 'confirmar_resumen', 'corregir', 'definir_url'];
             if (!accionesValidas.includes(op.efecto.accion)) {
               errors.push(`La acción de efecto '${op.efecto.accion}' en la opción '${op.id}' no es válida.`);
             }

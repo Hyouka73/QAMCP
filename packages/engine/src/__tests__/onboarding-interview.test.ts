@@ -53,7 +53,8 @@ describe('E2c: obtenerSiguientePreguntaOnboarding (Criterio 2)', () => {
       ...ctxConRoles,
       critical_flows: [{ name: 'pago', source: 'user' as const }, { name: 'login', source: 'user' as const }],
     };
-    const q5 = obtenerSiguientePreguntaOnboarding(ctxCompleto, null, { documentos: [] });
+    const envs = { environments: { local: { url: 'http://localhost:3000' } } };
+    const q5 = obtenerSiguientePreguntaOnboarding(ctxCompleto, null, { documentos: [] }, envs);
     expect(q5).toBeNull();
   });
 
@@ -152,7 +153,7 @@ describe('E2c: obtenerSiguientePreguntaOnboarding (Criterio 2)', () => {
     expect(q?.texto).toContain("entendí: objetivo 'Sistema integral de gestión de calidad'");
   });
 
-  it('P4.3: emite confirmación única cuando objetivo, roles y flujos tienen propuesta', () => {
+  it('P4.3: emite confirmación única cuando objetivo, roles y flujos tienen propuesta con URL definida', () => {
     const ctx = {
       source_of_truth: { type: 'prd' as const, declared: true, ref: 'PRD_diff.md', source: 'user' as const },
       objective: 'Plataforma para automatización de pruebas',
@@ -160,7 +161,8 @@ describe('E2c: obtenerSiguientePreguntaOnboarding (Criterio 2)', () => {
       roles: [{ name: 'Admin', source: 'inferred' as const }, { name: 'Operador', source: 'inferred' as const }],
       critical_flows: [{ name: 'Flujo E2E', source: 'inferred' as const }],
     };
-    const q = obtenerSiguientePreguntaOnboarding(ctx, null, null);
+    const envs = { environments: { local: { url: 'http://localhost:3000' } } };
+    const q = obtenerSiguientePreguntaOnboarding(ctx, null, null, envs);
     expect(q).not.toBeNull();
     expect(q?.id).toBe('onboarding.confirmar_resumen');
     expect(q?.formato).toBe('una_opcion');
@@ -172,6 +174,23 @@ describe('E2c: obtenerSiguientePreguntaOnboarding (Criterio 2)', () => {
     expect(q?.opciones[1].efecto?.abre_seguimiento).toBe(true);
     expect(q?.seguimiento).toBeDefined();
     expect(q?.seguimiento?.id).toBe('onboarding.campos_a_corregir');
+    expect(validarPregunta(q!).valid).toBe(true);
+  });
+
+  it('B2: tarjeta de resumen muestra URL base: (sin definir) y NO ofrece Confirmo todo cuando falta URL', () => {
+    const ctx = {
+      source_of_truth: { type: 'prd' as const, declared: true, ref: 'PRD_diff.md', source: 'user' as const },
+      objective: 'Plataforma para automatización de pruebas',
+      objective_source: 'inferred' as const,
+      roles: [{ name: 'Admin', source: 'inferred' as const }, { name: 'Operador', source: 'inferred' as const }],
+      critical_flows: [{ name: 'Flujo E2E', source: 'inferred' as const }],
+    };
+    const q = obtenerSiguientePreguntaOnboarding(ctx, null, null);
+    expect(q).not.toBeNull();
+    expect(q?.id).toBe('onboarding.confirmar_resumen');
+    expect(q?.texto).toContain('URL base: (sin definir)');
+    expect(q?.opciones.some((o) => o.id === 'confirmo_todo')).toBe(false);
+    expect(q?.opciones.some((o) => o.id === 'definir_url')).toBe(true);
     expect(validarPregunta(q!).valid).toBe(true);
   });
 

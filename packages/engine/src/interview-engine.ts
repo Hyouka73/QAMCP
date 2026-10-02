@@ -882,3 +882,20 @@ export function sanitizeDomString(raw: string | undefined | null, maxLength = MA
     .trim()
     .slice(0, maxLength);
 }
+
+/**
+ * Trunca un texto a un máximo de caracteres sin cortar palabras a la mitad,
+ * añadiendo '…' si excede la longitud.
+ */
+export function truncarTexto(texto: string | undefined | null, maxLen = 280): string {
+  if (!texto) return '';
+  const trimmed = texto.trim();
+  if (trimmed.length <= maxLen) return trimmed;
+  const sub = trimmed.slice(0, maxLen - 1);
+  const lastSpace = sub.lastIndexOf(' ');
+  if (lastSpace > maxLen * 0.5) {
+    return sub.slice(0, lastSpace).trim() + '…';
+  }
+  return sub.trim() + '…';
+}
+

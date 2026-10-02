@@ -3,13 +3,19 @@ import type { LifecycleState } from '@qap/shared';
 import type { CanExitOnboardingContext, CanExitOnboardingEnvironments } from './lifecycle.js';
 import { canExitOnboarding } from './lifecycle.js';
 import { type Pregunta, type Opcion, generarRenderTexto } from './pregunta.js';
-import { sanitizeDomString } from './interview-engine.js';
+import { sanitizeDomString, truncarTexto } from './interview-engine.js';
 
 export interface DocumentoCandidatoMin {
   path: string;
   nombre?: string;
   es_ingerible?: boolean;
   tamano_bytes?: number;
+}
+
+export interface ServicioDetectadoMin {
+  url: string;
+  label: string;
+  evidencia: string;
 }
 
 export interface HallazgosProyectoMin {
@@ -24,6 +30,7 @@ export interface HallazgosProyectoMin {
     roles?: string[];
   };
   docAnalizado?: string;
+  servicios?: ServicioDetectadoMin[];
 }
 
 function crearPregunta(p: Omit<Pregunta, 'render_texto'>): Pregunta {
@@ -61,7 +68,7 @@ export function obtenerSiguientePreguntaOnboarding(
   environments?: CanExitOnboardingEnvironments | null
 ): Pregunta | null {
   // Entorno por defecto o provisto
-  const envsObj = environments ?? (contexto?.environments ? { environments: contexto.environments as Record<string, { url?: string }> } : { environments: { local: { url: 'http://localhost:3000' } } });
+  const envsObj = environments ?? (contexto?.environments ? { environments: contexto.environments as Record<string, { url?: string }> } : null);
   const gate = canExitOnboarding(contexto, envsObj);
 
   if (gate.passed) {
@@ -69,7 +76,7 @@ export function obtenerSiguientePreguntaOnboarding(
   }
 
   const faltantesCampos = new Set(gate.faltantes.map((f) => f.campo));
-  const docAnalizado = hallazgos?.docAnalizado || (contexto?.source_of_truth?.ref ? sanitizeDomString(contexto.source_of_truth.ref) : '');
+  const docAnalizado = hallazgos?.docAnalizado || (contexto?.source_of_truth?.ref ? sanitizeDomString(contexto.source_of_truth.ref, 500) : '');
 
   // 1. Fuente de verdad
   if (faltantesCampos.has('source_of_truth') || faltantesCampos.has('context')) {
@@ -78,8 +85,8 @@ export function obtenerSiguientePreguntaOnboarding(
     let opciones: Opcion[];
     if (docs.length > 0) {
       opciones = docs.map((d, idx) => ({
-        id: sanitizeDomString(d.path),
-        etiqueta: sanitizeDomString(d.path),
+        id: sanitizeDomString(d.path, 500),
+        etiqueta: sanitizeDomString(d.path, 500),
         recomendada: idx === 0,
         efecto: { accion: 'declarar_fuente' as const },
       }));
@@ -97,8 +104,8 @@ export function obtenerSiguientePreguntaOnboarding(
 
     let texto = 'Selecciona la fuente de verdad del proyecto para extraer el alcance y especificación:';
     if (hallazgos?.preliminar?.docPath && hallazgos?.preliminar?.objetivo) {
-      const cleanObj = sanitizeDomString(hallazgos.preliminar.objetivo);
-      const cleanDoc = sanitizeDomString(hallazgos.preliminar.docPath);
+      const cleanObj = truncarTexto(hallazgos.preliminar.objetivo, 280);
+      const cleanDoc = sanitizeDomString(hallazgos.preliminar.docPath, 500);
       texto = `Encontré '${cleanDoc}'; entendí: objetivo '${cleanObj}'. Selecciona la fuente de verdad del proyecto para extraer el alcance y especificación:`;
     }
 
@@ -126,9 +133,15 @@ export function obtenerSiguientePreguntaOnboarding(
     const rolesList = (contexto?.roles ?? []).map((r) => sanitizeDomString(r.name)).join(', ');
     const flowsList = (contexto?.critical_flows ?? []).map((f) => sanitizeDomString(f.name)).join(', ');
     const rawBaseUrl = (contexto as Record<string, unknown> | undefined)?.base_url;
-    const envUrl = envsObj?.environments?.local?.url;
-    const baseUrl = typeof rawBaseUrl === 'string' ? rawBaseUrl : (typeof envUrl === 'string' ? envUrl : 'http://localhost:3000');
-    const cleanObjective = sanitizeDomString(contexto?.objective);
+    const envUrl = envsObj?.environments?.local?.url || (envsObj?.environments ? Object.values(envsObj.environments).find((e) => typeof e?.url === 'string' && e.url.trim().length > 0)?.url : undefined);
+    const hasUrl = Boolean(
+      (typeof rawBaseUrl === 'string' && rawBaseUrl.trim().length > 0) ||
+      (typeof envUrl === 'string' && envUrl.trim().length > 0)
+    );
+    const baseUrl = hasUrl
+      ? (typeof rawBaseUrl === 'string' && rawBaseUrl.trim().length > 0 ? rawBaseUrl.trim() : (envUrl as string).trim())
+      : '(sin definir)';
+    const cleanObjective = truncarTexto(contexto?.objective, 280);
 
     const textoResumen = `Resumen de configuración detectado para el proyecto:\n1. Objetivo: ${cleanObjective}\n2. Roles: ${rolesList}\n3. Flujos críticos: ${flowsList}\n4. URL base: ${baseUrl}\nConfirma la configuración o selecciona los campos a corregir:`;
 
@@ -146,23 +159,39 @@ export function obtenerSiguientePreguntaOnboarding(
       registrar_con: { tool: 'qap_context_set', campo: 'corregir' },
     };
 
+    const opcionesResumen: Opcion[] = hasUrl
+      ? [
+          {
+            id: 'confirmo_todo',
+            etiqueta: 'Confirmo todo',
+            recomendada: true,
+            efecto: { accion: 'confirmar_resumen' as const },
+          },
+          {
+            id: 'corregir',
+            etiqueta: 'Quiero corregir algo',
+            efecto: { accion: 'corregir' as const, abre_seguimiento: true },
+          },
+        ]
+      : [
+          {
+            id: 'definir_url',
+            etiqueta: 'Definir URL de entorno',
+            recomendada: true,
+            efecto: { accion: 'definir_url' as const },
+          },
+          {
+            id: 'corregir',
+            etiqueta: 'Quiero corregir algo',
+            efecto: { accion: 'corregir' as const, abre_seguimiento: true },
+          },
+        ];
+
     return crearPregunta({
       id: 'onboarding.confirmar_resumen',
       texto: textoResumen,
       formato: 'una_opcion',
-      opciones: [
-        {
-          id: 'confirmo_todo',
-          etiqueta: 'Confirmo todo',
-          recomendada: true,
-          efecto: { accion: 'confirmar_resumen' as const },
-        },
-        {
-          id: 'corregir',
-          etiqueta: 'Quiero corregir algo',
-          efecto: { accion: 'corregir' as const, abre_seguimiento: true },
-        },
-      ],
+      opciones: opcionesResumen,
       permite_otra: false,
       registrar_con: { tool: 'qap_context_set', campo: 'confirmar_resumen' },
       seguimiento: seguimientoPregunta,
@@ -175,7 +204,7 @@ export function obtenerSiguientePreguntaOnboarding(
       ? contexto.objective
       : (hallazgos?.package_json?.description || '');
 
-    const cleanHypothesis = sanitizeDomString(rawHypothesis).trim();
+    const cleanHypothesis = truncarTexto(rawHypothesis, 280);
 
     if (cleanHypothesis.length >= 10) {
       return crearPregunta({
@@ -280,11 +309,21 @@ export function obtenerSiguientePreguntaOnboarding(
 
   // 6. Entorno (solo si canExitOnboarding lo reporta y no existe URL)
   if (faltantesCampos.has('environments')) {
+    const servicios = hallazgos?.servicios || [];
+    let opciones: Opcion[] = [];
+    if (servicios.length > 0) {
+      opciones = servicios.map((s, idx) => ({
+        id: s.url,
+        etiqueta: `${s.url} - ${s.label} (${s.evidencia})`,
+        recomendada: idx === 0,
+      }));
+    }
+
     return crearPregunta({
-      id: 'onboarding.entorno',
-      texto: 'Indica la URL base del entorno para ejecutar las pruebas (ej: http://localhost:3000):',
-      formato: 'abierta',
-      opciones: [],
+      id: 'onboarding.url_entorno',
+      texto: 'Indica o selecciona la URL base del entorno para ejecutar las pruebas:',
+      formato: opciones.length > 0 ? 'una_opcion' : 'abierta',
+      opciones,
       permite_otra: true,
       registrar_con: { tool: 'qap_context_set', campo: 'environments' },
     });

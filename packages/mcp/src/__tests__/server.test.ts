@@ -214,7 +214,7 @@ describe('Suite MCP Server QAP v2.1 / v2.1.2', () => {
     // @ts-expect-error accessing internal request handler
     const handler = server._requestHandlers.get(CallToolRequestSchema.shape.method.value);
 
-    await handler({ method: 'tools/call', params: { name: 'qap_init', arguments: {} } }, {});
+    await handler({ method: 'tools/call', params: { name: 'qap_init', arguments: { baseUrl: 'http://localhost:3000' } } }, {});
 
     // Completar contexto para transicionar a SCOPING
     await handler(
@@ -584,7 +584,7 @@ describe('Suite MCP Server QAP v2.1 / v2.1.2', () => {
     // @ts-expect-error accessing internal request handler
     const handler = server._requestHandlers.get(CallToolRequestSchema.shape.method.value);
 
-    await handler({ method: 'tools/call', params: { name: 'qap_init', arguments: {} } }, {});
+    await handler({ method: 'tools/call', params: { name: 'qap_init', arguments: { baseUrl: 'http://localhost:3000' } } }, {});
 
     await handler(
       {
@@ -653,7 +653,7 @@ describe('Suite MCP Server QAP v2.1 / v2.1.2', () => {
     // @ts-expect-error accessing internal request handler
     const handler = server._requestHandlers.get(CallToolRequestSchema.shape.method.value);
 
-    await handler({ method: 'tools/call', params: { name: 'qap_init', arguments: {} } }, {});
+    await handler({ method: 'tools/call', params: { name: 'qap_init', arguments: { baseUrl: 'http://localhost:3000' } } }, {});
 
     await handler(
       {
@@ -734,7 +734,7 @@ describe('Suite MCP Server QAP v2.1 / v2.1.2', () => {
     // @ts-expect-error accessing internal request handler
     const handler = server._requestHandlers.get(CallToolRequestSchema.shape.method.value);
 
-    await handler({ method: 'tools/call', params: { name: 'qap_init', arguments: {} } }, {});
+    await handler({ method: 'tools/call', params: { name: 'qap_init', arguments: { baseUrl: 'http://localhost:3000' } } }, {});
     await handler(
       {
         method: 'tools/call',
@@ -798,7 +798,7 @@ describe('Suite MCP Server QAP v2.1 / v2.1.2', () => {
     // @ts-expect-error accessing internal request handler
     const handler = server._requestHandlers.get(CallToolRequestSchema.shape.method.value);
 
-    await handler({ method: 'tools/call', params: { name: 'qap_init', arguments: {} } }, {});
+    await handler({ method: 'tools/call', params: { name: 'qap_init', arguments: { baseUrl: 'http://localhost:3000' } } }, {});
     await handler(
       {
         method: 'tools/call',
@@ -862,7 +862,7 @@ describe('Suite MCP Server QAP v2.1 / v2.1.2', () => {
     // @ts-expect-error accessing internal request handler
     const handler = server._requestHandlers.get(CallToolRequestSchema.shape.method.value);
 
-    await handler({ method: 'tools/call', params: { name: 'qap_init', arguments: {} } }, {});
+    await handler({ method: 'tools/call', params: { name: 'qap_init', arguments: { baseUrl: 'http://localhost:3000' } } }, {});
     await handler(
       {
         method: 'tools/call',
@@ -923,7 +923,7 @@ describe('Suite MCP Server QAP v2.1 / v2.1.2', () => {
     // @ts-expect-error accessing internal request handler
     const handler = server._requestHandlers.get(CallToolRequestSchema.shape.method.value);
 
-    await handler({ method: 'tools/call', params: { name: 'qap_init', arguments: {} } }, {});
+    await handler({ method: 'tools/call', params: { name: 'qap_init', arguments: { baseUrl: 'http://localhost:3000' } } }, {});
 
     // 1. Llamada parcial con solo objective (source user por defecto)
     const step1 = await handler(
@@ -1133,7 +1133,7 @@ describe('Suite MCP Server QAP v2.1 / v2.1.2', () => {
     // @ts-expect-error accessing internal request handler
     const handler = server._requestHandlers.get(CallToolRequestSchema.shape.method.value);
 
-    await handler({ method: 'tools/call', params: { name: 'qap_init', arguments: {} } }, {});
+    await handler({ method: 'tools/call', params: { name: 'qap_init', arguments: { baseUrl: 'http://localhost:3000' } } }, {});
 
     // 1. Bloqueada en ONBOARDING
     const blockedRes = await handler(
@@ -1243,7 +1243,7 @@ describe('Suite MCP Server QAP v2.1 / v2.1.2', () => {
     // @ts-expect-error accessing internal request handler
     const handler = server._requestHandlers.get(CallToolRequestSchema.shape.method.value);
 
-    await handler({ method: 'tools/call', params: { name: 'qap_init', arguments: {} } }, {});
+    await handler({ method: 'tools/call', params: { name: 'qap_init', arguments: { baseUrl: 'http://localhost:3000' } } }, {});
 
     // 1. Bloqueado en ONBOARDING
     const bOnboarding = await handler(
@@ -1413,7 +1413,7 @@ describe('Suite MCP Server QAP v2.1 / v2.1.2', () => {
     const handler = server._requestHandlers.get(CallToolRequestSchema.shape.method.value);
 
     // Paso 1: qap_init
-    const initRes = await handler({ method: 'tools/call', params: { name: 'qap_init', arguments: { projectName: 'e2e-app' } } }, {});
+    const initRes = await handler({ method: 'tools/call', params: { name: 'qap_init', arguments: { projectName: 'e2e-app', baseUrl: 'http://localhost:3000' } } }, {});
     const pInit = JSON.parse(initRes.content[0].text);
     expect(pInit.status).toBe('success');
     expect(pInit.fase).toBe('ONBOARDING');
@@ -1453,7 +1453,7 @@ describe('Suite MCP Server QAP v2.1 / v2.1.2', () => {
     const pIngest = JSON.parse(ingestRes.content[0].text);
     expect(pIngest.status).toBe('success');
     expect(pIngest.fase).toBe('ONBOARDING'); // Ingest solo nunca avanza
-    expect(pIngest.solicitud_confirmacion).toBeDefined();
+    expect(pIngest.solicitud_confirmacion).toBeUndefined();
 
     // Paso 5: context_set confirma propuestas y añade flujos críticos y declara fuente de verdad
     const setRes = await handler(
@@ -1546,7 +1546,7 @@ describe('Suite MCP Server QAP v2.1 / v2.1.2', () => {
 
     // 1. Inicializar
     await handler(
-      { method: 'tools/call', params: { name: 'qap_init', arguments: { targetPath: tempDir } } },
+      { method: 'tools/call', params: { name: 'qap_init', arguments: { targetPath: tempDir, baseUrl: 'http://localhost:3000' } } },
       {}
     );
 

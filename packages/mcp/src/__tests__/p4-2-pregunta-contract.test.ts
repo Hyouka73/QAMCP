@@ -136,7 +136,7 @@ describe('P4.2 Suite: Contrato Canónico de Pregunta y Verificación E2E (Criter
   });
 
   it('Criterio 4.3: Progresión canónica fuente_de_verdad -> objetivo -> roles -> flujos_criticos -> SCOPING', async () => {
-    await callTool('qap_init', { projectName: 'progression-test' });
+    await callTool('qap_init', { projectName: 'progression-test', baseUrl: 'http://localhost:3000' });
 
     // 1. fuente_de_verdad
     const s1 = await callTool('qap_status', {});
@@ -257,7 +257,7 @@ describe('P4.2 Suite: Contrato Canónico de Pregunta y Verificación E2E (Criter
     }
 
     // 1. qap_init -> ONBOARDING (entrevista)
-    const rInit = await callTool('qap_init', { projectName: 'e2e-criteria6' });
+    const rInit = await callTool('qap_init', { projectName: 'e2e-criteria6', baseUrl: 'http://localhost:3000' });
     assertPreguntaValida(rInit.parsed);
 
     // 2. qap_status -> ONBOARDING (entrevista)

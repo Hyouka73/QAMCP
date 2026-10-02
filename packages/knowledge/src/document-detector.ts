@@ -164,7 +164,7 @@ export function detectarDocumentosProyecto(workspaceRoot: string): HallazgosProy
         }
 
         const esIngerible = INGESTIBLE_EXTENSIONS.has(ext) && st.size <= MAX_FILE_SIZE_BYTES;
-        const cleanNombre = sanitizeDomString(entry, 100);
+        const cleanNombre = sanitizeDomString(entry, 200);
         const nombreScore = getNombreScore(cleanNombre);
 
         candidatosRaw.push({
@@ -399,8 +399,8 @@ export function detectarServiciosConEvidencia(
     }
   }
 
-  // 3. .env.example / .env
-  const envCandidates = ['.env.example', '.env.local.example', '.env', ...subproyectos.map((s) => `${s.path}/.env.example`)];
+  // 3. .env.example (NUNCA lee .env, .env.local ni .env.*.local)
+  const envCandidates = ['.env.example', ...subproyectos.map((s) => `${s.path}/.env.example`)];
   for (const ec of envCandidates) {
     const fullEnvPath = join(resolvedRoot, ec);
     if (existsSync(fullEnvPath)) {
@@ -408,11 +408,23 @@ export function detectarServiciosConEvidencia(
         const content = readFileSync(fullEnvPath, 'utf-8');
         const portMatch = content.match(/^(?:PORT|VITE_PORT|APP_PORT)=(\d+)/m);
         if (portMatch) {
-          registrar(`http://localhost:${portMatch[1]}`, 'Servicio configurado en ENV', `${ec} (${portMatch[0]})`);
+          const key = portMatch[0].split('=')[0];
+          const port = portMatch[1];
+          registrar(`http://localhost:${port}`, 'Servicio configurado en ENV', `${ec} (${key})`);
         }
         const urlMatch = content.match(/^(?:APP_URL|BASE_URL|API_URL)=(https?:\/\/[^\s]+)/m);
         if (urlMatch) {
-          registrar(urlMatch[1].trim(), 'URL configurada en ENV', `${ec} (${urlMatch[0]})`);
+          const key = urlMatch[0].split('=')[0];
+          let cleanUrl = urlMatch[1].trim();
+          try {
+            const parsedUrl = new URL(cleanUrl);
+            parsedUrl.username = '';
+            parsedUrl.password = '';
+            cleanUrl = parsedUrl.toString().replace(/\/$/, '');
+          } catch {
+            // Ignorar error de parsing
+          }
+          registrar(cleanUrl, 'URL configurada en ENV', `${ec} (${key})`);
         }
       } catch {
         // Ignorar
@@ -420,8 +432,25 @@ export function detectarServiciosConEvidencia(
     }
   }
 
-  // 4. docker-compose
-  const composeCandidates = ['docker-compose.yml', 'docker-compose.yaml', 'compose.yml', 'compose.yaml'];
+  // 4. docker-compose*.yml y compose.y*ml
+  const composeCandidates: string[] = [];
+  const searchDirs = ['', ...subproyectos.map((s) => s.path)];
+  for (const d of searchDirs) {
+    const dirAbs = d ? join(resolvedRoot, d) : resolvedRoot;
+    if (existsSync(dirAbs)) {
+      try {
+        const files = readdirSync(dirAbs);
+        for (const f of files) {
+          if (/^(?:docker-compose.*\.ya?ml|compose\.ya?ml)$/i.test(f)) {
+            composeCandidates.push(d ? `${d}/${f}` : f);
+          }
+        }
+      } catch {
+        // Ignorar
+      }
+    }
+  }
+
   for (const cc of composeCandidates) {
     const fullComposePath = join(resolvedRoot, cc);
     if (existsSync(fullComposePath)) {
@@ -560,7 +589,7 @@ export function resolverDocumento(workspaceRoot: string, texto: string): Documen
 
         return {
           path: posixRel,
-          nombre: sanitizeDomString(basename(realDocPath), 100),
+          nombre: sanitizeDomString(basename(realDocPath), 200),
           es_ingerible: esIngerible,
           tamano_bytes: st.size,
         };

@@ -83,7 +83,8 @@ describe('Lifecycle V3 E2E & Verification Suite (E0 - E3)', () => {
   });
 
   async function callTool(name: string, args: Record<string, unknown> = {}) {
-    const res = await handler({ method: 'tools/call', params: { name, arguments: args } }, {});
+    const finalArgs = name === 'qap_init' && !args.baseUrl ? { baseUrl: 'http://localhost:3000', ...args } : args;
+    const res = await handler({ method: 'tools/call', params: { name, arguments: finalArgs } }, {});
     const text = res.content?.[0]?.text ?? '';
     let parsed: any = null;
     try {

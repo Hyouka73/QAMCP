@@ -180,7 +180,7 @@ npm run build
 
     it('3.5: confirmación única (confirmo todo / corregir con seguimiento) y render_texto presente y consistente', async () => {
       writeFileSync(join(tempDir, 'spec.md'), '# Spec\n## Objetivo\nSistema de gestión hospitalaria\n## Roles\nMédico, Paciente\n## Rutas\n/consultas, /citas', 'utf-8');
-      await callTool('qap_init', {});
+      await callTool('qap_init', { baseUrl: 'http://localhost:3000' });
       await callTool('qap_context_set', {
         source_of_truth: 'spec.md',
       });
@@ -257,14 +257,6 @@ No se permite firmar resultados sin calibración previa del instrumento.
 `;
 
       const parsed = parsePrdContent(prdSpanish, 'EXATO_PRD.md');
-
-      console.log('--- CRITERIO 4: EXTRACCIÓN DETERMINISTA LITERAL ---');
-      console.log(JSON.stringify(parsed, null, 2));
-
-      // Verificación de lo que extrae el parser regex estándar:
-      // Note: parsePrdContent busca encabezados estándar como "## Objetivo", "## Roles / Users", "## Routes"
-      // Debido a que el PRD usa "## 1. Alcance", "## 2. Actores" y "## 3. Pipeline de Etapas",
-      // reportamos exactamente qué extrajo y qué no:
       expect(parsed).toBeDefined();
       expect(typeof parsed).toBe('object');
     });
@@ -289,8 +281,8 @@ Sistema de gestión de pruebas y calidad continua para aplicaciones web compleja
 `;
       writeFileSync(join(tempDir, 'PRD_diff.md'), prdDiff, 'utf-8');
 
-      // 1. qap_init
-      const initRes = await callTool('qap_init', { projectName: 'e2e-onboarding' });
+      // 1. qap_init con baseUrl definida
+      const initRes = await callTool('qap_init', { projectName: 'e2e-onboarding', baseUrl: 'http://localhost:3000' });
       expect(initRes.parsed.fase).toBe('ONBOARDING');
       expect(initRes.parsed.siguiente_accion.tipo).toBe('entrevista');
       expect(initRes.parsed.siguiente_accion.pregunta.id).toBe('onboarding.fuente_de_verdad');
@@ -298,8 +290,7 @@ Sistema de gestión de pruebas y calidad continua para aplicaciones web compleja
       expect(initRes.parsed.siguiente_accion.pregunta.texto).toContain("Encontré 'PRD_diff.md'");
       expect(initRes.parsed.siguiente_accion.pregunta.texto).toContain('Sistema de gestión de pruebas');
 
-      // 2. El usuario selecciona la fuente de verdad (sin que el agente decida llamar ingest por su cuenta)
-      // La selección llama a qap_context_set con la opción seleccionada:
+      // 2. El usuario selecciona la fuente de verdad
       const setRes = await callTool('qap_context_set', {
         source_of_truth: 'PRD_diff.md',
       });
@@ -308,14 +299,9 @@ Sistema de gestión de pruebas y calidad continua para aplicaciones web compleja
       expect(setRes.parsed.context.objective).toBeDefined();
       expect(setRes.parsed.context.roles.length).toBeGreaterThan(0);
 
-      // Como las rutas /dashboard y /testing se extrajeron como flujos críticos inferred,
-      // todos los 3 campos (objetivo, roles, flujos) ya tienen propuestas inferred!
-      // Por tanto, el servidor emite INMEDIATAMENTE la Confirmación Única (E4a).
-      // NUNCA debe emitir una pregunta abierta pidiendo escribir objetivo o roles.
       const actionAfterSet = setRes.parsed.siguiente_accion;
 
       if (actionAfterSet.tipo === 'trabajo') {
-        // Si faltaba algún campo, el servidor mandó trabajo explícito (no iniciativa del agente):
         expect(actionAfterSet.tool).toBe('qap_context_ingest');
         const ingestRes = await callTool('qap_context_ingest', {
           docPath: 'PRD_diff.md',
@@ -341,7 +327,7 @@ Sistema de gestión de pruebas y calidad continua para aplicaciones web compleja
       expect(confirmRes.parsed.siguiente_accion.tool).toBe('qap_session_plan');
     });
 
-    it('imprime los JSON literales para el reporte P4.3', async () => {
+    it('valida respuestas y payloads de regresión P4.3', async () => {
       // 1. Fixture con PRD_diff.md, front/ con vite, back/, docs/
       const fixDir = mkdtempSync(join(tmpdir(), 'qap-rep-fix-'));
       mkdirSync(join(fixDir, 'front'), { recursive: true });
@@ -367,40 +353,29 @@ Sistema de gestión de pruebas automatizadas y trazabilidad.
 
       // JSON 1: qap_init sobre fixture
       const initRes = await callTool('qap_init', { targetPath: fixDir });
-      console.log('=== REPORT_JSON_1_INIT ===');
-      console.log(JSON.stringify(initRes.parsed, null, 2));
+      expect(initRes.parsed.status).toBe('success');
 
       // Scan literal
       const scanContent = readFileSync(join(fixDir, '.qa', 'project', 'scan.json'), 'utf-8');
-      console.log('=== REPORT_SCAN_JSON ===');
-      console.log(scanContent);
+      expect(scanContent).toContain('PRD_diff.md');
 
       // JSON 2: qap_context_set con "PRD_diff.md" escrito libre
       const setRes = await callTool('qap_context_set', {
         targetPath: fixDir,
         source_of_truth: 'PRD_diff.md',
       });
-      console.log('=== REPORT_JSON_2_SET_FREE_DOC ===');
-      console.log(JSON.stringify(setRes.parsed, null, 2));
-
-      // JSON 5: Pregunta de confirmación única con render_texto
-      console.log('=== REPORT_JSON_5_CONFIRMACION_RENDER_TEXTO ===');
-      console.log(JSON.stringify(setRes.parsed.siguiente_accion.pregunta, null, 2));
+      expect(setRes.parsed.status).toBe('success');
 
       // Escenario para JSON 3 y JSON 4: Documento sin objetivo claro
       const noObjDir = mkdtempSync(join(tmpdir(), 'qap-rep-noobj-'));
       writeFileSync(join(noObjDir, 'spec.txt'), 'Notas breves sin encabezados ni estructura formal', 'utf-8');
-      await callTool('qap_init', { targetPath: noObjDir });
+      await callTool('qap_init', { targetPath: noObjDir, baseUrl: 'http://localhost:3000' });
       const setNoObj = await callTool('qap_context_set', {
         targetPath: noObjDir,
         source_of_truth: 'spec.txt',
       });
+      expect(setNoObj.parsed.siguiente_accion.tipo).toBe('trabajo');
 
-      // JSON 3: siguiente_accion tipo trabajo
-      console.log('=== REPORT_JSON_3_SIGUIENTE_ACCION_TRABAJO ===');
-      console.log(JSON.stringify(setNoObj.parsed.siguiente_accion, null, 2));
-
-      // JSON 4: qap_context_ingest con propuesta
       const ingestRes = await callTool('qap_context_ingest', {
         targetPath: noObjDir,
         docPath: 'spec.txt',
@@ -410,26 +385,17 @@ Sistema de gestión de pruebas automatizadas y trazabilidad.
           flujos_criticos: [{ name: 'Flujo 1', evidence: 'Línea 1' }],
         },
       });
-      console.log('=== REPORT_JSON_4_INGEST_CON_PROPUESTA ===');
-      console.log(JSON.stringify(ingestRes.parsed, null, 2));
+      expect(ingestRes.parsed.status).toBe('success');
 
-      // JSON 6: qap_status sin evidencia de URL
+      // Escenario: qap_status sin evidencia de URL
       const noUrlDir = mkdtempSync(join(tmpdir(), 'qap-rep-nourl-'));
       await callTool('qap_init', { targetPath: noUrlDir });
       const statusNoUrl = await callTool('qap_status', { targetPath: noUrlDir });
-      console.log('=== REPORT_JSON_6_STATUS_SIN_EVIDENCIA_URL ===');
-      console.log(JSON.stringify({
-        status: statusNoUrl.parsed.status,
-        fase: statusNoUrl.parsed.fase,
-        detectedService: statusNoUrl.parsed.detectedService,
-        servicios_detectados: statusNoUrl.parsed.servicios_detectados,
-      }, null, 2));
-
-      expect(initRes.parsed.status).toBe('success');
-      expect(setRes.parsed.status).toBe('success');
-      expect(setNoObj.parsed.siguiente_accion.tipo).toBe('trabajo');
-      expect(ingestRes.parsed.status).toBe('success');
       expect(statusNoUrl.parsed.detectedService).toBeUndefined();
+
+      rmSync(fixDir, { recursive: true, force: true });
+      rmSync(noObjDir, { recursive: true, force: true });
+      rmSync(noUrlDir, { recursive: true, force: true });
     });
   });
 });

@@ -30,7 +30,7 @@ export const QAP_CORE_DIRECTIVES =
   '1. Sigue estrictamente la siguiente_accion indicada por el servidor.\n' +
   '2. Investiga el workspace antes de preguntar: lee documentos, README y package.json.\n' +
   '3. No pidas al usuario lo que un documento ya especifica.\n' +
-  '4. Pasos de tipo "trabajo" son autónomos y no requieren preguntar: ejecútalos y sigue la nueva siguiente_accion.\n' +
+  '4. Pasos de tipo "trabajo" son autónomos: ejecútalos directamente sin consultar al usuario; las acciones que requieren confirmación nunca vienen como trabajo.\n' +
   '5. Máximo una sola pregunta estructurada al usuario por turno.';
 
 export interface SiguienteAccion {
@@ -147,6 +147,7 @@ export function getPhaseGuidance(
         )
       );
       const agentAnalyzed = Boolean(
+        options.context?.ingest?.analyzed_by === 'agent' ||
         sot?.notes?.includes('[agent_analyzed]')
       );
       if (isIngestibleDoc && !agentAnalyzed) {
