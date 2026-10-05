@@ -17,11 +17,15 @@ export interface SessionPlanItem {
   path: string;
   priority: string;
   status: string;
+  acceso?: boolean;
 }
 
 export interface SessionAuthConfig {
   required: boolean;
+  source?: 'user' | 'system' | 'inferred';
   profile?: string;
+  method?: 'handoff' | 'credentials';
+  roles?: string[];
 }
 
 export interface LifecycleSession {

@@ -86,6 +86,34 @@
       "items": {
         "type": "string"
       }
+    },
+    "page_kind": {
+      "type": "string",
+      "enum": [
+        "login",
+        "auth_wall",
+        "app"
+      ],
+      "description": "Clasificación determinista de la página"
+    },
+    "requested_url": {
+      "type": "string",
+      "description": "URL solicitada inicialmente para la vista"
+    },
+    "final_url": {
+      "type": "string",
+      "description": "URL final tras estabilización y redirecciones"
+    },
+    "redirected": {
+      "type": "boolean",
+      "description": "Si la navegación fue redirigida"
+    },
+    "http_status": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Código de estado HTTP de la respuesta principal"
     }
   }
 }

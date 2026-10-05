@@ -8,12 +8,11 @@
  * - Toda pregunta pasa por el validador puro validarPregunta.
  */
 
-import type { ProjectPhase, RuleCategory, LifecycleState } from '@qap/shared';
+import type { ProjectPhase, RuleCategory, LifecycleState, AuthProfile } from '@qap/shared';
 import type {
   CoverageResult,
   InterviewQuestion,
   Pregunta,
-  Opcion,
   CanExitOnboardingContext,
   CanExitOnboardingEnvironments,
   HallazgosProyectoMin,
@@ -122,6 +121,7 @@ export interface PhaseGuidanceOptions {
   interviewAction?: SiguienteAccion;
   reportPath?: string;
   environments?: CanExitOnboardingEnvironments | null;
+  profiles?: AuthProfile[];
 }
 
 export interface GuidanceResult {
@@ -199,43 +199,238 @@ export function getPhaseGuidance(
     }
 
     case 'SCOPING': {
-      let descripcion = 'Define el plan de trabajo de la sesión (módulos, rutas y prioridades) y la decisión de autenticación.';
-      if (options.suggestedModules && options.suggestedModules.length > 0) {
-        const sugeridos = options.suggestedModules.map((m) => `${m.module} (${m.path})`).join(', ');
-        descripcion += ` Módulos sugeridos extraídos del documento: ${sugeridos}.`;
-      }
+      // 1. Módulos a probar
+      const plan = options.plan ?? options.lifecycle?.session?.plan ?? [];
+      const hasPlan = Array.isArray(plan) && plan.length > 0;
 
-      const scopingOptions: Opcion[] = options.suggestedModules && options.suggestedModules.length > 0
-        ? [
-            ...options.suggestedModules.map((m, idx) => ({
-              id: `modulo_${m.module}`,
-              etiqueta: `Registrar ${m.module} (${m.path})`,
+      if (!hasPlan) {
+        const candidateModules: Array<{ module: string; path: string }> = [];
+        if (options.suggestedModules && options.suggestedModules.length > 0) {
+          candidateModules.push(...options.suggestedModules);
+        } else if (Array.isArray(options.context?.critical_flows)) {
+          for (const flow of options.context.critical_flows) {
+            const flowObj = typeof flow === 'object' && flow !== null ? (flow as { name?: unknown; path?: unknown }) : null;
+            const flowName = typeof flow === 'string' ? flow : (typeof flowObj?.name === 'string' ? flowObj.name : '');
+            const flowPath =
+              (typeof flowObj?.path === 'string' && flowObj.path) ||
+              `/${flowName.toLowerCase().replace(/[^a-z0-9_-]+/g, '_')}`;
+            if (flowName && !candidateModules.some((m) => m.module === flowName)) {
+              candidateModules.push({ module: flowName, path: flowPath });
+            }
+          }
+        }
+
+        let modulesPregunta: Pregunta;
+        if (candidateModules.length >= 2) {
+          modulesPregunta = {
+            id: 'scoping.modulos_a_probar',
+            texto: 'Selecciona los módulos prioritarios a verificar en esta sesión:',
+            formato: 'multiple',
+            opciones: candidateModules.map((m, idx) => ({
+              id: `modulo_${m.module.toLowerCase().replace(/[^a-z0-9_-]+/g, '_')}`,
+              etiqueta: `${m.module} (${m.path})`,
               recomendada: idx === 0,
             })),
-            { id: 'manual', etiqueta: 'Definir módulos manualmente' },
-          ]
-        : [
-            { id: 'manual', etiqueta: 'Definir módulos manualmente', recomendada: true },
-            { id: 'consultar', etiqueta: 'Consultar especificación del proyecto' },
-          ];
+            permite_otra: true,
+            registrar_con: { tool: 'qap_session_plan', campo: 'modules' },
+          };
+        } else {
+          modulesPregunta = {
+            id: 'scoping.modulos_a_probar',
+            texto: 'Indica los módulos a probar con su nombre y ruta (por ejemplo: Catálogo /catalog, Pagos /checkout):',
+            formato: 'abierta',
+            opciones: [],
+            permite_otra: true,
+            registrar_con: { tool: 'qap_session_plan', campo: 'modules' },
+          };
+        }
+        modulesPregunta.render_texto = generarRenderTexto(modulesPregunta);
 
-      const scopingPregunta: Pregunta = {
-        id: 'scoping.definir_plan',
-        texto: 'Define los módulos prioritarios a verificar en esta sesión y especifica si la aplicación requiere autenticación:',
-        formato: 'una_opcion',
-        opciones: scopingOptions,
-        permite_otra: true,
-        registrar_con: { tool: 'qap_session_plan', campo: 'plan' },
-      };
-      scopingPregunta.render_texto = generarRenderTexto(scopingPregunta);
+        return {
+          fase: 'SCOPING',
+          siguiente_accion: {
+            tipo: 'decision',
+            descripcion:
+              candidateModules.length > 0
+                ? `Define los módulos prioritarios a verificar con qap_session_plan: ${candidateModules.map((m) => `${m.module} (${m.path})`).join(', ')}.`
+                : 'Define los módulos prioritarios a verificar en esta sesión de trabajo.',
+            tool: 'qap_session_plan',
+            pregunta: modulesPregunta,
+          },
+        };
+      }
 
+      // 2. Si la aplicación requiere inicio de sesión
+      const sessionAuth = options.lifecycle?.session?.auth;
+      const hasAuthDecision = sessionAuth?.required !== undefined;
+
+      if (!hasAuthDecision) {
+        const authReqPregunta: Pregunta = {
+          id: 'scoping.requiere_login',
+          texto: 'Indica si la aplicación requiere inicio de sesión para acceder a sus funciones:',
+          formato: 'una_opcion',
+          opciones: [
+            {
+              id: 'requiere_login',
+              etiqueta: 'Requiere inicio de sesión (usuarios autenticados)',
+            },
+            {
+              id: 'es_publica',
+              etiqueta: 'Es una aplicación pública (sin inicio de sesión)',
+            },
+          ],
+          permite_otra: false,
+          registrar_con: { tool: 'qap_session_plan', campo: 'auth' },
+        };
+        authReqPregunta.render_texto = generarRenderTexto(authReqPregunta);
+
+        return {
+          fase: 'SCOPING',
+          siguiente_accion: {
+            tipo: 'decision',
+            descripcion: 'Especifica si el entorno bajo prueba exige inicio de sesión o es público.',
+            tool: 'qap_session_plan',
+            pregunta: authReqPregunta,
+          },
+        };
+      }
+
+      // 3. Método (solo si requiere login)
+      if (sessionAuth?.required === true && !sessionAuth.method) {
+        const methodPregunta: Pregunta = {
+          id: 'scoping.metodo_auth',
+          texto: 'Selecciona el método de autenticación para las pruebas:',
+          formato: 'una_opcion',
+          opciones: [
+            {
+              id: 'handoff',
+              etiqueta: 'Inicio de sesión manual en navegador (Handoff)',
+              recomendada: true,
+            },
+            {
+              id: 'credentials',
+              etiqueta: 'Credenciales de prueba automáticas (guardadas en llavero)',
+            },
+          ],
+          permite_otra: false,
+          registrar_con: { tool: 'qap_session_plan', campo: 'auth_method' },
+        };
+        methodPregunta.render_texto = generarRenderTexto(methodPregunta);
+
+        return {
+          fase: 'SCOPING',
+          siguiente_accion: {
+            tipo: 'decision',
+            descripcion: 'Selecciona el método de inicio de sesión: handoff manual en navegador o credenciales en llavero.',
+            tool: 'qap_session_plan',
+            pregunta: methodPregunta,
+          },
+        };
+      }
+
+      // 4. Roles a probar (solo si requiere login)
+      const chosenRoles = sessionAuth?.roles;
+      const hasRoles = Array.isArray(chosenRoles) && chosenRoles.length > 0;
+      if (sessionAuth?.required === true && !hasRoles) {
+        const rawRoles = (options.context?.roles || [])
+          .map((r: unknown) => {
+            if (typeof r === 'string') return r;
+            if (r && typeof r === 'object') {
+              const obj = r as Record<string, unknown>;
+              return typeof obj.name === 'string' ? obj.name : (typeof obj.id === 'string' ? obj.id : '');
+            }
+            return '';
+          })
+          .filter(Boolean);
+
+        let rolesPregunta: Pregunta;
+        if (rawRoles.length >= 2) {
+          rolesPregunta = {
+            id: 'scoping.roles_a_probar',
+            texto: 'Selecciona los roles de usuario que se deben probar en esta sesión:',
+            formato: 'multiple',
+            opciones: rawRoles.map((role: string, idx: number) => ({
+              id: `rol_${role.toLowerCase().replace(/[^a-z0-9_-]+/g, '_')}`,
+              etiqueta: role,
+              recomendada: idx === 0,
+            })),
+            permite_otra: true,
+            registrar_con: { tool: 'qap_session_plan', campo: 'roles' },
+          };
+        } else {
+          rolesPregunta = {
+            id: 'scoping.roles_a_probar',
+            texto: 'Indica los roles de usuario a probar en esta sesión (por ejemplo: admin, comprador):',
+            formato: 'abierta',
+            opciones: [],
+            permite_otra: true,
+            registrar_con: { tool: 'qap_session_plan', campo: 'roles' },
+          };
+        }
+        rolesPregunta.render_texto = generarRenderTexto(rolesPregunta);
+
+        return {
+          fase: 'SCOPING',
+          siguiente_accion: {
+            tipo: 'decision',
+            descripcion: 'Define los roles de usuario a verificar en la sesión.',
+            tool: 'qap_session_plan',
+            pregunta: rolesPregunta,
+          },
+        };
+      }
+
+      // 5. Captura y verificación de cada perfil pendiente
+      const profiles = options.profiles || [];
+      const pendingRole = (chosenRoles || []).find((role: string) => {
+        const p = profiles.find((prof) => prof.role === role || prof.id === role);
+        return !p || p.verified !== true;
+      });
+
+      if (sessionAuth?.required === true && pendingRole) {
+        if (sessionAuth.method === 'handoff') {
+          return {
+            fase: 'SCOPING',
+            siguiente_accion: {
+              tipo: 'trabajo',
+              descripcion: `Inicia sesión en la ventana del navegador que se abrirá llamando a qap_auth_add con method handoff para el rol '${pendingRole}'.`,
+              tool: 'qap_auth_add',
+              parametros: {
+                role: pendingRole,
+                method: 'handoff',
+              },
+            },
+          };
+        }
+
+        const capturePregunta: Pregunta = {
+          id: `scoping.capturar_perfil_credentials_${pendingRole}`,
+          texto: `Indica el usuario y contraseña de prueba para el rol '${pendingRole}' (por ejemplo: tester_${pendingRole}, clave_segura):`,
+          formato: 'abierta',
+          opciones: [],
+          permite_otra: false,
+          registrar_con: { tool: 'qap_auth_add', campo: 'credentials' },
+        };
+        capturePregunta.render_texto = generarRenderTexto(capturePregunta);
+
+        return {
+          fase: 'SCOPING',
+          siguiente_accion: {
+            tipo: 'decision',
+            descripcion: `Captura y verifica el perfil con credenciales para el rol '${pendingRole}'.`,
+            tool: 'qap_auth_add',
+            pregunta: capturePregunta,
+          },
+        };
+      }
+
+      // Si todo está configurado en SCOPING
       return {
         fase: 'SCOPING',
         siguiente_accion: {
-          tipo: 'decision',
-          descripcion,
-          tool: 'qap_session_plan',
-          pregunta: scopingPregunta,
+          tipo: 'trabajo',
+          descripcion: 'Plan de sesión y autenticación verificados. Procede a ejecutar la exploración con qap_discover.',
+          tool: 'qap_discover',
         },
       };
     }

@@ -24,12 +24,14 @@ import {
 import YAML from 'yaml';
 import {
   SchemaValidator,
+  isAuthPath,
   type AuthProfile,
   type ModuleSpec,
   type ProjectPhase,
   type ModuleLifecycleState,
   type IngestProposal,
 } from '@qap/shared';
+import type { StorageState } from '@qap/auth';
 import {
   FileSystemStorage,
   validateDefinitions,
@@ -61,7 +63,6 @@ import {
   type DomForm,
   type Pregunta,
 } from '@qap/engine';
-import { AuthManager } from '@qap/auth';
 import {
   startViewerServer,
   generateHtmlReport,
@@ -84,7 +85,7 @@ function makeDecisionQuestion(
   permiteOtra = true,
   registrarCon: { tool: string; campo: string } = { tool: 'qap_session_plan', campo: 'action' }
 ): Pregunta {
-  return {
+  const p: Pregunta = {
     id,
     texto,
     formato: 'una_opcion',
@@ -96,11 +97,13 @@ function makeDecisionQuestion(
     permite_otra: permiteOtra,
     registrar_con: registrarCon,
   };
+  p.render_texto = generarRenderTexto(p);
+  return p;
 }
 
 function buildCorrectionQuestion(campo: string, context: any): Pregunta {
-  let id = `onboarding.corregir.${campo}`;
-  let texto = '';
+  const id = `onboarding.corregir.${campo}`;
+  let texto: string;
   let registrarCon = { tool: 'qap_context_set', campo };
 
   switch (campo) {
@@ -278,7 +281,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'qap_auth_add',
-    description: `Registra un perfil de autenticación en .qa/project/auth/profiles.json y credenciales en llavero seguro. ${UX_DIRECTIVE}`,
+    description: `Registra y verifica un perfil de autenticación en .qa/project/auth/profiles.json. Permite método 'credentials' (almacenando únicamente credenciales de PRUEBA en llavero seguro keytar sin texto plano) o 'handoff' (login manual asistido en navegador). Tras capturar la sesión, ejecuta verificación automática contra el primer módulo protegido del plan y guarda el storageState. ${UX_DIRECTIVE}`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -286,6 +289,10 @@ const TOOLS: Tool[] = [
         profile: {
           type: 'string',
           description: 'Identificador del perfil de autenticación (ej: "admin", "tester")',
+        },
+        id: {
+          type: 'string',
+          description: 'Alias de profile',
         },
         env: {
           type: 'string',
@@ -297,20 +304,42 @@ const TOOLS: Tool[] = [
           description: 'Nombre de usuario asociado al perfil',
           default: 'user',
         },
+        password: {
+          type: 'string',
+          description: 'Contraseña o credencial de PRUEBA a almacenar de forma segura en llavero',
+        },
+        secret: {
+          type: 'string',
+          description: 'Alias de password para compatibilidad',
+        },
+        method: {
+          type: 'string',
+          enum: ['credentials', 'handoff'],
+          description: 'Método de inicio de sesión: credentials (auto-login con llavero) o handoff (asistido en ventana)',
+          default: 'credentials',
+        },
         login_mode: {
           type: 'string',
           enum: ['auto', 'handoff'],
-          description: 'Modo de inicio de sesión',
+          description: 'Modo de inicio de sesión (auto = credentials)',
           default: 'auto',
+        },
+        role: {
+          type: 'string',
+          description: 'Rol de negocio asociado al perfil (ej: "admin", "cliente", "operador")',
         },
         login_route: {
           type: 'string',
           description: 'Ruta de inicio de sesión',
           default: '/login',
         },
-        secret: {
-          type: 'string',
-          description: 'Contraseña o secreto a almacenar de forma segura',
+        timeout_ms: {
+          type: 'number',
+          description: 'Tiempo límite de espera en milisegundos',
+        },
+        storageState: {
+          type: 'object',
+          description: 'Objeto de sesión storageState previo o inyectado',
         },
       },
       required: ['profile'],
@@ -457,6 +486,9 @@ const TOOLS: Tool[] = [
           type: 'object',
           properties: {
             required: { type: 'boolean', description: 'Si la aplicación requiere autenticación para las pruebas' },
+            source: { type: 'string', enum: ['user', 'heuristic', 'context', 'document'], description: 'Origen de la decisión de autenticación' },
+            method: { type: 'string', enum: ['handoff', 'credentials'], description: 'Método preferido de autenticación' },
+            roles: { type: 'array', items: { type: 'string' }, description: 'Roles a probar en la sesión' },
             profile: { type: 'string', description: 'Perfil de autenticación a utilizar' },
           },
           required: ['required'],
@@ -468,7 +500,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'qap_discover',
-    description: `Descubre, mapea y registra un módulo de la aplicación (UI, rutas, selectores) en .qa/modules/ de forma autónoma. ${UX_DIRECTIVE}`,
+    description: `Descubre, mapea y registra un módulo de la aplicación (UI, rutas, selectores) en .qa/modules/ de forma autónoma con Playwright real. Si la ruta requiere autenticación o detecta auth_wall/login no planificado, responde 'blocked' con razón 'auth_required' (falta perfil verificado) o 'session_invalid' (sesión expirada o rechazada) sin escribir archivos ni avanzar el ciclo de vida; desbloquear resolviendo la autenticación con qap_auth_add. ${UX_DIRECTIVE}`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -495,9 +527,13 @@ const TOOLS: Tool[] = [
           description: 'Si es true, abre el navegador visualmente durante la exploración del módulo (default: false)',
           default: false,
         },
+        profile: {
+          type: 'string',
+          description: 'Identificador del perfil verificado a utilizar (por defecto: primer perfil verificado)',
+        },
         profileId: {
           type: 'string',
-          description: 'ID del perfil de autenticación en .qa/project/auth/profiles.json (ej: "admin")',
+          description: 'Alias de profile para compatibilidad',
         },
         credentials: {
           type: 'object',
@@ -990,8 +1026,7 @@ export function createMcpServer(): Server {
             const gate = canExitOnboarding(parsedContext, parsedEnv);
             faltantes = gate.faltantes;
           } else if (currentPhase === 'SCOPING') {
-            const registeredIds = profilesList.map((p: any) => p.id);
-            const gate = canExitScoping(lifecycleState, registeredIds);
+            const gate = canExitScoping(lifecycleState, profilesList as AuthProfile[]);
             faltantes = gate.faltantes;
           }
 
@@ -1085,6 +1120,7 @@ export function createMcpServer(): Server {
             context: parsedContext,
             lifecycle: lifecycleState,
             environments: parsedEnv,
+            profiles: profilesList as AuthProfile[],
           });
 
           const stateModuleCount = Object.keys(lifecycleState.modules || {}).length;
@@ -1344,12 +1380,14 @@ export function createMcpServer(): Server {
         }
 
         case 'qap_auth_add': {
-          const profileId = String(args.profile || 'default');
+          const profileId = String(args.profile || args.id || 'default');
           const env = String(args.env || 'local');
           const username = String(args.username || 'user');
-          const loginMode: 'auto' | 'handoff' = args.login_mode === 'handoff' ? 'handoff' : 'auto';
+          const method = (args.method === 'handoff' || args.login_mode === 'handoff') ? 'handoff' : 'credentials';
+          const loginMode: 'auto' | 'handoff' = method === 'handoff' ? 'handoff' : 'auto';
           const loginRoute = String(args.login_route || '/login');
-          const secret = args.secret ? String(args.secret) : undefined;
+          const role = args.role ? String(args.role) : undefined;
+          const password = args.password ? String(args.password) : (args.secret ? String(args.secret) : undefined);
 
           const authDir = resolve(rootDir, '.qa', 'project', 'auth');
           const profilesPath = join(authDir, 'profiles.json');
@@ -1375,10 +1413,12 @@ export function createMcpServer(): Server {
             username,
             login_mode: loginMode,
             login_route: loginRoute,
+            role: role || undefined,
             session_cache: { enabled: true },
             post_login_condition: { type: 'url_contains', value: '/dashboard' },
-            handoff_timeout_ms: 30000,
+            handoff_timeout_ms: Math.min(Number(args.timeout_ms) || 30000, 30000),
             credential_source: 'keychain',
+            verified: false,
           };
 
           if (existingIndex >= 0) {
@@ -1387,37 +1427,259 @@ export function createMcpServer(): Server {
             profiles.push(newProfile);
           }
 
+          // Guardar perfil inicial en disco para que AuthManager pueda leerlo
           writeFileSync(profilesPath, JSON.stringify({ profiles }, null, 2), 'utf-8');
 
-          if (secret) {
+          if (password) {
             try {
-              const authManager = new AuthManager();
-              await authManager.setSecret(profileId, secret);
-            } catch (err) {
-              console.error(`[MCP] Error al almacenar credencial en llavero para ${profileId}:`, err);
+              const { AuthManager } = await import('@qap/auth');
+              const authManager = new AuthManager(rootDir);
+              await authManager.setSecret(profileId, password);
+            } catch {
+              return {
+                content: [
+                  {
+                    type: 'text',
+                    text: JSON.stringify(
+                      {
+                        status: 'blocked',
+                        razon: 'keychain_unavailable',
+                        directorio_objetivo: rootDir,
+                        error: 'El llavero seguro del sistema (keytar) no está disponible. No se almacenarán credenciales en texto plano.',
+                        desbloquear_con: {
+                          tool: 'qap_auth_add',
+                          descripcion: 'Usa el método handoff para autenticarte interactivamente en el navegador sin almacenar contraseñas en el llavero.',
+                        },
+                      },
+                      null,
+                      2
+                    ),
+                  },
+                ],
+              };
             }
           }
 
           const storage = new FileSystemStorage({ rootDir });
           const lifecycleState = await storage.getLifecycleState();
-          const currentPhase = lifecycleState.phase;
 
+          // Resolver baseUrl
+          let baseUrl = 'http://localhost:3000';
+          const envsPath = join(rootDir, '.qa', 'project', 'environments.yaml');
+          if (existsSync(envsPath)) {
+            try {
+              const parsedEnv = YAML.parse(readFileSync(envsPath, 'utf-8'));
+              const defaultEnv = parsedEnv?.default ?? 'local';
+              baseUrl = parsedEnv?.environments?.[defaultEnv]?.url ?? baseUrl;
+            } catch { /* empty */ }
+          } else {
+            const ctxPath = join(rootDir, '.qa', 'project', 'context.yaml');
+            if (existsSync(ctxPath)) {
+              try {
+                const parsedCtx = YAML.parse(readFileSync(ctxPath, 'utf-8'));
+                if (parsedCtx?.base_url) baseUrl = parsedCtx.base_url;
+              } catch { /* empty */ }
+            }
+          }
+
+          const sessionDir = join(rootDir, '.qa', 'cache', 'sessions');
+          if (!existsSync(sessionDir)) mkdirSync(sessionDir, { recursive: true });
+
+          const plan = lifecycleState.session?.plan || [];
+          const firstProtected = plan.find((p: { module: string; path: string; acceso?: boolean }) => !p.acceso && !isAuthPath(p.path));
+          const postLoginCondition = firstProtected
+            ? { type: 'url_contains' as const, value: firstProtected.path }
+            : (newProfile.post_login_condition || { type: 'url_contains' as const, value: '/dashboard' });
+
+          let capturedStorageState: StorageState | undefined = args.storageState as StorageState | undefined;
+          const verificationAttempted = Boolean(capturedStorageState || password || method === 'handoff');
+
+          if (!capturedStorageState && password) {
+            try {
+              const { PlaywrightAdapter } = await import('@qap/playwright-adapter');
+              const tempSessionPath = join(sessionDir, `tmp_${profileId}_${Date.now()}.json`);
+              const loginAdapter = new PlaywrightAdapter({
+                headless: true,
+                baseUrl,
+                sessionPath: tempSessionPath,
+                credentials: { username, password },
+              });
+              await loginAdapter.discover({ name: 'login_flow', path: loginRoute });
+              if (existsSync(tempSessionPath)) {
+                try {
+                  capturedStorageState = JSON.parse(readFileSync(tempSessionPath, 'utf-8'));
+                } catch { /* empty */ }
+                try { rmSync(tempSessionPath, { force: true }); } catch { /* empty */ }
+              }
+            } catch {
+              // Si falla la navegación del auto-login
+            }
+          } else if (!capturedStorageState && method === 'handoff') {
+            try {
+              const { chromium } = await import('playwright-core');
+              const browser = await chromium.launch({ headless: true });
+              const bCtx = await browser.newContext();
+              try {
+                const handoffHook = (globalThis as Record<string, unknown>).__QAP_HANDOFF_TEST_HOOK__ || (args as Record<string, unknown>)._handoff_mock;
+                if (handoffHook && typeof handoffHook === 'function') {
+                  await (handoffHook as (ctx: unknown, url: string) => Promise<void>)(bCtx, baseUrl);
+                }
+                const { executeHandoffLogin } = await import('@qap/auth');
+                capturedStorageState = await executeHandoffLogin(
+                  {
+                    ...newProfile,
+                    login_route: `${baseUrl}${loginRoute.startsWith('/') ? loginRoute : `/${loginRoute}`}`,
+                    post_login_condition: postLoginCondition,
+                    handoff_timeout_ms: Math.min(Number(args.timeout_ms) || 15000, 15000),
+                  },
+                  bCtx
+                );
+              } finally {
+                await bCtx.close().catch(() => {});
+                await browser.close().catch(() => {});
+              }
+            } catch {
+              // Timeout o fallo en handoff
+            }
+          }
+
+          let isVerified = false;
+          const verifiedRoute = firstProtected ? firstProtected.path : loginRoute;
+
+          if (capturedStorageState) {
+            const { SessionStore } = await import('@qap/auth');
+            const sessionStore = new SessionStore(sessionDir, rootDir);
+            sessionStore.saveSession(profileId, capturedStorageState);
+
+            try {
+              const { PlaywrightAdapter, normalizeUrlForComparison } = await import('@qap/playwright-adapter');
+              const verifyAdapter = new PlaywrightAdapter({
+                headless: true,
+                baseUrl,
+                storageState: capturedStorageState,
+              });
+
+              if (firstProtected) {
+                const verifyRes = await verifyAdapter.discover(
+                  { name: firstProtected.module, path: firstProtected.path },
+                  { storageState: capturedStorageState }
+                );
+                const vCtx = (verifyRes.context || {}) as Record<string, unknown>;
+                const normFinal = normalizeUrlForComparison(String(vCtx.final_url || ''), baseUrl);
+                const normReq = normalizeUrlForComparison(String(vCtx.requested_url || firstProtected.path), baseUrl);
+                if (normFinal.pathname === normReq.pathname && vCtx.page_kind === 'app') {
+                  isVerified = true;
+                }
+              } else {
+                const verifyRes = await verifyAdapter.discover(
+                  { name: 'verify_post_login', path: loginRoute },
+                  { storageState: capturedStorageState }
+                );
+                const vCtx = (verifyRes.context || {}) as Record<string, unknown>;
+                if (vCtx.page_kind !== 'login') {
+                  isVerified = true;
+                }
+              }
+            } catch {
+              isVerified = false;
+            }
+          }
+
+          if (verificationAttempted && !isVerified) {
+            newProfile.verified = false;
+            const idx = profiles.findIndex((p) => p.id === profileId);
+            if (idx >= 0) profiles[idx] = newProfile;
+            writeFileSync(profilesPath, JSON.stringify({ profiles }, null, 2), 'utf-8');
+
+            const isHandoffTimeout = method === 'handoff' && !capturedStorageState;
+            const razon = isHandoffTimeout ? 'handoff_timeout' : 'session_invalid';
+            const message = isHandoffTimeout
+              ? `El inicio de sesión interactivo (handoff) para el perfil '${profileId}' excedió el tiempo límite sin completar el acceso a la ruta objetivo.`
+              : `La sesión para el perfil '${profileId}' falló la verificación contra '${verifiedRoute}'.`;
+
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(
+                    {
+                      status: 'blocked',
+                      razon,
+                      directorio_objetivo: rootDir,
+                      perfil: profileId,
+                      rol: role,
+                      message,
+                      desbloquear_con: {
+                        tool: 'qap_auth_add',
+                        descripcion: isHandoffTimeout
+                          ? `Reintenta el inicio de sesión con handoff para el perfil '${profileId}' con qap_auth_add.`
+                          : `Revisa las credenciales o flujo de inicio de sesión para el perfil '${profileId}'.`,
+                      },
+                      siguiente_accion: {
+                        tipo: 'trabajo',
+                        descripcion: isHandoffTimeout
+                          ? `Reintentar inicio de sesión manual para el perfil '${profileId}'.`
+                          : `Reintentar la autenticación para el perfil '${profileId}'.`,
+                        tool: 'qap_auth_add',
+                        parametros: {
+                          profile: profileId,
+                          role,
+                          method,
+                          login_route: loginRoute,
+                          timeout_ms: args.timeout_ms,
+                        },
+                      },
+                    },
+                    null,
+                    2
+                  ),
+                },
+              ],
+            };
+          }
+
+          if (isVerified) {
+            newProfile.verified = true;
+            newProfile.verified_at = new Date().toISOString();
+            newProfile.verified_route = verifiedRoute;
+          }
+
+          const idx = profiles.findIndex((p) => p.id === profileId);
+          if (idx >= 0) profiles[idx] = newProfile;
+          writeFileSync(profilesPath, JSON.stringify({ profiles }, null, 2), 'utf-8');
+
+          let currentPhase = lifecycleState.phase;
           let faltantes: Array<{ campo: string; motivo: string }> = [];
+
           if (currentPhase === 'ONBOARDING') {
             const ctxPath = join(rootDir, '.qa', 'project', 'context.yaml');
-            const envsPath = join(rootDir, '.qa', 'project', 'environments.yaml');
             const parsedContext = existsSync(ctxPath) ? YAML.parse(readFileSync(ctxPath, 'utf-8')) : null;
             const parsedEnv = existsSync(envsPath) ? YAML.parse(readFileSync(envsPath, 'utf-8')) : null;
             faltantes = canExitOnboarding(parsedContext, parsedEnv).faltantes;
           } else if (currentPhase === 'SCOPING') {
-            const registeredIds = profiles.map((p) => p.id);
-            faltantes = canExitScoping(lifecycleState, registeredIds).faltantes;
+            const gate = canExitScoping(lifecycleState, profiles);
+            faltantes = gate.faltantes;
+            if (gate.passed) {
+              await storage.updateLifecycleState(async (curr) => {
+                curr.phase = 'WORKING';
+                curr.history = curr.history || [];
+                curr.history.push({
+                  from: 'SCOPING',
+                  to: 'WORKING',
+                  at: new Date().toISOString(),
+                  reason: 'Compuerta de salida de SCOPING superada tras verificar perfil de autenticación',
+                });
+                return curr;
+              });
+              currentPhase = 'WORKING';
+            }
           }
 
           const guidance = getPhaseGuidance(currentPhase, {
             faltantes,
             plan: lifecycleState.session?.plan,
             modules: lifecycleState.modules as any,
+            profiles,
           });
 
           return {
@@ -1428,9 +1690,20 @@ export function createMcpServer(): Server {
                   {
                     status: 'success',
                     directorio_objetivo: rootDir,
-                    message: `✔ Perfil '${profileId}' registrado con éxito en .qa/project/auth/profiles.json.`,
-                    profile: newProfile,
-                    secretSaved: Boolean(secret),
+                    message: isVerified
+                      ? `✔ Perfil '${profileId}' verificado con éxito y sesión guardada.`
+                      : `✔ Perfil '${profileId}' registrado con éxito en .qa/project/auth/profiles.json.`,
+                    profile: {
+                      id: newProfile.id,
+                      env: newProfile.env,
+                      username: newProfile.username,
+                      role: newProfile.role,
+                      login_mode: newProfile.login_mode,
+                      verified: Boolean(newProfile.verified),
+                      verified_at: newProfile.verified_at,
+                      verified_route: newProfile.verified_route,
+                    },
+                    secretSaved: Boolean(password),
                     fase: currentPhase,
                     siguiente_accion: guidance.siguiente_accion,
                   },
@@ -2478,13 +2751,20 @@ export function createMcpServer(): Server {
           }
 
           const profilesPath = join(qaDir, 'project', 'auth', 'profiles.json');
-          let registeredProfiles: string[] = [];
+          let allProfiles: AuthProfile[] = [];
           if (existsSync(profilesPath)) {
             try {
               const parsed = JSON.parse(readFileSync(profilesPath, 'utf-8'));
-              registeredProfiles = (parsed.profiles || []).map((p: any) => p.id);
+              allProfiles = parsed.profiles || [];
             } catch { /* empty */ }
           }
+
+          const isAccess = (m: { path?: string; acceso?: boolean }) => Boolean(m.acceso || isAuthPath(String(m.path || '')));
+          const sortedModules = [...rawModules].sort((a, b) => {
+            const aAcc = isAccess(a) ? 1 : 0;
+            const bAcc = isAccess(b) ? 1 : 0;
+            return bAcc - aAcc;
+          });
 
           let scopingGateRes: { passed: boolean; faltantes: Array<{ campo: string; motivo: string }> } = { passed: true, faltantes: [] };
           let updatedPhase = lifecycleState.phase;
@@ -2506,9 +2786,12 @@ export function createMcpServer(): Server {
               const prevAuth = curr.session?.auth;
               let sessionAuth = prevAuth || { required: false };
               if (args.auth && typeof args.auth === 'object') {
-                const a = args.auth as Record<string, any>;
+                const a = args.auth as { required?: unknown; source?: unknown; method?: unknown; roles?: unknown; profile?: unknown };
                 sessionAuth = {
                   required: Boolean(a.required),
+                  source: (a.source === 'inferred' ? 'inferred' : 'user'),
+                  method: a.method === 'handoff' || a.method === 'credentials' ? a.method : undefined,
+                  roles: Array.isArray(a.roles) ? (a.roles as string[]) : undefined,
                   profile: a.profile !== undefined ? String(a.profile) : undefined,
                 };
               }
@@ -2517,11 +2800,12 @@ export function createMcpServer(): Server {
                 id: randomUUID(),
                 started_at: new Date().toISOString(),
                 auth: sessionAuth,
-                plan: rawModules.map((m: any) => ({
+                plan: sortedModules.map((m: { module: string; path: string; priority?: string; acceso?: boolean }) => ({
                   module: String(m.module).trim(),
                   path: String(m.path).trim(),
-                  priority: String(m.priority).trim(),
+                  priority: String(m.priority || 'medium').trim(),
                   status: 'planned',
+                  acceso: isAccess(m) ? true : undefined,
                 })),
               };
 
@@ -2536,7 +2820,7 @@ export function createMcpServer(): Server {
               }
 
               assertLifecycleStateInvariants(curr);
-              scopingGateRes = canExitScoping(curr, registeredProfiles);
+              scopingGateRes = canExitScoping(curr, allProfiles);
 
               if (scopingGateRes.passed) {
                 curr.phase = 'WORKING';
@@ -2556,18 +2840,22 @@ export function createMcpServer(): Server {
 
             if (curr.phase === 'SCOPING') {
               if (args.auth && typeof args.auth === 'object') {
-                const a = args.auth as Record<string, any>;
+                const a = args.auth as { required?: unknown; source?: unknown; method?: unknown; roles?: unknown; profile?: unknown };
                 curr.session.auth = {
                   required: Boolean(a.required),
+                  source: (a.source === 'inferred' ? 'inferred' : 'user'),
+                  method: a.method === 'handoff' || a.method === 'credentials' ? a.method : undefined,
+                  roles: Array.isArray(a.roles) ? (a.roles as string[]) : undefined,
                   profile: a.profile !== undefined ? String(a.profile) : undefined,
                 };
               }
 
-              curr.session.plan = rawModules.map((m: any) => ({
+              curr.session.plan = sortedModules.map((m: { module: string; path: string; priority?: string; acceso?: boolean }) => ({
                 module: String(m.module).trim(),
                 path: String(m.path).trim(),
-                priority: String(m.priority).trim(),
+                priority: String(m.priority || 'medium').trim(),
                 status: 'planned',
+                acceso: isAccess(m) ? true : undefined,
               }));
 
               for (const item of curr.session.plan) {
@@ -2580,7 +2868,7 @@ export function createMcpServer(): Server {
               }
 
               assertLifecycleStateInvariants(curr);
-              scopingGateRes = canExitScoping(curr, registeredProfiles);
+              scopingGateRes = canExitScoping(curr, allProfiles);
 
               if (scopingGateRes.passed) {
                 curr.phase = 'WORKING';
@@ -2597,7 +2885,7 @@ export function createMcpServer(): Server {
             } else if (curr.phase === 'WORKING') {
               // En WORKING solo amplía (no modifica ni borra existentes)
               curr.session.plan = curr.session.plan || [];
-              for (const m of rawModules) {
+              for (const m of sortedModules) {
                 const mName = String(m.module).trim();
                 const mPath = String(m.path).trim();
                 const mPriority = String(m.priority).trim();
@@ -2608,6 +2896,7 @@ export function createMcpServer(): Server {
                     path: mPath,
                     priority: mPriority,
                     status: 'planned',
+                    acceso: isAccess(m) ? true : undefined,
                   });
                 }
                 if (!curr.modules[mName]) {
@@ -2619,9 +2908,12 @@ export function createMcpServer(): Server {
               }
 
               if (args.auth && !curr.session.auth && typeof args.auth === 'object') {
-                const a = args.auth as Record<string, any>;
+                const a = args.auth as { required?: unknown; source?: unknown; method?: unknown; roles?: unknown; profile?: unknown };
                 curr.session.auth = {
                   required: Boolean(a.required),
+                  source: (a.source === 'inferred' ? 'inferred' : 'user'),
+                  method: a.method === 'handoff' || a.method === 'credentials' ? a.method : undefined,
+                  roles: Array.isArray(a.roles) ? (a.roles as string[]) : undefined,
                   profile: a.profile !== undefined ? String(a.profile) : undefined,
                 };
               }
@@ -2639,6 +2931,7 @@ export function createMcpServer(): Server {
             faltantes: scopingGateRes.faltantes,
             plan: freshState.session?.plan,
             modules: freshState.modules as any,
+            profiles: allProfiles,
           });
 
           return {
@@ -2739,15 +3032,15 @@ export function createMcpServer(): Server {
 
           if (currentPhase === 'SCOPING') {
             const profilesPath = join(qaDir, 'project', 'auth', 'profiles.json');
-            let registeredProfiles: string[] = [];
+            let allProfiles: AuthProfile[] = [];
             if (existsSync(profilesPath)) {
               try {
                 const parsed = JSON.parse(readFileSync(profilesPath, 'utf-8'));
-                registeredProfiles = (parsed.profiles || []).map((p: any) => p.id);
+                allProfiles = parsed.profiles || [];
               } catch { /* empty */ }
             }
-            const gate = canExitScoping(lifecycleState, registeredProfiles);
-            const guidance = getPhaseGuidance('SCOPING', { faltantes: gate.faltantes });
+            const gate = canExitScoping(lifecycleState, allProfiles);
+            const guidance = getPhaseGuidance('SCOPING', { faltantes: gate.faltantes, profiles: allProfiles });
             return {
               content: [
                 {
@@ -2879,24 +3172,97 @@ export function createMcpServer(): Server {
             };
           }
 
-          // 1. Guardar Spec en cache
-          const cacheDir = join(qaDir, 'cache', 'discover');
-          if (!existsSync(cacheDir)) mkdirSync(cacheDir, { recursive: true });
-          const spec: ModuleSpec = { name, path: route, tags };
-          writeFileSync(join(cacheDir, `${name}.spec.json`), JSON.stringify(spec, null, 2), 'utf-8');
+          // Resolver perfiles y estado de autenticación
+          const profilesPath = join(rootDir, '.qa', 'project', 'auth', 'profiles.json');
+          let allProfiles: AuthProfile[] = [];
+          if (existsSync(profilesPath)) {
+            try {
+              const parsed = JSON.parse(readFileSync(profilesPath, 'utf-8'));
+              allProfiles = parsed.profiles || [];
+            } catch { /* empty */ }
+          }
+
+          const reqProfileId = args.profile !== undefined ? String(args.profile) : (args.profileId !== undefined ? String(args.profileId) : undefined);
+          let activeProfile: AuthProfile | undefined = undefined;
+          if (reqProfileId) {
+            activeProfile = allProfiles.find((p) => p.id === reqProfileId);
+          } else {
+            activeProfile = allProfiles.find((p) => p.verified === true);
+          }
+
+          const planItem = (lifecycleState.session?.plan || []).find((p: { module: string; acceso?: boolean }) => p.module === name);
+          const isAccessModule = Boolean(planItem?.acceso || isAuthPath(route));
+          const authRequired = Boolean(lifecycleState.session?.auth?.required);
+
+          // Si requiere auth, no es de acceso, y no hay perfil verificado:
+          if (!isAccessModule && authRequired && (!activeProfile || !activeProfile.verified)) {
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(
+                    {
+                      status: 'blocked',
+                      razon: 'auth_required',
+                      directorio_objetivo: rootDir,
+                      modulo: name,
+                      ruta: route,
+                      requested_url: route,
+                      final_url: route,
+                      page_kind: 'auth_wall',
+                      redirected: false,
+                      http_status: null,
+                      desbloquear_con: {
+                        tool: 'qap_auth_add',
+                        descripcion: `El módulo '${name}' requiere autenticación pero no hay ningún perfil verificado disponible. Registra y verifica un perfil con qap_auth_add.`,
+                      },
+                      siguiente_accion: {
+                        tipo: 'decision',
+                        descripcion: `El módulo '${name}' requiere autenticación para ser explorado. Configura un perfil con qap_auth_add.`,
+                        tool: 'qap_auth_add',
+                        pregunta: makeDecisionQuestion(
+                          'decision_auth_required',
+                          `El módulo '${name}' requiere autenticación. Selecciona el método para iniciar sesión:`,
+                          [
+                            { id: 'handoff', etiqueta: 'Iniciar sesión en ventana del navegador (handoff)', recomendada: true },
+                            { id: 'credentials', etiqueta: 'Usar credenciales de prueba en llavero seguro' },
+                          ],
+                          true,
+                          { tool: 'qap_auth_add', campo: 'method' }
+                        ),
+                      },
+                    },
+                    null,
+                    2
+                  ),
+                },
+              ],
+            };
+          }
 
           let discoveredData: {
             routes: string[];
-            forms: any[];
-            buttons: any[];
-            inputs: any[];
-            links: any[];
+            forms: unknown[];
+            buttons: unknown[];
+            inputs: unknown[];
+            links: unknown[];
             pageTitle: string;
+            isAuthView?: boolean;
+            sessionSaved?: boolean;
+            storageStateUsed?: boolean;
+            currentUrl?: string;
           } = { routes: [], forms: [], buttons: [], inputs: [], links: [], pageTitle: name };
 
           // Intentar exploración activa con Playwright
           let playwrightUsed = false;
           let playwrightError: string | null = null;
+          let pageKind = 'app';
+          let requestedUrl = route;
+          let finalUrl = route;
+          let redirected = false;
+          let httpStatus: number | null = null;
+          let authSelectors: Record<string, unknown> | undefined = undefined;
+
           try {
             const { PlaywrightAdapter } = await import('@qap/playwright-adapter');
 
@@ -2919,53 +3285,45 @@ export function createMcpServer(): Server {
               }
             }
 
-            // Resolver credenciales y sesión para descubrimiento autenticado
+            // Cargar storageState verificado si hay perfil activo
+            let storageStateToUse: StorageState | undefined = undefined;
+            if (activeProfile?.id) {
+              try {
+                const { SessionStore } = await import('@qap/auth');
+                const sessionStore = new SessionStore(join(qaDir, 'cache', 'sessions'), rootDir);
+                storageStateToUse = sessionStore.getValidSession(activeProfile.id) ?? undefined;
+              } catch { /* empty */ }
+            }
+
+            // Resolver credenciales explícitas si se pasan como argumento
             let credentials: { username: string; password: string } | undefined = undefined;
             if (args.credentials && typeof args.credentials === 'object') {
               const c = args.credentials as Record<string, unknown>;
               if (c.username && c.password) {
                 credentials = { username: String(c.username), password: String(c.password) };
               }
-            } else if (args.profileId) {
-              const profileId = String(args.profileId);
-              const profilesPath = join(rootDir, '.qa', 'project', 'auth', 'profiles.json');
-              if (existsSync(profilesPath)) {
-                try {
-                  const parsed = JSON.parse(readFileSync(profilesPath, 'utf-8'));
-                  const profile = (parsed.profiles || []).find((p: any) => p.id === profileId);
-                  if (profile) {
-                    const { AuthManager } = await import('@qap/auth');
-                    const authMgr = new AuthManager(rootDir);
-                    const creds = await authMgr.getCredentials(profileId);
-                    if (creds && creds.password) {
-                      credentials = { username: profile.username, password: creds.password };
-                    } else if (profile.username) {
-                      credentials = { username: profile.username, password: '' };
-                    }
-                  }
-                } catch { /* usa credenciales vacías si falla */ }
-              }
             }
-
-            const sessionPath = join(qaDir, 'cache', 'sessions', 'discover-session.json');
 
             const adapter = new PlaywrightAdapter({
               headless: !headed,
               baseUrl,
-              sessionPath,
+              storageState: storageStateToUse,
               credentials,
             });
-            const discovered = await adapter.discover({ name, path: route, tags });
+            const discovered = await adapter.discover(
+              { name, path: route, tags },
+              { storageState: storageStateToUse }
+            );
 
             const ctxObj = (discovered.context || {}) as Record<string, unknown>;
             discoveredData = {
               routes: Array.isArray(ctxObj.discovered_routes)
                 ? (ctxObj.discovered_routes as string[])
                 : [],
-              forms: Array.isArray(ctxObj.forms) ? (ctxObj.forms as any[]) : [],
-              buttons: Array.isArray(ctxObj.buttons) ? (ctxObj.buttons as any[]) : [],
-              inputs: Array.isArray(ctxObj.inputs) ? (ctxObj.inputs as any[]) : [],
-              links: Array.isArray(ctxObj.links) ? (ctxObj.links as any[]) : [],
+              forms: Array.isArray(ctxObj.forms) ? ctxObj.forms : [],
+              buttons: Array.isArray(ctxObj.buttons) ? ctxObj.buttons : [],
+              inputs: Array.isArray(ctxObj.inputs) ? ctxObj.inputs : [],
+              links: Array.isArray(ctxObj.links) ? ctxObj.links : [],
               pageTitle: discovered.description ?? name,
             };
             if (ctxObj.playwright_error) {
@@ -2975,19 +3333,125 @@ export function createMcpServer(): Server {
               playwrightUsed = true;
             }
 
+            pageKind = String(ctxObj.page_kind || 'app');
+            requestedUrl = String(ctxObj.requested_url || route);
+            finalUrl = String(ctxObj.final_url || route);
+            redirected = Boolean(ctxObj.redirected);
+            httpStatus = ctxObj.http_status !== undefined ? (ctxObj.http_status as number | null) : null;
+            authSelectors = ctxObj.auth_selectors as Record<string, unknown> | undefined;
+
             // Metadatos de autenticación y sesión
-            (discoveredData as any).isAuthView = Boolean(ctxObj.is_auth_view);
-            (discoveredData as any).sessionSaved = Boolean(ctxObj.session_saved);
-            (discoveredData as any).storageStateUsed = Boolean(ctxObj.storage_state_used);
-            (discoveredData as any).currentUrl = ctxObj.current_url ? String(ctxObj.current_url) : route;
+            discoveredData.isAuthView = Boolean(ctxObj.is_auth_view);
+            discoveredData.sessionSaved = Boolean(ctxObj.session_saved);
+            discoveredData.storageStateUsed = Boolean(ctxObj.storage_state_used);
+            discoveredData.currentUrl = ctxObj.current_url ? String(ctxObj.current_url) : finalUrl;
           } catch (err) {
             playwrightError = err instanceof Error ? err.message : String(err);
           }
 
-          const isAuthView = Boolean((discoveredData as any).isAuthView);
-          const sessionSaved = Boolean((discoveredData as any).sessionSaved);
-          const storageStateUsed = Boolean((discoveredData as any).storageStateUsed);
-          const currentUrl: string = typeof (discoveredData as any).currentUrl === 'string' ? String((discoveredData as any).currentUrl) : route;
+          // COMPROBACIÓN ANTES DE PERSISTIR: Si es auth_wall o login no planificado -> BLOQUEAR sin escrituras
+          if (pageKind === 'auth_wall' || (pageKind === 'login' && !isAccessModule)) {
+            const wasVerified = Boolean(activeProfile?.verified);
+            const razon = wasVerified ? 'session_invalid' : 'auth_required';
+
+            if (wasVerified && activeProfile) {
+              activeProfile.verified = false;
+              if (existsSync(profilesPath)) {
+                try {
+                  const parsed = JSON.parse(readFileSync(profilesPath, 'utf-8'));
+                  const idx = (parsed.profiles || []).findIndex((p: { id: string }) => p.id === activeProfile!.id);
+                  if (idx >= 0) {
+                    parsed.profiles[idx].verified = false;
+                    writeFileSync(profilesPath, JSON.stringify(parsed, null, 2), 'utf-8');
+                  }
+                } catch { /* empty */ }
+              }
+              try {
+                const { SessionStore } = await import('@qap/auth');
+                const sessionStore = new SessionStore(join(qaDir, 'cache', 'sessions'), rootDir);
+                sessionStore.clearSession(activeProfile.id);
+              } catch { /* empty */ }
+            }
+
+            const desbloquearCon = wasVerified
+              ? {
+                  tool: 'qap_auth_add',
+                  descripcion: `Re-autentica el perfil '${activeProfile?.id}' con qap_auth_add para renovar la sesión expirada o rechazada.`,
+                }
+              : {
+                  tool: 'qap_auth_add',
+                  descripcion: `El módulo '${name}' requiere autenticación. Registra y verifica un perfil con qap_auth_add.`,
+                };
+
+            const siguienteAccion = wasVerified
+              ? {
+                  tipo: 'decision' as const,
+                  descripcion: `La sesión del perfil '${activeProfile?.id}' ya no es válida para el módulo '${name}'. Re-autentica con qap_auth_add.`,
+                  tool: 'qap_auth_add',
+                  pregunta: makeDecisionQuestion(
+                    'decision_session_invalid',
+                    `La sesión del perfil '${activeProfile?.id}' expiró o no fue aceptada en '${name}'. Selecciona cómo proceder:`,
+                    [
+                      { id: 'reautenticar', etiqueta: `Re-autenticar perfil '${activeProfile?.id}' con qap_auth_add`, recomendada: true },
+                      { id: 'otro_modulo', etiqueta: 'Continuar con otro módulo del plan' },
+                    ],
+                    true,
+                    { tool: 'qap_auth_add', campo: 'action' }
+                  ),
+                }
+              : {
+                  tipo: 'decision' as const,
+                  descripcion: `El módulo '${name}' requiere autenticación para ser explorado. Configura un perfil con qap_auth_add.`,
+                  tool: 'qap_auth_add',
+                  pregunta: makeDecisionQuestion(
+                    'decision_auth_required',
+                    `El acceso al módulo '${name}' está protegido o redirige al inicio de sesión. Selecciona el método de autenticación:`,
+                    [
+                      { id: 'handoff', etiqueta: 'Iniciar sesión en ventana del navegador (handoff)', recomendada: true },
+                      { id: 'credentials', etiqueta: 'Usar credenciales de prueba en llavero seguro' },
+                    ],
+                    true,
+                    { tool: 'qap_auth_add', campo: 'method' }
+                  ),
+                };
+
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(
+                    {
+                      status: 'blocked',
+                      razon,
+                      directorio_objetivo: rootDir,
+                      modulo: name,
+                      ruta: route,
+                      requested_url: requestedUrl,
+                      final_url: finalUrl,
+                      page_kind: pageKind,
+                      redirected,
+                      http_status: httpStatus,
+                      desbloquear_con: desbloquearCon,
+                      siguiente_accion: siguienteAccion,
+                    },
+                    null,
+                    2
+                  ),
+                },
+              ],
+            };
+          }
+
+          // 1. Guardar Spec en cache sólo cuando no está bloqueado
+          const cacheDir = join(qaDir, 'cache', 'discover');
+          if (!existsSync(cacheDir)) mkdirSync(cacheDir, { recursive: true });
+          const spec: ModuleSpec = { name, path: route, tags };
+          writeFileSync(join(cacheDir, `${name}.spec.json`), JSON.stringify(spec, null, 2), 'utf-8');
+
+          const isAuthView = Boolean(discoveredData.isAuthView);
+          const sessionSaved = Boolean(discoveredData.sessionSaved);
+          const storageStateUsed = Boolean(discoveredData.storageStateUsed);
+          const currentUrl: string = typeof discoveredData.currentUrl === 'string' ? discoveredData.currentUrl : finalUrl;
           const playwrightStatus = playwrightUsed ? 'explorando' : playwrightError ? 'fallido' : 'no_disponible';
 
           // context.yaml de la vista por defecto
@@ -2999,6 +3463,11 @@ export function createMcpServer(): Server {
             current_url: currentUrl,
             tags,
             is_auth_view: isAuthView,
+            page_kind: pageKind,
+            requested_url: requestedUrl,
+            final_url: finalUrl,
+            redirected,
+            http_status: httpStatus,
             session_saved: sessionSaved,
             storage_state_used: storageStateUsed,
             playwright_used: playwrightUsed,
@@ -3039,11 +3508,12 @@ export function createMcpServer(): Server {
           writeFileSync(join(viewsDir, 'context.yaml'), YAML.stringify(viewContext), 'utf-8');
 
           // selectors.json de la vista
-          const selectorsData = {
+          const selectorsData: Record<string, unknown> = {
             _version: '1',
             view: 'default',
             module: name,
             generated_at: new Date().toISOString(),
+            page_kind: pageKind,
             selectors: {
               forms: discoveredData.forms,
               inputs: discoveredData.inputs,
@@ -3051,6 +3521,9 @@ export function createMcpServer(): Server {
               links: discoveredData.links,
             },
           };
+          if (isAccessModule && pageKind === 'login' && authSelectors) {
+            selectorsData.auth_selectors = authSelectors;
+          }
           writeFileSync(join(viewsDir, 'selectors.json'), JSON.stringify(selectorsData, null, 2), 'utf-8');
 
           // summary.json en raíz del módulo
@@ -3106,7 +3579,7 @@ export function createMcpServer(): Server {
               } satisfies DomField)),
               submitSelector: f.submitSelector,
             } satisfies DomForm)),
-            buttons: (discoveredData.buttons || []),
+            buttons: (discoveredData.buttons || []) as Array<{ key: string; text: string; selector: string }>,
             storage_state_used: storageStateUsed,
             is_auth_view: isAuthView,
           };

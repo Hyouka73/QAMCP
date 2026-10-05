@@ -1,13 +1,19 @@
 import { existsSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 
-import { chromium, type Browser, type BrowserContext, type Page } from 'playwright-core';
+import { chromium, type Browser, type BrowserContext, type BrowserContextOptions, type Page } from 'playwright-core';
 import type { IDiscoverer } from '@qap/engine';
+import { isAuthPath } from '@qap/shared';
 import type { ModuleSpec, Module } from '@qap/shared';
 
 export interface AuthCredentials {
   username: string;
   password: string;
+}
+
+export interface DiscoverOptions {
+  /** Objeto o ruta storageState para sesión autenticada */
+  storageState?: string | Record<string, unknown> | object;
 }
 
 export interface PlaywrightAdapterOptions {
@@ -19,8 +25,34 @@ export interface PlaywrightAdapterOptions {
   baseUrl?: string;
   /** Ruta al archivo storageState para restaurar o guardar sesiones persistentes */
   sessionPath?: string;
+  /** Objeto o ruta storageState para restaurar sesión autenticada */
+  storageState?: string | Record<string, unknown> | object;
   /** Credenciales explícitas para autenticarse si la pantalla es de login */
   credentials?: AuthCredentials;
+}
+
+export const URL_STABILITY_INTERVAL_MS = 150;
+export const URL_STABILITY_WINDOW_MS = 500;
+export const URL_STABILITY_MAX_TIMEOUT_MS = 3000;
+export const URL_NETWORKIDLE_MAX_TIMEOUT_MS = 3000;
+
+export function normalizeUrlForComparison(
+  rawUrl: string,
+  baseUrl?: string
+): { origin: string; pathname: string } {
+  try {
+    const u = new URL(rawUrl, baseUrl || 'http://localhost');
+    const origin = u.origin.toLowerCase();
+    let pathname = u.pathname.toLowerCase();
+    if (pathname.length > 1 && pathname.endsWith('/')) {
+      pathname = pathname.slice(0, -1);
+    }
+    return { origin, pathname };
+  } catch {
+    const clean = rawUrl.split('?')[0].split('#')[0].toLowerCase().trim();
+    const pathname = clean.length > 1 && clean.endsWith('/') ? clean.slice(0, -1) : clean;
+    return { origin: '', pathname };
+  }
 }
 
 export interface LaunchBrowserOptions {
@@ -130,6 +162,121 @@ export async function launchBrowser(options: LaunchBrowserOptions = {}): Promise
 }
 
 /**
+ * Espera a que la URL del navegador se estabilice tras la navegación
+ * inicial y posibles redirecciones cliente (guards SPA / React Router).
+ */
+async function waitForUrlStability(page: Page): Promise<string> {
+  let currentUrl = page.url();
+  let lastChange = Date.now();
+  const startTime = Date.now();
+
+  while (Date.now() - startTime < URL_STABILITY_MAX_TIMEOUT_MS) {
+    await page.waitForTimeout(URL_STABILITY_INTERVAL_MS);
+    const newUrl = page.url();
+    if (newUrl !== currentUrl) {
+      currentUrl = newUrl;
+      lastChange = Date.now();
+    } else if (Date.now() - lastChange >= URL_STABILITY_WINDOW_MS) {
+      break;
+    }
+  }
+  return currentUrl;
+}
+
+/**
+ * Detecta si la página actual presenta un formulario o vista de login:
+ * input password visible, campo de usuario o correo visible y control de envío,
+ * los tres en el mismo formulario o en el contenedor más cercano que los agrupe.
+ */
+async function detectLoginFormInPage(page: Page): Promise<{
+  isLogin: boolean;
+  selectors?: {
+    username?: string;
+    password?: string;
+    submit?: string;
+  };
+}> {
+  try {
+    return await page.evaluate(() => {
+      function isVisible(el: Element | null): boolean {
+        if (!el || !(el instanceof HTMLElement)) return false;
+        if (el.offsetParent === null && el.tagName.toLowerCase() !== 'body') {
+          const style = window.getComputedStyle(el);
+          if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+            return false;
+          }
+        }
+        const rect = el.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+      }
+
+      const passwordInputs = Array.from(document.querySelectorAll('input[type="password"]')).filter(isVisible);
+      if (passwordInputs.length === 0) {
+        return { isLogin: false };
+      }
+
+      for (const passEl of passwordInputs) {
+        const container =
+          passEl.closest('form') ||
+          passEl.closest('[role="form"]') ||
+          passEl.parentElement?.parentElement ||
+          passEl.parentElement ||
+          document.body;
+
+        const userInputs = Array.from(
+          container.querySelectorAll(
+            'input[type="email"], input[name*="user" i], input[name*="email" i], input[name*="login" i], input[id*="user" i], input[id*="email" i], input[autocomplete*="username" i], input[type="text"]'
+          )
+        ).filter((el) => el !== passEl && isVisible(el));
+
+        const submitButtons = Array.from(
+          container.querySelectorAll(
+            'button[type="submit"], input[type="submit"], button:not([type]), button[type="button"], [role="button"]'
+          )
+        ).filter(isVisible);
+
+        if (userInputs.length > 0 && submitButtons.length > 0) {
+          const userEl = userInputs[0] as HTMLInputElement;
+          const submitEl = submitButtons[0] as HTMLElement;
+          const passInput = passEl as HTMLInputElement;
+
+          const userSel = userEl.id
+            ? `#${userEl.id}`
+            : userEl.name
+            ? `input[name="${userEl.name}"]`
+            : 'input[type="text"]';
+
+          const passSel = passInput.id
+            ? `#${passInput.id}`
+            : passInput.name
+            ? `input[name="${passInput.name}"]`
+            : 'input[type="password"]';
+
+          const submitSel = submitEl.id
+            ? `#${submitEl.id}`
+            : submitEl.getAttribute('type') === 'submit'
+            ? 'button[type="submit"], input[type="submit"]'
+            : 'button';
+
+          return {
+            isLogin: true,
+            selectors: {
+              username: userSel,
+              password: passSel,
+              submit: submitSel,
+            },
+          };
+        }
+      }
+
+      return { isLogin: false };
+    });
+  } catch {
+    return { isLogin: false };
+  }
+}
+
+/**
  * Adaptador de descubrimiento Playwright con soporte para SPAs (React / Vite).
  * Implementa IDiscoverer navegando directamente con playwright-core,
  * gestionando persistencia de sesión con storageState, detección de login,
@@ -138,7 +285,7 @@ export async function launchBrowser(options: LaunchBrowserOptions = {}): Promise
 export class PlaywrightAdapter implements IDiscoverer {
   constructor(private options: PlaywrightAdapterOptions = {}) {}
 
-  async discover(spec: ModuleSpec): Promise<Module> {
+  async discover(spec: ModuleSpec, options?: DiscoverOptions): Promise<Module> {
     if (!spec.path) {
       throw new Error(`El modulo '${spec.name}' no define una ruta (path) para explorar`);
     }
@@ -149,6 +296,7 @@ export class PlaywrightAdapter implements IDiscoverer {
 
     let browser: Browser;
     let context: BrowserContext | null = null;
+    const targetUrl = this.resolveUrl(spec.path);
 
     try {
       browser = await launchBrowser({ headed });
@@ -161,6 +309,12 @@ export class PlaywrightAdapter implements IDiscoverer {
         tags: spec.tags ?? [],
         cases: [],
         context: {
+          requested_url: targetUrl,
+          final_url: targetUrl,
+          current_url: targetUrl,
+          redirected: false,
+          http_status: null,
+          page_kind: 'app',
           discovered_routes: [],
           discovered_at: new Date().toISOString(),
           forms: [],
@@ -178,53 +332,102 @@ export class PlaywrightAdapter implements IDiscoverer {
 
     try {
       // 1. Inicializar contexto con storageState si existe sesión previa
-      const contextOptions: { storageState?: string } = {};
-      if (this.options.sessionPath && existsSync(this.options.sessionPath)) {
-        contextOptions.storageState = this.options.sessionPath;
+      const contextOptions: BrowserContextOptions = {};
+      const sessionTarget = options?.storageState ?? this.options.storageState ?? this.options.sessionPath;
+      if (sessionTarget) {
+        if (typeof sessionTarget === 'string' && existsSync(sessionTarget)) {
+          contextOptions.storageState = sessionTarget;
+        } else if (typeof sessionTarget === 'object') {
+          contextOptions.storageState = sessionTarget as BrowserContextOptions['storageState'];
+        }
       }
       context = await browser.newContext(contextOptions);
       const page = await context.newPage();
-      const targetUrl = this.resolveUrl(spec.path);
 
-      await page.goto(targetUrl, { waitUntil: 'networkidle', timeout: 30000 });
+      let httpStatus: number | null = null;
+      try {
+        const response = await page.goto(targetUrl, { waitUntil: 'load', timeout: 30000 });
+        httpStatus = response ? response.status() : null;
+        // C3a: Esperar networkidle con tope máximo para que llamadas asíncronas de sesión se completen
+        await page.waitForLoadState('networkidle', { timeout: URL_NETWORKIDLE_MAX_TIMEOUT_MS }).catch(() => {});
+      } catch {
+        // Si falló por abort o navegación inmediata
+      }
+
       // Esperar a que React monte componentes en el root o DOM
       await page.waitForSelector('#root > *, main, form, input, button, a[href]', { timeout: 10000 }).catch(() => {});
-      await page.waitForTimeout(1000); // margen para renderizado y transiciones
+      await page.waitForTimeout(300); // margen para renderizado
 
-      // 2. Detección de vista de autenticación/login
-      const currentUrl = page.url();
-      const hasPasswordField = (await page.$('input[type="password"]')) !== null;
-      const initialIsAuthView = Boolean(
-        spec.path.toLowerCase().includes('/login') ||
-        currentUrl.toLowerCase().includes('/login') ||
-        hasPasswordField
-      );
+      // Estabilización de URL
+      let finalUrl = await waitForUrlStability(page);
+      let loginDetection = await detectLoginFormInPage(page);
+
+      const normRequested = normalizeUrlForComparison(targetUrl, this.options.baseUrl);
+      let normFinal = normalizeUrlForComparison(finalUrl, this.options.baseUrl);
+      let redirected =
+        normRequested.origin !== normFinal.origin || normRequested.pathname !== normFinal.pathname;
+
+      let pageKind: 'login' | 'auth_wall' | 'app' = 'app';
+      if (
+        (redirected &&
+          (loginDetection.isLogin ||
+            isAuthPath(normFinal.pathname) ||
+            httpStatus === 401 ||
+            httpStatus === 403)) ||
+        httpStatus === 401 ||
+        httpStatus === 403
+      ) {
+        pageKind = 'auth_wall';
+      } else if (loginDetection.isLogin) {
+        pageKind = 'login';
+      } else {
+        pageKind = 'app';
+      }
 
       // 3. Acción de login y guardado de sesión si se proveen credenciales
       let sessionSaved = false;
-      if (initialIsAuthView && this.options.credentials) {
+      if (
+        (pageKind === 'login' || pageKind === 'auth_wall' || isAuthPath(normRequested.pathname)) &&
+        this.options.credentials
+      ) {
         const { username, password } = this.options.credentials;
         const usernameInput = await page.$(
-          'input[type="email"], input[name*="user" i], input[name*="email" i], input[name*="login" i], input[id*="user" i], input[id*="email" i], input:not([type="password"]):not([type="submit"]):not([type="hidden"]):not([type="checkbox"])'
+          loginDetection.selectors?.username ||
+            'input[type="email"], input[name*="user" i], input[name*="email" i], input[name*="login" i], input[id*="user" i], input[id*="email" i], input:not([type="password"]):not([type="submit"]):not([type="hidden"]):not([type="checkbox"])'
         );
-        const passwordInput = await page.$('input[type="password"]');
+        const passwordInput = await page.$(loginDetection.selectors?.password || 'input[type="password"]');
 
         if (usernameInput && passwordInput) {
           await usernameInput.fill(username);
           await passwordInput.fill(password);
 
           const submitButton = await page.$(
-            'button[type="submit"], input[type="submit"], form button, button:has-text("Iniciar"), button:has-text("Login"), button:has-text("Entrar"), button:has-text("Acceder"), [role="button"]:has-text("Iniciar")'
+            loginDetection.selectors?.submit ||
+              'button[type="submit"], input[type="submit"], form button, button:has-text("Iniciar"), button:has-text("Login"), button:has-text("Entrar"), button:has-text("Acceder"), [role="button"]:has-text("Iniciar")'
           );
 
-          const navPromise = page.waitForNavigation({ waitUntil: 'networkidle', timeout: 15000 }).catch(() => {});
+          const navPromise = page.waitForNavigation({ waitUntil: 'load', timeout: 15000 }).catch(() => {});
           if (submitButton) {
             await submitButton.click();
           } else {
             await passwordInput.press('Enter');
           }
           await navPromise;
-          await page.waitForTimeout(1500);
+          await page.waitForTimeout(500);
+
+          finalUrl = await waitForUrlStability(page);
+          normFinal = normalizeUrlForComparison(finalUrl, this.options.baseUrl);
+          redirected =
+            normRequested.origin !== normFinal.origin || normRequested.pathname !== normFinal.pathname;
+          loginDetection = await detectLoginFormInPage(page);
+
+          if (loginDetection.isLogin) {
+            pageKind = 'login';
+          } else if (isAuthPath(normFinal.pathname)) {
+            pageKind = 'auth_wall';
+          } else {
+            pageKind = 'app';
+          }
 
           // Guardar storageState en disco
           if (this.options.sessionPath) {
@@ -238,20 +441,51 @@ export class PlaywrightAdapter implements IDiscoverer {
         }
       }
 
-      const finalUrl = page.url();
-      const finalHasPasswordField = (await page.$('input[type="password"]')) !== null;
-      const finalIsAuthView = sessionSaved
-        ? Boolean(finalUrl.toLowerCase().includes('/login') || finalHasPasswordField)
-        : initialIsAuthView;
-
       const title = await page.title();
       const description = title && title.trim() ? title.trim() : spec.name;
 
-      const links = await this.extractLinks(page);
-      const discoveredRoutes = Array.from(new Set(links.map((l) => l.href)));
-      const forms = await this.extractForms(page);
-      const inputs = forms.flatMap((f) => f.inputs);
-      const buttons = await this.extractButtons(page);
+      let links = await this.extractLinks(page);
+      let discoveredRoutes = Array.from(new Set(links.map((l) => l.href)));
+      let forms = await this.extractForms(page);
+      let inputs = forms.flatMap((f) => f.inputs);
+      let buttons = await this.extractButtons(page);
+
+      // C3b: Tras terminar la extracción, volver a leer page.url() y clasificar:
+      // Si la URL o el page_kind cambiaron, descartar la extracción y tratar como auth_wall
+      await page.waitForTimeout(100);
+      const postExtractionUrl = page.url();
+      const postNormFinal = normalizeUrlForComparison(postExtractionUrl, this.options.baseUrl);
+      const postLoginDetection = await detectLoginFormInPage(page);
+      const postRedirected =
+        normRequested.origin !== postNormFinal.origin || normRequested.pathname !== postNormFinal.pathname;
+
+      let postPageKind: 'login' | 'auth_wall' | 'app' = 'app';
+      if (
+        (postRedirected &&
+          (postLoginDetection.isLogin ||
+            isAuthPath(postNormFinal.pathname) ||
+            httpStatus === 401 ||
+            httpStatus === 403)) ||
+        httpStatus === 401 ||
+        httpStatus === 403
+      ) {
+        postPageKind = 'auth_wall';
+      } else if (postLoginDetection.isLogin) {
+        postPageKind = 'login';
+      } else {
+        postPageKind = 'app';
+      }
+
+      if (postExtractionUrl !== finalUrl || postPageKind !== pageKind) {
+        finalUrl = postExtractionUrl;
+        redirected = postRedirected;
+        pageKind = 'auth_wall';
+        forms = [];
+        inputs = [];
+        buttons = [];
+        links = [];
+        discoveredRoutes = [];
+      }
 
       return {
         name: spec.name,
@@ -260,16 +494,22 @@ export class PlaywrightAdapter implements IDiscoverer {
         tags: spec.tags ?? [],
         cases: [],
         context: {
+          requested_url: targetUrl,
+          final_url: finalUrl,
+          current_url: finalUrl,
+          redirected,
+          http_status: httpStatus,
+          page_kind: pageKind,
           discovered_routes: discoveredRoutes,
           discovered_at: new Date().toISOString(),
           forms,
           inputs,
           buttons,
           links,
-          is_auth_view: finalIsAuthView,
+          is_auth_view: pageKind === 'login' || pageKind === 'auth_wall',
           session_saved: sessionSaved,
           storage_state_used: Boolean(contextOptions.storageState),
-          current_url: finalUrl,
+          auth_selectors: loginDetection.selectors,
           playwright_used: true,
           playwright_error: null,
         },
@@ -283,6 +523,12 @@ export class PlaywrightAdapter implements IDiscoverer {
         tags: spec.tags ?? [],
         cases: [],
         context: {
+          requested_url: targetUrl,
+          final_url: targetUrl,
+          current_url: targetUrl,
+          redirected: false,
+          http_status: null,
+          page_kind: 'app',
           discovered_routes: [],
           discovered_at: new Date().toISOString(),
           forms: [],

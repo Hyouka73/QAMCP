@@ -14,6 +14,7 @@ import type {
   RuleEntry,
   RuleCategory,
   CategoryWaiver,
+  AuthProfile,
 } from '@qap/shared';
 
 import type { ProjectContext } from './ports.js';
@@ -285,7 +286,7 @@ export function canExitOnboarding(
  */
 export function canExitScoping(
   sessionOrState?: LifecycleSession | LifecycleState | null,
-  registeredProfiles?: string[] | { profiles?: Array<{ id: string }> } | null
+  registeredProfiles?: string[] | AuthProfile[] | { profiles?: Array<AuthProfile | { id: string }> } | null
 ): GateResult {
   const faltantes: GateFaltante[] = [];
   const session: LifecycleSession | undefined | null =
@@ -332,22 +333,69 @@ export function canExitScoping(
   if (!session?.auth) {
     faltantes.push({ campo: 'session.auth', motivo: 'debe definirse la decisión de autenticación (auth.required)' });
   } else if (session.auth.required === true) {
-    const profile = session.auth.profile?.trim();
-    if (!profile) {
-      faltantes.push({ campo: 'session.auth.profile', motivo: 'debe indicarse un perfil cuando auth.required es true' });
-    } else {
-      const profileIds: string[] = Array.isArray(registeredProfiles)
-        ? registeredProfiles
-        : Array.isArray((registeredProfiles as { profiles?: Array<{ id: string }> })?.profiles)
-        ? (registeredProfiles as { profiles?: Array<{ id: string }> }).profiles!.map((p) => p.id)
-        : [];
+    const rawProfiles: unknown[] = Array.isArray(registeredProfiles)
+      ? registeredProfiles
+      : Array.isArray((registeredProfiles as { profiles?: unknown[] })?.profiles)
+      ? (registeredProfiles as { profiles?: unknown[] }).profiles!
+      : [];
 
-      if (!profileIds.includes(profile)) {
+    const hasProfileObjects = rawProfiles.some(
+      (p) => p !== null && typeof p === 'object' && ('verified' in p || 'role' in p)
+    );
+
+    if (hasProfileObjects) {
+      // Exige al menos un perfil con verified === true
+      const verifiedProfiles = rawProfiles.filter(
+        (p) => p !== null && typeof p === 'object' && (p as { verified?: boolean }).verified === true
+      );
+      if (verifiedProfiles.length === 0) {
         faltantes.push({
-          campo: 'session.auth.profile',
-          motivo: `el perfil de autenticación '${profile}' no existe en los perfiles registrados`,
+          campo: 'session.auth.verified',
+          motivo: 'se requiere al menos un perfil de autenticación con sesión verificada (verified: true)',
         });
       }
+
+      // Exige que todos los roles elegidos tengan un perfil
+      if (Array.isArray(session.auth.roles) && session.auth.roles.length > 0) {
+        for (const role of session.auth.roles) {
+          const hasRoleProfile = rawProfiles.some((p) => {
+            if (p !== null && typeof p === 'object') {
+              const obj = p as { role?: string; id?: string };
+              return obj.role === role || obj.id === role;
+            }
+            return p === role;
+          });
+          if (!hasRoleProfile) {
+            faltantes.push({
+              campo: 'session.auth.roles',
+              motivo: `el rol seleccionado '${role}' no tiene ningún perfil registrado`,
+            });
+          }
+        }
+      }
+    } else {
+      const profile = session.auth.profile?.trim();
+      if (!profile) {
+        faltantes.push({ campo: 'session.auth.profile', motivo: 'debe indicarse un perfil cuando auth.required es true' });
+      } else {
+        const profileIds: string[] = rawProfiles.map((p) =>
+          typeof p === 'string' ? p : ((p as { id?: string })?.id ?? '')
+        );
+
+        if (!profileIds.includes(profile)) {
+          faltantes.push({
+            campo: 'session.auth.profile',
+            motivo: `el perfil de autenticación '${profile}' no existe en los perfiles registrados`,
+          });
+        }
+      }
+    }
+  } else if (session.auth.required === false) {
+    if (session.auth.source !== undefined && session.auth.source !== 'user') {
+      faltantes.push({
+        campo: 'session.auth.source',
+        motivo: 'la decisión de no requerir autenticación debe provenir explícitamente del usuario (source: user)',
+      });
     }
   }
 

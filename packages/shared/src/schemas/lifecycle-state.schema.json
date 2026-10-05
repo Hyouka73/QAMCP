@@ -69,6 +69,10 @@
               },
               "status": {
                 "type": "string"
+              },
+              "acceso": {
+                "type": "boolean",
+                "description": "Indica si el módulo es de acceso / login"
               }
             }
           }
@@ -84,8 +88,29 @@
             "required": {
               "type": "boolean"
             },
+            "source": {
+              "type": "string",
+              "enum": [
+                "user",
+                "system",
+                "inferred"
+              ]
+            },
             "profile": {
               "type": "string"
+            },
+            "method": {
+              "type": "string",
+              "enum": [
+                "handoff",
+                "credentials"
+              ]
+            },
+            "roles": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
             }
           }
         }

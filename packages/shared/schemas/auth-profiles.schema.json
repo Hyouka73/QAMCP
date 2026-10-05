@@ -60,6 +60,22 @@
           "type": "string",
           "description": "Mensaje mostrado al usuario durante login_mode=handoff, indicando que debe completar el login manualmente"
           },
+          "role": {
+            "type": "string",
+            "description": "Rol asociado al perfil"
+          },
+          "verified": {
+            "type": "boolean",
+            "description": "Si la sesión del perfil fue verificada con éxito"
+          },
+          "verified_at": {
+            "type": "string",
+            "description": "Timestamp ISO de la verificación"
+          },
+          "verified_route": {
+            "type": "string",
+            "description": "Ruta utilizada para verificar la sesión"
+          },
           "session_cache": {
             "type": "object",
             "description": "Session caching configuration",

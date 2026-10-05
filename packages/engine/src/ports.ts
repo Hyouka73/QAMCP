@@ -119,8 +119,12 @@ export interface ProjectStatus {
  * Responsible for discovering modules based on a specification.
  * Implementations may scan filesystem, git repos, or other sources.
  */
+export interface DiscoverOptions {
+  storageState?: string | Record<string, unknown> | object;
+}
+
 export interface IDiscoverer {
-  discover(spec: ModuleSpec): Promise<Module>;
+  discover(spec: ModuleSpec, options?: DiscoverOptions): Promise<Module>;
 }
 
 /**
