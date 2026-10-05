@@ -21,6 +21,8 @@ import { NotImplementedError } from './errors.js';
 import { handleAuthAdd, handleAuthList, handleAuthSetSecret, handleAuthRemove } from './commands/auth/index.js';
 import { handleRun } from './commands/runner/index.js';
 import { handleStatus } from './commands/status/index.js';
+import { handleContext } from './commands/context.js';
+import { handleSearch } from './commands/search.js';
 import { handleConfigShow, handleConfigSet } from './commands/config/index.js';
 import { handleDiscover } from './commands/discover.js';
 import { handleReport } from './commands/report.js';
@@ -38,33 +40,32 @@ interface CommandDefinition {
   args?: string;
 }
 
-// Mantenemos los placeholders eliminando 'status' y 'report' que ahora tienen implementación real
+// Mantenemos los placeholders eliminando 'status', 'report', 'context' y 'search' que tienen implementación real
 const COMMANDS: readonly CommandDefinition[] = [
   { name: 'test', description: 'Ejecuta el plan de pruebas de un módulo.', args: '<module>' },
   { name: 'update', description: 'Actualiza un módulo ya descubierto.', args: '<module>' },
-  { name: 'context', description: 'Muestra el contexto (local o global) de un módulo.', args: '[module]' },
   { name: 'flow', description: 'Ejecuta un flow definido sobre uno o más módulos.', args: '<flow>' },
 ];
 
 export function registerCommands(program: Command): void {
-  // 1. Registrar el comando `init` con su implementaciÃ³n real
+  // 1. Registrar el comando `init`
   program
     .command('init')
     .description('Inicializa la estructura .qa/ en el proyecto actual')
-    .option('-c, --config <path>', 'Ruta al archivo JSON de configuraciÃ³n para modo silencioso')
+    .option('-c, --config <path>', 'Ruta al archivo JSON de configuración para modo silencioso')
     .action(async (options: { config?: string }) => {
       await handleInitCommand(options);
     });
 
-  // 1b. Subcomando 'plan' (Tarea S6-001)
+  // 1b. Subcomando 'plan'
   program
     .command('plan <module>')
-    .description('Genera la matriz de pruebas del mÃ³dulo calculando checksum de configuraciÃ³n.')
+    .description('Genera la matriz de pruebas del módulo calculando checksum de configuración.')
     .action(async (moduleName: string) => {
       await handlePlan(moduleName);
     });
 
-  // 2. Grupo de subcomandos 'auth' (Tarea S2-003)
+  // 2. Grupo de subcomandos 'auth'
   const authGroup = program
     .command('auth')
     .description('Gestión de perfiles de autenticación y credenciales locales');
@@ -105,14 +106,31 @@ export function registerCommands(program: Command): void {
       await handleAuthRemove(targetProfile);
     });
 
-  // 3. Nuevos comandos S2-004: 'status', 'run' y grupo 'config'
+  // 3. Subcomando 'status' (Soporta módulo opcional para resumen visual)
   program
-    .command('status')
-    .description('Muestra el estado general del proyecto QAP y la configuración activa')
-    .action(async () => {
-      await handleStatus();
+    .command('status [module]')
+    .description('Muestra el estado del proyecto o de un módulo específico')
+    .action(async (moduleName?: string) => {
+      await handleStatus(moduleName);
     });
 
+  // 3b. Subcomando 'context'
+  program
+    .command('context <module>')
+    .description('Muestra el contexto de un módulo (rutas, reglas, variables)')
+    .action(async (moduleName: string) => {
+      await handleContext(moduleName);
+    });
+
+  // 3c. Subcomando 'search'
+  program
+    .command('search <query> [module]')
+    .description('Busca selectores en los módulos mapeados')
+    .action(async (query: string, moduleName?: string) => {
+      await handleSearch(query, moduleName);
+    });
+
+  // 3d. Subcomando 'run' y grupo 'config'
   program
     .command('run [target]')
     .description('Ejecuta las pruebas especificadas o la suite completa')
@@ -124,9 +142,9 @@ export function registerCommands(program: Command): void {
 
   program 
     .command('discover [name]')
-    .description('Descubre un modulo por fases: interview, navigate, repo-map')
+    .description('Descubre un módulo por fases: interview, navigate, repo-map')
     .option('--phase <phase>', 'Fase a ejecutar: interview | navigate | repo-map', 'interview')
-    .option('--amend', 'Corrige campos específicos de un modulo ya documentado, sin re-escaneo')
+    .option('--amend', 'Corrige campos específicos de un módulo ya documentado, sin re-escaneo')
     .action(async (name: string | undefined, options: { phase?: string; amend?: boolean }) => {
       await handleDiscover(name, options);
     });
@@ -149,7 +167,7 @@ export function registerCommands(program: Command): void {
       await handleConfigSet(key, value);
     });
 
-  // 4. Subcomandos 'report' y 'serve' (Tarea S5-006)
+  // 4. Subcomandos 'report' y 'serve'
   program
     .command('report [module]')
     .description('Genera el reporte de resultados de un módulo o levanta el visor interactivo con --serve')
@@ -168,7 +186,7 @@ export function registerCommands(program: Command): void {
       await handleReport(undefined, { ...options, serve: true });
     });
 
-  // 5. Subcomando 'validate' (QAP v3.0 Fase 1)
+  // 5. Subcomando 'validate'
   program
     .command('validate [path]')
     .description('Valida estáticamente las definiciones (.qa/definitions/), schemas y ciclos del DAG')
@@ -176,7 +194,7 @@ export function registerCommands(program: Command): void {
       await handleValidate(targetPath);
     });
 
-  // 6. Subcomando 'prune' (QAP v3.0 Fase 3)
+  // 6. Subcomando 'prune'
   program
     .command('prune')
     .description('Poda y recolección de basura de telemetría y artefactos multimedia')
@@ -187,7 +205,7 @@ export function registerCommands(program: Command): void {
       await handlePrune(options);
     });
 
-  // 7. Grupo 'runtime' con 'reindex' (QAP v3.0 Fase 3)
+  // 7. Grupo 'runtime' con 'reindex'
   const runtimeGroup = program
     .command('runtime')
     .description('Gestión del almacenamiento runtime local');
@@ -199,7 +217,7 @@ export function registerCommands(program: Command): void {
       await handleRuntimeReindex(dir);
     });
 
-  // 8. Registrar los comandos placeholders pendientes (Sprint 1)
+  // 8. Registrar los comandos placeholders pendientes
   for (const definition of COMMANDS) {
     const subcommand = program.command(definition.name).description(definition.description);
 

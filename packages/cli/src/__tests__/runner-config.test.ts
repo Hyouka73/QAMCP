@@ -46,7 +46,7 @@ describe('Comandos CLI de Runner, Status y Config', () => {
   it('debe ejecutar handleStatus correctamente', async () => {
     const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
     await handleStatus();
-    expect(spy).toHaveBeenCalledWith(expect.stringContaining('Estado del Proyecto QA'));
+    expect(spy).toHaveBeenCalledWith(expect.stringContaining('Estado General del Proyecto QA'));
   });
 
   it('debe mostrar la configuración con handleConfigShow', async () => {
