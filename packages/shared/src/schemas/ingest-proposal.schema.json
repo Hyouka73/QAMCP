@@ -1,0 +1,56 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "qap://schemas/ingest-proposal.schema.json",
+  "title": "IngestProposal",
+  "description": "Schema for optional proposal submitted to qap_context_ingest by assistant",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "objetivo": {
+      "type": "string",
+      "description": "Proposed primary business objective"
+    },
+    "roles": {
+      "type": "array",
+      "description": "Proposed user roles",
+      "maxItems": 20,
+      "items": {
+        "type": "string"
+      }
+    },
+    "flujos_criticos": {
+      "type": "array",
+      "description": "Proposed critical user flows with evidence",
+      "maxItems": 20,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "evidence": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "rutas": {
+      "type": "array",
+      "description": "Proposed application routes",
+      "items": {
+        "type": "string"
+      }
+    },
+    "riesgos": {
+      "type": "array",
+      "description": "Proposed risks identified in document",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

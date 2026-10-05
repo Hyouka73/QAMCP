@@ -3,13 +3,12 @@ import { join } from 'node:path';
 
 import type { AuthProfile } from '@qap/shared';
 
-const PROFILES_PATH = join(process.cwd(), '.qa', 'project', 'auth', 'profiles.json');
+export function readProfile(profileId: string, basePath?: string): Promise<AuthProfile | null> {
+  const profilesPath = join(basePath ?? process.cwd(), '.qa', 'project', 'auth', 'profiles.json');
+  if (!existsSync(profilesPath)) return Promise.resolve(null);
 
-export function readProfile(profileId: string): Promise<AuthProfile | null> {
-  if (!existsSync(PROFILES_PATH)) return Promise.resolve(null);
-
-  const raw = readFileSync(PROFILES_PATH, 'utf-8');
+  const raw = readFileSync(profilesPath, 'utf-8');
   const parsed = JSON.parse(raw) as { profiles: AuthProfile[] };
 
-  return Promise.resolve(parsed.profiles.find((p) => p.id === profileId) ?? null);
+  return Promise.resolve(parsed.profiles?.find((p) => p.id === profileId) ?? null);
 }

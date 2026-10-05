@@ -8,10 +8,12 @@ import type { AuthCredentials } from './types.js';
 
 export class AuthManager {
   private projectName: string;
+  private projectPath: string;
 
   constructor(projectPath: string = process.cwd()) {
     // Supuesto: se deriva el nombre del proyecto de la carpeta raíz,
     // ya que projectName no se persiste en .qa/project/environments.yaml.
+    this.projectPath = projectPath;
     this.projectName = basename(projectPath);
   }
 
@@ -28,7 +30,7 @@ export class AuthManager {
    * - 'keychain': consulta keytar bajo qap.<proyecto>.<perfil_id>
    */
   async getCredentials(profileId: string): Promise<AuthCredentials | null> {
-    const profile = await readProfile(profileId);
+    const profile = await readProfile(profileId, this.projectPath);
     if (!profile) return null;
 
     if (profile.credential_source === 'env') {
@@ -49,7 +51,7 @@ export class AuthManager {
    * Solo aplica a perfiles con credential_source: 'keychain'.
    */
   async setSecret(profileId: string, password: string): Promise<void> {
-    const profile = await readProfile(profileId);
+    const profile = await readProfile(profileId, this.projectPath);
     if (!profile) {
       throw new Error(`Perfil '${profileId}' no encontrado en profiles.json`);
     }
@@ -69,7 +71,7 @@ export class AuthManager {
    * Elimina el secreto del keychain asociado al perfil.
    */
   async deleteSecret(profileId: string): Promise<boolean> {
-    const profile = await readProfile(profileId);
+    const profile = await readProfile(profileId, this.projectPath);
     if (!profile) return false;
     const serviceName = this.buildServiceName(profileId);
     return keytar.deletePassword(serviceName, profile.username);

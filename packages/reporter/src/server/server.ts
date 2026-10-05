@@ -174,6 +174,78 @@ export function startViewerServer(options: ViewerServerOptions): Promise<ViewerS
       return;
     }
 
+    // 5. Ruta API: Reportes generados por qap_report
+    if (pathname === '/api/reports' && method === 'GET') {
+      try {
+        const execDir = join(projectRoot, '.qa', 'executions');
+        const reports: Array<{
+          executionId: string;
+          formats: string[];
+          generated_at: string;
+        }> = [];
+        
+        if (existsSync(execDir)) {
+          const { readdirSync } = await import('node:fs');
+          const files = readdirSync(execDir);
+          const reportFiles = files.filter(f => f.endsWith('.report.html') || f.endsWith('.report.md') || f.endsWith('.report.xml') || f.endsWith('.report.json'));
+          
+          // Agrupar por executionId
+          const grouped = new Map<string, string[]>();
+          for (const file of reportFiles) {
+            const match = file.match(/^(.+)\.report\.(html|md|xml|json)$/);
+            if (match) {
+              const execId = match[1];
+              const fmt = match[2];
+              if (!grouped.has(execId)) grouped.set(execId, []);
+              grouped.get(execId)!.push(fmt);
+            }
+          }
+          
+          for (const [execId, formats] of grouped) {
+            const firstFile = join(execDir, `${execId}.report.html`);
+            let generatedAt = new Date().toISOString();
+            try {
+              const { statSync } = await import('node:fs');
+              generatedAt = statSync(firstFile).mtime.toISOString();
+            } catch { /* usa default */ }
+            reports.push({ executionId: execId, formats, generated_at: generatedAt });
+          }
+        }
+        
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: true, count: reports.length, reports }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: false, error: String(err) }));
+      }
+      return;
+    }
+
+    // Ruta para acceder a un reporte específico: /api/reports/:executionId/:format
+    const reportMatch = pathname.match(/^\/api\/reports\/([^/]+)\/(html|md|xml|json)$/);
+    if (reportMatch && method === 'GET') {
+      const execId = decodeURIComponent(reportMatch[1]);
+      const fmt = reportMatch[2];
+      const extMap: Record<string, string> = { html: 'html', md: 'md', xml: 'xml', json: 'json' };
+      const filePath = join(projectRoot, '.qa', 'executions', `${execId}.report.${extMap[fmt]}`);
+      
+      if (!existsSync(filePath)) {
+        res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: false, error: `Reporte no encontrado: ${execId}.${fmt}` }));
+        return;
+      }
+      
+      const mimeMap: Record<string, string> = {
+        html: 'text/html; charset=utf-8',
+        md: 'text/markdown; charset=utf-8',
+        xml: 'application/xml; charset=utf-8',
+        json: 'application/json; charset=utf-8',
+      };
+      res.writeHead(200, { 'Content-Type': mimeMap[fmt] });
+      createReadStream(filePath).pipe(res);
+      return;
+    }
+
     // 3. Ruta Estática: Evidencias y capturas de pantalla bajo /artifacts/
     if (pathname.startsWith('/artifacts/')) {
       const relativeArtifactPath = pathname.replace(/^\/artifacts\/?/, '');
@@ -258,8 +330,8 @@ export function startViewerServer(options: ViewerServerOptions): Promise<ViewerS
       const url = `http://${host}:${actualPort}`;
 
       if (!silent) {
-        console.log(`✨ QAP Knowledge Graph & Memory Viewer activo en: ${url}`);
-        console.log('Pulse Ctrl+C para detener el servidor.');
+        console.error(`[QAP Viewer] Knowledge Graph 2D & Memory Viewer activo en: ${url}`);
+        console.error('Pulse Ctrl+C para detener el servidor.');
       }
 
       const instance: ViewerServerInstance = {

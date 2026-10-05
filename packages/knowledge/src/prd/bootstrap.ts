@@ -23,15 +23,20 @@ export interface BootstrapResult {
   repoMap?: RepoMap;
 }
 
+export interface ParsedPrdContent extends Partial<ModuleContext> {
+  critical_flows?: Array<{ name: string; evidence?: string }>;
+}
+
 /**
  * Parsea un documento de especificación (PRD en Markdown, Notion export o README)
- * y extrae los campos clave: objective, users, routes, risks, notes.
+ * y extrae los campos clave: objective, users, routes, risks, notes, critical_flows.
  */
-export function parsePrdContent(content: string, prdSource?: string): Partial<ModuleContext> {
-  const result: Partial<ModuleContext> = {
+export function parsePrdContent(content: string, prdSource?: string): ParsedPrdContent {
+  const result: ParsedPrdContent = {
     users: [],
     routes: [],
     risks: [],
+    critical_flows: [],
     sensitive_selectors: [],
     prd_source: prdSource || '',
   };
@@ -41,7 +46,8 @@ export function parsePrdContent(content: string, prdSource?: string): Partial<Mo
   }
 
   const lines = content.split(/\r?\n/);
-  let currentSection: 'none' | 'objective' | 'users' | 'routes' | 'risks' | 'notes' | 'sensitive' = 'none';
+  let currentSection: 'none' | 'objective' | 'users' | 'routes' | 'risks' | 'notes' | 'sensitive' | 'critical_flows' = 'none';
+  let lastFlowHeading = '';
   const objectiveLines: string[] = [];
   const notesLines: string[] = [];
 
@@ -68,8 +74,16 @@ export function parsePrdContent(content: string, prdSource?: string): Partial<Mo
       } else if (heading.includes('sensible') || heading.includes('sensitive') || heading.includes('pii')) {
         currentSection = 'sensitive';
         continue;
+      } else if (heading.includes('flujo') || heading.includes('proceso critico') || heading.includes('proceso crítico') || heading.includes('caso de uso') || heading.includes('casos de uso')) {
+        currentSection = 'critical_flows';
+        lastFlowHeading = headingMatch[1].trim();
+        continue;
       } else if (heading.includes('nota') || heading.includes('note') || heading.includes('context') || heading.includes('observaci') || heading.includes('descrip')) {
         currentSection = 'notes';
+        continue;
+      } else {
+        // Encabezado no reconocido: resetear sección activa para evitar contaminación
+        currentSection = 'none';
         continue;
       }
     }
@@ -100,6 +114,13 @@ export function parsePrdContent(content: string, prdSource?: string): Partial<Mo
         break;
       case 'sensitive':
         result.sensitive_selectors?.push(itemText);
+        break;
+      case 'critical_flows':
+        result.critical_flows = result.critical_flows || [];
+        result.critical_flows.push({
+          name: itemText,
+          evidence: lastFlowHeading || 'Encabezado del documento',
+        });
         break;
       case 'notes':
         notesLines.push(rawLine);

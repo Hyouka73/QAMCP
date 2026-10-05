@@ -1,0 +1,182 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "qap://schemas/lifecycle-state.schema.json",
+  "title": "Lifecycle State",
+  "description": "Schema for project and module lifecycle state (.qa/project/lifecycle.json)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "_version",
+    "phase",
+    "session",
+    "modules",
+    "history"
+  ],
+  "properties": {
+    "_version": {
+      "type": "string",
+      "description": "Schema version for evolution tracking"
+    },
+    "phase": {
+      "type": "string",
+      "enum": [
+        "ONBOARDING",
+        "SCOPING",
+        "WORKING",
+        "WRAP_UP"
+      ],
+      "description": "Current lifecycle phase of the project"
+    },
+    "session": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "started_at",
+        "plan"
+      ],
+      "description": "Current working session information",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Session identifier"
+        },
+        "started_at": {
+          "type": "string",
+          "description": "ISO timestamp when session started"
+        },
+        "plan": {
+          "type": "array",
+          "description": "Session module execution plan",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "module",
+              "path",
+              "priority",
+              "status"
+            ],
+            "properties": {
+              "module": {
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              },
+              "priority": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "acceso": {
+                "type": "boolean",
+                "description": "Indica si el módulo es de acceso / login"
+              }
+            }
+          }
+        },
+        "auth": {
+          "type": "object",
+          "description": "Explicit authentication decision for the session",
+          "additionalProperties": false,
+          "required": [
+            "required"
+          ],
+          "properties": {
+            "required": {
+              "type": "boolean"
+            },
+            "source": {
+              "type": "string",
+              "enum": [
+                "user",
+                "system",
+                "inferred"
+              ]
+            },
+            "profile": {
+              "type": "string"
+            },
+            "method": {
+              "type": "string",
+              "enum": [
+                "handoff",
+                "credentials"
+              ]
+            },
+            "roles": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "modules": {
+      "type": "object",
+      "description": "Lifecycle state of each registered module",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "state",
+          "updated_at"
+        ],
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "planned",
+              "observed",
+              "interviewing",
+              "consolidated",
+              "closed",
+              "waived"
+            ]
+          },
+          "waived_reason": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "history": {
+      "type": "array",
+      "description": "Bounded transition history (max 50 entries)",
+      "maxItems": 50,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "from",
+          "to",
+          "at"
+        ],
+        "properties": {
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          },
+          "at": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "module": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

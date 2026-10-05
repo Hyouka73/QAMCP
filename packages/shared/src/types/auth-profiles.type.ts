@@ -18,6 +18,10 @@ export interface AuthProfile {
   login_route?: string;
   handoff_timeout_ms?: number;
   handoff_message?: string;
+  role?: string;
+  verified?: boolean;
+  verified_at?: string;
+  verified_route?: string;
   session_cache?: {
     enabled?: boolean;
     ttl_ms?: number;

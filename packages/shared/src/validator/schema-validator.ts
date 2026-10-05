@@ -9,10 +9,22 @@ import {
   systemPromptSchema,
   moduleRepoMapSchema,
   guardrailDefinitionSchema,
+  lifecycleStateSchema,
+  moduleViewSchema,
+  projectContextSchema,
+  rulesSchema,
+  scanSchema,
+  ingestProposalSchema,
 } from '../schemas/index.js';
 import type { ExecutionResult } from '../types/execution-result.type.js';
 import type { RepoMap } from '../types/repo-map.type.js';
 import type { GuardrailDefinition } from '../types/guardrails.js';
+import type { LifecycleState } from '../types/lifecycle-state.type.js';
+import type { ModuleViewData } from '../types/module-view.type.js';
+import type { ProjectContext } from '../types/project-context.type.js';
+import type { Rules } from '../types/rules.type.js';
+import type { ProjectScan } from '../types/scan.type.js';
+import type { IngestProposal } from '../types/ingest-proposal.type.js';
 
 export interface ValidationError {
   field: string;
@@ -186,6 +198,12 @@ export class SchemaValidator {
       ['module-repo-map', repoMapValidator],
       ['repo-map', repoMapValidator],
       ['guardrail-definition', this.ajv.compile(guardrailDefinitionSchema)],
+      ['lifecycle-state', this.ajv.compile(lifecycleStateSchema)],
+      ['module-view', this.ajv.compile(moduleViewSchema)],
+      ['project-context', this.ajv.compile(projectContextSchema)],
+      ['rules', this.ajv.compile(rulesSchema)],
+      ['scan', this.ajv.compile(scanSchema)],
+      ['ingest-proposal', this.ajv.compile(ingestProposalSchema)],
     ]);
   }
 
@@ -241,4 +259,29 @@ export class SchemaValidator {
   validateGuardrailDefinition(data: unknown): ValidationResult<GuardrailDefinition> {
     return this.runValidation<GuardrailDefinition>('guardrail-definition', data);
   }
-}
+
+  validateLifecycleState(data: unknown): ValidationResult<LifecycleState> {
+    return this.runValidation<LifecycleState>('lifecycle-state', data);
+  }
+
+  validateModuleView(data: unknown): ValidationResult<ModuleViewData> {
+    return this.runValidation<ModuleViewData>('module-view', data);
+  }
+
+  validateProjectContext(data: unknown): ValidationResult<ProjectContext> {
+    return this.runValidation<ProjectContext>('project-context', data);
+  }
+
+  validateScan(data: unknown): ValidationResult<ProjectScan> {
+    return this.runValidation<ProjectScan>('scan', data);
+  }
+
+  validateIngestProposal(data: unknown): ValidationResult<IngestProposal> {
+    return this.runValidation<IngestProposal>('ingest-proposal', data);
+  }
+
+  /** Valida un objeto rules.yaml contra rules.schema.json (P3 — E1) */
+  validateRules(data: unknown): ValidationResult<Rules> {
+    return this.runValidation<Rules>('rules', data);
+  }
+}
