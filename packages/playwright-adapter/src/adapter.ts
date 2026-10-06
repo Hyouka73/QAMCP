@@ -36,6 +36,72 @@ export const URL_STABILITY_WINDOW_MS = 500;
 export const URL_STABILITY_MAX_TIMEOUT_MS = 3000;
 export const URL_NETWORKIDLE_MAX_TIMEOUT_MS = 3000;
 
+/**
+ * Tiempo de espera en milisegundos para verificar la estabilidad de la página
+ * posterior a la extracción, asegurando que no haya redirecciones asíncronas tardías.
+ */
+export const POST_EXTRACTION_VERIFY_DELAY_MS = 100;
+
+/**
+ * Ventana de silencio requerida sin mutaciones en el DOM para considerar el DOM asentado (ms).
+ */
+export const DOM_SETTLE_SILENCE_WINDOW_MS = 300;
+
+/**
+ * Tiempo máximo de espera para el asentamiento del DOM en SPAs (ms).
+ */
+export const DOM_SETTLE_MAX_TIMEOUT_MS = 2000;
+
+/**
+ * Espera a que el DOM de una SPA se asiente observando mutaciones antes de proceder a la extracción.
+ */
+export async function waitForDomSettled(
+  page: Page,
+  silenceMs = DOM_SETTLE_SILENCE_WINDOW_MS,
+  maxTimeoutMs = DOM_SETTLE_MAX_TIMEOUT_MS
+): Promise<void> {
+  try {
+    await page.evaluate(
+      ({ silenceMs, maxTimeoutMs }) =>
+        new Promise<void>((resolve) => {
+          let timer: ReturnType<typeof setTimeout>;
+          const maxTimer = setTimeout(() => {
+            observer.disconnect();
+            resolve();
+          }, maxTimeoutMs);
+
+          const observer = new MutationObserver(() => {
+            clearTimeout(timer);
+            timer = setTimeout(() => {
+              observer.disconnect();
+              clearTimeout(maxTimer);
+              resolve();
+            }, silenceMs);
+          });
+
+          const target = document.body || document.documentElement;
+          if (target) {
+            observer.observe(target, {
+              childList: true,
+              subtree: true,
+              attributes: true,
+              characterData: true,
+            });
+          }
+
+          timer = setTimeout(() => {
+            observer.disconnect();
+            clearTimeout(maxTimer);
+            resolve();
+          }, silenceMs);
+        }),
+      { silenceMs, maxTimeoutMs }
+    );
+  } catch {
+    // Si la evaluación en página falla o la página navega, continuar sin bloquear
+  }
+}
+
 export function normalizeUrlForComparison(
   rawUrl: string,
   baseUrl?: string
@@ -441,6 +507,8 @@ export class PlaywrightAdapter implements IDiscoverer {
         }
       }
 
+      await waitForDomSettled(page);
+
       const title = await page.title();
       const description = title && title.trim() ? title.trim() : spec.name;
 
@@ -452,7 +520,7 @@ export class PlaywrightAdapter implements IDiscoverer {
 
       // C3b: Tras terminar la extracción, volver a leer page.url() y clasificar:
       // Si la URL o el page_kind cambiaron, descartar la extracción y tratar como auth_wall
-      await page.waitForTimeout(100);
+      await page.waitForTimeout(POST_EXTRACTION_VERIFY_DELAY_MS);
       const postExtractionUrl = page.url();
       const postNormFinal = normalizeUrlForComparison(postExtractionUrl, this.options.baseUrl);
       const postLoginDetection = await detectLoginFormInPage(page);

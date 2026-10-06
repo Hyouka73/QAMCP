@@ -19,7 +19,14 @@ export type RuleCategory =
 export type RuleStatus = 'inferred' | 'confirmed' | 'rejected' | 'deferred';
 
 /** Procedencia de una regla */
-export type RuleSource = 'dom' | 'prd' | 'user';
+export type RuleSource =
+  | 'user_text'
+  | 'user_confirmed'
+  | 'dom'
+  | 'doc'
+  | 'agent'
+  | 'prd'
+  | 'user';
 
 /**
  * Schema for rules.yaml of a module - defines validation or business rules
@@ -71,6 +78,10 @@ export interface RuleEntry {
   field?: string;
   /** Evidencia corta (selector o referencia, truncada a 120 chars) */
   evidence?: string;
+  /** Texto literal escrito por el usuario (opcional) */
+  user_text?: string;
+  /** Referencia a la opción seleccionada por el usuario (opcional) */
+  from_option?: { pregunta_id: string; opcion_id: string };
 }
 
 /** Declaración de waiver de categoría por el usuario */

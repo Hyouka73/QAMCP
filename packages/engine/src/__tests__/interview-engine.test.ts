@@ -153,7 +153,7 @@ describe('interview-engine (P3)', () => {
         {
           id: 'default.username.required',
           category: 'campo',
-          description: 'Username obligatorio',
+          description: 'El nombre de usuario es un campo obligatorio',
           source: 'user',
           status: 'confirmed',
           view: 'default',
@@ -173,6 +173,8 @@ describe('interview-engine (P3)', () => {
       expect(res.categorias.campo.cubierta).toBe(true);
       expect(res.categorias.sensibilidad.cubierta).toBe(true); // Cubierta por waiver
       expect(res.categorias.proposito.cubierta).toBe(false);
+      expect(res.sustantivas).toBe(2);
+      expect(res.diferidas).toBe(0);
       expect(res.completa).toBe(false);
     });
 
@@ -182,7 +184,7 @@ describe('interview-engine (P3)', () => {
         {
           id: 'default.username.required',
           category: 'campo',
-          description: 'Username obligatorio',
+          description: 'El nombre de usuario es un campo obligatorio',
           source: 'user',
           status: 'confirmed',
           view: 'default',
@@ -190,6 +192,7 @@ describe('interview-engine (P3)', () => {
       ];
       const res = computeCoverage(applicable, rules, [], 'default');
       expect(res.completa).toBe(true);
+      expect(res.sustantivas).toBe(1);
       expect(res.inferidas_pendientes).toBe(0);
     });
   });

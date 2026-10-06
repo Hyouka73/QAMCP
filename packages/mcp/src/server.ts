@@ -25,6 +25,10 @@ import YAML from 'yaml';
 import {
   SchemaValidator,
   isAuthPath,
+  isSubstantiveRuleText,
+  isTautologicalOptionLabel,
+  isEngineOptionLabel,
+  sanitizeSnippet,
   type AuthProfile,
   type ModuleSpec,
   type ProjectPhase,
@@ -45,11 +49,11 @@ import {
   canExitOnboarding,
   canExitScoping,
   canExitWorking,
-  canCloseModule,
   transitionModule,
   transitionProject,
   validateWaiversBatch,
   generateSessionGapReport,
+  computeSessionGapSummary,
   assertLifecycleStateInvariants,
   generateDomHypotheses,
   computeApplicableCategories,
@@ -58,6 +62,7 @@ import {
   obtenerSiguientePreguntaOnboarding,
   sanitizeDomString,
   generarRenderTexto,
+  guardPregunta,
   type ViewDiscoveryContext,
   type DomField,
   type DomForm,
@@ -85,6 +90,7 @@ function makeDecisionQuestion(
   permiteOtra = true,
   registrarCon: { tool: string; campo: string } = { tool: 'qap_session_plan', campo: 'action' }
 ): Pregunta {
+  const hasExplicitRecommended = opciones.some((o) => o.recomendada === true);
   const p: Pregunta = {
     id,
     texto,
@@ -92,38 +98,39 @@ function makeDecisionQuestion(
     opciones: opciones.map((o, idx) => ({
       id: o.id,
       etiqueta: o.etiqueta,
-      recomendada: o.recomendada ?? (idx === 0),
+      recomendada: o.recomendada !== undefined ? o.recomendada : (!hasExplicitRecommended && idx === 0),
     })),
     permite_otra: permiteOtra,
     registrar_con: registrarCon,
   };
   p.render_texto = generarRenderTexto(p);
-  return p;
+  return guardPregunta(p) as Pregunta;
 }
 
-function buildCorrectionQuestion(campo: string, context: any): Pregunta {
+function buildCorrectionQuestion(campo: string, context: Record<string, unknown> | null | undefined): Pregunta {
   const id = `onboarding.corregir.${campo}`;
   let texto: string;
   let registrarCon = { tool: 'qap_context_set', campo };
 
   switch (campo) {
     case 'objective': {
-      const prop = context?.objective || '';
+      const objStr = typeof context?.objective === 'string' ? context.objective : '';
+      const prop = sanitizeSnippet(objStr) || objStr || '';
       texto = `Propuesta actual de objetivo: "${prop}". Escribe el objetivo corregido:`;
       break;
     }
     case 'roles': {
-      const prop = (context?.roles || []).map((r: any) => r.name).join(', ');
+      const prop = ((Array.isArray(context?.roles) ? context.roles : []) as Array<{ name?: string }>).map((r) => r.name || '').filter(Boolean).join(', ');
       texto = `Propuesta actual de roles: "${prop}". Escribe los roles corregidos (separados por coma):`;
       break;
     }
     case 'critical_flows': {
-      const prop = (context?.critical_flows || []).map((f: any) => f.name).join(', ');
+      const prop = ((Array.isArray(context?.critical_flows) ? context.critical_flows : []) as Array<{ name?: string }>).map((f) => f.name || '').filter(Boolean).join(', ');
       texto = `Propuesta actual de flujos críticos: "${prop}". Escribe los flujos críticos corregidos (separados por coma):`;
       break;
     }
     case 'base_url': {
-      const prop = context?.base_url || '(sin definir)';
+      const prop = typeof context?.base_url === 'string' ? context.base_url : '(sin definir)';
       texto = `Propuesta actual de URL base: "${prop}". Escribe la URL base corregida:`;
       registrarCon = { tool: 'qap_context_set', campo: 'base_url' };
       break;
@@ -142,7 +149,7 @@ function buildCorrectionQuestion(campo: string, context: any): Pregunta {
     registrar_con: registrarCon,
   };
   p.render_texto = generarRenderTexto(p);
-  return p;
+  return guardPregunta(p) as Pregunta;
 }
 
 const UX_DIRECTIVE = 'DIRECTIVA DE UX ESTRICTA: Guía al usuario paso a paso interactivo. Si tu entorno dispone de herramienta para hacer preguntas interactivas con opciones (como ask_question), ÚSALA OBLIGATORIAMENTE para cada decisión. Si no, formula la pregunta directa con sus opciones. PROHIBIDO mostrar listas de pasos futuros (1, 2, 3...), tutoriales o pedir comandos de terminal.';
@@ -1811,23 +1818,69 @@ export function createMcpServer(): Server {
             }
           }
 
-          if (args.confirmar_resumen === 'corregir' || args.corregir) {
+          if ((args.confirmar_resumen === 'corregir' || args.accion === 'corregir') && !args.corregir && !args.campos) {
+            const rawCamposPregunta: Pregunta = {
+              id: 'onboarding.campos_a_corregir',
+              texto: 'Selecciona los campos que requieren corrección:',
+              formato: 'multiple',
+              opciones: [
+                { id: 'objective', etiqueta: 'Objetivo' },
+                { id: 'roles', etiqueta: 'Roles' },
+                { id: 'critical_flows', etiqueta: 'Flujos críticos' },
+                { id: 'base_url', etiqueta: 'URL base' },
+              ],
+              permite_otra: false,
+              registrar_con: { tool: 'qap_context_set', campo: 'corregir' },
+            };
+            rawCamposPregunta.render_texto = generarRenderTexto(rawCamposPregunta);
+            const camposPregunta = guardPregunta(rawCamposPregunta) as Pregunta;
+
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(
+                    {
+                      status: 'success',
+                      directorio_objetivo: rootDir,
+                      fase: 'ONBOARDING',
+                      transicion_automatica: false,
+                      faltantes: [],
+                      context: existingContext,
+                      siguiente_accion: {
+                        tipo: 'entrevista',
+                        descripcion: 'Selecciona los campos que requieren corrección.',
+                        tool: 'qap_context_set',
+                        pregunta: camposPregunta,
+                      },
+                    },
+                    null,
+                    2
+                  ),
+                },
+              ],
+            };
+          }
+
+          if (args.corregir || args.campos || (args.confirmar_resumen === 'corregir' && (args.corregir || args.campos))) {
             const rawList = Array.isArray(args.corregir)
               ? args.corregir
               : (typeof args.corregir === 'string'
                   ? [args.corregir]
                   : (Array.isArray(args.campos)
                       ? args.campos
-                      : (typeof args.campos === 'string' ? [args.campos] : ['objective'])));
+                      : (typeof args.campos === 'string' ? [args.campos] : [])));
             const validFields = rawList.map(String).filter((f) => ['objective', 'roles', 'critical_flows', 'base_url'].includes(f));
-            correctionsState = {
-              pending: validFields.length > 0 ? validFields : ['objective'],
-              completed: [],
-            };
-            try {
-              mkdirSync(join(qaDir, 'cache'), { recursive: true });
-              writeFileSync(correctionsCachePath, JSON.stringify(correctionsState, null, 2), 'utf-8');
-            } catch { /* ignore */ }
+            if (validFields.length > 0) {
+              correctionsState = {
+                pending: validFields,
+                completed: [],
+              };
+              try {
+                mkdirSync(join(qaDir, 'cache'), { recursive: true });
+                writeFileSync(correctionsCachePath, JSON.stringify(correctionsState, null, 2), 'utf-8');
+              } catch { /* ignore */ }
+            }
           } else if (correctionsState && Array.isArray(correctionsState.pending) && correctionsState.pending.length > 0) {
             const currentField = correctionsState.pending[0];
             let answered = false;
@@ -2933,6 +2986,35 @@ export function createMcpServer(): Server {
             modules: freshState.modules as any,
             profiles: allProfiles,
           });
+
+          if (!scopingGateRes.passed && freshState.session?.auth?.required === true) {
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(
+                    {
+                      status: 'blocked',
+                      directorio_objetivo: rootDir,
+                      fase: 'SCOPING',
+                      razon: 'auth_roles_required',
+                      mensaje: 'Con auth.required: true se requiere al menos un rol declarado en auth.roles y que cada rol cuente con un perfil verificado para salir de SCOPING.',
+                      faltantes: scopingGateRes.faltantes,
+                      plan: freshState.session?.plan,
+                      auth: freshState.session?.auth,
+                      desbloquear_con: {
+                        tool: 'qap_session_plan',
+                        descripcion: 'Define auth.roles con qap_session_plan y verifica sus perfiles con qap_auth_add.',
+                      },
+                      siguiente_accion: guidance.siguiente_accion,
+                    },
+                    null,
+                    2
+                  ),
+                },
+              ],
+            };
+          }
 
           return {
             content: [
@@ -4290,9 +4372,50 @@ export function createMcpServer(): Server {
           // Validar lote completo antes de cualquier mutación (T12)
           const VALID_CATEGORIES = new Set(['proposito', 'actor', 'campo', 'accion', 'error', 'dato', 'sensibilidad']);
           const VALID_STATUSES = new Set(['inferred', 'confirmed', 'rejected', 'deferred']);
-          const VALID_SOURCES = new Set(['dom', 'prd', 'user']);
+          const VALID_SOURCES = new Set(['dom', 'prd', 'user', 'user_text', 'user_confirmed', 'doc', 'agent']);
+
+          let agentRulesAlert = false;
 
           for (const rule of incomingRules) {
+            // C2: Si viene user_text sustantivo
+            if (rule.user_text && typeof rule.user_text === 'string' && isSubstantiveRuleText(rule.user_text)) {
+              rule.description = rule.user_text.trim();
+              rule.source = 'user_text';
+              rule.status = 'confirmed';
+            } else if (rule.from_option && typeof rule.from_option === 'object') {
+              const fromOpt = rule.from_option as Record<string, unknown>;
+              const qId = (fromOpt.pregunta_id || fromOpt.question_id) as string | undefined;
+              const optId = (fromOpt.opcion_id || fromOpt.option_id) as string | undefined;
+              let matchedQ: Pregunta | null = null;
+              if (rule.category) {
+                matchedQ = (await storage.getPendingQuestion(moduleName, view, rule.category)) as Pregunta | null;
+              }
+              if (!matchedQ && qId) {
+                const found = (await storage.findPendingQuestion(moduleName, view, qId)) as { category: string; question: Pregunta } | null;
+                if (found) matchedQ = found.question;
+              }
+              const matchedOpt = matchedQ?.opciones?.find((o: { id: string }) => o.id === optId);
+              const optText = (matchedOpt?.etiqueta || '').trim();
+              if (matchedOpt && isSubstantiveRuleText(optText) && !isTautologicalOptionLabel(optText)) {
+                rule.description = optText;
+                rule.source = 'user_confirmed';
+                rule.status = 'confirmed';
+              } else {
+                rule.source = 'agent';
+                rule.status = 'inferred';
+                agentRulesAlert = true;
+              }
+            } else if (rule.source === 'user' && rule.status === 'confirmed' && !isTautologicalOptionLabel(rule.description) && !isEngineOptionLabel(rule.description)) {
+              rule.source = 'user';
+              rule.status = 'confirmed';
+            } else if (rule.status === 'deferred') {
+              rule.status = 'deferred';
+            } else {
+              rule.source = 'agent';
+              rule.status = 'inferred';
+              agentRulesAlert = true;
+            }
+
             if (!rule.description || typeof rule.description !== 'string' || rule.description.trim().length === 0) {
               return {
                 isError: true,
@@ -4536,7 +4659,7 @@ export function createMcpServer(): Server {
 
             const closeDecisionPregunta = makeDecisionQuestion(
               `modulo.${moduleName}.cierre`,
-              `El módulo '${moduleName}' ha completado su cobertura de reglas (consolidated). Confirma la acción para proceder:`,
+              `El módulo '${moduleName}' ha completado su cobertura (${cov.sustantivas} de ${applicableCats.length} categorías con contenido${cov.diferidas > 0 ? `, ${cov.diferidas} diferidas` : ''}). Confirma la acción para proceder:`,
               [
                 { id: 'cerrar', etiqueta: `Cerrar módulo '${moduleName}' formalmente`, recomendada: true },
                 { id: 'revisar', etiqueta: 'Revisar reglas antes de cerrar' },
@@ -4563,6 +4686,25 @@ export function createMcpServer(): Server {
             });
           }
 
+          if (siguienteAccionRules?.pregunta) {
+            let cat = (siguienteAccionRules.pregunta as Record<string, unknown>).categoria as string | undefined;
+            if (!cat) {
+              const parts = (siguienteAccionRules.pregunta.id || '').split('.');
+              if (parts.length >= 4 && parts[0] === 'interview') {
+                cat = parts[3];
+              }
+            }
+            if (!cat && applicableCats.length > 0) {
+              const missing = applicableCats.find((c) => !cov.categorias[c]?.cubierta);
+              if (missing) cat = missing;
+            }
+            if (cat) {
+              try {
+                await storage.savePendingQuestion(moduleName, view, cat, siguienteAccionRules.pregunta);
+              } catch { /* ignore */ }
+            }
+          }
+
           return {
             content: [{
               type: 'text',
@@ -4582,6 +4724,12 @@ export function createMcpServer(): Server {
                 resumen_cierre: moduleSummary,
                 cobertura: cov,
                 cobertura_completa: cov.completa,
+                desbloquear_con: agentRulesAlert
+                  ? {
+                      tool: 'qap_rules_set',
+                      descripcion: "Una o más reglas redactadas por el agente sin user_text sustantivo ni from_option válido se guardaron con source 'agent' y status 'inferred'. No computan para la cobertura. Confírmalas con user_text o from_option.",
+                    }
+                  : undefined,
                 siguiente_accion: siguienteAccionRules,
               }, null, 2),
             }],
@@ -4694,6 +4842,32 @@ export function createMcpServer(): Server {
             };
           }
 
+          let rulesList: RuleEntry[] = [];
+          let waiversList: CategoryWaiver[] = [];
+          try {
+            const rf = await storage.getModuleRules(moduleName);
+            rulesList = rf?.rules || [];
+            waiversList = rf?.category_waivers || [];
+          } catch { /* empty */ }
+
+          const planItem = (lifecycleState.session?.plan || []).find((p: { module: string; path?: string }) => p.module === moduleName);
+          const route = planItem?.path || '';
+          const vContext = buildViewDiscoveryContext(rootDir, moduleName, 'default', route);
+
+          let projectRoleCountClose = 0;
+          try {
+            const ctx = await storage.getProjectContext();
+            const roles = Array.isArray(ctx?.roles) ? ctx.roles : [];
+            projectRoleCountClose = roles.length;
+          } catch { /* sin contexto */ }
+
+          const appCats = computeApplicableCategories(vContext, projectRoleCountClose);
+          const covCurrent = computeCoverage(appCats, rulesList, waiversList, 'default');
+          const sustantivasCount = covCurrent.sustantivas;
+          const totalAplicables = appCats.length;
+          const tiene50Porciento = totalAplicables > 0 ? (sustantivasCount / totalAplicables >= 0.50) : true;
+          const conteoTexto = `${sustantivasCount} de ${totalAplicables} categorías con contenido${covCurrent.diferidas > 0 ? `, ${covCurrent.diferidas} diferidas` : ''}`;
+
           // 4. Bloqueado si user_confirmed no es true
           if (!userConfirmed) {
             return {
@@ -4714,7 +4888,7 @@ export function createMcpServer(): Server {
                     tool: 'qap_module_close',
                     pregunta: makeDecisionQuestion(
                       `confirmar_cierre_modulo_${sanitizeDomString(moduleName)}`,
-                      `Se requiere confirmación del usuario para cerrar o renunciar al módulo '${moduleName}'. Selecciona cómo proceder con la acción '${action}':`,
+                      `Se requiere confirmación del usuario para cerrar o renunciar al módulo '${moduleName}' (${conteoTexto}). Selecciona cómo proceder con la acción '${action}':`,
                       [
                         { id: 'confirmar', etiqueta: `Confirmar ${action === 'close' ? 'cierre' : 'renuncia'} del módulo '${moduleName}'`, recomendada: true },
                         { id: 'cancelar', etiqueta: 'Seguir refinando reglas' },
@@ -4728,30 +4902,9 @@ export function createMcpServer(): Server {
             };
           }
 
-          let rulesList: any[] = [];
-          let waiversList: any[] = [];
-          try {
-            const rf = await storage.getModuleRules(moduleName);
-            rulesList = rf?.rules || [];
-            waiversList = rf?.category_waivers || [];
-          } catch { /* empty */ }
-
-          const planItem = (lifecycleState.session?.plan || []).find((p: any) => p.module === moduleName);
-          const route = planItem?.path || '';
-          const vContext = buildViewDiscoveryContext(rootDir, moduleName, 'default', route);
-
-          let projectRoleCountClose = 0;
-          try {
-            const ctx = await storage.getProjectContext();
-            const roles = Array.isArray((ctx as any).roles) ? (ctx as any).roles : [];
-            projectRoleCountClose = roles.length;
-          } catch { /* sin contexto */ }
-
-          const appCats = computeApplicableCategories(vContext, projectRoleCountClose);
-
           // 5. Validación por action
           if (action === 'close') {
-            if (modEntry.state !== 'consolidated') {
+            if (modEntry.state === 'planned' && !args.accept_gaps) {
               return {
                 content: [{
                   type: 'text',
@@ -4759,14 +4912,14 @@ export function createMcpServer(): Server {
                     status: 'blocked',
                     directorio_objetivo: rootDir,
                     fase: 'WORKING',
-                    razon: `Solo los módulos en estado 'consolidated' pueden cerrarse con action: 'close'. El módulo '${moduleName}' está en estado '${modEntry.state}'.`,
+                    razon: `El módulo '${moduleName}' está en estado '${modEntry.state}'. Solo los módulos en estado 'consolidated' pueden cerrarse con action 'close'.`,
                     desbloquear_con: {
                       tool: 'qap_rules_set',
-                      descripcion: 'Completa la cobertura de reglas de la vista para alcanzar el estado consolidated.',
+                      descripcion: 'Completa la revisión de reglas del módulo hasta alcanzar el estado consolidated.',
                     },
                     siguiente_accion: {
                       tipo: 'trabajo',
-                      descripcion: `Completa la cobertura de reglas de '${moduleName}' con qap_rules_set para transicionar a consolidated.`,
+                      descripcion: `El módulo '${moduleName}' está en '${modEntry.state}'. Continúa el proceso con qap_rules_set.`,
                       tool: 'qap_rules_set',
                     },
                   }, null, 2),
@@ -4774,28 +4927,43 @@ export function createMcpServer(): Server {
               };
             }
 
-            const closeGate = canCloseModule(rulesList, waiversList, appCats, 'default');
-            if (!closeGate.passed) {
-              return {
-                content: [{
-                  type: 'text',
-                  text: JSON.stringify({
-                    status: 'blocked',
-                    directorio_objetivo: rootDir,
-                    fase: 'WORKING',
-                    razon: `El módulo '${moduleName}' no cumple los requisitos para cierre: ${closeGate.reason}`,
-                    desbloquear_con: {
-                      tool: 'qap_rules_set',
-                      descripcion: 'Confirma o resuelve las hipótesis pendientes con qap_rules_set.',
-                    },
-                    siguiente_accion: {
-                      tipo: 'trabajo',
-                      descripcion: `Resuelve los requisitos pendientes de '${moduleName}' con qap_rules_set.`,
-                      tool: 'qap_rules_set',
-                    },
-                  }, null, 2),
-                }],
-              };
+            if (!tiene50Porciento) {
+              const acceptGaps = args.accept_gaps === true;
+              const acceptGapsReason = typeof args.accept_gaps_reason === 'string' ? args.accept_gaps_reason.trim() : '';
+              if (!acceptGaps || acceptGapsReason.length < 15) {
+                return {
+                  content: [{
+                    type: 'text',
+                    text: JSON.stringify({
+                      status: 'blocked',
+                      directorio_objetivo: rootDir,
+                      fase: 'WORKING',
+                      razon: 'cobertura_insuficiente',
+                      mensaje: `El módulo '${moduleName}' tiene cobertura sustantiva menor al 50% (${conteoTexto}). Para cerrarlo debes proporcionar accept_gaps: true, accept_gaps_reason (al menos 15 caracteres) y user_confirmed: true.`,
+                      cobertura: covCurrent,
+                      desbloquear_con: {
+                        tool: 'qap_module_close',
+                        descripcion: 'Cierra el módulo aceptando brechas con accept_gaps: true, accept_gaps_reason (mínimo 15 caracteres) y user_confirmed: true, o añade reglas con qap_rules_set.',
+                      },
+                      siguiente_accion: {
+                        tipo: 'decision',
+                        descripcion: `El módulo '${moduleName}' solo cuenta con ${conteoTexto}. Confirma cómo proceder con el cierre.`,
+                        tool: 'qap_module_close',
+                        pregunta: makeDecisionQuestion(
+                          `cobertura_insuficiente_${sanitizeDomString(moduleName)}`,
+                          `El módulo '${moduleName}' tiene cobertura de ${conteoTexto}. Selecciona cómo proceder con el cierre:`,
+                          [
+                            { id: 'cerrar_con_brechas', etiqueta: 'Aceptar brechas y cerrar módulo con justificación' },
+                            { id: 'continuar', etiqueta: 'Continuar refinando reglas con qap_rules_set', recomendada: true },
+                          ],
+                          true,
+                          { tool: 'qap_module_close', campo: 'accept_gaps' }
+                        ),
+                      },
+                    }, null, 2),
+                  }],
+                };
+              }
             }
           } else if (action === 'waive') {
             if (reasonStr.length < 15) {
@@ -4848,18 +5016,34 @@ export function createMcpServer(): Server {
           // Ejecutar transición
           const targetState: ModuleLifecycleState = action === 'close' ? 'closed' : 'waived';
           await storage.updateLifecycleState(async (curr) => {
+            let transState = curr;
+            if (curr.modules?.[moduleName]?.state === 'interviewing' && targetState === 'closed') {
+              const toCons = transitionModule(transState, moduleName, 'consolidated', {
+                reason: `Consolidación para cierre${args.accept_gaps === true ? ' con brechas aceptadas' : ''}`,
+              });
+              if (toCons.state) transState = toCons.state;
+            }
             const trans = transitionModule(
-              curr,
+              transState,
               moduleName,
               targetState,
               action === 'close'
-                ? { reason: `Módulo '${moduleName}' cerrado formalmente tras verificar cobertura completa` }
+                ? { reason: `Módulo '${moduleName}' cerrado formalmente${args.accept_gaps === true ? ' con brechas aceptadas' : ' tras verificar cobertura completa'}` }
                 : { waived_reason: reasonStr, reason: `Módulo '${moduleName}' renunciado (waived). Motivo: ${reasonStr}` }
             );
             if (trans.state) curr = trans.state;
             if (curr.session?.plan) {
               const pItem = curr.session.plan.find((p: any) => p.module === moduleName);
               if (pItem) pItem.status = targetState;
+            }
+            if (curr.modules?.[moduleName] && args.accept_gaps === true) {
+              (curr.modules[moduleName] as Record<string, unknown>).accepted_gaps = {
+                reason: String(args.accept_gaps_reason).trim(),
+                at: new Date().toISOString(),
+                sustantivas: sustantivasCount,
+                total_aplicables: totalAplicables,
+                diferidas: covCurrent.diferidas,
+              };
             }
             return curr;
           });
@@ -4967,6 +5151,7 @@ export function createMcpServer(): Server {
                       'Existen módulos pendientes en el plan. Selecciona cómo proceder:',
                       [
                         { id: 'cerrar_modulos', etiqueta: 'Revisar y cerrar módulos pendientes con qap_module_close', recomendada: true },
+                        { id: 'ver_estado', etiqueta: 'Consultar el estado del proyecto con qap_status' },
                       ],
                       true,
                       { tool: 'qap_module_close', campo: 'module' }
@@ -5010,7 +5195,7 @@ export function createMcpServer(): Server {
             }
           }
 
-          const gapReportMd = generateSessionGapReport({
+          const gapParams = {
             sessionId,
             startedAt,
             closedAt,
@@ -5018,7 +5203,9 @@ export function createMcpServer(): Server {
             plan: lifecycleState.session?.plan || [],
             modules: lifecycleState.modules || {},
             moduleRules: moduleRulesMap,
-          });
+          };
+          const gapReportMd = generateSessionGapReport(gapParams);
+          const gapSummary = computeSessionGapSummary(gapParams);
 
           const sessionsDir = join(qaDir, 'project', 'sessions');
           if (!existsSync(sessionsDir)) {
@@ -5045,6 +5232,12 @@ export function createMcpServer(): Server {
                 session_id: sessionId,
                 report_path: reportFilePath,
                 reporte_brechas_path: reportFilePath,
+                cobertura_alcance: {
+                  flujos: { cubiertos: gapSummary.flujos_cubiertos, declarados: gapSummary.flujos_totales },
+                  roles: { con_perfil_verificado: gapSummary.roles_verificados, declarados: gapSummary.roles_totales },
+                  resumen_texto: gapSummary.cobertura_alcance,
+                },
+                brechas_detectadas: (gapSummary.flujos_totales - gapSummary.flujos_cubiertos) + (gapSummary.roles_totales - gapSummary.roles_verificados),
                 siguiente_accion: {
                   tipo: 'decision',
                   descripcion: `Sesión concluida. Reporte de brechas generado en ${reportFilePath}. Puedes revisar el Knowledge Graph (qap_server) o iniciar una nueva sesión (qap_session_plan).`,

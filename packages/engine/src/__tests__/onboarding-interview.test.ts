@@ -124,6 +124,7 @@ describe('E2c: obtenerSiguientePreguntaOnboarding (Criterio 2)', () => {
     const hallazgos = {
       documentos: [
         { path: 'PRD_diff.md', nombre: 'PRD_diff.md', es_ingerible: true, tamano_bytes: 1024 },
+        { path: 'ARCH_diff.md', nombre: 'ARCH_diff.md', es_ingerible: true, tamano_bytes: 2048 },
       ],
     };
     const q = obtenerSiguientePreguntaOnboarding({}, null, hallazgos);
@@ -141,6 +142,7 @@ describe('E2c: obtenerSiguientePreguntaOnboarding (Criterio 2)', () => {
     const hallazgos = {
       documentos: [
         { path: 'PRD_diff.md', nombre: 'PRD_diff.md', es_ingerible: true, tamano_bytes: 1024 },
+        { path: 'ARCH_diff.md', nombre: 'ARCH_diff.md', es_ingerible: true, tamano_bytes: 2048 },
       ],
       preliminar: {
         docPath: 'PRD_diff.md',
@@ -151,6 +153,23 @@ describe('E2c: obtenerSiguientePreguntaOnboarding (Criterio 2)', () => {
     expect(q?.id).toBe('onboarding.fuente_de_verdad');
     expect(q?.texto).toContain("Encontré 'PRD_diff.md'");
     expect(q?.texto).toContain("entendí: objetivo 'Sistema integral de gestión de calidad'");
+  });
+
+  it('C6c: sanitiza snippet y genera opciones no degeneradas con al menos 2 alternativas', () => {
+    const hallazgos = {
+      documentos: [
+        { path: 'PRD_single.md', nombre: 'PRD_single.md', es_ingerible: true, tamano_bytes: 1024, razon: 'Documento principal' },
+      ],
+      preliminar: {
+        docPath: 'PRD_single.md',
+        objetivo: '| Col 1 | Col 2 |\n|---|---|\nSistema de gestión',
+      },
+    };
+    const ctx: Record<string, unknown> = {};
+    const q = obtenerSiguientePreguntaOnboarding(ctx, null, hallazgos);
+    expect(q?.id).toBe('onboarding.fuente_de_verdad');
+    expect(q?.opciones.length).toBeGreaterThanOrEqual(2);
+    expect(q?.texto).not.toContain('| Col 1');
   });
 
   it('P4.3: emite confirmación única cuando objetivo, roles y flujos tienen propuesta con URL definida', () => {

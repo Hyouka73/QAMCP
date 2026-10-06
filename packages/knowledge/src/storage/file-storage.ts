@@ -517,4 +517,71 @@ export class FileSystemStorage implements IStorage {
       environment_configured: environmentConfigured,
     };
   }
+
+  // ---------------------------------------------------------------------
+  // Persistencia de Preguntas Pendientes (P4.5-A / C2)
+  // ---------------------------------------------------------------------
+
+  /**
+   * Guarda la última pregunta emitida para un módulo, vista y categoría
+   * bajo .qa/cache/pending_questions/<module>.<view>.<category>.json
+   */
+  async savePendingQuestion(
+    module: string,
+    view: string,
+    category: string,
+    question: unknown
+  ): Promise<void> {
+    const filename = `${module.toLowerCase().replace(/[^a-z0-9_-]+/g, '_')}.${view.toLowerCase().replace(/[^a-z0-9_-]+/g, '_')}.${category.toLowerCase().replace(/[^a-z0-9_-]+/g, '_')}.json`;
+    await this.writeJson(join('.qa/cache/pending_questions', filename), question);
+  }
+
+  /**
+   * Recupera la última pregunta emitida para un módulo, vista y categoría.
+   */
+  async getPendingQuestion(
+    module: string,
+    view: string,
+    category: string
+  ): Promise<Record<string, unknown> | null> {
+    const filename = `${module.toLowerCase().replace(/[^a-z0-9_-]+/g, '_')}.${view.toLowerCase().replace(/[^a-z0-9_-]+/g, '_')}.${category.toLowerCase().replace(/[^a-z0-9_-]+/g, '_')}.json`;
+    const relPath = join('.qa/cache/pending_questions', filename);
+    const fullPath = resolve(this.rootDir, relPath);
+    if (!existsSync(fullPath)) {
+      return null;
+    }
+    try {
+      return await this.readJson<Record<string, unknown>>(relPath);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Busca una pregunta pendiente por questionId dentro del módulo y vista.
+   */
+  async findPendingQuestion(
+    module: string,
+    view: string,
+    questionId: string
+  ): Promise<Record<string, unknown> | null> {
+    const cacheDir = resolve(this.rootDir, '.qa/cache/pending_questions');
+    if (!existsSync(cacheDir)) return null;
+
+    try {
+      const files = await readdir(cacheDir);
+      const modPrefix = `${module.toLowerCase().replace(/[^a-z0-9_-]+/g, '_')}.${view.toLowerCase().replace(/[^a-z0-9_-]+/g, '_')}.`;
+      for (const file of files) {
+        if (file.startsWith(modPrefix) && file.endsWith('.json')) {
+          const content = await this.readJson<{ id?: string }>(join('.qa/cache/pending_questions', file));
+          if (content?.id === questionId) {
+            return content;
+          }
+        }
+      }
+    } catch {
+      return null;
+    }
+    return null;
+  }
 }

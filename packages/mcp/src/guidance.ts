@@ -17,7 +17,7 @@ import type {
   CanExitOnboardingEnvironments,
   HallazgosProyectoMin,
 } from '@qap/engine';
-import { obtenerSiguientePreguntaOnboarding, generarRenderTexto } from '@qap/engine';
+import { obtenerSiguientePreguntaOnboarding, generarRenderTexto, guardPregunta } from '@qap/engine';
 
 export type AccionTipo = 'entrevista' | 'entrevista_vista' | 'decision' | 'trabajo';
 
@@ -122,6 +122,7 @@ export interface PhaseGuidanceOptions {
   reportPath?: string;
   environments?: CanExitOnboardingEnvironments | null;
   profiles?: AuthProfile[];
+  coverage?: CoverageResult;
 }
 
 export interface GuidanceResult {
@@ -211,10 +212,9 @@ export function getPhaseGuidance(
           for (const flow of options.context.critical_flows) {
             const flowObj = typeof flow === 'object' && flow !== null ? (flow as { name?: unknown; path?: unknown }) : null;
             const flowName = typeof flow === 'string' ? flow : (typeof flowObj?.name === 'string' ? flowObj.name : '');
-            const flowPath =
-              (typeof flowObj?.path === 'string' && flowObj.path) ||
-              `/${flowName.toLowerCase().replace(/[^a-z0-9_-]+/g, '_')}`;
-            if (flowName && !candidateModules.some((m) => m.module === flowName)) {
+            const rawPath = typeof flowObj?.path === 'string' ? flowObj.path.trim() : '';
+            const flowPath = (rawPath.startsWith('/') || rawPath.startsWith('http://') || rawPath.startsWith('https://')) ? rawPath : '';
+            if (flowName && flowPath && !candidateModules.some((m) => m.module === flowName)) {
               candidateModules.push({ module: flowName, path: flowPath });
             }
           }
@@ -245,6 +245,7 @@ export function getPhaseGuidance(
           };
         }
         modulesPregunta.render_texto = generarRenderTexto(modulesPregunta);
+        modulesPregunta = guardPregunta(modulesPregunta) as Pregunta;
 
         return {
           fase: 'SCOPING',
@@ -265,7 +266,7 @@ export function getPhaseGuidance(
       const hasAuthDecision = sessionAuth?.required !== undefined;
 
       if (!hasAuthDecision) {
-        const authReqPregunta: Pregunta = {
+        let authReqPregunta: Pregunta = {
           id: 'scoping.requiere_login',
           texto: 'Indica si la aplicación requiere inicio de sesión para acceder a sus funciones:',
           formato: 'una_opcion',
@@ -283,6 +284,7 @@ export function getPhaseGuidance(
           registrar_con: { tool: 'qap_session_plan', campo: 'auth' },
         };
         authReqPregunta.render_texto = generarRenderTexto(authReqPregunta);
+        authReqPregunta = guardPregunta(authReqPregunta) as Pregunta;
 
         return {
           fase: 'SCOPING',
@@ -297,7 +299,7 @@ export function getPhaseGuidance(
 
       // 3. Método (solo si requiere login)
       if (sessionAuth?.required === true && !sessionAuth.method) {
-        const methodPregunta: Pregunta = {
+        let methodPregunta: Pregunta = {
           id: 'scoping.metodo_auth',
           texto: 'Selecciona el método de autenticación para las pruebas:',
           formato: 'una_opcion',
@@ -316,6 +318,7 @@ export function getPhaseGuidance(
           registrar_con: { tool: 'qap_session_plan', campo: 'auth_method' },
         };
         methodPregunta.render_texto = generarRenderTexto(methodPregunta);
+        methodPregunta = guardPregunta(methodPregunta) as Pregunta;
 
         return {
           fase: 'SCOPING',
@@ -368,6 +371,7 @@ export function getPhaseGuidance(
           };
         }
         rolesPregunta.render_texto = generarRenderTexto(rolesPregunta);
+        rolesPregunta = guardPregunta(rolesPregunta) as Pregunta;
 
         return {
           fase: 'SCOPING',
@@ -403,7 +407,7 @@ export function getPhaseGuidance(
           };
         }
 
-        const capturePregunta: Pregunta = {
+        let capturePregunta: Pregunta = {
           id: `scoping.capturar_perfil_credentials_${pendingRole}`,
           texto: `Indica el usuario y contraseña de prueba para el rol '${pendingRole}' (por ejemplo: tester_${pendingRole}, clave_segura):`,
           formato: 'abierta',
@@ -412,6 +416,7 @@ export function getPhaseGuidance(
           registrar_con: { tool: 'qap_auth_add', campo: 'credentials' },
         };
         capturePregunta.render_texto = generarRenderTexto(capturePregunta);
+        capturePregunta = guardPregunta(capturePregunta) as Pregunta;
 
         return {
           fase: 'SCOPING',
@@ -456,7 +461,7 @@ export function getPhaseGuidance(
 
       if (nextInterview) {
         const [modName, info] = nextInterview;
-        const interviewPregunta: Pregunta = {
+        let interviewPregunta: Pregunta = {
           id: `modulo.${modName}.entrevista`,
           texto: `El módulo '${modName}' tiene una entrevista de vista pendiente con hipótesis y preguntas sobre reglas de negocio. Registra sus reglas con qap_rules_set:`,
           formato: 'abierta',
@@ -465,6 +470,7 @@ export function getPhaseGuidance(
           registrar_con: { tool: 'qap_rules_set', campo: 'rules' },
         };
         interviewPregunta.render_texto = generarRenderTexto(interviewPregunta);
+        interviewPregunta = guardPregunta(interviewPregunta) as Pregunta;
 
         return {
           fase: 'WORKING',
@@ -520,9 +526,16 @@ export function getPhaseGuidance(
       );
       if (consolidatedModules.length > 0) {
         const [modName] = consolidatedModules[0];
+        const sustantivas = options.coverage?.sustantivas ?? 0;
+        const total = options.coverage?.total_aplicables ?? (options.coverage ? Object.keys(options.coverage.categorias).length : 0);
+        const diferidas = options.coverage?.diferidas ?? 0;
+        const countsMsg = total > 0
+          ? `cuenta con ${sustantivas} de ${total} categorías con contenido (${diferidas} diferidas)`
+          : 'ha completado su revisión de reglas (consolidated)';
+
         const closePregunta: Pregunta = {
           id: `modulo.${modName}.cierre`,
-          texto: `El módulo '${modName}' ha completado su cobertura de reglas (consolidated). Confirma la acción para proceder:`,
+          texto: `El módulo '${modName}' ${countsMsg}. Confirma la acción para proceder:`,
           formato: 'una_opcion',
           opciones: [
             { id: 'cerrar', etiqueta: `Cerrar módulo '${modName}' formalmente`, recomendada: true, efecto: { estado: 'confirmed' } },
@@ -532,6 +545,7 @@ export function getPhaseGuidance(
           registrar_con: { tool: 'qap_module_close', campo: 'action' },
         };
         closePregunta.render_texto = generarRenderTexto(closePregunta);
+        const guardedClose = guardPregunta(closePregunta) as Pregunta;
 
         return {
           fase: 'WORKING',
@@ -541,13 +555,13 @@ export function getPhaseGuidance(
             tool: 'qap_module_close',
             module: modName,
             modulo: modName,
-            pregunta: closePregunta,
+            pregunta: guardedClose,
           },
         };
       }
 
       // 4. Si todos los módulos del plan están en closed o waived: listos para cerrar sesión (E3 / E4)
-      const sessionClosePregunta: Pregunta = {
+      let sessionClosePregunta: Pregunta = {
         id: 'session.cerrar_sesion',
         texto: 'Todos los módulos de la sesión han finalizado su ciclo de vida. Confirma el cierre de la sesión para generar el reporte de brechas:',
         formato: 'una_opcion',
@@ -559,6 +573,7 @@ export function getPhaseGuidance(
         registrar_con: { tool: 'qap_session_close', campo: 'action' },
       };
       sessionClosePregunta.render_texto = generarRenderTexto(sessionClosePregunta);
+      sessionClosePregunta = guardPregunta(sessionClosePregunta) as Pregunta;
 
       return {
         fase: 'WORKING',
@@ -576,7 +591,7 @@ export function getPhaseGuidance(
       const reportMsg = options.reportPath
         ? `Reporte de brechas generado en: ${options.reportPath}.`
         : '';
-      const wrapUpPregunta: Pregunta = {
+      let wrapUpPregunta: Pregunta = {
         id: 'wrap_up.decision',
         texto: reportMsg
           ? `La sesión actual ha concluido en la fase WRAP_UP. ${reportMsg} Selecciona la siguiente acción:`
@@ -590,6 +605,7 @@ export function getPhaseGuidance(
         registrar_con: { tool: 'qap_server', campo: 'action' },
       };
       wrapUpPregunta.render_texto = generarRenderTexto(wrapUpPregunta);
+      wrapUpPregunta = guardPregunta(wrapUpPregunta) as Pregunta;
 
       return {
         fase: 'WRAP_UP',

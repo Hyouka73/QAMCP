@@ -1,8 +1,9 @@
 import type { LifecycleState } from '@qap/shared';
+import { sanitizeSnippet } from '@qap/shared';
 
 import type { CanExitOnboardingContext, CanExitOnboardingEnvironments } from './lifecycle.js';
 import { canExitOnboarding } from './lifecycle.js';
-import { type Pregunta, type Opcion, generarRenderTexto } from './pregunta.js';
+import { type Pregunta, type Opcion, generarRenderTexto, guardPregunta } from './pregunta.js';
 import { sanitizeDomString, truncarTexto } from './interview-engine.js';
 
 export interface DocumentoCandidatoMin {
@@ -10,7 +11,9 @@ export interface DocumentoCandidatoMin {
   nombre?: string;
   es_ingerible?: boolean;
   tamano_bytes?: number;
+  razon?: string;
 }
+
 
 export interface ServicioDetectadoMin {
   url: string;
@@ -45,7 +48,7 @@ function crearPregunta(p: Omit<Pregunta, 'render_texto'>): Pregunta {
       render_texto: generarRenderTexto(p.seguimiento),
     };
   }
-  return result;
+  return guardPregunta(result) as Pregunta;
 }
 
 /**
@@ -80,16 +83,22 @@ export function obtenerSiguientePreguntaOnboarding(
 
   // 1. Fuente de verdad
   if (faltantesCampos.has('source_of_truth') || faltantesCampos.has('context')) {
-    const docs = (hallazgos?.documentos ?? []).slice(0, 3);
+    const rawDocs = (hallazgos?.documentos ?? [])
+      .map((d: unknown) => (typeof d === 'string' ? { path: d, nombre: d } : (d as DocumentoCandidatoMin)))
+      .filter((d) => d && d.es_ingerible !== false && Boolean(d.path));
 
+    const docs = rawDocs.slice(0, 5);
     let opciones: Opcion[];
-    if (docs.length > 0) {
-      opciones = docs.map((d, idx) => ({
-        id: sanitizeDomString(d.path, 500),
-        etiqueta: sanitizeDomString(d.path, 500),
-        recomendada: idx === 0,
-        efecto: { accion: 'declarar_fuente' as const },
-      }));
+    if (docs.length >= 1) {
+      opciones = docs.map((d, idx) => {
+        const label = d.nombre ? (d.razon ? `${d.nombre} (${d.razon})` : `${d.nombre} (${d.path})`) : d.path;
+        return {
+          id: sanitizeDomString(d.path, 500),
+          etiqueta: sanitizeDomString(label, 120),
+          recomendada: idx === 0,
+          efecto: { accion: 'declarar_fuente' as const },
+        };
+      });
       opciones.push({
         id: 'none',
         etiqueta: 'No existe documento, definimos desde cero',
@@ -102,22 +111,24 @@ export function obtenerSiguientePreguntaOnboarding(
       ];
     }
 
-    let texto = 'Selecciona la fuente de verdad del proyecto para extraer el alcance y especificación:';
-    if (hallazgos?.preliminar?.docPath && hallazgos?.preliminar?.objetivo) {
-      const cleanObj = truncarTexto(hallazgos.preliminar.objetivo, 280);
-      const cleanDoc = sanitizeDomString(hallazgos.preliminar.docPath, 500);
-      texto = `Encontré '${cleanDoc}'; entendí: objetivo '${cleanObj}'. Selecciona la fuente de verdad del proyecto para extraer el alcance y especificación:`;
-    }
+      let texto = 'Selecciona la fuente de verdad del proyecto para extraer el alcance y especificación:';
+      if (hallazgos?.preliminar?.docPath && hallazgos?.preliminar?.objetivo) {
+        const cleanObj = sanitizeSnippet(hallazgos.preliminar.objetivo);
+        const cleanDoc = sanitizeDomString(hallazgos.preliminar.docPath, 120);
+        if (cleanObj) {
+          texto = `Encontré '${cleanDoc}'; entendí: objetivo '${cleanObj}'. Selecciona la fuente de verdad del proyecto para extraer el alcance y especificación:`;
+        }
+      }
 
-    return crearPregunta({
-      id: 'onboarding.fuente_de_verdad',
-      texto,
-      formato: 'una_opcion',
-      opciones,
-      permite_otra: true,
-      registrar_con: { tool: 'qap_context_set', campo: 'source_of_truth' },
-    });
-  }
+      return crearPregunta({
+        id: 'onboarding.fuente_de_verdad',
+        texto,
+        formato: 'una_opcion',
+        opciones,
+        permite_otra: true,
+        registrar_con: { tool: 'qap_context_set', campo: 'source_of_truth' },
+      });
+    }
 
   // Comprobar si los 3 campos clave (objetivo, roles, flujos) tienen propuesta
   const hasObjectiveProposal = Boolean(
@@ -141,7 +152,7 @@ export function obtenerSiguientePreguntaOnboarding(
     const baseUrl = hasUrl
       ? (typeof rawBaseUrl === 'string' && rawBaseUrl.trim().length > 0 ? rawBaseUrl.trim() : (envUrl as string).trim())
       : '(sin definir)';
-    const cleanObjective = truncarTexto(contexto?.objective, 280);
+    const cleanObjective = sanitizeSnippet(contexto?.objective) || truncarTexto(contexto?.objective, 120);
 
     const textoResumen = `Resumen de configuración detectado para el proyecto:\n1. Objetivo: ${cleanObjective}\n2. Roles: ${rolesList}\n3. Flujos críticos: ${flowsList}\n4. URL base: ${baseUrl}\nConfirma la configuración o selecciona los campos a corregir:`;
 
@@ -204,7 +215,7 @@ export function obtenerSiguientePreguntaOnboarding(
       ? contexto.objective
       : (hallazgos?.package_json?.description || '');
 
-    const cleanHypothesis = truncarTexto(rawHypothesis, 280);
+    const cleanHypothesis = sanitizeSnippet(rawHypothesis) || (rawHypothesis.trim().length >= 10 && !/^[|+-]/.test(rawHypothesis.trim()) ? truncarTexto(rawHypothesis, 120) : '');
 
     if (cleanHypothesis.length >= 10) {
       return crearPregunta({

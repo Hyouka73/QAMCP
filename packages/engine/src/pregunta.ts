@@ -1,3 +1,5 @@
+import { isTautologicalOptionLabel, normalizeRuleText } from '@qap/shared';
+
 import { sanitizeDomString } from './interview-engine.js';
 
 export type FormatoPregunta = 'una_opcion' | 'multiple' | 'abierta';
@@ -235,4 +237,120 @@ export function generarRenderTexto(p: {
  */
 export function sanitizeTextoOpcion(raw: string | undefined | null): string {
   return sanitizeDomString(raw);
+}
+
+export interface PreguntaInvalidaError {
+  status: 'error';
+  code: 'pregunta_invalida';
+  mensaje: string;
+  detalles: string[];
+}
+
+export function isPreguntaInvalidaError(val: unknown): val is PreguntaInvalidaError {
+  return (
+    typeof val === 'object' &&
+    val !== null &&
+    (val as PreguntaInvalidaError).status === 'error' &&
+    (val as PreguntaInvalidaError).code === 'pregunta_invalida'
+  );
+}
+
+/**
+ * Valida una pregunta aplicando validarPregunta y las reglas de emisión de C1:
+ * - Formato abierta (con opciones vacías), o al menos 2 opciones distintas.
+ * - Ninguna opción con etiqueta tautológica.
+ * - Ningún texto que empiece por "Deseas".
+ */
+export function validarEmisionPregunta(pregunta: unknown): ValidacionPreguntaResult {
+  const baseRes = validarPregunta(pregunta);
+  const errors = [...baseRes.errors];
+
+  if (!pregunta || typeof pregunta !== 'object') {
+    return { valid: false, errors };
+  }
+
+  const p = pregunta as Partial<Pregunta>;
+
+  // Formato abierta, o al menos 2 opciones distintas
+  if (p.formato !== 'abierta') {
+    if (!Array.isArray(p.opciones) || p.opciones.length < 2) {
+      if (!errors.some((e) => e.includes('al menos 2 opciones'))) {
+        errors.push(`El formato '${p.formato}' exige al menos 2 opciones reales y distintas.`);
+      }
+    } else {
+      const ids = new Set<string>();
+      const labels = new Set<string>();
+      for (let i = 0; i < p.opciones.length; i++) {
+        const op = p.opciones[i];
+        if (op && typeof op === 'object') {
+          const opId = typeof op.id === 'string' ? op.id.trim() : '';
+          if (opId) {
+            if (ids.has(opId)) {
+              errors.push(`Las opciones deben ser distintas: id duplicado '${opId}'.`);
+            }
+            ids.add(opId);
+          }
+
+          const opEtiqueta = typeof op.etiqueta === 'string' ? op.etiqueta.trim() : '';
+          const normLabel = normalizeRuleText(opEtiqueta);
+          if (normLabel) {
+            if (labels.has(normLabel)) {
+              errors.push(`Las opciones deben ser distintas: etiqueta duplicada '${opEtiqueta}'.`);
+            }
+            labels.add(normLabel);
+          }
+
+          // Ninguna opción con etiqueta tautológica
+          if (isTautologicalOptionLabel(opEtiqueta)) {
+            errors.push(`La opción '${op.id}' contiene una etiqueta tautológica no permitida: '${opEtiqueta}'.`);
+          }
+        }
+      }
+    }
+  }
+
+  // Ningún texto que empiece por "Deseas"
+  if (typeof p.texto === 'string' && /^¿?\s*deseas\b/i.test(p.texto.trim())) {
+    if (!errors.some((e) => e.includes('Deseas'))) {
+      errors.push('El texto no debe empezar por "Deseas".');
+    }
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+  };
+}
+
+/**
+ * Guardia de emisión (C1): pasa toda pregunta antes de devolverse al cliente.
+ * En tests lanza Error si la pregunta es inválida.
+ * En producción devuelve el error estructurado PreguntaInvalidaError.
+ */
+export function guardPregunta<T extends Pregunta = Pregunta>(
+  pregunta: T
+): T | PreguntaInvalidaError {
+  const res = validarEmisionPregunta(pregunta);
+  if (!res.valid) {
+    const proc = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process;
+    const isTest = Boolean(
+      proc &&
+        (proc.env?.NODE_ENV === 'test' ||
+          proc.env?.VITEST !== undefined ||
+          proc.env?.npm_lifecycle_event === 'test')
+    );
+
+    if (isTest) {
+      throw new Error(`[guardPregunta] Pregunta inválida: ${res.errors.join('; ')}`);
+    }
+
+    return {
+      status: 'error',
+      code: 'pregunta_invalida',
+      mensaje: 'La pregunta no cumple las reglas de emisión y fue bloqueada para proteger la integridad.',
+      detalles: res.errors,
+    };
+  }
+
+  return pregunta;
 }

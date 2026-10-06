@@ -214,6 +214,7 @@ describe('B1 & B5: Clasificación de páginas y detección de AuthWall con Chrom
     expect(ctx.requested_url).toBe(`${fixture.baseUrl}/protected-delayed-client-guard`);
     expect(ctx.final_url).toBe(`${fixture.baseUrl}/login`);
     expect(ctx.is_auth_view).toBe(true);
+    expect(ctx.auth_selectors?.username).toBe('#inp-user');
   });
 
   // Caso 10: Cambio de URL o redirección durante la extracción (C3b/c)

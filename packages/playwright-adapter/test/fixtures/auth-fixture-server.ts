@@ -212,15 +212,9 @@ export function startAuthFixtureServer(): Promise<AuthFixtureServerInstance> {
             <head>
               <title>Verificando Sesión Asíncrona</title>
               <script>
-                fetch('/api/session-check')
-                  .then(function(r) { return r.json(); })
-                  .then(function(data) {
-                    if (!data.authenticated) {
-                      setTimeout(function() {
-                        window.location.href = '/login';
-                      }, 400);
-                    }
-                  });
+                setTimeout(function() {
+                  window.location.href = '/login';
+                }, 1400);
               </script>
             </head>
             <body>

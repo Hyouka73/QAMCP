@@ -269,8 +269,8 @@ describe('E1, E2, E3 & E0d: Motor de Cierre de Ciclo de Vida y Reglas', () => {
 
     it('debe permitir el cierre cuando la cobertura es completa y hay 0 reglas inferidas pendientes', () => {
       const rules: RuleEntry[] = [
-        { id: 'r1', description: 'desc 1', category: 'proposito', status: 'confirmed', source: 'user', view: 'default' },
-        { id: 'r2', description: 'desc 2', category: 'campo', status: 'confirmed', source: 'user', view: 'default' },
+        { id: 'r1', description: 'Propósito principal y flujo de negocio del módulo', category: 'proposito', status: 'confirmed', source: 'user', view: 'default' },
+        { id: 'r2', description: 'Validación obligatoria de formato para el campo', category: 'campo', status: 'confirmed', source: 'user', view: 'default' },
       ];
       const applicable: RuleCategory[] = ['proposito', 'campo'];
       const res = canCloseModule(rules, [], applicable, 'default');
