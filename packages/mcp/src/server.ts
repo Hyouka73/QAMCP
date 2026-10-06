@@ -34,6 +34,8 @@ import {
   type ProjectPhase,
   type ModuleLifecycleState,
   type IngestProposal,
+  type RuleEntry,
+  type CategoryWaiver,
 } from '@qap/shared';
 import type { StorageState } from '@qap/auth';
 import {
@@ -2980,7 +2982,13 @@ export function createMcpServer(): Server {
           });
 
           const freshState = await storage.getLifecycleState();
+          let projectCtx = null;
+          try {
+            projectCtx = await storage.getProjectContext();
+          } catch { /* empty */ }
           const guidance = getPhaseGuidance(freshState.phase, {
+            lifecycle: freshState,
+            context: projectCtx,
             faltantes: scopingGateRes.faltantes,
             plan: freshState.session?.plan,
             modules: freshState.modules as any,
@@ -3290,10 +3298,11 @@ export function createMcpServer(): Server {
                       modulo: name,
                       ruta: route,
                       requested_url: route,
-                      final_url: route,
-                      page_kind: 'auth_wall',
-                      redirected: false,
+                      final_url: null,
+                      page_kind: null,
+                      redirected: null,
                       http_status: null,
+                      observed: false,
                       desbloquear_con: {
                         tool: 'qap_auth_add',
                         descripcion: `El módulo '${name}' requiere autenticación pero no hay ningún perfil verificado disponible. Registra y verifica un perfil con qap_auth_add.`,
@@ -3513,6 +3522,7 @@ export function createMcpServer(): Server {
                       page_kind: pageKind,
                       redirected,
                       http_status: httpStatus,
+                      observed: true,
                       desbloquear_con: desbloquearCon,
                       siguiente_accion: siguienteAccion,
                     },
@@ -3747,6 +3757,25 @@ export function createMcpServer(): Server {
                 coverage,
                 rutasDetectadasFueraDelPlan,
               });
+
+          if (siguienteAccion?.pregunta) {
+            let cat = (siguienteAccion.pregunta as unknown as Record<string, unknown>).categoria as string | undefined;
+            if (!cat) {
+              const parts = (siguienteAccion.pregunta.id || '').split('.');
+              if (parts.length >= 4 && parts[0] === 'interview') {
+                cat = parts[3];
+              }
+            }
+            if (!cat && applicableCategories.length > 0) {
+              const missing = applicableCategories.find((c) => !coverage.categorias[c]?.cubierta);
+              if (missing) cat = missing;
+            }
+            if (cat) {
+              try {
+                await storage.savePendingQuestion(name, 'default', cat, siguienteAccion.pregunta);
+              } catch { /* ignore */ }
+            }
+          }
 
           // E0a: NO incluir accion_inmediata_requerida ni directiva_estricta
           const responsePayload: Record<string, unknown> = {
@@ -4367,7 +4396,9 @@ export function createMcpServer(): Server {
 
           const view = args.view ? String(args.view) : 'default';
           const incomingRules = Array.isArray(args.rules) ? args.rules : [];
-          const incomingWaivers = Array.isArray(args.category_waivers) ? args.category_waivers : [];
+          const incomingWaivers = Array.isArray(args.category_waivers)
+            ? args.category_waivers
+            : (Array.isArray(args.waivers) ? args.waivers : []);
 
           // Validar lote completo antes de cualquier mutación (T12)
           const VALID_CATEGORIES = new Set(['proposito', 'actor', 'campo', 'accion', 'error', 'dato', 'sensibilidad']);
@@ -4377,11 +4408,17 @@ export function createMcpServer(): Server {
           let agentRulesAlert = false;
 
           for (const rule of incomingRules) {
-            // C2: Si viene user_text sustantivo
-            if (rule.user_text && typeof rule.user_text === 'string' && isSubstantiveRuleText(rule.user_text)) {
+            // C2: Si viene user_text
+            if (rule.user_text && typeof rule.user_text === 'string') {
               rule.description = rule.user_text.trim();
-              rule.source = 'user_text';
-              rule.status = 'confirmed';
+              if (isSubstantiveRuleText(rule.user_text)) {
+                rule.source = 'user_text';
+                rule.status = 'confirmed';
+              } else {
+                rule.source = 'agent';
+                rule.status = 'inferred';
+                agentRulesAlert = true;
+              }
             } else if (rule.from_option && typeof rule.from_option === 'object') {
               const fromOpt = rule.from_option as Record<string, unknown>;
               const qId = (fromOpt.pregunta_id || fromOpt.question_id) as string | undefined;
@@ -4396,14 +4433,38 @@ export function createMcpServer(): Server {
               }
               const matchedOpt = matchedQ?.opciones?.find((o: { id: string }) => o.id === optId);
               const optText = (matchedOpt?.etiqueta || '').trim();
-              if (matchedOpt && isSubstantiveRuleText(optText) && !isTautologicalOptionLabel(optText)) {
+
+              if (matchedOpt && (optId === 'definir_despues' || matchedOpt.efecto?.estado === 'deferred')) {
+                rule.description = rule.description || optText || `Categoría diferida: ${rule.category || 'general'}`;
+                rule.status = 'deferred';
+                rule.source = 'user_confirmed';
+              } else if (matchedOpt && isSubstantiveRuleText(optText) && !isTautologicalOptionLabel(optText)) {
                 rule.description = optText;
                 rule.source = 'user_confirmed';
                 rule.status = 'confirmed';
               } else {
-                rule.source = 'agent';
-                rule.status = 'inferred';
-                agentRulesAlert = true;
+                // Opción sin texto sustantivo, o pregunta_id / opcion_id inexistente
+                if (rule.description && typeof rule.description === 'string' && rule.description.trim().length > 0) {
+                  rule.source = 'agent';
+                  rule.status = 'inferred';
+                  agentRulesAlert = true;
+                } else if (optText.length > 0) {
+                  rule.description = optText;
+                  rule.source = 'agent';
+                  rule.status = 'inferred';
+                  agentRulesAlert = true;
+                } else {
+                  return {
+                    isError: true,
+                    content: [{
+                      type: 'text',
+                      text: JSON.stringify({
+                        status: 'error',
+                        error: "Regla inválida: 'description' es requerida o la opción seleccionada no existe. Lote rechazado por completo.",
+                      }, null, 2),
+                    }],
+                  };
+                }
               }
             } else if (rule.source === 'user' && rule.status === 'confirmed' && !isTautologicalOptionLabel(rule.description) && !isEngineOptionLabel(rule.description)) {
               rule.source = 'user';
@@ -4687,7 +4748,7 @@ export function createMcpServer(): Server {
           }
 
           if (siguienteAccionRules?.pregunta) {
-            let cat = (siguienteAccionRules.pregunta as Record<string, unknown>).categoria as string | undefined;
+            let cat = (siguienteAccionRules.pregunta as unknown as Record<string, unknown>).categoria as string | undefined;
             if (!cat) {
               const parts = (siguienteAccionRules.pregunta.id || '').split('.');
               if (parts.length >= 4 && parts[0] === 'interview') {
@@ -5017,7 +5078,13 @@ export function createMcpServer(): Server {
           const targetState: ModuleLifecycleState = action === 'close' ? 'closed' : 'waived';
           await storage.updateLifecycleState(async (curr) => {
             let transState = curr;
-            if (curr.modules?.[moduleName]?.state === 'interviewing' && targetState === 'closed') {
+            if (curr.modules?.[moduleName]?.state === 'observed' && targetState === 'closed') {
+              const toInter = transitionModule(transState, moduleName, 'interviewing', {
+                reason: `Inicio de entrevista para cierre${args.accept_gaps === true ? ' con brechas aceptadas' : ''}`,
+              });
+              if (toInter.state) transState = toInter.state;
+            }
+            if (transState.modules?.[moduleName]?.state === 'interviewing' && targetState === 'closed') {
               const toCons = transitionModule(transState, moduleName, 'consolidated', {
                 reason: `Consolidación para cierre${args.accept_gaps === true ? ' con brechas aceptadas' : ''}`,
               });
@@ -5037,7 +5104,7 @@ export function createMcpServer(): Server {
               if (pItem) pItem.status = targetState;
             }
             if (curr.modules?.[moduleName] && args.accept_gaps === true) {
-              (curr.modules[moduleName] as Record<string, unknown>).accepted_gaps = {
+              (curr.modules[moduleName] as unknown as Record<string, unknown>).accepted_gaps = {
                 reason: String(args.accept_gaps_reason).trim(),
                 at: new Date().toISOString(),
                 sustantivas: sustantivasCount,

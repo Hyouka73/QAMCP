@@ -171,7 +171,8 @@ describe('P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP)', 
 
     expect(parsed.status).toBe('blocked');
     expect(parsed.razon).toBe('auth_required');
-    expect(parsed.page_kind).toBe('auth_wall');
+    expect(parsed.page_kind).toBeNull();
+    expect(parsed.observed).toBe(false);
     expect(parsed.desbloquear_con.tool).toBe('qap_auth_add');
     expect(parsed.siguiente_accion.tipo).toBe('decision');
 

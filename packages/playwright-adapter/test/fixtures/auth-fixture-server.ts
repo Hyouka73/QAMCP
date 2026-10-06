@@ -350,6 +350,58 @@ export function startAuthFixtureServer(): Promise<AuthFixtureServerInstance> {
         return;
       }
 
+      // 8. SPA con skeleton de carga y renderizado tardío (~800ms) (C2)
+      if (pathname === '/spa-skeleton') {
+        res.writeHead(200);
+        res.end(`
+          <!DOCTYPE html>
+          <html>
+            <head><title>Tablero de Tareas</title></head>
+            <body>
+              <div id="root">
+                <div id="skeleton" class="skeleton" aria-busy="true">
+                  <p>Cargando información del módulo...</p>
+                </div>
+              </div>
+              <script>
+                setTimeout(() => {
+                  const root = document.getElementById('root');
+                  if (root) {
+                    root.innerHTML = \`
+                      <main>
+                        <h1>Tablero de Tareas</h1>
+                        <form id="search-form">
+                          <input type="text" id="inp-search" name="search" placeholder="Buscar tarea..." />
+                        </form>
+                        <div class="toolbar">
+                          <button type="button" id="btn-add">Nueva Tarea</button>
+                          <button type="button" id="btn-filter">Filtrar</button>
+                        </div>
+                        <div class="columns-container">
+                          <div class="column" id="col-todo">
+                            <h2>Por Hacer</h2>
+                            <div class="card">Definir modelo de datos</div>
+                          </div>
+                          <div class="column" id="col-in-progress">
+                            <h2>En Progreso</h2>
+                            <div class="card">Implementar guardrails</div>
+                          </div>
+                          <div class="column" id="col-done">
+                            <h2>Completado</h2>
+                            <div class="card">Configurar entorno</div>
+                          </div>
+                        </div>
+                      </main>
+                    \`;
+                  }
+                }, 800);
+              </script>
+            </body>
+          </html>
+        `);
+        return;
+      }
+
       // 404 por defecto
       res.writeHead(404);
       res.end('Ruta no encontrada');

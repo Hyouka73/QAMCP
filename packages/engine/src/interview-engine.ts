@@ -192,25 +192,25 @@ export function getActionButtonQuestion(buttonText: string, targetLabel?: string
  */
 export const QUESTION_TEMPLATES = {
   proposito: (targetLabel: string) =>
-    `¿Cuál es el propósito de negocio del módulo ${targetLabel}? Describe qué acción realiza el usuario y qué resultado espera.`,
+    `¿Cuál es el propósito de negocio del módulo ${targetLabel}? Describe qué acción realiza el usuario y qué resultado espera. Ejemplo: 'Permite registrar solicitudes de compra y calcular el presupuesto disponible.'`,
 
   actor: (targetLabel: string) =>
-    `¿Qué roles o usuarios tienen acceso al módulo ${targetLabel}? ¿Hay restricciones de permisos?`,
+    `¿Qué roles o usuarios tienen acceso al módulo ${targetLabel}? ¿Hay restricciones de permisos? Ejemplo: 'Los analistas pueden ver reportes y los administradores autorizar transacciones.'`,
 
   confirmar_hipotesis: (count: number) =>
     `El DOM sugiere ${count} regla(s). Por favor confirma si son correctas o corrige por id:`,
 
   error_form: (targetLabel: string) =>
-    `Para los formularios del módulo ${targetLabel}: ¿Qué mensajes de error debe mostrar el sistema cuando la validación falla? ¿Hay reglas de unicidad, rangos de negocio u otras restricciones no visibles en el DOM?`,
+    `Para los formularios del módulo ${targetLabel}: ¿Qué mensajes de error debe mostrar el sistema cuando la validación falla? ¿Hay reglas de unicidad, rangos de negocio u otras restricciones no visibles en el DOM? Ejemplo: 'El importe debe ser mayor a cero y el correo electrónico no debe estar repetido.'`,
 
   accion: (buttonText: string, targetLabel?: string) =>
-    getActionButtonQuestion(buttonText, targetLabel),
+    `${getActionButtonQuestion(buttonText, targetLabel)} Ejemplo: 'Al presionar se valida el formulario y se guardan los datos en el servidor.'`,
 
   dato: (targetLabel: string) =>
-    `¿Qué datos ingresados en el módulo ${targetLabel} son persistidos o enviados a sistemas externos? ¿Hay datos calculados o derivados?`,
+    `¿Qué datos ingresados en el módulo ${targetLabel} son persistidos o enviados a sistemas externos? ¿Hay datos calculados o derivados? Ejemplo: 'Los registros se almacenan en la base transaccional y el total se calcula con IVA incluido.'`,
 
   sensibilidad: (fields: string[]) =>
-    `Se detectaron campos posiblemente sensibles: ${fields.join(', ')}. ¿Cómo deben tratarse estos datos? (cifrado, enmascarado, retención, auditoría)`,
+    `Se detectaron campos posiblemente sensibles: ${fields.join(', ')}. ¿Cómo deben tratarse estos datos? (cifrado, enmascarado, retención, auditoría). Ejemplo: 'El número de identificación debe ser cifrado en reposo y enmascarado en pantalla.'`,
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -772,8 +772,28 @@ export function generateNextInterviewBatch(
     (b) => !/^(ir|ir a|volver|regresar|cancelar|cerrar|salir|back|close|cancel)/i.test(b.text)
   );
 
+  function buildCategoryStandardOptions(viewName: string, category: RuleCategory): { opciones: Opcion[]; seguimiento: Pregunta } {
+    const opciones: Opcion[] = [
+      { id: 'definir_despues', etiqueta: 'Lo defino después', efecto: { estado: 'deferred' } },
+      { id: 'no_aplica', etiqueta: 'No aplica a este módulo', efecto: { abre_seguimiento: true } },
+    ];
+
+    const seguimiento: Pregunta = {
+      id: `${viewName}.${category}.razon_no_aplica`,
+      texto: `Indica la justificación de por qué la categoría '${category}' no aplica a este módulo (mínimo 15 caracteres):`,
+      formato: 'abierta',
+      opciones: [],
+      permite_otra: true,
+      registrar_con: { tool: 'qap_rules_set', campo: 'category_waivers' },
+    };
+
+    return { opciones, seguimiento };
+  }
+
   for (const cat of openCategories) {
     if (questions.length >= 5) break;
+
+    const { opciones, seguimiento } = buildCategoryStandardOptions(view, cat);
 
     switch (cat) {
       case 'sensibilidad':
@@ -782,10 +802,11 @@ export function generateNextInterviewBatch(
           tipo: 'abierta',
           categoria: 'sensibilidad',
           texto: QUESTION_TEMPLATES.sensibilidad(sensitiveFields.length > 0 ? sensitiveFields : ['campo sensible detectado']),
-          formato: 'abierta',
-          opciones: [],
+          formato: 'una_opcion',
+          opciones,
           permite_otra: true,
           registrar_con: { tool: 'qap_rules_set', campo: 'rules' },
+          seguimiento,
         });
         break;
 
@@ -797,10 +818,11 @@ export function generateNextInterviewBatch(
             tipo: 'abierta',
             categoria: 'accion',
             texto: QUESTION_TEMPLATES.accion(sanitizeDomString(btn.text) || sanitizeDomString(btn.key), targetLabel),
-            formato: 'abierta',
-            opciones: [],
+            formato: 'una_opcion',
+            opciones,
             permite_otra: true,
             registrar_con: { tool: 'qap_rules_set', campo: 'rules' },
+            seguimiento,
           });
         }
         break;
@@ -812,10 +834,11 @@ export function generateNextInterviewBatch(
           tipo: 'abierta',
           categoria: 'actor',
           texto: QUESTION_TEMPLATES.actor(targetLabel),
-          formato: 'abierta',
-          opciones: [],
+          formato: 'una_opcion',
+          opciones,
           permite_otra: true,
           registrar_con: { tool: 'qap_rules_set', campo: 'rules' },
+          seguimiento,
         });
         break;
 
@@ -824,11 +847,12 @@ export function generateNextInterviewBatch(
           id: `${view}.campo`,
           tipo: 'abierta',
           categoria: 'campo',
-          texto: `Identifica validaciones de negocio adicionales para los campos del módulo ${targetLabel}:`,
-          formato: 'abierta',
-          opciones: [],
+          texto: `Identifica validaciones de negocio adicionales para los campos del módulo ${targetLabel}. Ejemplo: 'El código postal debe tener 5 dígitos y coincidir con el estado seleccionado.'`,
+          formato: 'una_opcion',
+          opciones,
           permite_otra: true,
           registrar_con: { tool: 'qap_rules_set', campo: 'rules' },
+          seguimiento,
         });
         break;
 
@@ -838,10 +862,11 @@ export function generateNextInterviewBatch(
           tipo: 'abierta',
           categoria: 'error',
           texto: QUESTION_TEMPLATES.error_form(targetLabel),
-          formato: 'abierta',
-          opciones: [],
+          formato: 'una_opcion',
+          opciones,
           permite_otra: true,
           registrar_con: { tool: 'qap_rules_set', campo: 'rules' },
+          seguimiento,
         });
         break;
       }
@@ -852,10 +877,11 @@ export function generateNextInterviewBatch(
           tipo: 'abierta',
           categoria: 'proposito',
           texto: QUESTION_TEMPLATES.proposito(targetLabel),
-          formato: 'abierta',
-          opciones: [],
+          formato: 'una_opcion',
+          opciones,
           permite_otra: true,
           registrar_con: { tool: 'qap_rules_set', campo: 'rules' },
+          seguimiento,
         });
         break;
 
@@ -865,10 +891,11 @@ export function generateNextInterviewBatch(
           tipo: 'abierta',
           categoria: 'dato',
           texto: QUESTION_TEMPLATES.dato(targetLabel),
-          formato: 'abierta',
-          opciones: [],
+          formato: 'una_opcion',
+          opciones,
           permite_otra: true,
           registrar_con: { tool: 'qap_rules_set', campo: 'rules' },
+          seguimiento,
         });
         break;
     }

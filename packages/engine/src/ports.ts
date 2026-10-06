@@ -427,8 +427,8 @@ export interface IStorage {
   savePendingQuestion?(module: string, view: string, category: string, question: unknown): Promise<void>;
 
   /** Retrieve last question emitted for module, view and category. */
-  getPendingQuestion?(module: string, view: string, category: string): Promise<unknown | null>;
+  getPendingQuestion?(module: string, view: string, category: string): Promise<unknown>;
 
   /** Find pending question by questionId across categories. */
-  findPendingQuestion?(module: string, view: string, questionId: string): Promise<unknown | null>;
+  findPendingQuestion?(module: string, view: string, questionId: string): Promise<unknown>;
 }
