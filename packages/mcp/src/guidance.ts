@@ -9,7 +9,7 @@
  */
 
 import type { ProjectPhase, RuleCategory, LifecycleState, AuthProfile } from '@qap/shared';
-import { isValidRoleName } from '@qap/shared';
+import { isValidRoleName, normalizeSlug } from '@qap/shared';
 import type {
   CoverageResult,
   InterviewQuestion,
@@ -228,7 +228,7 @@ export function getPhaseGuidance(
             texto: 'Selecciona los módulos prioritarios a verificar en esta sesión:',
             formato: 'multiple',
             opciones: candidateModules.map((m, idx) => ({
-              id: `modulo_${m.module.toLowerCase().replace(/[^a-z0-9_-]+/g, '_')}`,
+              id: `modulo_${normalizeSlug(m.module)}`,
               etiqueta: `${m.module} (${m.path})`,
               recomendada: idx === 0,
             })),
@@ -355,7 +355,7 @@ export function getPhaseGuidance(
             texto: 'Selecciona los roles de usuario que se deben probar en esta sesión:',
             formato: 'multiple',
             opciones: rawRoles.map((role: string) => ({
-              id: `rol_${role.toLowerCase().replace(/[^a-z0-9_-]+/g, '_')}`,
+              id: `rol_${normalizeSlug(role)}`,
               etiqueta: role,
             })),
             permite_otra: true,
@@ -369,7 +369,7 @@ export function getPhaseGuidance(
             formato: 'una_opcion',
             opciones: [
               {
-                id: `rol_${rol.toLowerCase().replace(/[^a-z0-9_-]+/g, '_')}`,
+                id: `rol_${normalizeSlug(rol)}`,
                 etiqueta: `Probar con el rol '${rol}'`,
               },
               {

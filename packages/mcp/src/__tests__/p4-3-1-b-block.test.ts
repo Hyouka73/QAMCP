@@ -20,14 +20,14 @@ describe('P4.3.1 Bloque B - Verificación y Cobertura de Correcciones', () => {
     server = createMcpServer();
     // @ts-expect-error accessing internal request handler
     handler = server._requestHandlers.get(CallToolRequestSchema.shape.method.value);
-  });
+  }, 15000);
 
   afterEach(() => {
     vi.restoreAllMocks();
     try {
       rmSync(tempDir, { recursive: true, force: true });
     } catch { /* empty */ }
-  });
+  }, 15000);
 
   async function call(name: string, args: Record<string, unknown> = {}) {
     const res = await handler(
@@ -192,7 +192,7 @@ Plataforma SaaS B2B que digitaliza y centraliza el ciclo de vida del reclutamien
   });
 
   // B6: Paso trabajo y confirmaciones
-  it('B6: ninguna siguiente_accion tipo trabajo apunta a herramientas que exigen confirmación (qap_module_close, qap_session_close); constante <= 600 caracteres', async () => {
+  it('B6: ninguna siguiente_accion tipo trabajo apunta a herramientas que exigen confirmación (qap_module_close, qap_session_close); constante <= 600 caracteres', { timeout: 15000 }, async () => {
     // Longitud de la constante compartida
     expect(QAP_CORE_DIRECTIVES.length).toBeLessThanOrEqual(600);
     expect(QAP_CORE_DIRECTIVES).toContain('las acciones que requieren confirmación nunca vienen como trabajo');

@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, rmSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync, readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -766,4 +766,140 @@ describe('P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, 
       expect(r.parsed.advertencias).toContain('extraccion_vacia');
     });
   });
+
+  // ==========================================
+  // C3: Transliteración NFD de slugs y prevención de módulos fuera del plan
+  // ==========================================
+  describe('C3: Transliteración NFD de slugs y prevención de módulos fuera del plan', () => {
+    it('C3-a: opciones de módulos en guidance usan normalizeSlug sin sustituir tildes por guiones bajos', () => {
+      const guidance = getPhaseGuidance('SCOPING', {
+        suggestedModules: [
+          { module: 'Asignación de ejecutivo de campo por carga', path: '/asignacion' },
+          { module: 'Operación básica', path: '/operacion' },
+        ],
+      });
+
+      const q = guidance.siguiente_accion?.pregunta;
+      expect(q).toBeDefined();
+      expect(q?.opciones?.[0]?.id).toBe('modulo_asignacion_de_ejecutivo_de_campo_por_carga');
+      expect(q?.opciones?.[0]?.id).not.toContain('asignaci_n');
+    });
+
+    it('C3-b: qap_session_plan limpia módulos planned huérfanos que ya no pertenezcan al plan', async () => {
+      await setupProjectContext([{ name: 'admin', description: 'Administrador' }]);
+
+      // Plan inicial con 2 módulos en SCOPING
+      await callTool('qap_session_plan', {
+        plan: [
+          { module: 'modulo_persistente', path: '/uno', priority: 'high' },
+          { module: 'modulo_fantasma', path: '/dos', priority: 'low' },
+        ],
+        auth: { required: true },
+      });
+
+      // Modificar plan en SCOPING dejando solo 1 módulo
+      await callTool('qap_session_plan', {
+        plan: [
+          { module: 'modulo_persistente', path: '/uno', priority: 'high' },
+        ],
+        auth: { required: true },
+      });
+
+      const lcPath = join(tempDir, '.qa', 'project', 'lifecycle.json');
+      const lc = JSON.parse(readFileSync(lcPath, 'utf-8'));
+
+      expect(lc.session.plan.length).toBe(1);
+      expect(lc.session.plan[0].module).toBe('modulo_persistente');
+      expect(lc.modules['modulo_persistente']).toBeDefined();
+      expect(lc.modules['modulo_fantasma']).toBeUndefined();
+    });
+
+    it('C1-c: módulo con tilde preserva nombre en lifecycle, crea directorio y normaliza pending_questions con transliteración NFD', async () => {
+      await setupProjectContext([{ name: 'admin', description: 'Administrador' }]);
+
+      const modName = 'Asignación de ejecutivo de campo por carga';
+      await callTool('qap_session_plan', {
+        plan: [{ module: modName, path: '/asignacion', priority: 'high' }],
+        auth: { required: false },
+      });
+
+      const lcPath = join(tempDir, '.qa', 'project', 'lifecycle.json');
+      const lc = JSON.parse(readFileSync(lcPath, 'utf-8'));
+      expect(lc.modules[modName]).toBeDefined();
+
+      await callTool('qap_discover', { name: modName, path: '/asignacion' });
+      const modDir = join(tempDir, '.qa', 'modules', modName);
+      expect(existsSync(modDir)).toBe(true);
+
+      await callTool('qap_rules_set', {
+        module: modName,
+        view: 'default',
+        propuesta_enunciado: 'Flujo de asignación automática de ejecutivo de campo por carga de trabajo.',
+      });
+
+      const cacheDir = join(tempDir, '.qa', 'cache', 'pending_questions');
+      const cacheFiles = readdirSync(cacheDir);
+      const matching = cacheFiles.filter((f) => f.startsWith('asignacion_de_ejecutivo_de_campo_por_carga.'));
+      expect(matching.length).toBeGreaterThan(0);
+      for (const f of matching) {
+        expect(f).not.toContain('asignaci_n');
+      }
+    });
+
+    it('C2-seguimiento: selección de "Corregir" emite pregunta de seguimiento y no persiste regla espuria en rules.yaml', async () => {
+      await setupProjectContext([{ name: 'admin', description: 'Administrador' }]);
+
+      await callTool('qap_session_plan', {
+        plan: [{ module: 'catalogo', path: '/catalogo', priority: 'high' }],
+        auth: { required: false },
+      });
+      await callTool('qap_discover', { name: 'catalogo', path: '/catalogo' });
+
+      // 1. Borrador inicial breve
+      await callTool('qap_rules_set', {
+        module: 'catalogo',
+        view: 'default',
+        rules: [{ category: 'actor', user_text: 'solo yo' }],
+      });
+
+      // 2. Propuesta sustantiva del agente
+      const rProp = await callTool('qap_rules_set', {
+        module: 'catalogo',
+        view: 'default',
+        propuesta_enunciado: 'Acceso a catálogo reservado exclusivamente para operadores asignados.',
+      });
+      const q = rProp.parsed.siguiente_accion?.pregunta;
+      expect(q).toBeDefined();
+
+      // 3. Responder Corregir
+      const rCorregir = await callTool('qap_rules_set', {
+        module: 'catalogo',
+        view: 'default',
+        rules: [{ from_option: { pregunta_id: q.id, opcion_id: 'corregir' } }],
+      });
+
+      expect(rCorregir.parsed.siguiente_accion?.tipo).toBe('entrevista');
+      expect(rCorregir.parsed.siguiente_accion?.pregunta?.id).toContain('.corregir');
+
+      const rulesPath = join(tempDir, '.qa', 'modules', 'catalogo', 'rules.yaml');
+      const rf = YAML.parse(readFileSync(rulesPath, 'utf-8'));
+      // No existe regla 'Corregir'
+      const fakeRule = rf.rules.find((r: { description: string }) => r.description === 'Corregir');
+      expect(fakeRule).toBeUndefined();
+
+      // 4. Responder al seguimiento con texto corregido
+      await callTool('qap_rules_set', {
+        module: 'catalogo',
+        view: 'default',
+        rules: [{ category: 'actor', user_text: 'Acceso restringido formalmente a coordinadores y supervisores de área.' }],
+      });
+
+      const rfFinal = YAML.parse(readFileSync(rulesPath, 'utf-8'));
+      expect(rfFinal.rules.length).toBe(1);
+      expect(rfFinal.rules[0].status).toBe('confirmed');
+      expect(rfFinal.rules[0].source).toBe('user_text');
+      expect(rfFinal.rules[0].description).toBe('Acceso restringido formalmente a coordinadores y supervisores de área.');
+    });
+  });
 });
+

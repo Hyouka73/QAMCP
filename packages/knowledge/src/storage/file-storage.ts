@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { randomBytes, createHash } from 'node:crypto';
 import {
   existsSync,
   mkdirSync,
@@ -36,7 +36,7 @@ import type {
   LifecycleState,
   ModuleStateInfo,
 } from '@qap/shared';
-import { normalizeToPosix } from '@qap/shared';
+import { normalizeToPosix, normalizeSlug } from '@qap/shared';
 import lockfile from 'proper-lockfile';
 import YAML from 'yaml';
 
@@ -88,7 +88,7 @@ export class FileSystemStorage implements IStorage {
     const release = await lockfile.lock(targetPath, {
       retries: { retries: 10, minTimeout: 50, maxTimeout: 500 },
       stale: 10000,
-      lockfilePath: join(this.getLockDir(), `${Buffer.from(targetPath).toString('hex')}.lock`),
+      lockfilePath: join(this.getLockDir(), `${createHash('sha256').update(targetPath).digest('hex')}.lock`),
     });
 
     try {
@@ -532,7 +532,7 @@ export class FileSystemStorage implements IStorage {
     category: string,
     question: unknown
   ): Promise<void> {
-    const filename = `${module.toLowerCase().replace(/[^a-z0-9_-]+/g, '_')}.${view.toLowerCase().replace(/[^a-z0-9_-]+/g, '_')}.${category.toLowerCase().replace(/[^a-z0-9_-]+/g, '_')}.json`;
+    const filename = `${normalizeSlug(module)}.${normalizeSlug(view)}.${normalizeSlug(category)}.json`;
     await this.writeJson(join('.qa/cache/pending_questions', filename), question);
   }
 
@@ -544,7 +544,7 @@ export class FileSystemStorage implements IStorage {
     view: string,
     category: string
   ): Promise<Record<string, unknown> | null> {
-    const filename = `${module.toLowerCase().replace(/[^a-z0-9_-]+/g, '_')}.${view.toLowerCase().replace(/[^a-z0-9_-]+/g, '_')}.${category.toLowerCase().replace(/[^a-z0-9_-]+/g, '_')}.json`;
+    const filename = `${normalizeSlug(module)}.${normalizeSlug(view)}.${normalizeSlug(category)}.json`;
     const relPath = join('.qa/cache/pending_questions', filename);
     const fullPath = resolve(this.rootDir, relPath);
     if (!existsSync(fullPath)) {
@@ -570,7 +570,7 @@ export class FileSystemStorage implements IStorage {
 
     try {
       const files = await readdir(cacheDir);
-      const modPrefix = `${module.toLowerCase().replace(/[^a-z0-9_-]+/g, '_')}.${view.toLowerCase().replace(/[^a-z0-9_-]+/g, '_')}.`;
+      const modPrefix = `${normalizeSlug(module)}.${normalizeSlug(view)}.`;
       for (const file of files) {
         if (file.startsWith(modPrefix) && file.endsWith('.json')) {
           const content = await this.readJson<{ id?: string; categoria?: string }>(join('.qa/cache/pending_questions', file));

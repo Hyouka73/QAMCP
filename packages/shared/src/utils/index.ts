@@ -22,3 +22,6 @@ export {
   ROLE_TABLE_EDGE_PATTERN,
 } from './role-validation.js';
 
+// Slug normalization utilities (C3)
+export { normalizeSlug } from './slug-utils.js';
+

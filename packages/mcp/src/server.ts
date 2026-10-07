@@ -31,6 +31,7 @@ import {
   sanitizeSnippet,
   isValidRoleName,
   filterValidRoles,
+  normalizeSlug,
   type AuthProfile,
   type ModuleSpec,
   type ProjectPhase,
@@ -2910,6 +2911,12 @@ export function createMcpServer(): Server {
                   };
                 }
               }
+              const planModuleNamesWrap = new Set(curr.session.plan.map((p: { module: string }) => p.module));
+              for (const modKey of Object.keys(curr.modules)) {
+                if (!planModuleNamesWrap.has(modKey) && curr.modules[modKey]?.state === 'planned') {
+                  delete curr.modules[modKey];
+                }
+              }
 
               assertLifecycleStateInvariants(curr);
               scopingGateRes = canExitScoping(curr, allProfiles);
@@ -2956,6 +2963,12 @@ export function createMcpServer(): Server {
                     state: 'planned',
                     updated_at: new Date().toISOString(),
                   };
+                }
+              }
+              const planModuleNamesScoping = new Set(curr.session.plan.map((p: { module: string }) => p.module));
+              for (const modKey of Object.keys(curr.modules)) {
+                if (!planModuleNamesScoping.has(modKey) && curr.modules[modKey]?.state === 'planned') {
+                  delete curr.modules[modKey];
                 }
               }
 
@@ -4472,7 +4485,7 @@ export function createMcpServer(): Server {
           // C4: Manejo de propuesta_enunciado (del agente para resolver borrador previo)
           const rawPropuesta = args.propuesta_enunciado !== undefined
             ? String(args.propuesta_enunciado).trim()
-            : (incomingRules.find((r: RuleEntry) => (r as Record<string, unknown>).propuesta_enunciado) as Record<string, unknown> | undefined)?.propuesta_enunciado;
+            : (incomingRules.find((r: RuleEntry) => (r as unknown as Record<string, unknown>).propuesta_enunciado) as Record<string, unknown> | undefined)?.propuesta_enunciado;
 
           if (rawPropuesta !== undefined) {
             const propuestaText = String(rawPropuesta).trim();
@@ -4498,7 +4511,7 @@ export function createMcpServer(): Server {
             }
             if (!targetCategory) targetCategory = 'proposito';
 
-            const confirmQId = `confirmar_enunciado.${moduleName}.${view}.${targetCategory}`;
+            const confirmQId = `confirmar_enunciado.${normalizeSlug(moduleName)}.${normalizeSlug(view)}.${targetCategory}`;
             const confirmPregunta: Pregunta & { categoria: string; enunciado_propuesto: string } = {
               id: confirmQId,
               texto: `Se registrará para ${targetCategory}: ${propuestaText}`,
@@ -4616,6 +4629,7 @@ export function createMcpServer(): Server {
           let shortRuleDraftCategory: string | undefined = undefined;
           let shortRuleDraftUserText: string | undefined = undefined;
           let directDeterministicQuestion: Pregunta | undefined = undefined;
+          let openFollowUpQuestion: Pregunta | undefined = undefined;
 
           for (const rule of incomingRules) {
             // C4: Si viene user_text
@@ -4649,7 +4663,7 @@ export function createMcpServer(): Server {
 
                 if (derivedStatement && isSubstantiveRuleText(derivedStatement)) {
                   const targetCat = rule.category || 'actor';
-                  const confirmQId = `confirmar_enunciado.${moduleName}.${view}.${targetCat}`;
+                  const confirmQId = `confirmar_enunciado.${normalizeSlug(moduleName)}.${normalizeSlug(view)}.${targetCat}`;
                   const confirmPregunta: Pregunta & { categoria: string; enunciado_propuesto: string } = {
                     id: confirmQId,
                     texto: `Se registrará para ${targetCat}: ${derivedStatement}`,
@@ -4735,6 +4749,11 @@ export function createMcpServer(): Server {
                 rule.status = 'deferred';
                 rule.source = 'user_confirmed';
                 rule.borrador = false;
+              } else if (matchedOpt && (matchedOpt.efecto?.abre_seguimiento || matchedOpt.efecto?.accion === 'corregir') && matchedQ?.seguimiento) {
+                // Opción que abre seguimiento (ej: Corregir)
+                openFollowUpQuestion = matchedQ.seguimiento;
+                await storage.savePendingQuestion(moduleName, view, persistedCat || 'proposito', matchedQ.seguimiento);
+                (rule as unknown as Record<string, unknown>).__skip_persist = true;
               } else if (matchedOpt && isSubstantiveRuleText(optText) && !isTautologicalOptionLabel(optText)) {
                 rule.description = optText;
                 rule.source = 'user_confirmed';
@@ -4774,29 +4793,31 @@ export function createMcpServer(): Server {
               agentRulesAlert = true;
             }
 
-            if (!rule.description || typeof rule.description !== 'string' || rule.description.trim().length === 0) {
-              return {
-                isError: true,
-                content: [{ type: 'text', text: JSON.stringify({ status: 'error', error: "Regla inválida: 'description' es requerida y no puede ser vacía. Lote rechazado por completo." }, null, 2) }],
-              };
-            }
-            if (rule.category && !VALID_CATEGORIES.has(rule.category)) {
-              return {
-                isError: true,
-                content: [{ type: 'text', text: JSON.stringify({ status: 'error', error: `Categoría inválida '${rule.category}' en regla '${rule.id || 'nueva'}'. Categorías válidas: ${Array.from(VALID_CATEGORIES).join(', ')}. Lote rechazado por completo.` }, null, 2) }],
-              };
-            }
-            if (rule.status && !VALID_STATUSES.has(rule.status)) {
-              return {
-                isError: true,
-                content: [{ type: 'text', text: JSON.stringify({ status: 'error', error: `Estado inválido '${rule.status}' en regla '${rule.id || 'nueva'}'. Estados válidos: ${Array.from(VALID_STATUSES).join(', ')}. Lote rechazado por completo.` }, null, 2) }],
-              };
-            }
-            if (rule.source && !VALID_SOURCES.has(rule.source)) {
-              return {
-                isError: true,
-                content: [{ type: 'text', text: JSON.stringify({ status: 'error', error: `Fuente inválida '${rule.source}' en regla '${rule.id || 'nueva'}'. Fuentes válidas: ${Array.from(VALID_SOURCES).join(', ')}. Lote rechazado por completo.` }, null, 2) }],
-              };
+            if (!(rule as unknown as Record<string, unknown>).__skip_persist) {
+              if (!rule.description || typeof rule.description !== 'string' || rule.description.trim().length === 0) {
+                return {
+                  isError: true,
+                  content: [{ type: 'text', text: JSON.stringify({ status: 'error', error: "Regla inválida: 'description' es requerida y no puede ser vacía. Lote rechazado por completo." }, null, 2) }],
+                };
+              }
+              if (rule.category && !VALID_CATEGORIES.has(rule.category)) {
+                return {
+                  isError: true,
+                  content: [{ type: 'text', text: JSON.stringify({ status: 'error', error: `Categoría inválida '${rule.category}' en regla '${rule.id || 'nueva'}'. Categorías válidas: ${Array.from(VALID_CATEGORIES).join(', ')}. Lote rechazado por completo.` }, null, 2) }],
+                };
+              }
+              if (rule.status && !VALID_STATUSES.has(rule.status)) {
+                return {
+                  isError: true,
+                  content: [{ type: 'text', text: JSON.stringify({ status: 'error', error: `Estado inválido '${rule.status}' en regla '${rule.id || 'nueva'}'. Estados válidos: ${Array.from(VALID_STATUSES).join(', ')}. Lote rechazado por completo.` }, null, 2) }],
+                };
+              }
+              if (rule.source && !VALID_SOURCES.has(rule.source)) {
+                return {
+                  isError: true,
+                  content: [{ type: 'text', text: JSON.stringify({ status: 'error', error: `Fuente inválida '${rule.source}' en regla '${rule.id || 'nueva'}'. Fuentes válidas: ${Array.from(VALID_SOURCES).join(', ')}. Lote rechazado por completo.` }, null, 2) }],
+                };
+              }
             }
           }
 
@@ -4820,6 +4841,7 @@ export function createMcpServer(): Server {
           }
 
           const reglasIgnoradas: Array<{ id: string; motivo: string }> = [];
+          const activeIncomingRules = incomingRules.filter((r: RuleEntry) => !(r as unknown as Record<string, unknown>).__skip_persist);
 
           // Upsert atómico vía updateModuleRules (E5, T11, T12)
           const updatedRules = await storage.updateModuleRules(moduleName, (current) => {
@@ -4838,7 +4860,7 @@ export function createMcpServer(): Server {
 
             // Upsert: actualizar existentes por id (respetando no-downgrade), o reemplazando borrador previo de misma categoría
             const merged = existing.map((r: RuleEntry) => {
-              const incoming = incomingRules.find(
+              const incoming = activeIncomingRules.find(
                 (ir: RuleEntry) => ir.id === r.id || (ir.category && ir.category === r.category && r.borrador)
               );
               if (incoming) {
@@ -4864,8 +4886,12 @@ export function createMcpServer(): Server {
               return r;
             });
 
-            const newRules = incomingRules
-              .filter((ir: RuleEntry) => !ir.id || (!existingIds.has(ir.id) && !existing.some((er: RuleEntry) => er.borrador && er.category === ir.category)))
+            const newRules = activeIncomingRules
+              .filter((ir: RuleEntry) => {
+                if (ir.id && existingIds.has(ir.id)) return false;
+                if (!ir.id && ir.category && existing.some((er: RuleEntry) => er.borrador && er.category === ir.category)) return false;
+                return true;
+              })
               .map((ir: RuleEntry) => {
                 const ruleId = ir.id || `R-${String(++maxRNum).padStart(3, '0')}`;
                 return {
@@ -5007,7 +5033,18 @@ export function createMcpServer(): Server {
           let siguienteAccionRules: SiguienteAccion;
           let moduleSummary: ReturnType<typeof buildModuleSummary> | undefined;
 
-          if (directDeterministicQuestion) {
+          if (openFollowUpQuestion) {
+            siguienteAccionRules = {
+              tipo: 'entrevista',
+              descripcion: openFollowUpQuestion.texto,
+              tool: openFollowUpQuestion.registrar_con?.tool || 'qap_rules_set',
+              module: moduleName,
+              modulo: moduleName,
+              view,
+              vista: view,
+              pregunta: openFollowUpQuestion,
+            };
+          } else if (directDeterministicQuestion) {
             siguienteAccionRules = {
               tipo: 'decision',
               descripcion: `Confirma la propuesta de regla para la categoría '${(directDeterministicQuestion as any).categoria}'.`,
@@ -5095,7 +5132,7 @@ export function createMcpServer(): Server {
                 view,
                 state: targetModuleState,
                 modulo_estado: targetModuleState,
-                rules_guardadas: incomingRules.length,
+                rules_guardadas: activeIncomingRules.length,
                 waivers_guardados: incomingWaivers.length,
                 rules_total: allRules.length,
                 waivers_total: allWaivers.length,
