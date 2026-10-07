@@ -1,5 +1,11 @@
 import { FileSystemStorage } from '@qap/knowledge';
 
+function asDisplayString(value: unknown, fallback: string): string {
+  if (typeof value === 'string' && value.length > 0) return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  return fallback;
+}
+
 export async function handleContext(moduleName: string): Promise<void> {
   const storage = new FileSystemStorage();
 
@@ -30,7 +36,7 @@ export async function handleContext(moduleName: string): Promise<void> {
         console.log(`  • ${route}`);
       } else if (typeof route === 'object' && route !== null) {
         const r = route as Record<string, unknown>;
-        console.log(`  • [${r.alias || 'ruta'}] ${r.path || JSON.stringify(r)}`);
+                console.log(`  • [${asDisplayString(r.alias, 'ruta')}] ${asDisplayString(r.path, JSON.stringify(r))}`);
       }
     });
   } else {

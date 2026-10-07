@@ -13,6 +13,14 @@ interface AuthProfilesFile {
   profiles?: unknown[];
 }
 
+interface ParsedContextYaml {
+  project_name?: string;
+}
+
+interface ParsedEnvironmentsYaml {
+  default?: string;
+}
+
 /** Imprime el estado de inicializacion, configuracion y autenticacion del proyecto. */
 function printProjectHeader(): boolean {
   const projectDir = join(process.cwd(), '.qa', 'project');
@@ -33,8 +41,10 @@ function printProjectHeader(): boolean {
 
   try {
     if (existsSync(contextYamlPath)) {
-      const parsedContext = YAML.parse(readFileSync(contextYamlPath, 'utf-8'));
-      const parsedEnv = existsSync(environmentsYamlPath) ? YAML.parse(readFileSync(environmentsYamlPath, 'utf-8')) : null;
+      const parsedContext = YAML.parse(readFileSync(contextYamlPath, 'utf-8')) as ParsedContextYaml | null;
+      const parsedEnv = existsSync(environmentsYamlPath)
+        ? (YAML.parse(readFileSync(environmentsYamlPath, 'utf-8')) as ParsedEnvironmentsYaml | null)
+        : null;
       console.log(`Proyecto: ${parsedContext?.project_name || 'Sin nombre'}`);
       console.log(`Entorno por defecto: ${parsedEnv?.default || 'local'}`);
     } else if (existsSync(configPath)) {
