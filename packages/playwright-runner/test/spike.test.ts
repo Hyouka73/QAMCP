@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+
 import { runChromiumPrototype } from '../test/spike';
 
 describe('Spike tecnico: Chromium headless con playwright-core', () => {

@@ -17,8 +17,8 @@ export default tseslint.config(
     },
   },
   js.configs.recommended,
-  {
-    files: ['packages/**/src/**/*.ts'],
+    {
+    files: ['packages/**/src/**/*.ts', 'packages/**/test/**/*.ts'],
     extends: [...tseslint.configs.recommendedTypeChecked],
     languageOptions: {
       parserOptions: {
