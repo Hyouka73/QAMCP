@@ -82,6 +82,10 @@ export interface RuleEntry {
   user_text?: string;
   /** Referencia a la opción seleccionada por el usuario (opcional) */
   from_option?: { pregunta_id: string; opcion_id: string };
+  /** Indica si la regla es un borrador pendiente de formulación completa (C4) */
+  borrador?: boolean;
+  /** Respuesta original literal del usuario que originó el borrador (C4) */
+  user_input?: string;
 }
 
 /** Declaración de waiver de categoría por el usuario */

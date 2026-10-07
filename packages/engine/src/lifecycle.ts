@@ -16,6 +16,7 @@ import type {
   CategoryWaiver,
   AuthProfile,
 } from '@qap/shared';
+import { isValidRoleName } from '@qap/shared';
 
 import type { ProjectContext } from './ports.js';
 import { computeCoverage, type CoverageResult } from './interview-engine.js';
@@ -201,7 +202,7 @@ export function canExitOnboarding(
   if (!roles || !Array.isArray(roles) || roles.length === 0) {
     faltantes.push({ campo: 'roles', motivo: 'debe definirse al menos un rol de usuario' });
   } else {
-    const namedRoles = roles.filter((r) => r && typeof r.name === 'string' && r.name.trim().length > 0);
+    const namedRoles = roles.filter((r) => r && typeof r.name === 'string' && isValidRoleName(r.name));
     if (namedRoles.length === 0) {
       faltantes.push({ campo: 'roles', motivo: 'debe definirse al menos un rol de usuario con nombre' });
     } else {

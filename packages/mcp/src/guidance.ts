@@ -9,6 +9,7 @@
  */
 
 import type { ProjectPhase, RuleCategory, LifecycleState, AuthProfile } from '@qap/shared';
+import { isValidRoleName } from '@qap/shared';
 import type {
   CoverageResult,
   InterviewQuestion,
@@ -344,7 +345,8 @@ export function getPhaseGuidance(
             }
             return '';
           })
-          .filter(Boolean);
+          .map((r: string) => r.trim())
+          .filter((r: string) => isValidRoleName(r));
 
         let rolesPregunta: Pregunta;
         if (rawRoles.length >= 2) {
@@ -352,18 +354,47 @@ export function getPhaseGuidance(
             id: 'scoping.roles_a_probar',
             texto: 'Selecciona los roles de usuario que se deben probar en esta sesión:',
             formato: 'multiple',
-            opciones: rawRoles.map((role: string, idx: number) => ({
+            opciones: rawRoles.map((role: string) => ({
               id: `rol_${role.toLowerCase().replace(/[^a-z0-9_-]+/g, '_')}`,
               etiqueta: role,
-              recomendada: idx === 0,
             })),
             permite_otra: true,
             registrar_con: { tool: 'qap_session_plan', campo: 'roles' },
           };
+        } else if (rawRoles.length === 1) {
+          const rol = rawRoles[0];
+          rolesPregunta = {
+            id: 'scoping.roles_a_probar',
+            texto: 'Selecciona el rol de usuario para esta sesión o indica uno nuevo:',
+            formato: 'una_opcion',
+            opciones: [
+              {
+                id: `rol_${rol.toLowerCase().replace(/[^a-z0-9_-]+/g, '_')}`,
+                etiqueta: `Probar con el rol '${rol}'`,
+              },
+              {
+                id: 'indicar_otro_rol',
+                etiqueta: 'Indicar otro rol',
+                efecto: {
+                  abre_seguimiento: true,
+                },
+              },
+            ],
+            permite_otra: true,
+            registrar_con: { tool: 'qap_session_plan', campo: 'roles' },
+            seguimiento: {
+              id: 'scoping.roles_a_probar.otro',
+              texto: 'Indica el rol o roles adicionales a probar:',
+              formato: 'abierta',
+              opciones: [],
+              permite_otra: true,
+              registrar_con: { tool: 'qap_session_plan', campo: 'roles' },
+            },
+          };
         } else {
           rolesPregunta = {
             id: 'scoping.roles_a_probar',
-            texto: 'Indica los roles de usuario a probar en esta sesión (por ejemplo: admin, comprador):',
+            texto: 'Indica los roles de usuario a probar en esta sesión (por ejemplo: admin, operador):',
             formato: 'abierta',
             opciones: [],
             permite_otra: true,

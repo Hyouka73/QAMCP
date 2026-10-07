@@ -13,3 +13,12 @@ export { generateUUID, isValidUUID } from './uuid-utils.js';
 
 // Path normalization utilities
 export { normalizePath, toPosixPath, normalizeToPosix, ensureRelativePath } from './path-utils.js';
+
+// Role validation utilities (C9)
+export {
+  isValidRoleName,
+  filterValidRoles,
+  ROLE_TABLE_CHARS_PATTERN,
+  ROLE_TABLE_EDGE_PATTERN,
+} from './role-validation.js';
+

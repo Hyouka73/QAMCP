@@ -92,6 +92,14 @@
               "opcion_id": { "type": "string" }
             },
             "description": "Referencia a la pregunta y opción sustantiva confirmada"
+          },
+          "borrador": {
+            "type": "boolean",
+            "description": "Indica si la regla es un borrador pendiente de formulación completa"
+          },
+          "user_input": {
+            "type": "string",
+            "description": "Respuesta original literal del usuario que originó el borrador"
           }
         }
       },

@@ -603,7 +603,7 @@ export function computeCoverage(
 
     // Regla confirmada con procedencia de usuario y texto sustantivo (C3)
     const hasSubstantiveConfirmedRule = viewRules.some((r) => {
-      if (r.status !== 'confirmed') return false;
+      if (r.status !== 'confirmed' || r.borrador) return false;
       if (r.source === 'user_text' || r.source === 'user_confirmed') {
         return isSubstantiveRuleText(r.description);
       }

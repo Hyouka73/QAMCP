@@ -29,6 +29,8 @@ import {
   isTautologicalOptionLabel,
   isEngineOptionLabel,
   sanitizeSnippet,
+  isValidRoleName,
+  filterValidRoles,
   type AuthProfile,
   type ModuleSpec,
   type ProjectPhase,
@@ -676,7 +678,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'qap_rules_set',
-    description: `Persiste reglas de negocio confirmadas o rechazadas por el usuario, y waivers de categoría, en rules.yaml de un módulo. Usa operación atómica RMW. ${UX_DIRECTIVE}`,
+    description: `Persiste reglas de negocio confirmadas o rechazadas por el usuario, y waivers de categoría, en rules.yaml de un módulo. Respuestas breves de usuario se guardan como borradores que requieren propuesta_enunciado sustantiva para emitir pregunta estructurada de confirmación. Usa operación atómica RMW. ${UX_DIRECTIVE}`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -690,6 +692,15 @@ const TOOLS: Tool[] = [
           description: 'Vista específica del módulo (por defecto: "default")',
           default: 'default',
         },
+        propuesta_enunciado: {
+          type: 'string',
+          description: 'Propuesta de enunciado sustantivo redactada por el agente para resolver un borrador previo. Emite una Pregunta estructurada de confirmación al usuario.',
+        },
+        category: {
+          type: 'string',
+          enum: ['proposito', 'actor', 'campo', 'accion', 'error', 'dato', 'sensibilidad'],
+          description: 'Categoría a la que aplica la propuesta de enunciado (opcional si se deduce de un borrador)',
+        },
         rules: {
           type: 'array',
           description: 'Reglas a insertar o actualizar (upsert por id). Se mezclan con las existentes.',
@@ -700,13 +711,19 @@ const TOOLS: Tool[] = [
               description: { type: 'string', description: 'Descripción legible de la regla' },
               category: { type: 'string', enum: ['proposito', 'actor', 'campo', 'accion', 'error', 'dato', 'sensibilidad'] },
               status: { type: 'string', enum: ['confirmed', 'rejected', 'deferred', 'inferred'] },
-              source: { type: 'string', enum: ['user', 'prd', 'dom'] },
+              source: { type: 'string', enum: ['user', 'prd', 'dom', 'user_text', 'user_confirmed', 'agent', 'doc'] },
               severity: { type: 'string', enum: ['low', 'medium', 'high', 'critical'] },
               view: { type: 'string', description: 'Vista a la que aplica (si difiere del parámetro view)' },
               field: { type: 'string', description: 'Campo o selector al que aplica' },
               evidence: { type: 'string', description: 'Evidencia corta (selector o referencia, máx 120 chars)' },
+              user_text: { type: 'string', description: 'Texto literal del usuario' },
+              from_option: {
+                type: 'object',
+                description: 'Resolución de opción de pregunta estructurada',
+              },
+              propuesta_enunciado: { type: 'string', description: 'Propuesta de enunciado redactada por el agente' },
+              borrador: { type: 'boolean', description: 'Indica si es un borrador' },
             },
-            required: ['id', 'description', 'status'],
           },
         },
         category_waivers: {
@@ -1081,7 +1098,8 @@ export function createMcpServer(): Server {
                   waiversList = rf?.category_waivers || [];
                 } catch { /* empty */ }
 
-                const appCats = computeApplicableCategories(vContext, parsedContext?.roles?.length || 0);
+                const validRolesList = filterValidRoles(parsedContext?.roles || []);
+                const appCats = computeApplicableCategories(vContext, validRolesList.length);
                 const cov = computeCoverage(appCats, rulesList, waiversList, 'default');
                 if (!cov.completa) {
                   const nextQs = generateNextInterviewBatch(vContext, rulesList, appCats, waiversList);
@@ -1224,12 +1242,26 @@ export function createMcpServer(): Server {
             writeFileSync(envsPath, YAML.stringify(envsYaml), 'utf-8');
           }
 
+          const rawInitRoles = Array.isArray(args.roles) ? (args.roles as unknown[]) : [];
+          const validInitRoles = rawInitRoles.filter((r) => isValidRoleName(typeof r === 'string' ? r : (r as any)?.name));
+          const discardedInitRoles = rawInitRoles
+            .filter((r) => !isValidRoleName(typeof r === 'string' ? r : (r as any)?.name))
+            .map((r) => (typeof r === 'string' ? r : (r as any)?.name));
+
           if (!existsSync(contextPath)) {
             const contextYaml: Record<string, any> = {
               _version: '1',
               project_name: projectName,
               description: `Configuración base de QA para ${projectName}`,
               tech_stack: [],
+              ...(validInitRoles.length > 0
+                ? {
+                    roles: validInitRoles.map((r) => ({
+                      name: typeof r === 'string' ? r : (r as any).name,
+                      source: 'user',
+                    })),
+                  }
+                : {}),
               ...(resolvedBaseUrl ? { base_url: resolvedBaseUrl } : {}),
               manually_edited: false,
             };
@@ -1339,6 +1371,7 @@ export function createMcpServer(): Server {
                     scan,
                     detectedService,
                     advertencias,
+                    roles_descartados: discardedInitRoles,
                     lifecycle: {
                       phase: finalPhase,
                     },
@@ -2534,9 +2567,12 @@ export function createMcpServer(): Server {
             currentContext.objective_source = 'inferred';
           }
 
-          if (extractedUsers.length > 0) {
+          const validUsers = extractedUsers.filter((u) => isValidRoleName(u));
+          const discardedIngestRoles = extractedUsers.filter((u) => !isValidRoleName(u));
+
+          if (validUsers.length > 0) {
             currentContext.roles = currentContext.roles || [];
-            for (const u of extractedUsers) {
+            for (const u of validUsers) {
               const existingIdx = currentContext.roles.findIndex((er: any) => er.name === u);
               if (existingIdx >= 0) {
                 if (currentContext.roles[existingIdx].source !== 'user') {
@@ -2651,6 +2687,7 @@ export function createMcpServer(): Server {
                       rutas: extractedRoutes,
                     },
                     modulos_sugeridos_para_plan: suggestedModules,
+                    roles_descartados: discardedIngestRoles,
                     faltantes,
                     siguiente_accion: guidance.siguiente_accion,
                   },
@@ -3546,6 +3583,22 @@ export function createMcpServer(): Server {
           const currentUrl: string = typeof discoveredData.currentUrl === 'string' ? discoveredData.currentUrl : finalUrl;
           const playwrightStatus = playwrightUsed ? 'explorando' : playwrightError ? 'fallido' : 'no_disponible';
 
+          const formsCount = (discoveredData.forms || []).length;
+          const inputsCount = (discoveredData.inputs || []).length;
+          const buttonsCount = (discoveredData.buttons || []).length;
+          const linksCount = (discoveredData.links || []).length;
+          const isExtractionEmpty =
+            (pageKind === 'app' || pageKind === 'login') &&
+            formsCount === 0 &&
+            inputsCount === 0 &&
+            buttonsCount === 0 &&
+            linksCount === 0;
+
+          const viewAdvertencias: string[] = [];
+          if (isExtractionEmpty) {
+            viewAdvertencias.push('extraccion_vacia');
+          }
+
           // context.yaml de la vista por defecto
           const viewContext = {
             _version: '1',
@@ -3567,6 +3620,7 @@ export function createMcpServer(): Server {
             discovered_at: new Date().toISOString(),
             page_title: discoveredData.pageTitle,
             routes_found: discoveredData.routes,
+            ...(isExtractionEmpty ? { extraction_empty: true, advertencias: viewAdvertencias } : {}),
           };
 
           // Validar contra module-view.schema.json antes de escribir nada en disco (E5b)
@@ -3709,7 +3763,7 @@ export function createMcpServer(): Server {
           try {
             const ctx = await storage.getProjectContext();
             const roles = Array.isArray((ctx as any).roles) ? (ctx as any).roles : [];
-            projectRoleCount = roles.length;
+            projectRoleCount = filterValidRoles(roles).length;
           } catch { /* sin contexto: 0 roles */ }
 
           const applicableCategories = computeApplicableCategories(viewCtx, projectRoleCount);
@@ -3747,6 +3801,14 @@ export function createMcpServer(): Server {
                   true,
                   { tool: 'qap_discover', campo: 'action' }
                 ),
+              }
+            : isExtractionEmpty
+            ? {
+                tipo: 'trabajo' as const,
+                descripcion: `Reintentar qap_discover una vez para '${name}' (${route}); si sigue vacía, informar al usuario de que QAP no vio elementos interactivos y pedirle que describa las acciones principales de la pantalla o confirme que está vacía.`,
+                tool: 'qap_discover',
+                modulo: name,
+                vista: 'default',
               }
             : buildInterviewNextAction({
                 module: name,
@@ -3796,6 +3858,13 @@ export function createMcpServer(): Server {
             manually_edited_ignorado: manuallyEditedSkipped || undefined,
             rutas_detectadas_fuera_del_plan: rutasDetectadasFueraDelPlan,
             categorias_aplicables: applicableCategories,
+            advertencias: viewAdvertencias.length > 0 ? viewAdvertencias : undefined,
+            page_kind: pageKind,
+            observed: playwrightUsed,
+            requested_url: requestedUrl,
+            final_url: finalUrl,
+            redirected: redirected,
+            http_status: httpStatus,
             siguiente_accion: siguienteAccion,
           };
 
@@ -4400,50 +4469,278 @@ export function createMcpServer(): Server {
             ? args.category_waivers
             : (Array.isArray(args.waivers) ? args.waivers : []);
 
+          // C4: Manejo de propuesta_enunciado (del agente para resolver borrador previo)
+          const rawPropuesta = args.propuesta_enunciado !== undefined
+            ? String(args.propuesta_enunciado).trim()
+            : (incomingRules.find((r: RuleEntry) => (r as Record<string, unknown>).propuesta_enunciado) as Record<string, unknown> | undefined)?.propuesta_enunciado;
+
+          if (rawPropuesta !== undefined) {
+            const propuestaText = String(rawPropuesta).trim();
+            if (!isSubstantiveRuleText(propuestaText) || isEngineOptionLabel(propuestaText) || isTautologicalOptionLabel(propuestaText)) {
+              return {
+                isError: true,
+                content: [{
+                  type: 'text',
+                  text: JSON.stringify({
+                    status: 'error',
+                    error: "La 'propuesta_enunciado' debe cumplir el umbral sustantivo (al menos 3 palabras y 20 caracteres) y no puede ser igual a una etiqueta genérica del motor.",
+                  }, null, 2),
+                }],
+              };
+            }
+
+            // Categoría: de args.category o de la regla que la trae, o del borrador pendiente en rules.yaml
+            let targetCategory = (args.category || incomingRules.find((r: RuleEntry) => r.category)?.category) as string | undefined;
+            if (!targetCategory) {
+              const currentRulesFile = await storage.getModuleRules(moduleName);
+              const draftRule = (currentRulesFile?.rules || []).find((r: RuleEntry) => r.borrador && r.category);
+              if (draftRule) targetCategory = draftRule.category;
+            }
+            if (!targetCategory) targetCategory = 'proposito';
+
+            const confirmQId = `confirmar_enunciado.${moduleName}.${view}.${targetCategory}`;
+            const confirmPregunta: Pregunta & { categoria: string; enunciado_propuesto: string } = {
+              id: confirmQId,
+              texto: `Se registrará para ${targetCategory}: ${propuestaText}`,
+              formato: 'una_opcion',
+              opciones: [
+                {
+                  id: 'es_correcto',
+                  etiqueta: 'Es correcto',
+                },
+                {
+                  id: 'corregir',
+                  etiqueta: 'Corregir',
+                  efecto: {
+                    accion: 'corregir',
+                    abre_seguimiento: true,
+                  },
+                },
+                {
+                  id: 'definir_despues',
+                  etiqueta: 'Lo defino después',
+                  efecto: {
+                    estado: 'deferred',
+                  },
+                },
+              ],
+              permite_otra: false,
+              registrar_con: { tool: 'qap_rules_set', campo: 'from_option' },
+              seguimiento: {
+                id: `${confirmQId}.corregir`,
+                texto: `Modifica el enunciado para la categoría ${targetCategory}: ${propuestaText}`,
+                formato: 'abierta',
+                opciones: [],
+                permite_otra: true,
+                registrar_con: { tool: 'qap_rules_set', campo: 'user_text' },
+              },
+              categoria: targetCategory,
+              enunciado_propuesto: propuestaText,
+            };
+            confirmPregunta.render_texto = generarRenderTexto(confirmPregunta);
+            const guardedConfirmPregunta = guardPregunta(confirmPregunta) as Pregunta & { categoria: string; enunciado_propuesto: string };
+            guardedConfirmPregunta.categoria = targetCategory;
+            guardedConfirmPregunta.enunciado_propuesto = propuestaText;
+
+            await storage.savePendingQuestion(moduleName, view, targetCategory, guardedConfirmPregunta);
+
+            const currentRulesFile = await storage.getModuleRules(moduleName);
+            const allRules = currentRulesFile?.rules || [];
+            const allWaivers = currentRulesFile?.category_waivers || [];
+
+            let projectRoleCountRules = 0;
+            try {
+              const ctx = await storage.getProjectContext();
+              const roles = Array.isArray((ctx as any).roles) ? (ctx as any).roles : [];
+              projectRoleCountRules = filterValidRoles(roles).length;
+            } catch { /* empty */ }
+
+            let formsForView: DomForm[] = [];
+            let buttonsForView: Array<{ key: string; text: string; selector: string }> = [];
+            const storageStateUsed = false;
+            const selectorsPath = join(rootDir, '.qa', 'modules', moduleName, 'views', view, 'selectors.json');
+            if (existsSync(selectorsPath)) {
+              try {
+                const selObj = JSON.parse(readFileSync(selectorsPath, 'utf-8'));
+                if (selObj?.selectors?.forms) formsForView = selObj.selectors.forms;
+                if (selObj?.selectors?.buttons) buttonsForView = selObj.selectors.buttons;
+              } catch { /* empty */ }
+            }
+            const viewCtx: ViewDiscoveryContext = {
+              module: moduleName,
+              view,
+              route: '',
+              forms: formsForView,
+              buttons: buttonsForView,
+              storage_state_used: storageStateUsed,
+              is_auth_view: false,
+            };
+            const applicableCats = computeApplicableCategories(viewCtx, projectRoleCountRules);
+            const cov = computeCoverage(applicableCats, allRules, allWaivers, view);
+
+            return {
+              content: [{
+                type: 'text',
+                text: JSON.stringify({
+                  status: 'success',
+                  directorio_objetivo: rootDir,
+                  message: `✔ Propuesta de enunciado para '${targetCategory}' recibida. Se emite pregunta de confirmación estructurada al usuario.`,
+                  module: moduleName,
+                  view,
+                  state: modEntry.state,
+                  modulo_estado: modEntry.state,
+                  rules_guardadas: 0,
+                  waivers_guardados: 0,
+                  rules_total: allRules.length,
+                  waivers_total: allWaivers.length,
+                  cobertura: cov,
+                  cobertura_completa: cov.completa,
+                  siguiente_accion: {
+                    tipo: 'decision',
+                    descripcion: `Confirma la propuesta de enunciado para la categoría '${targetCategory}'.`,
+                    tool: 'qap_rules_set',
+                    module: moduleName,
+                    pregunta: guardedConfirmPregunta,
+                  },
+                }, null, 2),
+              }],
+            };
+          }
+
           // Validar lote completo antes de cualquier mutación (T12)
           const VALID_CATEGORIES = new Set(['proposito', 'actor', 'campo', 'accion', 'error', 'dato', 'sensibilidad']);
           const VALID_STATUSES = new Set(['inferred', 'confirmed', 'rejected', 'deferred']);
           const VALID_SOURCES = new Set(['dom', 'prd', 'user', 'user_text', 'user_confirmed', 'doc', 'agent']);
 
           let agentRulesAlert = false;
+          let shortRuleDraftCategory: string | undefined = undefined;
+          let shortRuleDraftUserText: string | undefined = undefined;
+          let directDeterministicQuestion: Pregunta | undefined = undefined;
 
           for (const rule of incomingRules) {
-            // C2: Si viene user_text
+            // C4: Si viene user_text
             if (rule.user_text && typeof rule.user_text === 'string') {
-              rule.description = rule.user_text.trim();
-              if (isSubstantiveRuleText(rule.user_text)) {
+              const uText = rule.user_text.trim();
+              if (isSubstantiveRuleText(uText) && !isEngineOptionLabel(uText) && !isTautologicalOptionLabel(uText)) {
+                rule.description = uText;
                 rule.source = 'user_text';
                 rule.status = 'confirmed';
+                rule.borrador = false;
               } else {
-                rule.source = 'agent';
+                rule.description = `[Borrador] ${uText}`;
+                rule.source = 'user_text';
                 rule.status = 'inferred';
-                agentRulesAlert = true;
+                rule.borrador = true;
+                rule.user_input = uText;
+
+                // Intento de derivación determinista (ej: categoría actor cuyo texto nombra roles de context.yaml)
+                let derivedStatement: string | null = null;
+                if (rule.category === 'actor') {
+                  try {
+                    const ctx = await storage.getProjectContext();
+                    const declaredRoles = filterValidRoles((ctx as any)?.roles || []);
+                    const lowerText = uText.toLowerCase();
+                    const matchedRoles = declaredRoles.filter((r) => lowerText.includes(r.toLowerCase()));
+                    if (matchedRoles.length > 0) {
+                      derivedStatement = `Acceso y operación del módulo restringidos a los roles: ${matchedRoles.join(', ')}.`;
+                    }
+                  } catch { /* empty */ }
+                }
+
+                if (derivedStatement && isSubstantiveRuleText(derivedStatement)) {
+                  const targetCat = rule.category || 'actor';
+                  const confirmQId = `confirmar_enunciado.${moduleName}.${view}.${targetCat}`;
+                  const confirmPregunta: Pregunta & { categoria: string; enunciado_propuesto: string } = {
+                    id: confirmQId,
+                    texto: `Se registrará para ${targetCat}: ${derivedStatement}`,
+                    formato: 'una_opcion',
+                    opciones: [
+                      { id: 'es_correcto', etiqueta: 'Es correcto' },
+                      { id: 'corregir', etiqueta: 'Corregir', efecto: { accion: 'corregir', abre_seguimiento: true } },
+                      { id: 'definir_despues', etiqueta: 'Lo defino después', efecto: { estado: 'deferred' } },
+                    ],
+                    permite_otra: false,
+                    registrar_con: { tool: 'qap_rules_set', campo: 'from_option' },
+                    seguimiento: {
+                      id: `${confirmQId}.corregir`,
+                      texto: `Modifica el enunciado para la categoría ${targetCat}: ${derivedStatement}`,
+                      formato: 'abierta',
+                      opciones: [],
+                      permite_otra: true,
+                      registrar_con: { tool: 'qap_rules_set', campo: 'user_text' },
+                    },
+                    categoria: targetCat,
+                    enunciado_propuesto: derivedStatement,
+                  };
+                  confirmPregunta.render_texto = generarRenderTexto(confirmPregunta);
+                  const guarded = guardPregunta(confirmPregunta) as Pregunta & { categoria: string; enunciado_propuesto: string };
+                  guarded.categoria = targetCat;
+                  guarded.enunciado_propuesto = derivedStatement;
+
+                  await storage.savePendingQuestion(moduleName, view, targetCat, guarded);
+                  directDeterministicQuestion = guarded;
+                } else {
+                  shortRuleDraftCategory = rule.category;
+                  shortRuleDraftUserText = uText;
+                }
               }
             } else if (rule.from_option && typeof rule.from_option === 'object') {
               const fromOpt = rule.from_option as Record<string, unknown>;
               const qId = (fromOpt.pregunta_id || fromOpt.question_id) as string | undefined;
               const optId = (fromOpt.opcion_id || fromOpt.option_id) as string | undefined;
-              let matchedQ: Pregunta | null = null;
-              if (rule.category) {
-                matchedQ = (await storage.getPendingQuestion(moduleName, view, rule.category)) as Pregunta | null;
+              let matchedQ: (Pregunta & { categoria?: string; enunciado_propuesto?: string }) | null = null;
+              if (qId) {
+                matchedQ = (await storage.findPendingQuestion(moduleName, view, qId)) as (Pregunta & { categoria?: string; enunciado_propuesto?: string }) | null;
               }
-              if (!matchedQ && qId) {
-                const found = (await storage.findPendingQuestion(moduleName, view, qId)) as { category: string; question: Pregunta } | null;
-                if (found) matchedQ = found.question;
+              if (!matchedQ && rule.category) {
+                matchedQ = (await storage.getPendingQuestion(moduleName, view, rule.category)) as (Pregunta & { categoria?: string; enunciado_propuesto?: string }) | null;
               }
+
+              // C3: La categoría de from_option se toma SIEMPRE de la pregunta pendiente persistida
+              let persistedCat = matchedQ?.categoria;
+              if (!persistedCat && matchedQ?.id) {
+                const parts = matchedQ.id.split('.');
+                if (parts.length >= 4 && parts[0] === 'interview') {
+                  persistedCat = parts[3];
+                }
+              }
+
+              if (matchedQ && persistedCat) {
+                if (rule.category && rule.category !== persistedCat) {
+                  return {
+                    isError: true,
+                    content: [{
+                      type: 'text',
+                      text: JSON.stringify({
+                        status: 'blocked',
+                        error: `Categoría discordante al resolver from_option: la pregunta pendiente pertenece a la categoría '${persistedCat}', pero la petición indicó '${rule.category}'. Debe coincidir con la pregunta pendiente.`,
+                      }, null, 2),
+                    }],
+                  };
+                }
+                rule.category = persistedCat;
+              }
+
               const matchedOpt = matchedQ?.opciones?.find((o: { id: string }) => o.id === optId);
               const optText = (matchedOpt?.etiqueta || '').trim();
 
-              if (matchedOpt && (optId === 'definir_despues' || matchedOpt.efecto?.estado === 'deferred')) {
+              if (optId === 'es_correcto') {
+                const statementText = matchedQ?.enunciado_propuesto || rule.description || optText;
+                rule.description = statementText;
+                rule.source = 'user_confirmed';
+                rule.status = 'confirmed';
+                rule.borrador = false;
+              } else if (matchedOpt && (optId === 'definir_despues' || matchedOpt.efecto?.estado === 'deferred')) {
                 rule.description = rule.description || optText || `Categoría diferida: ${rule.category || 'general'}`;
                 rule.status = 'deferred';
                 rule.source = 'user_confirmed';
+                rule.borrador = false;
               } else if (matchedOpt && isSubstantiveRuleText(optText) && !isTautologicalOptionLabel(optText)) {
                 rule.description = optText;
                 rule.source = 'user_confirmed';
                 rule.status = 'confirmed';
+                rule.borrador = false;
               } else {
-                // Opción sin texto sustantivo, o pregunta_id / opcion_id inexistente
                 if (rule.description && typeof rule.description === 'string' && rule.description.trim().length > 0) {
                   rule.source = 'agent';
                   rule.status = 'inferred';
@@ -4460,7 +4757,7 @@ export function createMcpServer(): Server {
                       type: 'text',
                       text: JSON.stringify({
                         status: 'error',
-                        error: "Regla inválida: 'description' es requerida o la opción seleccionada no existe. Lote rechazado por completo.",
+                        error: "Regla inválida: la opción seleccionada no existe o no tiene texto sustantivo. Lote rechazado por completo.",
                       }, null, 2),
                     }],
                   };
@@ -4539,9 +4836,11 @@ export function createMcpServer(): Server {
               }
             }
 
-            // Upsert: actualizar existentes por id (respetando no-downgrade), agregar nuevos
-            const merged = existing.map((r: any) => {
-              const incoming = incomingRules.find((ir: any) => ir.id === r.id);
+            // Upsert: actualizar existentes por id (respetando no-downgrade), o reemplazando borrador previo de misma categoría
+            const merged = existing.map((r: RuleEntry) => {
+              const incoming = incomingRules.find(
+                (ir: RuleEntry) => ir.id === r.id || (ir.category && ir.category === r.category && r.borrador)
+              );
               if (incoming) {
                 // T12 No-downgrade: regla source user confirmed no se sobrescribe con dom/prd
                 if (r.source === 'user' && r.status === 'confirmed' && incoming.source && incoming.source !== 'user') {
@@ -4555,8 +4854,10 @@ export function createMcpServer(): Server {
                 return {
                   ...r,
                   ...incoming,
+                  id: r.id,
                   view: incoming.view ?? r.view ?? view,
                   source: incoming.source ?? r.source ?? 'user',
+                  borrador: incoming.borrador ?? false,
                   evidence: incoming.evidence ? incoming.evidence.slice(0, 120) : r.evidence,
                 };
               }
@@ -4564,8 +4865,8 @@ export function createMcpServer(): Server {
             });
 
             const newRules = incomingRules
-              .filter((ir: any) => !ir.id || !existingIds.has(ir.id))
-              .map((ir: any) => {
+              .filter((ir: RuleEntry) => !ir.id || (!existingIds.has(ir.id) && !existing.some((er: RuleEntry) => er.borrador && er.category === ir.category)))
+              .map((ir: RuleEntry) => {
                 const ruleId = ir.id || `R-${String(++maxRNum).padStart(3, '0')}`;
                 return {
                   ...ir,
@@ -4573,6 +4874,7 @@ export function createMcpServer(): Server {
                   view: ir.view ?? view,
                   source: ir.source ?? 'user',
                   status: ir.status ?? 'confirmed',
+                  borrador: ir.borrador ?? false,
                   evidence: ir.evidence ? ir.evidence.slice(0, 120) : undefined,
                 };
               });
@@ -4606,7 +4908,7 @@ export function createMcpServer(): Server {
           try {
             const ctx = await storage.getProjectContext();
             const roles = Array.isArray((ctx as any).roles) ? (ctx as any).roles : [];
-            projectRoleCountRules = roles.length;
+            projectRoleCountRules = filterValidRoles(roles).length;
           } catch { /* sin contexto */ }
 
           let formsForView: DomForm[] = [];
@@ -4705,7 +5007,23 @@ export function createMcpServer(): Server {
           let siguienteAccionRules: SiguienteAccion;
           let moduleSummary: ReturnType<typeof buildModuleSummary> | undefined;
 
-          if (cov.completa) {
+          if (directDeterministicQuestion) {
+            siguienteAccionRules = {
+              tipo: 'decision',
+              descripcion: `Confirma la propuesta de regla para la categoría '${(directDeterministicQuestion as any).categoria}'.`,
+              tool: 'qap_rules_set',
+              module: moduleName,
+              pregunta: directDeterministicQuestion,
+            };
+          } else if (shortRuleDraftCategory) {
+            siguienteAccionRules = {
+              tipo: 'trabajo',
+              descripcion: `El usuario proporcionó una respuesta breve para la categoría '${shortRuleDraftCategory}': "${shortRuleDraftUserText}". Redacta un enunciado de regla completo (mínimo 3 palabras y 20 caracteres) basado en su respuesta y en la evidencia disponible, y envíalo con qap_rules_set usando el parámetro 'propuesta_enunciado'.`,
+              tool: 'qap_rules_set',
+              modulo: moduleName,
+              vista: view,
+            };
+          } else if (cov.completa) {
             moduleSummary = buildModuleSummary(allRules, allWaivers);
             const freshState = await storage.getLifecycleState();
             const plan = freshState.session?.plan || [];
@@ -4919,7 +5237,7 @@ export function createMcpServer(): Server {
           try {
             const ctx = await storage.getProjectContext();
             const roles = Array.isArray(ctx?.roles) ? ctx.roles : [];
-            projectRoleCountClose = roles.length;
+            projectRoleCountClose = filterValidRoles(roles).length;
           } catch { /* sin contexto */ }
 
           const appCats = computeApplicableCategories(vContext, projectRoleCountClose);

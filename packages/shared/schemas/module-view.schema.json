@@ -114,6 +114,17 @@
         "null"
       ],
       "description": "Código de estado HTTP de la respuesta principal"
+    },
+    "extraction_empty": {
+      "type": "boolean",
+      "description": "Indica si la vista no contuvo formularios, campos, botones ni enlaces tras la extracción"
+    },
+    "advertencias": {
+      "type": "array",
+      "description": "Lista de advertencias emitidas durante el descubrimiento de la vista",
+      "items": {
+        "type": "string"
+      }
     }
   }
 }

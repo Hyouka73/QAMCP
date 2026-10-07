@@ -573,8 +573,12 @@ export class FileSystemStorage implements IStorage {
       const modPrefix = `${module.toLowerCase().replace(/[^a-z0-9_-]+/g, '_')}.${view.toLowerCase().replace(/[^a-z0-9_-]+/g, '_')}.`;
       for (const file of files) {
         if (file.startsWith(modPrefix) && file.endsWith('.json')) {
-          const content = await this.readJson<{ id?: string }>(join('.qa/cache/pending_questions', file));
+          const content = await this.readJson<{ id?: string; categoria?: string }>(join('.qa/cache/pending_questions', file));
           if (content?.id === questionId) {
+            if (!content.categoria) {
+              const catPart = file.slice(modPrefix.length, -5);
+              if (catPart) content.categoria = catPart;
+            }
             return content;
           }
         }

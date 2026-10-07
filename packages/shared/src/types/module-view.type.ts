@@ -17,4 +17,11 @@ export interface ModuleViewData {
   discovered_at: string;
   page_title: string;
   routes_found: string[];
+  page_kind?: string;
+  requested_url?: string;
+  final_url?: string;
+  redirected?: boolean;
+  http_status?: number | null;
+  extraction_empty?: boolean;
+  advertencias?: string[];
 }

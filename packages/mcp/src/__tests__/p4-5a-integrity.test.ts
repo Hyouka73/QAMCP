@@ -32,23 +32,46 @@ vi.mock('@qap/playwright-adapter', () => ({
           cases: [],
           context: {
             discovered_routes: [spec.path],
-            forms: [],
-            buttons: [],
-            links: [],
+            forms: [{ id: 'category-form', selector: '#category-form', fields: [{ key: 'nombre' }] }],
+            buttons: [{ key: 'btn-save', text: 'Guardar' }],
+            links: [{ href: '/help', text: 'Ayuda' }],
             is_auth_view: false,
             session_saved: false,
           },
         };
       }
-      if (spec.path === '/login' || spec.path === '/protegido') {
+      if (spec.path === '/login') {
         return {
           name: spec.name,
           path: spec.path,
           description: `Módulo ${spec.name}`,
           cases: [],
           context: {
-            discovered_routes: [spec.path],
+            discovered_routes: ['http://localhost:3000/login'],
+            requested_url: 'http://localhost:3000/login',
+            final_url: 'http://localhost:3000/login',
+            page_kind: 'login',
+            redirected: false,
+            forms: [{ id: 'login-form', selector: '#login-form', fields: [{ key: 'user' }, { key: 'pass' }] }],
+            buttons: [{ key: 'btn-login', text: 'Entrar' }],
+            links: [],
+            is_auth_view: true,
+            session_saved: false,
+          },
+        };
+      }
+      if (spec.path === '/protegido') {
+        return {
+          name: spec.name,
+          path: spec.path,
+          description: `Módulo ${spec.name}`,
+          cases: [],
+          context: {
+            discovered_routes: ['http://localhost:3000/login'],
+            requested_url: 'http://localhost:3000/protegido',
+            final_url: 'http://localhost:3000/login',
             page_kind: 'auth_wall',
+            redirected: true,
             forms: [{ id: 'login-form', selector: '#login-form', fields: [{ key: 'user' }, { key: 'pass' }] }],
             buttons: [{ key: 'btn-login', text: 'Entrar' }],
             links: [],
@@ -503,8 +526,9 @@ describe('P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a
     });
     const rf1 = YAML.parse(readFileSync(join(tempDir, '.qa', 'modules', 'catalogo', 'rules.yaml'), 'utf-8'));
     const pRule = rf1.rules.find((r: { category: string }) => r.category === 'proposito');
-    expect(pRule.source).toBe('agent');
+    expect(pRule.source).toBe('user_text');
     expect(pRule.status).toBe('inferred');
+    expect(pRule.borrador).toBe(true);
     expect(r2Words.parsed.cobertura.categorias.proposito?.cubierta).toBe(false);
 
     // 2. Caso 19 caracteres (3 palabras pero solo 19 caracteres): NO cubre categoría
@@ -516,8 +540,9 @@ describe('P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a
     });
     const rf2 = YAML.parse(readFileSync(join(tempDir, '.qa', 'modules', 'catalogo', 'rules.yaml'), 'utf-8'));
     const aRule = rf2.rules.find((r: { category: string }) => r.category === 'actor');
-    expect(aRule.source).toBe('agent');
+    expect(aRule.source).toBe('user_text');
     expect(aRule.status).toBe('inferred');
+    expect(aRule.borrador).toBe(true);
     expect(r19Chars.parsed.cobertura.categorias.actor?.cubierta).toBe(false);
 
     // 3. Caso 3 palabras y 20 caracteres: SÍ cubre categoría
@@ -646,14 +671,21 @@ describe('P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a
     lc.session.auth.required = false;
     writeFileSync(lcFile, JSON.stringify(lc, null, 2), 'utf-8');
 
-    const rRealNav = await callTool('qap_discover', { name: 'seguro', path: '/login' });
+    const rRealNav = await callTool('qap_discover', { name: 'seguro', path: '/protegido' });
     const p2 = rRealNav.parsed;
     expect(p2.status).toBe('blocked');
     expect(p2.razon).toBe('auth_required');
     expect(p2.observed).toBe(true);
-    expect(p2.final_url).toBe('/login');
+    expect(p2.final_url).toBe('http://localhost:3000/login');
     expect(p2.page_kind).toBe('auth_wall');
-    expect(p2.redirected).toBe(false);
+    expect(p2.redirected).toBe(true);
+
+    // 3. Módulo de acceso pedido en login sin redirección: NO se bloquea
+    const rAccessNav = await callTool('qap_discover', { name: 'seguro', path: '/login' });
+    const pAccess = rAccessNav.parsed;
+    expect(pAccess.status).toBe('success');
+    expect(pAccess.page_kind).toBe('login');
+    expect(pAccess.observed).toBe(true);
   });
 
   it('C3: flujo real de preguntas de categoría, formato una_opcion, persistencia y respuestas user_text y deferred', async () => {

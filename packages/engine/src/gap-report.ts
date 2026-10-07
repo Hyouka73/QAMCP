@@ -8,6 +8,7 @@
  */
 
 import type { RuleEntry, CategoryWaiver, ModuleStateInfo } from '@qap/shared';
+import { isValidRoleName } from '@qap/shared';
 
 export interface SessionGapReportParams {
   sessionId: string;
@@ -58,7 +59,7 @@ export function computeSessionGapSummary(params: SessionGapReportParams): Sessio
 
   const declaredRoles = (params.projectContext?.roles || [])
     .map((r) => (typeof r === 'string' ? r : r.name))
-    .filter(Boolean);
+    .filter((r) => isValidRoleName(r));
   const totalRoles = declaredRoles.length;
 
   const verifiedRolesSet = new Set<string>();
@@ -109,7 +110,7 @@ export function generateSessionGapReport(params: SessionGapReportParams): string
   lines.push(`- **Objetivo**: ${projectContext?.objective || 'No especificado'}`);
 
   lines.push('- **Roles de Usuario**:');
-  const roles = projectContext?.roles || [];
+  const roles = (projectContext?.roles || []).filter((r) => isValidRoleName(typeof r === 'string' ? r : r.name));
   if (roles.length === 0) {
     lines.push('  - (No declarados)');
   } else {
@@ -333,7 +334,7 @@ export function generateSessionGapReport(params: SessionGapReportParams): string
   lines.push('### 6. Roles Declarados Sin Perfil Verificado');
   const declaredRolesList = (projectContext?.roles || [])
     .map((r) => (typeof r === 'string' ? r : r.name))
-    .filter(Boolean);
+    .filter((r) => isValidRoleName(r));
   const unverifiedRolesList = declaredRolesList.filter((r) => {
     const rNorm = r.trim().toLowerCase();
     const isVerified = (profiles || []).some((p) => {
