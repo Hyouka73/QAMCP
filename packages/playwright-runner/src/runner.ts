@@ -1,4 +1,5 @@
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright-core';
+import { executeNavigate, executeClick, executeFill } from './actions/index.js';
 import type {
   TestPlan,
   TestOptions,
@@ -148,38 +149,20 @@ export class PlaywrightRunner {
     return executionResult;
   }
 
-  private async executeStep(page: Page, step: TCStep): Promise<void> {
-    const rawStep = step as unknown as Record<string, unknown>;
-
-    const typeRaw = rawStep.type ?? rawStep.action;
-    const stepType = typeof typeRaw === 'string' ? typeRaw : '';
-
-    const selector =
-      typeof rawStep.selector === 'string'
-        ? rawStep.selector
-        : typeof rawStep.target === 'string'
-          ? rawStep.target
-          : undefined;
-
-    switch (stepType) {
+    private async executeStep(page: Page, step: TCStep): Promise<void> {
+    switch (step.type) {
       case 'navigate':
-        if (typeof rawStep.url === 'string') {
-          await page.goto(rawStep.url, { waitUntil: 'domcontentloaded' });
-        }
+        await executeNavigate(page, step);
         break;
       case 'click':
-        if (selector) {
-          await page.click(selector);
-        }
+        await executeClick(page, step);
         break;
       case 'fill':
-        if (selector && typeof rawStep.value === 'string') {
-          await page.fill(selector, rawStep.value);
-        }
+        await executeFill(page, step);
         break;
       case 'assert':
-        if (selector) {
-          await page.waitForSelector(selector, { state: 'visible' });
+        if (step.selector) {
+          await page.waitForSelector(step.selector, { state: 'visible' });
         }
         break;
       default:
