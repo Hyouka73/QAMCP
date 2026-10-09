@@ -20,6 +20,7 @@
   "dependencies": {
     "@inquirer/prompts": "^8.6.0",
     "@modelcontextprotocol/sdk": "^1.30.0",
+    "@qap/playwright-runner": "workspace:^",
     "commander": "^15.0.0",
     "keytar": "^7.9.0",
     "playwright-core": "^1.63.0",
@@ -31,6 +32,7 @@
     "@qap/knowledge": "workspace:^",
     "@qap/mcp": "workspace:*",
     "@qap/playwright-adapter": "workspace:^",
+    "@qap/playwright-runner": "workspace:^",
     "@qap/reporter": "workspace:^",
     "@qap/shared": "workspace:^",
     "@types/node": "^26.2.0",

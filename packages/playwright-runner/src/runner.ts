@@ -176,7 +176,7 @@ export class PlaywrightRunner {
       if (casesResult.length === 0) {
         totalFailed = Math.max(totalFailed, 1);
       }
-      void err;
+      console.error('[PlaywrightRunner] Error no controlado antes del loop de casos:', err);
     } finally {
       if (context) await context.close().catch(() => {});
       if (browser) await browser.close().catch(() => {});

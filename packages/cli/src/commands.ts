@@ -36,6 +36,7 @@ import { handleMcp } from './commands/mcp.js';
 
 export { handleClean } from './commands/clean.js';
 export { handleMcp } from './commands/mcp.js';
+import { handleTest } from './commands/test.js';
 
 interface CommandDefinition {
   /** Nombre del subcomando, p.ej. "test" -> `qap test`. */
@@ -47,7 +48,6 @@ interface CommandDefinition {
 
 // Mantenemos los placeholders eliminando 'status', 'report', 'context' y 'search' que tienen implementación real
 const COMMANDS: readonly CommandDefinition[] = [
-  { name: 'test', description: 'Ejecuta el plan de pruebas de un módulo.', args: '<module>' },
   { name: 'update', description: 'Actualiza un módulo ya descubierto.', args: '<module>' },
   { name: 'flow', description: 'Ejecuta un flow definido sobre uno o más módulos.', args: '<flow>' },
 ];
@@ -155,7 +155,18 @@ export function registerCommands(program: Command): void {
     .action(async (target?: string, options?: { profile?: string; headed?: boolean }) => {
       await handleRun(target, options);
     });
-
+    program
+  .command('test [module]')
+  .description('Ejecuta pruebas filtrando por tags, caso individual o shard')
+  .option('--tags <tags>', 'Lista de tags separados por coma (ej. smoke,regression)')
+  .option('--case <caseId>', 'Ejecuta un unico caso por su id')
+  .option('--shard <shard>', 'Particiona la ejecucion en formato "i/n" (ej. 1/3)')
+  .option('--retries <n>', 'Numero de reintentos para casos fallidos')
+  .option('--headed', 'Ejecuta con interfaz grafica visible')
+  .option('--fail-fast', 'Detiene la ejecucion en el primer caso fallido')
+  .action(async (moduleArg: string | undefined, options: import('./commands/test.js').TestCommandOptions) => {
+    await handleTest(moduleArg, options);
+  });
   program 
     .command('discover [name]')
     .description('Descubre un módulo por fases: interview, navigate, repo-map')
