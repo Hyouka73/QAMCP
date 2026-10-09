@@ -1,3 +1,4 @@
+import { interpolateStep } from './context/interpolator.js';
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright-core';
 import type {
   TestPlan,
@@ -106,7 +107,8 @@ export class PlaywrightRunner {
             const testCase = await options.storageResolver(moduleName, caseId);
             caseTitle = testCase.name || caseId;
             const steps = testCase.steps || [];
-            for (const step of steps) {
+           for (const rawStep of steps) {
+              const step = interpolateStep(rawStep, contextVariables);
               await this.executeStep(page, step, screenshotsDir, contextVariables);
             }
           }
