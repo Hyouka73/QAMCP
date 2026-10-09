@@ -10,7 +10,8 @@
     "dev": "tsup src/index.ts --format esm --dts --watch",
     "test": "vitest run"
   },
-  "dependencies": {
+    "dependencies": {
+    "@qap/auth": "workspace:*",
     "@qap/shared": "workspace:*",
     "playwright-core": "^1.62.1"
   },

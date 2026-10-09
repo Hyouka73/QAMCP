@@ -1,5 +1,4 @@
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright-core';
-import { executeNavigate, executeClick, executeFill } from './actions/index.js';
 import type {
   TestPlan,
   TestOptions,
@@ -9,11 +8,52 @@ import type {
   TCStep,
   ExecutedCase,
   CaseResult,
+  FailureType,
 } from '@qap/shared';
+
+import {
+  executeNavigate,
+  executeClick,
+  executeFill,
+  executeAssert,
+  executeWaitFor,
+  executeScreenshot,
+  executeCapture,
+  executeSwitchAuth,
+  executeEvaluate,
+} from './actions/index.js';
+
+function classifyError(error: unknown): { category: FailureType; message: string } {
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === 'string'
+      ? error
+      : JSON.stringify(error ?? '');
+
+  if (/selector|element not found|locate/i.test(message)) {
+    return { category: 'selector_not_found', message };
+  }
+  if (/navig|net::ERR|goto/i.test(message)) {
+    return { category: 'navigation_error', message };
+  }
+  if (/network|fetch|http|500|404/i.test(message)) {
+    return { category: 'network_error', message };
+  }
+  if (/timeout|exceeded|timed out/i.test(message)) {
+    return { category: 'execution_timeout', message };
+  }
+  if (/auth|login|credential|unauthorized|403/i.test(message)) {
+    return { category: 'auth_failed', message };
+  }
+
+  return { category: 'assertion_failed', message };
+}
 
 export interface PlaywrightRunnerOptions extends TestOptions {
   fail_fast?: boolean;
   storageResolver?: (moduleName: string, caseId: string) => Promise<TCCase>;
+  screenshotsDir?: string;
 }
 
 export class PlaywrightRunner {
@@ -28,6 +68,7 @@ export class PlaywrightRunner {
     const failFast = options.fail_fast ?? plan.fail_fast ?? false;
     const moduleName = plan.modules[0] ?? '';
     const env = options.environment ?? plan.environment ?? 'local';
+    const screenshotsDir = options.screenshotsDir ?? '.qa/reports/screenshots';
 
     let browser: Browser | null = null;
     let context: BrowserContext | null = null;
@@ -53,9 +94,12 @@ export class PlaywrightRunner {
 
       for (const caseId of caseList) {
         const caseStartMs = Date.now();
+        const contextVariables: Record<string, string> = {};
         let caseResult: CaseResult = 'passed';
         let errorMessage: string | undefined;
+        let failureType: FailureType = 'assertion_failed';
         let caseTitle = caseId;
+        let failureScreenshotPath: string | undefined;
 
         try {
           if (options.storageResolver && moduleName) {
@@ -63,7 +107,7 @@ export class PlaywrightRunner {
             caseTitle = testCase.name || caseId;
             const steps = testCase.steps || [];
             for (const step of steps) {
-              await this.executeStep(page, step);
+              await this.executeStep(page, step, screenshotsDir, contextVariables);
             }
           }
           totalPassed++;
@@ -72,7 +116,20 @@ export class PlaywrightRunner {
           totalFailed++;
           errorMessage = err instanceof Error ? err.message : String(err);
 
-          if (errorMessage.toLowerCase().includes('timeout')) {
+          try {
+            failureScreenshotPath = await executeScreenshot(
+              page,
+              { type: 'screenshot', filename: `failure_${caseId}_${Date.now()}.png` },
+              screenshotsDir
+            );
+          } catch {
+            // Ignorar fallos al tomar captura para no sobreescribir el error original
+          }
+
+          const classified = classifyError(err);
+          failureType = classified.category;
+
+          if (classified.category === 'execution_timeout') {
             timedOut = true;
           }
 
@@ -81,7 +138,7 @@ export class PlaywrightRunner {
               id: caseId,
               title: caseTitle,
               result: caseResult,
-              failure_type: 'assertion_failed',
+              failure_type: failureType,
               duration_ms: Date.now() - caseStartMs,
             };
             casesResult.push(failFastCase);
@@ -96,12 +153,13 @@ export class PlaywrightRunner {
               duration_ms: Date.now() - caseStartMs,
               ...(errorMessage
                 ? {
-                    failure_type: 'assertion_failed' as const,
+                    failure_type: failureType,
                     steps: [
                       {
                         action: 'execute',
                         status: 'failed',
                         message: errorMessage,
+                        ...(failureScreenshotPath ? { screenshot_path: failureScreenshotPath } : {}),
                       },
                     ],
                   }
@@ -149,7 +207,12 @@ export class PlaywrightRunner {
     return executionResult;
   }
 
-    private async executeStep(page: Page, step: TCStep): Promise<void> {
+  private async executeStep(
+    page: Page,
+    step: TCStep,
+    screenshotsDir: string = '.qa/reports/screenshots',
+    contextVariables: Record<string, string> = {}
+  ): Promise<void> {
     switch (step.type) {
       case 'navigate':
         await executeNavigate(page, step);
@@ -161,9 +224,22 @@ export class PlaywrightRunner {
         await executeFill(page, step);
         break;
       case 'assert':
-        if (step.selector) {
-          await page.waitForSelector(step.selector, { state: 'visible' });
-        }
+        await executeAssert(page, step);
+        break;
+      case 'waitFor':
+        await executeWaitFor(page, step);
+        break;
+      case 'screenshot':
+        await executeScreenshot(page, step, screenshotsDir);
+        break;
+      case 'capture':
+        await executeCapture(page, step, contextVariables);
+        break;
+      case 'switch_auth':
+        await executeSwitchAuth(page, step);
+        break;
+      case 'evaluate':
+        await executeEvaluate(page, step, contextVariables);
         break;
       default:
         break;

@@ -6,7 +6,7 @@ import { compile } from 'json-schema-to-typescript';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const SCHEMAS_DIR = path.resolve(__dirname, '../schemas');
+const SCHEMAS_DIR = path.resolve(__dirname, '../src/schemas');
 const TYPES_DIR = path.resolve(__dirname, '../src/types');
 
 const SCHEMA_TYPE_MAP = [

@@ -70,11 +70,21 @@
             "type": "string",
             "description": "Expected value for assertions"
           },
-          "assertion_type": {
+                    "assertion_type": {
             "type": "string",
-            "enum": ["equals", "contains", "visible", "exists", "not_visible", "not_exists"],
+            "enum": ["equals", "contains", "visible", "exists", "not_visible", "not_exists", "count", "attribute"],
             "description": "Type of assertion to perform"
           },
+          "expected_count": {
+            "type": "integer",
+            "description": "Expected number of elements matching the selector (for assertion_type 'count')",
+            "minimum": 0
+          },
+          "attribute_name": {
+            "type": "string",
+            "description": "HTML attribute name to check (for assertion_type 'attribute')"
+          },
+
           "filename": {
             "type": "string",
             "description": "Filename for screenshot (optional, auto-generated if not provided)"
@@ -153,13 +163,33 @@
               "required": ["selector"]
             }
           },
-          {
+                    {
             "if": {
               "properties": { "type": { "const": "assert" } },
               "required": ["type"]
             },
             "then": {
-              "required": ["selector", "assertion_type"]
+              "required": ["selector", "assertion_type"],
+              "allOf": [
+                {
+                  "if": {
+                    "properties": { "assertion_type": { "const": "count" } },
+                    "required": ["assertion_type"]
+                  },
+                  "then": {
+                    "required": ["expected_count"]
+                  }
+                },
+                {
+                  "if": {
+                    "properties": { "assertion_type": { "const": "attribute" } },
+                    "required": ["assertion_type"]
+                  },
+                  "then": {
+                    "required": ["attribute_name", "expected"]
+                  }
+                }
+              ]
             }
           },
           {

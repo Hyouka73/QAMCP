@@ -236,6 +236,9 @@ importers:
 
   packages/playwright-runner:
     dependencies:
+      '@qap/auth':
+        specifier: workspace:*
+        version: link:../auth
       '@qap/shared':
         specifier: workspace:*
         version: link:../shared
