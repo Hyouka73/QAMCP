@@ -1,8 +1,8 @@
-import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync, mkdirSync, openSync, closeSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { SchemaValidator } from '@qap/shared';
 
 import { scanProjectRoutes, normalizeRoutePath } from '../route-scanner.js';
@@ -218,5 +218,94 @@ export const routes = [
     ]);
 
     expect(res.rutas.some((r) => r.path === '/huge-route')).toBe(false);
+  });
+
+  it('demuestra que archivos .env* con rutas no aparecen en repo-map y que no hay rastro del contenido', () => {
+    const envPath = join(tempDir, '.env');
+    const envProdPath = join(tempDir, '.env.production');
+    const envLocalPath = join(tempDir, '.env.local');
+
+    const secretRoute1 = '/secret-from-env-xyz-99';
+    const secretRoute2 = '/secret-prod-token-abc';
+    const secretKey = 'DATABASE_SECRET_KEY_12345';
+
+    writeFileSync(envPath, `ROUTER_SECRET=${secretRoute1}\nKEY=${secretKey}`, 'utf-8');
+    writeFileSync(envProdPath, `VITE_API=${secretRoute2}`, 'utf-8');
+    writeFileSync(envLocalPath, `REACT_APP_ROUTE=/secret-local-route`, 'utf-8');
+
+    // Archivo normal para asegurar que la exploracion ocurra normalmente
+    const appDir = join(tempDir, 'app');
+    mkdirSync(appDir, { recursive: true });
+    writeFileSync(join(appDir, 'valid.tsx'), '<Route path="/public-ok" />', 'utf-8');
+
+    const res = scanProjectRoutes(tempDir, [
+      { path: '.', name: 'root', framework: 'react' },
+    ]);
+
+    // Comprobar que la ruta pública sí se descubrió
+    expect(res.rutas.some((r) => r.path === '/public-ok')).toBe(true);
+
+    // Comprobar exhaustivamente que NINGÚN rastro del contenido de .env existe en el resultado
+    const jsonOutput = JSON.stringify(res);
+    expect(jsonOutput).not.toContain(secretRoute1);
+    expect(jsonOutput).not.toContain(secretRoute2);
+    expect(jsonOutput).not.toContain(secretKey);
+    expect(jsonOutput).not.toContain('/secret-local-route');
+    expect(jsonOutput).not.toContain('.env');
+  });
+
+  it('extrae rutas correctamente en subproyectos anidados', () => {
+    const nestedDir = join(tempDir, 'packages', 'client', 'web');
+    mkdirSync(join(nestedDir, 'src'), { recursive: true });
+    writeFileSync(
+      join(nestedDir, 'src', 'App.tsx'),
+      '<Route path="/nested-subproject" element={<Dashboard />} />',
+      'utf-8'
+    );
+
+    const res = scanProjectRoutes(tempDir, [
+      { path: 'packages/client/web', name: 'nested-client', framework: 'react' },
+    ]);
+
+    expect(res.rutas.some((r) => r.path === '/nested-subproject')).toBe(true);
+    const ruta = res.rutas.find((r) => r.path === '/nested-subproject');
+    expect(ruta?.archivo).toBe('packages/client/web/src/App.tsx');
+  });
+
+  it('emite advertencia y se detiene cuando se excede el limite de 2000 archivos', () => {
+    const bigDir = join(tempDir, 'many-files');
+    mkdirSync(bigDir, { recursive: true });
+
+    // Crear 2005 archivos vacíos rápidamente usando openSync/closeSync
+    for (let i = 0; i < 2005; i++) {
+      closeSync(openSync(join(bigDir, `f${i}.ts`), 'w'));
+    }
+
+    const res = scanProjectRoutes(tempDir, [
+      { path: 'many-files', name: 'many-files', framework: 'react' },
+    ]);
+
+    expect(res.advertencias).toContain('limite_archivos_excedido');
+  }, 15000);
+
+  it('emite advertencia de tiempo_limite_excedido cuando Date.now excede los 3 segundos', () => {
+    const appDir = join(tempDir, 'timed-app');
+    mkdirSync(appDir, { recursive: true });
+    writeFileSync(join(appDir, 'f1.tsx'), '<Route path="/t1" />', 'utf-8');
+    writeFileSync(join(appDir, 'f2.tsx'), '<Route path="/t2" />', 'utf-8');
+
+    let counter = 0;
+    const dateSpy = vi.spyOn(Date, 'now').mockImplementation(() => {
+      counter++;
+      // Primeras llamadas retornan tiempo base, luego salta 4 segundos
+      return counter > 2 ? 100000 + 4000 : 100000;
+    });
+
+    const res = scanProjectRoutes(tempDir, [
+      { path: 'timed-app', name: 'timed-app', framework: 'react' },
+    ]);
+
+    expect(res.advertencias).toContain('tiempo_limite_excedido');
+    dateSpy.mockRestore();
   });
 });

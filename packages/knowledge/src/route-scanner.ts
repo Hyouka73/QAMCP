@@ -22,7 +22,7 @@ const MAX_FILE_SIZE_BYTES = 200 * 1024; // 200 KB
 const MAX_FILES_VISITED = 2000;
 const MAX_EXECUTION_TIME_MS = 3000; // 3 segundos
 
-const GUARD_PATTERNS = /(?:authguard|protectedroute|requireauth|privateroute|authenticatedroute)/i;
+const GUARD_PATTERNS = /(?:authguard|protectedroute|requireauth|requiresauth|privateroute|authenticatedroute)/i;
 
 /**
  * Normaliza los parámetros de una ruta (ej. [id] -> :id) y asegura barra inicial.
@@ -83,20 +83,21 @@ export function scanProjectRoutes(
   }
 
   function checkLimits(): boolean {
+    let shouldStop = false;
+    if (filesVisited >= MAX_FILES_VISITED) {
+      if (!advertencias.includes('limite_archivos_excedido')) {
+        advertencias.push('limite_archivos_excedido');
+      }
+      shouldStop = true;
+    }
     if (Date.now() - startTime > MAX_EXECUTION_TIME_MS) {
       if (!timeLimitHit) {
         timeLimitHit = true;
         advertencias.push('tiempo_limite_excedido');
       }
-      return false;
+      shouldStop = true;
     }
-    if (filesVisited >= MAX_FILES_VISITED) {
-      if (!advertencias.includes('limite_archivos_excedido')) {
-        advertencias.push('limite_archivos_excedido');
-      }
-      return false;
-    }
-    return true;
+    return !shouldStop;
   }
 
   for (const target of targetDirs) {
@@ -155,7 +156,9 @@ export function scanProjectRoutes(
         if (/^(?:src\/)?app\/(.+)\/page\.[a-z]+$/i.test(relToTarget)) {
           const match = relToTarget.match(/^(?:src\/)?app\/(.+)\/page\.[a-z]+$/i);
           if (match && match[1]) {
-            const rawSegments = match[1]
+            const rawDir = match[1];
+            const isGuarded = /(?:\((?:protected|auth|private|authenticated|admin)\))/i.test(rawDir);
+            const rawSegments = rawDir
               .split('/')
               .filter((seg) => !seg.startsWith('(') || !seg.endsWith(')')); // Ignorar route groups (auth)
             const cleanPath = normalizeRoutePath('/' + rawSegments.join('/'));
@@ -164,7 +167,7 @@ export function scanProjectRoutes(
               archivo: posixRel,
               linea: 1,
               framework: 'next',
-              requiere_sesion: null,
+              requiere_sesion: isGuarded ? true : null,
               roles: [],
             });
             continue;

@@ -10,6 +10,8 @@ import {
   resolverDocumento,
   generarScan,
   getNombreScore,
+  hasPenaltyToken,
+  getFactoresPuntaje,
 } from '../document-detector.js';
 
 describe('E2a: detectarDocumentosProyecto (Criterio 3)', () => {
@@ -312,13 +314,17 @@ describe('E2a: detectarDocumentosProyecto (Criterio 3)', () => {
 
     describe('C2: Ranking de documentos con penalización y bonificación exacta', () => {
       it('PRD.md aparece antes que PRD_diff.md y el documento penalizado sigue como opción', () => {
+        expect(getNombreScore('PRD_diff.md')).toBe(6);
+        expect(getNombreScore('PRD_bak.md')).toBe(6);
+        expect(getNombreScore('PRD.md')).toBe(0);
+
+        writeFileSync(join(tempDir, 'PRD_bak.md'), '# PRD Backup', 'utf-8');
         writeFileSync(join(tempDir, 'PRD.md'), '# PRD Oficial', 'utf-8');
         writeFileSync(join(tempDir, 'PRD_diff.md'), '# PRD Diff', 'utf-8');
 
         const hallazgos = detectarDocumentosProyecto(tempDir);
-        expect(hallazgos.documentos.length).toBe(2);
+        expect(hallazgos.documentos.length).toBe(3);
         expect(hallazgos.documentos[0].nombre).toBe('PRD.md');
-        expect(hallazgos.documentos[1].nombre).toBe('PRD_diff.md');
       });
 
       it('con solo PRD_diff.md aparece primero igualmente', () => {
@@ -330,16 +336,64 @@ describe('E2a: detectarDocumentosProyecto (Criterio 3)', () => {
         expect(hallazgos.documentos[0].ranking).toBe(0);
       });
 
-      it('sin falsos positivos en penalización de tokens (difficult, different, backend, bakery)', () => {
-        writeFileSync(join(tempDir, 'difficult_topics.md'), '# Difficult Topics', 'utf-8');
-        writeFileSync(join(tempDir, 'backend_architecture.md'), '# Backend Architecture', 'utf-8');
+      it('sin falsos positivos en penalización de tokens (difficult, different, backend, bakery, oldest, copyright, draftsman)', () => {
+        const falsePositiveNames = [
+          'difficult_topics.md',
+          'different_approaches.md',
+          'backend_architecture.md',
+          'bakery_system.md',
+          'oldest_records.md',
+          'copyright_notice.md',
+          'draftsman_tools.md',
+        ];
 
-        const hallazgos = detectarDocumentosProyecto(tempDir);
-        // Ninguno contiene tokens de penalización aislados (diff o bak)
-        for (const doc of hallazgos.documentos) {
-          const score = getNombreScore(doc.nombre);
-          expect(score).toBeLessThanOrEqual(7);
+        for (const name of falsePositiveNames) {
+          expect(hasPenaltyToken(name)).toBe(false);
+          const score = getNombreScore(name);
+          expect(score).toBe(7);
+          const factores = getFactoresPuntaje(name);
+          expect(factores.tiene_penalizacion).toBe(false);
+          expect(factores.penalizacion).toBeNull();
         }
+      });
+
+      it('aplica penalización a nombres que contienen backup, copy, draft, old, diff, bak y tmp como token', () => {
+        const penaltyTokenNames = [
+          { name: 'PRD_backup.md', expectedScore: 6 },
+          { name: 'PRD_copy.md', expectedScore: 6 },
+          { name: 'PRD_draft.md', expectedScore: 6 },
+          { name: 'PRD_old.md', expectedScore: 6 },
+          { name: 'PRD_diff.md', expectedScore: 6 },
+          { name: 'PRD_bak.md', expectedScore: 6 },
+          { name: 'PRD_tmp.md', expectedScore: 6 },
+          { name: 'notes_backup.md', expectedScore: 8 },
+        ];
+
+        for (const item of penaltyTokenNames) {
+          expect(hasPenaltyToken(item.name)).toBe(true);
+          const score = getNombreScore(item.name);
+          expect(score).toBe(item.expectedScore);
+          const factores = getFactoresPuntaje(item.name);
+          expect(factores.tiene_penalizacion).toBe(true);
+          expect(factores.penalizacion).toBe('token de descarte/penalizacion detectado');
+        }
+      });
+
+      it('expone factores detallados de puntuación y ranking', () => {
+        const factoresPrd = getFactoresPuntaje('PRD.md', 'PRD.md');
+        expect(factoresPrd.nombreScore).toBe(0);
+        expect(factoresPrd.ubicacionScore).toBe(0);
+        expect(factoresPrd.es_exacto).toBe(true);
+        expect(factoresPrd.tiene_penalizacion).toBe(false);
+        expect(factoresPrd.bonificacion).toContain('score 0');
+        expect(factoresPrd.ubicacion).toBe('raíz (0)');
+
+        const factoresDocsDiff = getFactoresPuntaje('PRD_diff.md', 'docs/PRD_diff.md');
+        expect(factoresDocsDiff.nombreScore).toBe(6);
+        expect(factoresDocsDiff.ubicacionScore).toBe(1);
+        expect(factoresDocsDiff.es_exacto).toBe(false);
+        expect(factoresDocsDiff.tiene_penalizacion).toBe(true);
+        expect(factoresDocsDiff.ubicacion).toBe('docs (1)');
       });
     });
   });

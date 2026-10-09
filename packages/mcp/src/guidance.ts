@@ -8,12 +8,13 @@
  * - Toda pregunta pasa por el validador puro validarPregunta.
  */
 
-import type { ProjectPhase, RuleCategory, LifecycleState, AuthProfile } from '@qap/shared';
+import type { ProjectPhase, RuleCategory, LifecycleState, AuthProfile, ModuleCandidate } from '@qap/shared';
 import { isValidRoleName, normalizeSlug } from '@qap/shared';
 import type {
   CoverageResult,
   InterviewQuestion,
   Pregunta,
+  Opcion,
   CanExitOnboardingContext,
   CanExitOnboardingEnvironments,
   HallazgosProyectoMin,
@@ -27,16 +28,19 @@ export type AccionTipo = 'entrevista' | 'entrevista_vista' | 'decision' | 'traba
  */
 export const QAP_CORE_DIRECTIVES =
   'DIRECTIVAS OBLIGATORIAS:\n' +
-  '1. Sigue estrictamente la siguiente_accion indicada por el servidor.\n' +
-  '2. Investiga el workspace antes de preguntar: lee documentos, README y package.json.\n' +
-  '3. No pidas al usuario lo que un documento ya especifica.\n' +
+  '1. Sigue la siguiente_accion del servidor.\n' +
+  '2. Investiga el repo: lee docs, README y package.json.\n' +
+  '3. No pidas lo que un documento ya especifica.\n' +
   '4. Pasos de tipo "trabajo" son autónomos: ejecútalos directamente sin consultar al usuario; las acciones que requieren confirmación nunca vienen como trabajo.\n' +
-  '5. Máximo una sola pregunta estructurada al usuario por turno.';
+  '5. Si falta navegador, instálalo con el comando indicado como paso de trabajo autónomo.\n' +
+  '6. Explora solo con qap_discover; no uses navegadores externos (no persisten en .qa).\n' +
+  '7. Máximo una sola pregunta estructurada al usuario por turno.';
 
 export interface SiguienteAccion {
   tipo: AccionTipo;
   descripcion: string;
   tool?: string;
+  comando?: string;
   module?: string;
   modulo?: string;
   view?: string;
@@ -117,6 +121,7 @@ export interface PhaseGuidanceOptions {
   hallazgos?: HallazgosProyectoMin | null;
   faltantes?: Array<{ campo: string; motivo: string }>;
   suggestedModules?: Array<{ module: string; path: string; priority?: string }>;
+  moduleCandidates?: ModuleCandidate[];
   plan?: Array<{ module: string; path: string; priority: string; status: string }>;
   modules?: Record<string, { state: string; hasPendingHypotheses?: boolean }>;
   interviewAction?: SiguienteAccion;
@@ -206,8 +211,17 @@ export function getPhaseGuidance(
       const hasPlan = Array.isArray(plan) && plan.length > 0;
 
       if (!hasPlan) {
-        const candidateModules: Array<{ module: string; path: string }> = [];
-        if (options.suggestedModules && options.suggestedModules.length > 0) {
+        const candidateModules: Array<{ module: string; path: string; flujos?: string[]; id?: string }> = [];
+        if (options.moduleCandidates && options.moduleCandidates.length > 0) {
+          for (const c of options.moduleCandidates) {
+            candidateModules.push({
+              module: c.nombre,
+              path: c.ruta || '',
+              flujos: c.flujos || [],
+              id: c.id,
+            });
+          }
+        } else if (options.suggestedModules && options.suggestedModules.length > 0) {
           candidateModules.push(...options.suggestedModules);
         } else if (Array.isArray(options.context?.critical_flows)) {
           for (const flow of options.context.critical_flows) {
@@ -223,17 +237,31 @@ export function getPhaseGuidance(
 
         let modulesPregunta: Pregunta;
         if (candidateModules.length >= 2) {
+          const topCandidates = candidateModules.slice(0, 7);
+          const opciones: Opcion[] = topCandidates.map((m, idx) => {
+            const rutaPart = m.path ? m.path : 'ruta por confirmar';
+            const flujosPart = m.flujos && m.flujos.length > 0 ? ` - cubre: ${m.flujos.join(', ')}` : '';
+            return {
+              id: m.id || `modulo_${normalizeSlug(m.module)}`,
+              etiqueta: `${m.module} (${rutaPart})${flujosPart}`,
+              recomendada: idx === 0,
+            };
+          });
+          opciones.push({
+            id: 'otro_modulo',
+            etiqueta: 'Otro módulo (indicar nombre y ruta)',
+            efecto: {
+              abre_seguimiento: true,
+            },
+          });
+
           modulesPregunta = {
             id: 'scoping.modulos_a_probar',
-            texto: 'Selecciona los módulos prioritarios a verificar en esta sesión:',
+            texto: 'Selecciona los módulos prioritarios a verificar en esta sesión (se recomienda comenzar por los 3 primeros):',
             formato: 'multiple',
-            opciones: candidateModules.map((m, idx) => ({
-              id: `modulo_${normalizeSlug(m.module)}`,
-              etiqueta: `${m.module} (${m.path})`,
-              recomendada: idx === 0,
-            })),
+            opciones,
             permite_otra: true,
-            registrar_con: { tool: 'qap_session_plan', campo: 'modules' },
+            registrar_con: { tool: 'qap_session_plan', campo: 'desde_candidatos' },
           };
         } else {
           modulesPregunta = {
@@ -254,7 +282,7 @@ export function getPhaseGuidance(
             tipo: 'decision',
             descripcion:
               candidateModules.length > 0
-                ? `Define los módulos prioritarios a verificar con qap_session_plan: ${candidateModules.map((m) => `${m.module} (${m.path})`).join(', ')}.`
+                ? `Define los módulos prioritarios a verificar con qap_session_plan: ${candidateModules.map((m) => `${m.module} (${m.path || 'ruta por confirmar'})`).join(', ')}.`
                 : 'Define los módulos prioritarios a verificar en esta sesión de trabajo.',
             tool: 'qap_session_plan',
             pregunta: modulesPregunta,

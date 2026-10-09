@@ -4,12 +4,24 @@ import { resolve, relative, join, extname, basename } from 'node:path';
 import { sanitizeDomString } from '@qap/engine';
 import type { ProjectScan, ScanDocumento, ScanSubproyecto, ScanServicio } from '@qap/shared';
 
+export interface FactoresPuntajeDocumento {
+  nombreScore: number;
+  ubicacionScore: number;
+  es_exacto: boolean;
+  tiene_penalizacion: boolean;
+  bonificacion: string | null;
+  penalizacion: string | null;
+  coincidencia_nombre: string;
+  ubicacion: string;
+}
+
 export interface DocumentoCandidato {
   path: string;
   nombre: string;
   es_ingerible: boolean;
   tamano_bytes: number;
   ranking?: number;
+  factores?: FactoresPuntajeDocumento;
 }
 
 export interface PackageJsonInfo {
@@ -96,10 +108,44 @@ export function getNombreScore(cleanBase: string): number {
  * Calcula el orden de prioridad de ubicación del archivo (E1a / P4.3):
  * raíz (0) > docs (1) > subproyecto (2)
  */
-function getUbicacionScore(relPosix: string): number {
+export function getUbicacionScore(relPosix: string): number {
   if (!relPosix.includes('/')) return 0; // raíz
   if (relPosix.toLowerCase().startsWith('docs/') || relPosix.toLowerCase().includes('/docs/')) return 1; // docs/**
   return 2; // subproyecto
+}
+
+/**
+ * Obtiene el detalle de los factores de puntuación de un documento (C2).
+ */
+export function getFactoresPuntaje(docNombre: string, docPath?: string): FactoresPuntajeDocumento {
+  const clean = sanitizeDomString(docNombre, 200);
+  const lower = clean.toLowerCase();
+  const penalized = hasPenaltyToken(clean);
+  const exact = isExactSpecName(clean);
+  const nScore = getNombreScore(clean);
+  const rel = docPath || docNombre;
+  const uScore = getUbicacionScore(rel);
+
+  let coincidencia = 'otros (7)';
+  if (exact) coincidencia = `exacto (${nScore})`;
+  else if (penalized) coincidencia = `penalizado (${nScore})`;
+  else if (lower.includes('prd')) coincidencia = 'prd (1)';
+  else if (lower.includes('spec')) coincidencia = 'spec (2)';
+  else if (lower.includes('requisit') || lower.includes('requirements')) coincidencia = 'requisitos (3)';
+  else if (lower.includes('alcance')) coincidencia = 'alcance (4)';
+  else if (lower.includes('funcional')) coincidencia = 'funcional (5)';
+  else if (lower.includes('readme')) coincidencia = 'readme (5)';
+
+  return {
+    nombreScore: nScore,
+    ubicacionScore: uScore,
+    es_exacto: exact,
+    tiene_penalizacion: penalized,
+    bonificacion: exact ? 'nombre exacto de especificacion (score 0)' : null,
+    penalizacion: penalized ? 'token de descarte/penalizacion detectado' : null,
+    coincidencia_nombre: coincidencia,
+    ubicacion: uScore === 0 ? 'raíz (0)' : uScore === 1 ? 'docs (1)' : 'subproyecto (2)',
+  };
 }
 
 /**
@@ -236,6 +282,7 @@ export function detectarDocumentosProyecto(workspaceRoot: string): HallazgosProy
     es_ingerible: c.es_ingerible,
     tamano_bytes: c.tamano_bytes,
     ranking: idx,
+    factores: getFactoresPuntaje(c.nombre, c.path),
   }));
 
   // Detectar package.json raíz si existe
