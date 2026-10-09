@@ -20,3 +20,4 @@ export * from './hasher/semantic-hasher.js';
 export * from './graph/dependency-graph.js';
 
 export * from './document-detector.js';
+export * from './route-scanner.js';

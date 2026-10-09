@@ -9,6 +9,7 @@ import {
   detectarDocumentosProyecto,
   resolverDocumento,
   generarScan,
+  getNombreScore,
 } from '../document-detector.js';
 
 describe('E2a: detectarDocumentosProyecto (Criterio 3)', () => {
@@ -184,15 +185,15 @@ describe('E2a: detectarDocumentosProyecto (Criterio 3)', () => {
       mkdirSync(join(tempDir, 'sub'), { recursive: true });
 
       writeFileSync(join(tempDir, 'README.md'), '# Readme raíz', 'utf-8');
-      writeFileSync(join(tempDir, 'PRD_diff.md'), '# PRD raíz', 'utf-8');
+      writeFileSync(join(tempDir, 'PRD.md'), '# PRD raíz', 'utf-8');
       writeFileSync(join(tempDir, 'docs', 'spec.md'), '# Especificación en docs', 'utf-8');
       writeFileSync(join(tempDir, 'sub', 'README.md'), '# Readme subproyecto', 'utf-8');
 
       const hallazgos = detectarDocumentosProyecto(tempDir);
       const paths = hallazgos.documentos.map((d) => d.path);
 
-      // PRD_diff.md (score prd=0, raíz=0) precede a spec.md (score spec=1, docs=1), que precede a README.md (score readme=5, raíz=0)
-      expect(paths[0]).toBe('PRD_diff.md');
+      // PRD.md (score prd=0, raíz=0) precede a spec.md (score spec=1, docs=1), que precede a README.md (score readme=5, raíz=0)
+      expect(paths[0]).toBe('PRD.md');
       expect(paths[1]).toBe('docs/spec.md');
       expect(paths[2]).toBe('README.md');
       expect(paths[3]).toBe('sub/README.md');
@@ -307,6 +308,39 @@ describe('E2a: detectarDocumentosProyecto (Criterio 3)', () => {
       expect(envServicio?.evidencia).toBe('.env.example (PORT)');
 
       spy.mockRestore();
+    });
+
+    describe('C2: Ranking de documentos con penalización y bonificación exacta', () => {
+      it('PRD.md aparece antes que PRD_diff.md y el documento penalizado sigue como opción', () => {
+        writeFileSync(join(tempDir, 'PRD.md'), '# PRD Oficial', 'utf-8');
+        writeFileSync(join(tempDir, 'PRD_diff.md'), '# PRD Diff', 'utf-8');
+
+        const hallazgos = detectarDocumentosProyecto(tempDir);
+        expect(hallazgos.documentos.length).toBe(2);
+        expect(hallazgos.documentos[0].nombre).toBe('PRD.md');
+        expect(hallazgos.documentos[1].nombre).toBe('PRD_diff.md');
+      });
+
+      it('con solo PRD_diff.md aparece primero igualmente', () => {
+        writeFileSync(join(tempDir, 'PRD_diff.md'), '# PRD Diff', 'utf-8');
+
+        const hallazgos = detectarDocumentosProyecto(tempDir);
+        expect(hallazgos.documentos.length).toBe(1);
+        expect(hallazgos.documentos[0].nombre).toBe('PRD_diff.md');
+        expect(hallazgos.documentos[0].ranking).toBe(0);
+      });
+
+      it('sin falsos positivos en penalización de tokens (difficult, different, backend, bakery)', () => {
+        writeFileSync(join(tempDir, 'difficult_topics.md'), '# Difficult Topics', 'utf-8');
+        writeFileSync(join(tempDir, 'backend_architecture.md'), '# Backend Architecture', 'utf-8');
+
+        const hallazgos = detectarDocumentosProyecto(tempDir);
+        // Ninguno contiene tokens de penalización aislados (diff o bak)
+        for (const doc of hallazgos.documentos) {
+          const score = getNombreScore(doc.nombre);
+          expect(score).toBeLessThanOrEqual(7);
+        }
+      });
     });
   });
 });

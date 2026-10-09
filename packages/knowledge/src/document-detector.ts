@@ -37,19 +37,58 @@ const MAX_FILE_SIZE_BYTES = 512 * 1024; // 512 KB
 const MAX_CANDIDATES = 10;
 const MAX_DEPTH = 3;
 
+const PENALTY_TOKENS = new Set(['diff', 'old', 'backup', 'bak', 'copy', 'draft', 'tmp', 'temp']);
+const EXACT_SPEC_NAMES = new Set(['prd', 'requisitos', 'requirements', 'spec']);
+
 /**
- * Calcula el orden de prioridad del nombre del archivo según palabras clave canónicas (E1a / P4.3):
- * prd (0) > spec (1) > requisit (2) > alcance (3) > funcional (4) > readme (5) > diff (6) > otros (7)
+ * Verifica si el nombre base del archivo contiene algún token de penalización (C2).
+ * Se evalúa como token (delimitado por caracteres no alfanuméricos) para evitar
+ * falsos positivos con palabras como 'difficult', 'different', 'backend', etc.
  */
-function getNombreScore(cleanBase: string): number {
+export function hasPenaltyToken(fileName: string): boolean {
+  const base = fileName.replace(/\.[^/.]+$/, '').toLowerCase();
+  const tokens = base.split(/[^a-z0-9]+/);
+  return tokens.some((t) => PENALTY_TOKENS.has(t));
+}
+
+/**
+ * Verifica si el nombre del archivo coincide exactamente con un nombre canónico de especificación (C2).
+ */
+export function isExactSpecName(fileName: string): boolean {
+  const base = fileName.replace(/\.[^/.]+$/, '').toLowerCase();
+  return EXACT_SPEC_NAMES.has(base);
+}
+
+/**
+ * Calcula el orden de prioridad del nombre del archivo según palabras clave canónicas (C2 / P4.5-S1):
+ * - Bonificación para nombres exactos de especificación (prd, requisitos, requirements, spec).
+ * - Penalización para nombres con tokens diff, old, backup, bak, copy, draft, tmp, temp.
+ * - Desempate estable por puntuación numérica.
+ */
+export function getNombreScore(cleanBase: string): number {
   const lower = cleanBase.toLowerCase();
-  if (lower.includes('prd')) return 0;
-  if (lower.includes('spec')) return 1;
-  if (lower.includes('requisit')) return 2;
-  if (lower.includes('alcance')) return 3;
-  if (lower.includes('funcional')) return 4;
+  const penalized = hasPenaltyToken(cleanBase);
+  const exact = isExactSpecName(cleanBase);
+
+  // Bonificación para nombres exactos de especificación (C2)
+  if (exact) {
+    return 0;
+  }
+
+  // Penalización para nombres con tokens diff, old, backup, bak, copy, draft, tmp, temp (C2)
+  if (penalized) {
+    if (lower.includes('prd') || lower.includes('spec') || lower.includes('requisit') || lower.includes('requirements')) {
+      return 6;
+    }
+    return 8;
+  }
+
+  if (lower.includes('prd')) return 1;
+  if (lower.includes('spec')) return 2;
+  if (lower.includes('requisit') || lower.includes('requirements')) return 3;
+  if (lower.includes('alcance')) return 4;
+  if (lower.includes('funcional')) return 5;
   if (lower.includes('readme')) return 5;
-  if (lower.includes('diff')) return 6;
   return 7;
 }
 
