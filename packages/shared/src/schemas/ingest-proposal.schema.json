@@ -51,6 +51,35 @@
       "items": {
         "type": "string"
       }
+    },
+    "modulos_candidatos": {
+      "type": "array",
+      "description": "Proposed module candidates from document analysis",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "nombre",
+          "evidence"
+        ],
+        "properties": {
+          "nombre": {
+            "type": "string"
+          },
+          "ruta_hint": {
+            "type": "string"
+          },
+          "flujos": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "evidence": {
+            "type": "string"
+          }
+        }
+      }
     }
   }
 }

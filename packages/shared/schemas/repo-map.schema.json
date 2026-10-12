@@ -1,0 +1,93 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "qap://schemas/repo-map.schema.json",
+  "title": "ProjectRepoMap",
+  "description": "Schema for .qa/project/repo-map.json representing detected front routes",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "_version",
+    "subproyectos",
+    "rutas",
+    "advertencias"
+  ],
+  "properties": {
+    "_version": {
+      "type": "string",
+      "description": "Schema version for evolution tracking"
+    },
+    "subproyectos": {
+      "type": "array",
+      "description": "Subprojects scanned for frontend routes",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "name",
+          "framework"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "framework": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "rutas": {
+      "type": "array",
+      "description": "Extracted routes from subprojects",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "archivo",
+          "linea",
+          "framework",
+          "requiere_sesion",
+          "roles"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "archivo": {
+            "type": "string"
+          },
+          "linea": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "framework": {
+            "type": "string"
+          },
+          "requiere_sesion": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "advertencias": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

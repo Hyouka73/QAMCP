@@ -39,6 +39,9 @@ import {
   type IngestProposal,
   type RuleEntry,
   type CategoryWaiver,
+  type ModuleCandidate,
+  type ProjectRepoMap,
+  type ModuleCandidatesFile,
 } from '@qap/shared';
 import type { StorageState } from '@qap/auth';
 import {
@@ -49,6 +52,9 @@ import {
   generarScan,
   resolverDocumento,
   detectarServiciosConEvidencia,
+  scanProjectRoutes,
+  generateModuleCandidates,
+  type CandidateGenerationResult,
 } from '@qap/knowledge';
 import {
   canExitOnboarding,
@@ -87,6 +93,53 @@ import {
 import { getPhaseGuidance, buildInterviewNextAction, type SiguienteAccion, QAP_CORE_DIRECTIVES } from './guidance.js';
 
 let activeViewerServer: ViewerServerInstance | null = null;
+
+export const PLAYWRIGHT_INSTALL_COMMAND = 'npx playwright install chromium';
+
+export async function checkPlaywrightBrowser(): Promise<{ disponible: boolean; error?: string; comando_instalacion: string }> {
+  try {
+    const { chromium } = await import('playwright-core');
+    const execPath = chromium.executablePath();
+    if (execPath && existsSync(execPath)) {
+      return { disponible: true, comando_instalacion: PLAYWRIGHT_INSTALL_COMMAND };
+    }
+  } catch { /* empty */ }
+
+  if (process.platform === 'win32') {
+    const prefixes = [
+      process.env.LOCALAPPDATA,
+      process.env.PROGRAMFILES,
+      process.env['PROGRAMFILES(X86)'],
+    ].filter(Boolean);
+
+    for (const prefix of prefixes) {
+      if (
+        existsSync(join(prefix!, 'Google', 'Chrome', 'Application', 'chrome.exe')) ||
+        existsSync(join(prefix!, 'Microsoft', 'Edge', 'Application', 'msedge.exe'))
+      ) {
+        return { disponible: true, comando_instalacion: PLAYWRIGHT_INSTALL_COMMAND };
+      }
+    }
+  } else if (process.platform === 'darwin') {
+    if (
+      existsSync('/Applications/Google Chrome.app') ||
+      existsSync('/Applications/Microsoft Edge.app')
+    ) {
+      return { disponible: true, comando_instalacion: PLAYWRIGHT_INSTALL_COMMAND };
+    }
+  } else {
+    const linuxBins = ['/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser'];
+    if (linuxBins.some(existsSync)) {
+      return { disponible: true, comando_instalacion: PLAYWRIGHT_INSTALL_COMMAND };
+    }
+  }
+
+  return {
+    disponible: false,
+    error: `No se encontró un navegador compatible en el sistema (Google Chrome, Microsoft Edge ni Chromium de Playwright). Instala Google Chrome o ejecuta '${PLAYWRIGHT_INSTALL_COMMAND}'.`,
+    comando_instalacion: PLAYWRIGHT_INSTALL_COMMAND,
+  };
+}
 
 function makeDecisionQuestion(
   id: string,
@@ -245,7 +298,7 @@ function buildModuleSummary(rules: any[], waivers: any[]) {
 const TOOLS: Tool[] = [
   {
     name: 'qap_status',
-    description: `PUNTO DE ENTRADA OBLIGATORIO: Invoca esta herramienta INMEDIATAMENTE cuando el usuario quiera probar su app, testear un proyecto o empezar con QAP. Analiza el repo y te devuelve exactamente la pregunta y opciones que debes presentar con ask_question, sin muros de texto ni pasos futuros.\n\n${QAP_CORE_DIRECTIVES}`,
+    description: `PUNTO DE ENTRADA OBLIGATORIO: Invoca esta herramienta INMEDIATAMENTE cuando el usuario quiera probar su app, testear un proyecto o empezar con QAP. Analiza el repo y el preflight del navegador (Playwright), y devuelve exactamente la pregunta y opciones que debes presentar con ask_question. Si falta navegador, ejecuta la instalación como paso de trabajo autónomo. QAP observa la app con su propio navegador mediante qap_discover; no uses navegadores ni herramientas de otros servidores MCP ni del IDE para explorarla (no se persistiría conocimiento en .qa).\n\n${QAP_CORE_DIRECTIVES}`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -255,7 +308,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'qap_init',
-    description: `Inicializa la arquitectura canónica .qa/ y configuraciones base en el proyecto actual. ${UX_DIRECTIVE}\n\n${QAP_CORE_DIRECTIVES}`,
+    description: `Inicializa la arquitectura canónica .qa/ y configuraciones base en el proyecto actual, verificando el preflight del navegador y escaneando rutas en repo-map.json. Si falta navegador, ejecuta 'npx playwright install chromium' como paso de trabajo autónomo. QAP observa la app con su propio navegador mediante qap_discover; no uses navegadores ni herramientas de otros servidores MCP ni del IDE para explorarla (no se persistiría conocimiento en .qa). ${UX_DIRECTIVE}\n\n${QAP_CORE_DIRECTIVES}`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -468,15 +521,43 @@ const TOOLS: Tool[] = [
             },
             rutas: { type: 'array', items: { type: 'string' } },
             riesgos: { type: 'array', items: { type: 'string' } },
+            modulos_candidatos: {
+              type: 'array',
+              description: 'Lista de módulos candidatos extraídos del documento',
+              items: {
+                type: 'object',
+                properties: {
+                  nombre: { type: 'string' },
+                  ruta_hint: { type: 'string' },
+                  evidence: { type: 'string' },
+                  flujos: { type: 'array', items: { type: 'string' } },
+                },
+                required: ['nombre', 'evidence'],
+              },
+            },
           },
           additionalProperties: false,
+        },
+        modulos_candidatos: {
+          type: 'array',
+          description: 'Lista de módulos candidatos extraídos del documento a nivel superior',
+          items: {
+            type: 'object',
+            properties: {
+              nombre: { type: 'string' },
+              ruta_hint: { type: 'string' },
+              evidence: { type: 'string' },
+              flujos: { type: 'array', items: { type: 'string' } },
+            },
+            required: ['nombre', 'evidence'],
+          },
         },
       },
     },
   },
   {
     name: 'qap_session_plan',
-    description: `Define o amplía el plan de sesión y la decisión de autenticación. Transiciona a WORKING cuando el plan es válido. ${UX_DIRECTIVE}`,
+    description: `Define o amplía el plan de sesión y la decisión de autenticación. Admite desde_candidatos (referenciando module-candidates.json) y adicionales. Transiciona a WORKING cuando el plan es válido. ${UX_DIRECTIVE}\n\n${QAP_CORE_DIRECTIVES}`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -489,10 +570,42 @@ const TOOLS: Tool[] = [
               module: { type: 'string', description: 'Nombre identificador del módulo' },
               path: { type: 'string', description: 'Ruta inicial del módulo comenzando con /' },
               priority: { type: 'string', enum: ['high', 'medium', 'low'], description: 'Prioridad de prueba' },
+              flujos: { type: 'array', items: { type: 'string' }, description: 'Flujos críticos asociados' },
             },
             required: ['module', 'path', 'priority'],
           },
           description: 'Lista de módulos a incluir en el plan de sesión',
+        },
+        desde_candidatos: {
+          type: 'array',
+          description: 'Lista de identificadores de candidatos tomados de module-candidates.json o con ruta custom',
+          items: {
+            oneOf: [
+              { type: 'string' },
+              {
+                type: 'object',
+                properties: {
+                  id: { type: 'string' },
+                  path: { type: 'string' },
+                },
+                required: ['id'],
+              },
+            ],
+          },
+        },
+        adicionales: {
+          type: 'array',
+          description: 'Módulos adicionales no presentes en los candidatos',
+          items: {
+            type: 'object',
+            properties: {
+              module: { type: 'string' },
+              path: { type: 'string' },
+              priority: { type: 'string', enum: ['high', 'medium', 'low'] },
+              flujos: { type: 'array', items: { type: 'string' } },
+            },
+            required: ['module', 'path'],
+          },
         },
         auth: {
           type: 'object',
@@ -507,12 +620,11 @@ const TOOLS: Tool[] = [
           description: 'Decisión explícita de autenticación',
         },
       },
-      required: ['modules'],
     },
   },
   {
     name: 'qap_discover',
-    description: `Descubre, mapea y registra un módulo de la aplicación (UI, rutas, selectores) en .qa/modules/ de forma autónoma con Playwright real. Si la ruta requiere autenticación o detecta auth_wall/login no planificado, responde 'blocked' con razón 'auth_required' (falta perfil verificado) o 'session_invalid' (sesión expirada o rechazada) sin escribir archivos ni avanzar el ciclo de vida; desbloquear resolviendo la autenticación con qap_auth_add. ${UX_DIRECTIVE}`,
+    description: `Descubre, mapea y registra un módulo de la aplicación (UI, rutas, selectores) en .qa/modules/ de forma autónoma con Playwright real. Si falta el navegador en el sistema, ejecuta 'npx playwright install chromium' sin preguntar. QAP observa la app con su propio navegador mediante qap_discover; no uses navegadores ni herramientas de otros servidores MCP ni del IDE para explorarla (no se persistiría conocimiento en .qa). Si la ruta requiere autenticación o detecta auth_wall/login no planificado, responde 'blocked' con razón 'auth_required' (falta perfil verificado) o 'session_invalid' (sesión expirada o rechazada) sin escribir archivos ni avanzar el ciclo de vida; desbloquear resolviendo la autenticación con qap_auth_add. ${UX_DIRECTIVE}\n\n${QAP_CORE_DIRECTIVES}`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -1004,8 +1116,28 @@ export function createMcpServer(): Server {
             } catch { /* ignore */ }
           }
 
+          const browserCheck = await checkPlaywrightBrowser();
+          const preflight = {
+            navegador_qap: (browserCheck.disponible ? 'ok' : 'falta') as 'ok' | 'falta',
+            comando_instalacion: PLAYWRIGHT_INSTALL_COMMAND,
+          };
+          const installAccion: SiguienteAccion = {
+            tipo: 'trabajo',
+            comando: PLAYWRIGHT_INSTALL_COMMAND,
+            descripcion: `Instalar navegador Chromium para Playwright sin consultar al usuario. Ejecuta '${PLAYWRIGHT_INSTALL_COMMAND}'.`,
+          };
+
           if (!initialized) {
             const preg = obtenerSiguientePreguntaOnboarding(null, null, hallazgos, null);
+            const statusNextAction = !browserCheck.disponible
+              ? installAccion
+              : {
+                  tipo: 'entrevista' as const,
+                  descripcion: 'Proyecto no inicializado. Comienza el onboarding respondiendo a la fuente de verdad.',
+                  tool: 'qap_init',
+                  pregunta: preg ?? undefined,
+                };
+
             return {
               content: [
                 {
@@ -1015,6 +1147,8 @@ export function createMcpServer(): Server {
                       status: 'success',
                       directorio_objetivo: rootDir,
                       initialized: false,
+                      preflight,
+                      navegador_qap: preflight.navegador_qap,
                       projectName: basename(rootDir),
                       environments: [],
                       stats: {
@@ -1027,13 +1161,10 @@ export function createMcpServer(): Server {
                       scan,
                       hallazgos_workspace: hallazgos,
                       advertencias,
-                      siguiente_accion: {
-                        tipo: 'entrevista',
-                        descripcion: 'Proyecto no inicializado. Comienza el onboarding respondiendo a la fuente de verdad.',
-                        tool: 'qap_init',
-                        pregunta: preg ?? undefined,
-                      },
-                      _guidance_for_assistant: 'NO expliques listas de pasos futuros. Haz al usuario la pregunta con ask_question: ' + (preg?.texto || ''),
+                      siguiente_accion: statusNextAction,
+                      _guidance_for_assistant: !browserCheck.disponible
+                        ? `Ejecuta '${PLAYWRIGHT_INSTALL_COMMAND}' sin consultar al usuario.`
+                        : 'NO expliques listas de pasos futuros. Haz al usuario la pregunta con ask_question: ' + (preg?.texto || ''),
                     },
                     null,
                     2
@@ -1138,10 +1269,20 @@ export function createMcpServer(): Server {
             }
           }
 
+          let moduleCandidatesList: ModuleCandidate[] | undefined;
+          const candidatesFilePath = join(qaDir, 'project', 'module-candidates.json');
+          if (existsSync(candidatesFilePath)) {
+            try {
+              const cf = JSON.parse(readFileSync(candidatesFilePath, 'utf-8'));
+              moduleCandidatesList = cf.candidates;
+            } catch { /* empty */ }
+          }
+
           const guidance = getPhaseGuidance(currentPhase, {
             faltantes,
             plan: lifecycleState.session?.plan,
             modules: modulesGuidance as any,
+            moduleCandidates: moduleCandidatesList,
             interviewAction,
             reportPath,
             hallazgos,
@@ -1150,6 +1291,10 @@ export function createMcpServer(): Server {
             environments: parsedEnv,
             profiles: profilesList as AuthProfile[],
           });
+
+          if (!browserCheck.disponible) {
+            guidance.siguiente_accion = installAccion;
+          }
 
           const stateModuleCount = Object.keys(lifecycleState.modules || {}).length;
           const totalModules = Math.max(moduleCount, stateModuleCount);
@@ -1170,6 +1315,8 @@ export function createMcpServer(): Server {
                     status: 'success',
                     directorio_objetivo: rootDir,
                     initialized: true,
+                    preflight,
+                    navegador_qap: preflight.navegador_qap,
                     fase: currentPhase,
                     estados_modulos: estadosModulos,
                     faltantes,
@@ -1347,6 +1494,18 @@ export function createMcpServer(): Server {
             ? { url: serviciosConEvidencia[0].url, label: serviciosConEvidencia[0].label, evidencia: serviciosConEvidencia[0].evidencia }
             : undefined;
 
+          const browserCheck = await checkPlaywrightBrowser();
+          const preflight = {
+            navegador_qap: (browserCheck.disponible ? 'ok' : 'falta') as 'ok' | 'falta',
+            comando_instalacion: PLAYWRIGHT_INSTALL_COMMAND,
+          };
+
+          const repoMap = scanProjectRoutes(rootDir, scan.subproyectos || []);
+          const repoMapPath = join(qaDir, 'project', 'repo-map.json');
+          try {
+            writeFileSync(repoMapPath, JSON.stringify(repoMap, null, 2), 'utf-8');
+          } catch { /* ignore */ }
+
           const guidance = getPhaseGuidance('ONBOARDING', {
             faltantes: gate.faltantes,
             hallazgos,
@@ -1354,6 +1513,14 @@ export function createMcpServer(): Server {
             environments: envObj,
             lifecycle: currentLifecycle,
           });
+
+          if (!browserCheck.disponible) {
+            guidance.siguiente_accion = {
+              tipo: 'trabajo',
+              comando: PLAYWRIGHT_INSTALL_COMMAND,
+              descripcion: `Instalar navegador Chromium para Playwright sin consultar al usuario. Ejecuta '${PLAYWRIGHT_INSTALL_COMMAND}'.`,
+            };
+          }
 
           return {
             content: [
@@ -1365,6 +1532,12 @@ export function createMcpServer(): Server {
                     directorio_objetivo: rootDir,
                     message: '✔ Proyecto inicializado con éxito en .qa/',
                     projectName,
+                    preflight,
+                    navegador_qap: preflight.navegador_qap,
+                    repo_map_resumen: {
+                      total_rutas: repoMap.rutas.length,
+                      advertencias: repoMap.advertencias,
+                    },
                     environments: envList,
                     directories: allowedDirs.map((p) => p.replace(rootDir, '')),
                     ya_existia: yaExistia,
@@ -1378,7 +1551,9 @@ export function createMcpServer(): Server {
                     },
                     fase: finalPhase,
                     siguiente_accion: guidance.siguiente_accion,
-                    _guidance_for_assistant: `Fase actual: ${finalPhase}. Siguiente acción: ${guidance.siguiente_accion.descripcion}`,
+                    _guidance_for_assistant: !browserCheck.disponible
+                      ? `Ejecuta '${PLAYWRIGHT_INSTALL_COMMAND}' sin consultar al usuario.`
+                      : `Fase actual: ${finalPhase}. Siguiente acción: ${guidance.siguiente_accion.descripcion}`,
                   },
                   null,
                   2
@@ -2663,13 +2838,57 @@ export function createMcpServer(): Server {
           const hallazgos = detectarDocumentosProyecto(rootDir);
           hallazgos.servicios = serviciosConEvidencia;
 
+          let candidateGenResult: CandidateGenerationResult | undefined;
+          const rawProposedCandidates = (propuesta && Array.isArray(propuesta.modulos_candidatos))
+            ? propuesta.modulos_candidatos
+            : (Array.isArray(args.modulos_candidatos) ? args.modulos_candidatos : undefined);
+          if (Array.isArray(rawProposedCandidates)) {
+            let repoMapObj: ProjectRepoMap | null = null;
+            const repoMapPath = join(qaDir, 'project', 'repo-map.json');
+            if (existsSync(repoMapPath)) {
+              try {
+                repoMapObj = JSON.parse(readFileSync(repoMapPath, 'utf-8'));
+              } catch { /* empty */ }
+            }
+            if (!repoMapObj) {
+              const curScan = generarScan(rootDir);
+              repoMapObj = scanProjectRoutes(rootDir, curScan?.subproyectos || []);
+            }
+
+            candidateGenResult = generateModuleCandidates({
+              rawDocContent: rawContent || '',
+              proposedCandidates: rawProposedCandidates,
+              repoMap: repoMapObj,
+              criticalFlows: currentContext.critical_flows,
+            });
+
+            const candidatesFilePath = join(qaDir, 'project', 'module-candidates.json');
+            try {
+              writeFileSync(candidatesFilePath, JSON.stringify(candidateGenResult.candidatesFile, null, 2), 'utf-8');
+            } catch { /* ignore */ }
+          }
+
           const guidance = getPhaseGuidance(lifecycleState.phase, {
             faltantes,
             suggestedModules,
+            moduleCandidates: candidateGenResult?.candidatesFile?.candidates,
             hallazgos,
             context: currentContext,
             environments: parsedEnv,
           });
+
+          if (
+            lifecycleState.phase === 'SCOPING' &&
+            currentContext.critical_flows &&
+            currentContext.critical_flows.length > 0 &&
+            (!Array.isArray(rawProposedCandidates) || rawProposedCandidates.length === 0)
+          ) {
+            guidance.siguiente_accion = {
+              tipo: 'trabajo',
+              descripcion: 'Proponer módulos candidatos con evidencia del documento a partir de los flujos críticos detectados.',
+              tool: 'qap_context_ingest',
+            };
+          }
 
           return {
             content: [
@@ -2688,6 +2907,9 @@ export function createMcpServer(): Server {
                       rutas: extractedRoutes,
                     },
                     modulos_sugeridos_para_plan: suggestedModules,
+                    modulos_candidatos_generados: candidateGenResult?.candidatesFile?.candidates || [],
+                    candidatos_rechazados: candidateGenResult?.rejectedCandidates || [],
+                    flujos_descartados: candidateGenResult?.flujos_descartados || [],
                     roles_descartados: discardedIngestRoles,
                     faltantes,
                     siguiente_accion: guidance.siguiente_accion,
@@ -2765,10 +2987,129 @@ export function createMcpServer(): Server {
             };
           }
 
+          // Soporte de desde_candidatos y adicionales (C6)
+          let resolvedModules: Array<{ module: string; path: string; priority: string; flujos?: string[] }> = [];
+
+          if (Array.isArray(args.desde_candidatos) && args.desde_candidatos.length > 0) {
+            const candidatesPath = join(qaDir, 'project', 'module-candidates.json');
+            let candidatesFile: ModuleCandidatesFile | null = null;
+            if (existsSync(candidatesPath)) {
+              try {
+                candidatesFile = JSON.parse(readFileSync(candidatesPath, 'utf-8'));
+              } catch { /* empty */ }
+            }
+
+            const allCandidates: ModuleCandidate[] = candidatesFile?.candidates || [];
+
+            for (const item of args.desde_candidatos) {
+              const candId = typeof item === 'string' ? item.trim() : (item?.id ? String(item.id).trim() : '');
+              const candPathOverride = typeof item === 'object' && item?.path ? String(item.path).trim() : undefined;
+
+              const cand = allCandidates.find((c) => c.id === candId);
+              if (!cand) {
+                return {
+                  content: [
+                    {
+                      type: 'text',
+                      text: JSON.stringify(
+                        {
+                          status: 'blocked',
+                          directorio_objetivo: rootDir,
+                          fase: 'SCOPING',
+                          razon: `El candidato con id '${candId}' no existe en module-candidates.json.`,
+                          siguiente_accion: {
+                            tipo: 'decision',
+                            descripcion: `El id de candidato '${candId}' no es válido. Selecciona un candidato existente o añade módulos con adicionales.`,
+                            tool: 'qap_session_plan',
+                          },
+                        },
+                        null,
+                        2
+                      ),
+                    },
+                  ],
+                };
+              }
+
+              const finalPath = candPathOverride || cand.ruta;
+              if (!finalPath) {
+                const preguntaRuta: Pregunta = {
+                  id: `scoping.ruta_candidato.${cand.id}`,
+                  texto: `Indica la ruta HTTP/URL para el módulo '${cand.nombre}' (por ejemplo: /catalog):`,
+                  formato: 'abierta',
+                  opciones: [],
+                  permite_otra: true,
+                  registrar_con: { tool: 'qap_session_plan', campo: 'adicionales' },
+                };
+                preguntaRuta.render_texto = generarRenderTexto(preguntaRuta);
+                const guardedPregunta = guardPregunta(preguntaRuta) as Pregunta;
+
+                return {
+                  content: [
+                    {
+                      type: 'text',
+                      text: JSON.stringify(
+                        {
+                          status: 'blocked',
+                          directorio_objetivo: rootDir,
+                          fase: 'SCOPING',
+                          razon: `El candidato '${cand.nombre}' (id: ${cand.id}) no tiene una ruta definida. Aporta la ruta para continuar.`,
+                          siguiente_accion: {
+                            tipo: 'decision',
+                            descripcion: `El candidato '${cand.nombre}' requiere que se especifique su ruta URL.`,
+                            tool: 'qap_session_plan',
+                            pregunta: guardedPregunta,
+                          },
+                        },
+                        null,
+                        2
+                      ),
+                    },
+                  ],
+                };
+              }
+
+              resolvedModules.push({
+                module: cand.nombre,
+                path: finalPath,
+                priority: 'medium',
+                flujos: cand.flujos || [],
+              });
+            }
+
+            resolvedModules = resolvedModules.map((m, idx) => ({
+              ...m,
+              priority: idx < 3 ? 'high' : 'medium',
+            }));
+          }
+
+          if (Array.isArray(args.adicionales)) {
+            for (const ad of args.adicionales) {
+              if (ad && typeof ad === 'object' && ad.module && ad.path) {
+                resolvedModules.push({
+                  module: String(ad.module).trim(),
+                  path: String(ad.path).trim(),
+                  priority: ad.priority || 'medium',
+                  flujos: Array.isArray(ad.flujos) ? ad.flujos : [],
+                });
+              }
+            }
+          }
+
+          if (resolvedModules.length === 0 && Array.isArray(args.modules)) {
+            resolvedModules = args.modules.map((m: any) => ({
+              module: String(m.module || m.name || '').trim(),
+              path: String(m.path || '').trim(),
+              priority: String(m.priority || 'medium').trim(),
+              flujos: Array.isArray(m.flujos) ? m.flujos : [],
+            }));
+          }
+
           // Validación atómica del lote
-          const rawModules = Array.isArray(args.modules)
-            ? args.modules
+          const rawModules = resolvedModules.length > 0
+            ? resolvedModules
             : (Array.isArray(args.plan) ? args.plan : undefined);
+
           if (!Array.isArray(rawModules) || rawModules.length === 0) {
             return {
               isError: true,
@@ -2780,7 +3121,7 @@ export function createMcpServer(): Server {
                       status: 'error',
                       isError: true,
                       directorio_objetivo: rootDir,
-                      error: 'El parámetro modules debe ser una lista con al menos un módulo.',
+                      error: 'El parámetro modules debe ser una lista con al menos un módulo o indicar desde_candidatos.',
                     },
                     null,
                     2
@@ -2798,7 +3139,10 @@ export function createMcpServer(): Server {
                 content: [{ type: 'text', text: JSON.stringify({ status: 'error', error: 'Elemento de módulo inválido en el lote.' }, null, 2) }],
               };
             }
-            const mName = String(m.module || '').trim();
+            const mName = String(m.module || (m as any).name || '').trim();
+            if (!m.module && (m as any).name) {
+              m.module = (m as any).name;
+            }
             const mPath = String(m.path || '').trim();
             const mPriority = String(m.priority || '').trim();
 
@@ -2893,12 +3237,13 @@ export function createMcpServer(): Server {
                 id: randomUUID(),
                 started_at: new Date().toISOString(),
                 auth: sessionAuth,
-                plan: sortedModules.map((m: { module: string; path: string; priority?: string; acceso?: boolean }) => ({
+                plan: sortedModules.map((m: { module: string; path: string; priority?: string; acceso?: boolean; flujos?: string[] }) => ({
                   module: String(m.module).trim(),
                   path: String(m.path).trim(),
                   priority: String(m.priority || 'medium').trim(),
                   status: 'planned',
                   acceso: isAccess(m) ? true : undefined,
+                  flujos: Array.isArray(m.flujos) ? m.flujos : [],
                 })),
               };
 
@@ -2949,12 +3294,13 @@ export function createMcpServer(): Server {
                 };
               }
 
-              curr.session.plan = sortedModules.map((m: { module: string; path: string; priority?: string; acceso?: boolean }) => ({
+              curr.session.plan = sortedModules.map((m: { module: string; path: string; priority?: string; acceso?: boolean; flujos?: string[] }) => ({
                 module: String(m.module).trim(),
                 path: String(m.path).trim(),
                 priority: String(m.priority || 'medium').trim(),
                 status: 'planned',
                 acceso: isAccess(m) ? true : undefined,
+                flujos: Array.isArray(m.flujos) ? m.flujos : [],
               }));
 
               for (const item of curr.session.plan) {
@@ -3798,7 +4144,21 @@ export function createMcpServer(): Server {
 
           // E4: Construir siguiente_accion tipo entrevista_vista (o decision ante fallo de Playwright, T9)
           const isPlaywrightFailure = !playwrightUsed || Boolean(playwrightError);
-          const siguienteAccion = isPlaywrightFailure
+          const isMissingBrowser = Boolean(
+            playwrightError && (
+              playwrightError.includes("executable doesn't exist") ||
+              playwrightError.includes('No se encontró un navegador compatible') ||
+              playwrightError.includes('playwright install')
+            )
+          );
+          const siguienteAccion = isMissingBrowser
+            ? {
+                tipo: 'trabajo' as const,
+                comando: PLAYWRIGHT_INSTALL_COMMAND,
+                descripcion: `Instalar navegador Chromium para Playwright sin consultar al usuario. Ejecuta '${PLAYWRIGHT_INSTALL_COMMAND}'.`,
+                tool: 'qap_discover',
+              }
+            : isPlaywrightFailure
             ? {
                 tipo: 'decision' as const,
                 descripcion: `Falló la exploración con Playwright para el módulo '${name}': ${playwrightError || 'Error de navegación'}. Decide si reintentar con otra URL, verificar servidor o continuar manualmente.`,
@@ -3879,6 +4239,7 @@ export function createMcpServer(): Server {
             redirected: redirected,
             http_status: httpStatus,
             siguiente_accion: siguienteAccion,
+            ...(isMissingBrowser ? { comando_instalacion: PLAYWRIGHT_INSTALL_COMMAND } : {}),
           };
 
           // E0b: Transición a través de transitionModule (con soporte a regresión consolidated -> interviewing)

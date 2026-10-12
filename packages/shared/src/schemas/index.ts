@@ -54,6 +54,8 @@ import moduleViewSchema from './module-view.schema.json' with { type: 'json' };
 import projectContextSchema from './project-context.schema.json' with { type: 'json' };
 import scanSchema from './scan.schema.json' with { type: 'json' };
 import ingestProposalSchema from './ingest-proposal.schema.json' with { type: 'json' };
+import repoMapSchema from './repo-map.schema.json' with { type: 'json' };
+import moduleCandidatesSchema from './module-candidates.schema.json' with { type: 'json' };
 
 export {
   authProfilesSchema,
@@ -71,6 +73,8 @@ export {
   semanticHashSchema,
   systemPromptSchema,
   moduleRepoMapSchema,
+  repoMapSchema,
+  moduleCandidatesSchema,
   capabilityDefinitionSchema,
   moduleDefinitionSchema,
   flowDefinitionSchema,
@@ -99,7 +103,8 @@ export const schemas = {
   'semantic-hash': semanticHashSchema,
   'system-prompt': systemPromptSchema,
   'module-repo-map': moduleRepoMapSchema,
-  'repo-map': moduleRepoMapSchema,
+  'repo-map': repoMapSchema,
+  'module-candidates': moduleCandidatesSchema,
   'capability-definition': capabilityDefinitionSchema,
   'module-definition': moduleDefinitionSchema,
   'flow-definition': flowDefinitionSchema,

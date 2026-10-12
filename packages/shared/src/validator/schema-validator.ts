@@ -15,6 +15,8 @@ import {
   rulesSchema,
   scanSchema,
   ingestProposalSchema,
+  repoMapSchema,
+  moduleCandidatesSchema,
 } from '../schemas/index.js';
 import type { ExecutionResult } from '../types/execution-result.type.js';
 import type { RepoMap } from '../types/repo-map.type.js';
@@ -25,6 +27,8 @@ import type { ProjectContext } from '../types/project-context.type.js';
 import type { Rules } from '../types/rules.type.js';
 import type { ProjectScan } from '../types/scan.type.js';
 import type { IngestProposal } from '../types/ingest-proposal.type.js';
+import type { ProjectRepoMap } from '../types/project-repo-map.type.js';
+import type { ModuleCandidatesFile } from '../types/module-candidates.type.js';
 
 export interface ValidationError {
   field: string;
@@ -204,6 +208,8 @@ export class SchemaValidator {
       ['rules', this.ajv.compile(rulesSchema)],
       ['scan', this.ajv.compile(scanSchema)],
       ['ingest-proposal', this.ajv.compile(ingestProposalSchema)],
+      ['project-repo-map', this.ajv.compile(repoMapSchema)],
+      ['module-candidates', this.ajv.compile(moduleCandidatesSchema)],
     ]);
   }
 
@@ -283,5 +289,13 @@ export class SchemaValidator {
   /** Valida un objeto rules.yaml contra rules.schema.json (P3 — E1) */
   validateRules(data: unknown): ValidationResult<Rules> {
     return this.runValidation<Rules>('rules', data);
+  }
+
+  validateProjectRepoMap(data: unknown): ValidationResult<ProjectRepoMap> {
+    return this.runValidation<ProjectRepoMap>('project-repo-map', data);
+  }
+
+  validateModuleCandidates(data: unknown): ValidationResult<ModuleCandidatesFile> {
+    return this.runValidation<ModuleCandidatesFile>('module-candidates', data);
   }
 }

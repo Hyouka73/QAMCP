@@ -150,7 +150,22 @@ export type {
 export type {
   IngestProposal,
   ProposedCriticalFlow,
+  ProposedModuleCandidate,
 } from './ingest-proposal.type.js';
+
+// Project Repo Map (P4.5-S1 / C3)
+export type {
+  ProjectRepoMap,
+  ProjectRoute,
+} from './project-repo-map.type.js';
+
+// Module Candidates (P4.5-S1 / C4)
+export type {
+  ModuleCandidate,
+  ModuleCandidatesFile,
+  CandidateConfidence,
+  CandidateSource,
+} from './module-candidates.type.js';
 
 
 
