@@ -1,10 +1,12 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, rmSync, writeFileSync, mkdirSync, readFileSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { mkdtempSync, rmSync, writeFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import YAML from 'yaml';
-import { createMcpServer } from '../server.js';
+import { join } from 'node:path';
+
 import { parsePrdContent } from '@qap/knowledge';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import YAML from 'yaml';
+
+import { createMcpServer } from '../server.js';
 
 describe('P4.3 Suite: Investigar antes de preguntar, Auto-ingesta, Confirmación única y Payload autosuficiente', () => {
   let tempDir: string;

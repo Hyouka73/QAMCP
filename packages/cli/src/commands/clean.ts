@@ -1,5 +1,6 @@
 import { existsSync, rmSync, readdirSync } from 'node:fs';
 import { resolve, join } from 'node:path';
+
 import { confirm } from '@inquirer/prompts';
 
 export interface CleanOptions {

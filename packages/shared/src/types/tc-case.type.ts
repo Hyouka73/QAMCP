@@ -68,7 +68,16 @@ export interface TCCase {
     /**
      * Type of assertion to perform
      */
-    assertion_type?: "equals" | "contains" | "visible" | "exists" | "not_visible" | "not_exists";
+    assertion_type?:
+      "equals" | "contains" | "visible" | "exists" | "not_visible" | "not_exists" | "count" | "attribute";
+    /**
+     * Expected number of elements matching the selector (for assertion_type 'count')
+     */
+    expected_count?: number;
+    /**
+     * HTML attribute name to check (for assertion_type 'attribute')
+     */
+    attribute_name?: string;
     /**
      * Filename for screenshot (optional, auto-generated if not provided)
      */

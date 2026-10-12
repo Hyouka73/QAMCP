@@ -8,8 +8,8 @@ export default tseslint.config(
     ignores: ['**/node_modules/**', '**/dist/**'],
   },
   {
-    // Scripts JS de utilidad (generate-types, etc.) — entorno Node puro sin tsconfig
-    files: ['**/scripts/**/*.js'],
+    // Scripts JS y MJS de utilidad (generate-types, test scripts, etc.) — entorno Node puro sin tsconfig
+    files: ['**/scripts/**/*.{js,mjs}', 'scripts/**/*.{js,mjs}'],
     languageOptions: {
       globals: {
         ...globals.node,
@@ -17,8 +17,8 @@ export default tseslint.config(
     },
   },
   js.configs.recommended,
-  {
-    files: ['packages/**/src/**/*.ts'],
+    {
+    files: ['packages/**/src/**/*.ts', 'packages/**/test/**/*.ts'],
     extends: [...tseslint.configs.recommendedTypeChecked],
     languageOptions: {
       parserOptions: {
@@ -62,11 +62,14 @@ export default tseslint.config(
   },
   {
     // Los tests usan mocks (any por naturaleza) — relajamos solo las reglas de tipado estricto
-    files: ['**/__tests__/**/*.ts', '**/*.spec.ts', '**/*.test.ts'],
+    files: ['**/__tests__/**/*.ts', '**/*.spec.ts', '**/*.test.ts', '**/test/**/*.ts'],
     rules: {
       '@typescript-eslint/no-unsafe-assignment': 'off',
       '@typescript-eslint/no-unsafe-member-access': 'off',
       '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/unbound-method': 'off',
       '@typescript-eslint/require-await': 'off',
     },
