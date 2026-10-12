@@ -94,12 +94,14 @@ import { getPhaseGuidance, buildInterviewNextAction, type SiguienteAccion, QAP_C
 
 let activeViewerServer: ViewerServerInstance | null = null;
 
-export async function checkPlaywrightBrowser(): Promise<{ disponible: boolean; error?: string }> {
+export const PLAYWRIGHT_INSTALL_COMMAND = 'npx playwright install chromium';
+
+export async function checkPlaywrightBrowser(): Promise<{ disponible: boolean; error?: string; comando_instalacion: string }> {
   try {
     const { chromium } = await import('playwright-core');
     const execPath = chromium.executablePath();
     if (execPath && existsSync(execPath)) {
-      return { disponible: true };
+      return { disponible: true, comando_instalacion: PLAYWRIGHT_INSTALL_COMMAND };
     }
   } catch { /* empty */ }
 
@@ -115,7 +117,7 @@ export async function checkPlaywrightBrowser(): Promise<{ disponible: boolean; e
         existsSync(join(prefix!, 'Google', 'Chrome', 'Application', 'chrome.exe')) ||
         existsSync(join(prefix!, 'Microsoft', 'Edge', 'Application', 'msedge.exe'))
       ) {
-        return { disponible: true };
+        return { disponible: true, comando_instalacion: PLAYWRIGHT_INSTALL_COMMAND };
       }
     }
   } else if (process.platform === 'darwin') {
@@ -123,18 +125,19 @@ export async function checkPlaywrightBrowser(): Promise<{ disponible: boolean; e
       existsSync('/Applications/Google Chrome.app') ||
       existsSync('/Applications/Microsoft Edge.app')
     ) {
-      return { disponible: true };
+      return { disponible: true, comando_instalacion: PLAYWRIGHT_INSTALL_COMMAND };
     }
   } else {
     const linuxBins = ['/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser'];
     if (linuxBins.some(existsSync)) {
-      return { disponible: true };
+      return { disponible: true, comando_instalacion: PLAYWRIGHT_INSTALL_COMMAND };
     }
   }
 
   return {
     disponible: false,
-    error: "No se encontró un navegador compatible en el sistema (Google Chrome, Microsoft Edge ni Chromium de Playwright). Instala Google Chrome o ejecuta 'npx playwright install chromium'.",
+    error: `No se encontró un navegador compatible en el sistema (Google Chrome, Microsoft Edge ni Chromium de Playwright). Instala Google Chrome o ejecuta '${PLAYWRIGHT_INSTALL_COMMAND}'.`,
+    comando_instalacion: PLAYWRIGHT_INSTALL_COMMAND,
   };
 }
 
@@ -1116,12 +1119,12 @@ export function createMcpServer(): Server {
           const browserCheck = await checkPlaywrightBrowser();
           const preflight = {
             navegador_qap: (browserCheck.disponible ? 'ok' : 'falta') as 'ok' | 'falta',
-            comando_instalacion: 'npx playwright install chromium',
+            comando_instalacion: PLAYWRIGHT_INSTALL_COMMAND,
           };
           const installAccion: SiguienteAccion = {
             tipo: 'trabajo',
-            comando: 'npx playwright install chromium',
-            descripcion: "Instalar navegador Chromium para Playwright sin consultar al usuario. Ejecuta 'npx playwright install chromium'.",
+            comando: PLAYWRIGHT_INSTALL_COMMAND,
+            descripcion: `Instalar navegador Chromium para Playwright sin consultar al usuario. Ejecuta '${PLAYWRIGHT_INSTALL_COMMAND}'.`,
           };
 
           if (!initialized) {
@@ -1160,7 +1163,7 @@ export function createMcpServer(): Server {
                       advertencias,
                       siguiente_accion: statusNextAction,
                       _guidance_for_assistant: !browserCheck.disponible
-                        ? "Ejecuta 'npx playwright install chromium' sin consultar al usuario."
+                        ? `Ejecuta '${PLAYWRIGHT_INSTALL_COMMAND}' sin consultar al usuario.`
                         : 'NO expliques listas de pasos futuros. Haz al usuario la pregunta con ask_question: ' + (preg?.texto || ''),
                     },
                     null,
@@ -1494,7 +1497,7 @@ export function createMcpServer(): Server {
           const browserCheck = await checkPlaywrightBrowser();
           const preflight = {
             navegador_qap: (browserCheck.disponible ? 'ok' : 'falta') as 'ok' | 'falta',
-            comando_instalacion: 'npx playwright install chromium',
+            comando_instalacion: PLAYWRIGHT_INSTALL_COMMAND,
           };
 
           const repoMap = scanProjectRoutes(rootDir, scan.subproyectos || []);
@@ -1514,8 +1517,8 @@ export function createMcpServer(): Server {
           if (!browserCheck.disponible) {
             guidance.siguiente_accion = {
               tipo: 'trabajo',
-              comando: 'npx playwright install chromium',
-              descripcion: "Instalar navegador Chromium para Playwright sin consultar al usuario. Ejecuta 'npx playwright install chromium'.",
+              comando: PLAYWRIGHT_INSTALL_COMMAND,
+              descripcion: `Instalar navegador Chromium para Playwright sin consultar al usuario. Ejecuta '${PLAYWRIGHT_INSTALL_COMMAND}'.`,
             };
           }
 
@@ -1549,7 +1552,7 @@ export function createMcpServer(): Server {
                     fase: finalPhase,
                     siguiente_accion: guidance.siguiente_accion,
                     _guidance_for_assistant: !browserCheck.disponible
-                      ? "Ejecuta 'npx playwright install chromium' sin consultar al usuario."
+                      ? `Ejecuta '${PLAYWRIGHT_INSTALL_COMMAND}' sin consultar al usuario.`
                       : `Fase actual: ${finalPhase}. Siguiente acción: ${guidance.siguiente_accion.descripcion}`,
                   },
                   null,
@@ -3095,8 +3098,8 @@ export function createMcpServer(): Server {
 
           if (resolvedModules.length === 0 && Array.isArray(args.modules)) {
             resolvedModules = args.modules.map((m: any) => ({
-              module: String(m.module).trim(),
-              path: String(m.path).trim(),
+              module: String(m.module || m.name || '').trim(),
+              path: String(m.path || '').trim(),
               priority: String(m.priority || 'medium').trim(),
               flujos: Array.isArray(m.flujos) ? m.flujos : [],
             }));
@@ -3136,7 +3139,10 @@ export function createMcpServer(): Server {
                 content: [{ type: 'text', text: JSON.stringify({ status: 'error', error: 'Elemento de módulo inválido en el lote.' }, null, 2) }],
               };
             }
-            const mName = String(m.module || '').trim();
+            const mName = String(m.module || (m as any).name || '').trim();
+            if (!m.module && (m as any).name) {
+              m.module = (m as any).name;
+            }
             const mPath = String(m.path || '').trim();
             const mPriority = String(m.priority || '').trim();
 
@@ -4138,7 +4144,21 @@ export function createMcpServer(): Server {
 
           // E4: Construir siguiente_accion tipo entrevista_vista (o decision ante fallo de Playwright, T9)
           const isPlaywrightFailure = !playwrightUsed || Boolean(playwrightError);
-          const siguienteAccion = isPlaywrightFailure
+          const isMissingBrowser = Boolean(
+            playwrightError && (
+              playwrightError.includes("executable doesn't exist") ||
+              playwrightError.includes('No se encontró un navegador compatible') ||
+              playwrightError.includes('playwright install')
+            )
+          );
+          const siguienteAccion = isMissingBrowser
+            ? {
+                tipo: 'trabajo' as const,
+                comando: PLAYWRIGHT_INSTALL_COMMAND,
+                descripcion: `Instalar navegador Chromium para Playwright sin consultar al usuario. Ejecuta '${PLAYWRIGHT_INSTALL_COMMAND}'.`,
+                tool: 'qap_discover',
+              }
+            : isPlaywrightFailure
             ? {
                 tipo: 'decision' as const,
                 descripcion: `Falló la exploración con Playwright para el módulo '${name}': ${playwrightError || 'Error de navegación'}. Decide si reintentar con otra URL, verificar servidor o continuar manualmente.`,
@@ -4219,6 +4239,7 @@ export function createMcpServer(): Server {
             redirected: redirected,
             http_status: httpStatus,
             siguiente_accion: siguienteAccion,
+            ...(isMissingBrowser ? { comando_instalacion: PLAYWRIGHT_INSTALL_COMMAND } : {}),
           };
 
           // E0b: Transición a través de transitionModule (con soporte a regresión consolidated -> interviewing)

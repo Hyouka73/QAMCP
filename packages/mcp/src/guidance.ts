@@ -28,13 +28,12 @@ export type AccionTipo = 'entrevista' | 'entrevista_vista' | 'decision' | 'traba
  */
 export const QAP_CORE_DIRECTIVES =
   'DIRECTIVAS OBLIGATORIAS:\n' +
-  '1. Sigue la siguiente_accion del servidor.\n' +
-  '2. Investiga el repo: lee docs, README y package.json.\n' +
-  '3. No pidas lo que un documento ya especifica.\n' +
+  '1. Sigue estrictamente la siguiente_accion indicada por el servidor.\n' +
+  '2. Investiga el workspace antes de preguntar: lee documentos, README y package.json.\n' +
+  '3. No pidas al usuario lo que un documento ya especifica.\n' +
   '4. Pasos de tipo "trabajo" son autónomos: ejecútalos directamente sin consultar al usuario; las acciones que requieren confirmación nunca vienen como trabajo.\n' +
-  '5. Si falta navegador, instálalo con el comando indicado como paso de trabajo autónomo.\n' +
-  '6. Explora solo con qap_discover; no uses navegadores externos (no persisten en .qa).\n' +
-  '7. Máximo una sola pregunta estructurada al usuario por turno.';
+  '5. Máximo una sola pregunta estructurada al usuario por turno.\n' +
+  '6. Si falta navegador, instálalo con el comando indicado como paso de trabajo autónomo. Explora solo con qap_discover.';
 
 export interface SiguienteAccion {
   tipo: AccionTipo;
@@ -238,13 +237,12 @@ export function getPhaseGuidance(
         let modulesPregunta: Pregunta;
         if (candidateModules.length >= 2) {
           const topCandidates = candidateModules.slice(0, 7);
-          const opciones: Opcion[] = topCandidates.map((m, idx) => {
+          const opciones: Opcion[] = topCandidates.map((m) => {
             const rutaPart = m.path ? m.path : 'ruta por confirmar';
             const flujosPart = m.flujos && m.flujos.length > 0 ? ` - cubre: ${m.flujos.join(', ')}` : '';
             return {
               id: m.id || `modulo_${normalizeSlug(m.module)}`,
               etiqueta: `${m.module} (${rutaPart})${flujosPart}`,
-              recomendada: idx === 0,
             };
           });
           opciones.push({
@@ -255,6 +253,16 @@ export function getPhaseGuidance(
             },
           });
 
+          const seguimientoOtroModulo: Pregunta = {
+            id: 'scoping.otro_modulo.detalle',
+            texto: 'Indica el nombre y la ruta del módulo a probar (por ejemplo: Catálogo /catalog):',
+            formato: 'abierta',
+            opciones: [],
+            permite_otra: true,
+            registrar_con: { tool: 'qap_session_plan', campo: 'adicionales' },
+          };
+          seguimientoOtroModulo.render_texto = generarRenderTexto(seguimientoOtroModulo);
+
           modulesPregunta = {
             id: 'scoping.modulos_a_probar',
             texto: 'Selecciona los módulos prioritarios a verificar en esta sesión (se recomienda comenzar por los 3 primeros):',
@@ -262,6 +270,7 @@ export function getPhaseGuidance(
             opciones,
             permite_otra: true,
             registrar_con: { tool: 'qap_session_plan', campo: 'desde_candidatos' },
+            seguimiento: seguimientoOtroModulo,
           };
         } else {
           modulesPregunta = {

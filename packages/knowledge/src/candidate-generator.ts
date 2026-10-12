@@ -179,12 +179,12 @@ export function generateModuleCandidates(
   const repoOnlyCandidates: ModuleCandidate[] = [];
   for (const r of allRepoRoutes) {
     if (matchedRoutePaths.has(r.path)) continue;
-    // Omitir rutas parametrizadas, comodines o de auth/login
+    // Omitir rutas parametrizadas, comodines o de auth/login/acceso/404 (C4)
     if (
       r.path.includes(':') ||
       r.path.includes('*') ||
       r.path === '/' ||
-      /auth|login|signin|register|signup|logout/i.test(r.path)
+      /auth|login|signin|register|signup|logout|acceso|404|not-found/i.test(r.path)
     ) {
       continue;
     }

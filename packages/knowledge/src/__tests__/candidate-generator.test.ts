@@ -212,4 +212,104 @@ Evidencia: Consulta de balances contables mensuales.
     const val = validator.validateModuleCandidates(res.candidatesFile);
     expect(val.valid).toBe(true);
   });
+
+  it('D8: ordena estrictamente por flujos de prioridad alta, luego flujos totales, luego confianza, luego nombre', () => {
+    const flowsWithPriority = [
+      { name: 'Flujo High 1', priority: 'high' as const },
+      { name: 'Flujo High 2', priority: 'high' as const },
+      { name: 'Flujo Normal 1', priority: 'medium' as const },
+      { name: 'Flujo Normal 2', priority: 'medium' as const },
+    ];
+
+    const proposed: ProposedModuleCandidate[] = [
+      {
+        nombre: 'Zeta Sin Flujos',
+        evidence: 'catálogo de productos',
+        ruta_hint: '/catalogo', // doc + repo -> confianza alta
+        flujos: [],
+      },
+      {
+        nombre: 'Alfa Con Flujo Normal',
+        evidence: 'procesamiento seguro de pagos',
+        flujos: ['Flujo Normal 1'], // confianza media
+      },
+      {
+        nombre: 'Beta Con Flujo High',
+        evidence: 'consulta de balances',
+        flujos: ['Flujo High 1'], // confianza media
+      },
+      {
+        nombre: 'Delta Con Dos Flujos High',
+        evidence: 'catálogo de productos',
+        flujos: ['Flujo High 1', 'Flujo High 2'], // confianza media
+      },
+    ];
+
+    const res = generateModuleCandidates({
+      rawDocContent: docText,
+      proposedCandidates: proposed,
+      repoMap,
+      criticalFlows: flowsWithPriority,
+    });
+
+    const cands = res.candidatesFile.candidates;
+    // 1ro: Delta (2 flujos high)
+    expect(cands[0]?.nombre).toBe('Delta Con Dos Flujos High');
+    // 2do: Beta (1 flujo high)
+    expect(cands[1]?.nombre).toBe('Beta Con Flujo High');
+    // 3ro: Alfa (1 flujo normal)
+    expect(cands[2]?.nombre).toBe('Alfa Con Flujo Normal');
+    // 4to: Zeta (0 flujos, pero confianza alta)
+    expect(cands[3]?.nombre).toBe('Zeta Sin Flujos');
+  });
+
+  it('C4: excluye rutas del repo con parámetros, comodines o patrones de acceso, login y 404', () => {
+    const customRepoMap: ProjectRepoMap = {
+      _version: '1.0.0',
+      subproyectos: [{ path: 'web', name: 'web', framework: 'react' }],
+      rutas: [
+        { path: '/users/:id', archivo: 'src/users.tsx', linea: 1, framework: 'react', requiere_sesion: null, roles: [] },
+        { path: '/docs/*', archivo: 'src/docs.tsx', linea: 1, framework: 'react', requiere_sesion: null, roles: [] },
+        { path: '/acceso', archivo: 'src/acceso.tsx', linea: 1, framework: 'react', requiere_sesion: null, roles: [] },
+        { path: '/auth/login', archivo: 'src/login.tsx', linea: 1, framework: 'react', requiere_sesion: null, roles: [] },
+        { path: '/404', archivo: 'src/404.tsx', linea: 1, framework: 'react', requiere_sesion: null, roles: [] },
+        { path: '/not-found', archivo: 'src/nf.tsx', linea: 1, framework: 'react', requiere_sesion: null, roles: [] },
+        { path: '/dashboard', archivo: 'src/dash.tsx', linea: 1, framework: 'react', requiere_sesion: null, roles: [] },
+      ],
+      advertencias: [],
+    };
+
+    const res = generateModuleCandidates({
+      rawDocContent: docText,
+      proposedCandidates: [],
+      repoMap: customRepoMap,
+      criticalFlows: [],
+    });
+
+    const rutas = res.candidatesFile.candidates.map((c) => c.ruta);
+    expect(rutas).toContain('/dashboard');
+    expect(rutas).not.toContain('/users/:id');
+    expect(rutas).not.toContain('/docs/*');
+    expect(rutas).not.toContain('/acceso');
+    expect(rutas).not.toContain('/auth/login');
+    expect(rutas).not.toContain('/404');
+    expect(rutas).not.toContain('/not-found');
+  });
+
+  it('C4: ausencia total de fuentes devuelve lista vacía sin fallar', () => {
+    const res = generateModuleCandidates({
+      rawDocContent: '',
+      proposedCandidates: [],
+      repoMap: {
+        _version: '1.0.0',
+        subproyectos: [],
+        rutas: [],
+        advertencias: [],
+      },
+      criticalFlows: [],
+    });
+
+    expect(res.candidatesFile.candidates).toHaveLength(0);
+    expect(res.rejectedCandidates).toHaveLength(0);
+  });
 });

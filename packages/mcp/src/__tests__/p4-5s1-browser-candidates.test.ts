@@ -4,10 +4,12 @@ import * as path from 'node:path';
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import type { Pregunta, Opcion } from '@qap/engine';
+import { guardPregunta } from '@qap/engine';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 import { QAP_CORE_DIRECTIVES } from '../guidance.js';
-import { createMcpServer } from '../server.js';
+import { createMcpServer, PLAYWRIGHT_INSTALL_COMMAND, checkPlaywrightBrowser } from '../server.js';
 
 describe('P4.5-S1: Preflight browser, Module Candidates, and Session Plan', () => {
   let tmpDir: string;
@@ -295,6 +297,163 @@ describe('P4.5-S1: Preflight browser, Module Candidates, and Session Plan', () =
       expect(pregunta).toEqual(expectedOriginal);
     } finally {
       fs.rmSync(noFrontDir, { recursive: true, force: true });
+    }
+  });
+
+  it('D5: comando de instalacion consistente en preflight, qap_init, qap_status y checkPlaywrightBrowser', async () => {
+    // 1. Constante compartida canónica
+    expect(PLAYWRIGHT_INSTALL_COMMAND).toBe('npx playwright install chromium');
+
+    // 2. checkPlaywrightBrowser()
+    const browserCheck = await checkPlaywrightBrowser();
+    expect(browserCheck.comando_instalacion).toBe(PLAYWRIGHT_INSTALL_COMMAND);
+
+    // 3. qap_init
+    const initRes = await client.callTool({
+      name: 'qap_init',
+      arguments: { targetPath: tmpDir }
+    }) as { content: Array<{ type: string; text: string }> };
+    const initData = JSON.parse(initRes.content[0].text);
+    expect(initData.preflight?.comando_instalacion).toBe(PLAYWRIGHT_INSTALL_COMMAND);
+
+    // 4. qap_status
+    const statusRes = await client.callTool({
+      name: 'qap_status',
+      arguments: { targetPath: tmpDir }
+    }) as { content: Array<{ type: string; text: string }> };
+    const statusData = JSON.parse(statusRes.content[0].text);
+    expect(statusData.preflight?.comando_instalacion).toBe(PLAYWRIGHT_INSTALL_COMMAND);
+  });
+
+  it('C5: scoping con 3 y con 9 candidatos (máximo 7 por tarjeta + Otro módulo), sin recomendada en opciones y pasa guardia de emisión', async () => {
+    await initAndAdvanceToScoping(client, tmpDir);
+
+    // Caso A: 3 candidatos
+    const candidates3 = [
+      { id: 'c1', nombre: 'Módulo Uno', ruta: '/uno', fuentes: ['doc'], flujos: ['F1: Iniciar sesión'], confianza: 'alta', evidencia: 'E1' },
+      { id: 'c2', nombre: 'Módulo Dos', ruta: '/dos', fuentes: ['doc'], flujos: ['F2: Ver perfil'], confianza: 'media', evidencia: 'E2' },
+      { id: 'c3', nombre: 'Módulo Tres', ruta: null, fuentes: ['doc'], flujos: [], confianza: 'baja', evidencia: 'E3' },
+    ];
+    const candPath = path.join(tmpDir, '.qa', 'project', 'module-candidates.json');
+    fs.writeFileSync(candPath, JSON.stringify({ _version: '1.0.0', candidates: candidates3 }, null, 2), 'utf-8');
+
+    const status3Res = await client.callTool({
+      name: 'qap_status',
+      arguments: { targetPath: tmpDir }
+    }) as { content: Array<{ type: string; text: string }> };
+    const status3Data = JSON.parse(status3Res.content[0].text);
+    const preg3 = status3Data.siguiente_accion?.pregunta;
+
+    expect(preg3).toBeDefined();
+    expect(preg3.formato).toBe('multiple');
+    // 3 candidatos + "Otro módulo" = 4 opciones
+    expect(preg3.opciones).toHaveLength(4);
+    // Ninguna opción debe tener recomendada: true (se recomienda en el texto)
+    for (const opt of preg3.opciones as Opcion[]) {
+      expect(opt.recomendada).toBeFalsy();
+    }
+    expect(preg3.texto.toLowerCase()).toContain('se recomienda');
+    expect(preg3.texto.toLowerCase()).toContain('3 primeros');
+    // Candidato con ruta null muestra (ruta por confirmar)
+    const optNull = (preg3.opciones as Opcion[]).find((o) => o.id === 'c3');
+    expect(optNull?.etiqueta).toContain('(ruta por confirmar)');
+    // Opción otro módulo presente con efecto abre_seguimiento y pregunta con seguimiento
+    const optOtro = (preg3.opciones as Opcion[]).find((o) => o.id === 'otro_modulo');
+    expect(optOtro).toBeDefined();
+    expect(optOtro?.efecto?.abre_seguimiento).toBe(true);
+    expect(preg3.seguimiento).toBeDefined();
+    // Debe pasar la guardia de emisión sin lanzar
+    expect(() => {
+      guardPregunta(preg3 as Pregunta);
+    }).not.toThrow();
+
+    // Caso B: 9 candidatos (debe topar a máximo 7 por tarjeta + Otro módulo = 8 opciones)
+    const candidates9 = [];
+    for (let i = 1; i <= 9; i++) {
+      candidates9.push({
+        id: `cand_${i}`,
+        nombre: `Módulo Extra ${i}`,
+        ruta: `/extra-${i}`,
+        fuentes: ['doc'],
+        flujos: [],
+        confianza: 'media',
+        evidencia: `Evidencia ${i}`
+      });
+    }
+    fs.writeFileSync(candPath, JSON.stringify({ _version: '1.0.0', candidates: candidates9 }, null, 2), 'utf-8');
+
+    const status9Res = await client.callTool({
+      name: 'qap_status',
+      arguments: { targetPath: tmpDir }
+    }) as { content: Array<{ type: string; text: string }> };
+    const status9Data = JSON.parse(status9Res.content[0].text);
+    const preg9 = status9Data.siguiente_accion?.pregunta;
+
+    expect(preg9).toBeDefined();
+    // 7 candidatos máximos + 1 "Otro módulo" = 8 opciones
+    expect(preg9.opciones).toHaveLength(8);
+    expect(preg9.opciones[7].id).toBe('otro_modulo');
+    expect(() => {
+      guardPregunta(preg9 as Pregunta);
+    }).not.toThrow();
+  });
+
+  it('C6: qap_session_plan asigna high a los 3 primeros y medium al resto, con soporte retrocompatible para modules', async () => {
+    await initAndAdvanceToScoping(client, tmpDir);
+
+    const candidates = [];
+    for (let i = 1; i <= 5; i++) {
+      candidates.push({
+        id: `c_${i}`,
+        nombre: `Modulo ${i}`,
+        ruta: `/ruta-${i}`,
+        fuentes: ['doc'],
+        flujos: [`F${i}`],
+        confianza: 'alta',
+        evidencia: `E${i}`
+      });
+    }
+    const candPath = path.join(tmpDir, '.qa', 'project', 'module-candidates.json');
+    fs.writeFileSync(candPath, JSON.stringify({ _version: '1.0.0', candidates }, null, 2), 'utf-8');
+
+    // Elegir 5 candidatos
+    const planRes = await client.callTool({
+      name: 'qap_session_plan',
+      arguments: {
+        targetPath: tmpDir,
+        desde_candidatos: ['c_1', 'c_2', 'c_3', 'c_4', 'c_5'],
+      }
+    }) as { content: Array<{ type: string; text: string }> };
+    const planData = JSON.parse(planRes.content[0].text);
+    expect(planData.status).toBe('success');
+    expect(planData.plan).toHaveLength(5);
+    // Primeros 3 tienen priority high
+    expect(planData.plan[0].priority).toBe('high');
+    expect(planData.plan[1].priority).toBe('high');
+    expect(planData.plan[2].priority).toBe('high');
+    // Los siguientes tienen priority medium
+    expect(planData.plan[3].priority).toBe('medium');
+    expect(planData.plan[4].priority).toBe('medium');
+
+    // Retrocompatibilidad: formato tradicional con modules
+    const retroDir = fs.mkdtempSync(path.join(os.tmpdir(), 'qap-retro-plan-'));
+    try {
+      await initAndAdvanceToScoping(client, retroDir);
+      const retroPlanRes = await client.callTool({
+        name: 'qap_session_plan',
+        arguments: {
+          targetPath: retroDir,
+          modules: [
+            { name: 'Catálogo', path: '/catalog', priority: 'high' }
+          ]
+        }
+      }) as { content: Array<{ type: string; text: string }> };
+      const retroPlanData = JSON.parse(retroPlanRes.content[0].text);
+      expect(retroPlanData.status).toBe('success');
+      expect(retroPlanData.plan[0].module).toBe('Catálogo');
+      expect(retroPlanData.plan[0].path).toBe('/catalog');
+    } finally {
+      fs.rmSync(retroDir, { recursive: true, force: true });
     }
   });
 });

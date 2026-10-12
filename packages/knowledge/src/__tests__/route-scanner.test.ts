@@ -220,18 +220,21 @@ export const routes = [
     expect(res.rutas.some((r) => r.path === '/huge-route')).toBe(false);
   });
 
-  it('demuestra que archivos .env* con rutas no aparecen en repo-map y que no hay rastro del contenido', () => {
-    const envPath = join(tempDir, '.env');
-    const envProdPath = join(tempDir, '.env.production');
-    const envLocalPath = join(tempDir, '.env.local');
+  it('demuestra que archivos .env* con rutas parseables no aparecen en repo-map y que no hay rastro del contenido', () => {
+    // D4: Señuelos parseables por el escáner (.tsx, .ts y directorio .env/ con routes.tsx)
+    const envLocalTsx = join(tempDir, '.env.local.tsx');
+    const envProdTs = join(tempDir, '.env.production.ts');
+    const envDir = join(tempDir, '.env');
+    mkdirSync(envDir, { recursive: true });
 
-    const secretRoute1 = '/secret-from-env-xyz-99';
-    const secretRoute2 = '/secret-prod-token-abc';
+    const secretRoute1 = '/secret-from-env-local';
+    const secretRoute2 = '/secret-from-env-prod';
+    const secretRoute3 = '/secret-from-env-dir';
     const secretKey = 'DATABASE_SECRET_KEY_12345';
 
-    writeFileSync(envPath, `ROUTER_SECRET=${secretRoute1}\nKEY=${secretKey}`, 'utf-8');
-    writeFileSync(envProdPath, `VITE_API=${secretRoute2}`, 'utf-8');
-    writeFileSync(envLocalPath, `REACT_APP_ROUTE=/secret-local-route`, 'utf-8');
+    writeFileSync(envLocalTsx, `// Secret\nexport const SecretLocal = () => <Route path="${secretRoute1}" />;\nconst KEY = '${secretKey}';`, 'utf-8');
+    writeFileSync(envProdTs, `// Secret\nexport const routes = [{ path: '${secretRoute2}' }];`, 'utf-8');
+    writeFileSync(join(envDir, 'routes.tsx'), `<Route path="${secretRoute3}" />`, 'utf-8');
 
     // Archivo normal para asegurar que la exploracion ocurra normalmente
     const appDir = join(tempDir, 'app');
@@ -245,13 +248,110 @@ export const routes = [
     // Comprobar que la ruta pública sí se descubrió
     expect(res.rutas.some((r) => r.path === '/public-ok')).toBe(true);
 
-    // Comprobar exhaustivamente que NINGÚN rastro del contenido de .env existe en el resultado
+    // Comprobar exhaustivamente que las rutas secretas NO existen en repo-map
+    expect(res.rutas.some((r) => r.path === secretRoute1)).toBe(false);
+    expect(res.rutas.some((r) => r.path === secretRoute2)).toBe(false);
+    expect(res.rutas.some((r) => r.path === secretRoute3)).toBe(false);
+
+    // Comprobar exhaustivamente que NINGÚN rastro del secreto ni de .env existe en el resultado
     const jsonOutput = JSON.stringify(res);
     expect(jsonOutput).not.toContain(secretRoute1);
     expect(jsonOutput).not.toContain(secretRoute2);
+    expect(jsonOutput).not.toContain(secretRoute3);
     expect(jsonOutput).not.toContain(secretKey);
-    expect(jsonOutput).not.toContain('/secret-local-route');
     expect(jsonOutput).not.toContain('.env');
+  });
+
+  it('D3: rutas contiguas en React Router no contagian guards a rutas hermanas', () => {
+    const frontDir = join(tempDir, 'react-contiguous');
+    mkdirSync(join(frontDir, 'src'), { recursive: true });
+
+    writeFileSync(
+      join(frontDir, 'src', 'App.tsx'),
+      `
+import { Route, Routes } from 'react-router-dom';
+export function App() {
+  return (
+    <Routes>
+      <Route path="/public-prev" element={<PublicPrev />} />
+      <Route element={<AuthGuard />}>
+        <Route path="/protected-area" element={<ProtectedArea />} />
+      </Route>
+      <Route path="/public-post" element={<PublicPost />} />
+    </Routes>
+  );
+}
+      `,
+      'utf-8'
+    );
+
+    const res = scanProjectRoutes(tempDir, [
+      { path: 'react-contiguous', name: 'react-contiguous', framework: 'react' },
+    ]);
+
+    const prev = res.rutas.find((r) => r.path === '/public-prev');
+    const prot = res.rutas.find((r) => r.path === '/protected-area');
+    const post = res.rutas.find((r) => r.path === '/public-post');
+
+    expect(prev?.requiere_sesion).toBeNull();
+    expect(prot?.requiere_sesion).toBe(true);
+    expect(post?.requiere_sesion).toBeNull();
+  });
+
+  it('D3: rutas contiguas en Vue Router acotan guard al objeto sin afectar rutas vecinas', () => {
+    const vueDir = join(tempDir, 'vue-contiguous');
+    mkdirSync(join(vueDir, 'src'), { recursive: true });
+
+    writeFileSync(
+      join(vueDir, 'src', 'routes.ts'),
+      `
+export const routes = [
+  { path: '/v-public-1', component: C1 },
+  { path: '/v-protected', component: C2, meta: { requiresAuth: true } },
+  { path: '/v-public-2', component: C3 }
+];
+      `,
+      'utf-8'
+    );
+
+    const res = scanProjectRoutes(tempDir, [
+      { path: 'vue-contiguous', name: 'vue-contiguous', framework: 'vue' },
+    ]);
+
+    const p1 = res.rutas.find((r) => r.path === '/v-public-1');
+    const prot = res.rutas.find((r) => r.path === '/v-protected');
+    const p2 = res.rutas.find((r) => r.path === '/v-public-2');
+
+    expect(p1?.requiere_sesion).toBeNull();
+    expect(prot?.requiere_sesion).toBe(true);
+    expect(p2?.requiere_sesion).toBeNull();
+  });
+
+  it('D3: Next.js route groups como (auth) no fabrican guard; layouts ancestros con guard si', () => {
+    const nextDir = join(tempDir, 'next-guard-app');
+    mkdirSync(join(nextDir, 'app', '(auth)', 'login'), { recursive: true });
+    mkdirSync(join(nextDir, 'app', '(protected)', 'dashboard'), { recursive: true });
+
+    // (auth)/login sin guard en layout
+    writeFileSync(join(nextDir, 'app', '(auth)', 'login', 'page.tsx'), 'export default function Login() {}', 'utf-8');
+
+    // (protected)/dashboard con layout que contiene AuthGuard
+    writeFileSync(
+      join(nextDir, 'app', '(protected)', 'layout.tsx'),
+      'export default function ProtectedLayout({ children }: any) { return <AuthGuard>{children}</AuthGuard>; }',
+      'utf-8'
+    );
+    writeFileSync(join(nextDir, 'app', '(protected)', 'dashboard', 'page.tsx'), 'export default function Dashboard() {}', 'utf-8');
+
+    const res = scanProjectRoutes(tempDir, [
+      { path: 'next-guard-app', name: 'next-guard-app', framework: 'next' },
+    ]);
+
+    const login = res.rutas.find((r) => r.path === '/login');
+    const dash = res.rutas.find((r) => r.path === '/dashboard');
+
+    expect(login?.requiere_sesion).toBeNull();
+    expect(dash?.requiere_sesion).toBe(true);
   });
 
   it('extrae rutas correctamente en subproyectos anidados', () => {
