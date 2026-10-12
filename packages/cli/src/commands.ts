@@ -33,10 +33,12 @@ import { handlePrune } from './commands/prune.js';
 import { handleRuntimeReindex } from './commands/reindex.js';
 import { handlePlan } from './commands/plan.js';
 import { handleMcp } from './commands/mcp.js';
+import { handleTest } from './commands/test.js';
+import { handleUpdate } from './commands/update.js';
+import { handleRollback } from './commands/rollback.js';
 
 export { handleClean } from './commands/clean.js';
 export { handleMcp } from './commands/mcp.js';
-import { handleTest } from './commands/test.js';
 
 interface CommandDefinition {
   /** Nombre del subcomando, p.ej. "test" -> `qap test`. */
@@ -46,9 +48,8 @@ interface CommandDefinition {
   args?: string;
 }
 
-// Mantenemos los placeholders eliminando 'status', 'report', 'context' y 'search' que tienen implementación real
+// Mantenemos únicamente los stubs pendientes que aún no tienen implementación real
 const COMMANDS: readonly CommandDefinition[] = [
-  { name: 'update', description: 'Actualiza un módulo ya descubierto.', args: '<module>' },
   { name: 'flow', description: 'Ejecuta un flow definido sobre uno o más módulos.', args: '<flow>' },
 ];
 
@@ -155,18 +156,20 @@ export function registerCommands(program: Command): void {
     .action(async (target?: string, options?: { profile?: string; headed?: boolean }) => {
       await handleRun(target, options);
     });
-    program
-  .command('test [module]')
-  .description('Ejecuta pruebas filtrando por tags, caso individual o shard')
-  .option('--tags <tags>', 'Lista de tags separados por coma (ej. smoke,regression)')
-  .option('--case <caseId>', 'Ejecuta un unico caso por su id')
-  .option('--shard <shard>', 'Particiona la ejecucion en formato "i/n" (ej. 1/3)')
-  .option('--retries <n>', 'Numero de reintentos para casos fallidos')
-  .option('--headed', 'Ejecuta con interfaz grafica visible')
-  .option('--fail-fast', 'Detiene la ejecucion en el primer caso fallido')
-  .action(async (moduleArg: string | undefined, options: import('./commands/test.js').TestCommandOptions) => {
-    await handleTest(moduleArg, options);
-  });
+
+  program
+    .command('test [module]')
+    .description('Ejecuta pruebas filtrando por tags, caso individual o shard')
+    .option('--tags <tags>', 'Lista de tags separados por coma (ej. smoke,regression)')
+    .option('--case <caseId>', 'Ejecuta un unico caso por su id')
+    .option('--shard <shard>', 'Particiona la ejecucion en formato "i/n" (ej. 1/3)')
+    .option('--retries <n>', 'Numero de reintentos para casos fallidos')
+    .option('--headed', 'Ejecuta con interfaz grafica visible')
+    .option('--fail-fast', 'Detiene la ejecucion en el primer caso fallido')
+    .action(async (moduleArg: string | undefined, options: import('./commands/test.js').TestCommandOptions) => {
+      await handleTest(moduleArg, options);
+    });
+
   program 
     .command('discover [name]')
     .description('Descubre un módulo por fases: interview, navigate, repo-map')
@@ -174,6 +177,24 @@ export function registerCommands(program: Command): void {
     .option('--amend', 'Corrige campos específicos de un módulo ya documentado, sin re-escaneo')
     .action(async (name: string | undefined, options: { phase?: string; amend?: boolean }) => {
       await handleDiscover(name, options);
+    });
+
+  // Subcomando 'update'
+  program
+    .command('update [module]')
+    .description('Actualiza un módulo descubriendo cambios y aplicando diffs')
+    .option('--dry-run', 'Simula la actualización sin modificar archivos')
+    .option('-i, --interactive', 'Modo interactivo de actualización')
+    .action(async (moduleName?: string, options?: { dryRun?: boolean; interactive?: boolean }) => {
+      await handleUpdate(moduleName, options);
+    });
+
+  // Subcomando 'rollback'
+  program
+    .command('rollback [module]')
+    .description('Restaura un módulo al estado de su respaldo anterior')
+    .action(async (moduleName?: string) => {
+      await handleRollback(moduleName);
     });
 
   const configGroup = program
@@ -252,7 +273,7 @@ export function registerCommands(program: Command): void {
       await handleMcp();
     });
 
-  // 8. Registrar los comandos placeholders pendientes (Sprint 1)
+  // 8. Registrar los comandos placeholders restantes
   for (const definition of COMMANDS) {
     const subcommand = program.command(definition.name).description(definition.description);
 

@@ -1,4 +1,3 @@
-import { interpolateStep } from './context/interpolator.js';
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright-core';
 import type {
   TestPlan,
@@ -12,6 +11,7 @@ import type {
   FailureType,
 } from '@qap/shared';
 
+import { interpolateStep } from './context/interpolator.js';
 import {
   executeNavigate,
   executeClick,
