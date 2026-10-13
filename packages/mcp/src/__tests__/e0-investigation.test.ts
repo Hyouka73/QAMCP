@@ -1,15 +1,17 @@
-import { describe, it, expect } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import YAML from 'yaml';
+
 import { CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { truncarTexto } from '@qap/engine';
+import { describe, it, expect } from 'vitest';
+import YAML from 'yaml';
+
 import { createMcpServer } from '../server.js';
 
 describe('E0 / B10 Pruebas de regresión sin impresión', () => {
   async function callTool(server: any, name: string, args: Record<string, unknown> = {}) {
-    const handler = (server as any)._requestHandlers.get(CallToolRequestSchema.shape.method.value);
+    const handler = server._requestHandlers.get(CallToolRequestSchema.shape.method.value);
     return await handler({ method: 'tools/call', params: { name, arguments: args } }, {});
   }
 

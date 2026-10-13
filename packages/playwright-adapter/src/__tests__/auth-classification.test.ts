@@ -214,6 +214,7 @@ describe('B1 & B5: Clasificación de páginas y detección de AuthWall con Chrom
     expect(ctx.requested_url).toBe(`${fixture.baseUrl}/protected-delayed-client-guard`);
     expect(ctx.final_url).toBe(`${fixture.baseUrl}/login`);
     expect(ctx.is_auth_view).toBe(true);
+    expect(ctx.auth_selectors?.username).toBe('#inp-user');
   });
 
   // Caso 10: Cambio de URL o redirección durante la extracción (C3b/c)
@@ -230,6 +231,41 @@ describe('B1 & B5: Clasificación de páginas y detección de AuthWall con Chrom
     expect(ctx.forms).toEqual([]);
     expect(ctx.inputs).toEqual([]);
     expect(ctx.buttons).toEqual([]);
+  });
+
+  // Caso 11: SPA con skeleton y espera de asentamiento (C2)
+  it('11. SPA con skeleton: con espera de asentamiento extrae contenido real (2 botones y 1 campo)', async () => {
+    const adapter = new PlaywrightAdapter({ baseUrl: fixture.baseUrl, headless: true, urlStabilityWindowMs: 100 });
+    const module = await adapter.discover({ name: 'spa_skeleton_asentado', path: '/spa-skeleton' });
+
+    const ctx = getCtx(module);
+    expect(ctx.page_kind).toBe('app');
+    expect(module.description).toBe('Tablero de Tareas');
+
+    const buttons = (ctx.buttons || []) as Array<{ key: string; text: string }>;
+    const inputs = (ctx.inputs || []) as Array<{ key: string; name?: string; type?: string }>;
+
+    // Mediciones literales con asentamiento activo
+    expect(buttons).toHaveLength(2);
+    expect(buttons.map((b) => b.text)).toContain('Nueva Tarea');
+    expect(buttons.map((b) => b.text)).toContain('Filtrar');
+
+    expect(inputs).toHaveLength(1);
+    expect(inputs[0].name).toBe('search');
+  });
+
+  // Caso 12: SPA con skeleton sin espera de asentamiento (C2 / skipDomSettling)
+  it('12. SPA con skeleton: con espera deshabilitada extrae solo esqueleto (0 botones y 0 campos)', async () => {
+    const adapter = new PlaywrightAdapter({ baseUrl: fixture.baseUrl, headless: true, skipDomSettling: true, urlStabilityWindowMs: 100 });
+    const module = await adapter.discover({ name: 'spa_skeleton_inmediato', path: '/spa-skeleton' });
+
+    const ctx = getCtx(module);
+    const buttons = (ctx.buttons || []) as Array<{ key: string; text: string }>;
+    const inputs = (ctx.inputs || []) as Array<{ key: string }>;
+
+    // Mediciones literales con asentamiento deshabilitado
+    expect(buttons).toHaveLength(0);
+    expect(inputs).toHaveLength(0);
   });
 });
 

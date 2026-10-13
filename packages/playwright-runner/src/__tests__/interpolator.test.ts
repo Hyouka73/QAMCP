@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+
 import { interpolate, interpolateStep } from '../context/interpolator.js';
 
 describe('Interpolador de variables de contexto (S7-006)', () => {

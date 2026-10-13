@@ -418,4 +418,17 @@ export interface IStorage {
    * requiring the Engine to understand storage paths.
    */
   getStatus(): Promise<ProjectStatus>;
+
+  // -------------------------------------------------------------------------
+  // Pending questions cache (.qa/cache/pending_questions/) - P4.5-A / C2
+  // -------------------------------------------------------------------------
+
+  /** Save last question emitted for module, view and category. */
+  savePendingQuestion?(module: string, view: string, category: string, question: unknown): Promise<void>;
+
+  /** Retrieve last question emitted for module, view and category. */
+  getPendingQuestion?(module: string, view: string, category: string): Promise<unknown>;
+
+  /** Find pending question by questionId across categories. */
+  findPendingQuestion?(module: string, view: string, questionId: string): Promise<unknown>;
 }

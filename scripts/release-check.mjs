@@ -10,7 +10,7 @@
 
 import { execSync } from 'node:child_process';
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
-import { resolve, join } from 'node:path';
+import { join } from 'node:path';
 
 const ROOT_DIR = process.cwd();
 

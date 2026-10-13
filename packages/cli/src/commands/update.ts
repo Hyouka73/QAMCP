@@ -5,6 +5,7 @@ import { confirm } from '@inquirer/prompts';
 import { FileSystemStorage } from '@qap/knowledge';
 import { UpdateGuard, ModuleBackupManager } from '@qap/knowledge';
 import type { Module, ModuleContext } from '@qap/shared';
+
 import { DataError } from '../errors.js';
 
 export interface UpdateCommandOptions {

@@ -25,11 +25,23 @@ import YAML from 'yaml';
 import {
   SchemaValidator,
   isAuthPath,
+  isSubstantiveRuleText,
+  isTautologicalOptionLabel,
+  isEngineOptionLabel,
+  sanitizeSnippet,
+  isValidRoleName,
+  filterValidRoles,
+  normalizeSlug,
   type AuthProfile,
   type ModuleSpec,
   type ProjectPhase,
   type ModuleLifecycleState,
   type IngestProposal,
+  type RuleEntry,
+  type CategoryWaiver,
+  type ModuleCandidate,
+  type ProjectRepoMap,
+  type ModuleCandidatesFile,
 } from '@qap/shared';
 import type { StorageState } from '@qap/auth';
 import {
@@ -40,16 +52,19 @@ import {
   generarScan,
   resolverDocumento,
   detectarServiciosConEvidencia,
+  scanProjectRoutes,
+  generateModuleCandidates,
+  type CandidateGenerationResult,
 } from '@qap/knowledge';
 import {
   canExitOnboarding,
   canExitScoping,
   canExitWorking,
-  canCloseModule,
   transitionModule,
   transitionProject,
   validateWaiversBatch,
   generateSessionGapReport,
+  computeSessionGapSummary,
   assertLifecycleStateInvariants,
   generateDomHypotheses,
   computeApplicableCategories,
@@ -58,6 +73,7 @@ import {
   obtenerSiguientePreguntaOnboarding,
   sanitizeDomString,
   generarRenderTexto,
+  guardPregunta,
   type ViewDiscoveryContext,
   type DomField,
   type DomForm,
@@ -78,6 +94,53 @@ import { getPhaseGuidance, buildInterviewNextAction, type SiguienteAccion, QAP_C
 
 let activeViewerServer: ViewerServerInstance | null = null;
 
+export const PLAYWRIGHT_INSTALL_COMMAND = 'npx playwright install chromium';
+
+export async function checkPlaywrightBrowser(): Promise<{ disponible: boolean; error?: string; comando_instalacion: string }> {
+  try {
+    const { chromium } = await import('playwright-core');
+    const execPath = chromium.executablePath();
+    if (execPath && existsSync(execPath)) {
+      return { disponible: true, comando_instalacion: PLAYWRIGHT_INSTALL_COMMAND };
+    }
+  } catch { /* empty */ }
+
+  if (process.platform === 'win32') {
+    const prefixes = [
+      process.env.LOCALAPPDATA,
+      process.env.PROGRAMFILES,
+      process.env['PROGRAMFILES(X86)'],
+    ].filter(Boolean);
+
+    for (const prefix of prefixes) {
+      if (
+        existsSync(join(prefix!, 'Google', 'Chrome', 'Application', 'chrome.exe')) ||
+        existsSync(join(prefix!, 'Microsoft', 'Edge', 'Application', 'msedge.exe'))
+      ) {
+        return { disponible: true, comando_instalacion: PLAYWRIGHT_INSTALL_COMMAND };
+      }
+    }
+  } else if (process.platform === 'darwin') {
+    if (
+      existsSync('/Applications/Google Chrome.app') ||
+      existsSync('/Applications/Microsoft Edge.app')
+    ) {
+      return { disponible: true, comando_instalacion: PLAYWRIGHT_INSTALL_COMMAND };
+    }
+  } else {
+    const linuxBins = ['/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser'];
+    if (linuxBins.some(existsSync)) {
+      return { disponible: true, comando_instalacion: PLAYWRIGHT_INSTALL_COMMAND };
+    }
+  }
+
+  return {
+    disponible: false,
+    error: `No se encontró un navegador compatible en el sistema (Google Chrome, Microsoft Edge ni Chromium de Playwright). Instala Google Chrome o ejecuta '${PLAYWRIGHT_INSTALL_COMMAND}'.`,
+    comando_instalacion: PLAYWRIGHT_INSTALL_COMMAND,
+  };
+}
+
 function makeDecisionQuestion(
   id: string,
   texto: string,
@@ -85,6 +148,7 @@ function makeDecisionQuestion(
   permiteOtra = true,
   registrarCon: { tool: string; campo: string } = { tool: 'qap_session_plan', campo: 'action' }
 ): Pregunta {
+  const hasExplicitRecommended = opciones.some((o) => o.recomendada === true);
   const p: Pregunta = {
     id,
     texto,
@@ -92,38 +156,39 @@ function makeDecisionQuestion(
     opciones: opciones.map((o, idx) => ({
       id: o.id,
       etiqueta: o.etiqueta,
-      recomendada: o.recomendada ?? (idx === 0),
+      recomendada: o.recomendada !== undefined ? o.recomendada : (!hasExplicitRecommended && idx === 0),
     })),
     permite_otra: permiteOtra,
     registrar_con: registrarCon,
   };
   p.render_texto = generarRenderTexto(p);
-  return p;
+  return guardPregunta(p) as Pregunta;
 }
 
-function buildCorrectionQuestion(campo: string, context: any): Pregunta {
+function buildCorrectionQuestion(campo: string, context: Record<string, unknown> | null | undefined): Pregunta {
   const id = `onboarding.corregir.${campo}`;
   let texto: string;
   let registrarCon = { tool: 'qap_context_set', campo };
 
   switch (campo) {
     case 'objective': {
-      const prop = context?.objective || '';
+      const objStr = typeof context?.objective === 'string' ? context.objective : '';
+      const prop = sanitizeSnippet(objStr) || objStr || '';
       texto = `Propuesta actual de objetivo: "${prop}". Escribe el objetivo corregido:`;
       break;
     }
     case 'roles': {
-      const prop = (context?.roles || []).map((r: any) => r.name).join(', ');
+      const prop = ((Array.isArray(context?.roles) ? context.roles : []) as Array<{ name?: string }>).map((r) => r.name || '').filter(Boolean).join(', ');
       texto = `Propuesta actual de roles: "${prop}". Escribe los roles corregidos (separados por coma):`;
       break;
     }
     case 'critical_flows': {
-      const prop = (context?.critical_flows || []).map((f: any) => f.name).join(', ');
+      const prop = ((Array.isArray(context?.critical_flows) ? context.critical_flows : []) as Array<{ name?: string }>).map((f) => f.name || '').filter(Boolean).join(', ');
       texto = `Propuesta actual de flujos críticos: "${prop}". Escribe los flujos críticos corregidos (separados por coma):`;
       break;
     }
     case 'base_url': {
-      const prop = context?.base_url || '(sin definir)';
+      const prop = typeof context?.base_url === 'string' ? context.base_url : '(sin definir)';
       texto = `Propuesta actual de URL base: "${prop}". Escribe la URL base corregida:`;
       registrarCon = { tool: 'qap_context_set', campo: 'base_url' };
       break;
@@ -142,7 +207,7 @@ function buildCorrectionQuestion(campo: string, context: any): Pregunta {
     registrar_con: registrarCon,
   };
   p.render_texto = generarRenderTexto(p);
-  return p;
+  return guardPregunta(p) as Pregunta;
 }
 
 const UX_DIRECTIVE = 'DIRECTIVA DE UX ESTRICTA: Guía al usuario paso a paso interactivo. Si tu entorno dispone de herramienta para hacer preguntas interactivas con opciones (como ask_question), ÚSALA OBLIGATORIAMENTE para cada decisión. Si no, formula la pregunta directa con sus opciones. PROHIBIDO mostrar listas de pasos futuros (1, 2, 3...), tutoriales o pedir comandos de terminal.';
@@ -233,7 +298,7 @@ function buildModuleSummary(rules: any[], waivers: any[]) {
 const TOOLS: Tool[] = [
   {
     name: 'qap_status',
-    description: `PUNTO DE ENTRADA OBLIGATORIO: Invoca esta herramienta INMEDIATAMENTE cuando el usuario quiera probar su app, testear un proyecto o empezar con QAP. Analiza el repo y te devuelve exactamente la pregunta y opciones que debes presentar con ask_question, sin muros de texto ni pasos futuros.\n\n${QAP_CORE_DIRECTIVES}`,
+    description: `PUNTO DE ENTRADA OBLIGATORIO: Invoca esta herramienta INMEDIATAMENTE cuando el usuario quiera probar su app, testear un proyecto o empezar con QAP. Analiza el repo y el preflight del navegador (Playwright), y devuelve exactamente la pregunta y opciones que debes presentar con ask_question. Si falta navegador, ejecuta la instalación como paso de trabajo autónomo. QAP observa la app con su propio navegador mediante qap_discover; no uses navegadores ni herramientas de otros servidores MCP ni del IDE para explorarla (no se persistiría conocimiento en .qa).\n\n${QAP_CORE_DIRECTIVES}`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -243,7 +308,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'qap_init',
-    description: `Inicializa la arquitectura canónica .qa/ y configuraciones base en el proyecto actual. ${UX_DIRECTIVE}\n\n${QAP_CORE_DIRECTIVES}`,
+    description: `Inicializa la arquitectura canónica .qa/ y configuraciones base en el proyecto actual, verificando el preflight del navegador y escaneando rutas en repo-map.json. Si falta navegador, ejecuta 'npx playwright install chromium' como paso de trabajo autónomo. QAP observa la app con su propio navegador mediante qap_discover; no uses navegadores ni herramientas de otros servidores MCP ni del IDE para explorarla (no se persistiría conocimiento en .qa). ${UX_DIRECTIVE}\n\n${QAP_CORE_DIRECTIVES}`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -456,15 +521,43 @@ const TOOLS: Tool[] = [
             },
             rutas: { type: 'array', items: { type: 'string' } },
             riesgos: { type: 'array', items: { type: 'string' } },
+            modulos_candidatos: {
+              type: 'array',
+              description: 'Lista de módulos candidatos extraídos del documento',
+              items: {
+                type: 'object',
+                properties: {
+                  nombre: { type: 'string' },
+                  ruta_hint: { type: 'string' },
+                  evidence: { type: 'string' },
+                  flujos: { type: 'array', items: { type: 'string' } },
+                },
+                required: ['nombre', 'evidence'],
+              },
+            },
           },
           additionalProperties: false,
+        },
+        modulos_candidatos: {
+          type: 'array',
+          description: 'Lista de módulos candidatos extraídos del documento a nivel superior',
+          items: {
+            type: 'object',
+            properties: {
+              nombre: { type: 'string' },
+              ruta_hint: { type: 'string' },
+              evidence: { type: 'string' },
+              flujos: { type: 'array', items: { type: 'string' } },
+            },
+            required: ['nombre', 'evidence'],
+          },
         },
       },
     },
   },
   {
     name: 'qap_session_plan',
-    description: `Define o amplía el plan de sesión y la decisión de autenticación. Transiciona a WORKING cuando el plan es válido. ${UX_DIRECTIVE}`,
+    description: `Define o amplía el plan de sesión y la decisión de autenticación. Admite desde_candidatos (referenciando module-candidates.json) y adicionales. Transiciona a WORKING cuando el plan es válido. ${UX_DIRECTIVE}\n\n${QAP_CORE_DIRECTIVES}`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -477,10 +570,42 @@ const TOOLS: Tool[] = [
               module: { type: 'string', description: 'Nombre identificador del módulo' },
               path: { type: 'string', description: 'Ruta inicial del módulo comenzando con /' },
               priority: { type: 'string', enum: ['high', 'medium', 'low'], description: 'Prioridad de prueba' },
+              flujos: { type: 'array', items: { type: 'string' }, description: 'Flujos críticos asociados' },
             },
             required: ['module', 'path', 'priority'],
           },
           description: 'Lista de módulos a incluir en el plan de sesión',
+        },
+        desde_candidatos: {
+          type: 'array',
+          description: 'Lista de identificadores de candidatos tomados de module-candidates.json o con ruta custom',
+          items: {
+            oneOf: [
+              { type: 'string' },
+              {
+                type: 'object',
+                properties: {
+                  id: { type: 'string' },
+                  path: { type: 'string' },
+                },
+                required: ['id'],
+              },
+            ],
+          },
+        },
+        adicionales: {
+          type: 'array',
+          description: 'Módulos adicionales no presentes en los candidatos',
+          items: {
+            type: 'object',
+            properties: {
+              module: { type: 'string' },
+              path: { type: 'string' },
+              priority: { type: 'string', enum: ['high', 'medium', 'low'] },
+              flujos: { type: 'array', items: { type: 'string' } },
+            },
+            required: ['module', 'path'],
+          },
         },
         auth: {
           type: 'object',
@@ -495,12 +620,11 @@ const TOOLS: Tool[] = [
           description: 'Decisión explícita de autenticación',
         },
       },
-      required: ['modules'],
     },
   },
   {
     name: 'qap_discover',
-    description: `Descubre, mapea y registra un módulo de la aplicación (UI, rutas, selectores) en .qa/modules/ de forma autónoma con Playwright real. Si la ruta requiere autenticación o detecta auth_wall/login no planificado, responde 'blocked' con razón 'auth_required' (falta perfil verificado) o 'session_invalid' (sesión expirada o rechazada) sin escribir archivos ni avanzar el ciclo de vida; desbloquear resolviendo la autenticación con qap_auth_add. ${UX_DIRECTIVE}`,
+    description: `Descubre, mapea y registra un módulo de la aplicación (UI, rutas, selectores) en .qa/modules/ de forma autónoma con Playwright real. Si falta el navegador en el sistema, ejecuta 'npx playwright install chromium' sin preguntar. QAP observa la app con su propio navegador mediante qap_discover; no uses navegadores ni herramientas de otros servidores MCP ni del IDE para explorarla (no se persistiría conocimiento en .qa). Si la ruta requiere autenticación o detecta auth_wall/login no planificado, responde 'blocked' con razón 'auth_required' (falta perfil verificado) o 'session_invalid' (sesión expirada o rechazada) sin escribir archivos ni avanzar el ciclo de vida; desbloquear resolviendo la autenticación con qap_auth_add. ${UX_DIRECTIVE}\n\n${QAP_CORE_DIRECTIVES}`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -667,7 +791,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'qap_rules_set',
-    description: `Persiste reglas de negocio confirmadas o rechazadas por el usuario, y waivers de categoría, en rules.yaml de un módulo. Usa operación atómica RMW. ${UX_DIRECTIVE}`,
+    description: `Persiste reglas de negocio confirmadas o rechazadas por el usuario, y waivers de categoría, en rules.yaml de un módulo. Respuestas breves de usuario se guardan como borradores que requieren propuesta_enunciado sustantiva para emitir pregunta estructurada de confirmación. Usa operación atómica RMW. ${UX_DIRECTIVE}`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -681,6 +805,15 @@ const TOOLS: Tool[] = [
           description: 'Vista específica del módulo (por defecto: "default")',
           default: 'default',
         },
+        propuesta_enunciado: {
+          type: 'string',
+          description: 'Propuesta de enunciado sustantivo redactada por el agente para resolver un borrador previo. Emite una Pregunta estructurada de confirmación al usuario.',
+        },
+        category: {
+          type: 'string',
+          enum: ['proposito', 'actor', 'campo', 'accion', 'error', 'dato', 'sensibilidad'],
+          description: 'Categoría a la que aplica la propuesta de enunciado (opcional si se deduce de un borrador)',
+        },
         rules: {
           type: 'array',
           description: 'Reglas a insertar o actualizar (upsert por id). Se mezclan con las existentes.',
@@ -691,13 +824,19 @@ const TOOLS: Tool[] = [
               description: { type: 'string', description: 'Descripción legible de la regla' },
               category: { type: 'string', enum: ['proposito', 'actor', 'campo', 'accion', 'error', 'dato', 'sensibilidad'] },
               status: { type: 'string', enum: ['confirmed', 'rejected', 'deferred', 'inferred'] },
-              source: { type: 'string', enum: ['user', 'prd', 'dom'] },
+              source: { type: 'string', enum: ['user', 'prd', 'dom', 'user_text', 'user_confirmed', 'agent', 'doc'] },
               severity: { type: 'string', enum: ['low', 'medium', 'high', 'critical'] },
               view: { type: 'string', description: 'Vista a la que aplica (si difiere del parámetro view)' },
               field: { type: 'string', description: 'Campo o selector al que aplica' },
               evidence: { type: 'string', description: 'Evidencia corta (selector o referencia, máx 120 chars)' },
+              user_text: { type: 'string', description: 'Texto literal del usuario' },
+              from_option: {
+                type: 'object',
+                description: 'Resolución de opción de pregunta estructurada',
+              },
+              propuesta_enunciado: { type: 'string', description: 'Propuesta de enunciado redactada por el agente' },
+              borrador: { type: 'boolean', description: 'Indica si es un borrador' },
             },
-            required: ['id', 'description', 'status'],
           },
         },
         category_waivers: {
@@ -977,8 +1116,28 @@ export function createMcpServer(): Server {
             } catch { /* ignore */ }
           }
 
+          const browserCheck = await checkPlaywrightBrowser();
+          const preflight = {
+            navegador_qap: (browserCheck.disponible ? 'ok' : 'falta') as 'ok' | 'falta',
+            comando_instalacion: PLAYWRIGHT_INSTALL_COMMAND,
+          };
+          const installAccion: SiguienteAccion = {
+            tipo: 'trabajo',
+            comando: PLAYWRIGHT_INSTALL_COMMAND,
+            descripcion: `Instalar navegador Chromium para Playwright sin consultar al usuario. Ejecuta '${PLAYWRIGHT_INSTALL_COMMAND}'.`,
+          };
+
           if (!initialized) {
             const preg = obtenerSiguientePreguntaOnboarding(null, null, hallazgos, null);
+            const statusNextAction = !browserCheck.disponible
+              ? installAccion
+              : {
+                  tipo: 'entrevista' as const,
+                  descripcion: 'Proyecto no inicializado. Comienza el onboarding respondiendo a la fuente de verdad.',
+                  tool: 'qap_init',
+                  pregunta: preg ?? undefined,
+                };
+
             return {
               content: [
                 {
@@ -988,6 +1147,8 @@ export function createMcpServer(): Server {
                       status: 'success',
                       directorio_objetivo: rootDir,
                       initialized: false,
+                      preflight,
+                      navegador_qap: preflight.navegador_qap,
                       projectName: basename(rootDir),
                       environments: [],
                       stats: {
@@ -1000,13 +1161,10 @@ export function createMcpServer(): Server {
                       scan,
                       hallazgos_workspace: hallazgos,
                       advertencias,
-                      siguiente_accion: {
-                        tipo: 'entrevista',
-                        descripcion: 'Proyecto no inicializado. Comienza el onboarding respondiendo a la fuente de verdad.',
-                        tool: 'qap_init',
-                        pregunta: preg ?? undefined,
-                      },
-                      _guidance_for_assistant: 'NO expliques listas de pasos futuros. Haz al usuario la pregunta con ask_question: ' + (preg?.texto || ''),
+                      siguiente_accion: statusNextAction,
+                      _guidance_for_assistant: !browserCheck.disponible
+                        ? `Ejecuta '${PLAYWRIGHT_INSTALL_COMMAND}' sin consultar al usuario.`
+                        : 'NO expliques listas de pasos futuros. Haz al usuario la pregunta con ask_question: ' + (preg?.texto || ''),
                     },
                     null,
                     2
@@ -1072,7 +1230,8 @@ export function createMcpServer(): Server {
                   waiversList = rf?.category_waivers || [];
                 } catch { /* empty */ }
 
-                const appCats = computeApplicableCategories(vContext, parsedContext?.roles?.length || 0);
+                const validRolesList = filterValidRoles(parsedContext?.roles || []);
+                const appCats = computeApplicableCategories(vContext, validRolesList.length);
                 const cov = computeCoverage(appCats, rulesList, waiversList, 'default');
                 if (!cov.completa) {
                   const nextQs = generateNextInterviewBatch(vContext, rulesList, appCats, waiversList);
@@ -1110,10 +1269,20 @@ export function createMcpServer(): Server {
             }
           }
 
+          let moduleCandidatesList: ModuleCandidate[] | undefined;
+          const candidatesFilePath = join(qaDir, 'project', 'module-candidates.json');
+          if (existsSync(candidatesFilePath)) {
+            try {
+              const cf = JSON.parse(readFileSync(candidatesFilePath, 'utf-8'));
+              moduleCandidatesList = cf.candidates;
+            } catch { /* empty */ }
+          }
+
           const guidance = getPhaseGuidance(currentPhase, {
             faltantes,
             plan: lifecycleState.session?.plan,
             modules: modulesGuidance as any,
+            moduleCandidates: moduleCandidatesList,
             interviewAction,
             reportPath,
             hallazgos,
@@ -1122,6 +1291,10 @@ export function createMcpServer(): Server {
             environments: parsedEnv,
             profiles: profilesList as AuthProfile[],
           });
+
+          if (!browserCheck.disponible) {
+            guidance.siguiente_accion = installAccion;
+          }
 
           const stateModuleCount = Object.keys(lifecycleState.modules || {}).length;
           const totalModules = Math.max(moduleCount, stateModuleCount);
@@ -1142,6 +1315,8 @@ export function createMcpServer(): Server {
                     status: 'success',
                     directorio_objetivo: rootDir,
                     initialized: true,
+                    preflight,
+                    navegador_qap: preflight.navegador_qap,
                     fase: currentPhase,
                     estados_modulos: estadosModulos,
                     faltantes,
@@ -1215,12 +1390,26 @@ export function createMcpServer(): Server {
             writeFileSync(envsPath, YAML.stringify(envsYaml), 'utf-8');
           }
 
+          const rawInitRoles = Array.isArray(args.roles) ? (args.roles as unknown[]) : [];
+          const validInitRoles = rawInitRoles.filter((r) => isValidRoleName(typeof r === 'string' ? r : (r as any)?.name));
+          const discardedInitRoles = rawInitRoles
+            .filter((r) => !isValidRoleName(typeof r === 'string' ? r : (r as any)?.name))
+            .map((r) => (typeof r === 'string' ? r : (r as any)?.name));
+
           if (!existsSync(contextPath)) {
             const contextYaml: Record<string, any> = {
               _version: '1',
               project_name: projectName,
               description: `Configuración base de QA para ${projectName}`,
               tech_stack: [],
+              ...(validInitRoles.length > 0
+                ? {
+                    roles: validInitRoles.map((r) => ({
+                      name: typeof r === 'string' ? r : (r as any).name,
+                      source: 'user',
+                    })),
+                  }
+                : {}),
               ...(resolvedBaseUrl ? { base_url: resolvedBaseUrl } : {}),
               manually_edited: false,
             };
@@ -1305,6 +1494,18 @@ export function createMcpServer(): Server {
             ? { url: serviciosConEvidencia[0].url, label: serviciosConEvidencia[0].label, evidencia: serviciosConEvidencia[0].evidencia }
             : undefined;
 
+          const browserCheck = await checkPlaywrightBrowser();
+          const preflight = {
+            navegador_qap: (browserCheck.disponible ? 'ok' : 'falta') as 'ok' | 'falta',
+            comando_instalacion: PLAYWRIGHT_INSTALL_COMMAND,
+          };
+
+          const repoMap = scanProjectRoutes(rootDir, scan.subproyectos || []);
+          const repoMapPath = join(qaDir, 'project', 'repo-map.json');
+          try {
+            writeFileSync(repoMapPath, JSON.stringify(repoMap, null, 2), 'utf-8');
+          } catch { /* ignore */ }
+
           const guidance = getPhaseGuidance('ONBOARDING', {
             faltantes: gate.faltantes,
             hallazgos,
@@ -1312,6 +1513,14 @@ export function createMcpServer(): Server {
             environments: envObj,
             lifecycle: currentLifecycle,
           });
+
+          if (!browserCheck.disponible) {
+            guidance.siguiente_accion = {
+              tipo: 'trabajo',
+              comando: PLAYWRIGHT_INSTALL_COMMAND,
+              descripcion: `Instalar navegador Chromium para Playwright sin consultar al usuario. Ejecuta '${PLAYWRIGHT_INSTALL_COMMAND}'.`,
+            };
+          }
 
           return {
             content: [
@@ -1323,6 +1532,12 @@ export function createMcpServer(): Server {
                     directorio_objetivo: rootDir,
                     message: '✔ Proyecto inicializado con éxito en .qa/',
                     projectName,
+                    preflight,
+                    navegador_qap: preflight.navegador_qap,
+                    repo_map_resumen: {
+                      total_rutas: repoMap.rutas.length,
+                      advertencias: repoMap.advertencias,
+                    },
                     environments: envList,
                     directories: allowedDirs.map((p) => p.replace(rootDir, '')),
                     ya_existia: yaExistia,
@@ -1330,12 +1545,15 @@ export function createMcpServer(): Server {
                     scan,
                     detectedService,
                     advertencias,
+                    roles_descartados: discardedInitRoles,
                     lifecycle: {
                       phase: finalPhase,
                     },
                     fase: finalPhase,
                     siguiente_accion: guidance.siguiente_accion,
-                    _guidance_for_assistant: `Fase actual: ${finalPhase}. Siguiente acción: ${guidance.siguiente_accion.descripcion}`,
+                    _guidance_for_assistant: !browserCheck.disponible
+                      ? `Ejecuta '${PLAYWRIGHT_INSTALL_COMMAND}' sin consultar al usuario.`
+                      : `Fase actual: ${finalPhase}. Siguiente acción: ${guidance.siguiente_accion.descripcion}`,
                   },
                   null,
                   2
@@ -1811,23 +2029,69 @@ export function createMcpServer(): Server {
             }
           }
 
-          if (args.confirmar_resumen === 'corregir' || args.corregir) {
+          if ((args.confirmar_resumen === 'corregir' || args.accion === 'corregir') && !args.corregir && !args.campos) {
+            const rawCamposPregunta: Pregunta = {
+              id: 'onboarding.campos_a_corregir',
+              texto: 'Selecciona los campos que requieren corrección:',
+              formato: 'multiple',
+              opciones: [
+                { id: 'objective', etiqueta: 'Objetivo' },
+                { id: 'roles', etiqueta: 'Roles' },
+                { id: 'critical_flows', etiqueta: 'Flujos críticos' },
+                { id: 'base_url', etiqueta: 'URL base' },
+              ],
+              permite_otra: false,
+              registrar_con: { tool: 'qap_context_set', campo: 'corregir' },
+            };
+            rawCamposPregunta.render_texto = generarRenderTexto(rawCamposPregunta);
+            const camposPregunta = guardPregunta(rawCamposPregunta) as Pregunta;
+
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(
+                    {
+                      status: 'success',
+                      directorio_objetivo: rootDir,
+                      fase: 'ONBOARDING',
+                      transicion_automatica: false,
+                      faltantes: [],
+                      context: existingContext,
+                      siguiente_accion: {
+                        tipo: 'entrevista',
+                        descripcion: 'Selecciona los campos que requieren corrección.',
+                        tool: 'qap_context_set',
+                        pregunta: camposPregunta,
+                      },
+                    },
+                    null,
+                    2
+                  ),
+                },
+              ],
+            };
+          }
+
+          if (args.corregir || args.campos || (args.confirmar_resumen === 'corregir' && (args.corregir || args.campos))) {
             const rawList = Array.isArray(args.corregir)
               ? args.corregir
               : (typeof args.corregir === 'string'
                   ? [args.corregir]
                   : (Array.isArray(args.campos)
                       ? args.campos
-                      : (typeof args.campos === 'string' ? [args.campos] : ['objective'])));
+                      : (typeof args.campos === 'string' ? [args.campos] : [])));
             const validFields = rawList.map(String).filter((f) => ['objective', 'roles', 'critical_flows', 'base_url'].includes(f));
-            correctionsState = {
-              pending: validFields.length > 0 ? validFields : ['objective'],
-              completed: [],
-            };
-            try {
-              mkdirSync(join(qaDir, 'cache'), { recursive: true });
-              writeFileSync(correctionsCachePath, JSON.stringify(correctionsState, null, 2), 'utf-8');
-            } catch { /* ignore */ }
+            if (validFields.length > 0) {
+              correctionsState = {
+                pending: validFields,
+                completed: [],
+              };
+              try {
+                mkdirSync(join(qaDir, 'cache'), { recursive: true });
+                writeFileSync(correctionsCachePath, JSON.stringify(correctionsState, null, 2), 'utf-8');
+              } catch { /* ignore */ }
+            }
           } else if (correctionsState && Array.isArray(correctionsState.pending) && correctionsState.pending.length > 0) {
             const currentField = correctionsState.pending[0];
             let answered = false;
@@ -2479,9 +2743,12 @@ export function createMcpServer(): Server {
             currentContext.objective_source = 'inferred';
           }
 
-          if (extractedUsers.length > 0) {
+          const validUsers = extractedUsers.filter((u) => isValidRoleName(u));
+          const discardedIngestRoles = extractedUsers.filter((u) => !isValidRoleName(u));
+
+          if (validUsers.length > 0) {
             currentContext.roles = currentContext.roles || [];
-            for (const u of extractedUsers) {
+            for (const u of validUsers) {
               const existingIdx = currentContext.roles.findIndex((er: any) => er.name === u);
               if (existingIdx >= 0) {
                 if (currentContext.roles[existingIdx].source !== 'user') {
@@ -2571,13 +2838,57 @@ export function createMcpServer(): Server {
           const hallazgos = detectarDocumentosProyecto(rootDir);
           hallazgos.servicios = serviciosConEvidencia;
 
+          let candidateGenResult: CandidateGenerationResult | undefined;
+          const rawProposedCandidates = (propuesta && Array.isArray(propuesta.modulos_candidatos))
+            ? propuesta.modulos_candidatos
+            : (Array.isArray(args.modulos_candidatos) ? args.modulos_candidatos : undefined);
+          if (Array.isArray(rawProposedCandidates)) {
+            let repoMapObj: ProjectRepoMap | null = null;
+            const repoMapPath = join(qaDir, 'project', 'repo-map.json');
+            if (existsSync(repoMapPath)) {
+              try {
+                repoMapObj = JSON.parse(readFileSync(repoMapPath, 'utf-8'));
+              } catch { /* empty */ }
+            }
+            if (!repoMapObj) {
+              const curScan = generarScan(rootDir);
+              repoMapObj = scanProjectRoutes(rootDir, curScan?.subproyectos || []);
+            }
+
+            candidateGenResult = generateModuleCandidates({
+              rawDocContent: rawContent || '',
+              proposedCandidates: rawProposedCandidates,
+              repoMap: repoMapObj,
+              criticalFlows: currentContext.critical_flows,
+            });
+
+            const candidatesFilePath = join(qaDir, 'project', 'module-candidates.json');
+            try {
+              writeFileSync(candidatesFilePath, JSON.stringify(candidateGenResult.candidatesFile, null, 2), 'utf-8');
+            } catch { /* ignore */ }
+          }
+
           const guidance = getPhaseGuidance(lifecycleState.phase, {
             faltantes,
             suggestedModules,
+            moduleCandidates: candidateGenResult?.candidatesFile?.candidates,
             hallazgos,
             context: currentContext,
             environments: parsedEnv,
           });
+
+          if (
+            lifecycleState.phase === 'SCOPING' &&
+            currentContext.critical_flows &&
+            currentContext.critical_flows.length > 0 &&
+            (!Array.isArray(rawProposedCandidates) || rawProposedCandidates.length === 0)
+          ) {
+            guidance.siguiente_accion = {
+              tipo: 'trabajo',
+              descripcion: 'Proponer módulos candidatos con evidencia del documento a partir de los flujos críticos detectados.',
+              tool: 'qap_context_ingest',
+            };
+          }
 
           return {
             content: [
@@ -2596,6 +2907,10 @@ export function createMcpServer(): Server {
                       rutas: extractedRoutes,
                     },
                     modulos_sugeridos_para_plan: suggestedModules,
+                    modulos_candidatos_generados: candidateGenResult?.candidatesFile?.candidates || [],
+                    candidatos_rechazados: candidateGenResult?.rejectedCandidates || [],
+                    flujos_descartados: candidateGenResult?.flujos_descartados || [],
+                    roles_descartados: discardedIngestRoles,
                     faltantes,
                     siguiente_accion: guidance.siguiente_accion,
                   },
@@ -2672,10 +2987,129 @@ export function createMcpServer(): Server {
             };
           }
 
+          // Soporte de desde_candidatos y adicionales (C6)
+          let resolvedModules: Array<{ module: string; path: string; priority: string; flujos?: string[] }> = [];
+
+          if (Array.isArray(args.desde_candidatos) && args.desde_candidatos.length > 0) {
+            const candidatesPath = join(qaDir, 'project', 'module-candidates.json');
+            let candidatesFile: ModuleCandidatesFile | null = null;
+            if (existsSync(candidatesPath)) {
+              try {
+                candidatesFile = JSON.parse(readFileSync(candidatesPath, 'utf-8'));
+              } catch { /* empty */ }
+            }
+
+            const allCandidates: ModuleCandidate[] = candidatesFile?.candidates || [];
+
+            for (const item of args.desde_candidatos) {
+              const candId = typeof item === 'string' ? item.trim() : (item?.id ? String(item.id).trim() : '');
+              const candPathOverride = typeof item === 'object' && item?.path ? String(item.path).trim() : undefined;
+
+              const cand = allCandidates.find((c) => c.id === candId);
+              if (!cand) {
+                return {
+                  content: [
+                    {
+                      type: 'text',
+                      text: JSON.stringify(
+                        {
+                          status: 'blocked',
+                          directorio_objetivo: rootDir,
+                          fase: 'SCOPING',
+                          razon: `El candidato con id '${candId}' no existe en module-candidates.json.`,
+                          siguiente_accion: {
+                            tipo: 'decision',
+                            descripcion: `El id de candidato '${candId}' no es válido. Selecciona un candidato existente o añade módulos con adicionales.`,
+                            tool: 'qap_session_plan',
+                          },
+                        },
+                        null,
+                        2
+                      ),
+                    },
+                  ],
+                };
+              }
+
+              const finalPath = candPathOverride || cand.ruta;
+              if (!finalPath) {
+                const preguntaRuta: Pregunta = {
+                  id: `scoping.ruta_candidato.${cand.id}`,
+                  texto: `Indica la ruta HTTP/URL para el módulo '${cand.nombre}' (por ejemplo: /catalog):`,
+                  formato: 'abierta',
+                  opciones: [],
+                  permite_otra: true,
+                  registrar_con: { tool: 'qap_session_plan', campo: 'adicionales' },
+                };
+                preguntaRuta.render_texto = generarRenderTexto(preguntaRuta);
+                const guardedPregunta = guardPregunta(preguntaRuta) as Pregunta;
+
+                return {
+                  content: [
+                    {
+                      type: 'text',
+                      text: JSON.stringify(
+                        {
+                          status: 'blocked',
+                          directorio_objetivo: rootDir,
+                          fase: 'SCOPING',
+                          razon: `El candidato '${cand.nombre}' (id: ${cand.id}) no tiene una ruta definida. Aporta la ruta para continuar.`,
+                          siguiente_accion: {
+                            tipo: 'decision',
+                            descripcion: `El candidato '${cand.nombre}' requiere que se especifique su ruta URL.`,
+                            tool: 'qap_session_plan',
+                            pregunta: guardedPregunta,
+                          },
+                        },
+                        null,
+                        2
+                      ),
+                    },
+                  ],
+                };
+              }
+
+              resolvedModules.push({
+                module: cand.nombre,
+                path: finalPath,
+                priority: 'medium',
+                flujos: cand.flujos || [],
+              });
+            }
+
+            resolvedModules = resolvedModules.map((m, idx) => ({
+              ...m,
+              priority: idx < 3 ? 'high' : 'medium',
+            }));
+          }
+
+          if (Array.isArray(args.adicionales)) {
+            for (const ad of args.adicionales) {
+              if (ad && typeof ad === 'object' && ad.module && ad.path) {
+                resolvedModules.push({
+                  module: String(ad.module).trim(),
+                  path: String(ad.path).trim(),
+                  priority: ad.priority || 'medium',
+                  flujos: Array.isArray(ad.flujos) ? ad.flujos : [],
+                });
+              }
+            }
+          }
+
+          if (resolvedModules.length === 0 && Array.isArray(args.modules)) {
+            resolvedModules = args.modules.map((m: any) => ({
+              module: String(m.module || m.name || '').trim(),
+              path: String(m.path || '').trim(),
+              priority: String(m.priority || 'medium').trim(),
+              flujos: Array.isArray(m.flujos) ? m.flujos : [],
+            }));
+          }
+
           // Validación atómica del lote
-          const rawModules = Array.isArray(args.modules)
-            ? args.modules
+          const rawModules = resolvedModules.length > 0
+            ? resolvedModules
             : (Array.isArray(args.plan) ? args.plan : undefined);
+
           if (!Array.isArray(rawModules) || rawModules.length === 0) {
             return {
               isError: true,
@@ -2687,7 +3121,7 @@ export function createMcpServer(): Server {
                       status: 'error',
                       isError: true,
                       directorio_objetivo: rootDir,
-                      error: 'El parámetro modules debe ser una lista con al menos un módulo.',
+                      error: 'El parámetro modules debe ser una lista con al menos un módulo o indicar desde_candidatos.',
                     },
                     null,
                     2
@@ -2705,7 +3139,10 @@ export function createMcpServer(): Server {
                 content: [{ type: 'text', text: JSON.stringify({ status: 'error', error: 'Elemento de módulo inválido en el lote.' }, null, 2) }],
               };
             }
-            const mName = String(m.module || '').trim();
+            const mName = String(m.module || (m as any).name || '').trim();
+            if (!m.module && (m as any).name) {
+              m.module = (m as any).name;
+            }
             const mPath = String(m.path || '').trim();
             const mPriority = String(m.priority || '').trim();
 
@@ -2800,12 +3237,13 @@ export function createMcpServer(): Server {
                 id: randomUUID(),
                 started_at: new Date().toISOString(),
                 auth: sessionAuth,
-                plan: sortedModules.map((m: { module: string; path: string; priority?: string; acceso?: boolean }) => ({
+                plan: sortedModules.map((m: { module: string; path: string; priority?: string; acceso?: boolean; flujos?: string[] }) => ({
                   module: String(m.module).trim(),
                   path: String(m.path).trim(),
                   priority: String(m.priority || 'medium').trim(),
                   status: 'planned',
                   acceso: isAccess(m) ? true : undefined,
+                  flujos: Array.isArray(m.flujos) ? m.flujos : [],
                 })),
               };
 
@@ -2816,6 +3254,12 @@ export function createMcpServer(): Server {
                     state: 'planned',
                     updated_at: new Date().toISOString(),
                   };
+                }
+              }
+              const planModuleNamesWrap = new Set(curr.session.plan.map((p: { module: string }) => p.module));
+              for (const modKey of Object.keys(curr.modules)) {
+                if (!planModuleNamesWrap.has(modKey) && curr.modules[modKey]?.state === 'planned') {
+                  delete curr.modules[modKey];
                 }
               }
 
@@ -2850,12 +3294,13 @@ export function createMcpServer(): Server {
                 };
               }
 
-              curr.session.plan = sortedModules.map((m: { module: string; path: string; priority?: string; acceso?: boolean }) => ({
+              curr.session.plan = sortedModules.map((m: { module: string; path: string; priority?: string; acceso?: boolean; flujos?: string[] }) => ({
                 module: String(m.module).trim(),
                 path: String(m.path).trim(),
                 priority: String(m.priority || 'medium').trim(),
                 status: 'planned',
                 acceso: isAccess(m) ? true : undefined,
+                flujos: Array.isArray(m.flujos) ? m.flujos : [],
               }));
 
               for (const item of curr.session.plan) {
@@ -2864,6 +3309,12 @@ export function createMcpServer(): Server {
                     state: 'planned',
                     updated_at: new Date().toISOString(),
                   };
+                }
+              }
+              const planModuleNamesScoping = new Set(curr.session.plan.map((p: { module: string }) => p.module));
+              for (const modKey of Object.keys(curr.modules)) {
+                if (!planModuleNamesScoping.has(modKey) && curr.modules[modKey]?.state === 'planned') {
+                  delete curr.modules[modKey];
                 }
               }
 
@@ -2927,12 +3378,47 @@ export function createMcpServer(): Server {
           });
 
           const freshState = await storage.getLifecycleState();
+          let projectCtx = null;
+          try {
+            projectCtx = await storage.getProjectContext();
+          } catch { /* empty */ }
           const guidance = getPhaseGuidance(freshState.phase, {
+            lifecycle: freshState,
+            context: projectCtx,
             faltantes: scopingGateRes.faltantes,
             plan: freshState.session?.plan,
             modules: freshState.modules as any,
             profiles: allProfiles,
           });
+
+          if (!scopingGateRes.passed && freshState.session?.auth?.required === true) {
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(
+                    {
+                      status: 'blocked',
+                      directorio_objetivo: rootDir,
+                      fase: 'SCOPING',
+                      razon: 'auth_roles_required',
+                      mensaje: 'Con auth.required: true se requiere al menos un rol declarado en auth.roles y que cada rol cuente con un perfil verificado para salir de SCOPING.',
+                      faltantes: scopingGateRes.faltantes,
+                      plan: freshState.session?.plan,
+                      auth: freshState.session?.auth,
+                      desbloquear_con: {
+                        tool: 'qap_session_plan',
+                        descripcion: 'Define auth.roles con qap_session_plan y verifica sus perfiles con qap_auth_add.',
+                      },
+                      siguiente_accion: guidance.siguiente_accion,
+                    },
+                    null,
+                    2
+                  ),
+                },
+              ],
+            };
+          }
 
           return {
             content: [
@@ -3208,10 +3694,11 @@ export function createMcpServer(): Server {
                       modulo: name,
                       ruta: route,
                       requested_url: route,
-                      final_url: route,
-                      page_kind: 'auth_wall',
-                      redirected: false,
+                      final_url: null,
+                      page_kind: null,
+                      redirected: null,
                       http_status: null,
+                      observed: false,
                       desbloquear_con: {
                         tool: 'qap_auth_add',
                         descripcion: `El módulo '${name}' requiere autenticación pero no hay ningún perfil verificado disponible. Registra y verifica un perfil con qap_auth_add.`,
@@ -3431,6 +3918,7 @@ export function createMcpServer(): Server {
                       page_kind: pageKind,
                       redirected,
                       http_status: httpStatus,
+                      observed: true,
                       desbloquear_con: desbloquearCon,
                       siguiente_accion: siguienteAccion,
                     },
@@ -3454,6 +3942,22 @@ export function createMcpServer(): Server {
           const currentUrl: string = typeof discoveredData.currentUrl === 'string' ? discoveredData.currentUrl : finalUrl;
           const playwrightStatus = playwrightUsed ? 'explorando' : playwrightError ? 'fallido' : 'no_disponible';
 
+          const formsCount = (discoveredData.forms || []).length;
+          const inputsCount = (discoveredData.inputs || []).length;
+          const buttonsCount = (discoveredData.buttons || []).length;
+          const linksCount = (discoveredData.links || []).length;
+          const isExtractionEmpty =
+            (pageKind === 'app' || pageKind === 'login') &&
+            formsCount === 0 &&
+            inputsCount === 0 &&
+            buttonsCount === 0 &&
+            linksCount === 0;
+
+          const viewAdvertencias: string[] = [];
+          if (isExtractionEmpty) {
+            viewAdvertencias.push('extraccion_vacia');
+          }
+
           // context.yaml de la vista por defecto
           const viewContext = {
             _version: '1',
@@ -3475,6 +3979,7 @@ export function createMcpServer(): Server {
             discovered_at: new Date().toISOString(),
             page_title: discoveredData.pageTitle,
             routes_found: discoveredData.routes,
+            ...(isExtractionEmpty ? { extraction_empty: true, advertencias: viewAdvertencias } : {}),
           };
 
           // Validar contra module-view.schema.json antes de escribir nada en disco (E5b)
@@ -3617,7 +4122,7 @@ export function createMcpServer(): Server {
           try {
             const ctx = await storage.getProjectContext();
             const roles = Array.isArray((ctx as any).roles) ? (ctx as any).roles : [];
-            projectRoleCount = roles.length;
+            projectRoleCount = filterValidRoles(roles).length;
           } catch { /* sin contexto: 0 roles */ }
 
           const applicableCategories = computeApplicableCategories(viewCtx, projectRoleCount);
@@ -3639,7 +4144,21 @@ export function createMcpServer(): Server {
 
           // E4: Construir siguiente_accion tipo entrevista_vista (o decision ante fallo de Playwright, T9)
           const isPlaywrightFailure = !playwrightUsed || Boolean(playwrightError);
-          const siguienteAccion = isPlaywrightFailure
+          const isMissingBrowser = Boolean(
+            playwrightError && (
+              playwrightError.includes("executable doesn't exist") ||
+              playwrightError.includes('No se encontró un navegador compatible') ||
+              playwrightError.includes('playwright install')
+            )
+          );
+          const siguienteAccion = isMissingBrowser
+            ? {
+                tipo: 'trabajo' as const,
+                comando: PLAYWRIGHT_INSTALL_COMMAND,
+                descripcion: `Instalar navegador Chromium para Playwright sin consultar al usuario. Ejecuta '${PLAYWRIGHT_INSTALL_COMMAND}'.`,
+                tool: 'qap_discover',
+              }
+            : isPlaywrightFailure
             ? {
                 tipo: 'decision' as const,
                 descripcion: `Falló la exploración con Playwright para el módulo '${name}': ${playwrightError || 'Error de navegación'}. Decide si reintentar con otra URL, verificar servidor o continuar manualmente.`,
@@ -3656,6 +4175,14 @@ export function createMcpServer(): Server {
                   { tool: 'qap_discover', campo: 'action' }
                 ),
               }
+            : isExtractionEmpty
+            ? {
+                tipo: 'trabajo' as const,
+                descripcion: `Reintentar qap_discover una vez para '${name}' (${route}); si sigue vacía, informar al usuario de que QAP no vio elementos interactivos y pedirle que describa las acciones principales de la pantalla o confirme que está vacía.`,
+                tool: 'qap_discover',
+                modulo: name,
+                vista: 'default',
+              }
             : buildInterviewNextAction({
                 module: name,
                 view: 'default',
@@ -3665,6 +4192,25 @@ export function createMcpServer(): Server {
                 coverage,
                 rutasDetectadasFueraDelPlan,
               });
+
+          if (siguienteAccion?.pregunta) {
+            let cat = (siguienteAccion.pregunta as unknown as Record<string, unknown>).categoria as string | undefined;
+            if (!cat) {
+              const parts = (siguienteAccion.pregunta.id || '').split('.');
+              if (parts.length >= 4 && parts[0] === 'interview') {
+                cat = parts[3];
+              }
+            }
+            if (!cat && applicableCategories.length > 0) {
+              const missing = applicableCategories.find((c) => !coverage.categorias[c]?.cubierta);
+              if (missing) cat = missing;
+            }
+            if (cat) {
+              try {
+                await storage.savePendingQuestion(name, 'default', cat, siguienteAccion.pregunta);
+              } catch { /* ignore */ }
+            }
+          }
 
           // E0a: NO incluir accion_inmediata_requerida ni directiva_estricta
           const responsePayload: Record<string, unknown> = {
@@ -3685,7 +4231,15 @@ export function createMcpServer(): Server {
             manually_edited_ignorado: manuallyEditedSkipped || undefined,
             rutas_detectadas_fuera_del_plan: rutasDetectadasFueraDelPlan,
             categorias_aplicables: applicableCategories,
+            advertencias: viewAdvertencias.length > 0 ? viewAdvertencias : undefined,
+            page_kind: pageKind,
+            observed: playwrightUsed,
+            requested_url: requestedUrl,
+            final_url: finalUrl,
+            redirected: redirected,
+            http_status: httpStatus,
             siguiente_accion: siguienteAccion,
+            ...(isMissingBrowser ? { comando_instalacion: PLAYWRIGHT_INSTALL_COMMAND } : {}),
           };
 
           // E0b: Transición a través de transitionModule (con soporte a regresión consolidated -> interviewing)
@@ -4285,37 +4839,346 @@ export function createMcpServer(): Server {
 
           const view = args.view ? String(args.view) : 'default';
           const incomingRules = Array.isArray(args.rules) ? args.rules : [];
-          const incomingWaivers = Array.isArray(args.category_waivers) ? args.category_waivers : [];
+          const incomingWaivers = Array.isArray(args.category_waivers)
+            ? args.category_waivers
+            : (Array.isArray(args.waivers) ? args.waivers : []);
+
+          // C4: Manejo de propuesta_enunciado (del agente para resolver borrador previo)
+          const rawPropuesta = args.propuesta_enunciado !== undefined
+            ? String(args.propuesta_enunciado).trim()
+            : (incomingRules.find((r: RuleEntry) => (r as unknown as Record<string, unknown>).propuesta_enunciado) as Record<string, unknown> | undefined)?.propuesta_enunciado;
+
+          if (rawPropuesta !== undefined) {
+            const propuestaText = String(rawPropuesta).trim();
+            if (!isSubstantiveRuleText(propuestaText) || isEngineOptionLabel(propuestaText) || isTautologicalOptionLabel(propuestaText)) {
+              return {
+                isError: true,
+                content: [{
+                  type: 'text',
+                  text: JSON.stringify({
+                    status: 'error',
+                    error: "La 'propuesta_enunciado' debe cumplir el umbral sustantivo (al menos 3 palabras y 20 caracteres) y no puede ser igual a una etiqueta genérica del motor.",
+                  }, null, 2),
+                }],
+              };
+            }
+
+            // Categoría: de args.category o de la regla que la trae, o del borrador pendiente en rules.yaml
+            let targetCategory = (args.category || incomingRules.find((r: RuleEntry) => r.category)?.category) as string | undefined;
+            if (!targetCategory) {
+              const currentRulesFile = await storage.getModuleRules(moduleName);
+              const draftRule = (currentRulesFile?.rules || []).find((r: RuleEntry) => r.borrador && r.category);
+              if (draftRule) targetCategory = draftRule.category;
+            }
+            if (!targetCategory) targetCategory = 'proposito';
+
+            const confirmQId = `confirmar_enunciado.${normalizeSlug(moduleName)}.${normalizeSlug(view)}.${targetCategory}`;
+            const confirmPregunta: Pregunta & { categoria: string; enunciado_propuesto: string } = {
+              id: confirmQId,
+              texto: `Se registrará para ${targetCategory}: ${propuestaText}`,
+              formato: 'una_opcion',
+              opciones: [
+                {
+                  id: 'es_correcto',
+                  etiqueta: 'Es correcto',
+                },
+                {
+                  id: 'corregir',
+                  etiqueta: 'Corregir',
+                  efecto: {
+                    accion: 'corregir',
+                    abre_seguimiento: true,
+                  },
+                },
+                {
+                  id: 'definir_despues',
+                  etiqueta: 'Lo defino después',
+                  efecto: {
+                    estado: 'deferred',
+                  },
+                },
+              ],
+              permite_otra: false,
+              registrar_con: { tool: 'qap_rules_set', campo: 'from_option' },
+              seguimiento: {
+                id: `${confirmQId}.corregir`,
+                texto: `Modifica el enunciado para la categoría ${targetCategory}: ${propuestaText}`,
+                formato: 'abierta',
+                opciones: [],
+                permite_otra: true,
+                registrar_con: { tool: 'qap_rules_set', campo: 'user_text' },
+              },
+              categoria: targetCategory,
+              enunciado_propuesto: propuestaText,
+            };
+            confirmPregunta.render_texto = generarRenderTexto(confirmPregunta);
+            const guardedConfirmPregunta = guardPregunta(confirmPregunta) as Pregunta & { categoria: string; enunciado_propuesto: string };
+            guardedConfirmPregunta.categoria = targetCategory;
+            guardedConfirmPregunta.enunciado_propuesto = propuestaText;
+
+            await storage.savePendingQuestion(moduleName, view, targetCategory, guardedConfirmPregunta);
+
+            const currentRulesFile = await storage.getModuleRules(moduleName);
+            const allRules = currentRulesFile?.rules || [];
+            const allWaivers = currentRulesFile?.category_waivers || [];
+
+            let projectRoleCountRules = 0;
+            try {
+              const ctx = await storage.getProjectContext();
+              const roles = Array.isArray((ctx as any).roles) ? (ctx as any).roles : [];
+              projectRoleCountRules = filterValidRoles(roles).length;
+            } catch { /* empty */ }
+
+            let formsForView: DomForm[] = [];
+            let buttonsForView: Array<{ key: string; text: string; selector: string }> = [];
+            const storageStateUsed = false;
+            const selectorsPath = join(rootDir, '.qa', 'modules', moduleName, 'views', view, 'selectors.json');
+            if (existsSync(selectorsPath)) {
+              try {
+                const selObj = JSON.parse(readFileSync(selectorsPath, 'utf-8'));
+                if (selObj?.selectors?.forms) formsForView = selObj.selectors.forms;
+                if (selObj?.selectors?.buttons) buttonsForView = selObj.selectors.buttons;
+              } catch { /* empty */ }
+            }
+            const viewCtx: ViewDiscoveryContext = {
+              module: moduleName,
+              view,
+              route: '',
+              forms: formsForView,
+              buttons: buttonsForView,
+              storage_state_used: storageStateUsed,
+              is_auth_view: false,
+            };
+            const applicableCats = computeApplicableCategories(viewCtx, projectRoleCountRules);
+            const cov = computeCoverage(applicableCats, allRules, allWaivers, view);
+
+            return {
+              content: [{
+                type: 'text',
+                text: JSON.stringify({
+                  status: 'success',
+                  directorio_objetivo: rootDir,
+                  message: `✔ Propuesta de enunciado para '${targetCategory}' recibida. Se emite pregunta de confirmación estructurada al usuario.`,
+                  module: moduleName,
+                  view,
+                  state: modEntry.state,
+                  modulo_estado: modEntry.state,
+                  rules_guardadas: 0,
+                  waivers_guardados: 0,
+                  rules_total: allRules.length,
+                  waivers_total: allWaivers.length,
+                  cobertura: cov,
+                  cobertura_completa: cov.completa,
+                  siguiente_accion: {
+                    tipo: 'decision',
+                    descripcion: `Confirma la propuesta de enunciado para la categoría '${targetCategory}'.`,
+                    tool: 'qap_rules_set',
+                    module: moduleName,
+                    pregunta: guardedConfirmPregunta,
+                  },
+                }, null, 2),
+              }],
+            };
+          }
 
           // Validar lote completo antes de cualquier mutación (T12)
           const VALID_CATEGORIES = new Set(['proposito', 'actor', 'campo', 'accion', 'error', 'dato', 'sensibilidad']);
           const VALID_STATUSES = new Set(['inferred', 'confirmed', 'rejected', 'deferred']);
-          const VALID_SOURCES = new Set(['dom', 'prd', 'user']);
+          const VALID_SOURCES = new Set(['dom', 'prd', 'user', 'user_text', 'user_confirmed', 'doc', 'agent']);
+
+          let agentRulesAlert = false;
+          let shortRuleDraftCategory: string | undefined = undefined;
+          let shortRuleDraftUserText: string | undefined = undefined;
+          let directDeterministicQuestion: Pregunta | undefined = undefined;
+          let openFollowUpQuestion: Pregunta | undefined = undefined;
 
           for (const rule of incomingRules) {
-            if (!rule.description || typeof rule.description !== 'string' || rule.description.trim().length === 0) {
-              return {
-                isError: true,
-                content: [{ type: 'text', text: JSON.stringify({ status: 'error', error: "Regla inválida: 'description' es requerida y no puede ser vacía. Lote rechazado por completo." }, null, 2) }],
-              };
+            // C4: Si viene user_text
+            if (rule.user_text && typeof rule.user_text === 'string') {
+              const uText = rule.user_text.trim();
+              if (isSubstantiveRuleText(uText) && !isEngineOptionLabel(uText) && !isTautologicalOptionLabel(uText)) {
+                rule.description = uText;
+                rule.source = 'user_text';
+                rule.status = 'confirmed';
+                rule.borrador = false;
+              } else {
+                rule.description = `[Borrador] ${uText}`;
+                rule.source = 'user_text';
+                rule.status = 'inferred';
+                rule.borrador = true;
+                rule.user_input = uText;
+
+                // Intento de derivación determinista (ej: categoría actor cuyo texto nombra roles de context.yaml)
+                let derivedStatement: string | null = null;
+                if (rule.category === 'actor') {
+                  try {
+                    const ctx = await storage.getProjectContext();
+                    const declaredRoles = filterValidRoles((ctx as any)?.roles || []);
+                    const lowerText = uText.toLowerCase();
+                    const matchedRoles = declaredRoles.filter((r) => lowerText.includes(r.toLowerCase()));
+                    if (matchedRoles.length > 0) {
+                      derivedStatement = `Acceso y operación del módulo restringidos a los roles: ${matchedRoles.join(', ')}.`;
+                    }
+                  } catch { /* empty */ }
+                }
+
+                if (derivedStatement && isSubstantiveRuleText(derivedStatement)) {
+                  const targetCat = rule.category || 'actor';
+                  const confirmQId = `confirmar_enunciado.${normalizeSlug(moduleName)}.${normalizeSlug(view)}.${targetCat}`;
+                  const confirmPregunta: Pregunta & { categoria: string; enunciado_propuesto: string } = {
+                    id: confirmQId,
+                    texto: `Se registrará para ${targetCat}: ${derivedStatement}`,
+                    formato: 'una_opcion',
+                    opciones: [
+                      { id: 'es_correcto', etiqueta: 'Es correcto' },
+                      { id: 'corregir', etiqueta: 'Corregir', efecto: { accion: 'corregir', abre_seguimiento: true } },
+                      { id: 'definir_despues', etiqueta: 'Lo defino después', efecto: { estado: 'deferred' } },
+                    ],
+                    permite_otra: false,
+                    registrar_con: { tool: 'qap_rules_set', campo: 'from_option' },
+                    seguimiento: {
+                      id: `${confirmQId}.corregir`,
+                      texto: `Modifica el enunciado para la categoría ${targetCat}: ${derivedStatement}`,
+                      formato: 'abierta',
+                      opciones: [],
+                      permite_otra: true,
+                      registrar_con: { tool: 'qap_rules_set', campo: 'user_text' },
+                    },
+                    categoria: targetCat,
+                    enunciado_propuesto: derivedStatement,
+                  };
+                  confirmPregunta.render_texto = generarRenderTexto(confirmPregunta);
+                  const guarded = guardPregunta(confirmPregunta) as Pregunta & { categoria: string; enunciado_propuesto: string };
+                  guarded.categoria = targetCat;
+                  guarded.enunciado_propuesto = derivedStatement;
+
+                  await storage.savePendingQuestion(moduleName, view, targetCat, guarded);
+                  directDeterministicQuestion = guarded;
+                } else {
+                  shortRuleDraftCategory = rule.category;
+                  shortRuleDraftUserText = uText;
+                }
+              }
+            } else if (rule.from_option && typeof rule.from_option === 'object') {
+              const fromOpt = rule.from_option as Record<string, unknown>;
+              const qId = (fromOpt.pregunta_id || fromOpt.question_id) as string | undefined;
+              const optId = (fromOpt.opcion_id || fromOpt.option_id) as string | undefined;
+              let matchedQ: (Pregunta & { categoria?: string; enunciado_propuesto?: string }) | null = null;
+              if (qId) {
+                matchedQ = (await storage.findPendingQuestion(moduleName, view, qId)) as (Pregunta & { categoria?: string; enunciado_propuesto?: string }) | null;
+              }
+              if (!matchedQ && rule.category) {
+                matchedQ = (await storage.getPendingQuestion(moduleName, view, rule.category)) as (Pregunta & { categoria?: string; enunciado_propuesto?: string }) | null;
+              }
+
+              // C3: La categoría de from_option se toma SIEMPRE de la pregunta pendiente persistida
+              let persistedCat = matchedQ?.categoria;
+              if (!persistedCat && matchedQ?.id) {
+                const parts = matchedQ.id.split('.');
+                if (parts.length >= 4 && parts[0] === 'interview') {
+                  persistedCat = parts[3];
+                }
+              }
+
+              if (matchedQ && persistedCat) {
+                if (rule.category && rule.category !== persistedCat) {
+                  return {
+                    isError: true,
+                    content: [{
+                      type: 'text',
+                      text: JSON.stringify({
+                        status: 'blocked',
+                        error: `Categoría discordante al resolver from_option: la pregunta pendiente pertenece a la categoría '${persistedCat}', pero la petición indicó '${rule.category}'. Debe coincidir con la pregunta pendiente.`,
+                      }, null, 2),
+                    }],
+                  };
+                }
+                rule.category = persistedCat;
+              }
+
+              const matchedOpt = matchedQ?.opciones?.find((o: { id: string }) => o.id === optId);
+              const optText = (matchedOpt?.etiqueta || '').trim();
+
+              if (optId === 'es_correcto') {
+                const statementText = matchedQ?.enunciado_propuesto || rule.description || optText;
+                rule.description = statementText;
+                rule.source = 'user_confirmed';
+                rule.status = 'confirmed';
+                rule.borrador = false;
+              } else if (matchedOpt && (optId === 'definir_despues' || matchedOpt.efecto?.estado === 'deferred')) {
+                rule.description = rule.description || optText || `Categoría diferida: ${rule.category || 'general'}`;
+                rule.status = 'deferred';
+                rule.source = 'user_confirmed';
+                rule.borrador = false;
+              } else if (matchedOpt && (matchedOpt.efecto?.abre_seguimiento || matchedOpt.efecto?.accion === 'corregir') && matchedQ?.seguimiento) {
+                // Opción que abre seguimiento (ej: Corregir)
+                openFollowUpQuestion = matchedQ.seguimiento;
+                await storage.savePendingQuestion(moduleName, view, persistedCat || 'proposito', matchedQ.seguimiento);
+                (rule as unknown as Record<string, unknown>).__skip_persist = true;
+              } else if (matchedOpt && isSubstantiveRuleText(optText) && !isTautologicalOptionLabel(optText)) {
+                rule.description = optText;
+                rule.source = 'user_confirmed';
+                rule.status = 'confirmed';
+                rule.borrador = false;
+              } else {
+                if (rule.description && typeof rule.description === 'string' && rule.description.trim().length > 0) {
+                  rule.source = 'agent';
+                  rule.status = 'inferred';
+                  agentRulesAlert = true;
+                } else if (optText.length > 0) {
+                  rule.description = optText;
+                  rule.source = 'agent';
+                  rule.status = 'inferred';
+                  agentRulesAlert = true;
+                } else {
+                  return {
+                    isError: true,
+                    content: [{
+                      type: 'text',
+                      text: JSON.stringify({
+                        status: 'error',
+                        error: "Regla inválida: la opción seleccionada no existe o no tiene texto sustantivo. Lote rechazado por completo.",
+                      }, null, 2),
+                    }],
+                  };
+                }
+              }
+            } else if (rule.source === 'user' && rule.status === 'confirmed' && !isTautologicalOptionLabel(rule.description) && !isEngineOptionLabel(rule.description)) {
+              rule.source = 'user';
+              rule.status = 'confirmed';
+            } else if (rule.status === 'deferred') {
+              rule.status = 'deferred';
+            } else {
+              rule.source = 'agent';
+              rule.status = 'inferred';
+              agentRulesAlert = true;
             }
-            if (rule.category && !VALID_CATEGORIES.has(rule.category)) {
-              return {
-                isError: true,
-                content: [{ type: 'text', text: JSON.stringify({ status: 'error', error: `Categoría inválida '${rule.category}' en regla '${rule.id || 'nueva'}'. Categorías válidas: ${Array.from(VALID_CATEGORIES).join(', ')}. Lote rechazado por completo.` }, null, 2) }],
-              };
-            }
-            if (rule.status && !VALID_STATUSES.has(rule.status)) {
-              return {
-                isError: true,
-                content: [{ type: 'text', text: JSON.stringify({ status: 'error', error: `Estado inválido '${rule.status}' en regla '${rule.id || 'nueva'}'. Estados válidos: ${Array.from(VALID_STATUSES).join(', ')}. Lote rechazado por completo.` }, null, 2) }],
-              };
-            }
-            if (rule.source && !VALID_SOURCES.has(rule.source)) {
-              return {
-                isError: true,
-                content: [{ type: 'text', text: JSON.stringify({ status: 'error', error: `Fuente inválida '${rule.source}' en regla '${rule.id || 'nueva'}'. Fuentes válidas: ${Array.from(VALID_SOURCES).join(', ')}. Lote rechazado por completo.` }, null, 2) }],
-              };
+
+            if (!(rule as unknown as Record<string, unknown>).__skip_persist) {
+              if (!rule.description || typeof rule.description !== 'string' || rule.description.trim().length === 0) {
+                return {
+                  isError: true,
+                  content: [{ type: 'text', text: JSON.stringify({ status: 'error', error: "Regla inválida: 'description' es requerida y no puede ser vacía. Lote rechazado por completo." }, null, 2) }],
+                };
+              }
+              if (rule.category && !VALID_CATEGORIES.has(rule.category)) {
+                return {
+                  isError: true,
+                  content: [{ type: 'text', text: JSON.stringify({ status: 'error', error: `Categoría inválida '${rule.category}' en regla '${rule.id || 'nueva'}'. Categorías válidas: ${Array.from(VALID_CATEGORIES).join(', ')}. Lote rechazado por completo.` }, null, 2) }],
+                };
+              }
+              if (rule.status && !VALID_STATUSES.has(rule.status)) {
+                return {
+                  isError: true,
+                  content: [{ type: 'text', text: JSON.stringify({ status: 'error', error: `Estado inválido '${rule.status}' en regla '${rule.id || 'nueva'}'. Estados válidos: ${Array.from(VALID_STATUSES).join(', ')}. Lote rechazado por completo.` }, null, 2) }],
+                };
+              }
+              if (rule.source && !VALID_SOURCES.has(rule.source)) {
+                return {
+                  isError: true,
+                  content: [{ type: 'text', text: JSON.stringify({ status: 'error', error: `Fuente inválida '${rule.source}' en regla '${rule.id || 'nueva'}'. Fuentes válidas: ${Array.from(VALID_SOURCES).join(', ')}. Lote rechazado por completo.` }, null, 2) }],
+                };
+              }
             }
           }
 
@@ -4339,6 +5202,7 @@ export function createMcpServer(): Server {
           }
 
           const reglasIgnoradas: Array<{ id: string; motivo: string }> = [];
+          const activeIncomingRules = incomingRules.filter((r: RuleEntry) => !(r as unknown as Record<string, unknown>).__skip_persist);
 
           // Upsert atómico vía updateModuleRules (E5, T11, T12)
           const updatedRules = await storage.updateModuleRules(moduleName, (current) => {
@@ -4355,9 +5219,11 @@ export function createMcpServer(): Server {
               }
             }
 
-            // Upsert: actualizar existentes por id (respetando no-downgrade), agregar nuevos
-            const merged = existing.map((r: any) => {
-              const incoming = incomingRules.find((ir: any) => ir.id === r.id);
+            // Upsert: actualizar existentes por id (respetando no-downgrade), o reemplazando borrador previo de misma categoría
+            const merged = existing.map((r: RuleEntry) => {
+              const incoming = activeIncomingRules.find(
+                (ir: RuleEntry) => ir.id === r.id || (ir.category && ir.category === r.category && r.borrador)
+              );
               if (incoming) {
                 // T12 No-downgrade: regla source user confirmed no se sobrescribe con dom/prd
                 if (r.source === 'user' && r.status === 'confirmed' && incoming.source && incoming.source !== 'user') {
@@ -4371,17 +5237,23 @@ export function createMcpServer(): Server {
                 return {
                   ...r,
                   ...incoming,
+                  id: r.id,
                   view: incoming.view ?? r.view ?? view,
                   source: incoming.source ?? r.source ?? 'user',
+                  borrador: incoming.borrador ?? false,
                   evidence: incoming.evidence ? incoming.evidence.slice(0, 120) : r.evidence,
                 };
               }
               return r;
             });
 
-            const newRules = incomingRules
-              .filter((ir: any) => !ir.id || !existingIds.has(ir.id))
-              .map((ir: any) => {
+            const newRules = activeIncomingRules
+              .filter((ir: RuleEntry) => {
+                if (ir.id && existingIds.has(ir.id)) return false;
+                if (!ir.id && ir.category && existing.some((er: RuleEntry) => er.borrador && er.category === ir.category)) return false;
+                return true;
+              })
+              .map((ir: RuleEntry) => {
                 const ruleId = ir.id || `R-${String(++maxRNum).padStart(3, '0')}`;
                 return {
                   ...ir,
@@ -4389,6 +5261,7 @@ export function createMcpServer(): Server {
                   view: ir.view ?? view,
                   source: ir.source ?? 'user',
                   status: ir.status ?? 'confirmed',
+                  borrador: ir.borrador ?? false,
                   evidence: ir.evidence ? ir.evidence.slice(0, 120) : undefined,
                 };
               });
@@ -4422,7 +5295,7 @@ export function createMcpServer(): Server {
           try {
             const ctx = await storage.getProjectContext();
             const roles = Array.isArray((ctx as any).roles) ? (ctx as any).roles : [];
-            projectRoleCountRules = roles.length;
+            projectRoleCountRules = filterValidRoles(roles).length;
           } catch { /* sin contexto */ }
 
           let formsForView: DomForm[] = [];
@@ -4521,7 +5394,34 @@ export function createMcpServer(): Server {
           let siguienteAccionRules: SiguienteAccion;
           let moduleSummary: ReturnType<typeof buildModuleSummary> | undefined;
 
-          if (cov.completa) {
+          if (openFollowUpQuestion) {
+            siguienteAccionRules = {
+              tipo: 'entrevista',
+              descripcion: openFollowUpQuestion.texto,
+              tool: openFollowUpQuestion.registrar_con?.tool || 'qap_rules_set',
+              module: moduleName,
+              modulo: moduleName,
+              view,
+              vista: view,
+              pregunta: openFollowUpQuestion,
+            };
+          } else if (directDeterministicQuestion) {
+            siguienteAccionRules = {
+              tipo: 'decision',
+              descripcion: `Confirma la propuesta de regla para la categoría '${(directDeterministicQuestion as any).categoria}'.`,
+              tool: 'qap_rules_set',
+              module: moduleName,
+              pregunta: directDeterministicQuestion,
+            };
+          } else if (shortRuleDraftCategory) {
+            siguienteAccionRules = {
+              tipo: 'trabajo',
+              descripcion: `El usuario proporcionó una respuesta breve para la categoría '${shortRuleDraftCategory}': "${shortRuleDraftUserText}". Redacta un enunciado de regla completo (mínimo 3 palabras y 20 caracteres) basado en su respuesta y en la evidencia disponible, y envíalo con qap_rules_set usando el parámetro 'propuesta_enunciado'.`,
+              tool: 'qap_rules_set',
+              modulo: moduleName,
+              vista: view,
+            };
+          } else if (cov.completa) {
             moduleSummary = buildModuleSummary(allRules, allWaivers);
             const freshState = await storage.getLifecycleState();
             const plan = freshState.session?.plan || [];
@@ -4536,7 +5436,7 @@ export function createMcpServer(): Server {
 
             const closeDecisionPregunta = makeDecisionQuestion(
               `modulo.${moduleName}.cierre`,
-              `El módulo '${moduleName}' ha completado su cobertura de reglas (consolidated). Confirma la acción para proceder:`,
+              `El módulo '${moduleName}' ha completado su cobertura (${cov.sustantivas} de ${applicableCats.length} categorías con contenido${cov.diferidas > 0 ? `, ${cov.diferidas} diferidas` : ''}). Confirma la acción para proceder:`,
               [
                 { id: 'cerrar', etiqueta: `Cerrar módulo '${moduleName}' formalmente`, recomendada: true },
                 { id: 'revisar', etiqueta: 'Revisar reglas antes de cerrar' },
@@ -4563,6 +5463,25 @@ export function createMcpServer(): Server {
             });
           }
 
+          if (siguienteAccionRules?.pregunta) {
+            let cat = (siguienteAccionRules.pregunta as unknown as Record<string, unknown>).categoria as string | undefined;
+            if (!cat) {
+              const parts = (siguienteAccionRules.pregunta.id || '').split('.');
+              if (parts.length >= 4 && parts[0] === 'interview') {
+                cat = parts[3];
+              }
+            }
+            if (!cat && applicableCats.length > 0) {
+              const missing = applicableCats.find((c) => !cov.categorias[c]?.cubierta);
+              if (missing) cat = missing;
+            }
+            if (cat) {
+              try {
+                await storage.savePendingQuestion(moduleName, view, cat, siguienteAccionRules.pregunta);
+              } catch { /* ignore */ }
+            }
+          }
+
           return {
             content: [{
               type: 'text',
@@ -4574,7 +5493,7 @@ export function createMcpServer(): Server {
                 view,
                 state: targetModuleState,
                 modulo_estado: targetModuleState,
-                rules_guardadas: incomingRules.length,
+                rules_guardadas: activeIncomingRules.length,
                 waivers_guardados: incomingWaivers.length,
                 rules_total: allRules.length,
                 waivers_total: allWaivers.length,
@@ -4582,6 +5501,12 @@ export function createMcpServer(): Server {
                 resumen_cierre: moduleSummary,
                 cobertura: cov,
                 cobertura_completa: cov.completa,
+                desbloquear_con: agentRulesAlert
+                  ? {
+                      tool: 'qap_rules_set',
+                      descripcion: "Una o más reglas redactadas por el agente sin user_text sustantivo ni from_option válido se guardaron con source 'agent' y status 'inferred'. No computan para la cobertura. Confírmalas con user_text o from_option.",
+                    }
+                  : undefined,
                 siguiente_accion: siguienteAccionRules,
               }, null, 2),
             }],
@@ -4694,6 +5619,32 @@ export function createMcpServer(): Server {
             };
           }
 
+          let rulesList: RuleEntry[] = [];
+          let waiversList: CategoryWaiver[] = [];
+          try {
+            const rf = await storage.getModuleRules(moduleName);
+            rulesList = rf?.rules || [];
+            waiversList = rf?.category_waivers || [];
+          } catch { /* empty */ }
+
+          const planItem = (lifecycleState.session?.plan || []).find((p: { module: string; path?: string }) => p.module === moduleName);
+          const route = planItem?.path || '';
+          const vContext = buildViewDiscoveryContext(rootDir, moduleName, 'default', route);
+
+          let projectRoleCountClose = 0;
+          try {
+            const ctx = await storage.getProjectContext();
+            const roles = Array.isArray(ctx?.roles) ? ctx.roles : [];
+            projectRoleCountClose = filterValidRoles(roles).length;
+          } catch { /* sin contexto */ }
+
+          const appCats = computeApplicableCategories(vContext, projectRoleCountClose);
+          const covCurrent = computeCoverage(appCats, rulesList, waiversList, 'default');
+          const sustantivasCount = covCurrent.sustantivas;
+          const totalAplicables = appCats.length;
+          const tiene50Porciento = totalAplicables > 0 ? (sustantivasCount / totalAplicables >= 0.50) : true;
+          const conteoTexto = `${sustantivasCount} de ${totalAplicables} categorías con contenido${covCurrent.diferidas > 0 ? `, ${covCurrent.diferidas} diferidas` : ''}`;
+
           // 4. Bloqueado si user_confirmed no es true
           if (!userConfirmed) {
             return {
@@ -4714,7 +5665,7 @@ export function createMcpServer(): Server {
                     tool: 'qap_module_close',
                     pregunta: makeDecisionQuestion(
                       `confirmar_cierre_modulo_${sanitizeDomString(moduleName)}`,
-                      `Se requiere confirmación del usuario para cerrar o renunciar al módulo '${moduleName}'. Selecciona cómo proceder con la acción '${action}':`,
+                      `Se requiere confirmación del usuario para cerrar o renunciar al módulo '${moduleName}' (${conteoTexto}). Selecciona cómo proceder con la acción '${action}':`,
                       [
                         { id: 'confirmar', etiqueta: `Confirmar ${action === 'close' ? 'cierre' : 'renuncia'} del módulo '${moduleName}'`, recomendada: true },
                         { id: 'cancelar', etiqueta: 'Seguir refinando reglas' },
@@ -4728,30 +5679,9 @@ export function createMcpServer(): Server {
             };
           }
 
-          let rulesList: any[] = [];
-          let waiversList: any[] = [];
-          try {
-            const rf = await storage.getModuleRules(moduleName);
-            rulesList = rf?.rules || [];
-            waiversList = rf?.category_waivers || [];
-          } catch { /* empty */ }
-
-          const planItem = (lifecycleState.session?.plan || []).find((p: any) => p.module === moduleName);
-          const route = planItem?.path || '';
-          const vContext = buildViewDiscoveryContext(rootDir, moduleName, 'default', route);
-
-          let projectRoleCountClose = 0;
-          try {
-            const ctx = await storage.getProjectContext();
-            const roles = Array.isArray((ctx as any).roles) ? (ctx as any).roles : [];
-            projectRoleCountClose = roles.length;
-          } catch { /* sin contexto */ }
-
-          const appCats = computeApplicableCategories(vContext, projectRoleCountClose);
-
           // 5. Validación por action
           if (action === 'close') {
-            if (modEntry.state !== 'consolidated') {
+            if (modEntry.state === 'planned' && !args.accept_gaps) {
               return {
                 content: [{
                   type: 'text',
@@ -4759,14 +5689,14 @@ export function createMcpServer(): Server {
                     status: 'blocked',
                     directorio_objetivo: rootDir,
                     fase: 'WORKING',
-                    razon: `Solo los módulos en estado 'consolidated' pueden cerrarse con action: 'close'. El módulo '${moduleName}' está en estado '${modEntry.state}'.`,
+                    razon: `El módulo '${moduleName}' está en estado '${modEntry.state}'. Solo los módulos en estado 'consolidated' pueden cerrarse con action 'close'.`,
                     desbloquear_con: {
                       tool: 'qap_rules_set',
-                      descripcion: 'Completa la cobertura de reglas de la vista para alcanzar el estado consolidated.',
+                      descripcion: 'Completa la revisión de reglas del módulo hasta alcanzar el estado consolidated.',
                     },
                     siguiente_accion: {
                       tipo: 'trabajo',
-                      descripcion: `Completa la cobertura de reglas de '${moduleName}' con qap_rules_set para transicionar a consolidated.`,
+                      descripcion: `El módulo '${moduleName}' está en '${modEntry.state}'. Continúa el proceso con qap_rules_set.`,
                       tool: 'qap_rules_set',
                     },
                   }, null, 2),
@@ -4774,28 +5704,43 @@ export function createMcpServer(): Server {
               };
             }
 
-            const closeGate = canCloseModule(rulesList, waiversList, appCats, 'default');
-            if (!closeGate.passed) {
-              return {
-                content: [{
-                  type: 'text',
-                  text: JSON.stringify({
-                    status: 'blocked',
-                    directorio_objetivo: rootDir,
-                    fase: 'WORKING',
-                    razon: `El módulo '${moduleName}' no cumple los requisitos para cierre: ${closeGate.reason}`,
-                    desbloquear_con: {
-                      tool: 'qap_rules_set',
-                      descripcion: 'Confirma o resuelve las hipótesis pendientes con qap_rules_set.',
-                    },
-                    siguiente_accion: {
-                      tipo: 'trabajo',
-                      descripcion: `Resuelve los requisitos pendientes de '${moduleName}' con qap_rules_set.`,
-                      tool: 'qap_rules_set',
-                    },
-                  }, null, 2),
-                }],
-              };
+            if (!tiene50Porciento) {
+              const acceptGaps = args.accept_gaps === true;
+              const acceptGapsReason = typeof args.accept_gaps_reason === 'string' ? args.accept_gaps_reason.trim() : '';
+              if (!acceptGaps || acceptGapsReason.length < 15) {
+                return {
+                  content: [{
+                    type: 'text',
+                    text: JSON.stringify({
+                      status: 'blocked',
+                      directorio_objetivo: rootDir,
+                      fase: 'WORKING',
+                      razon: 'cobertura_insuficiente',
+                      mensaje: `El módulo '${moduleName}' tiene cobertura sustantiva menor al 50% (${conteoTexto}). Para cerrarlo debes proporcionar accept_gaps: true, accept_gaps_reason (al menos 15 caracteres) y user_confirmed: true.`,
+                      cobertura: covCurrent,
+                      desbloquear_con: {
+                        tool: 'qap_module_close',
+                        descripcion: 'Cierra el módulo aceptando brechas con accept_gaps: true, accept_gaps_reason (mínimo 15 caracteres) y user_confirmed: true, o añade reglas con qap_rules_set.',
+                      },
+                      siguiente_accion: {
+                        tipo: 'decision',
+                        descripcion: `El módulo '${moduleName}' solo cuenta con ${conteoTexto}. Confirma cómo proceder con el cierre.`,
+                        tool: 'qap_module_close',
+                        pregunta: makeDecisionQuestion(
+                          `cobertura_insuficiente_${sanitizeDomString(moduleName)}`,
+                          `El módulo '${moduleName}' tiene cobertura de ${conteoTexto}. Selecciona cómo proceder con el cierre:`,
+                          [
+                            { id: 'cerrar_con_brechas', etiqueta: 'Aceptar brechas y cerrar módulo con justificación' },
+                            { id: 'continuar', etiqueta: 'Continuar refinando reglas con qap_rules_set', recomendada: true },
+                          ],
+                          true,
+                          { tool: 'qap_module_close', campo: 'accept_gaps' }
+                        ),
+                      },
+                    }, null, 2),
+                  }],
+                };
+              }
             }
           } else if (action === 'waive') {
             if (reasonStr.length < 15) {
@@ -4848,18 +5793,40 @@ export function createMcpServer(): Server {
           // Ejecutar transición
           const targetState: ModuleLifecycleState = action === 'close' ? 'closed' : 'waived';
           await storage.updateLifecycleState(async (curr) => {
+            let transState = curr;
+            if (curr.modules?.[moduleName]?.state === 'observed' && targetState === 'closed') {
+              const toInter = transitionModule(transState, moduleName, 'interviewing', {
+                reason: `Inicio de entrevista para cierre${args.accept_gaps === true ? ' con brechas aceptadas' : ''}`,
+              });
+              if (toInter.state) transState = toInter.state;
+            }
+            if (transState.modules?.[moduleName]?.state === 'interviewing' && targetState === 'closed') {
+              const toCons = transitionModule(transState, moduleName, 'consolidated', {
+                reason: `Consolidación para cierre${args.accept_gaps === true ? ' con brechas aceptadas' : ''}`,
+              });
+              if (toCons.state) transState = toCons.state;
+            }
             const trans = transitionModule(
-              curr,
+              transState,
               moduleName,
               targetState,
               action === 'close'
-                ? { reason: `Módulo '${moduleName}' cerrado formalmente tras verificar cobertura completa` }
+                ? { reason: `Módulo '${moduleName}' cerrado formalmente${args.accept_gaps === true ? ' con brechas aceptadas' : ' tras verificar cobertura completa'}` }
                 : { waived_reason: reasonStr, reason: `Módulo '${moduleName}' renunciado (waived). Motivo: ${reasonStr}` }
             );
             if (trans.state) curr = trans.state;
             if (curr.session?.plan) {
               const pItem = curr.session.plan.find((p: any) => p.module === moduleName);
               if (pItem) pItem.status = targetState;
+            }
+            if (curr.modules?.[moduleName] && args.accept_gaps === true) {
+              (curr.modules[moduleName] as unknown as Record<string, unknown>).accepted_gaps = {
+                reason: String(args.accept_gaps_reason).trim(),
+                at: new Date().toISOString(),
+                sustantivas: sustantivasCount,
+                total_aplicables: totalAplicables,
+                diferidas: covCurrent.diferidas,
+              };
             }
             return curr;
           });
@@ -4967,6 +5934,7 @@ export function createMcpServer(): Server {
                       'Existen módulos pendientes en el plan. Selecciona cómo proceder:',
                       [
                         { id: 'cerrar_modulos', etiqueta: 'Revisar y cerrar módulos pendientes con qap_module_close', recomendada: true },
+                        { id: 'ver_estado', etiqueta: 'Consultar el estado del proyecto con qap_status' },
                       ],
                       true,
                       { tool: 'qap_module_close', campo: 'module' }
@@ -5010,7 +5978,7 @@ export function createMcpServer(): Server {
             }
           }
 
-          const gapReportMd = generateSessionGapReport({
+          const gapParams = {
             sessionId,
             startedAt,
             closedAt,
@@ -5018,7 +5986,9 @@ export function createMcpServer(): Server {
             plan: lifecycleState.session?.plan || [],
             modules: lifecycleState.modules || {},
             moduleRules: moduleRulesMap,
-          });
+          };
+          const gapReportMd = generateSessionGapReport(gapParams);
+          const gapSummary = computeSessionGapSummary(gapParams);
 
           const sessionsDir = join(qaDir, 'project', 'sessions');
           if (!existsSync(sessionsDir)) {
@@ -5045,6 +6015,12 @@ export function createMcpServer(): Server {
                 session_id: sessionId,
                 report_path: reportFilePath,
                 reporte_brechas_path: reportFilePath,
+                cobertura_alcance: {
+                  flujos: { cubiertos: gapSummary.flujos_cubiertos, declarados: gapSummary.flujos_totales },
+                  roles: { con_perfil_verificado: gapSummary.roles_verificados, declarados: gapSummary.roles_totales },
+                  resumen_texto: gapSummary.cobertura_alcance,
+                },
+                brechas_detectadas: (gapSummary.flujos_totales - gapSummary.flujos_cubiertos) + (gapSummary.roles_totales - gapSummary.roles_verificados),
                 siguiente_accion: {
                   tipo: 'decision',
                   descripcion: `Sesión concluida. Reporte de brechas generado en ${reportFilePath}. Puedes revisar el Knowledge Graph (qap_server) o iniciar una nueva sesión (qap_session_plan).`,

@@ -29,12 +29,91 @@ export interface PlaywrightAdapterOptions {
   storageState?: string | Record<string, unknown> | object;
   /** Credenciales explícitas para autenticarse si la pantalla es de login */
   credentials?: AuthCredentials;
+  /** Si es true, omite la espera de asentamiento del DOM (para pruebas comparativas en SPAs con skeleton). */
+  skipDomSettling?: boolean;
+  /** Ventana de estabilidad de URL configurable (por defecto URL_STABILITY_WINDOW_MS = 500 ms). */
+  urlStabilityWindowMs?: number;
 }
 
 export const URL_STABILITY_INTERVAL_MS = 150;
 export const URL_STABILITY_WINDOW_MS = 500;
 export const URL_STABILITY_MAX_TIMEOUT_MS = 3000;
 export const URL_NETWORKIDLE_MAX_TIMEOUT_MS = 3000;
+
+/**
+ * Tiempo de espera en milisegundos para verificar la estabilidad de la página
+ * posterior a la extracción, asegurando que no haya redirecciones asíncronas tardías.
+ */
+export const POST_EXTRACTION_VERIFY_DELAY_MS = 100;
+
+/**
+ * Ventana de silencio requerida sin mutaciones en el DOM para considerar el DOM asentado (ms).
+ */
+export const DOM_SETTLE_SILENCE_WINDOW_MS = 300;
+
+/**
+ * Tiempo máximo de espera para el asentamiento del DOM en SPAs (ms).
+ */
+export const DOM_SETTLE_MAX_TIMEOUT_MS = 2000;
+
+/**
+ * Espera a que el DOM de una SPA se asiente observando mutaciones antes de proceder a la extracción.
+ */
+export async function waitForDomSettled(
+  page: Page,
+  silenceMs = DOM_SETTLE_SILENCE_WINDOW_MS,
+  maxTimeoutMs = DOM_SETTLE_MAX_TIMEOUT_MS
+): Promise<void> {
+  try {
+    await page.evaluate(
+      ({ silenceMs, maxTimeoutMs }) =>
+        new Promise<void>((resolve) => {
+          let timer: ReturnType<typeof setTimeout>;
+          const maxTimer = setTimeout(() => {
+            observer.disconnect();
+            resolve();
+          }, maxTimeoutMs);
+
+          const hasSkeleton = () => {
+            const el = document.querySelector('#skeleton, .skeleton, [aria-busy="true"], [data-skeleton]');
+            return el !== null;
+          };
+
+          const checkAndSchedule = () => {
+            clearTimeout(timer);
+            if (hasSkeleton()) {
+              // Si aún hay un skeleton de carga activo, esperar mutación posterior
+              return;
+            }
+            timer = setTimeout(() => {
+              observer.disconnect();
+              clearTimeout(maxTimer);
+              resolve();
+            }, silenceMs);
+          };
+
+          const observer = new MutationObserver(() => {
+            checkAndSchedule();
+          });
+
+          const target = document.body || document.documentElement;
+          if (target) {
+            observer.observe(target, {
+              childList: true,
+              subtree: true,
+              attributes: true,
+              characterData: true,
+            });
+          }
+
+          checkAndSchedule();
+        }),
+      { silenceMs, maxTimeoutMs }
+    );
+  } catch {
+    // Si la evaluación en página falla o la página navega, continuar sin bloquear
+  }
+}
 
 export function normalizeUrlForComparison(
   rawUrl: string,
@@ -165,7 +244,7 @@ export async function launchBrowser(options: LaunchBrowserOptions = {}): Promise
  * Espera a que la URL del navegador se estabilice tras la navegación
  * inicial y posibles redirecciones cliente (guards SPA / React Router).
  */
-async function waitForUrlStability(page: Page): Promise<string> {
+async function waitForUrlStability(page: Page, windowMs = URL_STABILITY_WINDOW_MS): Promise<string> {
   let currentUrl = page.url();
   let lastChange = Date.now();
   const startTime = Date.now();
@@ -176,7 +255,7 @@ async function waitForUrlStability(page: Page): Promise<string> {
     if (newUrl !== currentUrl) {
       currentUrl = newUrl;
       lastChange = Date.now();
-    } else if (Date.now() - lastChange >= URL_STABILITY_WINDOW_MS) {
+    } else if (Date.now() - lastChange >= windowMs) {
       break;
     }
   }
@@ -356,10 +435,15 @@ export class PlaywrightAdapter implements IDiscoverer {
 
       // Esperar a que React monte componentes en el root o DOM
       await page.waitForSelector('#root > *, main, form, input, button, a[href]', { timeout: 10000 }).catch(() => {});
-      await page.waitForTimeout(300); // margen para renderizado
+      if (!this.options.skipDomSettling && (this.options.urlStabilityWindowMs ?? URL_STABILITY_WINDOW_MS) >= 300) {
+        await page.waitForTimeout(300);
+      }
 
       // Estabilización de URL
-      let finalUrl = await waitForUrlStability(page);
+      const stabilityWindow = this.options.skipDomSettling
+        ? 50
+        : (this.options.urlStabilityWindowMs ?? URL_STABILITY_WINDOW_MS);
+      let finalUrl = await waitForUrlStability(page, stabilityWindow);
       let loginDetection = await detectLoginFormInPage(page);
 
       const normRequested = normalizeUrlForComparison(targetUrl, this.options.baseUrl);
@@ -441,6 +525,10 @@ export class PlaywrightAdapter implements IDiscoverer {
         }
       }
 
+      if (!this.options.skipDomSettling) {
+        await waitForDomSettled(page);
+      }
+
       const title = await page.title();
       const description = title && title.trim() ? title.trim() : spec.name;
 
@@ -452,7 +540,7 @@ export class PlaywrightAdapter implements IDiscoverer {
 
       // C3b: Tras terminar la extracción, volver a leer page.url() y clasificar:
       // Si la URL o el page_kind cambiaron, descartar la extracción y tratar como auth_wall
-      await page.waitForTimeout(100);
+      await page.waitForTimeout(POST_EXTRACTION_VERIFY_DELAY_MS);
       const postExtractionUrl = page.url();
       const postNormFinal = normalizeUrlForComparison(postExtractionUrl, this.options.baseUrl);
       const postLoginDetection = await detectLoginFormInPage(page);

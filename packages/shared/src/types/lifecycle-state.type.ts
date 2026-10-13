@@ -18,6 +18,8 @@ export interface SessionPlanItem {
   priority: string;
   status: string;
   acceso?: boolean;
+  /** Flujos críticos del negocio asociados a este módulo (opcional) */
+  flujos?: string[];
 }
 
 export interface SessionAuthConfig {
@@ -39,6 +41,12 @@ export interface ModuleStateInfo {
   state: ModuleLifecycleState;
   waived_reason?: string;
   updated_at: string;
+  /** Brechas de cobertura sustantiva aceptadas explícitamente por el usuario */
+  accepted_gaps?: {
+    reason: string;
+    categories?: string[];
+    deferred_rules?: string[];
+  };
 }
 
 export interface TransitionHistoryEntry {

@@ -22,11 +22,11 @@ export async function executeCapture(
     await  locator.waitFor({ state: 'visible'});
 
     const tagName = await locator.evaluate((el) => el.tagName.toLowerCase());
-    let value: string | null = null; 
+    let value: string | null;
 
     if (tagName === 'input' || tagName === 'textarea' || tagName === 'select') {
         value = await locator.inputValue();
-    }else {
+    } else {
         value = await locator.textContent();
     }
 

@@ -9,6 +9,9 @@ import {
   detectarDocumentosProyecto,
   resolverDocumento,
   generarScan,
+  getNombreScore,
+  hasPenaltyToken,
+  getFactoresPuntaje,
 } from '../document-detector.js';
 
 describe('E2a: detectarDocumentosProyecto (Criterio 3)', () => {
@@ -184,15 +187,15 @@ describe('E2a: detectarDocumentosProyecto (Criterio 3)', () => {
       mkdirSync(join(tempDir, 'sub'), { recursive: true });
 
       writeFileSync(join(tempDir, 'README.md'), '# Readme raíz', 'utf-8');
-      writeFileSync(join(tempDir, 'PRD_diff.md'), '# PRD raíz', 'utf-8');
+      writeFileSync(join(tempDir, 'PRD.md'), '# PRD raíz', 'utf-8');
       writeFileSync(join(tempDir, 'docs', 'spec.md'), '# Especificación en docs', 'utf-8');
       writeFileSync(join(tempDir, 'sub', 'README.md'), '# Readme subproyecto', 'utf-8');
 
       const hallazgos = detectarDocumentosProyecto(tempDir);
       const paths = hallazgos.documentos.map((d) => d.path);
 
-      // PRD_diff.md (score prd=0, raíz=0) precede a spec.md (score spec=1, docs=1), que precede a README.md (score readme=5, raíz=0)
-      expect(paths[0]).toBe('PRD_diff.md');
+      // PRD.md (score prd=0, raíz=0) precede a spec.md (score spec=1, docs=1), que precede a README.md (score readme=5, raíz=0)
+      expect(paths[0]).toBe('PRD.md');
       expect(paths[1]).toBe('docs/spec.md');
       expect(paths[2]).toBe('README.md');
       expect(paths[3]).toBe('sub/README.md');
@@ -307,6 +310,91 @@ describe('E2a: detectarDocumentosProyecto (Criterio 3)', () => {
       expect(envServicio?.evidencia).toBe('.env.example (PORT)');
 
       spy.mockRestore();
+    });
+
+    describe('C2: Ranking de documentos con penalización y bonificación exacta', () => {
+      it('PRD.md aparece antes que PRD_diff.md y el documento penalizado sigue como opción', () => {
+        expect(getNombreScore('PRD_diff.md')).toBe(6);
+        expect(getNombreScore('PRD_bak.md')).toBe(6);
+        expect(getNombreScore('PRD.md')).toBe(0);
+
+        writeFileSync(join(tempDir, 'PRD_bak.md'), '# PRD Backup', 'utf-8');
+        writeFileSync(join(tempDir, 'PRD.md'), '# PRD Oficial', 'utf-8');
+        writeFileSync(join(tempDir, 'PRD_diff.md'), '# PRD Diff', 'utf-8');
+
+        const hallazgos = detectarDocumentosProyecto(tempDir);
+        expect(hallazgos.documentos.length).toBe(3);
+        expect(hallazgos.documentos[0].nombre).toBe('PRD.md');
+      });
+
+      it('con solo PRD_diff.md aparece primero igualmente', () => {
+        writeFileSync(join(tempDir, 'PRD_diff.md'), '# PRD Diff', 'utf-8');
+
+        const hallazgos = detectarDocumentosProyecto(tempDir);
+        expect(hallazgos.documentos.length).toBe(1);
+        expect(hallazgos.documentos[0].nombre).toBe('PRD_diff.md');
+        expect(hallazgos.documentos[0].ranking).toBe(0);
+      });
+
+      it('sin falsos positivos en penalización de tokens (difficult, different, backend, bakery, oldest, copyright, draftsman)', () => {
+        const falsePositiveNames = [
+          'difficult_topics.md',
+          'different_approaches.md',
+          'backend_architecture.md',
+          'bakery_system.md',
+          'oldest_records.md',
+          'copyright_notice.md',
+          'draftsman_tools.md',
+        ];
+
+        for (const name of falsePositiveNames) {
+          expect(hasPenaltyToken(name)).toBe(false);
+          const score = getNombreScore(name);
+          expect(score).toBe(7);
+          const factores = getFactoresPuntaje(name);
+          expect(factores.tiene_penalizacion).toBe(false);
+          expect(factores.penalizacion).toBeNull();
+        }
+      });
+
+      it('aplica penalización a nombres que contienen backup, copy, draft, old, diff, bak y tmp como token', () => {
+        const penaltyTokenNames = [
+          { name: 'PRD_backup.md', expectedScore: 6 },
+          { name: 'PRD_copy.md', expectedScore: 6 },
+          { name: 'PRD_draft.md', expectedScore: 6 },
+          { name: 'PRD_old.md', expectedScore: 6 },
+          { name: 'PRD_diff.md', expectedScore: 6 },
+          { name: 'PRD_bak.md', expectedScore: 6 },
+          { name: 'PRD_tmp.md', expectedScore: 6 },
+          { name: 'notes_backup.md', expectedScore: 8 },
+        ];
+
+        for (const item of penaltyTokenNames) {
+          expect(hasPenaltyToken(item.name)).toBe(true);
+          const score = getNombreScore(item.name);
+          expect(score).toBe(item.expectedScore);
+          const factores = getFactoresPuntaje(item.name);
+          expect(factores.tiene_penalizacion).toBe(true);
+          expect(factores.penalizacion).toBe('token de descarte/penalizacion detectado');
+        }
+      });
+
+      it('expone factores detallados de puntuación y ranking', () => {
+        const factoresPrd = getFactoresPuntaje('PRD.md', 'PRD.md');
+        expect(factoresPrd.nombreScore).toBe(0);
+        expect(factoresPrd.ubicacionScore).toBe(0);
+        expect(factoresPrd.es_exacto).toBe(true);
+        expect(factoresPrd.tiene_penalizacion).toBe(false);
+        expect(factoresPrd.bonificacion).toContain('score 0');
+        expect(factoresPrd.ubicacion).toBe('raíz (0)');
+
+        const factoresDocsDiff = getFactoresPuntaje('PRD_diff.md', 'docs/PRD_diff.md');
+        expect(factoresDocsDiff.nombreScore).toBe(6);
+        expect(factoresDocsDiff.ubicacionScore).toBe(1);
+        expect(factoresDocsDiff.es_exacto).toBe(false);
+        expect(factoresDocsDiff.tiene_penalizacion).toBe(true);
+        expect(factoresDocsDiff.ubicacion).toBe('docs (1)');
+      });
     });
   });
 });

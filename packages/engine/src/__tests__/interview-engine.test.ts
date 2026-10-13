@@ -153,7 +153,7 @@ describe('interview-engine (P3)', () => {
         {
           id: 'default.username.required',
           category: 'campo',
-          description: 'Username obligatorio',
+          description: 'El nombre de usuario es un campo obligatorio',
           source: 'user',
           status: 'confirmed',
           view: 'default',
@@ -173,7 +173,44 @@ describe('interview-engine (P3)', () => {
       expect(res.categorias.campo.cubierta).toBe(true);
       expect(res.categorias.sensibilidad.cubierta).toBe(true); // Cubierta por waiver
       expect(res.categorias.proposito.cubierta).toBe(false);
+      expect(res.sustantivas).toBe(2);
+      expect(res.diferidas).toBe(0);
       expect(res.completa).toBe(false);
+    });
+
+    it('calcula inferidas_pendientes con dos reglas inferidas (hipótesis DOM y regla inferida adicional)', () => {
+      const applicable: RuleCategory[] = ['campo', 'proposito'];
+      // Regla 1 (DOM inferida) + Regla 2 (nueva regla inferida para propósito).
+      // Explica el conteo inferidas_pendientes = 2: ambas reglas corresponden a categorías aplicables
+      // y se encuentran en estado 'inferred' sin confirmación sustantiva del usuario.
+      const rules: RuleEntry[] = [
+        {
+          id: 'default.campo.username.required',
+          category: 'campo',
+          description: 'El campo nombre de usuario es obligatorio según DOM',
+          source: 'dom',
+          status: 'inferred',
+          view: 'default',
+        },
+        {
+          id: 'default.proposito.autenticacion',
+          category: 'proposito',
+          description: 'Flujo de autenticación e inicio de sesión de usuario inferido',
+          source: 'dom',
+          status: 'inferred',
+          view: 'default',
+        },
+      ];
+
+      const res = computeCoverage(applicable, rules, [], 'default');
+      expect(res.inferidas_pendientes).toBe(2);
+      expect(res.completa).toBe(false);
+
+      // Aserción adicional que identifica cuál regla es la nueva inferida
+      const nuevaInferida = rules.find((r) => r.id === 'default.proposito.autenticacion');
+      expect(nuevaInferida).toBeDefined();
+      expect(nuevaInferida?.id).toBe('default.proposito.autenticacion');
+      expect(nuevaInferida?.category).toBe('proposito');
     });
 
     it('marca completa=true cuando todas las categorías aplicables están cubiertas y 0 inferidas pendientes', () => {
@@ -182,7 +219,7 @@ describe('interview-engine (P3)', () => {
         {
           id: 'default.username.required',
           category: 'campo',
-          description: 'Username obligatorio',
+          description: 'El nombre de usuario es un campo obligatorio',
           source: 'user',
           status: 'confirmed',
           view: 'default',
@@ -190,6 +227,7 @@ describe('interview-engine (P3)', () => {
       ];
       const res = computeCoverage(applicable, rules, [], 'default');
       expect(res.completa).toBe(true);
+      expect(res.sustantivas).toBe(1);
       expect(res.inferidas_pendientes).toBe(0);
     });
   });

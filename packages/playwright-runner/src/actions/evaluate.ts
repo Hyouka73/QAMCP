@@ -13,9 +13,12 @@ export async function executeEvaluate(
         throw new Error(`El paso 'evaluate' requiere definir la propiedad 'expression'.`);
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const result = await page.evaluate(
     ({ expr, vars }) => {
+      // eslint-disable-next-line @typescript-eslint/no-implied-eval
       const fn = new Function('ctx', `return (${expr});`);
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return
       return fn(vars || {});
     },
     { expr: step.expression, vars: contextVariables }

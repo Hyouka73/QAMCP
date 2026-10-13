@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { chromium, type Browser, type Page } from 'playwright-core';
+
 import { executeCapture, executeEvaluate, executeSwitchAuth } from '../actions/index.js';
 
 describe('Acciones S7-005 (capture, evaluate, switch_auth)', () => {

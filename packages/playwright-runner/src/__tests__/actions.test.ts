@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { chromium, type Browser, type Page } from 'playwright-core';
+
 import { executeAssert, executeWaitFor } from '../actions/index.js';
 
 describe('Acciones S7-004 (assert, waitFor)', () => {

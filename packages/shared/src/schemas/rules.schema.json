@@ -68,7 +68,7 @@
           },
           "source": {
             "type": "string",
-            "enum": ["dom", "prd", "user"],
+            "enum": ["dom", "prd", "user", "user_text", "user_confirmed", "doc", "agent"],
             "description": "Procedencia de la regla"
           },
           "field": {
@@ -78,6 +78,28 @@
           "evidence": {
             "type": "string",
             "description": "Evidencia corta (selector CSS o referencia). Truncada a 120 caracteres."
+          },
+          "user_text": {
+            "type": "string",
+            "description": "Texto literal proporcionado por el usuario"
+          },
+          "from_option": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["pregunta_id", "opcion_id"],
+            "properties": {
+              "pregunta_id": { "type": "string" },
+              "opcion_id": { "type": "string" }
+            },
+            "description": "Referencia a la pregunta y opción sustantiva confirmada"
+          },
+          "borrador": {
+            "type": "boolean",
+            "description": "Indica si la regla es un borrador pendiente de formulación completa"
+          },
+          "user_input": {
+            "type": "string",
+            "description": "Respuesta original literal del usuario que originó el borrador"
           }
         }
       },

@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { randomBytes, createHash } from 'node:crypto';
 import {
   existsSync,
   mkdirSync,
@@ -36,7 +36,7 @@ import type {
   LifecycleState,
   ModuleStateInfo,
 } from '@qap/shared';
-import { normalizeToPosix } from '@qap/shared';
+import { normalizeToPosix, normalizeSlug } from '@qap/shared';
 import lockfile from 'proper-lockfile';
 import YAML from 'yaml';
 
@@ -88,7 +88,7 @@ export class FileSystemStorage implements IStorage {
     const release = await lockfile.lock(targetPath, {
       retries: { retries: 10, minTimeout: 50, maxTimeout: 500 },
       stale: 10000,
-      lockfilePath: join(this.getLockDir(), `${Buffer.from(targetPath).toString('hex')}.lock`),
+      lockfilePath: join(this.getLockDir(), `${createHash('sha256').update(targetPath).digest('hex')}.lock`),
     });
 
     try {
@@ -516,5 +516,76 @@ export class FileSystemStorage implements IStorage {
       modules_discovered: modules.length,
       environment_configured: environmentConfigured,
     };
+  }
+
+  // ---------------------------------------------------------------------
+  // Persistencia de Preguntas Pendientes (P4.5-A / C2)
+  // ---------------------------------------------------------------------
+
+  /**
+   * Guarda la última pregunta emitida para un módulo, vista y categoría
+   * bajo .qa/cache/pending_questions/<module>.<view>.<category>.json
+   */
+  async savePendingQuestion(
+    module: string,
+    view: string,
+    category: string,
+    question: unknown
+  ): Promise<void> {
+    const filename = `${normalizeSlug(module)}.${normalizeSlug(view)}.${normalizeSlug(category)}.json`;
+    await this.writeJson(join('.qa/cache/pending_questions', filename), question);
+  }
+
+  /**
+   * Recupera la última pregunta emitida para un módulo, vista y categoría.
+   */
+  async getPendingQuestion(
+    module: string,
+    view: string,
+    category: string
+  ): Promise<Record<string, unknown> | null> {
+    const filename = `${normalizeSlug(module)}.${normalizeSlug(view)}.${normalizeSlug(category)}.json`;
+    const relPath = join('.qa/cache/pending_questions', filename);
+    const fullPath = resolve(this.rootDir, relPath);
+    if (!existsSync(fullPath)) {
+      return null;
+    }
+    try {
+      return await this.readJson<Record<string, unknown>>(relPath);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Busca una pregunta pendiente por questionId dentro del módulo y vista.
+   */
+  async findPendingQuestion(
+    module: string,
+    view: string,
+    questionId: string
+  ): Promise<Record<string, unknown> | null> {
+    const cacheDir = resolve(this.rootDir, '.qa/cache/pending_questions');
+    if (!existsSync(cacheDir)) return null;
+
+    try {
+      const files = await readdir(cacheDir);
+      const modPrefix = `${normalizeSlug(module)}.${normalizeSlug(view)}.`;
+      for (const file of files) {
+        if (file.startsWith(modPrefix) && file.endsWith('.json')) {
+          const content = await this.readJson<{ id?: string; categoria?: string }>(join('.qa/cache/pending_questions', file));
+          if (content?.id === questionId) {
+            if (!content.categoria) {
+              const catPart = file.slice(modPrefix.length, -5);
+              if (catPart) content.categoria = catPart;
+            }
+            return content;
+          }
+        }
+      }
+    } catch {
+      return null;
+    }
+    return null;
   }
 }

@@ -16,6 +16,7 @@ import type {
   CategoryWaiver,
   AuthProfile,
 } from '@qap/shared';
+import { isValidRoleName } from '@qap/shared';
 
 import type { ProjectContext } from './ports.js';
 import { computeCoverage, type CoverageResult } from './interview-engine.js';
@@ -201,7 +202,7 @@ export function canExitOnboarding(
   if (!roles || !Array.isArray(roles) || roles.length === 0) {
     faltantes.push({ campo: 'roles', motivo: 'debe definirse al menos un rol de usuario' });
   } else {
-    const namedRoles = roles.filter((r) => r && typeof r.name === 'string' && r.name.trim().length > 0);
+    const namedRoles = roles.filter((r) => r && typeof r.name === 'string' && isValidRoleName(r.name));
     if (namedRoles.length === 0) {
       faltantes.push({ campo: 'roles', motivo: 'debe definirse al menos un rol de usuario con nombre' });
     } else {
@@ -355,20 +356,28 @@ export function canExitScoping(
         });
       }
 
-      // Exige que todos los roles elegidos tengan un perfil
-      if (Array.isArray(session.auth.roles) && session.auth.roles.length > 0) {
-        for (const role of session.auth.roles) {
-          const hasRoleProfile = rawProfiles.some((p) => {
+      const targetRoles = Array.isArray(session.auth.roles)
+        ? session.auth.roles.filter(Boolean)
+        : (session.auth.profile ? [session.auth.profile] : []);
+
+      if (targetRoles.length === 0) {
+        faltantes.push({
+          campo: 'session.auth.roles',
+          motivo: 'con auth.required true se exige definir al menos un rol en auth.roles',
+        });
+      } else {
+        for (const role of targetRoles) {
+          const verifiedRoleProfile = rawProfiles.some((p) => {
             if (p !== null && typeof p === 'object') {
-              const obj = p as { role?: string; id?: string };
-              return obj.role === role || obj.id === role;
+              const obj = p as { role?: string; id?: string; verified?: boolean };
+              return (obj.role === role || obj.id === role) && obj.verified === true;
             }
-            return p === role;
+            return false;
           });
-          if (!hasRoleProfile) {
+          if (!verifiedRoleProfile) {
             faltantes.push({
               campo: 'session.auth.roles',
-              motivo: `el rol seleccionado '${role}' no tiene ningún perfil registrado`,
+              motivo: `el rol '${role}' exige un perfil de autenticación con sesión verificada (verified: true)`,
             });
           }
         }

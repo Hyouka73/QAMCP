@@ -15,6 +15,7 @@ import type {
   RuleStatus,
   CategoryWaiver,
 } from '@qap/shared';
+import { isSubstantiveRuleText, isEngineOptionLabel, isTautologicalOptionLabel, WAIVER_MIN_REASON_CHARS } from '@qap/shared';
 
 import type { Pregunta, Opcion } from './pregunta.js';
 
@@ -191,25 +192,25 @@ export function getActionButtonQuestion(buttonText: string, targetLabel?: string
  */
 export const QUESTION_TEMPLATES = {
   proposito: (targetLabel: string) =>
-    `¿Cuál es el propósito de negocio del módulo ${targetLabel}? Describe qué acción realiza el usuario y qué resultado espera.`,
+    `¿Cuál es el propósito de negocio del módulo ${targetLabel}? Describe qué acción realiza el usuario y qué resultado espera. Ejemplo: 'Permite registrar solicitudes de compra y calcular el presupuesto disponible.'`,
 
   actor: (targetLabel: string) =>
-    `¿Qué roles o usuarios tienen acceso al módulo ${targetLabel}? ¿Hay restricciones de permisos?`,
+    `¿Qué roles o usuarios tienen acceso al módulo ${targetLabel}? ¿Hay restricciones de permisos? Ejemplo: 'Los analistas pueden ver reportes y los administradores autorizar transacciones.'`,
 
   confirmar_hipotesis: (count: number) =>
     `El DOM sugiere ${count} regla(s). Por favor confirma si son correctas o corrige por id:`,
 
   error_form: (targetLabel: string) =>
-    `Para los formularios del módulo ${targetLabel}: ¿Qué mensajes de error debe mostrar el sistema cuando la validación falla? ¿Hay reglas de unicidad, rangos de negocio u otras restricciones no visibles en el DOM?`,
+    `Para los formularios del módulo ${targetLabel}: ¿Qué mensajes de error debe mostrar el sistema cuando la validación falla? ¿Hay reglas de unicidad, rangos de negocio u otras restricciones no visibles en el DOM? Ejemplo: 'El importe debe ser mayor a cero y el correo electrónico no debe estar repetido.'`,
 
   accion: (buttonText: string, targetLabel?: string) =>
-    getActionButtonQuestion(buttonText, targetLabel),
+    `${getActionButtonQuestion(buttonText, targetLabel)} Ejemplo: 'Al presionar se valida el formulario y se guardan los datos en el servidor.'`,
 
   dato: (targetLabel: string) =>
-    `¿Qué datos ingresados en el módulo ${targetLabel} son persistidos o enviados a sistemas externos? ¿Hay datos calculados o derivados?`,
+    `¿Qué datos ingresados en el módulo ${targetLabel} son persistidos o enviados a sistemas externos? ¿Hay datos calculados o derivados? Ejemplo: 'Los registros se almacenan en la base transaccional y el total se calcula con IVA incluido.'`,
 
   sensibilidad: (fields: string[]) =>
-    `Se detectaron campos posiblemente sensibles: ${fields.join(', ')}. ¿Cómo deben tratarse estos datos? (cifrado, enmascarado, retención, auditoría)`,
+    `Se detectaron campos posiblemente sensibles: ${fields.join(', ')}. ¿Cómo deben tratarse estos datos? (cifrado, enmascarado, retención, auditoría). Ejemplo: 'El número de identificación debe ser cifrado en reposo y enmascarado en pantalla.'`,
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -551,12 +552,17 @@ export interface CategoryCoverage {
   aplicable: boolean;
   cubierta: boolean;
   pendientes: number; // reglas inferred sin confirmar en esa categoría
+  sustantiva?: boolean;
+  diferida?: boolean;
 }
 
 export interface CoverageResult {
   completa: boolean;
   categorias: Record<RuleCategory, CategoryCoverage>;
   inferidas_pendientes: number;
+  sustantivas: number;
+  diferidas: number;
+  total_aplicables: number;
 }
 
 const ALL_CATEGORIES: RuleCategory[] = [
@@ -564,9 +570,12 @@ const ALL_CATEGORIES: RuleCategory[] = [
 ];
 
 /**
- * Calcula la cobertura de la entrevista de una vista.
- * Una categoría está cubierta si tiene >= 1 regla en confirmed | rejected | deferred, o un waiver.
- * completa = todas las aplicables cubiertas Y inferidas_pendientes == 0.
+ * Calcula la cobertura sustantiva de la entrevista de una vista (C3).
+ * Una categoría cuenta como cubierta solo con:
+ * - una regla confirmada de source user_text, user_confirmed (o user heredado)
+ *   cuyo texto sea sustantivo (>=3 palabras, >=20 caracteres, no etiqueta de motor), o
+ * - un waiver con razón de al menos 15 caracteres.
+ * deferred cuenta como diferida y NO como cubierta.
  */
 export function computeCoverage(
   applicableCategories: RuleCategory[],
@@ -578,22 +587,51 @@ export function computeCoverage(
 
   const categorias = {} as Record<RuleCategory, CategoryCoverage>;
   let totalInferidaPendiente = 0;
+  let totalSustantivas = 0;
+  let totalDiferidas = 0;
 
   for (const cat of ALL_CATEGORIES) {
     const aplicable = applicableSet.has(cat);
     const viewRules = rules.filter((r) => (!r.view || r.view === view) && r.category === cat);
-    const hasWaiver = waivers.some((w) => w.view === view && w.category === cat);
+    const validWaiver = waivers.find(
+      (w) =>
+        w.view === view &&
+        w.category === cat &&
+        typeof w.reason === 'string' &&
+        w.reason.trim().length >= WAIVER_MIN_REASON_CHARS
+    );
 
-    const resolvedStatuses: RuleStatus[] = ['confirmed', 'rejected', 'deferred'];
-    const hasResolved = viewRules.some((r) => r.status && resolvedStatuses.includes(r.status));
-    const cubierta = aplicable && (hasWaiver || hasResolved);
+    // Regla confirmada con procedencia de usuario y texto sustantivo (C3)
+    const hasSubstantiveConfirmedRule = viewRules.some((r) => {
+      if (r.status !== 'confirmed' || r.borrador) return false;
+      if (r.source === 'user_text' || r.source === 'user_confirmed') {
+        return isSubstantiveRuleText(r.description);
+      }
+      if (r.source === 'user') {
+        return isSubstantiveRuleText(r.description) || (!isEngineOptionLabel(r.description) && !isTautologicalOptionLabel(r.description));
+      }
+      return false;
+    });
+
+    const sustantiva = Boolean(validWaiver || hasSubstantiveConfirmedRule);
+    const cubierta = aplicable && sustantiva;
+
+    // Reglas diferidas
+    const hasDeferredRule = viewRules.some((r) => r.status === 'deferred');
+    const diferida = aplicable && hasDeferredRule && !cubierta;
+
+    if (cubierta) {
+      totalSustantivas++;
+    } else if (diferida) {
+      totalDiferidas++;
+    }
 
     const pendientes = viewRules.filter((r) => r.status === 'inferred').length;
     if (aplicable) {
       totalInferidaPendiente += pendientes;
     }
 
-    categorias[cat] = { aplicable, cubierta, pendientes };
+    categorias[cat] = { aplicable, cubierta, pendientes, sustantiva, diferida };
   }
 
   const todasCubiertas = ALL_CATEGORIES.every(
@@ -601,7 +639,14 @@ export function computeCoverage(
   );
   const completa = todasCubiertas && totalInferidaPendiente === 0;
 
-  return { completa, categorias, inferidas_pendientes: totalInferidaPendiente };
+  return {
+    completa,
+    categorias,
+    inferidas_pendientes: totalInferidaPendiente,
+    sustantivas: totalSustantivas,
+    diferidas: totalDiferidas,
+    total_aplicables: applicableSet.size,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -727,8 +772,28 @@ export function generateNextInterviewBatch(
     (b) => !/^(ir|ir a|volver|regresar|cancelar|cerrar|salir|back|close|cancel)/i.test(b.text)
   );
 
+  function buildCategoryStandardOptions(viewName: string, category: RuleCategory): { opciones: Opcion[]; seguimiento: Pregunta } {
+    const opciones: Opcion[] = [
+      { id: 'definir_despues', etiqueta: 'Lo defino después', efecto: { estado: 'deferred' } },
+      { id: 'no_aplica', etiqueta: 'No aplica a este módulo', efecto: { abre_seguimiento: true } },
+    ];
+
+    const seguimiento: Pregunta = {
+      id: `${viewName}.${category}.razon_no_aplica`,
+      texto: `Indica la justificación de por qué la categoría '${category}' no aplica a este módulo (mínimo 15 caracteres):`,
+      formato: 'abierta',
+      opciones: [],
+      permite_otra: true,
+      registrar_con: { tool: 'qap_rules_set', campo: 'category_waivers' },
+    };
+
+    return { opciones, seguimiento };
+  }
+
   for (const cat of openCategories) {
     if (questions.length >= 5) break;
+
+    const { opciones, seguimiento } = buildCategoryStandardOptions(view, cat);
 
     switch (cat) {
       case 'sensibilidad':
@@ -738,13 +803,10 @@ export function generateNextInterviewBatch(
           categoria: 'sensibilidad',
           texto: QUESTION_TEMPLATES.sensibilidad(sensitiveFields.length > 0 ? sensitiveFields : ['campo sensible detectado']),
           formato: 'una_opcion',
-          opciones: [
-            { id: 'confirmar_sensibilidad', etiqueta: 'Confirmar manejo seguro y enmascaramiento de datos sensibles', recomendada: true, efecto: { estado: 'confirmed' } },
-            { id: 'deferir_sensibilidad', etiqueta: 'Revisar sensibilidad más adelante', efecto: { estado: 'deferred' } },
-            { id: 'waiver_sensibilidad', etiqueta: 'No se consideran datos sensibles en esta vista', efecto: { estado: 'rejected' } },
-          ],
+          opciones,
           permite_otra: true,
           registrar_con: { tool: 'qap_rules_set', campo: 'rules' },
+          seguimiento,
         });
         break;
 
@@ -757,13 +819,10 @@ export function generateNextInterviewBatch(
             categoria: 'accion',
             texto: QUESTION_TEMPLATES.accion(sanitizeDomString(btn.text) || sanitizeDomString(btn.key), targetLabel),
             formato: 'una_opcion',
-            opciones: [
-              { id: 'validar_accion', etiqueta: 'Validar esta acción y su flujo de negocio', recomendada: true, efecto: { estado: 'confirmed' } },
-              { id: 'deferir_accion', etiqueta: 'Dejar pendiente de validación', efecto: { estado: 'deferred' } },
-              { id: 'waiver_accion', etiqueta: 'No aplica validación adicional para esta acción', efecto: { estado: 'rejected' } },
-            ],
+            opciones,
             permite_otra: true,
             registrar_con: { tool: 'qap_rules_set', campo: 'rules' },
+            seguimiento,
           });
         }
         break;
@@ -776,13 +835,10 @@ export function generateNextInterviewBatch(
           categoria: 'actor',
           texto: QUESTION_TEMPLATES.actor(targetLabel),
           formato: 'una_opcion',
-          opciones: [
-            { id: 'confirmar_actor', etiqueta: 'Módulo accesible para los roles asignados', recomendada: true, efecto: { estado: 'confirmed' } },
-            { id: 'deferir_actor', etiqueta: 'Dejar definición de actores para después', efecto: { estado: 'deferred' } },
-            { id: 'waiver_actor', etiqueta: 'Disponible para todo público sin restricción de rol', efecto: { estado: 'rejected' } },
-          ],
+          opciones,
           permite_otra: true,
           registrar_con: { tool: 'qap_rules_set', campo: 'rules' },
+          seguimiento,
         });
         break;
 
@@ -791,15 +847,12 @@ export function generateNextInterviewBatch(
           id: `${view}.campo`,
           tipo: 'abierta',
           categoria: 'campo',
-          texto: `Identifica validaciones de negocio adicionales para los campos del módulo ${targetLabel}:`,
+          texto: `Identifica validaciones de negocio adicionales para los campos del módulo ${targetLabel}. Ejemplo: 'El código postal debe tener 5 dígitos y coincidir con el estado seleccionado.'`,
           formato: 'una_opcion',
-          opciones: [
-            { id: 'confirmar_campo', etiqueta: 'Aplicar validaciones adicionales de unicidad o formato', recomendada: true, efecto: { estado: 'confirmed' } },
-            { id: 'deferir_campo', etiqueta: 'Dejar validaciones de campos para después', efecto: { estado: 'deferred' } },
-            { id: 'waiver_campo', etiqueta: 'Las validaciones HTML del DOM son suficientes', efecto: { estado: 'rejected' } },
-          ],
+          opciones,
           permite_otra: true,
           registrar_con: { tool: 'qap_rules_set', campo: 'rules' },
+          seguimiento,
         });
         break;
 
@@ -810,13 +863,10 @@ export function generateNextInterviewBatch(
           categoria: 'error',
           texto: QUESTION_TEMPLATES.error_form(targetLabel),
           formato: 'una_opcion',
-          opciones: [
-            { id: 'confirmar_error', etiqueta: 'Requiere validación de mensajes de error de negocio', recomendada: true, efecto: { estado: 'confirmed' } },
-            { id: 'deferir_error', etiqueta: 'Dejar manejo de errores para después', efecto: { estado: 'deferred' } },
-            { id: 'waiver_error', etiqueta: 'No aplican validaciones de error específicas en esta vista', efecto: { estado: 'rejected' } },
-          ],
+          opciones,
           permite_otra: true,
           registrar_con: { tool: 'qap_rules_set', campo: 'rules' },
+          seguimiento,
         });
         break;
       }
@@ -828,12 +878,10 @@ export function generateNextInterviewBatch(
           categoria: 'proposito',
           texto: QUESTION_TEMPLATES.proposito(targetLabel),
           formato: 'una_opcion',
-          opciones: [
-            { id: 'confirmar_proposito', etiqueta: 'Confirmar propósito y comportamiento esperado', recomendada: true, efecto: { estado: 'confirmed' } },
-            { id: 'deferir_proposito', etiqueta: 'Definir propósito más adelante', efecto: { estado: 'deferred' } },
-          ],
+          opciones,
           permite_otra: true,
           registrar_con: { tool: 'qap_rules_set', campo: 'rules' },
+          seguimiento,
         });
         break;
 
@@ -844,13 +892,10 @@ export function generateNextInterviewBatch(
           categoria: 'dato',
           texto: QUESTION_TEMPLATES.dato(targetLabel),
           formato: 'una_opcion',
-          opciones: [
-            { id: 'confirmar_dato', etiqueta: 'Verificar persistencia e integridad de datos', recomendada: true, efecto: { estado: 'confirmed' } },
-            { id: 'deferir_dato', etiqueta: 'Dejar reglas de datos para después', efecto: { estado: 'deferred' } },
-            { id: 'waiver_dato', etiqueta: 'No se manejan datos adicionales en esta vista', efecto: { estado: 'rejected' } },
-          ],
+          opciones,
           permite_otra: true,
           registrar_con: { tool: 'qap_rules_set', campo: 'rules' },
+          seguimiento,
         });
         break;
     }

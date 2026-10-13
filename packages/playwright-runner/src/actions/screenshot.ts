@@ -1,7 +1,8 @@
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+
 import type { Page } from 'playwright-core';
 import type { TCStep } from '@qap/shared';
-import * as path from 'path';
-import * as fs from 'fs';
 
 /**
  * Toma de capturas de pantalla explícitas o automáticas ante fallos (S7-004).

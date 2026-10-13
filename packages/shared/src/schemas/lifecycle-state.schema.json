@@ -73,6 +73,11 @@
               "acceso": {
                 "type": "boolean",
                 "description": "Indica si el módulo es de acceso / login"
+              },
+              "flujos": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Nombres de los flujos del negocio cubiertos por este módulo"
               }
             }
           }
@@ -143,6 +148,23 @@
           },
           "updated_at": {
             "type": "string"
+          },
+          "accepted_gaps": {
+            "type": "object",
+            "description": "Brechas aceptadas explícitamente por el usuario para cerrar el módulo con cobertura sustantiva menor al 50%",
+            "additionalProperties": false,
+            "required": ["reason"],
+            "properties": {
+              "reason": { "type": "string" },
+              "categories": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "deferred_rules": {
+                "type": "array",
+                "items": { "type": "string" }
+              }
+            }
           }
         }
       }

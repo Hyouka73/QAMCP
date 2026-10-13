@@ -1,8 +1,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
+
 import { DataError } from '../errors.js';
 
 export async function handleRollback(moduleName?: string): Promise<void> {
+  await Promise.resolve();
   const rootDir = process.cwd();
 
   if (!moduleName) {
