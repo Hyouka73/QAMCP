@@ -1,8 +1,5 @@
 import { createHash } from 'node:crypto';
-<<<<<<< HEAD
 
-=======
->>>>>>> S6-002
 import type { TCCase, TCStep } from '@qap/shared';
 
 /**
@@ -51,19 +48,11 @@ export class CaseGenerator {
         ];
 
     const testCase: TCCase & { manually_edited?: boolean } = {
-<<<<<<< HEAD
-      _version: '1',
-      id: uuid,
-      name: options.caseName,
-      tags: options.tags ?? [options.moduleName],
-      ...(options.dependsOn && options.dependsOn.length > 0 ? { depends_on: options.dependsOn } : {}),
-=======
       _version: '1.0.0',
       id: uuid,
       name: options.caseName,
       tags: options.tags ?? [options.moduleName],
-      depends_on: options.dependsOn ?? undefined,
->>>>>>> S6-002
+      ...(options.dependsOn && options.dependsOn.length > 0 ? { depends_on: options.dependsOn } : {}),
       steps: defaultSteps,
     };
 
