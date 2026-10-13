@@ -20,3 +20,5 @@ export * from './hasher/semantic-hasher.js';
 export * from './graph/dependency-graph.js';
 
 export * from './document-detector.js';
+export * from './plan/update-guard.js';
+export * from './plan/module-backup-manager.js';
