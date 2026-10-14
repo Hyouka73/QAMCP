@@ -166,6 +166,7 @@ export function registerCommands(program: Command): void {
     .option('--retries <n>', 'Numero de reintentos para casos fallidos')
     .option('--headed', 'Ejecuta con interfaz grafica visible')
     .option('--fail-fast', 'Detiene la ejecucion en el primer caso fallido')
+    .option('--from-diff', 'Ejecuta solo los modulos afectados por cambios de Git respecto a la rama base')
     .action(async (moduleArg: string | undefined, options: import('./commands/test.js').TestCommandOptions) => {
       await handleTest(moduleArg, options);
     });

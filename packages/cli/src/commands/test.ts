@@ -1,5 +1,6 @@
 import { PlaywrightRunner } from '@qap/playwright-runner';
 import { FileSystemStorage } from '@qap/knowledge';
+import { GitAdapter } from '@qap/git-adapter';
 import type { TestPlan, ExecutionResult, ExecutionStatus } from '@qap/shared';
 
 import { DataError } from '../errors.js';
@@ -11,7 +12,9 @@ export interface TestCommandOptions {
   headed?: boolean;
   retries?: string;
   failFast?: boolean;
+  fromDiff?: boolean;
 }
+
 
 interface ResolvedCase {
   module: string;
@@ -37,11 +40,35 @@ export async function handleTest(
 ): Promise<void> {
   const storage = new FileSystemStorage({ rootDir: process.cwd() });
 
-  const modules = moduleArg ? [moduleArg] : await storage.listModules();
+  let modules: string[];
+
+  if (options.fromDiff) {
+    const gitAdapter = new GitAdapter({ cwd: process.cwd() });
+    const affectedModules = await gitAdapter.getAffectedModules(storage);
+
+    if (moduleArg) {
+      // Intersección: solo correr el módulo pedido si de verdad está afectado.
+      modules = affectedModules.includes(moduleArg) ? [moduleArg] : [];
+    } else {
+      modules = affectedModules;
+    }
+
+    if (modules.length === 0) {
+      console.log(
+        '--from-diff: no hay módulos afectados por los cambios actuales respecto a la rama base. Nada que ejecutar.'
+      );
+      process.exitCode = 0;
+      return;
+    }
+
+    console.log(`--from-diff: acotando ejecución a ${modules.length} módulo(s) afectado(s): ${modules.join(', ')}`);
+  } else {
+    modules = moduleArg ? [moduleArg] : await storage.listModules();
+  }
+
   if (modules.length === 0) {
     throw new DataError('No hay modulos registrados en .qa/modules/. Ejecuta "qap discover" primero.');
   }
-
   const requestedTags = options.tags
     ? options.tags.split(',').map((t) => t.trim()).filter(Boolean)
     : [];
