@@ -1,3 +1,5 @@
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright-core';
 import type {
   TestPlan,
@@ -55,6 +57,7 @@ export interface PlaywrightRunnerOptions extends TestOptions {
   fail_fast?: boolean;
   storageResolver?: (moduleName: string, caseId: string) => Promise<TCCase>;
   screenshotsDir?: string;
+  storageStatePath?: string; 
 }
 
 export class PlaywrightRunner {
@@ -87,7 +90,31 @@ export class PlaywrightRunner {
         slowMo: options.slow_mo ?? 0,
       });
 
-      context = await browser.newContext();
+      //S75-00GB: Resolver prereqs.yaml del módulo y extraer la sesión correspondiente
+      let storageStateFile = options.storageStatePath;
+      if (!storageStateFile && moduleName) {
+        try {
+          const prereaPath = path.join(process.cwd(), '.qa', 'modules', moduleName, 'prereqs.yaml');
+          if (fs.existsSync(prereaPath)) {
+            const content = fs.readFileSync(prereaPath, 'utf8');
+            const match = content.match(/primary:\s*([^\s\r\n#]+)/);
+            if (match && match[1]) {
+              const primaryAuth = match[1].replace(/['"]/g, '');
+              const sessionPath = path.join(process.cwd(), '.qa', 'cache', 'sessions', `${primaryAuth}.json`);
+              if (fs.existsSync(sessionPath)) {
+                storageStateFile = sessionPath;
+              }
+            }
+          }
+        } catch {
+          // Fallback silencioso si ocurre algún error de lectura
+        }
+      }
+
+      context = await browser.newContext(
+        storageStateFile ? { storageState: storageStateFile }: undefined
+      );
+      
       const page = await context.newPage();
       page.setDefaultTimeout(timeout);
 

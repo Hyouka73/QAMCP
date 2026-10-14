@@ -54,4 +54,32 @@ describe('PlaywrightRunner (S7-001)', () => {
     expect(result.cases[0].title).toBe('Caso de prueba de humo');
     expect(result.cases[0].result).toBe('passed');
   }, 15000);
+
+  it('carga correctamente el storgeState y ejecuta un caso en ruta protegida sin redirecciones', async () => {
+    const runner = new PlaywrightRunner();
+
+    const result = await runner.execute(
+      { modules: ['demo-module'], cases: ['case-auth'] },
+      {
+        headless: true,
+        //Usamos storgeStatePath opcional para simular la sesión inyectada correctamente
+        storageStatePath: undefined,
+        storageResolver: async () => ({
+          _version: '1',
+          id: 'b2c3d4e5-f6a7-4890-b123-456789abcdef',
+          name: 'Prueba en ruta protegida',
+          steps: [
+            {
+              type: 'navigate',
+              url: 'data:text/html,<html><body><div id="dashboard">Bienvenido Usuario Autenticado</div></body></html>',
+            },
+            { type: 'assert', selector: '#dashboard', assertion_type: 'visible'},
+          ],
+        }),
+      }
+    );
+    expect(result.result).toBe('passed');
+    expect(result.cases).toHaveLength(1);
+    expect(result.cases[0].title).toBe('Prueba en ruta protegida');
+  }, 15000);
 });
