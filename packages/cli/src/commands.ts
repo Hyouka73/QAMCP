@@ -36,6 +36,7 @@ import { handleMcp } from './commands/mcp.js';
 import { handleTest } from './commands/test.js';
 import { handleUpdate } from './commands/update.js';
 import { handleRollback } from './commands/rollback.js';
+import { handleUnlock } from './commands/unlock.js';
 
 export { handleClean } from './commands/clean.js';
 export { handleMcp } from './commands/mcp.js';
@@ -284,6 +285,14 @@ export function registerCommands(program: Command): void {
 
     subcommand.action(() => {
       throw new NotImplementedError(definition.name);
+    });
+      // Subcomando 'unlock' (S75-005A)
+  program
+    .command('unlock [module]')
+    .description('Libera el lock de concurrencia de un módulo')
+    .option('-f, --force', 'Confirma la liberación forzada del lock (--force-unlock)')
+    .action(async (moduleName?: string, options?: { force?: boolean }) => {
+      await handleUnlock(moduleName, options);
     });
   }
 }
