@@ -4,19 +4,34 @@ import { join } from 'node:path';
 import { confirm } from '@inquirer/prompts';
 import { FileSystemStorage } from '@qap/knowledge';
 import { UpdateGuard, ModuleBackupManager } from '@qap/knowledge';
-import type { Module, ModuleContext } from '@qap/shared';
+import type { Module, ModuleContext, Selectors } from '@qap/shared';
 
 import { DataError } from '../errors.js';
 
 export interface UpdateCommandOptions {
   dryRun?: boolean;
   interactive?: boolean;
+  diff?: boolean;
 }
 
 interface DiffEntry {
   field: string;
   before: string;
   after: string;
+}
+
+interface DiscoveredInputLike {
+  key: string;
+  selector: string;
+}
+
+interface DiscoveredFormLike {
+  inputs?: DiscoveredInputLike[];
+}
+
+interface DiscoveredModuleContext {
+  forms?: DiscoveredFormLike[];
+  inputs?: DiscoveredInputLike[];
 }
 
 function getDiscoverCacheDir(): string {
@@ -33,7 +48,35 @@ function loadCachedModule(moduleName: string): Module {
   return JSON.parse(readFileSync(path, 'utf-8')) as Module;
 }
 
-function computeDiff(current: ModuleContext | null, cached: Module): DiffEntry[] {
+/**
+ * Deriva un mapa { clave: selector } a partir de los formularios e inputs
+ * standalone que PlaywrightAdapter cachea en Module.context durante la
+ * fase 'navigate' de discover (S75-015).
+ */
+function deriveSelectorsFromCachedModule(cached: Module): Record<string, string> {
+  const context = cached.context as DiscoveredModuleContext | undefined;
+  const derived: Record<string, string> = {};
+
+  if (!context) return derived;
+
+  for (const form of context.forms ?? []) {
+    for (const input of form.inputs ?? []) {
+      if (input.key && input.selector) {
+        derived[input.key] = input.selector;
+      }
+    }
+  }
+
+  for (const input of context.inputs ?? []) {
+    if (input.key && input.selector) {
+      derived[input.key] = input.selector;
+    }
+  }
+
+  return derived;
+}
+
+function computeMetadataDiff(current: ModuleContext | null, cached: Module): DiffEntry[] {
   const diffs: DiffEntry[] = [];
 
   const currentDescription = current?.description ?? '';
@@ -52,6 +95,22 @@ function computeDiff(current: ModuleContext | null, cached: Module): DiffEntry[]
   const cachedRoute = cached.path ?? '';
   if (currentRoute !== cachedRoute) {
     diffs.push({ field: 'base_route', before: currentRoute, after: cachedRoute });
+  }
+
+  return diffs;
+}
+
+function computeSelectorsDiff(
+  currentSelectors: Record<string, string>,
+  derivedSelectors: Record<string, string>
+): DiffEntry[] {
+  const diffs: DiffEntry[] = [];
+
+  for (const [key, newSelector] of Object.entries(derivedSelectors)) {
+    const oldSelector = currentSelectors[key] ?? '';
+    if (oldSelector !== newSelector) {
+      diffs.push({ field: `selectors.${key}`, before: oldSelector, after: newSelector });
+    }
   }
 
   return diffs;
@@ -95,7 +154,17 @@ export async function handleUpdate(moduleName?: string, options: UpdateCommandOp
     currentContext = await storage.getModuleContext(moduleName);
   }
 
-  const diffs = computeDiff(currentContext, cachedModule);
+  let currentSelectors: Selectors | null = null;
+  try {
+    currentSelectors = await storage.getModuleSelectors(moduleName);
+  } catch {
+    currentSelectors = null;
+  }
+
+  const derivedSelectors = deriveSelectorsFromCachedModule(cachedModule);
+  const metadataDiffs = computeMetadataDiff(currentContext, cachedModule);
+  const selectorsDiffs = computeSelectorsDiff(currentSelectors?.selectors ?? {}, derivedSelectors);
+  const diffs = [...metadataDiffs, ...selectorsDiffs];
 
   console.log(`\n=== Diff para el módulo '${moduleName}' ===`);
   if (diffs.length === 0) {
@@ -110,7 +179,8 @@ export async function handleUpdate(moduleName?: string, options: UpdateCommandOp
     return;
   }
 
-  if (options.interactive) {
+  const wantsConfirmation = options.interactive || options.diff;
+  if (wantsConfirmation) {
     const proceed = await confirm({
       message: `¿Aplicar estos ${diffs.length} cambio(s) a '${moduleName}'?`,
       default: false,
@@ -126,16 +196,28 @@ export async function handleUpdate(moduleName?: string, options: UpdateCommandOp
     console.log(`Respaldo creado en: ${backupPath}`);
   }
 
-  const updatedContext: ModuleContext = {
-    _version: currentContext?._version ?? '2',
-    module: moduleName,
-    ...currentContext,
-    description: cachedModule.description ?? currentContext?.description,
-    tags: cachedModule.tags ?? currentContext?.tags,
-    base_route: cachedModule.path ?? currentContext?.base_route,
-  };
+  if (metadataDiffs.length > 0) {
+    const updatedContext: ModuleContext = {
+      _version: currentContext?._version ?? '2',
+      module: moduleName,
+      ...currentContext,
+      description: cachedModule.description ?? currentContext?.description,
+      tags: cachedModule.tags ?? currentContext?.tags,
+      base_route: cachedModule.path ?? currentContext?.base_route,
+    };
+    await storage.saveModuleContext(moduleName, updatedContext);
+  }
 
-  await storage.saveModuleContext(moduleName, updatedContext);
+  if (selectorsDiffs.length > 0) {
+    const mergedSelectors: Selectors = {
+      selectors: { ...(currentSelectors?.selectors ?? {}), ...derivedSelectors },
+      metadata: {
+        generated_at: new Date().toISOString(),
+        source: 'qap update',
+      },
+    };
+    await storage.saveModuleSelectors(moduleName, mergedSelectors);
+  }
 
   console.log(`✔ Módulo '${moduleName}' actualizado (${diffs.length} campo(s) aplicados).`);
   process.exitCode = 0;

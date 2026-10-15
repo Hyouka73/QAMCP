@@ -187,7 +187,8 @@ export function registerCommands(program: Command): void {
     .description('Actualiza un módulo descubriendo cambios y aplicando diffs')
     .option('--dry-run', 'Simula la actualización sin modificar archivos')
     .option('-i, --interactive', 'Modo interactivo de actualización')
-    .action(async (moduleName?: string, options?: { dryRun?: boolean; interactive?: boolean }) => {
+    .option('--diff', 'Muestra el diff y pide confirmación antes de aplicar cambios')
+    .action(async (moduleName?: string, options?: { dryRun?: boolean; interactive?: boolean; diff?: boolean }) => {
       await handleUpdate(moduleName, options);
     });
 

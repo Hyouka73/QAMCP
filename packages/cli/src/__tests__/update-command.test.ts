@@ -8,6 +8,7 @@ import YAML from 'yaml';
 import { handleUpdate } from '../commands/update.js';
 import { DataError } from '../errors.js';
 
+
 describe('qap update (S7-008)', () => {
   let rootDir: string;
   let originalCwd: string;
@@ -106,4 +107,43 @@ describe('qap update (S7-008)', () => {
     const backupsDir = join(rootDir, '.qa', 'cache', 'backups', 'checkout');
     expect(existsSync(backupsDir)).toBe(false);
   });
+  it('deriva y aplica selectores desde el Module cacheado por discover', async () => {
+    seedModule ();
+    mkdirSync(join(rootDir, '.qa', 'cache', 'discover'), { recursive: true });
+    writeFileSync(
+      join(rootDir, '.qa', 'cache', 'discover', 'checkout.module.json'),
+      JSON.stringify({
+        name: 'checkout',
+        path: '/checkout',
+        description: 'original',
+        tags: ['old'],
+        cases: [],
+        context: {
+          forms: [
+            { inputs: [{ key: 'email', selector: '#email-input' }] },
+          ],
+          inputs : [{key: 'search', selector: 'input[name="q"]'}],
+        },
+      })
+    );
+
+    await handleUpdate('checkout', { diff: false });
+
+    const selectorsPath = join(rootDir, '.qa', 'modules', 'checkout', 'selectors.json');
+    const saved = JSON.parse(readFileSync(selectorsPath, 'utf-8')) as {
+      selectors: Record<string, string>;
+    };
+
+    expect(saved.selectors.email).toBe('#email-input');
+    expect(saved.selectors.search).toBe('input[name="q"]'); 
+  });
+
+  it('con --diff, cancela la operacion si el usuario no confirma', async () => {
+    const { confirm } = await import('@inquirer/prompts');
+    vi.spyOn({ confirm}, 'confirm');
+    seedModule();
+    seedDiscoveredCache();
+
+    vi.doMock('@inquirer/prompts', () => ({ confirm: vi.fn().mockResolvedValue(false) }));
+  })
 });
