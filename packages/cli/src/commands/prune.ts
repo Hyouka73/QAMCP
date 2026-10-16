@@ -6,6 +6,7 @@ import { QapDatabase, PruningEngine, TTL_DEFAULTS } from '@qap/reporter';
 export interface PruneCommandOptions {
   olderThanDays?: string | number;
   maxBytes?: string | number;
+  maxEntries?: string | number;
   dryRun?: boolean;
   runtimeDir?: string;
 }
@@ -18,12 +19,7 @@ export interface PruneAuditResult {
 }
 
 /**
- * Subcomando `qap prune` (QAP v3.0 Fase 3).
- *
- * Opciones:
- *  --older-than-days <dias> : TTL para registros completos
- *  --max-bytes <bytes>      : Cuota máxima permitida
- *  --dry-run                : Audita y reporta espacio liberable sin eliminar archivos
+ * Subcomando `qap prune` (QAP v3.0 Fase 3 - S75-017).
  */
 export async function handlePrune(options: PruneCommandOptions = {}): Promise<PruneAuditResult> {
   await Promise.resolve();
@@ -44,11 +40,11 @@ export async function handlePrune(options: PruneCommandOptions = {}): Promise<Pr
 
   const olderThanDays = options.olderThanDays ? Number(options.olderThanDays) : undefined;
   const maxBytes = options.maxBytes ? Number(options.maxBytes) : undefined;
+  const maxEntries = options.maxEntries ? Number(options.maxEntries) : undefined;
 
   const recordTtlMs = olderThanDays ? olderThanDays * 24 * 60 * 60 * 1000 : TTL_DEFAULTS.RECORD_MS;
 
   if (options.dryRun) {
-    // Simulación dry-run: auditar sin modificar disco ni base de datos
     const now = Date.now();
     let candidateRunsCount = 0;
     let candidateArtifactsCount = 0;
@@ -57,13 +53,19 @@ export async function handlePrune(options: PruneCommandOptions = {}): Promise<Pr
     const runs = db.listRuns();
     const runsBaseDir = path.join(runtimeDir, 'runs');
 
+    // Si maxEntries está especificado, contar candidatos excedentes
+    const unpinnedRuns = runs.filter((r) => r.pinned === 0);
+    const runsToPruneByCount = maxEntries && unpinnedRuns.length > maxEntries
+      ? new Set(unpinnedRuns.sort((a, b) => new Date(a.started_at).getTime() - new Date(b.started_at).getTime()).slice(0, unpinnedRuns.length - maxEntries).map(r => r.run_id))
+      : new Set();
+
     for (const run of runs) {
       if (run.pinned === 1) continue;
 
       const ageMs = now - new Date(run.started_at).getTime();
       const runDir = path.join(runsBaseDir, run.run_id);
 
-      if (ageMs >= recordTtlMs) {
+      if (ageMs >= recordTtlMs || runsToPruneByCount.has(run.run_id)) {
         candidateRunsCount++;
         if (fs.existsSync(runDir)) {
           candidateBytes += calculateDirectorySize(runDir);

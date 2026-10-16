@@ -7,4 +7,3 @@ export * from './interview-engine.js';
 export * from './gap-report.js';
 export * from './pregunta.js';
 export * from './onboarding-interview.js';
-export * from './lock-manager.js';

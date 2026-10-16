@@ -25,4 +25,5 @@ export * from './plan/module-backup-manager.js';
 export * from './route-scanner.js';
 export * from './candidate-generator.js';
 
+export * from './storage/lock-manager.js';
 

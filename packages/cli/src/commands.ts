@@ -36,7 +36,6 @@ import { handleMcp } from './commands/mcp.js';
 import { handleTest } from './commands/test.js';
 import { handleUpdate } from './commands/update.js';
 import { handleRollback } from './commands/rollback.js';
-import { handleUnlock } from './commands/unlock.js';
 
 export { handleClean } from './commands/clean.js';
 export { handleMcp } from './commands/mcp.js';
@@ -195,9 +194,10 @@ export function registerCommands(program: Command): void {
   // Subcomando 'rollback'
   program
     .command('rollback [module]')
-    .description('Restaura un módulo al estado de su respaldo anterior')
-    .action(async (moduleName?: string) => {
-      await handleRollback(moduleName);
+    .description('Restaura módulos y planes a estados previos desde .qa/cache/backups/')
+    .option('--to <id>', 'Identificador del respaldo a restaurar')
+    .action(async (moduleName?: string, options?: { to?: string }) => {
+      await handleRollback(moduleName, options);
     });
 
   const configGroup = program
@@ -248,13 +248,14 @@ export function registerCommands(program: Command): void {
   // 6. Subcomando 'prune'
   program
     .command('prune')
-    .description('Poda y recolección de basura de telemetría y artefactos multimedia')
-    .option('--older-than-days <days>', 'Días de antigüedad para expirar registros')
-    .option('--max-bytes <bytes>', 'Cuota máxima de disco permitida')
-    .option('--dry-run', 'Audita el espacio liberable sin eliminar archivos')
-    .action(async (options: { olderThanDays?: string; maxBytes?: string; dryRun?: boolean }) => {
-      await handlePrune(options);
-    });
+  .description('Elimina ejecuciones, capturas temporales y logs obsoletos')
+  .option('--older-than-days <dias>', 'Antigüedad máxima en días')
+  .option('--max-bytes <bytes>', 'Límite de cuota en disco')
+  .option('--max-entries <entradas>', 'Número máximo de ejecuciones a conservar')
+  .option('--dry-run', 'Audita sin eliminar ningún archivo')
+  .action(async (options) => {
+    await handlePrune(options);
+  });
 
   // 7. Grupo 'runtime' con 'reindex'
   const runtimeGroup = program
@@ -286,14 +287,6 @@ export function registerCommands(program: Command): void {
 
     subcommand.action(() => {
       throw new NotImplementedError(definition.name);
-    });
-      // Subcomando 'unlock' (S75-005A)
-  program
-    .command('unlock [module]')
-    .description('Libera el lock de concurrencia de un módulo')
-    .option('-f, --force', 'Confirma la liberación forzada del lock (--force-unlock)')
-    .action(async (moduleName?: string, options?: { force?: boolean }) => {
-      await handleUnlock(moduleName, options);
     });
   }
 }
