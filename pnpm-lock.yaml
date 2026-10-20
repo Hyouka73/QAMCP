@@ -259,6 +259,9 @@ importers:
       '@qap/auth':
         specifier: workspace:*
         version: link:../auth
+      '@qap/engine':
+        specifier: workspace:*
+        version: link:../engine
       '@qap/knowledge':
         specifier: workspace:*
         version: link:../knowledge

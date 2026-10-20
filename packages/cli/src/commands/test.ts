@@ -13,6 +13,7 @@ export interface TestCommandOptions {
   retries?: string;
   failFast?: boolean;
   fromDiff?: boolean;
+  forceUnlock?: boolean;
 }
 
 
@@ -39,6 +40,17 @@ export async function handleTest(
   options: TestCommandOptions = {}
 ): Promise<void> {
   const storage = new FileSystemStorage({ rootDir: process.cwd() });
+
+  if (options.forceUnlock) {
+    const { LockManager } = await import ('@qap/knowledge');
+    const lockManager = new LockManager ({ rootDir: process.cwd () });
+    await lockManager.forceUnlock(moduleArg);
+    console.log(
+      moduleArg 
+      ? `Lock del módulo '${moduleArg}' liberado forzadamente antes de ejecutar.`
+      : 'Todos los locks activos fueron liberados forzadamente antes de ejecutar.'
+    );
+  }
 
   let modules: string[];
 

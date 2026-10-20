@@ -55,31 +55,93 @@ describe('PlaywrightRunner (S7-001)', () => {
     expect(result.cases[0].result).toBe('passed');
   }, 15000);
 
-  it('carga correctamente el storgeState y ejecuta un caso en ruta protegida sin redirecciones', async () => {
+    it('con sesión válida inyectada vía resolveModuleSession, accede a ruta protegida sin redirigir a /login', async () => {
+    const fs = await import('node:fs');
+    const os = await import('node:os');
+    const path = await import('node:path');
+    const http = await import('node:http');
+    const { SessionStore } = await import('@qap/auth');
+
+    // Servidor local real: / es protegida y redirige a /login si falta la cookie 'auth_token'.
+    const server = http.createServer((req, res) => {
+      const cookie = req.headers.cookie ?? '';
+      if (req.url === '/login') {
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end('<html><body><h1 id="login-page">Login</h1></body></html>');
+        return;
+      }
+      if (!cookie.includes('auth_token=valid-session-token')) {
+        res.writeHead(302, { Location: '/login' });
+        res.end();
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end('<html><body><div id="dashboard">Bienvenido Usuario Autenticado</div></body></html>');
+    });
+
+    await new Promise<void>((resolve) => server.listen(0, resolve));
+    const address = server.address();
+    const port = typeof address === 'object' && address ? address.port : 0;
+    const baseUrl = `http://127.0.0.1:${port}`;
+
+        const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'qap-runner-auth-test-'));
+    const originalCwd = process.cwd();
+
+    // SessionStore ignora internamente su parámetro projectPath y siempre usa
+    // process.cwd() (bug preexistente en session-store.ts, archivo prohibido
+    // de modificar por S75-006A). Por eso el chdir debe ocurrir ANTES de
+    // guardar la sesión, para que guardar y leer usen el mismo cwd.
+    process.chdir(projectRoot);
+
+    const moduleDir = path.join(projectRoot, '.qa', 'modules', 'protected-module');
+    fs.mkdirSync(moduleDir, { recursive: true });
+    fs.writeFileSync(path.join(moduleDir, 'prereqs.yaml'), 'requires:\n  auth:\n    primary: "test-user"\n');
+
+    const sessionStore = new SessionStore(undefined, projectRoot);
+    sessionStore.saveSession('test-user', {
+      cookies: [
+        {
+          name: 'auth_token',
+          value: 'valid-session-token',
+          domain: '127.0.0.1',
+          path: '/',
+          expires: Date.now() / 1000 + 3600,
+          httpOnly: true,
+          secure: false,
+          sameSite: 'Lax' as const,
+        },
+      ],
+      origins: [],
+    });
+
     const runner = new PlaywrightRunner();
 
-    const result = await runner.execute(
-      { modules: ['demo-module'], cases: ['case-auth'] },
-      {
-        headless: true,
-        //Usamos storgeStatePath opcional para simular la sesión inyectada correctamente
-        storageStatePath: undefined,
-        storageResolver: async () => ({
-          _version: '1',
-          id: 'b2c3d4e5-f6a7-4890-b123-456789abcdef',
-          name: 'Prueba en ruta protegida',
-          steps: [
-            {
-              type: 'navigate',
-              url: 'data:text/html,<html><body><div id="dashboard">Bienvenido Usuario Autenticado</div></body></html>',
-            },
-            { type: 'assert', selector: '#dashboard', assertion_type: 'visible'},
-          ],
-        }),
-      }
-    );
-    expect(result.result).toBe('passed');
-    expect(result.cases).toHaveLength(1);
-    expect(result.cases[0].title).toBe('Prueba en ruta protegida');
-  }, 15000);
+    try {
+      const result = await runner.execute(
+        { modules: ['protected-module'], cases: ['case-dashboard'] },
+        {
+          headless: true,
+          projectRoot,
+          storageResolver: async () => ({
+            _version: '1',
+            id: 'c3d4e5f6-a7b8-4901-c234-56789abcdef0',
+            name: 'Acceso a dashboard protegido',
+            steps: [
+              { type: 'navigate', url: `${baseUrl}/` },
+              { type: 'assert', selector: '#dashboard', assertion_type: 'visible' },
+            ],
+          }),
+        }
+      );
+      expect(result.result).toBe('passed');
+      expect(result.cases[0].result).toBe('passed');
+      // La prueba de fondo: si NO se hubiera inyectado la cookie, el servidor
+      // habría redirigido a /login y '#dashboard' nunca existiría, haciendo
+      // fallar el assert anterior con selector_not_found.
+        } finally {
+      process.chdir(originalCwd);
+      server.close();
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  }, 20000);
 });

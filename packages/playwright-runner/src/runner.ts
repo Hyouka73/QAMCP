@@ -1,5 +1,3 @@
-import * as fs from 'node:fs';
-import * as path from 'node:path';
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright-core';
 import type {
   TestPlan,
@@ -12,7 +10,10 @@ import type {
   CaseResult,
   FailureType,
 } from '@qap/shared';
+import type { IRunner } from '@qap/engine';
+import { FileSystemStorage, LockManager, DependencyGraphResolver } from '@qap/knowledge';
 
+import { resolveModuleSession } from './session-resolver.js';
 import { interpolateStep } from './context/interpolator.js';
 import {
   executeNavigate,
@@ -55,17 +56,22 @@ function classifyError(error: unknown): { category: FailureType; message: string
 
 export interface PlaywrightRunnerOptions extends TestOptions {
   fail_fast?: boolean;
+  /** Override opcional para purebas: si se pasa, se usa en una vez de cargar vií FileSystemStorage. */
   storageResolver?: (moduleName: string, caseId: string) => Promise<TCCase>;
   screenshotsDir?: string;
   storageStatePath?: string; 
+  /** Raíz del proyecto para FileSystemStorage: por defecto process.cwd().*/
+  projectRoot?: string;
 }
 
-export class PlaywrightRunner {
+export class PlaywrightRunner implements IRunner{
   public async execute(
     plan: TestPlan,
     options: PlaywrightRunnerOptions = {}
   ): Promise<ExecutionResult> {
     const startedAt = new Date().toISOString();
+    const projectRoot = process.cwd();
+    const storage = new FileSystemStorage ({ rootDir: projectRoot });
 
     const isHeadless = options.headless ?? true;
     const timeout = options.timeout_ms ?? plan.timeout_ms ?? 30000;
@@ -73,9 +79,18 @@ export class PlaywrightRunner {
     const moduleName = plan.modules[0] ?? '';
     const env = options.environment ?? plan.environment ?? 'local';
     const screenshotsDir = options.screenshotsDir ?? '.qa/reports/screenshots';
+    const flowVariables: Record<string, string> = options.context_data 
+      ? Object.fromEntries(Object.entries(options.context_data).map(([k, v]) => [k, String(v)]))
+      : {};
+
+    // Carga un caso: usa el resolver Inyectado si se pasó (test/overrides),
+    // o FileSystemStorage directamente (S75-00BB, uso real via CLI).
+
+  const loadCase = options.storageResolver ?? ((mod: string, caseId: string) => storage.getTestCase(mod, caseId));
 
     let browser: Browser | null = null;
     let context: BrowserContext | null = null;
+    let releaseLock: (() => void) | null = null;
 
     let totalPassed = 0;
     let totalFailed = 0;
@@ -84,43 +99,83 @@ export class PlaywrightRunner {
     const casesResult: ExecutedCase[] = [];
     let timedOut = false;
 
+    // Rutina de limpieza ante señales del sistema (S75-006B)
+    const cleanup = async () => {
+      if (context) await context.close().catch(() => {});
+      if (browser) await browser.close().catch(() => {});
+      if (releaseLock) {
+        try {
+          releaseLock();
+        } catch {
+          // Ignorar si ya fue liberado
+        }
+      }
+    };
+
+    const sigintHandler = () => {
+      cleanup().finally(() => process.exit(130));
+    };
+    const sigtermHandler = () => {
+      cleanup().finally(() => process.exit(143));
+    };
+    const uncaughtHandler = (err: unknown) => {
+      console.error('[PlaywrightRunner] Uncaught Exception:', err);
+      cleanup().finally(() => process.exit(1));
+    };
+
+    process.once('SIGINT', sigintHandler);
+    process.once('SIGTERM', sigtermHandler);
+    process.once('uncaughtException', uncaughtHandler);
+
     try {
+      // 1. Adquirir lock con LockManager.acquireModuleLock() (S75-006B / S75-005A)
+      if (moduleName) {
+        const lockManager = new LockManager({ rootDir: projectRoot});
+        releaseLock = await lockManager.acquireModuleLock(moduleName);
+      }
+
+      // 2. Resolver sesión autenticada con resolveModuleSession() (S75-006A)[cite: 3, 4]
+       let storageState: any = undefined;
+      if (moduleName) {
+        try {
+          storageState = await resolveModuleSession(projectRoot, moduleName);
+        } catch (error) {
+          console.warn(`[PlaywrightRunner] No se pudo resolver la sesión autenticada para ${moduleName}:`, error);
+        }
+      }
+
       browser = await chromium.launch({
         headless: isHeadless,
         slowMo: options.slow_mo ?? 0,
       });
 
-      //S75-00GB: Resolver prereqs.yaml del módulo y extraer la sesión correspondiente
-      let storageStateFile = options.storageStatePath;
-      if (!storageStateFile && moduleName) {
-        try {
-          const prereaPath = path.join(process.cwd(), '.qa', 'modules', moduleName, 'prereqs.yaml');
-          if (fs.existsSync(prereaPath)) {
-            const content = fs.readFileSync(prereaPath, 'utf8');
-            const match = content.match(/primary:\s*([^\s\r\n#]+)/);
-            if (match && match[1]) {
-              const primaryAuth = match[1].replace(/['"]/g, '');
-              const sessionPath = path.join(process.cwd(), '.qa', 'cache', 'sessions', `${primaryAuth}.json`);
-              if (fs.existsSync(sessionPath)) {
-                storageStateFile = sessionPath;
-              }
-            }
-          }
-        } catch {
-          // Fallback silencioso si ocurre algún error de lectura
-        }
-      }
-
-      context = await browser.newContext(
-        storageStateFile ? { storageState: storageStateFile }: undefined
-      );
+     context = await browser.newContext(storageState ? { storageState } : undefined);
       
       const page = await context.newPage();
       page.setDefaultTimeout(timeout);
 
-      const caseList = plan.cases ?? [];
+      let caseIds = plan.cases ?? [];
 
-      for (const caseId of caseList) {
+     if (moduleName && caseIds.length > 0) {
+        try {
+          const loadedCases: Array<{ id: string; depends_on?: string[]; tc: TCCase }> = [];
+          for (const cId of caseIds) {
+            const tc = await loadCase(moduleName, cId);
+            if (tc) {
+              loadedCases.push({ id: cId, depends_on: tc.depends_on, tc });
+            }
+          }
+          const graphResult = DependencyGraphResolver.resolveOrder(loadedCases);
+          if (!graphResult.hasCycles) {
+            caseIds = graphResult.orderedNodes.map((n) => n.id);
+          }
+        } catch (err) {
+          console.warn('[PlaywrightRunner] No se pudo aplicar el ordenamiento topológico del grafo:', err);
+        }
+      }
+
+      // 3. Cargar casos y ordenarlos con DependencyGraphResolver.resolveOrder() de @qap/knowledge[cite: 4]
+      for (const caseId of caseIds) {
         const caseStartMs = Date.now();
         const contextVariables: Record<string, string> = {};
         let caseResult: CaseResult = 'passed';
@@ -130,15 +185,22 @@ export class PlaywrightRunner {
         let failureScreenshotPath: string | undefined;
 
         try {
-          if (options.storageResolver && moduleName) {
-            const testCase = await options.storageResolver(moduleName, caseId);
-            caseTitle = testCase.name || caseId;
-            const steps = testCase.steps || [];
-           for (const rawStep of steps) {
-              const step = interpolateStep(rawStep, contextVariables);
+          if (!moduleName) {
+            throw new Error(`No se puede ejecutar el caso '${caseId}': el plan no especifica ningún módulo.`);
+          }
+
+          const testCase = await loadCase(moduleName, caseId);
+          if (!testCase) {
+            throw new Error(`No se encontró el caso '${caseId}' para el módulo '${moduleName}'.`);
+          }
+
+          caseTitle = testCase.name || caseId;
+          const steps = testCase.steps || [];
+            for (const rawStep of steps) {
+              const step = interpolateStep(rawStep, contextVariables, flowVariables);
               await this.executeStep(page, step, screenshotsDir, contextVariables);
             }
-          }
+          
           totalPassed++;
         } catch (err: unknown) {
           caseResult = 'failed';
@@ -152,7 +214,7 @@ export class PlaywrightRunner {
               screenshotsDir
             );
           } catch {
-            // Ignorar fallos al tomar captura para no sobreescribir el error original
+            // Ignorar fallos al tomar captura
           }
 
           const classified = classifyError(err);
@@ -203,10 +265,12 @@ export class PlaywrightRunner {
       if (casesResult.length === 0) {
         totalFailed = Math.max(totalFailed, 1);
       }
-      console.error('[PlaywrightRunner] Error no controlado antes del loop de casos:', err);
+      console.error('[PlaywrightRunner] Error crítico durante la ejecución:', err);
     } finally {
-      if (context) await context.close().catch(() => {});
-      if (browser) await browser.close().catch(() => {});
+      process.removeListener('SIGINT', sigintHandler);
+      process.removeListener('SIGTERM', sigtermHandler);
+      process.removeListener('uncaughtException', uncaughtHandler);
+      await cleanup();
     }
 
     const finishedAt = new Date().toISOString();
@@ -214,7 +278,7 @@ export class PlaywrightRunner {
     const overallResult: ExecutionStatus =
       totalFailed === 0 ? 'passed' : totalPassed === 0 ? 'failed' : 'partial';
 
-    const executionResult: ExecutionResult = {
+    return {
       _version: '1',
       execution_id: `exec_${Date.now()}`,
       module: moduleName,
@@ -232,8 +296,6 @@ export class PlaywrightRunner {
       },
       cases: casesResult,
     };
-
-    return executionResult;
   }
 
   private async executeStep(

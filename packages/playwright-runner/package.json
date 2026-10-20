@@ -13,6 +13,7 @@
   "dependencies": {
     "@qap/auth": "workspace:*",
     "@qap/knowledge": "workspace:*",
+    "@qap/engine": "workspace:*",
     "@qap/shared": "workspace:*",
     "playwright-core": "^1.62.1"
   },
