@@ -32,7 +32,7 @@ import { handleValidate } from './commands/validate.js';
 import { handlePrune } from './commands/prune.js';
 import { handleRuntimeReindex } from './commands/reindex.js';
 import { handlePlan } from './commands/plan.js';
-import { handleMcp } from './commands/mcp.js';
+import { handleMcp, handleMcpRegister } from './commands/mcp.js';
 import { handleTest } from './commands/test.js';
 import { handleUpdate } from './commands/update.js';
 import { handleRollback } from './commands/rollback.js';
@@ -270,12 +270,22 @@ export function registerCommands(program: Command): void {
       await handleRuntimeReindex(dir);
     });
 
-  // 7.1. Subcomando 'mcp' para iniciar el servidor MCP sobre Stdio
-  program
+     // 7.1. Subcomando 'mcp' para iniciar el servidor MCP sobre Stdio
+  const mcpCmd = program
     .command('mcp')
     .description('Inicia el servidor MCP de QAP sobre transporte Stdio para Cursor, Claude y Antigravity')
-    .action(async () => {
-      await handleMcp();
+    .option('--project <dir>', 'Directorio raíz del proyecto sobre el que opera el servidor')
+    .action(async (options: { project?: string }) => {
+      await handleMcp(options);
+    });
+
+  mcpCmd
+    .command('register')
+    .description('Registra el proyecto actual como servidor MCP en Cursor y/o Claude Desktop')
+    .option('--client <client>', 'Cliente objetivo: cursor, claude o all', 'all')
+    .option('--dry-run', 'Muestra la configuración propuesta sin modificar archivos')
+    .action(async (options: { client?: string; dryRun?: boolean }) => {
+      await handleMcpRegister(options);
     });
 
   // 8. Registrar los comandos placeholders restantes
