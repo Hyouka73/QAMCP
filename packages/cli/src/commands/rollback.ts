@@ -1,51 +1,116 @@
+import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import crypto from 'node:crypto';
+
+import { confirm } from '@inquirer/prompts';
+import { FileSystemStorage, LockManager } from '@qap/knowledge';
 
 import { DataError } from '../errors.js';
+import { computeModuleSemanticHash } from '../lib/module-semantic-hash.js';
 
 export interface RollbackCommandOptions {
   to?: string;
+  yes?: boolean;
 }
 
+const MANIFEST_FILE = 'manifest.json';
+const SEMANTIC_HASH_FILE = 'semantic-hash.json';
+
+interface ResolvedSnapshot {
+  moduleName: string;
+  id: string;
+  path: string;
+  all: string[];
+}
+
+/** Calcula el hash SHA-256 de un archivo en disco. */
 function calculateFileSha256(filePath: string): string {
-  const fileBuffer = fs.readFileSync(filePath);
-  const hashSum = crypto.createHash('sha256');
-  hashSum.update(fileBuffer);
-  return hashSum.digest('hex');
+  return createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
 }
 
-/** Lista todos los archivos dentro de un directorio, recursivamente, como rutas relativas POSIX. */
+/** Lista recursiva de archivos relativos en formato POSIX (excluyendo manifest.json). */
 function listFilesRecursive(baseDir: string, currentDir: string = baseDir): string[] {
-  const entries = fs.readdirSync(currentDir, { withFileTypes: true });
   const files: string[] = [];
 
-  for (const entry of entries) {
+  for (const entry of fs.readdirSync(currentDir, { withFileTypes: true })) {
     const fullPath = path.join(currentDir, entry.name);
     if (entry.isDirectory()) {
       files.push(...listFilesRecursive(baseDir, fullPath));
-    } else if (entry.isFile() && entry.name !== 'manifest.json') {
-      const relative = path.relative(baseDir, fullPath).split(path.sep).join('/');
-      files.push(relative);
+    } else if (entry.isFile() && entry.name !== MANIFEST_FILE) {
+      files.push(path.relative(baseDir, fullPath).split(path.sep).join('/'));
     }
   }
 
   return files;
 }
 
-/**
- * Valida la integridad SHA-256 de un backup contra su manifest.json.
- * Si no existe manifest.json, el backup se considera uno "legacy" (creado
- * antes de S75-016) y se restaura sin validar, para no romper backups
- * previos; cualquier backup nuevo sí lo genera (ver ModuleBackupManager).
- */
-function validateBackupIntegrity(backupPath: string): void {
-  const manifestPath = path.join(backupPath, 'manifest.json');
-  if (!fs.existsSync(manifestPath)) {
-    return;
+/** Snapshots de una carpeta de respaldos, del más reciente al más antiguo. */
+function listSnapshots(backupsDir: string): string[] {
+  if (!fs.existsSync(backupsDir)) {
+    return [];
+  }
+  return fs
+    .readdirSync(backupsDir)
+    .filter((name) => fs.statSync(path.join(backupsDir, name)).isDirectory())
+    .sort()
+    .reverse();
+}
+
+function resolveSnapshot(rootDir: string, targetName: string | undefined, to: string | undefined): ResolvedSnapshot {
+  const backupsBaseDir = path.join(rootDir, '.qa', 'cache', 'backups');
+
+  if (!targetName) {
+    if (!to) {
+      throw new DataError(
+        'Debe especificar un módulo o un identificador de respaldo (ej. "qap rollback <module>" o "qap rollback --to <id>").'
+      );
+    }
+    if (!fs.existsSync(backupsBaseDir)) {
+      throw new DataError('No se encontraron directorios de respaldos en el proyecto.');
+    }
+    // --to sin módulo: se busca el identificador en todos los módulos.
+    for (const moduleName of fs.readdirSync(backupsBaseDir)) {
+      const all = listSnapshots(path.join(backupsBaseDir, moduleName));
+      if (all.includes(to)) {
+        return { moduleName, id: to, path: path.join(backupsBaseDir, moduleName, to), all };
+      }
+    }
+    throw new DataError(`No se encontró el respaldo con el identificador "${to}".`);
   }
 
-  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8')) as { files?: Record<string, string> };
+  const all = listSnapshots(path.join(backupsBaseDir, targetName));
+  if (all.length === 0) {
+    throw new DataError(`No se encontraron respaldos previos para el módulo "${targetName}".`);
+  }
+
+  const id = to ?? all[0];
+  if (!all.includes(id)) {
+    throw new DataError(`No se encontró el respaldo "${id}" para el módulo "${targetName}".`);
+  }
+  return { moduleName: targetName, id, path: path.join(backupsBaseDir, targetName, id), all };
+}
+
+function printSnapshots(snapshot: ResolvedSnapshot): void {
+  console.log(`Respaldos de '${snapshot.moduleName}' (del más reciente al más antiguo):`);
+  for (const id of snapshot.all) {
+    console.log(`  - ${id}${id === snapshot.id ? '  (seleccionado)' : ''}`);
+  }
+}
+
+/** Valida el SHA-256 de cada archivo del backup contra su manifest.json. */
+function validateBackupIntegrity(backupPath: string): void {
+  const manifestPath = path.join(backupPath, MANIFEST_FILE);
+  if (!fs.existsSync(manifestPath)) {
+    return; // Respaldo antiguo sin manifest: se restaura sin validar.
+  }
+
+  let manifest: { files?: Record<string, string> };
+  try {
+    manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8')) as { files?: Record<string, string> };
+  } catch {
+    throw new DataError('Error de integridad: el archivo manifest.json del respaldo está corrupto o no es un JSON válido.');
+  }
+
   if (!manifest.files || typeof manifest.files !== 'object') {
     return;
   }
@@ -55,8 +120,7 @@ function validateBackupIntegrity(backupPath: string): void {
     if (!fs.existsSync(filePath)) {
       throw new DataError(`Error de integridad: falta el archivo "${relativeFile}" registrado en el respaldo.`);
     }
-    const actualHash = calculateFileSha256(filePath);
-    if (actualHash !== expectedHash) {
+    if (calculateFileSha256(filePath) !== expectedHash) {
       throw new DataError(
         `Error de integridad: el hash SHA-256 del archivo "${relativeFile}" no coincide con el registro del respaldo.`
       );
@@ -64,88 +128,99 @@ function validateBackupIntegrity(backupPath: string): void {
   }
 }
 
-/** Copia todos los archivos de un backup al directorio destino, recreando subcarpetas. */
-function restoreFiles(backupPath: string, targetDir: string): void {
-  const relativeFiles = listFilesRecursive(backupPath);
+/**
+ * Recalcula el hash del snapshot con SemanticHasher y lo compara con el
+ * semantic-hash.json que 'qap update' guardó dentro del respaldo.
+ */
+function validateSemanticHash(backupPath: string): void {
+  const hashPath = path.join(backupPath, SEMANTIC_HASH_FILE);
+  if (!fs.existsSync(hashPath)) {
+    return; // Respaldo sin hash semántico (creado antes de S75-016).
+  }
 
-  for (const relativeFile of relativeFiles) {
-    const srcPath = path.join(backupPath, ...relativeFile.split('/'));
-    const destPath = path.join(targetDir, ...relativeFile.split('/'));
+  let stored: { hash?: unknown };
+  try {
+    stored = JSON.parse(fs.readFileSync(hashPath, 'utf-8')) as { hash?: unknown };
+  } catch {
+    throw new DataError('Error de integridad: el semantic-hash.json del respaldo está corrupto o no es un JSON válido.');
+  }
 
-    fs.mkdirSync(path.dirname(destPath), { recursive: true });
-    fs.copyFileSync(srcPath, destPath);
+  if (stored.hash !== computeModuleSemanticHash(backupPath).hash) {
+    throw new DataError('Error de integridad: el hash semántico del respaldo no coincide con su contenido.');
   }
 }
 
-export async function handleRollback(moduleNameOrId?: string, options?: RollbackCommandOptions): Promise<void> {
-  await Promise.resolve();
+/**
+ * Restauración en dos fases: primero copia todo a archivos temporales junto a
+ * su destino y, solo si todas las copias salieron bien, los renombra encima.
+ * Si algo falla en la fase 1, el módulo queda intacto.
+ */
+function restoreFiles(backupPath: string, targetDir: string): void {
+  const relativeFiles = listFilesRecursive(backupPath).filter((file) => file !== SEMANTIC_HASH_FILE);
+  const staged: Array<{ tempPath: string; destPath: string }> = [];
+
+  try {
+    for (const relativeFile of relativeFiles) {
+      const srcPath = path.join(backupPath, ...relativeFile.split('/'));
+      const destPath = path.join(targetDir, ...relativeFile.split('/'));
+      const tempPath = `${destPath}.rollback-tmp`;
+
+      fs.mkdirSync(path.dirname(destPath), { recursive: true });
+      staged.push({ tempPath, destPath });
+      fs.copyFileSync(srcPath, tempPath);
+    }
+  } catch (error) {
+    for (const { tempPath } of staged) {
+      fs.rmSync(tempPath, { force: true });
+    }
+    throw error;
+  }
+
+  for (const { tempPath, destPath } of staged) {
+    fs.renameSync(tempPath, destPath);
+  }
+}
+
+export async function handleRollback(targetName?: string, options: RollbackCommandOptions = {}): Promise<void> {
   const rootDir = process.cwd();
 
-  // Flujo con --to <id>: busca el backup por su identificador exacto en cualquier módulo.
-  if (options?.to) {
-    const backupId = options.to;
-    const backupsBaseDir = path.join(rootDir, '.qa', 'cache', 'backups');
+  // 1. Resolver el módulo y el snapshot, y mostrar los disponibles
+  const snapshot = resolveSnapshot(rootDir, targetName, options.to);
+  printSnapshots(snapshot);
 
-    if (!fs.existsSync(backupsBaseDir)) {
-      throw new DataError('No se encontraron directorios de respaldos en el proyecto.');
+  // 2. Confirmación solo si no se pasa --yes y hay un terminal interactivo
+  if (!options.yes && process.stdin.isTTY) {
+    const proceed = await confirm({
+      message: `¿Está seguro de realizar el rollback del módulo '${snapshot.moduleName}' utilizando el respaldo '${snapshot.id}'?`,
+      default: false,
+    });
+    if (!proceed) {
+      console.log('Rollback cancelado por el usuario.');
+      return;
     }
+  }
 
-    let foundBackupPath: string | null = null;
-    let targetModule: string | null = null;
+  // 3. Verificar integridad antes de restaurar
+  validateBackupIntegrity(snapshot.path);
+  validateSemanticHash(snapshot.path);
 
-    const modules = fs.readdirSync(backupsBaseDir);
-    for (const mod of modules) {
-      const modBackupsDir = path.join(backupsBaseDir, mod);
-      if (fs.statSync(modBackupsDir).isDirectory()) {
-        const backups = fs.readdirSync(modBackupsDir);
-        if (backups.includes(backupId)) {
-          foundBackupPath = path.join(modBackupsDir, backupId);
-          targetModule = mod;
-          break;
-        }
-      }
-    }
-
-    if (!foundBackupPath || !targetModule) {
-      throw new DataError(`No se encontró el respaldo con el identificador "${backupId}".`);
-    }
-
-    validateBackupIntegrity(foundBackupPath);
-
-    const targetDir = path.join(rootDir, '.qa', 'modules', targetModule);
+  // 4. Lock del módulo, restauración y liberación en finally
+  const lockManager = new LockManager({ rootDir });
+  const releaseLock = await lockManager.acquireModuleLock(snapshot.moduleName);
+  try {
+    const targetDir = path.join(rootDir, '.qa', 'modules', snapshot.moduleName);
     fs.mkdirSync(targetDir, { recursive: true });
-    restoreFiles(foundBackupPath, targetDir);
+    restoreFiles(snapshot.path, targetDir);
 
-    process.stdout.write(`✔ Rollback completado para el módulo "${targetModule}" utilizando el respaldo "${backupId}".\n`);
+    // El hash del módulo restaurado se calcula igual que en 'qap update'.
+    const storage = new FileSystemStorage({ rootDir });
+    await storage.saveSemanticHash(snapshot.moduleName, computeModuleSemanticHash(targetDir));
+
+    process.stdout.write(
+      `✔ Rollback completado para el módulo "${snapshot.moduleName}" utilizando el respaldo ${snapshot.id}.\n`
+    );
     process.exitCode = 0;
-    return;
+  } finally {
+    await releaseLock();
   }
-
-  // Flujo con solo el nombre del módulo: restaura el backup más reciente.
-  if (!moduleNameOrId) {
-    throw new DataError('Debe especificar un módulo o un identificador de respaldo (ej. "qap rollback <module>" o "qap rollback --to <id>").');
-  }
-
-  const moduleName = moduleNameOrId;
-  const backupsDir = path.join(rootDir, '.qa', 'cache', 'backups', moduleName);
-  if (!fs.existsSync(backupsDir)) {
-    throw new DataError(`No se encontraron respaldos previos para el módulo "${moduleName}".`);
-  }
-
-  const backups = fs.readdirSync(backupsDir).sort().reverse();
-  if (backups.length === 0) {
-    throw new DataError(`El directorio de respaldos para "${moduleName}" está vacío.`);
-  }
-
-  const latestBackup = backups[0];
-  const backupPath = path.join(backupsDir, latestBackup);
-
-  validateBackupIntegrity(backupPath);
-
-  const targetDir = path.join(rootDir, '.qa', 'modules', moduleName);
-  fs.mkdirSync(targetDir, { recursive: true });
-  restoreFiles(backupPath, targetDir);
-
-  process.stdout.write(`✔ Rollback completado para el módulo "${moduleName}" utilizando el respaldo ${latestBackup}.\n`);
-  process.exitCode = 0;
 }

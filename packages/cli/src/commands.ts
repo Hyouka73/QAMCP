@@ -181,14 +181,14 @@ export function registerCommands(program: Command): void {
       await handleDiscover(name, options);
     });
 
-  // Subcomando 'update'
+    // Subcomando 'update'
   program
     .command('update [module]')
-    .description('Actualiza un módulo descubriendo cambios y aplicando diffs')
-    .option('--dry-run', 'Simula la actualización sin modificar archivos')
-    .option('-i, --interactive', 'Modo interactivo de actualización')
-    .option('--diff', 'Muestra el diff y pide confirmación antes de aplicar cambios')
-    .action(async (moduleName?: string, options?: { dryRun?: boolean; interactive?: boolean; diff?: boolean }) => {
+    .description('Actualiza un módulo con diff de selectores, respaldo previo y recálculo de hash')
+    .option('-y, --yes', 'Aplica los cambios sin pedir confirmación')
+    .option('--dry-run', 'Muestra el diff sin modificar archivos')
+    .option('--force', 'Ignora la protección manually_edited: true')
+    .action(async (moduleName?: string, options?: { yes?: boolean; dryRun?: boolean; force?: boolean }) => {
       await handleUpdate(moduleName, options);
     });
 

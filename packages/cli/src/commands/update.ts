@@ -1,16 +1,25 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, readdirSync, readFileSync} from 'node:fs';
+import { join, relative } from 'node:path';
 
 import { confirm } from '@inquirer/prompts';
-import { FileSystemStorage } from '@qap/knowledge';
-import { UpdateGuard, ModuleBackupManager } from '@qap/knowledge';
+import { FileSystemStorage, ModuleBackupManager, SemanticHasher, UpdateGuard } from '@qap/knowledge';
 import type { Module, ModuleContext, Selectors } from '@qap/shared';
+import { parse } from 'yaml';
 
 import { DataError } from '../errors.js';
 
 export interface UpdateCommandOptions {
+  /** Aplica los cambios sin pedir confirmación. */
+  yes?: boolean;
+  /** Muestra el diff y termina sin modificar archivos. */
   dryRun?: boolean;
+  /** Ignora la protección `manually_edited: true`. */
+  force?: boolean;
+  /** Reservado: la tarea S75-015 no define su comportamiento. */
+  phase?: string;
+  /** @deprecated Sin efecto: ahora se pide confirmación siempre, salvo con --yes. */
   interactive?: boolean;
+  /** @deprecated Sin efecto: ahora se pide confirmación siempre, salvo con --yes. */
   diff?: boolean;
 }
 
@@ -34,6 +43,13 @@ interface DiscoveredModuleContext {
   inputs?: DiscoveredInputLike[];
 }
 
+const PROTECTABLE_FILE_NAMES = new Set(['context.yaml', 'rules.yaml']);
+const TEST_CASE_FILE_PATTERN = /^TC-.+\.ya?ml$/;
+
+function toPosix(path: string): string {
+  return path.split('\\').join('/');
+}
+
 function getDiscoverCacheDir(): string {
   return join(process.cwd(), '.qa', 'cache', 'discover');
 }
@@ -46,6 +62,63 @@ function loadCachedModule(moduleName: string): Module {
     );
   }
   return JSON.parse(readFileSync(path, 'utf-8')) as Module;
+}
+
+/**
+ * Recorre la carpeta del módulo y devuelve context.yaml, rules.yaml y cada
+ * TC-*.yaml, sin asumir en qué subcarpeta viven.
+ */
+function collectProtectableFiles(dir: string): string[] {
+  if (!existsSync(dir)) return [];
+
+  const found: string[] = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      found.push(...collectProtectableFiles(fullPath));
+    } else if (PROTECTABLE_FILE_NAMES.has(entry.name) || TEST_CASE_FILE_PATTERN.test(entry.name)) {
+      found.push(fullPath);
+    }
+  }
+  return found;
+}
+
+/**
+ * Devuelve los archivos del módulo con `manually_edited: true`, usando
+ * UpdateGuard.isProtectedObject() como caja negra (S75-015).
+ */
+function findProtectedFiles(moduleDir: string): string[] {
+  const protectedFiles: string[] = [];
+
+  for (const filePath of collectProtectableFiles(moduleDir)) {
+    try {
+      const parsed: unknown = parse(readFileSync(filePath, 'utf-8'));
+      if (UpdateGuard.isProtectedObject(parsed as Record<string, unknown> | null | undefined)) {
+        protectedFiles.push(filePath);
+      }
+    } catch {
+      // YAML ilegible: se trata como no protegido, igual que UpdateGuard.isProtectedContent.
+    }
+  }
+
+  return protectedFiles;
+}
+
+function readRawBaseRoute(contextPath: string): string | undefined {
+  try {
+    const parsed = parse(readFileSync(contextPath, 'utf-8')) as { base_route?: unknown } | null;
+    return typeof parsed?.base_route === 'string' ? parsed.base_route : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+async function loadCurrentSelectors(storage: FileSystemStorage, moduleName: string): Promise<Selectors | null> {
+  try {
+    return await storage.getModuleSelectors(moduleName);
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -136,39 +209,38 @@ export async function handleUpdate(moduleName?: string, options: UpdateCommandOp
     throw new DataError(`El módulo '${moduleName}' no existe en el almacenamiento.`);
   }
 
-  const contextPath = join(rootDir, '.qa', 'modules', moduleName, 'context.yaml');
+  const moduleDir = join(rootDir, '.qa', 'modules', moduleName);
+  const contextPath = join(moduleDir, 'context.yaml');
 
-  // Salvaguarda S6-003: no tocar un módulo marcado como editado a mano.
-  if (await UpdateGuard.isFileProtected(contextPath)) {
-    console.log(
-      `El módulo '${moduleName}' tiene 'manually_edited: true' en context.yaml. ` +
-        `'qap update' no sobrescribe módulos editados manualmente. Operación cancelada.`
-    );
-    return;
+  // Protección manual: cada archivo con manually_edited: true se omite (salvo --force).
+  const protectedFiles = options.force ? [] : findProtectedFiles(moduleDir);
+  const contextProtected = protectedFiles.includes(contextPath);
+
+  if (protectedFiles.length > 0) {
+    console.log(`Archivos con 'manually_edited: true' (se omiten, usa --force para incluirlos):`);
+    for (const filePath of protectedFiles) {
+      console.log(`  - ${toPosix(relative(moduleDir, filePath))}`);
+    }
   }
 
   const cachedModule = loadCachedModule(moduleName);
 
   let currentContext: ModuleContext | null = null;
-  if (existsSync(contextPath)) {
+  if (!contextProtected && existsSync(contextPath)) {
     currentContext = await storage.getModuleContext(moduleName);
   }
+  const currentRoute = contextProtected ? readRawBaseRoute(contextPath) : currentContext?.base_route;
 
-  let currentSelectors: Selectors | null = null;
-  try {
-    currentSelectors = await storage.getModuleSelectors(moduleName);
-  } catch {
-    currentSelectors = null;
-  }
-
+  const currentSelectors = await loadCurrentSelectors(storage, moduleName);
   const derivedSelectors = deriveSelectorsFromCachedModule(cachedModule);
-  const metadataDiffs = computeMetadataDiff(currentContext, cachedModule);
+
+  const metadataDiffs = contextProtected ? [] : computeMetadataDiff(currentContext, cachedModule);
   const selectorsDiffs = computeSelectorsDiff(currentSelectors?.selectors ?? {}, derivedSelectors);
   const diffs = [...metadataDiffs, ...selectorsDiffs];
 
   console.log(`\n=== Diff para el módulo '${moduleName}' ===`);
   if (diffs.length === 0) {
-    console.log('  Sin cambios: el módulo ya está sincronizado con lo descubierto.');
+    console.log('  Sin cambios que aplicar: el módulo ya está sincronizado (o sus cambios están en archivos protegidos).');
     return;
   }
   printDiff(diffs);
@@ -179,8 +251,7 @@ export async function handleUpdate(moduleName?: string, options: UpdateCommandOp
     return;
   }
 
-  const wantsConfirmation = options.interactive || options.diff;
-  if (wantsConfirmation) {
+  if (!options.yes) {
     const proceed = await confirm({
       message: `¿Aplicar estos ${diffs.length} cambio(s) a '${moduleName}'?`,
       default: false,
@@ -196,6 +267,7 @@ export async function handleUpdate(moduleName?: string, options: UpdateCommandOp
     console.log(`Respaldo creado en: ${backupPath}`);
   }
 
+  let finalRoute: string | undefined = currentRoute;
   if (metadataDiffs.length > 0) {
     const updatedContext: ModuleContext = {
       _version: currentContext?._version ?? '2',
@@ -206,11 +278,14 @@ export async function handleUpdate(moduleName?: string, options: UpdateCommandOp
       base_route: cachedModule.path ?? currentContext?.base_route,
     };
     await storage.saveModuleContext(moduleName, updatedContext);
+    finalRoute = updatedContext.base_route;
   }
 
+  let finalSelectors = currentSelectors?.selectors ?? {};
   if (selectorsDiffs.length > 0) {
+    finalSelectors = { ...finalSelectors, ...derivedSelectors };
     const mergedSelectors: Selectors = {
-      selectors: { ...(currentSelectors?.selectors ?? {}), ...derivedSelectors },
+      selectors: finalSelectors,
       metadata: {
         generated_at: new Date().toISOString(),
         source: 'qap update',
@@ -219,6 +294,12 @@ export async function handleUpdate(moduleName?: string, options: UpdateCommandOp
     await storage.saveModuleSelectors(moduleName, mergedSelectors);
   }
 
-  console.log(`✔ Módulo '${moduleName}' actualizado (${diffs.length} campo(s) aplicados).`);
-  process.exitCode = 0;
+  // Recalcula semantic-hash.json con el estado final de rutas y selectores.
+  const semanticHash = new SemanticHasher().generate(
+    { routes: finalRoute ? [finalRoute] : [], selectors: finalSelectors },
+    ['context.yaml', 'selectors.json']
+  );
+  await storage.saveSemanticHash(moduleName, semanticHash);
+
+  console.log(`✔ Módulo '${moduleName}' actualizado (${diffs.length} campo(s) aplicados). Hash semántico recalculado.`);
 }
