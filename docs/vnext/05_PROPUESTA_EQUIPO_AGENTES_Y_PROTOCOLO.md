@@ -3,8 +3,8 @@
 - **Documento:** `05_PROPUESTA_EQUIPO_AGENTES_Y_PROTOCOLO.md`
 - **Rama:** `feat/qap-vnext-architecture`
 - **Autor / Rol:** Principal Software Architect y Teamwork Lead
-- **Fecha:** Octubre 2026
-- **Estado:** Especificación Operativa del Equipo Multi-Agente (Etapa 0)
+- **Fecha:** Octubre 2026 (Revisión Arquitectónica Profunda)
+- **Estado:** Especificación Operativa del Equipo Multi-Agente Actualizada (Etapa 0)
 - **Referencias:** D-010 en `docs/vnext/REQUISITOS_Y_DECISIONES.md`, `.agents/`, `AGENTS.md`.
 
 ---
@@ -37,18 +37,18 @@ Conforme a la instrucción directiva ("Analiza `AGENTS.md` y `.agents/`. **No lo
 
 ## 2. Organización del Equipo Multi-Agente para la Implementación
 
-Para asegurar un desarrollo eficiente, desacoplado y sin cuellos de botella humanos, se define un equipo de **especialistas autónomos coordinados** bajo una jerarquía clara:
+Para asegurar un desarrollo ordenado y gobernado, se define un equipo de **especialistas coordinados** bajo hitos secuenciales y compuertas de calidad:
 
 ```mermaid
 flowchart TD
     Lead["Principal Software Architect & Teamwork Lead<br/>(Gobernanza, Integración y Decisiones)"]
     
-    subgraph Pistas Paralelas de Implementación
-        A1["Agente 1: Memory & Storage Specialist<br/>(Pista A: @qap/shared & @qap/knowledge)"]
-        A2["Agente 2: Black-Box Crawler Specialist<br/>(Pista B: @qap/playwright-adapter)"]
-        A3["Agente 3: MCP Handlers Specialist<br/>(Pista C: @qap/mcp Modular)"]
-        A4["Agente 4: QA Advisor & Engine Specialist<br/>(Pista D: @qap/engine & DAG)"]
-        A5["Agente 5: Distribution & CLI Specialist<br/>(Pista E: @hyouka73/qap-cli & tsup)"]
+    subgraph Especialistas Técnicos por Dominio
+        A1["Agente 1: Memory & Storage Specialist<br/>(@qap/shared & @qap/knowledge)"]
+        A2["Agente 2: Black-Box Crawler Specialist<br/>(@qap/playwright-adapter)"]
+        A3["Agente 3: MCP Handlers Specialist<br/>(@qap/mcp Modular)"]
+        A4["Agente 4: QA Advisor & Engine Specialist<br/>(@qap/engine & Asesoría Interactiva)"]
+        A5["Agente 5: Distribution & CLI Specialist<br/>(@hyouka73/qap-cli & @qap/auth)"]
     end
     
     Challenger["Empirical Challenger & Verification Sentinel<br/>(Auditor Adversarial Independiente)"]
@@ -63,45 +63,48 @@ flowchart TD
 | Rol / Especialista | Paquetes Bajo su Custodia | Responsabilidad Principal |
 |:---|:---|:---|
 | **Principal Architect & Teamwork Lead** | Monorepo global y `docs/vnext/` | Asigna tareas, supervisa contratos compartidos, arbitra divergencias y coordina ventanas de merge con Diego. |
-| **Agente 1: Memory & Storage Specialist** | `@qap/shared`, `@qap/knowledge` | Implementa tipos unificados, puerto `IKnowledgeStore`, `SqliteKnowledgeAdapter` (`node:sqlite` WAL) y tabla virtual FTS5. |
+| **Agente 1: Memory & Storage Specialist** | `@qap/shared`, `@qap/knowledge` | Modela las entidades de conocimiento en validación empírica, el puerto `IKnowledgeStore`, `SqliteKnowledgeAdapter` (`node:sqlite` WAL) y tabla FTS5. |
 | **Agente 2: Black-Box Crawler Specialist** | `@qap/playwright-adapter` | Desarrolla reconocimiento pasivo HTTP, crawler Playwright sin mutaciones, interceptor de red y sondas no destructivas. |
 | **Agente 3: MCP Handlers Specialist** | `@qap/mcp` | Refactoriza `server.ts` hacia despachador declarativo con tool handlers desacoplados y conecta `qap_plan`/`qap_test` reales. |
-| **Agente 4: QA Advisor & Engine Specialist** | `@qap/engine` | Implementa motor de cálculo de impacto en DAG, servicio consultor `QAAdvisor` y clasificador formal de defectos. |
-| **Agente 5: Distribution & CLI Specialist** | `@hyouka73/qap-cli`, `@qap/auth` | Desarrolla bóveda criptográfica portable AES-256 (sin `keytar`), bundle standalone con `tsup` y comando de auto-registro MCP. |
+| **Agente 4: QA Advisor & Engine Specialist** | `@qap/engine` | Implementa motor de cálculo de blast radius en DAG, servicio consultivo interactivo `QAAdvisor` (D-008) y clasificador formal de defectos. |
+| **Agente 5: Distribution & CLI Specialist** | `@hyouka73/qap-cli`, `@qap/auth` | Desarrolla la bóveda criptográfica escalonada (Keychain SO -> AES-256-GCM PBKDF2 -> Memoria), bundle standalone `tsup` y auto-registro MCP. |
 | **Empirical Challenger (Sentinel)** | Validación y Suites de Test | Agente adversarial que clona el código de cada tarea en sandbox, ejecuta pruebas de estrés, verifica cobertura y emite veredicto técnico objetivo. |
 
 ---
 
-## 3. Matriz de Independencia y Paralelismo
+## 3. Matriz de Dependencias Reales y Secuencia de Despliegue
 
-Para acelerar la entrega sin riesgos de colisión, se identifican las tareas que pueden desarrollarse de forma concurrente:
+A diferencia de un modelo ingenuamente paralelo, el despliegue del equipo sigue compuertas de dependencia técnica:
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
-│               MAPA DE PISTAS CONCURRENTES (FASE 1 A 5)                 │
+│                   SECUENCIA DE DESPLIEGUE POR COMPUERTAS               │
 ├────────────────────────────────────────────────────────────────────────┤
-│ PISTA A (Almacenamiento):   VNEXT-001 ──► VNEXT-002 ──► VNEXT-003     │
-│                             (Tipos)       (Puerto)      (SQLite WAL)   │
+│ COMPUERTA 0: Contratos de Dominio (@qap/shared)                        │
+│              - Ejecuta: Agente 1 (Supervisado por Lead)                │
+│              - Desbloquea: Hito 1 (Persistencia)                       │
 ├────────────────────────────────────────────────────────────────────────┤
-│ PISTA B (Discovery):        VNEXT-006 ──► VNEXT-007 ──► VNEXT-008     │
-│                             (Recon HTTP)  (Crawler DOM) (Red/XHR)      │
+│ COMPUERTA 1: Persistencia Operativa & Bóveda Criptográfica             │
+│              - Ejecutan en paralelo: Agente 1 (SQLite) y Agente 5 (Vault)│
+│              - Desbloquea: Hito 2 (Crawler) e Hito 3 (MCP Handlers)   │
 ├────────────────────────────────────────────────────────────────────────┤
-│ PISTA C (MCP Handlers):     VNEXT-011 ──► VNEXT-012                   │
-│                             (Dispatcher)  (Status/Clean Handlers)     │
+│ COMPUERTA 2: Adquisición Black-Box & Handlers MCP                      │
+│              - Ejecutan en paralelo: Agente 2 (Crawler) y Agente 3(MCP)│
+│              - Desbloquea: Hito 4 (QA Advisor & Planner)               │
 ├────────────────────────────────────────────────────────────────────────┤
-│ PISTA E (Criptografía):     VNEXT-018                                  │
-│                             (Bóveda AES-256 sin keytar)                │
+│ COMPUERTA 3: Asesoría Interactiva & Diagnóstico Autónomo               │
+│              - Ejecuta: Agente 4 (QA Advisor & Engine)                 │
+│              - Desbloquea: Hito 5 (Distribución npx) e Hito 6 (E2E)    │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
-- **Pistas 100% Desacopladas:** La Pista A (`@qap/knowledge`), la Pista B (`@qap/playwright-adapter`), la Pista C (`@qap/mcp`) y la Pista E (`@qap/auth`) operan en directorios de paquetes disjuntos, compartiendo únicamente los contratos inmutables de `@qap/shared`. Pueden ser ejecutadas por 4 agentes en paralelo sin conflictos de Git.
-- **Puntos de Convergencia:** La Fase 4 (QA Advisor) requiere la madurez previa de la Pista A (almacenamiento) y Pista B (datos descubiertos).
+- **Regla de Paralelismo Condicional:** Dos agentes solo pueden trabajar en paralelo si sus módulos no comparten archivos físicos en edición activa ni interfaces en estado de definición preliminar.
 
 ---
 
 ## 4. Protocolo Riguroso de Entrega y Aceptación (Handoff Protocol)
 
-Para evitar que se introduzcan defectos o tareas rotas ("stale dist" como ocurrió en Sprint 7.5), se adopta un protocolo formal de 5 pasos por cada micro-tarea:
+Para evitar regresiones e inconsistencias de compilación ("stale dist"), se adopta el protocolo formal de 5 pasos por cada micro-tarea:
 
 ```
 ┌─────────────┐
@@ -135,4 +138,4 @@ Para evitar que se introduzcan defectos o tareas rotas ("stale dist" como ocurri
 ### Reglas No Negociables de Gobernanza
 1. **Regla "No Pass, No Merge":** Ninguna tarea se considera completada si no cuenta con sus pruebas unitarias automatizadas pasando en verde y certificadas por el Challenger.
 2. **Recompilación Continua:** Cada PR o tarea completada debe ejecutar `pnpm run -r build` antes de darse por concluida, erradicando definitivamente el problema de binarios desactualizados en `dist/`.
-3. **No Modificación de Ramas Base:** Todo el trabajo del equipo multi-agente se realiza en ramas de feature derivadas de `feat/qap-vnext-architecture`, sin tocar `develop` ni `main`.
+3. **No Modificación de Ramas Base:** Todo el trabajo del equipo multi-agente se realiza en ramas derivadas de `feat/qap-vnext-architecture`, sin tocar `develop` ni `main`.

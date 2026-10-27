@@ -3,9 +3,9 @@
 - **Documento:** `03_ESTRATEGIA_MIGRACION_Y_COMPATIBILIDAD.md`
 - **Rama:** `feat/qap-vnext-architecture`
 - **Autor / Rol:** Principal Software Architect y Teamwork Lead
-- **Fecha:** Octubre 2026
-- **Estado:** Propuesta Técnica y Plan de Transición (Etapa 0)
-- **Referencias:** `docs/vnext/REQUISITOS_Y_DECISIONES.md`, `develop` commits (Diego).
+- **Fecha:** Octubre 2026 (Revisión Arquitectónica Profunda)
+- **Estado:** Propuesta Técnica y Plan de Transición Actualizado (Etapa 0)
+- **Referencias:** `docs/vnext/REQUISITOS_Y_DECISIONES.md`, commits recientes en `develop` (Diego).
 
 ---
 
@@ -31,7 +31,7 @@ flowchart TD
     B --> C{"Selector de Motor"}
     C -->|QAP_STORAGE_ENGINE='sqlite' (vNext Defecto)| D["SqliteKnowledgeAdapter (node:sqlite WAL)"]
     C -->|QAP_STORAGE_ENGINE='legacy'| E["LegacyFileSystemAdapter (.qa/ *.yaml, *.json)"]
-    C -->|QAP_STORAGE_ENGINE='postgres' (Self-Hosted)| F["PostgresKnowledgeAdapter (pg Pool)"]
+    C -->|QAP_STORAGE_ENGINE='postgres' (Self-Hosted Opcional)| F["PostgresKnowledgeAdapter (pg Pool)"]
     D -.->|Migración Unidireccional Automática| E
 ```
 
@@ -45,7 +45,7 @@ Cuando QAMCP vNext se inicializa sobre un repositorio o proyecto que ya contiene
    - Inserta las entidades en las tablas relacionales de SQLite preservando su procedencia (`source: 'legacy_filesystem_import'`).
    - Mapea las reglas marcadas con `manually_edited: true` (`UpdateGuard`) con el estado `confirmed` y nivel de confianza `1.0`.
    - Crea los índices de búsqueda FTS5.
-3. El proceso toma menos de 250 milisegundos para proyectos de tamaño medio (~40 módulos), permitiendo una experiencia de usuario inmediata.
+3. El proceso se completa en milisegundos en la primera ejecución, permitiendo una experiencia de usuario inmediata.
 4. Los archivos originales permanecen intactos en disco.
 
 ---
@@ -61,7 +61,7 @@ La sustitución del monolito procedural `packages/mcp/src/server.ts` (6,091 lín
 | `qap_status` | Funcional (lee filesystem) | Mantener interfaz; consultar SQLite | `handlers/status.handler.ts` |
 | `qap_init` | Funcional (crea carpetas) | Mantener interfaz; inicializar DB local | `handlers/init.handler.ts` |
 | `qap_clean` | Funcional (borra residuos) | Mantener interfaz; limpiar DB/cache | `handlers/clean.handler.ts` |
-| `qap_auth_add` / `qap_auth_list` | Usa `keytar` | Migrar a vault seguro AES-256 | `handlers/auth.handler.ts` |
+| `qap_auth_add` / `qap_auth_list` | Usa `keytar` | Migrar a Bóveda Criptográfica Escalonada | `handlers/auth.handler.ts` |
 | `qap_context_set` / `ingest` | Escribe en YAML | Escribir en DB con respaldo exportable | `handlers/context.handler.ts` |
 | `qap_discover` | Parcial / heurístico | Conectar a Discovery Black-Box | `handlers/discovery.handler.ts` |
 | `qap_plan` | **Mock simulado** | **Conectar al Autonomous Planner real** | `handlers/plan.handler.ts` |

@@ -3,76 +3,100 @@
 - **Documento:** `02_ARQUITECTURA_OBJETIVO_Y_CONTRATOS.md`
 - **Rama:** `feat/qap-vnext-architecture`
 - **Autor / Rol:** Principal Software Architect y Teamwork Lead
-- **Fecha:** Octubre 2026
-- **Estado:** Especificación Técnica Formal (Etapa 0)
+- **Fecha:** Octubre 2026 (Revisión Arquitectónica Profunda)
+- **Estado:** Especificación Técnica Formal Actualizada (Etapa 0)
 - **Referencias:** Decisiones D-001 a D-010 en `docs/vnext/REQUISITOS_Y_DECISIONES.md`.
 
 ---
 
-## 1. Visión General y Principios de la Arquitectura Objetivo
+## 1. El Ciclo Completo de QA Autónomo como Eje Arquitectónico
 
-QAMCP vNext evoluciona desde un monorepo centrado en archivos planos locales hacia una **plataforma modular de aseguramiento de calidad autónoma**, distribuible con cero configuración vía `npx`, que opera mediante el protocolo MCP (Model Context Protocol).
+La arquitectura de QAMCP vNext se articula alrededor del **Ciclo Continuo de Aseguramiento de Calidad Autónomo**. Cada subsistema, puerto y adaptador existe para dar soporte a las etapas de este ciclo, garantizando que el sistema pueda operar sin código fuente, generar memoria confiable, asesorar al desarrollador y ejecutar pruebas sin intervención humana innecesaria.
 
-La arquitectura se fundamenta en los siguientes pilares de diseño:
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                          ARQUITECTURA HEXAGONAL QAMCP                       │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                           CAPA DE ENTRADA / TRANSPORTE                      │
-│      [ CLI (cac/commander) ]       [ MCP Daemon (Stdio / SSE) ]             │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                          CAPA DE APLICACIÓN Y CASOS DE USO                  │
-│  ┌───────────────────────┐  ┌───────────────────────┐  ┌──────────────────┐ │
-│  │  Black-Box Discovery  │  │      QA Advisor       │  │ Autonomous Plan  │ │
-│  │       Crawler         │  │   & Strategy Engine   │  │   & Execution    │ │
-│  └───────────────────────┘  └───────────────────────┘  └──────────────────┘ │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                               CAPA DE DOMINIO                               │
-│  - Entidades de Conocimiento (Módulos, Vistas, Reglas, Selectores, Flujos) │
-│  - Máquina de Estados de Certeza (Observed / Inferred / Confirmed / Pending) │
-│  - Motor de Grafos DAG (Topología de Dependencias y Ciclos)                 │
-│  - Clasificador de Defectos (Producto, Entorno, Automatización, Bloqueo)    │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                         PUERTOS DE INFRAESTRUCTURA (SPI)                    │
-│   [ IKnowledgeStore ]        [ ITestRunner ]        [ ICredentialVault ]    │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                           ADAPTADORES DE PERSISTENCIA                       │
-│  ┌───────────────────────┐  ┌───────────────────────┐  ┌──────────────────┐ │
-│  │ SqliteKnowledgeAdapter│  │PostgresKnowledgeAdapt.│  │ PlaywrightRunner │ │
-│  │ (node:sqlite WAL Local│  │(Self-Hosted Opcional) │  │  (Zero-Touch UI) │ │
-│  └───────────────────────┘  └───────────────────────┘  └──────────────────┘ │
-└─────────────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    subgraph CICLO COMPLETO DE QA AUTÓNOMO QAMCP
+        A["1. ENTRADA Y POLÍTICA<br/>(URL Base, Entorno, Permisos)"] --> B["2. DESCUBRIMIENTO BLACK-BOX<br/>(Reconocimiento Pasivo, Crawler DOM, Red/XHR)"]
+        B --> C["3. MOTOR DE HIPÓTESIS Y CERTEZA<br/>(Inferencia de Módulos, Reglas, Selectores)"]
+        C --> D["4. VALIDACIÓN ACTIVA NO DESTRUCTIVA<br/>(Sondas Seguras, Detección de Errores)"]
+        D --> E{"¿Incertidumbre Irreducible?"}
+        E -->|Sí| F["5. ENTREVISTA ESTRUCTURADA<br/>(Human-in-the-Loop: 1 pregunta/turno)"]
+        E -->|No| G["6. MEMORIA RELACIONAL Y GRAFO DAG<br/>(Persistencia Unificada SQLite WAL / FTS5)"]
+        F --> G
+        G --> H["7. ASESORÍA INTERACTIVA QA (QA Advisor)<br/>(Blast Radius, Diálogo con Dev, Selección de Alcance)"]
+        H --> I["8. PLANIFICACIÓN Y ORQUESTACIÓN (DAG)<br/>(Resolución de Prerrequisitos, Perfiles Limpios)"]
+        I --> J["9. EJECUCIÓN AUTÓNOMA (PlaywrightRunner)<br/>(Orquestación Híbrida sin LLM por paso)"]
+        J --> K["10. DIAGNÓSTICO Y REPRODUCCIÓN DE DEFECTOS<br/>(Clasificación: Producto vs Entorno vs Flakiness)"]
+        K --> L["11. PROPUESTA DE SOLUCIÓN Y TELEMETRÍA<br/>(Reportes HTML/JUnit/JSON, Evidencia Enmascarada)"]
+        L --> M["12. MONITOREO INCREMENTAL Y DRIFT<br/>(Hashes Semánticos, Re-evaluación Continua)"]
+        M -.->|Cambios Detectados en UI/API| B
+    end
 ```
 
 ---
 
 ## 2. Subsistema de Adquisición de Conocimiento (Black-Box First)
 
-Conforme a la decisión **D-006**, el sistema debe ser capaz de descubrir y mapear una aplicación web sin acceso a su código fuente ni documentación previa.
+Conforme a la decisión **D-006**, el agente adquiere conocimiento a partir de la interacción con la aplicación en ejecución:
 
-### 2.1 Ciclo de Vida de Adquisición
+### 2.1 Fases Detalladas de Adquisición
+1. **Reconocimiento Pasivo HTTP:** Sonda inicial sin autenticación para registrar headers de seguridad (CSP, HSTS, CORS), cookies iniciales, certificados SSL, rutas estándar (`robots.txt`, `sitemap.xml`) y tecnologías de cliente detectadas en scripts o meta-tags.
+2. **Exploración Visual y de Red (Crawler Controlado):**
+   - Navega el DOM en una sesión de navegador limpia (`incognito`).
+   - Mapea elementos interactivos (botones, enlaces, selectores, formularios, tablas, modales).
+   - Intercepta tráfico XHR/Fetch de fondo, asociando endpoints de API a las vistas que los disparan.
+   - Respeta estrictamente la política de entorno (D-003): prohíbe acciones de envío destructivo en entornos no autorizados.
+3. **Generación de Hipótesis y Asignación de Certeza:**
+   - Agrupa vistas en módulos lógicos mediante heurísticas de rutas y menús de navegación.
+   - Identifica campos obligatorios (asteriscos `*`, etiquetas `required`, atributos ARIA).
+   - Asigna a cada entidad su estado de certeza inicial (`inferred`) y un índice de confianza preliminar.
+4. **Validación Activa No Destructiva (Sondas Seguras):**
+   - Ejecuta acciones seguras para validar hipótesis (ej. presionar botón de submit con formulario vacío para verificar qué mensajes de validación se despliegan en el DOM).
+   - Promueve la confianza de la hipótesis si la respuesta del sistema coincide con el comportamiento esperado.
+5. **Entrevista Estructurada al Desarrollador (Human-in-the-Loop):**
+   - Solo se activa ante ambigüedades críticas que no pueden resolverse mediante inspección (ej. "En el módulo de Cobranza, ¿un contrato exento de IVA se calcula con tasa 0% o sin desglose?").
+   - Regla estricta: Una sola pregunta focalizada por turno, con opciones múltiples claras y justificación contextual (`pregunta.ts`).
+6. **Monitoreo Incremental y Detección de Cambios (Drift):**
+   - Generación de hashes semánticos SHA-256 sobre la estructura de cada vista y formulario.
+   - Si en ejecuciones posteriores la UI cambia (nuevos botones, campos modificados, rutas alteradas), las entidades afectadas se marcan como `pending_review` y se alerta al QA Advisor.
 
-```mermaid
-flowchart TD
-    A["1. Entrada: URL Base + Política Entorno"] --> B["2. Reconocimiento Pasivo HTTP"]
-    B --> C["Headers, Cookies, Meta tags, Certificados, Tecnologías"]
-    C --> D["3. Rastreo Visual y de Red (Playwright Crawler)"]
-    D --> E["Captura DOM, Formularios, Botones, Tablas, Endpoints XHR/Fetch"]
-    E --> F["4. Motor de Inferencia de Hipótesis"]
-    F --> G["Generación de Candidatos con CertaintyState='inferred' y ConfidenceScore"]
-    G --> H["5. Validación Activa No Destructiva (Sondas)"]
-    H --> I{"¿Incertidumbre > Umbral Crítico?"}
-    I -->|Sí| J["6. Entrevista Estructurada al Desarrollador (1 pregunta/turno)"]
-    J --> K["Certeza='confirmed', Confianza=1.0"]
-    I -->|No| L["7. Consolidación en Memoria Relacional"]
-    K --> L
-    L --> M["8. Hashing Semántico y Monitoreo Incremental de Drift"]
+---
+
+## 3. Modelo Lógico de Memoria Unificada (Modelo en Validación Empírica)
+
+Conforme a las decisiones **D-005** y la directiva de no fijar prematuramente tipos estáticos sin validación empírica, el modelo de memoria se estructura como un **modelo de dominio evolutivo**, diseñado para ser contrastado contra aplicaciones reales durante la fase de descubrimiento.
+
+### 3.1 Entidades del Dominio de Conocimiento
+
+```
+┌──────────────┐       1:N       ┌──────────────┐       1:N       ┌──────────────┐
+│   Project    │────────────────►│ Environment  │────────────────►│   TestRun    │
+└──────┬───────┘                 └──────────────┘                 └──────┬───────┘
+       │                                                                 │ 1:N
+       │ 1:N                                                             ▼
+       │                         ┌──────────────┐       1:N       ┌──────────────┐
+       ├────────────────────────►│     View     │────────────────►│StepExecution │
+       │                         └──────┬───────┘                 └──────────────┘
+       │                                │ 1:N
+       ▼                                ▼
+┌──────────────┐       1:N       ┌──────────────┐
+│    Module    │────────────────►│ ActionTarget │ (Selectores CSS/XPath con FTS5)
+└──────┬───────┘                 └──────────────┘
+       │ 1:N
+       ├────────────────────────►┌──────────────┐
+       │                         │ BusinessRule │ (Reglas con certeza y procedencia)
+       │                         └──────────────┘
+       │ 1:N
+       ├────────────────────────►┌──────────────┐       1:N       ┌──────────────┐
+       │                         │ FlowScenario │────────────────►│  Dependency  │ (DAG)
+       │                         └──────────────┘                 └──────────────┘
+       ▼
+┌──────────────┐
+│    Defect    │ (Incidentes clasificados con pasos de reproducción y evidencia)
+└──────────────┘
 ```
 
-### 2.2 Especificación de Estados de Certeza y Procedencia
-
-Toda entidad almacenada en memoria incorpora atributos de gobernanza de conocimiento:
+### 3.2 Estados de Certeza y Gobernanza de Conocimiento
 
 ```typescript
 export type CertaintyState = 
@@ -92,53 +116,11 @@ export interface KnowledgeProvenance {
 }
 ```
 
-### 2.3 Protocolo de Entrevista Estructurada (Human-in-the-Loop)
-
-- **Regla de oro:** No emitir muros de texto. Solo una pregunta concreta y focalizada por turno.
-- **Formato:** Opciones múltiples estructuradas con justificación contextual (`pregunta.ts`).
-- **Gobernanza:** Si el usuario no confirma una regla de negocio o flujo crítico, se conserva en estado `inferred` o `pending_review`, impidiendo que se utilice para bloquear la suite de pruebas como defecto de producto.
-
----
-
-## 3. Modelo Lógico de Memoria Unificada y Contratos
-
-Conforme a la decisión **D-005**, la memoria se organiza bajo un modelo conceptual relacional indexado, agnóstico del motor físico subyacente.
-
-### 3.1 Modelo Entidad-Relación Conceptual
-
-```
-┌──────────────┐       1:N       ┌──────────────┐       1:N       ┌──────────────┐
-│   Project    │────────────────►│ Environment  │────────────────►│   TestRun    │
-└──────┬───────┘                 └──────────────┘                 └──────┬───────┘
-       │                                                                 │ 1:N
-       │ 1:N                                                             ▼
-       │                         ┌──────────────┐       1:N       ┌──────────────┐
-       ├────────────────────────►│     View     │────────────────►│StepExecution │
-       │                         └──────┬───────┘                 └──────────────┘
-       │                                │ 1:N
-       ▼                                ▼
-┌──────────────┐       1:N       ┌──────────────┐
-│    Module    │────────────────►│ ActionTarget │ (Selectores CSS/XPath con FTS5)
-└──────┬───────┘                 └──────────────┘
-       │ 1:N
-       ├────────────────────────►┌──────────────┐
-       │                         │ BusinessRule │
-       │                         └──────────────┘
-       │ 1:N
-       ├────────────────────────►┌──────────────┐       1:N       ┌──────────────┐
-       │                         │ FlowScenario │────────────────►│  Dependency  │ (DAG)
-       │                         └──────────────┘                 └──────────────┘
-       ▼
-┌──────────────┐
-│    Defect    │ (Incidentes clasificados con pasos de reproducción)
-└──────────────┘
-```
-
-### 3.2 Contrato Principal de Persistencia (`IKnowledgeStore`)
+### 3.3 Contrato de Persistencia (`IKnowledgeStore`)
 
 ```typescript
 export interface IKnowledgeStore {
-  // Inicialización y Ciclo de Vida
+  // Ciclo de Vida y Migración DDL
   initialize(): Promise<void>;
   close(): Promise<void>;
   runMigrations(): Promise<void>;
@@ -156,7 +138,7 @@ export interface IKnowledgeStore {
   getViewsByModule(moduleId: string): Promise<View[]>;
   saveView(view: View): Promise<void>;
 
-  // Selectores y Metadatos UI (Búsqueda Léxica O(1))
+  // Selectores y Metadatos UI (Resolución O(1) con Búsqueda Léxica)
   saveActionTargets(targets: ActionTarget[]): Promise<void>;
   searchActionTargets(projectId: string, query: string, limit?: number): Promise<ActionTarget[]>;
 
@@ -187,107 +169,107 @@ export interface IKnowledgeStore {
 }
 ```
 
-### 3.3 Especificación del Adaptador Local: `SqliteKnowledgeAdapter`
+### 3.4 Motor Local de Persistencia: `SqliteKnowledgeAdapter`
+- Implementado sobre `node:sqlite` (`DatabaseSync`), disponible nativamente en Node.js >= 22.5.0.
+- Modo WAL (`Write-Ahead Logging`) para concurrencia limpia entre lecturas y escrituras.
+- Tabla virtual FTS5 (`action_targets_fts`) para indexación léxica de selectores y etiquetas UI.
+- Despliegue self-hosted con PostgreSQL como adaptador opcional para organizaciones con equipos concurrentes centralizados (D-005).
 
-- **Motor:** `node:sqlite` nativo (`DatabaseSync`), disponible en Node.js >= 22.5.0 (sin binarios compilados externos).
-- **Configuración de alto rendimiento:**
-  ```sql
-  PRAGMA journal_mode = WAL;
-  PRAGMA synchronous = NORMAL;
-  PRAGMA foreign_keys = ON;
-  PRAGMA cache_size = -64000; -- 64MB de caché en RAM
-  PRAGMA temp_store = MEMORY;
+---
+
+## 4. Bóveda Criptográfica Escalonada de Credenciales (Tiered Vault)
+
+Conforme a la decisión **D-007**, las credenciales de acceso se desacoplan estrictamente de la memoria del conocimiento de la aplicación.
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│             ESTRATEGIA ESCALONADA DE GESTIÓN DE SECRETOS               │
+├────────────────────────────────────────────────────────────────────────┤
+│ TIER 1: Keychain del SO (Keytar Opcional)                              │
+│         - Windows Credential Manager, macOS Keychain, Linux SecretServ │
+│         - Máxima seguridad y comodidad cuando está disponible.         │
+├────────────────────────────────────────────────────────────────────────┤
+│ TIER 2: Bóveda Cifrada Portable (AES-256-GCM + PBKDF2)                 │
+│         - Para entornos headless, Docker, servidores CI/CD sin UI.     │
+│         - Cifrado en .qamcp/vault.enc con salt aleatorio y tag auth.   │
+│         - Clave derivada de variable de entorno (QAP_VAULT_PASSPHRASE).│
+├────────────────────────────────────────────────────────────────────────┤
+│ TIER 3: Memoria Efímera de Sesión (In-Memory)                          │
+│         - Para ejecuciones npx puntuales o pruebas ad-hoc.             │
+│         - Las credenciales se solicitan interactivamente en memoria y  │
+│           se destruyen al finalizar el proceso (cero rastro en disco). │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 5. Motor de Asesoría Interactiva de QA (QA Advisor)
+
+Conforme a la decisión **D-008**, QAMCP actúa como un **consultor experto interactivo** antes de disparar ejecuciones automáticas.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Dev as Desarrollador / IA Cliente
+    participant Advisor as QA Advisor (qap_advisor)
+    participant Memory as IKnowledgeStore (DAG & Historial)
+    participant Planner as Autonomous Planner
+    participant Runner as PlaywrightRunner
+
+    Dev->>Advisor: "Modifiqué el formulario de pagos y quiero validar el cambio"
+    Advisor->>Memory: Consultar grafo de dependencias y blast radius
+    Memory-->>Advisor: Módulos afectados: /processcash, /payments, Alertas PLD
+    Advisor->>Memory: Consultar historial de defectos y criticidad
+    Memory-->>Advisor: Módulo de alta criticidad financiera, 2 defectos previos
+    Advisor-->>Dev: Propuesta estructurada:<br/>1. Blast Radius: 3 módulos impactados<br/>2. Estrategias recomendadas: [A] Smoke Focalizado (<2m), [B] Regresión de Impacto (<6m), [C] Auditoría Integral PLD<br/>3. Pregunta: "¿Deseas validar únicamente reglas de negocio o incluir pruebas de inyección y límites?"
+    Dev->>Advisor: Selecciona Estrategia B con pruebas de límites
+    Advisor->>Planner: Construir plan de ejecución DAG con prerrequisitos
+    Planner->>Runner: Ejecutar en navegador con perfiles limpios
+    Runner-->>Advisor: Resultados, evidencias y telemetría
+    Advisor-->>Dev: Informe de diagnóstico, defectos clasificados y recomendaciones
+```
+
+### 5.1 Capacidades Consultivas del QA Advisor
+1. **Análisis de Blast Radius:** Dado un cambio en una vista, ruta o regla, calcula los módulos y flujos dependientes que requieren re-verificación.
+2. **Recomendación Contextual de Pruebas:** Propone combinaciones de pruebas funcionales, de límites, regresión, seguridad básica (RBAC/inyecciones en formularios) o UX según la criticidad del componente.
+3. **Clasificación Formal de Defectos:** Ante una falla, analiza logs de red, consola y estados de prerrequisitos para categorizar la anomalía en:
+   - `product_bug`: Violación de regla confirmada o excepción 500 del servidor.
+   - `environment_error`: Caída de servicio, error 502/504 o expiración de red.
+   - `automation_flakiness`: Demora transitoria de renderizado resuelta en reintento.
+   - `blocked_flow`: Falla de un prerrequisito previo en el grafo DAG.
+
+---
+
+## 6. Distribución `npx-first` (Producto Principal)
+
+Conforme a la decisión **D-009**, la experiencia final de usuario se centra en `npx`:
+
+- **Comando único de ejecución:**
+  ```bash
+  npx @hyouka73/qap-mcp
   ```
-- **Búsqueda FTS5:** Tabla virtual `action_targets_fts` indexando `key`, `label`, `selector_css`, `aria_role` para resolución de selectores en microsegundos y ahorro del 94% de tokens.
+- **Configuración en clientes MCP (Claude Desktop, Cursor, Antigravity):**
+  ```json
+  {
+    "mcpServers": {
+      "qamcp": {
+        "command": "npx",
+        "args": ["-y", "@hyouka73/qap-mcp"]
+      }
+    }
+  }
+  ```
+- **Cero dependencias nativas:** Al no requerir compilación C++ en la máquina cliente, el arranque se completa de forma transparente.
+- **Auto-preparación desatendida:** Inicialización perezosa de la base de datos local y detección automática de los binarios del navegador.
+- **Despliegue self-hosted:** Se mantiene como un adaptador complementario para PostgreSQL, sin penalizar ni sobrecargar la distribución local de `npx`.
 
 ---
 
-## 4. Motor de Asesoría QA (QA Advisor) y Ejecución Autónoma
+## 7. Criterios de Aceptación Reproducibles sobre Escenarios de QA
 
-Conforme a las decisiones **D-008** y **D-004**, QAMCP asume un rol proactivo de consultoría técnica y orquestación inteligente.
+En sustitución de microbenchmarks arbitrarios, el sistema se evalúa mediante **criterios operativos en escenarios de prueba reales**:
 
-### 4.1 Flujo Operativo del QA Advisor
-
-```
-                              SOLICITUD DEL DESARROLLADOR
-           ("Modifiqué el formulario de Facturación" / "Quiero probar pagos")
-                                           │
-                                           ▼
-                               ┌───────────────────────┐
-                               │     QA Advisor        │
-                               └───────────┬───────────┘
-                                           │
-             ┌─────────────────────────────┼─────────────────────────────┐
-             ▼                             ▼                             ▼
-   1. Análisis de Impacto        2. Historial de Riesgo        3. Matriz de Criticidad
-   (Blast Radius en DAG)         (Fallos y Flakiness previo)   (Reglas financieras/PLD)
-             └─────────────────────────────┬─────────────────────────────┘
-                                           │
-                                           ▼
-                           GENERACIÓN DE PROPUESTA ADAPTATIVA
-                           ┌───────────────────────────────┐
-                           │ Estrategias Recomendadas:     │
-                           │  [A] Smoke Focalizado (<2m)   │
-                           │  [B] Regresión de Impacto     │
-                           │  [C] Auditoría Integral E2E   │
-                           └───────────────┬───────────────┘
-                                           │
-                                           ▼
-                             APROBACIÓN DEL USUARIO / MCP
-                                           │
-                                           ▼
-                           ORQUESTADOR AUTÓNOMO (D-004)
-                           - Resuelve Prerrequisitos (DAG)
-                           - Prepara Perfiles Limpios (D-007)
-                           - Ejecuta Runner Playwright
-                           - Captura Telemetría y Defectos
-```
-
-### 4.2 Clasificación Automática de Anomalías y Defectos
-
-El sistema analiza las fallas de ejecución y las categoriza formalmente para evitar falsos reportes de bugs:
-
-1. **Defecto de Producto (`product_bug`):** La aplicación violó una regla de negocio confirmada o arrojó una excepción HTTP 500 / pantalla blanca mientras los prerrequisitos se cumplían estrictamente.
-2. **Falla de Entorno (`environment_error`):** Tiempos de espera por caída de red, error 502/504 Bad Gateway, expiración de credenciales del servidor, bloqueo de firewall o base de datos no disponible.
-3. **Flakiness de Automatización (`automation_flakiness`):** El selector no resolvió a tiempo debido a una animación CSS no estabilizada o retraso de renderizado transitorio, superado con reintento idéntico.
-4. **Flujo Bloqueado (`blocked_flow`):** No fue posible ejecutar la prueba porque falló un prerrequisito aguas arriba (ej. no se puede probar cancelación de contrato si falló la creación del cliente).
-
----
-
-## 5. Arquitectura de Distribución `npx-first` (Zero-Config)
-
-Conforme a la decisión **D-009**, la experiencia final de despliegue para cualquier ingeniero debe ser instantánea y sin fricción.
-
-### 5.1 Especificación del Empaquetado
-
-```
-┌──────────────────────────────────────────────────────────────────┐
-│                   PAQUETE NPX: @hyouka73/qap-mcp                 │
-├──────────────────────────────────────────────────────────────────┤
-│ - Bundle único ESM generado con tsup                             │
-│ - Inlining de dependencias internas (@qap/*)                     │
-│ - Zero dependencias nativas C++ (Cero node-gyp, Cero keytar)    │
-│ - Runtime: Node.js >= 22.5.0 LTS                                 │
-│ - Peso estimado de descarga: < 8 MB comprimido                   │
-└──────────────────────────────────────────────────────────────────┘
-```
-
-### 5.2 Inicialización Perezosa (Lazy Bootstrapping)
-
-Al ejecutarse mediante `npx @hyouka73/qap-mcp`:
-1. **Detección de Directorio de Datos:** Ubica `.qamcp/` en el proyecto actual o fallback a `~/.qamcp/`.
-2. **Auto-Migración DDL:** Si la base de datos `knowledge.sqlite` no existe, aplica las migraciones estructurales en menos de 40 milisegundos.
-3. **Verificación del Navegador:** Comprueba si los binarios de Playwright Chromium están disponibles en la caché del usuario (`~/.cache/ms-playwright` o `AppData/Local/ms-playwright`). Si faltan, ofrece su descarga desatendida o el uso de un endpoint remoto.
-4. **Arranque de Transporte:** Inicia el servidor MCP sobre Stdio (predeterminado) o abre puerto SSE si se invoca con la bandera `--port`.
-
----
-
-## 6. Estado de Decisiones y Recomendaciones Técnicas
-
-- **Decisiones Confirmadas Aplicadas:** D-001 (autonomía), D-002 (no modificación de código), D-003 (políticas de entorno), D-004 (orquestación híbrida), D-005 (memoria unificada SQLite/Postgres), D-006 (black-box discovery y certeza), D-007 (sesiones limpias), D-008 (guía interactiva), D-009 (npx-first), D-010 (etapas acotadas).
-- **Recomendaciones de Arquitectura Propuestas:**
-  1. Adopción de la interfaz `IKnowledgeStore` para desacoplar completamente la lógica de negocio del motor de base de datos.
-  2. Implementación de `action_targets_fts` sobre SQLite FTS5 para búsqueda instantánea de selectores con bajo costo de tokens.
-  3. Descomposición de `packages/mcp/src/server.ts` en un despachador declarativo con tool handlers independientes.
-- **Aspectos Abiertos para Validación:**
-  - Esquema definitivo de sincronización bidireccional entre la base de datos SQLite local y el cluster PostgreSQL centralizado en entornos corporativos concurrentes.
+1. **Escenario de Resolución de Selectores:** En una suite con más de 100 selectores y vistas complejas, la búsqueda de selectores mediante FTS5 y la resolución de contexto deben completarse sin introducir demoras perceptibles en la interacción con el navegador (< 50 ms por consulta).
+2. **Escenario de Consulta MCP:** En turnos conversacionales donde el LLM solicita el estado o selectores de un módulo, la carga útil devuelta debe restringirse a los elementos requeridos (< 500 tokens), evitando transferencias masivas de archivos de configuración.
+3. **Escenario E2E de Descubrimiento:** Sobre una aplicación web con al menos 3 vistas y formularios interactivos, el crawler black-box debe descubrir la topología, identificar campos obligatorios y generar el grafo de navegación de forma desatendida sin disparar excepciones no controladas.
+4. **Escenario de Coexistencia:** Proyectos con datos existentes en `.qa/` deben ser leídos e indexados en SQLite en la primera ejecución sin modificar ni borrar los archivos planos originales.
