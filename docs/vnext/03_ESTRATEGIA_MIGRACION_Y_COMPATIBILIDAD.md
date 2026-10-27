@@ -3,9 +3,9 @@
 - **Documento:** `03_ESTRATEGIA_MIGRACION_Y_COMPATIBILIDAD.md`
 - **Rama:** `feat/qap-vnext-architecture`
 - **Autor / Rol:** Principal Software Architect y Teamwork Lead
-- **Fecha:** Octubre 2026 (Revisión Arquitectónica Profunda)
-- **Estado:** Propuesta Técnica y Plan de Transición Actualizado (Etapa 0)
-- **Referencias:** `docs/vnext/REQUISITOS_Y_DECISIONES.md`, commits recientes en `develop` (Diego).
+- **Fecha:** Octubre 2026 (Revisión Arquitectónica Profunda — Etapa 0 Corregida)
+- **Estado:** Propuesta Técnica y Plan de Transición Actualizado (Autorización Condicionada VNEXT-001)
+- **Referencias:** `docs/vnext/REQUISITOS_Y_DECISIONES.md`, Decisiones D-001 a D-015.
 
 ---
 
@@ -43,7 +43,7 @@ Cuando QAMCP vNext se inicializa sobre un repositorio o proyecto que ya contiene
 2. Si el archivo local `.qamcp/knowledge.sqlite` no existe aún, se activa automáticamente el pipeline de **Ingesta y Sincronización Inicial**:
    - Lee y valida mediante esquemas AJV los archivos `context.yaml`, `rules.yaml`, `selectors.json`, `prereqs.yaml`.
    - Inserta las entidades en las tablas relacionales de SQLite preservando su procedencia (`source: 'legacy_filesystem_import'`).
-   - Mapea las reglas marcadas con `manually_edited: true` (`UpdateGuard`) con el estado `confirmed` y nivel de confianza `1.0`.
+   - **Corrección Arquitectónica Obligatoria (D-012):** Las reglas marcadas con `manually_edited: true` (`UpdateGuard`) **NO se promueven ciegamente a certeza absoluta (`confidence: 1.0`)**. Se registran con procedencia `source: 'legacy_manual_edit'`, prioridad superior a inferencias automáticas no revisadas, pero con un nivel de confianza calibrado (ej. 0.85-0.90) y sujetas a revisión (`pending_review`) ante evidencia contradictoria observada en la aplicación actual o cambios estructurales.
    - Crea los índices de búsqueda FTS5.
 3. El proceso se completa en milisegundos en la primera ejecución, permitiendo una experiencia de usuario inmediata.
 4. Los archivos originales permanecen intactos en disco.

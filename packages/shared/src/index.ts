@@ -3,6 +3,7 @@
 // This package contains only:
 // - Types (TypeScript interfaces and types derived from JSON schemas)
 // - Schemas (JSON Schema definitions for validation)
+// - Domain (vNext Domain model and knowledge contracts - VNEXT-001)
 // - Constants (shared constant values)
 // - Utilities (pure functions with no side effects)
 //
@@ -10,6 +11,7 @@
 
 export * from './schemas/index.js';
 export * from './types/index.js';
+export * from './domain/index.js';
 export * from './utils/index.js';
 export * from './validator/schema-validator.js';
 export * from './constants/auth-patterns.js';

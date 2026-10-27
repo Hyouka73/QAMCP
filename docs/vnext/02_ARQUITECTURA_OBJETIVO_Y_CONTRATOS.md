@@ -3,9 +3,9 @@
 - **Documento:** `02_ARQUITECTURA_OBJETIVO_Y_CONTRATOS.md`
 - **Rama:** `feat/qap-vnext-architecture`
 - **Autor / Rol:** Principal Software Architect y Teamwork Lead
-- **Fecha:** Octubre 2026 (Revisión Arquitectónica Profunda)
-- **Estado:** Especificación Técnica Formal Actualizada (Etapa 0)
-- **Referencias:** Decisiones D-001 a D-010 en `docs/vnext/REQUISITOS_Y_DECISIONES.md`.
+- **Fecha:** Octubre 2026 (Revisión Arquitectónica Profunda — Etapa 0 Corregida)
+- **Estado:** Especificación Técnica Formal Actualizada (Autorización Condicionada VNEXT-001)
+- **Referencias:** Decisiones D-001 a D-015 en `docs/vnext/REQUISITOS_Y_DECISIONES.md`.
 
 ---
 
@@ -16,18 +16,18 @@ La arquitectura de QAMCP vNext se articula alrededor del **Ciclo Continuo de Ase
 ```mermaid
 flowchart TD
     subgraph CICLO COMPLETO DE QA AUTÓNOMO QAMCP
-        A["1. ENTRADA Y POLÍTICA<br/>(URL Base, Entorno, Permisos)"] --> B["2. DESCUBRIMIENTO BLACK-BOX<br/>(Reconocimiento Pasivo, Crawler DOM, Red/XHR)"]
-        B --> C["3. MOTOR DE HIPÓTESIS Y CERTEZA<br/>(Inferencia de Módulos, Reglas, Selectores)"]
-        C --> D["4. VALIDACIÓN ACTIVA NO DESTRUCTIVA<br/>(Sondas Seguras, Detección de Errores)"]
-        D --> E{"¿Incertidumbre Irreducible?"}
-        E -->|Sí| F["5. ENTREVISTA ESTRUCTURADA<br/>(Human-in-the-Loop: 1 pregunta/turno)"]
+        A["1. ENTRADA Y POLÍTICA<br/>(URL Base, Entorno, Roles, Permisos)"] --> B["2. DESCUBRIMIENTO BLACK-BOX<br/>(Reconocimiento Pasivo, Crawler DOM, Red/XHR)"]
+        B --> C["3. GENERACIÓN DE HIPÓTESIS<br/>(Inferencias con Puntuación de Confianza)"]
+        C --> D["4. OBSERVACIÓN ACTIVA Y CONSISTENCIA<br/>(Sondas Seguras No Destructivas: valida reproducibilidad empírica)"]
+        D --> E{"¿Incertidumbre o Requisito No Especificado?"}
+        E -->|Sí| F["5. ENTREVISTA ESTRUCTURADA<br/>(Human-in-the-Loop: 1 pregunta/turno para fijar Requisito Esperado)"]
         E -->|No| G["6. MEMORIA RELACIONAL Y GRAFO DAG<br/>(Persistencia Unificada SQLite WAL / FTS5)"]
         F --> G
         G --> H["7. ASESORÍA INTERACTIVA QA (QA Advisor)<br/>(Blast Radius, Diálogo con Dev, Selección de Alcance)"]
-        H --> I["8. PLANIFICACIÓN Y ORQUESTACIÓN (DAG)<br/>(Resolución de Prerrequisitos, Perfiles Limpios)"]
+        H --> I["8. PLANIFICACIÓN Y ORQUESTACIÓN (DAG)<br/>(Resolución de Prerrequisitos, Políticas de Limpieza de Navegador)"]
         I --> J["9. EJECUCIÓN AUTÓNOMA (PlaywrightRunner)<br/>(Orquestación Híbrida sin LLM por paso)"]
-        J --> K["10. DIAGNÓSTICO Y REPRODUCCIÓN DE DEFECTOS<br/>(Clasificación: Producto vs Entorno vs Flakiness)"]
-        K --> L["11. PROPUESTA DE SOLUCIÓN Y TELEMETRÍA<br/>(Reportes HTML/JUnit/JSON, Evidencia Enmascarada)"]
+        J --> K["10. CONFORMIDAD Y DIAGNÓSTICO DE DEFECTOS<br/>(Admite 'indeterminate'; no concluye solo por HTTP status)"]
+        K --> L["11. PROPUESTA DE SOLUCIÓN Y TELEMETRÍA<br/>(Reportes HTML/JUnit/JSON, Evidencia Multimodal Enmascarada)"]
         L --> M["12. MONITOREO INCREMENTAL Y DRIFT<br/>(Hashes Semánticos, Re-evaluación Continua)"]
         M -.->|Cambios Detectados en UI/API| B
     end
@@ -37,84 +37,68 @@ flowchart TD
 
 ## 2. Subsistema de Adquisición de Conocimiento (Black-Box First)
 
-Conforme a la decisión **D-006**, el agente adquiere conocimiento a partir de la interacción con la aplicación en ejecución:
+Conforme a la decisión **D-006** y a la separación epistemológica **D-011**, el agente adquiere conocimiento a partir de la interacción con la aplicación en ejecución distinguiendo formalmente lo observado de lo inferido y de lo requerido:
 
 ### 2.1 Fases Detalladas de Adquisición
-1. **Reconocimiento Pasivo HTTP:** Sonda inicial sin autenticación para registrar headers de seguridad (CSP, HSTS, CORS), cookies iniciales, certificados SSL, rutas estándar (`robots.txt`, `sitemap.xml`) y tecnologías de cliente detectadas en scripts o meta-tags.
+1. **Reconocimiento Pasivo HTTP:** Sonda inicial sin autenticación para registrar headers de seguridad (CSP, HSTS, CORS), cookies iniciales, certificados SSL, rutas estándar (`robots.txt`, `sitemap.xml`) y tecnologías de cliente detectadas en scripts o meta-tags. Produce `ApplicationObservation`.
 2. **Exploración Visual y de Red (Crawler Controlado):**
    - Navega el DOM en una sesión de navegador limpia (`incognito`).
    - Mapea elementos interactivos (botones, enlaces, selectores, formularios, tablas, modales).
    - Intercepta tráfico XHR/Fetch de fondo, asociando endpoints de API a las vistas que los disparan.
    - Respeta estrictamente la política de entorno (D-003): prohíbe acciones de envío destructivo en entornos no autorizados.
-3. **Generación de Hipótesis y Asignación de Certeza:**
+3. **Generación de Hipótesis e Inferencias del Agente:**
    - Agrupa vistas en módulos lógicos mediante heurísticas de rutas y menús de navegación.
-   - Identifica campos obligatorios (asteriscos `*`, etiquetas `required`, atributos ARIA).
-   - Asigna a cada entidad su estado de certeza inicial (`inferred`) y un índice de confianza preliminar.
-4. **Validación Activa No Destructiva (Sondas Seguras):**
-   - Ejecuta acciones seguras para validar hipótesis (ej. presionar botón de submit con formulario vacío para verificar qué mensajes de validación se despliegan en el DOM).
-   - Promueve la confianza de la hipótesis si la respuesta del sistema coincide con el comportamiento esperado.
-5. **Entrevista Estructurada al Desarrollador (Human-in-the-Loop):**
+   - Infiere campos obligatorios (asteriscos `*`, etiquetas `required`, atributos ARIA).
+   - Asigna a cada inferencia su estado inicial (`inferred`) y un índice de confianza preliminar (`confidence_score: 0.0` a `1.0`) con justificación. Produce `AgentInference`.
+4. **Validación Activa No Destructiva (Sondas de Consistencia Observacional):**
+   - Ejecuta acciones seguras para contrastar hipótesis (ej. presionar botón de submit con formulario vacío para verificar qué mensajes de validación se despliegan en el DOM).
+   - **Regla Estricta (D-011):** La sonda activa verifica la *consistencia y reproducibilidad del comportamiento observado en la aplicación actual*. **NUNCA promueve una regla de negocio a `confirmed`**. Que la app actual responda de una manera no implica que esa respuesta sea el requisito de negocio esperado (podría ser un bug preexistente en producción).
+5. **Entrevista Estructurada al Desarrollador (Fijación de Requisitos Esperados):**
    - Solo se activa ante ambigüedades críticas que no pueden resolverse mediante inspección (ej. "En el módulo de Cobranza, ¿un contrato exento de IVA se calcula con tasa 0% o sin desglose?").
    - Regla estricta: Una sola pregunta focalizada por turno, con opciones múltiples claras y justificación contextual (`pregunta.ts`).
+   - El resultado genera formalmente un `ExpectedRequirement` con estado `confirmed` y procedencia `developer_interview`.
 6. **Monitoreo Incremental y Detección de Cambios (Drift):**
    - Generación de hashes semánticos SHA-256 sobre la estructura de cada vista y formulario.
-   - Si en ejecuciones posteriores la UI cambia (nuevos botones, campos modificados, rutas alteradas), las entidades afectadas se marcan como `pending_review` y se alerta al QA Advisor.
+   - Si en ejecuciones posteriores la UI cambia (nuevos botones, campos modificados, rutas alteradas), las entidades afectadas se marcan como `pending_review` preservando el historial anterior.
 
 ---
 
-## 3. Modelo Lógico de Memoria Unificada (Modelo en Validación Empírica)
+## 3. Modelo Lógico de Memoria Unificada (Modelo de Dominio Evolutivo)
 
-Conforme a las decisiones **D-005** y la directiva de no fijar prematuramente tipos estáticos sin validación empírica, el modelo de memoria se estructura como un **modelo de dominio evolutivo**, diseñado para ser contrastado contra aplicaciones reales durante la fase de descubrimiento.
+Conforme a las decisiones **D-005**, **D-011**, **D-012** y **D-013**, el modelo de dominio no es un esquema plano de archivos YAML, sino un **modelo de entidades ricas con separación epistemológica y soporte contextual multidimensional**.
 
-### 3.1 Entidades del Dominio de Conocimiento
+### 3.1 Los Cuatro Planos Epistemológicos del Conocimiento
 
 ```
-┌──────────────┐       1:N       ┌──────────────┐       1:N       ┌──────────────┐
-│   Project    │────────────────►│ Environment  │────────────────►│   TestRun    │
-└──────┬───────┘                 └──────────────┘                 └──────┬───────┘
-       │                                                                 │ 1:N
-       │ 1:N                                                             ▼
-       │                         ┌──────────────┐       1:N       ┌──────────────┐
-       ├────────────────────────►│     View     │────────────────►│StepExecution │
-       │                         └──────┬───────┘                 └──────────────┘
-       │                                │ 1:N
-       ▼                                ▼
-┌──────────────┐       1:N       ┌──────────────┐
-│    Module    │────────────────►│ ActionTarget │ (Selectores CSS/XPath con FTS5)
-└──────┬───────┘                 └──────────────┘
-       │ 1:N
-       ├────────────────────────►┌──────────────┐
-       │                         │ BusinessRule │ (Reglas con certeza y procedencia)
-       │                         └──────────────┘
-       │ 1:N
-       ├────────────────────────►┌──────────────┐       1:N       ┌──────────────┐
-       │                         │ FlowScenario │────────────────►│  Dependency  │ (DAG)
-       │                         └──────────────┘                 └──────────────┘
-       ▼
-┌──────────────┐
-│    Defect    │ (Incidentes clasificados con pasos de reproducción y evidencia)
-└──────────────┘
+┌────────────────────────────────────────────────────────────────────────┐
+│ 1. OBSERVACIÓN (ApplicationObservation)                                │
+│    - Lo que la app hace empíricamente (DOM, HTTP, telemetría, logs).   │
+│    - Status: observed. Siempre ligado a evidencia cruda.               │
+├────────────────────────────────────────────────────────────────────────┤
+│ 2. INFERENCIA (AgentInference)                                         │
+│    - Lo que el agente deduce o conjetura (hipótesis, selectores).      │
+│    - Status: inferred | pending_review. Puntaje de confianza 0.0-1.0.  │
+├────────────────────────────────────────────────────────────────────────┤
+│ 3. REQUISITO ESPERADO (ExpectedRequirement)                            │
+│    - Lo que el negocio/desarrollador estipula que DEBE ocurrir.        │
+│    - Status: confirmed (vía dev/doc) | pending_specification.          │
+├────────────────────────────────────────────────────────────────────────┤
+│ 4. CONFORMIDAD (ConformityAssessment)                                  │
+│    - Comparación entre Observación y Requisito Esperado.               │
+│    - Verdict: pass | fail | indeterminate | contradiction.             │
+└────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 3.2 Estados de Certeza y Gobernanza de Conocimiento
+### 3.2 Dimensiones Contextuales de Conocimiento
 
-```typescript
-export type CertaintyState = 
-  | 'observed'        // Extraído directamente de una lectura pasiva (ej. texto visible de botón)
-  | 'inferred'        // Generado por reglas heurísticas o modelos (ej. "campo obligatorio por tener asterisco")
-  | 'confirmed'       // Validado por el desarrollador en entrevista o confirmado por sonda activa
-  | 'pending_review'  // Estuvo confirmado o inferido, pero la UI cambió (drift detectado);
-
-export interface KnowledgeProvenance {
-  source: 'blackbox_dom' | 'network_intercept' | 'active_probe' | 'developer_interview' | 'code_scan' | 'doc_import';
-  confidence_score: number;       // Rango 0.00 a 1.00
-  observed_at: string;            // Timestamp ISO-8601
-  verified_at?: string;           // Timestamp ISO-8601 de confirmación
-  verified_by?: string;           // 'user', 'ai_probe', 'system'
-  evidence_ref?: string;          // Ruta a captura de pantalla, fragmento de request/response o DOM hash
-  session_id?: string;            // Identificador de la sesión que generó la observación
-}
-```
+Toda entidad de conocimiento se vincula formalmente con sus dimensiones operativas:
+- **`application_id` / `subsystem`:** Aislamiento multi-aplicación.
+- **`environment_id` / `policy`:** Políticas de ejecución segura (dev, staging, prod).
+- **`role_scope` / `required_permissions`:** Control de acceso basado en roles (RBAC).
+- **`prerequisites`:** Dependencias de datos, estados previos y autenticación.
+- **`session_ref`:** Referencia segura a sesión activa, sin secretos en la memoria.
+- **`cleanup_policy`:** Política de limpieza (`clear_cache_only`, `fresh_context`, `retain_session`, `isolated_storage`).
+- **`multimodal_evidence`:** Capturas con PII enmascarada, trazas HAR, snippets DOM.
 
 ### 3.3 Contrato de Persistencia (`IKnowledgeStore`)
 
@@ -125,32 +109,38 @@ export interface IKnowledgeStore {
   close(): Promise<void>;
   runMigrations(): Promise<void>;
 
-  // Gestión de Proyectos y Entornos
-  getProject(projectId: string): Promise<Project | null>;
-  saveProject(project: Project): Promise<void>;
-  getEnvironments(projectId: string): Promise<Environment[]>;
-  saveEnvironment(env: Environment): Promise<void>;
+  // Gestión de Aplicaciones, Entornos y Políticas
+  getApplication(appId: string): Promise<ApplicationContext | null>;
+  saveApplication(app: ApplicationContext): Promise<void>;
+  getEnvironments(appId: string): Promise<EnvironmentPolicy[]>;
+  saveEnvironment(env: EnvironmentPolicy): Promise<void>;
 
-  // Gestión de Módulos y Vistas
-  getModule(projectId: string, moduleKey: string): Promise<Module | null>;
-  listModules(projectId: string): Promise<Module[]>;
-  saveModule(module: Module): Promise<void>;
-  getViewsByModule(moduleId: string): Promise<View[]>;
-  saveView(view: View): Promise<void>;
+  // Observaciones e Inferencias
+  recordObservation(obs: ApplicationObservation): Promise<void>;
+  getObservations(filter: ObservationFilter): Promise<ApplicationObservation[]>;
+  recordInference(inf: AgentInference): Promise<void>;
+  getInferences(filter: InferenceFilter): Promise<AgentInference[]>;
 
-  // Selectores y Metadatos UI (Resolución O(1) con Búsqueda Léxica)
+  // Requisitos Esperados y Reglas de Negocio
+  saveExpectedRequirement(req: ExpectedRequirement): Promise<void>;
+  getExpectedRequirements(filter: RequirementFilter): Promise<ExpectedRequirement[]>;
+
+  // Evaluaciones de Conformidad
+  recordConformityAssessment(assessment: ConformityAssessment): Promise<void>;
+  getConformityHistory(requirementId: string): Promise<ConformityAssessment[]>;
+
+  // Módulos, Vistas y Selectores (Resolución O(1) con Búsqueda Léxica)
+  saveModule(module: DomainModule): Promise<void>;
+  getModule(appId: string, moduleKey: string): Promise<DomainModule | null>;
+  saveView(view: DomainView): Promise<void>;
+  getViewsByModule(moduleId: string): Promise<DomainView[]>;
   saveActionTargets(targets: ActionTarget[]): Promise<void>;
-  searchActionTargets(projectId: string, query: string, limit?: number): Promise<ActionTarget[]>;
-
-  // Reglas de Negocio
-  getRulesByModule(moduleId: string): Promise<BusinessRule[]>;
-  saveRule(rule: BusinessRule): Promise<void>;
-  updateRuleCertainty(ruleId: string, state: CertaintyState, score: number, verifiedBy: string): Promise<void>;
+  searchActionTargets(appId: string, query: string, limit?: number): Promise<ActionTarget[]>;
 
   // Flujos de Prueba y Grafo de Dependencias (DAG)
-  getFlows(projectId: string, filter?: FlowFilter): Promise<FlowScenario[]>;
   saveFlow(flow: FlowScenario): Promise<void>;
-  getDependencyDAG(projectId: string): Promise<DependencyDAG>;
+  getFlows(appId: string, filter?: FlowFilter): Promise<FlowScenario[]>;
+  getDependencyDAG(appId: string): Promise<DependencyDAG>;
   recordDependency(dep: DependencyEdge): Promise<void>;
 
   // Telemetría y Ejecución de Pruebas
@@ -158,19 +148,19 @@ export interface IKnowledgeStore {
   recordStepExecution(step: TestStepExecution): Promise<void>;
   getExecutionHistory(flowId: string, limit?: number): Promise<TestStepExecution[]>;
 
-  // Defectos e Incidentes
-  recordDefect(defect: Defect): Promise<void>;
-  updateDefectStatus(defectId: string, status: DefectStatus, resolutionNotes?: string): Promise<void>;
-  listDefects(projectId: string, filter?: DefectFilter): Promise<Defect[]>;
+  // Defectos e Incidentes (Admite Indeterminados)
+  recordDefect(defect: DefectRecord): Promise<void>;
+  updateDefectStatus(defectId: string, status: DefectStatus, notes?: string): Promise<void>;
+  listDefects(appId: string, filter?: DefectFilter): Promise<DefectRecord[]>;
 
-  // Portabilidad y Respaldo
-  exportSnapshot(projectId: string): Promise<KnowledgeSnapshot>;
+  // Portabilidad, Respaldo y Snapshot
+  exportSnapshot(appId: string): Promise<KnowledgeSnapshot>;
   importSnapshot(snapshot: KnowledgeSnapshot, options?: ImportOptions): Promise<void>;
 }
 ```
 
 ### 3.4 Motor Local de Persistencia: `SqliteKnowledgeAdapter`
-- Implementado sobre `node:sqlite` (`DatabaseSync`), disponible nativamente en Node.js >= 22.5.0.
+- Implementado sobre `node:sqlite` (`DatabaseSync`), disponible en Node.js >= 22.5.0 LTS.
 - Modo WAL (`Write-Ahead Logging`) para concurrencia limpia entre lecturas y escrituras.
 - Tabla virtual FTS5 (`action_targets_fts`) para indexación léxica de selectores y etiquetas UI.
 - Despliegue self-hosted con PostgreSQL como adaptador opcional para organizaciones con equipos concurrentes centralizados (D-005).
@@ -179,7 +169,7 @@ export interface IKnowledgeStore {
 
 ## 4. Bóveda Criptográfica Escalonada de Credenciales (Tiered Vault)
 
-Conforme a la decisión **D-007**, las credenciales de acceso se desacoplan estrictamente de la memoria del conocimiento de la aplicación.
+Conforme a la decisión **D-007**, las credenciales de acceso se desacoplan estrictamente de la memoria del conocimiento de la aplicación:
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
@@ -201,42 +191,26 @@ Conforme a la decisión **D-007**, las credenciales de acceso se desacoplan estr
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
+> [!NOTE]
+> La implementación de la bóveda escalonada está registrada para el Hito 1 (VNEXT-005) y sujeta a verificación empírica previa en entornos sin keychain. No se implementa en VNEXT-001.
+
 ---
 
 ## 5. Motor de Asesoría Interactiva de QA (QA Advisor)
 
 Conforme a la decisión **D-008**, QAMCP actúa como un **consultor experto interactivo** antes de disparar ejecuciones automáticas.
 
-```mermaid
-sequenceDiagram
-    autonumber
-    actor Dev as Desarrollador / IA Cliente
-    participant Advisor as QA Advisor (qap_advisor)
-    participant Memory as IKnowledgeStore (DAG & Historial)
-    participant Planner as Autonomous Planner
-    participant Runner as PlaywrightRunner
-
-    Dev->>Advisor: "Modifiqué el formulario de pagos y quiero validar el cambio"
-    Advisor->>Memory: Consultar grafo de dependencias y blast radius
-    Memory-->>Advisor: Módulos afectados: /processcash, /payments, Alertas PLD
-    Advisor->>Memory: Consultar historial de defectos y criticidad
-    Memory-->>Advisor: Módulo de alta criticidad financiera, 2 defectos previos
-    Advisor-->>Dev: Propuesta estructurada:<br/>1. Blast Radius: 3 módulos impactados<br/>2. Estrategias recomendadas: [A] Smoke Focalizado (<2m), [B] Regresión de Impacto (<6m), [C] Auditoría Integral PLD<br/>3. Pregunta: "¿Deseas validar únicamente reglas de negocio o incluir pruebas de inyección y límites?"
-    Dev->>Advisor: Selecciona Estrategia B con pruebas de límites
-    Advisor->>Planner: Construir plan de ejecución DAG con prerrequisitos
-    Planner->>Runner: Ejecutar en navegador con perfiles limpios
-    Runner-->>Advisor: Resultados, evidencias y telemetría
-    Advisor-->>Dev: Informe de diagnóstico, defectos clasificados y recomendaciones
-```
-
 ### 5.1 Capacidades Consultivas del QA Advisor
-1. **Análisis de Blast Radius:** Dado un cambio en una vista, ruta o regla, calcula los módulos y flujos dependientes que requieren re-verificación.
+1. **Análisis de Blast Radius:** Dado un cambio en una vista, ruta o regla, calcula los módulos y flujos dependientes que requieren re-verificación mediante ordenamiento topológico en el DAG.
 2. **Recomendación Contextual de Pruebas:** Propone combinaciones de pruebas funcionales, de límites, regresión, seguridad básica (RBAC/inyecciones en formularios) o UX según la criticidad del componente.
-3. **Clasificación Formal de Defectos:** Ante una falla, analiza logs de red, consola y estados de prerrequisitos para categorizar la anomalía en:
-   - `product_bug`: Violación de regla confirmada o excepción 500 del servidor.
-   - `environment_error`: Caída de servicio, error 502/504 o expiración de red.
-   - `automation_flakiness`: Demora transitoria de renderizado resuelta en reintento.
-   - `blocked_flow`: Falla de un prerrequisito previo en el grafo DAG.
+3. **Clasificación Rigurosa de Defectos (D-014):**
+   - **Regla Estricta:** Prohibido diagnosticar de forma concluyente basándose únicamente en el código de estado HTTP.
+   - Categorías admitidas:
+     - `product_bug`: Violación verificada de un `ExpectedRequirement` o excepción no controlada en la lógica de negocio.
+     - `environment_error`: Infraestructura caída o inalcanzable confirmada por múltiples sondas de conectividad.
+     - `automation_flakiness`: Demora transitoria de renderizado resuelta en reintento idéntico.
+     - `blocked_flow`: Falla de un prerrequisito previo en el grafo DAG.
+     - **`indeterminate` / `inconclusive`:** La evidencia técnica (ej. HTTP 500 ambiguo, timeout aislado o respuesta opaca de CDN) no permite determinar si la causa es producto o entorno. Requiere inspección o confirmación por el desarrollador.
 
 ---
 
@@ -259,9 +233,10 @@ Conforme a la decisión **D-009**, la experiencia final de usuario se centra en 
     }
   }
   ```
-- **Cero dependencias nativas:** Al no requerir compilación C++ en la máquina cliente, el arranque se completa de forma transparente.
-- **Auto-preparación desatendida:** Inicialización perezosa de la base de datos local y detección automática de los binarios del navegador.
-- **Despliegue self-hosted:** Se mantiene como un adaptador complementario para PostgreSQL, sin penalizar ni sobrecargar la distribución local de `npx`.
+- **Requisitos de verificación previa (no implementados aún):**
+  - Matriz de runtime Node.js >= 22 LTS con `node:sqlite`.
+  - Estrategia de descarga o reutilización de navegadores Playwright en entornos limpios.
+  - Arranque zero-config sin dependencias nativas compiladas en tiempo de instalación.
 
 ---
 
@@ -269,7 +244,6 @@ Conforme a la decisión **D-009**, la experiencia final de usuario se centra en 
 
 En sustitución de microbenchmarks arbitrarios, el sistema se evalúa mediante **criterios operativos en escenarios de prueba reales**:
 
-1. **Escenario de Resolución de Selectores:** En una suite con más de 100 selectores y vistas complejas, la búsqueda de selectores mediante FTS5 y la resolución de contexto deben completarse sin introducir demoras perceptibles en la interacción con el navegador (< 50 ms por consulta).
-2. **Escenario de Consulta MCP:** En turnos conversacionales donde el LLM solicita el estado o selectores de un módulo, la carga útil devuelta debe restringirse a los elementos requeridos (< 500 tokens), evitando transferencias masivas de archivos de configuración.
-3. **Escenario E2E de Descubrimiento:** Sobre una aplicación web con al menos 3 vistas y formularios interactivos, el crawler black-box debe descubrir la topología, identificar campos obligatorios y generar el grafo de navegación de forma desatendida sin disparar excepciones no controladas.
-4. **Escenario de Coexistencia:** Proyectos con datos existentes en `.qa/` deben ser leídos e indexados en SQLite en la primera ejecución sin modificar ni borrar los archivos planos originales.
+1. **Escenario A — Aplicación Desconocida:** QAP recibe solo una URL y descubre módulos, vistas, elementos interactivos y formularios, distinguiendo formalmente observaciones empíricas, inferencias preliminares y requisitos de negocio pendientes de especificación (`pending_specification`).
+2. **Escenario B — Módulo Nuevo:** Ante una funcionalidad nueva agregada por el desarrollador, QAP identifica dependencias en el grafo DAG, formula preguntas contextuales necesarias y recomienda pruebas funcionales, de reglas, seguridad, UI/UX y regresión según criticidad y riesgo.
+3. **Escenario C — Autenticación y Caché:** Procedimientos con inicio de sesión por rol y contexto limpio de navegador recuerdan precondiciones y flujos sin guardar contraseñas en memoria de conocimiento ni borrar dicha memoria al purgar la caché del navegador, gestionando invalidaciones sin perder trazabilidad histórica.

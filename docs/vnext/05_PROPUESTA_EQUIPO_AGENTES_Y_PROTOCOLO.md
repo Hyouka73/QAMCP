@@ -3,9 +3,9 @@
 - **Documento:** `05_PROPUESTA_EQUIPO_AGENTES_Y_PROTOCOLO.md`
 - **Rama:** `feat/qap-vnext-architecture`
 - **Autor / Rol:** Principal Software Architect y Teamwork Lead
-- **Fecha:** Octubre 2026 (Revisión Arquitectónica Profunda)
-- **Estado:** Especificación Operativa del Equipo Multi-Agente Actualizada (Etapa 0)
-- **Referencias:** D-010 en `docs/vnext/REQUISITOS_Y_DECISIONES.md`, `.agents/`, `AGENTS.md`.
+- **Fecha:** Octubre 2026 (Revisión Arquitectónica Profunda — Etapa 0 Corregida)
+- **Estado:** Especificación Operativa del Equipo Multi-Agente Actualizada (**Autorización Condicionada ÚNICAMENTE para VNEXT-001**)
+- **Referencias:** D-010 y D-015 en `docs/vnext/REQUISITOS_Y_DECISIONES.md`, `.agents/`, `AGENTS.md`.
 
 ---
 
@@ -28,10 +28,23 @@ Conforme a la instrucción directiva ("Analiza `AGENTS.md` y `.agents/`. **No lo
   - `skills/`: Habilidades de diseño UI (`minimalist-clean-ui`) y arquitectónicas (`qap-v3-architect`).
   - `teamwork/`: Evidencia y bitácoras de la auditoría anterior (`lead_auditor_1`, `challenger_1`, `executive_synthesizer_1`).
   - `workflows/`: Procedimientos legacy en formato Markdown.
-- **Vigencia:** La mayoría de las reglas y workflows están desfasados respecto a las decisiones de vNext (D-001 a D-010).
+- **Vigencia:** La mayoría de las reglas y workflows están desfasados respecto a las decisiones de vNext (D-001 a D-015).
 - **Destino propuesto para vNext:**
   - **Preservar intacto** durante la Etapa 0.
   - Para la fase de implementación, estructurar `.agents/` bajo el estándar moderno de especialización modular por roles de vNext, archivando las carpetas de sprints obsoletos en `.agents/archive/`.
+
+### 1.3 Distinción Formal entre Artefactos de Agente Versionados y Configuración Local (D-015)
+Para erradicar la filtración de secretos, sobreescrituras accidentales y divergencias entre máquinas:
+1. **Artefactos Versionados en Git (Control de Versiones):**
+   - Directivas y reglas de comportamiento del equipo (`.agents/rules/*.md`).
+   - Habilidades procedimentales y guías especializadas (`.agents/skills/*/SKILL.md`).
+   - Esquemas de contratos de intercambio, interfaces TypeScript y validadores AJV.
+   - Prompts de sistema canónicos para orquestadores y asesores QA.
+2. **Configuraciones de Ejecución Local (Estrictamente Excluidas de Git):**
+   - Base de datos relacional de memoria local (`.qamcp/knowledge.sqlite`, WAL y SHM).
+   - Bóveda de credenciales cifrada local (`.qamcp/vault.enc`) o secretos en keychain.
+   - Archivos de configuración de clientes MCP locales (`claude_desktop_config.json`, perfiles de Cursor/Antigravity con rutas físicas absolutas).
+   - Tokens de autenticación, variables de entorno privadas (`.env`, `.env.local`) y logs efímeros de sesión Playwright.
 
 ---
 
@@ -63,42 +76,39 @@ flowchart TD
 | Rol / Especialista | Paquetes Bajo su Custodia | Responsabilidad Principal |
 |:---|:---|:---|
 | **Principal Architect & Teamwork Lead** | Monorepo global y `docs/vnext/` | Asigna tareas, supervisa contratos compartidos, arbitra divergencias y coordina ventanas de merge con Diego. |
-| **Agente 1: Memory & Storage Specialist** | `@qap/shared`, `@qap/knowledge` | Modela las entidades de conocimiento en validación empírica, el puerto `IKnowledgeStore`, `SqliteKnowledgeAdapter` (`node:sqlite` WAL) y tabla FTS5. |
-| **Agente 2: Black-Box Crawler Specialist** | `@qap/playwright-adapter` | Desarrolla reconocimiento pasivo HTTP, crawler Playwright sin mutaciones, interceptor de red y sondas no destructivas. |
+| **Agente 1: Memory & Storage Specialist** | `@qap/shared`, `@qap/knowledge` | Modela las entidades de conocimiento en validación empírica (VNEXT-001 autorizada), el puerto `IKnowledgeStore` (VNEXT-002), `SqliteKnowledgeAdapter` (`node:sqlite` WAL) y tabla FTS5. |
+| **Agente 2: Black-Box Crawler Specialist** | `@qap/playwright-adapter` | Desarrolla reconocimiento pasivo HTTP, crawler Playwright sin mutaciones, interceptor de red y sondas observacionales no destructivas. |
 | **Agente 3: MCP Handlers Specialist** | `@qap/mcp` | Refactoriza `server.ts` hacia despachador declarativo con tool handlers desacoplados y conecta `qap_plan`/`qap_test` reales. |
-| **Agente 4: QA Advisor & Engine Specialist** | `@qap/engine` | Implementa motor de cálculo de blast radius en DAG, servicio consultivo interactivo `QAAdvisor` (D-008) y clasificador formal de defectos. |
-| **Agente 5: Distribution & CLI Specialist** | `@hyouka73/qap-cli`, `@qap/auth` | Desarrolla la bóveda criptográfica escalonada (Keychain SO -> AES-256-GCM PBKDF2 -> Memoria), bundle standalone `tsup` y auto-registro MCP. |
-| **Empirical Challenger (Sentinel)** | Validación y Suites de Test | Agente adversarial que clona el código de cada tarea en sandbox, ejecuta pruebas de estrés, verifica cobertura y emite veredicto técnico objetivo. |
+| **Agente 4: QA Advisor & Engine Specialist** | `@qap/engine` | Implementa motor de cálculo de blast radius en DAG, servicio consultivo interactivo `QAAdvisor` (D-008) y clasificador formal de defectos con soporte indeterminado (D-014). |
+| **Agente 5: Distribution & CLI Specialist** | `@hyouka73/qap-cli`, `@qap/auth` | Desarrolla la bóveda criptográfica escalonada (VNEXT-005), bundle standalone `tsup` y auto-registro MCP. |
+| **Empirical Challenger (Sentinel)** | Validación y Suites de Test | Agente adversarial que evalúa las entregas de forma independiente, ejecuta pruebas de estrés, verifica cobertura y emite veredicto técnico objetivo. |
 
 ---
 
 ## 3. Matriz de Dependencias Reales y Secuencia de Despliegue
 
-A diferencia de un modelo ingenuamente paralelo, el despliegue del equipo sigue compuertas de dependencia técnica:
-
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
 │                   SECUENCIA DE DESPLIEGUE POR COMPUERTAS               │
 ├────────────────────────────────────────────────────────────────────────┤
-│ COMPUERTA 0: Contratos de Dominio (@qap/shared)                        │
+│ COMPUERTA 0: Contratos de Dominio (@qap/shared) [AUTORIZADA: VNEXT-001] │
 │              - Ejecuta: Agente 1 (Supervisado por Lead)                │
-│              - Desbloquea: Hito 1 (Persistencia)                       │
+│              - Verificación: Challenger Independiente                  │
+│              - Desbloquea: Hito 1 (Persistencia) al ser aprobada       │
 ├────────────────────────────────────────────────────────────────────────┤
 │ COMPUERTA 1: Persistencia Operativa & Bóveda Criptográfica             │
-│              - Ejecutan en paralelo: Agente 1 (SQLite) y Agente 5 (Vault)│
+│              - Tareas: VNEXT-002, VNEXT-003, VNEXT-004, VNEXT-005      │
 │              - Desbloquea: Hito 2 (Crawler) e Hito 3 (MCP Handlers)   │
 ├────────────────────────────────────────────────────────────────────────┤
 │ COMPUERTA 2: Adquisición Black-Box & Handlers MCP                      │
-│              - Ejecutan en paralelo: Agente 2 (Crawler) y Agente 3(MCP)│
+│              - Tareas: VNEXT-006 a VNEXT-014                           │
 │              - Desbloquea: Hito 4 (QA Advisor & Planner)               │
 ├────────────────────────────────────────────────────────────────────────┤
 │ COMPUERTA 3: Asesoría Interactiva & Diagnóstico Autónomo               │
-│              - Ejecuta: Agente 4 (QA Advisor & Engine)                 │
+│              - Tareas: VNEXT-015 a VNEXT-017                           │
 │              - Desbloquea: Hito 5 (Distribución npx) e Hito 6 (E2E)    │
 └────────────────────────────────────────────────────────────────────────┘
 ```
-
-- **Regla de Paralelismo Condicional:** Dos agentes solo pueden trabajar en paralelo si sus módulos no comparten archivos físicos en edición activa ni interfaces en estado de definición preliminar.
 
 ---
 
@@ -138,4 +148,4 @@ Para evitar regresiones e inconsistencias de compilación ("stale dist"), se ado
 ### Reglas No Negociables de Gobernanza
 1. **Regla "No Pass, No Merge":** Ninguna tarea se considera completada si no cuenta con sus pruebas unitarias automatizadas pasando en verde y certificadas por el Challenger.
 2. **Recompilación Continua:** Cada PR o tarea completada debe ejecutar `pnpm run -r build` antes de darse por concluida, erradicando definitivamente el problema de binarios desactualizados en `dist/`.
-3. **No Modificación de Ramas Base:** Todo el trabajo del equipo multi-agente se realiza en ramas derivadas de `feat/qap-vnext-architecture`, sin tocar `develop` ni `main`.
+3. **No Modificación de Ramas Base:** Todo el trabajo del equipo multi-agent se realiza en ramas derivadas de `feat/qap-vnext-architecture`, sin tocar `develop` ni `main`.

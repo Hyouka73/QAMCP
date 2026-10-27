@@ -1,6 +1,6 @@
 # QAMCP vNext — Requisitos y decisiones de producto (BORRADOR VIVO)
 
-> Estado: requisitos principales definidos; pendiente de arquitectura detallada y WBS. **No es autorización de implementación**.
+> Estado: requisitos principales definidos; arquitectura detallada y WBS actualizados tras revisión externa Etapa 0. **Autorización condicionada únicamente para VNEXT-001**.
 > Rama de trabajo: `feat/qap-vnext-architecture` (creada desde `develop`).
 > Este documento registra solo decisiones confirmadas por el responsable del producto y cuestiones abiertas. No autoriza cambios sobre `develop`.
 
@@ -56,14 +56,42 @@ La experiencia final del usuario es instalar/iniciar/registrar el MCP mediante n
 ### D-010 — Evolución documentada por etapas
 Todo cambio de arquitectura o implementación debe contar con motivos, alternativas, impactos, riesgos, prueba de verificación, criterios de aceptación y decisión de conservar/reemplazar. Teamwork actúa primero como arquitecto-coordinador: desglosa iniciativas en unidades acotadas y delegables; no ejecuta una refactorización total en una sola tarea. No eliminar AGENTS.md ni .agents/ sin inventario y propuesta justificada.
 
-## Requisitos abiertos (no asumir como aprobados)
-1. Modelo atómico de entidades, relaciones, evidencias, precedencia y mecanismos para revisar contradicciones.
-2. Arquitectura de almacenamiento compartido, privacidad, separación de tenants y migración local/self-hosted sin doble fuente de verdad.
-3. Modelo de pruebas por tipo, criticidad y planificación/cobertura de flujos.
-4. Criterios operativos para bug real, error de entorno, prueba bloqueada, flakiness y realimentación del sistema.
-5. Política de cambios entre ramas y mecanismo de integración cuando evoluciona `develop`.
-6. Contrato concreto de npx/registro MCP y los requisitos mínimos de Node/navegador.
+### D-011 — Separación Epistemológica en la Representación del Conocimiento
+El modelo de conocimiento debe distinguir formalmente cuatro planos epistemológicos independientes:
+1. **Observaciones de la aplicación:** Telemetría empírica de lo que la aplicación ejecuta o expone actualmente en tiempo de ejecución (DOM, tráfico XHR/Fetch, mensajes de error, respuestas HTTP).
+2. **Inferencias del agente:** Hipótesis preliminares generadas por heurísticas o LLMs con un puntaje de confianza (`confidence_score`) y justificación.
+3. **Requisitos esperados:** Especificaciones autoritativas del comportamiento deseado de negocio, provistas por el desarrollador, documentación formal o confirmación humana en entrevista.
+4. **Verificaciones de conformidad:** Comparación formal entre la observación actual y el requisito esperado, emitiendo veredictos de `pass`, `fail`, `contradiction` o `indeterminate`.
+*Invariante Crítica:* Una sonda activa no destructiva que reproduce el comportamiento actual de la aplicación comprueba únicamente la *consistencia y reproducibilidad observacional*; **NUNCA promueve una regla de negocio a `confirmed`**. Una anomalía en producción puede ser reproducible por una sonda y seguir siendo un defecto frente al requisito esperado.
 
+### D-012 — Gobernanza de Migración y Semántica de `manually_edited`
+El atributo histórico `manually_edited: true` del almacenamiento v2.1 indica intervención humana para evitar sobreescritura automática, pero **no debe convertirse automáticamente en certeza absoluta (`confidence: 1.0`) ni en verdad dogmática inmutable**. En la memoria relacional vNext, se migra con procedencia `source: 'legacy_manual_edit'`, precedencia superior a inferencias automatizadas no revisadas, pero sujeto a revisión humana o marcado de `pending_review` ante cambios estructurales o contradicciones empíricas.
+
+### D-013 — Contexto Multidimensional de Entidades de Conocimiento
+Toda entidad de conocimiento debe poder asociarse con sus dimensiones contextuales operativas:
+- **Aplicación / Subsistema:** Identificador de la aplicación o servicio bajo prueba.
+- **Entorno:** Vinculación a entorno específico (`dev`, `staging`, `prod`) y su política de seguridad.
+- **Roles y Permisos:** Requisitos de RBAC y capacidades de usuario necesarias para acceder o ejecutar.
+- **Prerrequisitos:** Estados previos de datos, precondiciones de sistema y dependencias en grafo DAG.
+- **Sesión y Autenticación:** Puntero a perfil o token de sesión, desacoplado de los datos de la entidad.
+- **Políticas de Limpieza de Navegador:** Estrategia de aislamiento requerida (`clean_cache`, `fresh_context`, `persist_session`).
+- **Evidencias Multimodales:** Referencias a capturas con PII enmascarada, fragmentos de tráfico de red y árboles DOM.
+
+### D-014 — Diagnósticos No Concluyentes y Resultados Indeterminados
+El motor de diagnóstico y el QA Advisor tienen estrictamente prohibido emitir clasificaciones conclusivas de defectos basadas únicamente en códigos de estado HTTP (ej. asumir ciegamente que un error 500 es siempre `product_bug` o que un 502/504 es siempre `environment_error`). El sistema debe admitir explícitamente resultados `indeterminate` / `inconclusive` cuando la evidencia técnica sea ambigua o insuficiente, sugiriendo comprobaciones adicionales al desarrollador.
+
+### D-015 — Distinción entre Artefactos de Agente Versionados y Configuración Local
+Se establece una separación estricta entre:
+- **Artefactos versionados en Git:** Reglas de repositorio (`.agents/rules/`), habilidades canónicas (`.agents/skills/`), esquemas de contratos y prompts de sistema compartidos por el equipo.
+- **Configuraciones de ejecución local:** Bases de datos locales SQLite (`.qamcp/`), bóveda de secretos cifrada local, configuraciones de clientes MCP (`claude_desktop_config.json`, etc.) y bitácoras efímeras de sesión. Estos artefactos son privados de cada máquina/entorno y están estrictamente excluidos del control de versiones.
+
+## Requisitos abiertos y verificación empírica previa (no asumir como aprobados)
+1. **Verificación de Entorno de Ejecución Node.js:** Validar matriz de compatibilidad de `node:sqlite` (`DatabaseSync`) en versiones LTS (Node 20.x mediante flag/fallback vs Node 22.x nativo) en Windows, Linux y macOS antes de fijar DDL final.
+2. **Verificación de Distribución `npx` Zero-Config:** Evaluar tamaño de paquete, arranque sin compilación C++ nativa y estrategia de aprovisionamiento de navegadores Playwright (reutilización de binarios del sistema vs descarga bajo demanda) antes de implementar Hito 5.
+3. **Verificación de Bóveda Escalonada de Credenciales:** Probar comportamiento del fallback criptográfico AES-256-GCM + PBKDF2 en contenedores CI/CD desprovistos de servicios de keychain del sistema operativo antes de implementar Hito 1.
+4. **Modelo de pruebas por tipo, criticidad y planificación/cobertura de flujos en DAG.**
+5. **Criterios operativos empíricos para contradicciones y resolución de conflictos de conocimiento.**
+6. **Política de cambios entre ramas y mecanismo de integración cuando evoluciona `develop`.**
 
 ## Política del documento
 No marcar propuestas como aprobadas. Cada nueva decisión debe anotarse explícitamente antes de diseñar el esquema físico, implementar migraciones o crear el WBS.
