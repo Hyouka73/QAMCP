@@ -6,4 +6,5 @@ export default defineConfig({
   dts: true,
   clean: false,
   sourcemap: false,
+  external: ['keytar'],
 });

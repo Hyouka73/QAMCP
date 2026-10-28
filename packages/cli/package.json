@@ -23,7 +23,6 @@
     "@qap/playwright-runner": "workspace:^",
     "@qap/git-adapter": "workspace:*",
     "commander": "^15.0.0",
-    "keytar": "^7.9.0",
     "playwright-core": "^1.63.0",
     "yaml": "^2.9.0"
   },
@@ -39,5 +38,8 @@
     "@types/node": "^26.2.0",
     "tsx": "^4.19.0",
     "vitest": "^4.1.11"
+  },
+  "optionalDependencies": {
+    "keytar": "^7.9.0"
   }
 }

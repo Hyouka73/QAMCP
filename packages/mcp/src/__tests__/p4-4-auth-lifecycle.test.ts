@@ -21,17 +21,19 @@ import { createMcpServer } from '../server.js';
 
 // In-memory keychain mock para pruebas deterministas sin dependencias del llavero del SO
 const inMemoryKeychain = new Map<string, string>();
-vi.mock('keytar', () => ({
-  default: {
-    getPassword: vi.fn(async (service: string, account: string) => inMemoryKeychain.get(`${service}:${account}`) ?? null),
-    setPassword: vi.fn(async (service: string, account: string, secret: string) => {
-      inMemoryKeychain.set(`${service}:${account}`, secret);
-    }),
-    deletePassword: vi.fn(async (service: string, account: string) => {
-      return inMemoryKeychain.delete(`${service}:${account}`);
-    }),
-  },
-}));
+// Inject the port explicitly: native imports in an external built package are not Vitest mocks.
+vi.mock('@qap/auth', async (original) => {
+  const actual = await original<typeof import('@qap/auth')>();
+  return { ...actual, AuthManager: class extends actual.AuthManager {
+    constructor(projectPath?: string) {
+      super(projectPath, { vault: new actual.TieredCredentialVault({ keychain: new actual.KeychainCredentialProvider(async () => ({
+        getPassword: async (service, account) => inMemoryKeychain.get(service + ':' + account) ?? null,
+        setPassword: async (service, account, secret) => { inMemoryKeychain.set(service + ':' + account, secret); },
+        deletePassword: async (service, account) => inMemoryKeychain.delete(service + ':' + account),
+      })) }) });
+    }
+  } };
+});
 
 interface ToolResponseData {
   status?: string;
