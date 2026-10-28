@@ -4,8 +4,8 @@ Actualizado: 2026-10-28. Agente principal único.
 
 ## Estado y alcance
 
-**VNEXT-001 a VNEXT-005 terminadas** por autorización expresa.
-Detener aquí. VNEXT-006 y posteriores requieren nueva autorización.
+**VNEXT-001 a VNEXT-006 terminadas** por autorización expresa, con límites documentados.
+Detener aquí. VNEXT-007 y posteriores requieren nueva autorización.
 Leer este archivo y el WBS antes de elegir trabajo ante «continúa».
 
 ## Rama y cambios ajenos
@@ -67,4 +67,37 @@ DatabaseSync bloquea el hilo; worker pendiente. Texto libre requiere redacción 
 [SQLite/FTS5 VNEXT-004](VNEXT-004_FTS5_SEARCH.md).
 [Persistencia VNEXT-003](VNEXT-003_SQLITE_ADAPTER.md).
 
-VNEXT-006 no iniciada. No crawler, Advisor, PostgreSQL, nuevos handlers ni integración develop.
+## Reconocimiento HTTP VNEXT-006
+
+- Commit de implementación: `8d488b7`. Documentación de cierre en el commit siguiente de esta rama.
+- Base exacta `442596108908c5aaa4157ee17697d95e21db9a64`; única modificación previa:
+  sesión protegida, conservada con el mismo hash indicado arriba y excluida de commits.
+- `ReconnaissanceService` exportado por Playwright Adapter. Builtins HTTP/HTTPS, sin
+  navegador ni credenciales. Engine aporta solo el puerto IKnowledgeStore.
+- Consentimiento GET por URL exacta + safe_domains exactos + autorización IP/red explícita.
+  DNS completo validado y fijado a la conexión; peer/puerto comprobados antes de enviar HTTP.
+  Redirects validados/contados. Denegación de metadata/link-local y permisos privados exactos.
+- Defaults: 3 GET, 5 s/request, 15 s/adquisición, 256 KiB acumulados recibidos/decoded/retenidos,
+  2 redirects/recurso, secuencial, sin retry. robots/sitemap solo con consentimiento propio.
+- Ingesta por selección positiva, sin HTML, valores cookies, paths/query arbitrarios ni headers
+  desconocidos. TLS validado siempre; sujeto/emisor hasheados. Certificados inválidos no
+  provocan bypass; sus detalles pueden quedar indisponibles. Candidatos heurísticos sin promoción.
+- EvidenceKind aditivo `http_recon_metadata` y validadores Knowledge compatibles; no HAR ficticio,
+  migración ni cambio de puerto v1. Contexto previo obligatorio y relectura de revisiones antes
+  de commit atómico de evidencias + observaciones UUID nuevas. Sin sobrescritura de historia.
+- Windows/Node 24.15.0: Shared 146/146, Engine 168/168; Knowledge completo 238/238, incluida
+  integración final 4/4; adapter nuevos finales 55/55. Comparación completa
+  adapter base exacta 26/26 y actual 80/80 (54 nuevas en ese momento). Auth focalizada 34 + 1
+  omitida POSIX, CLI Auth 6/6, MCP canario 1/1 (14 no seleccionadas), runner session-resolver 4/4.
+- Diez builds aprobados. tsc recon/test y Knowledge/test y lint nuevo/Knowledge afectados limpios.
+  Typecheck completo adapter: 3 errores en tests legacy intactos (rootDir y ModuleContext);
+  lint Shared: 3 errores previos en la unión EnvironmentPolicy.name. No suite global certificada.
+- HTTP/HTTPS/IPv6 y SQLite físicos sobre fixtures temporales, fuera del sandbox por EACCES
+  loopback. Sin dependencia externa ni navegador para recon. No se reprodujeron fallos previos
+  de adapter/Chromium o route-scanner en estas ejecuciones; mantener la limitación histórica.
+- Deadline global acota adquisición: puerto v1 no cancela operaciones de store ni permite CAS
+  sobre contexto solo leído. Consumidor gobierna políticas concurrentes; ventana lectura/commit
+  documentada. POSIX/otros runtimes no comprobados en esta entrega.
+
+[Diseño, API, pruebas, reproducción y límites VNEXT-006](VNEXT-006_HTTP_RECONNAISSANCE.md).
+VNEXT-007 no iniciada. No crawler, Advisor, PostgreSQL, nuevos handlers ni integración develop.

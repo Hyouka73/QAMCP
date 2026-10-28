@@ -4,7 +4,7 @@
 - **Rama:** `feat/qap-vnext-architecture`
 - **Autor / Rol:** Principal Software Architect y Teamwork Lead
 - **Fecha:** Octubre 2026 (Revisión Arquitectónica Profunda — Etapa 0 Corregida)
-- **Estado:** VNEXT-001 a VNEXT-005 terminadas por autorización expresa. VNEXT-006 y posteriores pendientes de autorización.
+- **Estado:** VNEXT-001 a VNEXT-006 terminadas por autorización expresa, con límites documentados. VNEXT-007 y posteriores pendientes de autorización.
 - **Referencias:** D-010 (Evolución documentada por etapas), D-001 a D-015.
 
 ---
@@ -14,7 +14,7 @@
 Conforme a la directiva **D-010** y la corrección de inconsistencias de numeración del WBS, el trabajo se organiza en **7 Hitos Secuenciales (Hito 0 a Hito 6)** numerados de forma estrictamente continua (**VNEXT-001 a VNEXT-023**).
 
 > [!IMPORTANT]
-> **Estado de Autorización:** La continuidad del 2026-10-28 autorizó exclusivamente VNEXT-005, implementada y verificada con límites de entorno documentados. VNEXT-006 y posteriores requieren autorización nueva. Continuidad: [STATE.md](STATE.md).
+> **Estado de Autorización:** La solicitud del 2026-10-28 autorizó exclusivamente VNEXT-006, implementada y verificada con límites documentados. VNEXT-007 y posteriores requieren autorización nueva. Continuidad: [STATE.md](STATE.md).
 
 ```mermaid
 flowchart TD
@@ -89,11 +89,13 @@ flowchart TD
 ### Hito 2: Adquisición de Conocimiento Black-Box First
 
 #### `VNEXT-006` — Módulo de Reconocimiento Pasivo HTTP y Detección de Stack
-- **Estado:** Pendiente de autorización.
-- **Paquetes afectados:** `@qap/playwright-adapter`, `@qap/knowledge`.
+- **Estado:** Terminada (2026-10-28), con limitaciones de entorno y puerto v1 documentadas. No iniciar VNEXT-007.
+- **Paquetes afectados:** `@qap/playwright-adapter`, `@qap/knowledge`, extensión aditiva mínima de `@qap/shared`.
 - **Dependencias:** `VNEXT-001`, `VNEXT-003`.
 - **Riesgo:** Bajo.
 - **Alcance:** Implementar `ReconnaissanceService` para inspeccionar headers de seguridad, certificados SSL, tecnologías de frontend, rutas robots.txt y sitemap sin mutaciones en el servidor, produciendo `ApplicationObservation`.
+- **Entrega:** API tipada/exportada, GET por recurso autorizado, DNS/IP fijados y peer verificado, SSRF/redirects/budgets, ingesta sanitizada y commit atómico de observación + evidencia `http_recon_metadata`. Sin navegador, crawler ni promoción de hipótesis.
+- **Verificación:** 55 tests HTTP/TLS/IPv6 nuevos, 4 SQLite físicos finales, Shared 146/146, Engine 168/168; Knowledge completo 238/238; adapter comparado base 26/26 y actual 80/80 antes de añadir el test 1xx final. Diez builds. Límites legacy de tsc/lint y de deadline/store explícitos en [VNEXT-006](VNEXT-006_HTTP_RECONNAISSANCE.md).
 
 #### `VNEXT-007` — Crawler Black-Box Dirigido con Playwright
 - **Estado:** Pendiente de autorización.
