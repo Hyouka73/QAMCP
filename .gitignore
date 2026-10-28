@@ -28,4 +28,5 @@ coverage/
 .qa/*
 !.qa/definitions/
 .playwright-mcp/
+.qamcp/
 

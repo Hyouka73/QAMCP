@@ -26,4 +26,5 @@ export * from './route-scanner.js';
 export * from './candidate-generator.js';
 
 export * from './storage/lock-manager.js';
+export * from './storage/sqlite-knowledge-adapter.js';
 

@@ -4,7 +4,7 @@
 - **Rama:** `feat/qap-vnext-architecture`
 - **Autor / Rol:** Principal Software Architect y Teamwork Lead
 - **Fecha:** Octubre 2026 (Revisión Arquitectónica Profunda — Etapa 0 Corregida)
-- **Estado:** VNEXT-001 previa; VNEXT-002 terminada por autorización expresa del responsable (2026-10-28). VNEXT-003 y posteriores pendientes de autorización.
+- **Estado:** VNEXT-001 a VNEXT-003 terminadas por autorización expresa. VNEXT-004 y posteriores pendientes de autorización.
 - **Referencias:** D-010 (Evolución documentada por etapas), D-001 a D-015.
 
 ---
@@ -14,11 +14,11 @@
 Conforme a la directiva **D-010** y la corrección de inconsistencias de numeración del WBS, el trabajo se organiza en **7 Hitos Secuenciales (Hito 0 a Hito 6)** numerados de forma estrictamente continua (**VNEXT-001 a VNEXT-023**).
 
 > [!IMPORTANT]
-> **Estado de Autorización:** La instrucción de continuidad del 2026-10-28 autorizó explícitamente VNEXT-002, tomando VNEXT-001 como cerrada. VNEXT-003 y posteriores requieren autorización nueva. Continuidad: [STATE.md](STATE.md).
+> **Estado de Autorización:** La continuidad del 2026-10-28 autorizó VNEXT-003, implementada y verificada. VNEXT-004 y posteriores requieren autorización nueva. Continuidad: [STATE.md](STATE.md).
 
 ```mermaid
 flowchart TD
-    H0["Hito 0: Fundación de Contratos de Dominio<br/>(VNEXT-001: Terminada)"] --> H1["Hito 1: Persistencia Local SQLite & Bóveda<br/>(VNEXT-002 terminada; VNEXT-003 a 005 pendientes)"]
+    H0["Hito 0: Fundación de Contratos de Dominio<br/>(VNEXT-001: Terminada)"] --> H1["Hito 1: Persistencia Local SQLite & Bóveda<br/>(VNEXT-002 y 003 terminadas; VNEXT-004 y 005 pendientes)"]
     H1 --> H2["Hito 2: Adquisición de Conocimiento Black-Box<br/>(VNEXT-006, VNEXT-007, VNEXT-008, VNEXT-009, VNEXT-010)"]
     H1 --> H3["Hito 3: Desacoplamiento Modular MCP<br/>(VNEXT-011, VNEXT-012, VNEXT-013, VNEXT-014)"]
     H2 --> H4["Hito 4: QA Advisor & Diagnóstico Autónomo<br/>(VNEXT-015, VNEXT-016, VNEXT-017)"]
@@ -61,11 +61,11 @@ flowchart TD
 - **Alcance realizado:** `packages/engine/src/knowledge-store.port.ts`, exportado por Engine: lecturas tipadas, consultas paginadas, commit atómico con CAS, historial y referencias con revisiones, aislamiento y errores tipados. Se corrigió la ubicación para evitar `engine → knowledge → engine`. Búsqueda léxica (VNEXT-004), telemetría y snapshots se difieren; no existen métodos ficticios. [Decisión, límites y verificación](VNEXT-002_KNOWLEDGE_STORE.md).
 
 #### `VNEXT-003` — Adaptador de Persistencia SQLite Local (`SqliteKnowledgeAdapter`)
-- **Estado:** Pendiente de autorización.
-- **Paquetes afectados:** `@qap/knowledge`.
-- **Dependencias:** `VNEXT-002` terminada; autorización nueva y verificación de compatibilidad del runtime SQLite en la matriz de Node/OS antes de fijar DDL. Reutilizar la suite contractual y agregar pruebas físicas de durabilidad, concurrencia y migración.
-- **Riesgo:** Medio.
-- **Alcance:** Implementar `SqliteKnowledgeAdapter` utilizando `node:sqlite` (`DatabaseSync`). Configurar modo WAL, foreign keys y transacciones atómicas. Crear DDL de tablas y esquema de migraciones.
+- **Estado:** Terminada (2026-10-28), dentro de la autorización expresa de continuidad.
+- **Paquetes afectados:** `@qap/knowledge`; extracción de suite de tests en `@qap/engine`, sin cambiar el puerto.
+- **Dependencias:** `VNEXT-002` terminada.
+- **Riesgo:** Medio; límites de plataforma/carga/E2E documentados.
+- **Alcance realizado:** SQLite físico con WAL, FK diferidas, CAS, historial inmutable, sellado de referencias, transacciones y esquema v1 con migración segura solo desde base vacía. 24 contratos + 14 pruebas físicas pasan en Windows x64 con Node 22.13.1, 24.15.0 y 24.22.1. 523 tests relevantes y 10 compilaciones pasan; la suite global tiene fallos reproducidos en la base y un fallo de tiempo de route-scanner bajo carga. No se certifica E2E ni Linux/macOS. [DDL, decisiones, reproducción y límites](VNEXT-003_SQLITE_ADAPTER.md).
 
 #### `VNEXT-004` — Motor de Búsqueda FTS5 de Selectores y Atributos UI
 - **Estado:** Pendiente de autorización.
