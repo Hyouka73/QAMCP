@@ -4,59 +4,64 @@ Actualizado: 2026-10-28. Agente principal único.
 
 ## Estado y alcance
 
-VNEXT-001, VNEXT-002 y **VNEXT-003 terminadas** por autorización expresa.
-Detener aquí. VNEXT-004 y posteriores requieren nueva autorización.
+**VNEXT-001 a VNEXT-004 terminadas** por autorización expresa.
+Detener aquí. VNEXT-005 y posteriores requieren nueva autorización.
 Leer este archivo y el WBS antes de elegir trabajo ante «continúa».
 
 ## Rama y commits
 
 - Rama exclusiva: `feat/qap-vnext-architecture`. No editar/integrar develop ni main.
-- Base VNEXT-003 verificada: `077e81922f3599104de5d8f98a75126336ccaf10`.
-- Commit de entrega: resolver con `git log -1 --format=%H -- docs/vnext/STATE.md`.
+- Base VNEXT-004 verificada: `74df4bd71ed344bd12a6766f7648dfe88fd06805`.
+- Commits de entrega: `git log --oneline 74df4bd..HEAD` en esta rama.
 - Cambio previo del usuario en `packages/playwright-runner/.qa/cache/sessions/admin-user.json`
-  conservado y excluido de esta entrega. No reutilizar bases personales/Reporter para pruebas.
+  conservado y excluido de la entrega. No usar bases personales/Reporter para pruebas.
 
 ## Decisiones vigentes
 
-- Dependencias `shared ← engine ← knowledge`; puerto IKnowledgeStore v1 sin cambios.
-- SqliteKnowledgeAdapter exportado en Knowledge; ruta explícita, uso optativo,
-  constructor/cierre fuera del puerto. No sustituye FileSystemStorage ni consumidores legacy.
-- SQLite físico v1: scopes, revisiones JSON, enlaces con FK a revisiones, migraciones.
-  WAL/FK/FULL, BEGIN IMMEDIATE, CAS, rollback total, hechos append-only y DAG validados.
-- Triggers preservan historia y sellan enlaces al confirmar. Cursores ligados a archivo,
-  consulta/proyecto/versión; cada commit local los invalida. Referencias históricas persistidas.
-- Solo inicialización vacía v0→v1. Marca QAPK, user_version, checksum/catálogo e integrity/FK
-  checks; rechazar versiones/esquemas ajenos sin adoptarlos ni cambiar su journal.
-- No promoción automática de reglas; referencias externas de perfiles/sesiones, sin secretos
-  conocidos ni binarios de evidencia. Redacción de texto/URLs/codificados sigue en ingesta.
-- DatabaseSync bloquea el hilo. Validación local antes de lock; DAG sobre entidades actuales;
-  no hay benchmark de grandes proyectos, certificación E2E ni pruebas de corte de energía.
+- Dependencias `shared ← engine ← knowledge`; IKnowledgeStore v1 sin cambios.
+- Puerto complementario IActionTargetSearch en Engine; SqliteKnowledgeAdapter implementa
+  búsqueda FTS5 optativa. No reemplaza FileSystemStorage ni añade herramientas MCP.
+- Esquema v2: DDL/checksum v1 congelados, migración explícita v1→v2 con backfill de últimos
+  ActionTargets, proyección STRICT/FK y FTS5 de etiqueta/selector/alternativas/tipo.
+- Triggers indexan dentro de la transacción de revisiones. WAL/FK/FULL, CAS y rollback total;
+  historia/enlaces/procedencia se conservan. Lectores solo observan datos confirmados.
+- Consultas literales Unicode OR parametrizadas, máximo 2048 unidades UTF-16/64 palabras;
+  límite 1..100. Solo revisión actual, activa por defecto. Filtros reales por aplicación,
+  vista, módulo (vista fijada), entorno y rol. BM25 ponderado; sin semántica profunda.
+- Apertura comprueba capacidad FTS5, marca QAPK, versiones/checksums/catálogo, integridad/FK,
+  FTS/contenido externo y concordancia de proyección. Rechaza bases ajenas/futuras/drift.
+  Sin FTS5: UNAVAILABLE antes de migrar; v1 poblada permanece idéntica byte por byte.
+- Cursores de IKnowledgeStore v1 conservan formato/clave/versiones durante la migración;
+  commits posteriores siguen invalidándolos por aplicación. Búsqueda no usa cursor.
+- Credenciales conocidas siguen rechazadas; solo cuatro campos textuales se indexan.
+  Secretos ocultos en texto/URLs/selectores requieren redacción en ingesta.
+- DatabaseSync bloquea el hilo; worker pendiente de composición del consumidor. Prosa OR
+  puede añadir ruido; CSS/XPath son texto tokenizado, sin stemming/sinónimos/embeddings.
 
 ## Resultados comprobados
 
-- Shared: 145/145; Engine: 168/168 (24 contratos en memoria); Knowledge: 210/210
-  (172 legacy + 24 contratos SQLite + 14 físicos). Total relevante: **523/523**.
-- 38/38 SQLite en Windows x64 (NT 10.0.26200.0) con Node 24.15.0 / SQLite 3.51.3,
-  Node 22.13.1 / SQLite 3.47.2 y Node 24.22.1 / SQLite 3.53.4. Linux/macOS no probados.
-  Node 22.13.1 funciona sin flag y emite ExperimentalWarning. No afirmar todos los minors 22.
-- pnpm build: 10 paquetes pasan. ESLint de archivos de esta entrega sin errores/avisos;
-  tsc del proyecto de tests físicos sin errores. tsc completos Engine/Knowledge conservan
-  36/4 diagnósticos respectivamente, idénticos a fuentes base en copia aislada.
-- pnpm test global no pasa: Auth (2 suites, Chromium ausente/teardown) y Playwright Adapter
-  (3 archivos, 17 fallos) reproducidos en fuentes base. Hubo 1 fallo de tiempo route-scanner
-  al escanear 2000 archivos bajo carga global; sus 16 tests pasan aislados en la base y
-  las regresiones relevantes actuales pasan completas. No declarar suite global/E2E verde.
-- TEMP/TMP apuntaron a `node_modules/.tmp-vnext` para evitar EPERM del caché SSR.
+- Shared 145/145; Engine 168/168; Knowledge 234/234. **547/547 relevantes**.
+- 62/62 físicas/búsqueda/capacidad en Node 24.15.0 (SQLite 3.51.3) y 24.22.1 (3.53.4).
+- Node 22.13.1/SQLite 3.47.2 instalado **no tiene FTS5**: v2 no compatible. Prueba de rechazo
+  y preservación de v1: 1/1. VNEXT-003 funcionaba allí; no extrapolar esa compatibilidad a v2.
+- pnpm build: 10 paquetes pasan. ESLint de entrega y tsc de tests físicos sin diagnósticos.
+- pnpm test global no pasa: Auth 2 suites fallidas (Chromium ausente/teardown), 8 tests pasan,
+  5 omitidos; Playwright Adapter 3 archivos fallidos, 17 fallos/4 pasan/5 omitidos.
+  Reproducidos en fuentes base aisladas; hashes iguales al HEAD autorizado. No se corrigieron.
+  route-scanner no repitió su fallo sensible a carga; no se declara resuelto ni E2E verde.
+- Catálogo reproducible 1200 objetivos: medianas locales 2.815/3.976/5.814/0.286 ms para
+  crédito/interés/CSS/sin resultados (Node 24.15.0). No son garantías de producción.
+- TEMP/TMP locales: node_modules/.tmp-vnext. Logs temporales vnext004-*.log.
 
 ## Archivos y continuidad
 
-Implementación: `packages/knowledge/src/storage/{sqlite-knowledge-adapter,
-knowledge-sqlite-schema,knowledge-commit-planner,knowledge-shape}.ts` y reexport.
-Tests físicos: `packages/knowledge/test/` (tsconfig propio para reutilizar suite Engine).
-Suite compartida: `packages/engine/src/__tests__/knowledge-store.contract.ts`;
-la invocación `.test.ts` sigue verificando el doble, sin cambiar expectativas.
-`.qamcp/` excluido de Git. [Decisiones, DDL, comandos, errores y límites](VNEXT-003_SQLITE_ADAPTER.md).
+Contrato: `packages/engine/src/action-target-search.port.ts`, reexportado por Engine.
+Implementación: `packages/knowledge/src/storage/{knowledge-sqlite-schema,sqlite-knowledge-adapter}.ts`.
+Tests: `packages/knowledge/test/{action-target-search,sqlite-fts-capability,sqlite-knowledge-adapter}.test.ts`
+y fixture v1 congelado. Suite contractual anterior conservada, 24 expectativas SQLite.
 
-VNEXT-004 dispone de persistencia física y esquema versionado como base, pero **no iniciada**.
-Requiere autorización y migración explícita para cualquier cambio DDL/FTS.
-No se hicieron bóveda, nuevos handlers, crawler, PostgreSQL, migración YAML ni publicación npm.
+[Diseño, migración, comandos, resultados y límites VNEXT-004](VNEXT-004_FTS5_SEARCH.md).
+[Antecedente VNEXT-003](VNEXT-003_SQLITE_ADAPTER.md).
+
+VNEXT-005 no iniciada; conserva autorización pendiente. No se hicieron bóveda, crawler,
+Advisor, nuevos handlers, PostgreSQL, migración YAML, publicación npm ni integración develop.

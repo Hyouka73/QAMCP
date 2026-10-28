@@ -4,7 +4,7 @@
 - **Rama:** `feat/qap-vnext-architecture`
 - **Autor / Rol:** Principal Software Architect y Teamwork Lead
 - **Fecha:** Octubre 2026 (Revisión Arquitectónica Profunda — Etapa 0 Corregida)
-- **Estado:** VNEXT-001 a VNEXT-003 terminadas por autorización expresa. VNEXT-004 y posteriores pendientes de autorización.
+- **Estado:** VNEXT-001 a VNEXT-004 terminadas por autorización expresa. VNEXT-005 y posteriores pendientes de autorización.
 - **Referencias:** D-010 (Evolución documentada por etapas), D-001 a D-015.
 
 ---
@@ -14,11 +14,11 @@
 Conforme a la directiva **D-010** y la corrección de inconsistencias de numeración del WBS, el trabajo se organiza en **7 Hitos Secuenciales (Hito 0 a Hito 6)** numerados de forma estrictamente continua (**VNEXT-001 a VNEXT-023**).
 
 > [!IMPORTANT]
-> **Estado de Autorización:** La continuidad del 2026-10-28 autorizó VNEXT-003, implementada y verificada. VNEXT-004 y posteriores requieren autorización nueva. Continuidad: [STATE.md](STATE.md).
+> **Estado de Autorización:** La continuidad del 2026-10-28 autorizó VNEXT-004, implementada y verificada. VNEXT-005 y posteriores requieren autorización nueva. Continuidad: [STATE.md](STATE.md).
 
 ```mermaid
 flowchart TD
-    H0["Hito 0: Fundación de Contratos de Dominio<br/>(VNEXT-001: Terminada)"] --> H1["Hito 1: Persistencia Local SQLite & Bóveda<br/>(VNEXT-002 y 003 terminadas; VNEXT-004 y 005 pendientes)"]
+    H0["Hito 0: Fundación de Contratos de Dominio<br/>(VNEXT-001: Terminada)"] --> H1["Hito 1: Persistencia Local SQLite & Bóveda<br/>(VNEXT-002 a 004 terminadas; VNEXT-005 pendiente)"]
     H1 --> H2["Hito 2: Adquisición de Conocimiento Black-Box<br/>(VNEXT-006, VNEXT-007, VNEXT-008, VNEXT-009, VNEXT-010)"]
     H1 --> H3["Hito 3: Desacoplamiento Modular MCP<br/>(VNEXT-011, VNEXT-012, VNEXT-013, VNEXT-014)"]
     H2 --> H4["Hito 4: QA Advisor & Diagnóstico Autónomo<br/>(VNEXT-015, VNEXT-016, VNEXT-017)"]
@@ -68,11 +68,12 @@ flowchart TD
 - **Alcance realizado:** SQLite físico con WAL, FK diferidas, CAS, historial inmutable, sellado de referencias, transacciones y esquema v1 con migración segura solo desde base vacía. 24 contratos + 14 pruebas físicas pasan en Windows x64 con Node 22.13.1, 24.15.0 y 24.22.1. 523 tests relevantes y 10 compilaciones pasan; la suite global tiene fallos reproducidos en la base y un fallo de tiempo de route-scanner bajo carga. No se certifica E2E ni Linux/macOS. [DDL, decisiones, reproducción y límites](VNEXT-003_SQLITE_ADAPTER.md).
 
 #### `VNEXT-004` — Motor de Búsqueda FTS5 de Selectores y Atributos UI
-- **Estado:** Pendiente de autorización.
-- **Paquetes afectados:** `@qap/knowledge`.
+- **Estado:** Terminada y verificada (2026-10-28), por autorización expresa. Detener antes de VNEXT-005.
+- **Paquetes afectados:** `@qap/engine` (puerto complementario), `@qap/knowledge` (adaptador/migración/tests).
 - **Dependencias:** `VNEXT-003`.
 - **Riesgo:** Bajo.
 - **Alcance:** Crear tabla virtual FTS5 (`action_targets_fts`) y métodos de consulta parametrizada por coincidencia léxica, atributo o etiqueta de accesibilidad.
+- **Entrega:** IActionTargetSearch sin cambiar IKnowledgeStore v1; esquema v2 con migración v1→v2 transaccional, índice de objetivos actuales, filtros reales y ranking BM25. 547/547 pruebas relevantes; 62/62 físicas/búsqueda en Node 24.15.0 y 24.22.1. Node 22.13.1 instalado carece de FTS5 y se rechaza sin migrar; global conserva fallos preexistentes Auth/Chromium y Playwright Adapter. [Diseño, resultados y límites](VNEXT-004_FTS5_SEARCH.md).
 
 #### `VNEXT-005` — Bóveda Criptográfica Escalonada de Credenciales (Tiered Vault)
 - **Estado:** Pendiente de autorización (y sujeta a verificación empírica previa de headless CI).
