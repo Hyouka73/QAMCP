@@ -13,7 +13,7 @@ const array = (items: unknown) => ({ type: 'array', items });
 export const knowledgeKinds = ['application', 'environment', 'role', 'observation', 'inference',
   'requirement', 'assessment', 'module', 'view', 'action_target', 'flow', 'evidence', 'relation'] as const;
 const ref = object({ kind: one(...knowledgeKinds), id: text, revision: { type: 'integer', minimum: 1 } }, ['kind', 'id']);
-const evidence = object({ id: text, kind: one('screenshot', 'network_har', 'dom_snippet', 'console_log'),
+const evidence = object({ id: text, kind: one('screenshot', 'network_har', 'http_recon_metadata', 'dom_snippet', 'console_log'),
   pii_masked: { const: true }, captured_at: text, storage_path: text, uri: text, session_id: text,
   metadata: { type: 'object' } }, ['id', 'kind', 'pii_masked', 'captured_at']);
 const certainty = one('observed', 'inferred', 'confirmed', 'pending_review');

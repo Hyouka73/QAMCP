@@ -15,6 +15,7 @@
 export type EvidenceKind =
   | 'screenshot'
   | 'network_har'
+  | 'http_recon_metadata'
   | 'dom_snippet'
   | 'console_log';
 

@@ -116,7 +116,7 @@ export class KnowledgeCommitPlanner {
       case 'flow': valid = !!(write.entity.title && Array.isArray(write.entity.steps) &&
         Array.isArray(write.entity.prerequisites) && validateBrowserCleanupPolicy(write.entity.cleanup_policy).valid); break;
       case 'evidence': valid = !!(write.entity.pii_masked && write.entity.captured_at &&
-        ['screenshot', 'network_har', 'dom_snippet', 'console_log'].includes(write.entity.kind) &&
+        ['screenshot', 'network_har', 'http_recon_metadata', 'dom_snippet', 'console_log'].includes(write.entity.kind) &&
         (write.entity.storage_path || write.entity.uri)); break;
       case 'relation': valid = !!(write.entity.source && write.entity.target &&
         ['depends_on', 'supports', 'contradicts', 'navigates_to', 'related_to'].includes(write.entity.predicate)); break;

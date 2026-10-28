@@ -1,4 +1,6 @@
 // @qap/playwright-adapter - Playwright Discovery Adapter
 export * from './adapter.js';
 export * from './screenshots.js';
+export * from './reconnaissance/types.js';
+export * from './reconnaissance/service.js';
 
