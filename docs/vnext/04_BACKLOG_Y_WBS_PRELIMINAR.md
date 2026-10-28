@@ -4,7 +4,7 @@
 - **Rama:** `feat/qap-vnext-architecture`
 - **Autor / Rol:** Principal Software Architect y Teamwork Lead
 - **Fecha:** Octubre 2026 (Revisión Arquitectónica Profunda — Etapa 0 Corregida)
-- **Estado:** Plan de Trabajo Desglosado en Micro-Tareas Actualizado (**Autorización Condicionada ÚNICAMENTE para VNEXT-001**)
+- **Estado:** VNEXT-001 previa; VNEXT-002 terminada por autorización expresa del responsable (2026-10-28). VNEXT-003 y posteriores pendientes de autorización.
 - **Referencias:** D-010 (Evolución documentada por etapas), D-001 a D-015.
 
 ---
@@ -14,11 +14,11 @@
 Conforme a la directiva **D-010** y la corrección de inconsistencias de numeración del WBS, el trabajo se organiza en **7 Hitos Secuenciales (Hito 0 a Hito 6)** numerados de forma estrictamente continua (**VNEXT-001 a VNEXT-023**).
 
 > [!IMPORTANT]
-> **Estado de Autorización:** Se autoriza **únicamente VNEXT-001**. Ninguna otra tarea (VNEXT-002 en adelante) está autorizada para ejecución hasta la aprobación formal de la compuerta de salida de VNEXT-001.
+> **Estado de Autorización:** La instrucción de continuidad del 2026-10-28 autorizó explícitamente VNEXT-002, tomando VNEXT-001 como cerrada. VNEXT-003 y posteriores requieren autorización nueva. Continuidad: [STATE.md](STATE.md).
 
 ```mermaid
 flowchart TD
-    H0["Hito 0: Fundación de Contratos de Dominio<br/>(VNEXT-001: Autorizada)"] --> H1["Hito 1: Persistencia Local SQLite & Bóveda<br/>(VNEXT-002, VNEXT-003, VNEXT-004, VNEXT-005)"]
+    H0["Hito 0: Fundación de Contratos de Dominio<br/>(VNEXT-001: Terminada)"] --> H1["Hito 1: Persistencia Local SQLite & Bóveda<br/>(VNEXT-002 terminada; VNEXT-003 a 005 pendientes)"]
     H1 --> H2["Hito 2: Adquisición de Conocimiento Black-Box<br/>(VNEXT-006, VNEXT-007, VNEXT-008, VNEXT-009, VNEXT-010)"]
     H1 --> H3["Hito 3: Desacoplamiento Modular MCP<br/>(VNEXT-011, VNEXT-012, VNEXT-013, VNEXT-014)"]
     H2 --> H4["Hito 4: QA Advisor & Diagnóstico Autónomo<br/>(VNEXT-015, VNEXT-016, VNEXT-017)"]
@@ -34,7 +34,7 @@ flowchart TD
 ### Hito 0: Fundación de Contratos de Dominio
 
 #### `VNEXT-001` — Definición del Modelo de Dominio y Contratos de Conocimiento en Validación Empírica
-- **Estado:** **AUTORIZADA CONDICIONADA A PRUEBA DE DISEÑO**.
+- **Estado:** Terminada previamente (commit base ffb5031); contratos canónicos presentes y 145 tests shared verificados durante VNEXT-002.
 - **Paquetes afectados:** `@qap/shared`.
 - **Dependencias:** Ninguna (Fundacional).
 - **Riesgo:** Bajo.
@@ -54,16 +54,16 @@ flowchart TD
 ### Hito 1: Persistencia Local SQLite y Bóveda Criptográfica
 
 #### `VNEXT-002` — Contrato Formal `IKnowledgeStore` y Puerto de Persistencia
-- **Estado:** Pendiente de autorización.
-- **Paquetes afectados:** `@qap/knowledge`, `@qap/shared`.
+- **Estado:** Terminada (2026-10-28); contrato y doble en memoria verificados, sin persistencia física.
+- **Paquetes afectados:** `@qap/engine` (puerto y pruebas); reutiliza entidades de `@qap/shared` sin modificarlas.
 - **Dependencias:** `VNEXT-001`.
 - **Riesgo:** Bajo.
-- **Alcance:** Crear la interfaz formal `IKnowledgeStore` en `@qap/knowledge/src/ports/knowledge-store.port.ts`, especificando métodos atómicos de lectura, escritura, transacciones, búsqueda léxica y telemetría sobre el modelo de dominio de VNEXT-001.
+- **Alcance realizado:** `packages/engine/src/knowledge-store.port.ts`, exportado por Engine: lecturas tipadas, consultas paginadas, commit atómico con CAS, historial y referencias con revisiones, aislamiento y errores tipados. Se corrigió la ubicación para evitar `engine → knowledge → engine`. Búsqueda léxica (VNEXT-004), telemetría y snapshots se difieren; no existen métodos ficticios. [Decisión, límites y verificación](VNEXT-002_KNOWLEDGE_STORE.md).
 
 #### `VNEXT-003` — Adaptador de Persistencia SQLite Local (`SqliteKnowledgeAdapter`)
 - **Estado:** Pendiente de autorización.
 - **Paquetes afectados:** `@qap/knowledge`.
-- **Dependencias:** `VNEXT-002`.
+- **Dependencias:** `VNEXT-002` terminada; autorización nueva y verificación de compatibilidad del runtime SQLite en la matriz de Node/OS antes de fijar DDL. Reutilizar la suite contractual y agregar pruebas físicas de durabilidad, concurrencia y migración.
 - **Riesgo:** Medio.
 - **Alcance:** Implementar `SqliteKnowledgeAdapter` utilizando `node:sqlite` (`DatabaseSync`). Configurar modo WAL, foreign keys y transacciones atómicas. Crear DDL de tablas y esquema de migraciones.
 

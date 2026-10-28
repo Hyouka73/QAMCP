@@ -1,6 +1,6 @@
 # QAMCP vNext — Requisitos y decisiones de producto (BORRADOR VIVO)
 
-> Estado: requisitos principales definidos; arquitectura detallada y WBS actualizados tras revisión externa Etapa 0. **Autorización condicionada únicamente para VNEXT-001**.
+> Estado: VNEXT-001 cerrada previamente; VNEXT-002 implementada por autorización expresa del responsable el 2026-10-28. VNEXT-003 y posteriores pendientes de autorización. Continuidad en [STATE.md](STATE.md).
 > Rama de trabajo: `feat/qap-vnext-architecture` (creada desde `develop`).
 > Este documento registra solo decisiones confirmadas por el responsable del producto y cuestiones abiertas. No autoriza cambios sobre `develop`.
 

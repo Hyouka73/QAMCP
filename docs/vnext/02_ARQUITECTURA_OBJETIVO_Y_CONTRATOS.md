@@ -4,7 +4,7 @@
 - **Rama:** `feat/qap-vnext-architecture`
 - **Autor / Rol:** Principal Software Architect y Teamwork Lead
 - **Fecha:** Octubre 2026 (Revisión Arquitectónica Profunda — Etapa 0 Corregida)
-- **Estado:** Especificación Técnica Formal Actualizada (Autorización Condicionada VNEXT-001)
+- **Estado:** Contrato VNEXT-002 actualizado por autorización expresa (2026-10-28); adaptadores y tareas posteriores siguen pendientes.
 - **Referencias:** Decisiones D-001 a D-015 en `docs/vnext/REQUISITOS_Y_DECISIONES.md`.
 
 ---
@@ -100,67 +100,23 @@ Toda entidad de conocimiento se vincula formalmente con sus dimensiones operativ
 - **`cleanup_policy`:** Política de limpieza (`clear_cache_only`, `fresh_context`, `retain_session`, `isolated_storage`).
 - **`multimodal_evidence`:** Capturas con PII enmascarada, trazas HAR, snippets DOM.
 
-### 3.3 Contrato de Persistencia (`IKnowledgeStore`)
+### 3.3 Contrato de Persistencia (`IKnowledgeStore`) — VNEXT-002
 
-```typescript
-export interface IKnowledgeStore {
-  // Ciclo de Vida y Migración DDL
-  initialize(): Promise<void>;
-  close(): Promise<void>;
-  runMigrations(): Promise<void>;
+Contrato operativo definido en `packages/engine/src/knowledge-store.port.ts` y exportado
+por `@qap/engine`. Se corrige la ubicación inicial en knowledge: ese paquete ya depende
+de Engine y consumirlo en dirección inversa crearía un ciclo.
 
-  // Gestión de Aplicaciones, Entornos y Políticas
-  getApplication(appId: string): Promise<ApplicationContext | null>;
-  saveApplication(app: ApplicationContext): Promise<void>;
-  getEnvironments(appId: string): Promise<EnvironmentPolicy[]>;
-  saveEnvironment(env: EnvironmentPolicy): Promise<void>;
+Reutiliza las entidades canónicas de shared mediante consultas tipadas `get`, `query`,
+`history` y transacciones `commit`. Exige aislamiento por aplicación, paginación, revisiones
+optimistas, historial inmutable y referencias fijadas a revisiones; conserva los cuatro
+planos epistemológicos sin promover observaciones a requisitos confirmados.
 
-  // Observaciones e Inferencias
-  recordObservation(obs: ApplicationObservation): Promise<void>;
-  getObservations(filter: ObservationFilter): Promise<ApplicationObservation[]>;
-  recordInference(inf: AgentInference): Promise<void>;
-  getInferences(filter: InferenceFilter): Promise<AgentInference[]>;
-
-  // Requisitos Esperados y Reglas de Negocio
-  saveExpectedRequirement(req: ExpectedRequirement): Promise<void>;
-  getExpectedRequirements(filter: RequirementFilter): Promise<ExpectedRequirement[]>;
-
-  // Evaluaciones de Conformidad
-  recordConformityAssessment(assessment: ConformityAssessment): Promise<void>;
-  getConformityHistory(requirementId: string): Promise<ConformityAssessment[]>;
-
-  // Módulos, Vistas y Selectores (Resolución O(1) con Búsqueda Léxica)
-  saveModule(module: DomainModule): Promise<void>;
-  getModule(appId: string, moduleKey: string): Promise<DomainModule | null>;
-  saveView(view: DomainView): Promise<void>;
-  getViewsByModule(moduleId: string): Promise<DomainView[]>;
-  saveActionTargets(targets: ActionTarget[]): Promise<void>;
-  searchActionTargets(appId: string, query: string, limit?: number): Promise<ActionTarget[]>;
-
-  // Flujos de Prueba y Grafo de Dependencias (DAG)
-  saveFlow(flow: FlowScenario): Promise<void>;
-  getFlows(appId: string, filter?: FlowFilter): Promise<FlowScenario[]>;
-  getDependencyDAG(appId: string): Promise<DependencyDAG>;
-  recordDependency(dep: DependencyEdge): Promise<void>;
-
-  // Telemetría y Ejecución de Pruebas
-  recordTestRun(run: TestRun): Promise<void>;
-  recordStepExecution(step: TestStepExecution): Promise<void>;
-  getExecutionHistory(flowId: string, limit?: number): Promise<TestStepExecution[]>;
-
-  // Defectos e Incidentes (Admite Indeterminados)
-  recordDefect(defect: DefectRecord): Promise<void>;
-  updateDefectStatus(defectId: string, status: DefectStatus, notes?: string): Promise<void>;
-  listDefects(appId: string, filter?: DefectFilter): Promise<DefectRecord[]>;
-
-  // Portabilidad, Respaldo y Snapshot
-  exportSnapshot(appId: string): Promise<KnowledgeSnapshot>;
-  importSnapshot(snapshot: KnowledgeSnapshot, options?: ImportOptions): Promise<void>;
-}
-```
+La propuesta anterior de búsqueda FTS, telemetría, snapshots y migraciones dentro del puerto
+se sustituye por capacidades acotadas verificables. Esas extensiones requieren tareas
+posteriores y no están implementadas. Véase [decisión y contrato VNEXT-002](VNEXT-002_KNOWLEDGE_STORE.md).
 
 ### 3.4 Motor Local de Persistencia: `SqliteKnowledgeAdapter`
-- Implementado sobre `node:sqlite` (`DatabaseSync`), disponible en Node.js >= 22.5.0 LTS.
+- Previsto para VNEXT-003 sobre `node:sqlite` (`DatabaseSync`); no implementado en VNEXT-002. Verificar la matriz Node/OS antes de fijar runtime y DDL.
 - Modo WAL (`Write-Ahead Logging`) para concurrencia limpia entre lecturas y escrituras.
 - Tabla virtual FTS5 (`action_targets_fts`) para indexación léxica de selectores y etiquetas UI.
 - Despliegue self-hosted con PostgreSQL como adaptador opcional para organizaciones con equipos concurrentes centralizados (D-005).
