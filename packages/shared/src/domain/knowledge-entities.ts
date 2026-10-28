@@ -65,7 +65,8 @@ export interface ActionTarget {
   accessibility_label?: string;
   is_required?: boolean;
   certainty: CertaintyState;
-  confidence_score: number;  // 0.00 a 1.00
+  confidence?: number;       // 0.00 a 1.00 (VNEXT-001)
+  confidence_score: number;  // 0.00 a 1.00 (Alias retrocompatible)
   created_at: string;
   updated_at: string;
   superseded_by?: string;    // Puntero a nuevo selector si el elemento fue modificado
@@ -107,6 +108,21 @@ export type DefectClassification =
   | 'blocked_flow'           // Fallo de un prerrequisito anterior en el grafo DAG
   | 'indeterminate';         // Evidencia ambigua o insuficiente para determinar causa raíz
 
+/** Contrato formal de evidencia diagnóstica para evaluación de anomalías y defectos (VNEXT-001) */
+export interface DiagnosticEvidenceContract {
+  evidence_id: string;
+  type: string;
+  uri?: string;
+  timestamp: string;
+  hash?: string;
+  reproduction_trace?: string[];
+  network_har_ref?: string;
+  dom_snippet_ref?: string;
+  console_error_logs?: string[];
+  observed_behavior?: string;
+  expected_behavior?: string;
+}
+
 /** Registro formal de defecto o anomalía detectada */
 export interface DefectRecord {
   id: string;
@@ -116,11 +132,31 @@ export interface DefectRecord {
   classification: DefectClassification;
   http_status_code?: number;
   indeterminacy_reason?: string; // Obligatorio cuando classification === 'indeterminate'
-  observed_evidence: MultimodalEvidenceRef[];
+  observed_evidence: (MultimodalEvidenceRef | DiagnosticEvidenceContract)[];
   expected_requirement_id?: string;
   steps_to_reproduce: string[];
   detected_at: string;
   resolution_notes?: string;
+}
+
+/** Contrato de entrada para el clasificador semántico de defectos (QA Advisor en VNEXT-002+) */
+export interface DefectDiagnosisInput {
+  defect_id: string;
+  application_id?: string;
+  observed_evidence: DiagnosticEvidenceContract[];
+  telemetry?: Record<string, unknown>;
+  http_status_code?: number;
+  suspected_requirement_id?: string;
+}
+
+/** Resultado formal emitido por el clasificador semántico de defectos (QA Advisor en VNEXT-002+) */
+export interface DefectDiagnosisResult {
+  classification: DefectClassification;
+  confidence: number;
+  rationale: string;
+  is_conclusive: boolean;
+  indeterminacy_reason?: string;
+  recommended_actions?: string[];
 }
 
 /** Pregunta interactiva para entrevista de clarificación (QA Advisor / Human-in-the-Loop) */

@@ -34,13 +34,34 @@ export type RequirementCategory =
   | 'regression'
   | 'performance';
 
-/** Origen autoritativo de un requisito de negocio */
-export type RequirementSource =
+/** Estado de validación epistemológica formal (VNEXT-001) */
+export type ValidationStatus = 'draft' | 'confirmed' | 'contested' | 'archived';
+
+/** Estados legacy de validación para retrocompatibilidad */
+export type LegacyValidationStatus = 'pending_specification' | 'deprecated' | 'waived';
+
+/** Origen autoritativo y procedencia epistemológica de un requisito (VNEXT-001) */
+export type RequirementProvenance =
   | 'developer_interview'     // Confirmado directamente por el desarrollador en entrevista interactiva
   | 'authoritative_doc'       // Importado de documentación formal aprobada
   | 'formal_specification'    // Especificación OpenAPI, contrato de interfaz o PRD aprobado
   | 'legacy_manual_edit'      // Migrado desde v2.1 con flag manually_edited: true (precedencia alta, no infalible)
-  | 'developer_input';        // Provisto directamente por el desarrollador en el prompt/comando
+  | 'developer_input'         // Provisto directamente por el desarrollador en el prompt/comando
+  | 'observed_telemetry';     // Derivado de telemetría empírica (no autoritativo para confirmar sin oráculo)
+
+/** Alias retrocompatible para procedencia */
+export type RequirementSource = RequirementProvenance;
+
+/** Registro o referencia de evidencia autoritativa de verificación (VNEXT-001) */
+export interface VerificationEvidenceRecord {
+  mechanism: 'oracle' | 'formal_test' | 'developer_signoff' | 'human_review' | 'specification_assertion';
+  evidence_ref?: string;
+  verified_at: string;
+  statement?: string;
+}
+
+/** Alias de referencia para evidencia de verificación */
+export type VerificationEvidenceRef = VerificationEvidenceRecord;
 
 /**
  * 1. PLANO DE OBSERVACIÓN: Lo que la aplicación hace empíricamente.
@@ -94,7 +115,8 @@ export interface AgentInference {
     | 'rule_hypothesis'
     | 'risk_assessment';
   hypothesis: string;
-  confidence_score: number; // 0.00 a 1.00
+  confidence?: number;      // 0.00 a 1.00 (VNEXT-001)
+  confidence_score: number; // Alias retrocompatible
   reasoning: string;
   status: 'inferred' | 'pending_review' | 'refuted';
   supporting_observation_ids: string[];
@@ -105,6 +127,13 @@ export interface AgentInference {
 
 /**
  * 3. PLANO DE REQUISITO ESPERADO: Lo que el negocio o desarrollador estipula que DEBE ocurrir.
+ * 
+ * Separa formalmente (VNEXT-001 / R1):
+ * - Identidad declarada (verified_by)
+ * - Evidencia autoritativa de verificación (verification_evidence)
+ * - Estado de validación (validation_status / status)
+ * - Nivel de confianza numérico (confidence / confidence_score)
+ * - Procedencia (provenance / source)
  */
 export interface ExpectedRequirement {
   id: string;
@@ -113,10 +142,22 @@ export interface ExpectedRequirement {
   title: string;
   description: string;
   category: RequirementCategory;
-  status: 'confirmed' | 'pending_specification' | 'deprecated' | 'waived';
-  source: RequirementSource;
-  confidence_score: number; // 1.0 para desarrollador; calibrado (0.85-0.90) para legacy_manual_edit
-  verified_by?: string;     // 'developer', 'qa_lead', 'spec_import'
+  /** Estado de validación epistemológica formal (VNEXT-001) */
+  validation_status?: ValidationStatus;
+  /** Alias retrocompatible para validation_status */
+  status?: ValidationStatus | LegacyValidationStatus;
+  /** Procedencia u origen autoritativo formal (VNEXT-001) */
+  provenance?: RequirementProvenance;
+  /** Alias retrocompatible para provenance */
+  source?: RequirementSource;
+  /** Nivel de confianza numérico [0.0, 1.0] (VNEXT-001) */
+  confidence?: number;
+  /** Alias retrocompatible para confidence */
+  confidence_score?: number;
+  /** Identidad declarada del agente o revisor (NO constituye autoridad por sí sola) */
+  verified_by?: string;
+  /** Evidencia técnica autoritativa de verificación (VNEXT-001) */
+  verification_evidence?: VerificationEvidenceRecord | VerificationEvidenceRecord[];
   created_at: string;
   superseded_by?: string;   // Si fue modificado/invalidado por un cambio posterior, apunta al nuevo ID
   is_active: boolean;

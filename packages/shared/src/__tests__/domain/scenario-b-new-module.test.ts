@@ -1,3 +1,23 @@
+/**
+ * ============================================================================
+ * NOTA DE ALCANCE Y DELIMITACIÓN DE DISEÑO — VNEXT-001 (Escenario B)
+ * ============================================================================
+ * Este archivo valida EXCLUSIVAMENTE la representación sintética en memoria de
+ * contratos de módulos, relaciones de dependencias DAG, preguntas de clarificación
+ * y recomendaciones de prueba.
+ * 
+ * CAPACIDADES NO IMPLEMENTADAS EN VNEXT-001 (Planificadas para VNEXT-002+):
+ * - Motor interactivo de entrevistas CLI / Human-in-the-Loop en tiempo de ejecución.
+ * - Generador automático de preguntas aclaratorias mediante LLM.
+ * - Motor heurístico/algorítmico del QA Advisor para inferir suites de prueba.
+ * - Persistencia relacional en base de datos SQLite.
+ * 
+ * Este conjunto de pruebas clasifica y delimita:
+ * 1. Representación del modelo de dominio (contratos de módulos, preguntas y recomendaciones).
+ * 2. Validación de invariantes de esquema y consistencia de dependencias en memoria.
+ * ============================================================================
+ */
+
 import { describe, it, expect } from 'vitest';
 import type {
   DomainModule,
@@ -7,10 +27,10 @@ import type {
 } from '../../domain/index.js';
 import { validateDomainModule } from '../../domain/index.js';
 
-describe('VNEXT-001 / Escenario B — Módulo Nuevo (Feature Addition & Advisory)', () => {
+describe('VNEXT-001 / Escenario B — Representación Sintética de Dominio: Módulo Nuevo (Feature Addition & Advisory Contracts)', () => {
   const appId = 'app_saas_platform';
 
-  // 1. Conocimiento previo existente en el sistema
+  // 1. Fixture sintético: Conocimiento previo existente en el catálogo en memoria
   const existingAuthModule: DomainModule = {
     id: 'mod_auth_001',
     application_id: appId,
@@ -37,8 +57,8 @@ describe('VNEXT-001 / Escenario B — Módulo Nuevo (Feature Addition & Advisory
     is_active: true,
   };
 
-  it('debe registrar el nuevo módulo y resolver dependencias en el grafo DAG contra el conocimiento previo', () => {
-    // El desarrollador informa que agregó el módulo de Suscripciones
+  it('[Representación de Modelo] debe registrar el nuevo módulo y resolver dependencias en el grafo DAG contra conocimiento previo en memoria', () => {
+    // Fixture sintético: Representación de módulo nuevo
     const newSubscriptionModule: DomainModule = {
       id: 'mod_subscriptions_003',
       application_id: appId,
@@ -56,7 +76,7 @@ describe('VNEXT-001 / Escenario B — Módulo Nuevo (Feature Addition & Advisory
     const modValidation = validateDomainModule(newSubscriptionModule);
     expect(modValidation.valid).toBe(true);
 
-    // Verificar que las dependencias existen en el catálogo previo
+    // Verificar que las dependencias existen en el catálogo sintético previo
     const existingKeys = [existingAuthModule.key, existingCustomerModule.key];
     const missingDeps = newSubscriptionModule.dependencies.filter((dep) => !existingKeys.includes(dep));
     expect(missingDeps).toHaveLength(0);
@@ -64,8 +84,8 @@ describe('VNEXT-001 / Escenario B — Módulo Nuevo (Feature Addition & Advisory
     expect(newSubscriptionModule.dependencies).toContain('customers');
   });
 
-  it('debe permitir formular preguntas estructuradas al desarrollador ante ambigüedad de reglas de negocio', () => {
-    // Al no tener especificado el comportamiento de los periodos de prueba, formula 1 pregunta por turno
+  it('[Representación de Modelo] debe modelar preguntas estructuradas al desarrollador ante ambigüedad de reglas de negocio', () => {
+    // Fixture sintético de contrato de pregunta interactiva
     const interviewQuestion: ClarificationQuestion = {
       id: 'q_subscription_trial_policy',
       module_key: 'subscriptions',
@@ -89,7 +109,7 @@ describe('VNEXT-001 / Escenario B — Módulo Nuevo (Feature Addition & Advisory
     expect(interviewQuestion.options).toHaveLength(2);
     expect(interviewQuestion.options[0]?.recommended).toBe(true);
 
-    // Simular respuesta del desarrollador
+    // Simular mutación de respuesta en el contrato
     interviewQuestion.selected_option_id = 'opt_require_card';
     interviewQuestion.status = 'answered';
 
@@ -97,8 +117,8 @@ describe('VNEXT-001 / Escenario B — Módulo Nuevo (Feature Addition & Advisory
     expect(interviewQuestion.selected_option_id).toBe('opt_require_card');
   });
 
-  it('debe recomendar suite de pruebas por categorías (funcional, reglas, seguridad, UI, UX, regresión) según el riesgo', () => {
-    // Recomendaciones del QA Advisor según la criticidad financiera alta
+  it('[Representación de Modelo] debe estructurar recomendaciones de prueba por categorías según nivel de riesgo', () => {
+    // Fixture sintético de recomendaciones conforme al contrato de TestRecommendation
     const recommendations: TestRecommendation[] = [
       {
         category: 'functional',

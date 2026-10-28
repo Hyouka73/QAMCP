@@ -37,9 +37,187 @@ export interface DomainValidationResult {
 }
 
 /**
+ * Valida de forma estricta y defensiva en tiempo de ejecución un valor numérico de confianza.
+ * Rechaza tajantemente NaN, valores no numéricos (strings, objetos, arreglos, booleanos),
+ * infinitos y números fuera del intervalo [0.0, 1.0].
+ */
+export function validateConfidenceValue(
+  confidence: unknown,
+  fieldName: string = 'confidence'
+): DomainValidationResult & { error?: string } {
+  const violations: InvariantViolation[] = [];
+  if (
+    typeof confidence !== 'number' ||
+    Number.isNaN(confidence) ||
+    !Number.isFinite(confidence) ||
+    confidence < 0.0 ||
+    confidence > 1.0
+  ) {
+    const receivedDesc =
+      typeof confidence === 'number' && Number.isNaN(confidence)
+        ? 'NaN'
+        : typeof confidence === 'number' && !Number.isFinite(confidence)
+        ? String(confidence)
+        : typeof confidence === 'string'
+        ? `"${confidence}"`
+        : String(confidence);
+
+    const message = `El valor de confianza debe ser un número finito entre 0.0 y 1.0. Recibido: ${receivedDesc}`;
+    violations.push({
+      code: 'INVALID_CONFIDENCE_SCORE_RANGE',
+      field: fieldName,
+      message,
+      severity: 'error',
+    });
+    return {
+      valid: false,
+      violations,
+      error: message,
+    };
+  }
+
+  return {
+    valid: true,
+    violations: [],
+  };
+}
+
+/** Encabezados HTTP sensibles sujetos a sanitización en tiempo de ejecución (VNEXT-001) */
+export const SENSITIVE_HTTP_HEADERS = [
+  'authorization',
+  'cookie',
+  'set-cookie',
+  'x-api-key',
+  'proxy-authorization',
+] as const;
+
+/** Claves canónicas de credenciales sujetas a redacción en payloads (VNEXT-001) */
+export const SENSITIVE_CREDENTIAL_KEYS = [
+  'password',
+  'passwd',
+  'secret',
+  'token',
+  'raw_token',
+  'api_key',
+  'apikey',
+  'private_key',
+] as const;
+
+/** Resultado de validación y sanitización superficial de payloads */
+export interface ObservationValidationResult extends DomainValidationResult {
+  sanitized_payload?: unknown;
+  redacted_keys: string[];
+}
+
+/**
+ * Sanitiza encabezados HTTP conocidos de forma no destructiva.
+ */
+export function sanitizeHttpHeaders(
+  headers?: Record<string, string>
+): Record<string, string> | undefined {
+  if (!headers || typeof headers !== 'object') return headers;
+  const sanitized: Record<string, string> = {};
+  for (const [key, value] of Object.entries(headers)) {
+    const lowerKey = key.toLowerCase();
+    if (SENSITIVE_HTTP_HEADERS.includes(lowerKey as any)) {
+      sanitized[key] = '[REDACTED]';
+    } else {
+      sanitized[key] = value;
+    }
+  }
+  return sanitized;
+}
+
+/**
+ * Valida y sanitiza superficialmente un payload u observación en el límite de contrato.
+ * 
+ * LÍMITES DE SEGURIDAD Y FRONTERA CONTRACTUAL (VNEXT-001):
+ * Esta función ejecuta una redacción superficial (shallow redaction) de encabezados HTTP
+ * sensibles conocidos ('authorization', 'cookie', 'set-cookie', 'x-api-key', 'proxy-authorization')
+ * y claves canónicas de credenciales de primer nivel ('password', 'token', 'secret', 'apiKey').
+ * 
+ * No declara ni pretende ofrecer protección integral contra filtraciones en estructuras
+ * profundamente anidadas, strings serializados o payloads binarios arbitrarios.
+ * La desinfección profunda (deep payload sanitization) corresponde exclusivamente al
+ * pipeline de ingesta (@qap/knowledge) y a los extractores de telemetría especializados.
+ */
+export function validateObservationPayload(payload: unknown): ObservationValidationResult {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return {
+      valid: false,
+      violations: [
+        {
+          code: 'INVALID_PAYLOAD_TYPE',
+          field: 'payload',
+          message: 'El payload de observación debe ser un objeto no nulo.',
+          severity: 'error',
+        },
+      ],
+      redacted_keys: [],
+    };
+  }
+
+  const copy = { ...(payload as Record<string, unknown>) };
+  const redacted_keys: string[] = [];
+
+  for (const [key, value] of Object.entries(copy)) {
+    const lowerKey = key.toLowerCase();
+    if (SENSITIVE_CREDENTIAL_KEYS.includes(lowerKey as any)) {
+      copy[key] = '[REDACTED]';
+      redacted_keys.push(key);
+    } else if (lowerKey === 'headers' && value && typeof value === 'object' && !Array.isArray(value)) {
+      const sanitizedH: Record<string, unknown> = {};
+      for (const [hKey, hVal] of Object.entries(value as Record<string, unknown>)) {
+        if (SENSITIVE_HTTP_HEADERS.includes(hKey.toLowerCase() as any)) {
+          sanitizedH[hKey] = '[REDACTED]';
+          redacted_keys.push(`headers.${hKey}`);
+        } else {
+          sanitizedH[hKey] = hVal;
+        }
+      }
+      copy[key] = sanitizedH;
+    }
+  }
+
+  if (
+    copy.network_event &&
+    typeof copy.network_event === 'object' &&
+    !Array.isArray(copy.network_event)
+  ) {
+    const netEvent = { ...(copy.network_event as Record<string, unknown>) };
+    if (
+      netEvent.request_headers &&
+      typeof netEvent.request_headers === 'object' &&
+      !Array.isArray(netEvent.request_headers)
+    ) {
+      const sanitizedReqH: Record<string, unknown> = {};
+      for (const [hKey, hVal] of Object.entries(netEvent.request_headers as Record<string, unknown>)) {
+        if (SENSITIVE_HTTP_HEADERS.includes(hKey.toLowerCase() as any)) {
+          sanitizedReqH[hKey] = '[REDACTED]';
+          redacted_keys.push(`network_event.request_headers.${hKey}`);
+        } else {
+          sanitizedReqH[hKey] = hVal;
+        }
+      }
+      netEvent.request_headers = sanitizedReqH;
+    }
+    copy.network_event = netEvent;
+  }
+
+  return {
+    valid: true,
+    violations: [],
+    sanitized_payload: copy,
+    redacted_keys,
+  };
+}
+
+/**
  * Valida un Requisito Esperado frente a las invariantes epistemológicas.
  * Invariante D-011: Una regla de negocio NO puede ser 'confirmed' por sondas activas o crawler.
  * Invariante D-012: 'legacy_manual_edit' no debe tener certeza absoluta (1.0).
+ * Invariante R1: La mera presencia de verified_by (ej. 'legacy_migration') NO justifica confirmed
+ * sin evidencia autoritativa de verificación.
  */
 export function validateExpectedRequirement(req: ExpectedRequirement): DomainValidationResult {
   const violations: InvariantViolation[] = [];
@@ -54,14 +232,34 @@ export function validateExpectedRequirement(req: ExpectedRequirement): DomainVal
     });
   }
 
-  // Invariante D-011: Prohibida la confirmación de requisitos esperados mediante sondas
-  if (req.status === 'confirmed') {
-    const invalidSources = ['active_probe', 'crawler', 'network_intercept'] as unknown as string[];
-    if (invalidSources.includes(req.source)) {
+  const status = req.validation_status ?? req.status;
+  if (!status) {
+    violations.push({
+      code: 'REQUIRED_FIELD_MISSING',
+      field: 'validation_status | status',
+      message: 'El requisito esperado debe contener validation_status o status.',
+      severity: 'error',
+    });
+  }
+
+  const provenance = req.provenance ?? req.source;
+  if (!provenance) {
+    violations.push({
+      code: 'REQUIRED_FIELD_MISSING',
+      field: 'provenance | source',
+      message: 'El requisito esperado debe contener provenance o source.',
+      severity: 'error',
+    });
+  }
+
+  // Invariante D-011: Prohibida la confirmación de requisitos esperados mediante sondas o telemetría empírica
+  if (status === 'confirmed') {
+    const invalidSources = ['active_probe', 'crawler', 'network_intercept', 'observed_telemetry'] as unknown as string[];
+    if (provenance && invalidSources.includes(provenance)) {
       violations.push({
         code: 'EPISTEMIC_VIOLATION_PROBE_CANNOT_CONFIRM_REQUIREMENT',
-        field: 'source',
-        message: `Invariante D-011 violada: Una sonda de aplicación o crawler no puede promover un requisito a 'confirmed'. Origen: '${req.source}'. Se requiere confirmación del desarrollador o especificación autoritativa.`,
+        field: req.provenance ? 'provenance' : 'source',
+        message: `Invariante D-011 violada: Una sonda de aplicación, crawler o telemetría empírica no puede promover un requisito a 'confirmed'. Origen: '${provenance}'. Se requiere confirmación del desarrollador o especificación autoritativa.`,
         severity: 'error',
       });
     }
@@ -74,26 +272,52 @@ export function validateExpectedRequirement(req: ExpectedRequirement): DomainVal
         severity: 'error',
       });
     }
+
+    // Invariante R1: Requisitos migrados desde legacy_manual_edit no pueden confirmarse
+    // automáticamente por la sola presencia de un identificador en verified_by
+    if (provenance === 'legacy_manual_edit') {
+      const hasEvidence = Array.isArray(req.verification_evidence)
+        ? req.verification_evidence.length > 0
+        : !!req.verification_evidence;
+
+      if (!hasEvidence) {
+        violations.push({
+          code: 'LEGACY_MIGRATION_CONFIRMATION_WITHOUT_EVIDENCE_FORBIDDEN',
+          field: 'verification_evidence',
+          message: `Invariante R1 violada: Un requisito con procedencia 'legacy_manual_edit' no puede pasar a 'confirmed' únicamente por la presencia de verified_by ('${req.verified_by ?? ''}') sin evidencia autoritativa de verificación ('verification_evidence'). Debe permanecer en 'draft' o adjuntar evidencia formal.`,
+          severity: 'error',
+        });
+      }
+    }
   }
 
   // Invariante D-012: legacy_manual_edit no puede tener certeza absoluta (1.0)
-  if (req.source === 'legacy_manual_edit') {
-    if (req.confidence_score >= 1.0) {
+  const confidence = req.confidence !== undefined ? req.confidence : req.confidence_score;
+  if (provenance === 'legacy_manual_edit' && typeof confidence === 'number' && !Number.isNaN(confidence)) {
+    if (confidence >= 1.0) {
       violations.push({
         code: 'LEGACY_MANUAL_EDIT_ABSOLUTE_CERTAINTY_FORBIDDEN',
-        field: 'confidence_score',
-        message: `Invariante D-012 violada: 'legacy_manual_edit' no puede tener certeza absoluta (confidence_score >= 1.0). Valor recibido: ${req.confidence_score}. Debe calibrarse (<= 0.95) y admitir revisión.`,
+        field: req.confidence !== undefined ? 'confidence' : 'confidence_score',
+        message: `Invariante D-012 violada: 'legacy_manual_edit' no puede tener certeza absoluta (confidence_score >= 1.0). Valor recibido: ${confidence}. Debe calibrarse (<= 0.95) y admitir revisión.`,
         severity: 'error',
       });
     }
   }
 
-  // Rango de confianza
-  if (req.confidence_score < 0 || req.confidence_score > 1.0) {
+  // Validación estricta y defensiva en runtime del valor de confianza
+  if (confidence !== undefined) {
+    const confRes = validateConfidenceValue(
+      confidence,
+      req.confidence !== undefined ? 'confidence' : 'confidence_score'
+    );
+    if (!confRes.valid) {
+      violations.push(...confRes.violations);
+    }
+  } else {
     violations.push({
-      code: 'INVALID_CONFIDENCE_SCORE_RANGE',
-      field: 'confidence_score',
-      message: `El score de confianza debe estar entre 0.0 y 1.0. Recibido: ${req.confidence_score}`,
+      code: 'REQUIRED_FIELD_MISSING',
+      field: 'confidence | confidence_score',
+      message: 'El requisito esperado debe definir confidence o confidence_score.',
       severity: 'error',
     });
   }
@@ -119,13 +343,13 @@ export function validateAgentInference(inf: AgentInference): DomainValidationRes
     });
   }
 
-  if (inf.confidence_score < 0 || inf.confidence_score > 1.0) {
-    violations.push({
-      code: 'INVALID_CONFIDENCE_SCORE_RANGE',
-      field: 'confidence_score',
-      message: `El score de confianza de la inferencia debe estar entre 0.0 y 1.0. Recibido: ${inf.confidence_score}`,
-      severity: 'error',
-    });
+  const conf = inf.confidence !== undefined ? inf.confidence : inf.confidence_score;
+  const confRes = validateConfidenceValue(
+    conf,
+    inf.confidence !== undefined ? 'confidence' : 'confidence_score'
+  );
+  if (!confRes.valid) {
+    violations.push(...confRes.violations);
   }
 
   return {
@@ -273,9 +497,11 @@ export function validatePrerequisiteDefinition(prereq: PrerequisiteDefinition): 
 }
 
 /**
- * Valida el Registro de Defecto (D-014).
- * Invariante D-014: Prohibido diagnosticar conclusivamente 'product_bug' basándose exclusivamente
- * en un código HTTP 500 sin comprobación de regla de negocio esperada.
+ * Valida el Registro de Defecto (D-014 / R2).
+ * Invariante D-014: Prohibido diagnosticar conclusivamente cualquier defecto
+ * sin evidencia técnica observada que respalde el diagnóstico.
+ * Si la evidencia es insuficiente, vacía o ambigua, debe permanecer en 'indeterminate'.
+ * Desacoplado de códigos HTTP específicos (no asume causalidad por simple HTTP 500).
  */
 export function validateDefectRecord(defect: DefectRecord): DomainValidationResult {
   const violations: InvariantViolation[] = [];
@@ -289,19 +515,27 @@ export function validateDefectRecord(defect: DefectRecord): DomainValidationResu
     });
   }
 
-  // Invariante D-014: HTTP 500 sin requisito esperado violado ni corroboración no puede ser concluyente product_bug
-  if (
-    defect.classification === 'product_bug' &&
-    defect.http_status_code === 500 &&
-    !defect.expected_requirement_id &&
-    (!defect.observed_evidence || defect.observed_evidence.length === 0)
-  ) {
-    violations.push({
-      code: 'CONCLUSIVE_DIAGNOSIS_FROM_HTTP_CODE_FORBIDDEN',
-      field: 'classification',
-      message: "Invariante D-014 violada: No se puede clasificar conclusivamente como 'product_bug' basándose únicamente en HTTP 500 sin requisito esperado violado ni evidencia técnica corroborada. Debe marcarse como 'indeterminate'.",
-      severity: 'error',
-    });
+  // Invariante D-014 / R2: Cualquier clasificación concluyente (product_bug, environment_error, etc.)
+  // requiere estructuralmente evidencia observada válida y no vacía.
+  if (defect.classification && defect.classification !== 'indeterminate') {
+    if (!defect.observed_evidence || defect.observed_evidence.length === 0) {
+      violations.push({
+        code: 'CONCLUSIVE_DIAGNOSIS_REQUIRES_EVIDENCE',
+        field: 'observed_evidence',
+        message: `Invariante D-014 violada: No se puede emitir una clasificación concluyente ('${defect.classification}') sin evidencia técnica observada válida. Si las evidencias son insuficientes o vacías, el defecto debe permanecer en 'indeterminate'.`,
+        severity: 'error',
+      });
+
+      // Preservar código histórico D-014 cuando coincida con HTTP 500 para compatibilidad hacia atrás
+      if (defect.http_status_code === 500) {
+        violations.push({
+          code: 'CONCLUSIVE_DIAGNOSIS_FROM_HTTP_CODE_FORBIDDEN',
+          field: 'classification',
+          message: "Invariante D-014 violada: No se puede clasificar conclusivamente como 'product_bug' basándose únicamente en HTTP 500 sin requisito esperado violado ni evidencia técnica corroborada. Debe marcarse como 'indeterminate'.",
+          severity: 'error',
+        });
+      }
+    }
   }
 
   // Si es indeterminate, debe registrar indeterminacy_reason
@@ -377,13 +611,13 @@ export function validateActionTarget(target: ActionTarget): DomainValidationResu
     });
   }
 
-  if (target.confidence_score < 0 || target.confidence_score > 1.0) {
-    violations.push({
-      code: 'INVALID_CONFIDENCE_SCORE_RANGE',
-      field: 'confidence_score',
-      message: `El score de confianza debe estar entre 0.0 y 1.0. Recibido: ${target.confidence_score}`,
-      severity: 'error',
-    });
+  const conf = target.confidence !== undefined ? target.confidence : target.confidence_score;
+  const confRes = validateConfidenceValue(
+    conf,
+    target.confidence !== undefined ? 'confidence' : 'confidence_score'
+  );
+  if (!confRes.valid) {
+    violations.push(...confRes.violations);
   }
 
   return {

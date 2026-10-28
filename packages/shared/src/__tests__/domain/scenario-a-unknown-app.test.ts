@@ -1,3 +1,22 @@
+/**
+ * ============================================================================
+ * NOTA DE ALCANCE Y DELIMITACIÓN DE DISEÑO — VNEXT-001 (Escenario A)
+ * ============================================================================
+ * Este archivo valida EXCLUSIVAMENTE contratos de datos e invariantes epistemológicas
+ * en memoria utilizando fixtures sintéticos.
+ * 
+ * CAPACIDADES NO IMPLEMENTADAS EN VNEXT-001 (Planificadas para VNEXT-002+):
+ * - Crawler real / navegación Playwright en vivo contra URLs remotas.
+ * - Captura física de capturas de pantalla o almacenamiento de archivos.
+ * - Persistencia en base de datos SQLite relacional.
+ * - Motor de inferencia semántica o QA Advisor en tiempo real.
+ * 
+ * Este conjunto de pruebas clasifica y delimita:
+ * 1. Representación del modelo de dominio (fixtures sintéticos de observación empírica e inferencia).
+ * 2. Validación de invariantes epistemológicas (D-011: prohibición de confirmación por sondas).
+ * ============================================================================
+ */
+
 import { describe, it, expect } from 'vitest';
 import type {
   ApplicationContext,
@@ -15,8 +34,8 @@ import {
   validateExpectedRequirement,
 } from '../../domain/index.js';
 
-describe('VNEXT-001 / Escenario A — Aplicación Desconocida (Black-Box Discovery)', () => {
-  // 1. QAP recibe únicamente una URL base
+describe('VNEXT-001 / Escenario A — Representación Sintética de Dominio: Aplicación Desconocida (Black-Box Discovery)', () => {
+  // 1. Fixture sintético: Representación de contexto de aplicación con URL base (no ejecuta crawler real)
   const unknownAppUrl = 'https://app.example.com';
   const appContext: ApplicationContext = {
     application_id: 'app_crm_unknown',
@@ -35,8 +54,8 @@ describe('VNEXT-001 / Escenario A — Aplicación Desconocida (Black-Box Discove
     safe_domains: ['app.example.com'],
   };
 
-  it('debe registrar módulos, vistas y elementos observados en el plano empírico de observación', () => {
-    // Observación de red pasiva inicial
+  it('[Representación de Modelo] debe registrar módulos, vistas y elementos observados en el plano empírico de observación sintético', () => {
+    // Fixture sintético de contrato: Representación de observación de red en plano empírico
     const initialNavObservation: ApplicationObservation = {
       id: 'obs_nav_001',
       application_id: appContext.application_id,
@@ -113,8 +132,8 @@ describe('VNEXT-001 / Escenario A — Aplicación Desconocida (Black-Box Discove
     expect(submitBtn.element_type).toBe('button');
   });
 
-  it('debe distinguir formalmente las inferencias del agente con su índice de confianza', () => {
-    // Inferencia de que el campo email es obligatorio por asterisco visible en el label
+  it('[Representación de Modelo] debe distinguir formalmente las inferencias del agente con su índice de confianza sintético', () => {
+    // Fixture sintético: Inferencia de que el campo email es obligatorio por asterisco visible en el label
     const emailFieldInference: AgentInference = {
       id: 'inf_email_required',
       application_id: appContext.application_id,
@@ -135,8 +154,8 @@ describe('VNEXT-001 / Escenario A — Aplicación Desconocida (Black-Box Discove
     expect(emailFieldInference.confidence_score).toBe(0.70);
   });
 
-  it('debe mantener reglas de negocio cuyo comportamiento esperado se desconoce como pending_specification', () => {
-    // Regla de negocio cuyo comportamiento de validación y límites todavía no ha sido confirmado
+  it('[Representación de Modelo] debe mantener reglas de negocio cuyo comportamiento esperado se desconoce como pending_specification', () => {
+    // Fixture sintético: Regla de negocio cuyo comportamiento de validación y límites todavía no ha sido confirmado
     const unknownBusinessRule: ExpectedRequirement = {
       id: 'req_auth_lockout_policy',
       application_id: appContext.application_id,
@@ -156,8 +175,8 @@ describe('VNEXT-001 / Escenario A — Aplicación Desconocida (Black-Box Discove
     expect(unknownBusinessRule.status).toBe('pending_specification');
   });
 
-  it('invariante crítica: una sonda activa que reproduce el comportamiento de la app NO promueve la regla a confirmed', () => {
-    // 1. Se ejecuta una sonda activa no destructiva: presionar submit vacío
+  it('[Validación de Invariantes D-011] una sonda activa sintética que reproduce comportamiento de app NO promueve la regla a confirmed', () => {
+    // 1. Fixture sintético: Representación de observación generada por sonda activa
     const probeObservation: ApplicationObservation = {
       id: 'obs_probe_empty_submit',
       application_id: appContext.application_id,
@@ -189,7 +208,7 @@ describe('VNEXT-001 / Escenario A — Aplicación Desconocida (Black-Box Discove
     expect(probeValidation.valid).toBe(true);
     expect(probeObservation.probe_execution?.reproducible).toBe(true);
 
-    // 2. Intentar promover una regla de negocio a 'confirmed' usando la sonda como fuente autoritativa debe ser RECHAZADO por el validador
+    // 2. Invariante D-011: Intentar promover una regla de negocio a 'confirmed' usando la sonda como fuente autoritativa debe ser RECHAZADO por el validador
     const invalidlyPromotedRule: ExpectedRequirement = {
       id: 'req_auth_validation_banner',
       application_id: appContext.application_id,
