@@ -1,6 +1,7 @@
 // @qap/engine - QA Agent Platform Engine
 
 export * from './ports.js';
+export * from './action-target-search.port.js';
 export * from './engine.js';
 export * from './lifecycle.js';
 export * from './interview-engine.js';
