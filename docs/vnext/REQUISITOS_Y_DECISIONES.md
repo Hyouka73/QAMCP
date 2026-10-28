@@ -1,6 +1,6 @@
 # QAMCP vNext — Requisitos y decisiones de producto (BORRADOR VIVO)
 
-> Estado: VNEXT-001 cerrada previamente; VNEXT-002 y VNEXT-003 implementadas por autorización expresa del responsable el 2026-10-28. VNEXT-004 y posteriores pendientes de autorización. Continuidad en [STATE.md](STATE.md).
+> Estado: VNEXT-001 a VNEXT-005 terminadas por autorización expresa del responsable el 2026-10-28. VNEXT-006 y posteriores pendientes de autorización. Continuidad en [STATE.md](STATE.md).
 > Rama de trabajo: `feat/qap-vnext-architecture` (creada desde `develop`).
 > Este documento registra solo decisiones confirmadas por el responsable del producto y cuestiones abiertas. No autoriza cambios sobre `develop`.
 
@@ -88,7 +88,7 @@ Se establece una separación estricta entre:
 ## Requisitos abiertos y verificación empírica previa (no asumir como aprobados)
 1. **Verificación de Entorno de Ejecución Node.js:** Validar matriz de compatibilidad de `node:sqlite` (`DatabaseSync`) en versiones LTS (Node 20.x mediante flag/fallback vs Node 22.x nativo) en Windows, Linux y macOS antes de fijar DDL final.
 2. **Verificación de Distribución `npx` Zero-Config:** Evaluar tamaño de paquete, arranque sin compilación C++ nativa y estrategia de aprovisionamiento de navegadores Playwright (reutilización de binarios del sistema vs descarga bajo demanda) antes de implementar Hito 5.
-3. **Verificación de Bóveda Escalonada de Credenciales:** Probar comportamiento del fallback criptográfico AES-256-GCM + PBKDF2 en contenedores CI/CD desprovistos de servicios de keychain del sistema operativo antes de implementar Hito 1.
+3. **Verificación de Bóveda Escalonada de Credenciales:** VNEXT-005 implementó selección explícita de proveedor, AES-256-GCM + scrypt en lugar del PBKDF2 propuesto, y bloqueo recuperable sin secretos, según autorización específica. Windows/Node 24 y keychain real verificados; contenedores CI/CD, Linux/macOS y npx limpio siguen pendientes. No hay fallback silencioso. [Diseño y límites](VNEXT-005_CREDENTIAL_VAULT.md).
 4. **Modelo de pruebas por tipo, criticidad y planificación/cobertura de flujos en DAG.**
 5. **Criterios operativos empíricos para contradicciones y resolución de conflictos de conocimiento.**
 6. **Política de cambios entre ramas y mecanismo de integración cuando evoluciona `develop`.**

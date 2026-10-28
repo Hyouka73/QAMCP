@@ -4,64 +4,67 @@ Actualizado: 2026-10-28. Agente principal único.
 
 ## Estado y alcance
 
-**VNEXT-001 a VNEXT-004 terminadas** por autorización expresa.
-Detener aquí. VNEXT-005 y posteriores requieren nueva autorización.
+**VNEXT-001 a VNEXT-005 terminadas** por autorización expresa.
+Detener aquí. VNEXT-006 y posteriores requieren nueva autorización.
 Leer este archivo y el WBS antes de elegir trabajo ante «continúa».
 
-## Rama y commits
+## Rama y cambios ajenos
 
 - Rama exclusiva: `feat/qap-vnext-architecture`. No editar/integrar develop ni main.
-- Base VNEXT-004 verificada: `74df4bd71ed344bd12a6766f7648dfe88fd06805`.
-- Commits de entrega: `git log --oneline 74df4bd..HEAD` en esta rama.
+- Base VNEXT-005: `76ddfd4d31edda48deaf94f0b603fcb5a906085e`.
+- Entrega: `git log --oneline 76ddfd4..HEAD` en esta rama.
 - Cambio previo del usuario en `packages/playwright-runner/.qa/cache/sessions/admin-user.json`
-  conservado y excluido de la entrega. No usar bases personales/Reporter para pruebas.
+  conservado y excluido. Hash Git de contenido antes/después de verificaciones:
+  `28e1b8dbec7ccf194440cc4158ec6072c9b9ade4`. No usar bases personales/Reporter.
 
-## Decisiones vigentes
+## Credenciales VNEXT-005
 
-- Dependencias `shared ← engine ← knowledge`; IKnowledgeStore v1 sin cambios.
-- Puerto complementario IActionTargetSearch en Engine; SqliteKnowledgeAdapter implementa
-  búsqueda FTS5 optativa. No reemplaza FileSystemStorage ni añade herramientas MCP.
-- Esquema v2: DDL/checksum v1 congelados, migración explícita v1→v2 con backfill de últimos
-  ActionTargets, proyección STRICT/FK y FTS5 de etiqueta/selector/alternativas/tipo.
-- Triggers indexan dentro de la transacción de revisiones. WAL/FK/FULL, CAS y rollback total;
-  historia/enlaces/procedencia se conservan. Lectores solo observan datos confirmados.
-- Consultas literales Unicode OR parametrizadas, máximo 2048 unidades UTF-16/64 palabras;
-  límite 1..100. Solo revisión actual, activa por defecto. Filtros reales por aplicación,
-  vista, módulo (vista fijada), entorno y rol. BM25 ponderado; sin semántica profunda.
-- Apertura comprueba capacidad FTS5, marca QAPK, versiones/checksums/catálogo, integridad/FK,
-  FTS/contenido externo y concordancia de proyección. Rechaza bases ajenas/futuras/drift.
-  Sin FTS5: UNAVAILABLE antes de migrar; v1 poblada permanece idéntica byte por byte.
-- Cursores de IKnowledgeStore v1 conservan formato/clave/versiones durante la migración;
-  commits posteriores siguen invalidándolos por aplicación. Búsqueda no usa cursor.
-- Credenciales conocidas siguen rechazadas; solo cuatro campos textuales se indexan.
-  Secretos ocultos en texto/URLs/selectores requieren redacción en ingesta.
-- DatabaseSync bloquea el hilo; worker pendiente de composición del consumidor. Prosa OR
-  puede añadir ruido; CSS/XPath son texto tokenizado, sin stemming/sinónimos/embeddings.
+- Puerto `packages/auth/src/credential-provider.ts`, reexportado por Auth.
+  ICredentialProvider privilegiado; agente/Knowledge reciben auth_profile_id y estado.
+- TieredCredentialVault selecciona backend explícito por perfil, sin fallback silencioso.
+  Keytar opcional/diferido en Auth y CLI; PortableCredentialVault desbloqueada por API;
+  EphemeralCredentialProvider sin persistencia; env conserva token temporal.
+- Scope: proyecto por ruta real completa (o ID explícito), aplicación, entorno, perfil y cuenta.
+  Keychain por basename anterior **no se migra/lee automáticamente**: reprovisionar y
+  retirar manualmente entradas legacy correctas. No se declaran credenciales válidas remotamente.
+- Vault v1: AES-256-GCM, nonce 12/tag 16/salt 32 bytes; scrypt N=131072/r=8/p=1,
+  maxmem 256 MiB. Sin clave maestra predeterminada ni persistida. Locks exclusivos,
+  recarga bajo lock, temporales/fsync/rename, rutas/enlaces validados y errores sanitizados.
+- SessionStore separado: aleatoria por vida de módulo/proceso por defecto. Persistencia
+  entre procesos exige QAP_SESSION_KEY de 64 hex aleatorios; cachés legacy no se migran.
+  Se corrige projectPath; claves incorrectas no destruyen ciphertext. ACL Windows heredada.
+- API AuthManager anterior conservada; status y close agregados. CLI revoca antes de
+  quitar el perfil. No nuevos handlers, login autónomo, 1Password ni publicación npm.
 
-## Resultados comprobados
+## Verificación y límites
 
-- Shared 145/145; Engine 168/168; Knowledge 234/234. **547/547 relevantes**.
-- 62/62 físicas/búsqueda/capacidad en Node 24.15.0 (SQLite 3.51.3) y 24.22.1 (3.53.4).
-- Node 22.13.1/SQLite 3.47.2 instalado **no tiene FTS5**: v2 no compatible. Prueba de rechazo
-  y preservación de v1: 1/1. VNEXT-003 funcionaba allí; no extrapolar esa compatibilidad a v2.
-- pnpm build: 10 paquetes pasan. ESLint de entrega y tsc de tests físicos sin diagnósticos.
-- pnpm test global no pasa: Auth 2 suites fallidas (Chromium ausente/teardown), 8 tests pasan,
-  5 omitidos; Playwright Adapter 3 archivos fallidos, 17 fallos/4 pasan/5 omitidos.
-  Reproducidos en fuentes base aisladas; hashes iguales al HEAD autorizado. No se corrigieron.
-  route-scanner no repitió su fallo sensible a carga; no se declara resuelto ni E2E verde.
-- Catálogo reproducible 1200 objetivos: medianas locales 2.815/3.976/5.814/0.286 ms para
-  crédito/interés/CSS/sin resultados (Node 24.15.0). No son garantías de producción.
-- TEMP/TMP locales: node_modules/.tmp-vnext. Logs temporales vnext004-*.log.
+- Auth final: **34 aprobadas + 1 omitida POSIX**, tres archivos, en Windows con Node
+  **24.15.0, 24.19.0 y 24.22.1**. Junctions/hardlinks verificados fuera del sandbox;
+  dentro de él se omiten por EPERM. Windows Credential Manager real: 6 checks por runtime,
+  solo entradas sintéticas aleatorias eliminadas. Linux/macOS y otros Node no comprobados.
+- Shared 145/145; Engine 168/168; Knowledge 234/234: **547/547 focalizadas**.
+  CLI Auth 6/6; MCP centinela 1/1 (14 no seleccionadas). Runner session-resolver 3/4:
+  re-login falla por Chromium ausente. No declarar E2E/global verde.
+- 10 paquetes compilan. ESLint de entrega y tsc Auth incluidos tests sin diagnósticos.
+  Lockfile validado offline con pnpm 12.3.4, sin scripts ni actualizaciones de versiones.
+- Global no pasa: Auth dos suites Chromium/teardown; Adapter 17 fallos/4 aprobadas/5
+  omitidas; Knowledge 233/234 por route-scanner sensible a carga (tiempo antes de límite
+  de archivos). Mismas fuentes/firmas conocidas; no corregidas. Detalle y conteos del
+  intento global en el documento de VNEXT-005. Dependientes se verificaron por separado.
+- TEMP/TMP y logs: `node_modules/.tmp-vnext`, `vnext005-*.log`.
+- Pendientes: instalación npx limpia sin addon, composición UX de desbloqueo, CI POSIX,
+  reprovisión legacy y rotación maestra. Borrado lógico no elimina backups/SSD ni revoca
+  tokens remotos; sin defensa completa contra TOCTOU de misma cuenta o rollback autenticado.
 
-## Archivos y continuidad
+## Memoria y continuidad anterior
 
-Contrato: `packages/engine/src/action-target-search.port.ts`, reexportado por Engine.
-Implementación: `packages/knowledge/src/storage/{knowledge-sqlite-schema,sqlite-knowledge-adapter}.ts`.
-Tests: `packages/knowledge/test/{action-target-search,sqlite-fts-capability,sqlite-knowledge-adapter}.test.ts`
-y fixture v1 congelado. Suite contractual anterior conservada, 24 expectativas SQLite.
+IKnowledgeStore v1 sin cambios; credenciales conocidas siguen rechazadas. SQLite v2
+con FTS5, migración explícita v1→v2, contratos y cursores previos conservados.
+Node 22.13.1 instalado en VNEXT-004 carecía de FTS5: no extrapolar la matriz de Auth.
+DatabaseSync bloquea el hilo; worker pendiente. Texto libre requiere redacción en ingesta.
 
-[Diseño, migración, comandos, resultados y límites VNEXT-004](VNEXT-004_FTS5_SEARCH.md).
-[Antecedente VNEXT-003](VNEXT-003_SQLITE_ADAPTER.md).
+[Diseño, pruebas y límites VNEXT-005](VNEXT-005_CREDENTIAL_VAULT.md).
+[SQLite/FTS5 VNEXT-004](VNEXT-004_FTS5_SEARCH.md).
+[Persistencia VNEXT-003](VNEXT-003_SQLITE_ADAPTER.md).
 
-VNEXT-005 no iniciada; conserva autorización pendiente. No se hicieron bóveda, crawler,
-Advisor, nuevos handlers, PostgreSQL, migración YAML, publicación npm ni integración develop.
+VNEXT-006 no iniciada. No crawler, Advisor, PostgreSQL, nuevos handlers ni integración develop.

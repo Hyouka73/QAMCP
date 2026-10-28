@@ -135,10 +135,10 @@ Conforme a la decisión **D-007**, las credenciales de acceso se desacoplan estr
 │         - Windows Credential Manager, macOS Keychain, Linux SecretServ │
 │         - Máxima seguridad y comodidad cuando está disponible.         │
 ├────────────────────────────────────────────────────────────────────────┤
-│ TIER 2: Bóveda Cifrada Portable (AES-256-GCM + PBKDF2)                 │
+│ TIER 2: Bóveda Cifrada Portable (AES-256-GCM + scrypt)                 │
 │         - Para entornos headless, Docker, servidores CI/CD sin UI.     │
 │         - Cifrado en .qamcp/vault.enc con salt aleatorio y tag auth.   │
-│         - Clave derivada de variable de entorno (QAP_VAULT_PASSPHRASE).│
+│         - Desbloqueo explícito desde entrada de secretos autorizada.│
 ├────────────────────────────────────────────────────────────────────────┤
 │ TIER 3: Memoria Efímera de Sesión (In-Memory)                          │
 │         - Para ejecuciones npx puntuales o pruebas ad-hoc.             │
@@ -148,7 +148,7 @@ Conforme a la decisión **D-007**, las credenciales de acceso se desacoplan estr
 ```
 
 > [!NOTE]
-> La implementación de la bóveda escalonada está registrada para el Hito 1 (VNEXT-005) y sujeta a verificación empírica previa en entornos sin keychain. No se implementa en VNEXT-001.
+> Implementada en VNEXT-005 con selección explícita de proveedor, sin fallback silencioso. Windows/Node 24 y bloqueo headless verificados; Linux/macOS y npx limpio no certificados. scrypt reemplaza la propuesta PBKDF2. Diseño y límites: [VNEXT-005_CREDENTIAL_VAULT.md](VNEXT-005_CREDENTIAL_VAULT.md).
 
 ---
 

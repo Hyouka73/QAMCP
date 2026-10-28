@@ -4,7 +4,7 @@
 - **Rama:** `feat/qap-vnext-architecture`
 - **Autor / Rol:** Principal Software Architect y Teamwork Lead
 - **Fecha:** Octubre 2026 (Revisión Arquitectónica Profunda — Etapa 0 Corregida)
-- **Estado:** VNEXT-001 a VNEXT-004 terminadas por autorización expresa. VNEXT-005 y posteriores pendientes de autorización.
+- **Estado:** VNEXT-001 a VNEXT-005 terminadas por autorización expresa. VNEXT-006 y posteriores pendientes de autorización.
 - **Referencias:** D-010 (Evolución documentada por etapas), D-001 a D-015.
 
 ---
@@ -14,11 +14,11 @@
 Conforme a la directiva **D-010** y la corrección de inconsistencias de numeración del WBS, el trabajo se organiza en **7 Hitos Secuenciales (Hito 0 a Hito 6)** numerados de forma estrictamente continua (**VNEXT-001 a VNEXT-023**).
 
 > [!IMPORTANT]
-> **Estado de Autorización:** La continuidad del 2026-10-28 autorizó VNEXT-004, implementada y verificada. VNEXT-005 y posteriores requieren autorización nueva. Continuidad: [STATE.md](STATE.md).
+> **Estado de Autorización:** La continuidad del 2026-10-28 autorizó exclusivamente VNEXT-005, implementada y verificada con límites de entorno documentados. VNEXT-006 y posteriores requieren autorización nueva. Continuidad: [STATE.md](STATE.md).
 
 ```mermaid
 flowchart TD
-    H0["Hito 0: Fundación de Contratos de Dominio<br/>(VNEXT-001: Terminada)"] --> H1["Hito 1: Persistencia Local SQLite & Bóveda<br/>(VNEXT-002 a 004 terminadas; VNEXT-005 pendiente)"]
+    H0["Hito 0: Fundación de Contratos de Dominio<br/>(VNEXT-001: Terminada)"] --> H1["Hito 1: Persistencia Local SQLite & Bóveda<br/>(VNEXT-002 a 005 terminadas)"]
     H1 --> H2["Hito 2: Adquisición de Conocimiento Black-Box<br/>(VNEXT-006, VNEXT-007, VNEXT-008, VNEXT-009, VNEXT-010)"]
     H1 --> H3["Hito 3: Desacoplamiento Modular MCP<br/>(VNEXT-011, VNEXT-012, VNEXT-013, VNEXT-014)"]
     H2 --> H4["Hito 4: QA Advisor & Diagnóstico Autónomo<br/>(VNEXT-015, VNEXT-016, VNEXT-017)"]
@@ -76,11 +76,13 @@ flowchart TD
 - **Entrega:** IActionTargetSearch sin cambiar IKnowledgeStore v1; esquema v2 con migración v1→v2 transaccional, índice de objetivos actuales, filtros reales y ranking BM25. 547/547 pruebas relevantes; 62/62 físicas/búsqueda en Node 24.15.0 y 24.22.1. Node 22.13.1 instalado carece de FTS5 y se rechaza sin migrar; global conserva fallos preexistentes Auth/Chromium y Playwright Adapter. [Diseño, resultados y límites](VNEXT-004_FTS5_SEARCH.md).
 
 #### `VNEXT-005` — Bóveda Criptográfica Escalonada de Credenciales (Tiered Vault)
-- **Estado:** Pendiente de autorización (y sujeta a verificación empírica previa de headless CI).
-- **Paquetes afectados:** `@qap/auth`.
+- **Estado:** Terminada (2026-10-28), por autorización expresa. Windows/Node 24 verificados; POSIX y npx limpio pendientes. Detener antes de VNEXT-006.
+- **Paquetes afectados:** `@qap/auth`, tipos/schemas de `@qap/shared`, compatibilidad CLI y test centinela MCP.
 - **Dependencias:** `VNEXT-001`.
 - **Riesgo:** Medio.
-- **Alcance:** Implementar `TieredCredentialVault` que gestiona secretos bajo tres niveles: Tier 1 (Keychain del SO vía keytar si está disponible), Tier 2 (Cifrado AES-256-GCM + PBKDF2 en `.qamcp/vault.enc`), y Tier 3 (Memoria efímera para sesiones ad-hoc npx). Desacoplamiento estricto de secretos respecto a la memoria de conocimiento.
+- **Alcance entregado:** `ICredentialProvider`, selección explícita en `TieredCredentialVault`, keytar opcional/diferido, bóveda AES-256-GCM + scrypt (N=131072, r=8, p=1), efímeras y compatibilidad env. Namespace por proyecto/aplicación/entorno/perfil/cuenta; locks, escrituras atómicas, errores sanitizados y sesiones con clave aleatoria o explícita. Sin fallback inseguro ni nuevos handlers.
+- **Verificación:** Auth 34 aprobadas/1 omitida POSIX en Windows con Node 24.15.0/24.19.0/24.22.1; keychain real 6 comprobaciones por runtime; 547 pruebas de dominio, CLI 6 y centinela MCP 1 aprobadas. 10 builds. Global conserva fallos Chromium/Adapter y sensibilidad a carga de route-scanner.
+- **Diseño, migración legacy y límites:** [VNEXT-005_CREDENTIAL_VAULT.md](VNEXT-005_CREDENTIAL_VAULT.md).
 
 ---
 
