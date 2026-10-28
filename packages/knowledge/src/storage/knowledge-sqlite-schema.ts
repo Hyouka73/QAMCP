@@ -3,7 +3,7 @@ import type { DatabaseSync } from 'node:sqlite';
 
 import { KnowledgeStoreError } from '@qap/engine';
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 const APPLICATION_ID = 0x5141504b; // QAPK; never adopt an unmarked Reporter database.
 const definitions = [
   `CREATE TABLE knowledge_migrations (
@@ -54,6 +54,44 @@ const definitions = [
       BEGIN SELECT RAISE(ABORT, 'immutable knowledge'); END`)),
 ];
 const checksum = createHash('sha256').update(definitions.join(';\n')).digest('hex');
+// v1 definitions/checksum above are frozen. v2 adds a disposable current projection.
+const v2Definitions = [
+  `CREATE TABLE action_target_search (
+    rowid INTEGER PRIMARY KEY, application_id TEXT NOT NULL, id TEXT NOT NULL,
+    revision INTEGER NOT NULL, kind TEXT NOT NULL DEFAULT 'action_target' CHECK(kind = 'action_target'),
+    accessibility_label TEXT NOT NULL, selector TEXT NOT NULL,
+    fallback_selectors TEXT NOT NULL, element_type TEXT NOT NULL,
+    UNIQUE(application_id, id),
+    FOREIGN KEY(application_id, kind, id, revision)
+      REFERENCES knowledge_revisions(application_id, kind, id, revision)
+  ) STRICT`,
+  `CREATE VIRTUAL TABLE action_targets_fts USING fts5(accessibility_label, selector, fallback_selectors, element_type, content='action_target_search', content_rowid='rowid', tokenize='unicode61 remove_diacritics 2')`,
+  `CREATE TRIGGER action_target_search_insert AFTER INSERT ON action_target_search BEGIN
+    INSERT INTO action_targets_fts(rowid, accessibility_label, selector, fallback_selectors, element_type)
+    VALUES (NEW.rowid, NEW.accessibility_label, NEW.selector, NEW.fallback_selectors, NEW.element_type);
+  END`,
+  `CREATE TRIGGER action_target_search_delete AFTER DELETE ON action_target_search BEGIN
+    INSERT INTO action_targets_fts(action_targets_fts, rowid, accessibility_label, selector, fallback_selectors, element_type)
+    VALUES ('delete', OLD.rowid, OLD.accessibility_label, OLD.selector, OLD.fallback_selectors, OLD.element_type);
+  END`,
+  `CREATE TRIGGER action_target_revision_insert AFTER INSERT ON knowledge_revisions
+    WHEN NEW.kind = 'action_target' BEGIN
+    DELETE FROM action_target_search WHERE application_id = NEW.application_id AND id = NEW.id;
+    INSERT INTO action_target_search(application_id, id, revision, accessibility_label, selector, fallback_selectors, element_type)
+    VALUES (NEW.application_id, NEW.id, NEW.revision,
+      coalesce(json_extract(NEW.entity_json, '$.accessibility_label'), ''),
+      json_extract(NEW.entity_json, '$.selector'),
+      coalesce((SELECT group_concat(value, ' ') FROM json_each(NEW.entity_json, '$.fallback_selectors')), ''),
+      json_extract(NEW.entity_json, '$.element_type'));
+  END`,
+];
+const shadows = [
+  "CREATE TABLE 'action_targets_fts_data'(id INTEGER PRIMARY KEY, block BLOB)",
+  "CREATE TABLE 'action_targets_fts_idx'(segid, term, pgno, PRIMARY KEY(segid, term)) WITHOUT ROWID",
+  "CREATE TABLE 'action_targets_fts_docsize'(id INTEGER PRIMARY KEY, sz BLOB)",
+  "CREATE TABLE 'action_targets_fts_config'(k PRIMARY KEY, v) WITHOUT ROWID",
+];
+const v2Checksum = createHash('sha256').update([...v2Definitions, ...shadows].join(';\n')).digest('hex');
 const mismatch = (): never => { throw new KnowledgeStoreError('SCHEMA_MISMATCH', 'Incompatible knowledge schema'); };
 const normalize = (sql: string) => sql.replace(/\s+/g, ' ').trim();
 
@@ -62,28 +100,62 @@ export function checkIntegrity(db: DatabaseSync): void {
   if (result.length !== 1 || result[0].integrity_check !== 'ok' || db.prepare('PRAGMA foreign_key_check').all().length) mismatch();
 }
 
-/** Only known migration: empty, unmarked database -> v1. Existing foreign DBs are rejected.
+/** Explicit empty -> v1 -> v2. Existing foreign DBs are rejected.
  * Caller holds BEGIN IMMEDIATE so concurrent initializers cannot race the version check.
  */
 export function initializeKnowledgeSchema(db: DatabaseSync): string {
-  const version = db.prepare('PRAGMA user_version').get()!.user_version;
+  let version = db.prepare('PRAGMA user_version').get()!.user_version;
   const app = db.prepare('PRAGMA application_id').get()!.application_id;
   const catalog = () => db.prepare("SELECT name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY name").all();
   if (version === 0 && app === 0 && catalog().length === 0) {
     definitions.forEach(sql => db.exec(sql));
     checkIntegrity(db);
     db.prepare('INSERT INTO knowledge_migrations VALUES (?, ?, ?, ?, ?)')
-      .run(SCHEMA_VERSION, checksum, new Date().toISOString(), 'ok', randomBytes(32).toString('hex'));
-    db.exec(`PRAGMA application_id = ${APPLICATION_ID}; PRAGMA user_version = ${SCHEMA_VERSION}`);
-  } else if (version !== SCHEMA_VERSION || app !== APPLICATION_ID) mismatch();
+      .run(1, checksum, new Date().toISOString(), 'ok', randomBytes(32).toString('hex'));
+    db.exec(`PRAGMA application_id = ${APPLICATION_ID}; PRAGMA user_version = 1`);
+    version = 1;
+  } else if ((version !== 1 && version !== SCHEMA_VERSION) || app !== APPLICATION_ID) mismatch();
 
   // Check actual definitions too: missing triggers/indexes must not silently weaken guarantees.
   const actual = catalog().map(r => normalize(String(r.sql))).sort();
-  const expected = definitions.map(normalize).sort();
+  const expected = [...definitions, ...(version === 2 ? [...v2Definitions, ...shadows] : [])].map(normalize).sort();
   if (JSON.stringify(actual) !== JSON.stringify(expected)) mismatch();
   const migrations = db.prepare('SELECT * FROM knowledge_migrations ORDER BY version').all();
-  if (migrations.length !== 1 || migrations[0].version !== SCHEMA_VERSION || migrations[0].checksum !== checksum ||
-    migrations[0].integrity_result !== 'ok' || !/^[a-f0-9]{64}$/.test(String(migrations[0].cursor_key))) mismatch();
+  if (migrations.length !== version || migrations.some((m, i) => m.version !== i + 1 ||
+    m.checksum !== [checksum, v2Checksum][i] || m.integrity_result !== 'ok' ||
+    !/^[a-f0-9]{64}$/.test(String(m.cursor_key)))) mismatch();
   checkIntegrity(db);
+  if (version === 1) {
+    v2Definitions.forEach(sql => db.exec(sql));
+    db.exec(`INSERT INTO action_target_search(application_id, id, revision, accessibility_label, selector, fallback_selectors, element_type)
+      SELECT r.application_id, r.id, r.revision,
+        coalesce(json_extract(r.entity_json, '$.accessibility_label'), ''),
+        json_extract(r.entity_json, '$.selector'),
+        coalesce((SELECT group_concat(value, ' ') FROM json_each(r.entity_json, '$.fallback_selectors')), ''),
+        json_extract(r.entity_json, '$.element_type')
+      FROM knowledge_revisions r WHERE r.kind = 'action_target' AND r.revision =
+        (SELECT max(n.revision) FROM knowledge_revisions n
+          WHERE n.application_id = r.application_id AND n.kind = r.kind AND n.id = r.id)`);
+    checkIntegrity(db);
+    db.prepare('INSERT INTO knowledge_migrations VALUES (?, ?, ?, ?, ?)')
+      .run(2, v2Checksum, new Date().toISOString(), 'ok', String(migrations[0].cursor_key));
+    db.exec('PRAGMA user_version = 2');
+  }
+  // rank=1 also compares the index with external content; never silently repair corruption.
+  try { db.exec("INSERT INTO action_targets_fts(action_targets_fts, rank) VALUES ('integrity-check', 1)"); }
+  catch { mismatch(); }
+  // FTS integrity alone cannot detect a self-consistent but obsolete projection.
+  const current = `SELECT r.* FROM knowledge_revisions r WHERE r.kind = 'action_target'
+    AND r.revision = (SELECT max(n.revision) FROM knowledge_revisions n
+      WHERE n.application_id = r.application_id AND n.kind = r.kind AND n.id = r.id)`;
+  if (db.prepare(`SELECT count(*) AS n FROM (${current})`).get()!.n !==
+    db.prepare('SELECT count(*) AS n FROM action_target_search').get()!.n ||
+    db.prepare(`SELECT 1 FROM (${current}) r LEFT JOIN action_target_search s
+      ON s.application_id = r.application_id AND s.id = r.id
+      WHERE s.revision IS NOT r.revision
+        OR s.accessibility_label IS NOT coalesce(json_extract(r.entity_json, '$.accessibility_label'), '')
+        OR s.selector IS NOT json_extract(r.entity_json, '$.selector')
+        OR s.fallback_selectors IS NOT coalesce((SELECT group_concat(value, ' ') FROM json_each(r.entity_json, '$.fallback_selectors')), '')
+        OR s.element_type IS NOT json_extract(r.entity_json, '$.element_type') LIMIT 1`).get()) mismatch();
   return String(migrations[0].cursor_key);
 }

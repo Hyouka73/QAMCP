@@ -7,6 +7,7 @@ import {
   KnowledgeStoreError, type IKnowledgeStore, type KnowledgeKind, type KnowledgeRecord,
   type KnowledgeRef, type KnowledgeWrite, type KnowledgeQuery, type KnowledgePageRequest,
   type KnowledgePage,
+  type IActionTargetSearch, type ActionTargetSearchRequest, type ActionTargetSearchHit,
 } from '@qap/engine';
 
 import { KnowledgeCommitPlanner } from './knowledge-commit-planner.js';
@@ -31,7 +32,7 @@ const kindCheck = (kind: KnowledgeKind): void => {
 /** Opt-in local adapter. Does not discover/adopt legacy databases or browser directories.
  * DatabaseSync blocks the calling thread: compose in a worker for latency-sensitive hosts.
  */
-export class SqliteKnowledgeAdapter implements IKnowledgeStore {
+export class SqliteKnowledgeAdapter implements IKnowledgeStore, IActionTargetSearch {
   readonly contract_version = 1 as const;
   readonly schema_version = SCHEMA_VERSION;
   private readonly db: DatabaseSync;
@@ -52,6 +53,11 @@ export class SqliteKnowledgeAdapter implements IKnowledgeStore {
     } catch { fail('UNAVAILABLE'); }
     try {
       this.db.exec(`PRAGMA busy_timeout = ${timeout}; PRAGMA foreign_keys = ON`);
+      // Builtin builds differ: Node 22.13.1 Windows lacks ENABLE_FTS5. Refuse
+      // before any migration/journal change; never load native extensions implicitly.
+      if (this.db.prepare("SELECT sqlite_compileoption_used('ENABLE_FTS5') AS enabled").get()!.enabled !== 1) {
+        throw new KnowledgeStoreError('UNAVAILABLE', 'Knowledge store requires SQLite FTS5');
+      }
       this.cursorKey = this.transaction('IMMEDIATE', () => initializeKnowledgeSchema(this.db));
       // Reject foreign/unknown schemas before any persistent journal mode change.
       if (path !== ':memory:' && this.db.prepare('PRAGMA journal_mode = WAL').get()!.journal_mode !== 'wal') fail('UNAVAILABLE');
@@ -65,6 +71,57 @@ export class SqliteKnowledgeAdapter implements IKnowledgeStore {
 
   close(): void {
     if (!this.closed) { this.db.close(); this.closed = true; }
+  }
+
+  async searchActionTargets(request: ActionTargetSearchRequest): Promise<ActionTargetSearchHit[]> {
+    if (!request || typeof request !== 'object') fail('INVALID_DATA');
+    identity(request.application_id);
+    const limit = request.limit ?? 20;
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100 ||
+      typeof request.query !== 'string' || request.query.length > 2048 ||
+      Buffer.from(request.query).toString() !== request.query ||
+      (request.include_inactive !== undefined && typeof request.include_inactive !== 'boolean')) fail('INVALID_DATA');
+    for (const value of [request.view_id, request.module_id, request.environment_id, request.role_id]) {
+      if (value !== undefined) identity(value);
+    }
+    // Never forward raw MATCH syntax. Punctuation (including CSS/XPath syntax) is a
+    // separator; each Unicode word is a quoted literal. OR tolerates brief prose.
+    const words = request.query.normalize('NFC').match(/[\p{L}\p{N}\p{M}]+/gu) ?? [];
+    if (words.length > 64) fail('INVALID_DATA');
+    const expression = [...new Set(words)].map(word => `"${word}"`).join(' OR ');
+    return this.transaction('DEFERRED', () => {
+      if (!expression) return [];
+      const params: SQLInputValue[] = [expression, request.application_id];
+      // CROSS JOIN fixes FTS before the application index: ordinary JOIN can run
+      // one MATCH per target instead of looking up each matching rowid once.
+      let sql = `SELECT r.*, bm25(action_targets_fts, 10.0, 4.0, 2.0, 1.0) AS score
+        FROM action_targets_fts CROSS JOIN action_target_search s ON s.rowid = action_targets_fts.rowid
+        JOIN knowledge_revisions r ON r.application_id = s.application_id AND r.kind = s.kind
+          AND r.id = s.id AND r.revision = s.revision
+        WHERE action_targets_fts MATCH ? AND s.application_id = ?`;
+      if (!request.include_inactive) sql += " AND json_extract(r.entity_json, '$.is_active') = 1";
+      if (request.view_id !== undefined) {
+        sql += " AND json_extract(r.entity_json, '$.view_id') = ?"; params.push(request.view_id);
+      }
+      if (request.module_id !== undefined) {
+        sql += ` AND EXISTS (SELECT 1 FROM knowledge_links l JOIN knowledge_revisions v
+          ON v.application_id = l.application_id AND v.kind = l.target_kind
+            AND v.id = l.target_id AND v.revision = l.target_revision
+          WHERE l.application_id = r.application_id AND l.source_kind = r.kind AND l.source_id = r.id
+            AND l.source_revision = r.revision AND l.target_kind = 'view'
+            AND json_extract(v.entity_json, '$.module_id') = ?)`;
+        params.push(request.module_id);
+      }
+      for (const field of ['environment_id', 'role_id'] as const) {
+        if (request[field] !== undefined) {
+          sql += ` AND json_extract(r.trace_json, '$.${field}') = ?`; params.push(request[field]);
+        }
+      }
+      sql += ' ORDER BY score, r.id_order LIMIT ?'; params.push(limit);
+      return this.db.prepare(sql).all(...params).map(row => ({
+        target: this.record(row) as KnowledgeRecord<'action_target'>, score: Number(row.score),
+      }));
+    });
   }
 
   async get<K extends KnowledgeKind>(app: string, kind: K, id: string, revision?: number): Promise<KnowledgeRecord<K> | null> {

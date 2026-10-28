@@ -151,7 +151,7 @@ describe('SqliteKnowledgeAdapter physical guarantees', () => {
   it('records v1 migration integrity and rejects an altered migration checksum', () => {
     const { path } = fixture(); open(path).close();
     const db = new DatabaseSync(path);
-    expect(db.prepare('PRAGMA user_version').get()?.user_version).toBe(1);
+    expect(db.prepare('PRAGMA user_version').get()?.user_version).toBe(2);
     expect(db.prepare('SELECT version, integrity_result FROM knowledge_migrations').get()).toMatchObject({ version: 1, integrity_result: 'ok' });
     db.exec(`DROP TRIGGER knowledge_migrations_update;
       UPDATE knowledge_migrations SET checksum = 'unknown';
