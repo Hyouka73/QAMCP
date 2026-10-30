@@ -100,7 +100,7 @@ describe('P4.5-S1: Preflight browser, Module Candidates, and Session Plan', () =
     expect(QAP_CORE_DIRECTIVES).toContain('Explora solo con qap_discover');
   });
 
-  it('C1: descripciones de qap_status, qap_init y qap_discover contienen la frase obligatoria sobre exploracion', async () => {
+  it('C1: status/init conservan la frase histórica y discover declara persistencia canónica estática', async () => {
     const listRes = await client.listTools();
     const toolMap = new Map(listRes.tools.map((t) => [t.name, t.description || '']));
 
@@ -108,7 +108,8 @@ describe('P4.5-S1: Preflight browser, Module Candidates, and Session Plan', () =
 
     expect(toolMap.get('qap_status')).toContain(requiredPhrase);
     expect(toolMap.get('qap_init')).toContain(requiredPhrase);
-    expect(toolMap.get('qap_discover')).toContain(requiredPhrase);
+    expect(toolMap.get('qap_discover')).toContain('BlackBoxCrawler real, estático y anónimo, con JavaScript deshabilitado');
+    expect(toolMap.get('qap_discover')).toContain('Persiste observaciones y evidencias en IKnowledgeStore, sin escribir .qa/modules/ ni avanzar lifecycle.');
   });
 
   it('C4/C6: qap_context_ingest persiste module-candidates.json y qap_session_plan lo usa', async () => {

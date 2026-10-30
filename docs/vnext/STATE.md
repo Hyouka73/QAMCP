@@ -14,8 +14,8 @@ gateway seguro y barrera TCP/UDP. VNEXT-009 fue autorizada posteriormente y se r
 **VNEXT-010 completada con limitaciones por autorización posterior del 2026-10-30: sondas de formulario vacío no destructivas.**
 Esta autorización sustituye exclusivamente el bloqueo anterior de VNEXT-010; el cierre y
 sus límites se registran al final. Las autorizaciones posteriores de VNEXT-011 y
-VNEXT-012 y sus cierres con limitaciones se registran al final; VNEXT-013 y posteriores
-siguen sin autorización.
+VNEXT-012 y VNEXT-013 y sus cierres con limitaciones se registran al final;
+VNEXT-014 y posteriores siguen sin autorización.
 Leer este archivo y el WBS antes de elegir trabajo ante «continúa».
 
 ## Rama y cambios ajenos
@@ -385,3 +385,49 @@ Advisor ni integración develop/main sin autorización nueva.
 Detener tras publicar VNEXT-012. **No iniciar VNEXT-013**, VNEXT-014, Advisor ni
 integración con develop/main. La infraestructura permite otra transferencia explícita
 solo tras nueva autorización.
+
+## Descubrimiento autónomo MCP VNEXT-013
+
+- **Completada con limitaciones**, autorización posterior expresa del 2026-10-30.
+  Sustituye exclusivamente el bloqueo anterior de VNEXT-013. Base exacta
+  8ed569d8953230e6cf694a1130c0ca02cd433fd3; rama feat/qap-vnext-architecture,
+  agente principal único. VNEXT-014 permanece sin autorización.
+- DiscoveryHandler implementa IMcpToolHandler y usa BlackBoxCrawler real con el
+  store del binding. Caso funcional legacy retirado, sin fallback; cuatro tools
+  declarativas, catorce legacy, 18 públicas. Orden, esquemas, otras 17 definiciones
+  y prompts conservados. Se cambia deliberadamente la descripción de discover.
+- discoveryAuthorizations opt-in del host: proyecto real/app/entorno/revisión,
+  GET observacional reconocido, URLs exactas, IPs/red y límites del crawler.
+  Sin consentimiento o binding no navega. Contexto canónico recuperado/revalidado;
+  sin apertura/cierre de stores, perfiles, sesiones, credenciales o inventar IDs.
+- Resultado seleccionado: estados reales, rutas opacas, vistas/relaciones y conteos,
+  presupuestos, cierre, persistencia committed/not_attempted/failed. Sin DOM libre,
+  valores, URLs sensibles, errores internos o inferencias automáticas. Shell SPA
+  parcial, JS deshabilitado; cancelación propagada y limpieza esperada.
+- Chrome/MPA y SQLite físicos: tres vistas, seis observaciones y tres evidencias en
+  un commit. Reapertura/historia/referencias/aislamiento/rollback/canarios verificados.
+  Se conservan fases y módulos terminales; no se escriben .qa/modules ni se avanza
+  lifecycle. Autenticación, artefactos e entrevistas legacy dejan de estar soportados.
+- Nuevas **37/37**, dispatcher **38/38 + 8/8**, estado **21/21**: **104/104** dentro
+  del recorrido final. Clean/reportes corregido y aprobado, preservación física e
+  inventario comprobados; cierre histórico VNEXT-012 permanece **203/204** intacto.
+- MCP completo final **181/241**, 60 fallos en ocho archivos por dependencias del
+  contrato discover sustituido; detalle por archivo en el documento. No se relajan,
+  omiten ni falsifican efectos legacy. server.test.ts **11/21**. Crawler **30/30**,
+  Knowledge **258/258**, Engine **168/168**, Shared **146/146**; diez builds aprobados
+  y MCP/CLI finales recompilados. No suite global certificada.
+- ESLint nuevo/producción/contratos limpio; server.test.ts conserva dos warnings
+  preexistentes por su encabezado. Deuda server sin supresiones **622→513**.
+  TypeScript amplio **48→48**, mismos diagnósticos; foco handler alcanza dos errores
+  legacy de guidance.ts, ninguno nuevo. Sin cambios de configuración/supresiones.
+- Sesión protegida modificada previamente conservada y excluida. No se lee su
+  contenido, no se usa ni recalcula su hash. Solo fixtures sintéticos temporales;
+  logs/bases/dist excluidos. Publicación exclusiva sin merge/rebase/force.
+  Identificar commits con git log --oneline 8ed569d..HEAD; HEAD remoto al entregar.
+- Límites heredados: carrera de contexto lectura/commit, sin CAS/cancelación del
+  store v1, SQLite síncrono, limpieza sin deadline duro, sin certificación OS ni
+  otros runtimes. Sin resultado adquirido recuperable cuando el crawler lanza error.
+
+[Arquitectura, reproducción, contratos y resultados VNEXT-013](VNEXT-013_MCP_DISCOVERY_HANDLER.md).
+Detener tras publicar VNEXT-013. **No iniciar VNEXT-014**, Advisor ni integrar
+develop/main sin autorización nueva.

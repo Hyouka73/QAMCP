@@ -338,7 +338,7 @@ export const TOOLS: Tool[] = [
   },
   {
     name: 'qap_discover',
-    description: `Descubre, mapea y registra un módulo de la aplicación (UI, rutas, selectores) en .qa/modules/ de forma autónoma con Playwright real. Si falta el navegador en el sistema, ejecuta 'npx playwright install chromium' sin preguntar. QAP observa la app con su propio navegador mediante qap_discover; no uses navegadores ni herramientas de otros servidores MCP ni del IDE para explorarla (no se persistiría conocimiento en .qa). Si la ruta requiere autenticación o detecta auth_wall/login no planificado, responde 'blocked' con razón 'auth_required' (falta perfil verificado) o 'session_invalid' (sesión expirada o rechazada) sin escribir archivos ni avanzar el ciclo de vida; desbloquear resolviendo la autenticación con qap_auth_add. ${UX_DIRECTIVE}\n\n${QAP_CORE_DIRECTIVES}`,
+    description: `Observa una MPA mediante BlackBoxCrawler real, estático y anónimo, con JavaScript deshabilitado. Requiere binding canónico y autorización explícita del host para cada URL GET e IP/red; GET no garantiza inocuidad semántica. Persiste observaciones y evidencias en IKnowledgeStore, sin escribir .qa/modules/ ni avanzar lifecycle. No admite credentials, profile, profileId, sesiones ni headed=true; estos campos legacy se conservan en el esquema pero se rechazan. Cobertura parcial y vistas dependientes de JavaScript se declaran como tales. ${UX_DIRECTIVE}\n\n${QAP_CORE_DIRECTIVES}`,
     inputSchema: {
       type: 'object',
       properties: {

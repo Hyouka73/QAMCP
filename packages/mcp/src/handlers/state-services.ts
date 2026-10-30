@@ -190,7 +190,7 @@ export function readCorrections(path: string): { pending: string[]; completed: s
     [...value.pending as unknown[], ...value.completed as unknown[]].some(v => !oneOf(v, ['objective', 'roles', 'critical_flows', 'base_url']))) throw new McpToolError('execution_failed');
   return value as { pending: string[]; completed: string[] };
 }
-function binding(root: string, deps: StateDependencies): ProjectKnowledgeBinding | undefined {
+export function binding(root: string, deps: StateDependencies): ProjectKnowledgeBinding | undefined {
   const matches = (deps.knowledgeBindings ?? []).filter(item => realpathSync(item.projectRoot) === root);
   if (matches.length > 1) throw new Error('Ambiguous binding.');
   const found = matches[0];

@@ -70,10 +70,14 @@ describe('real MCP client/server via linked transports', () => {
     expect(() => createMcpServer({ handlers: [handler] })).toThrow();
   });
 
-  it('matches all 18 contracts and prompt definitions captured from VNEXT-010', async () => {
-    const baseline: unknown = JSON.parse(readFileSync(new URL('./fixtures/mcp-catalog-vnext010.json', import.meta.url), 'utf8'));
+  it('preserves 17 definitions, discover schema/order and prompts; revises only its description', async () => {
+    const baseline = JSON.parse(readFileSync(new URL('./fixtures/mcp-catalog-vnext010.json', import.meta.url), 'utf8'));
     const client = await connect();
-    expect({ tools: (await client.listTools()).tools, prompts: (await client.listPrompts()).prompts }).toEqual(baseline);
+    const tools = (await client.listTools()).tools;
+    const oldTools = baseline.tools as Array<{ name: string; description: string }>;
+    const changed = tools.find(tool => tool.name === 'qap_discover')!;
+    expect(changed.description).not.toBe(oldTools.find(tool => tool.name === 'qap_discover')!.description);
+    expect({ tools: tools.map(tool => tool.name === 'qap_discover' ? { ...tool, description: oldTools.find(t => t.name === tool.name)!.description } : tool), prompts: (await client.listPrompts()).prompts }).toEqual(baseline);
     expect(await client.getPrompt({ name: 'qap_start' })).toEqual({
       description: 'Onboarding paso a paso para QAP',
       messages: [{ role: 'user', content: { type: 'text', text: 'Inicia revisando el estado de QAP con qap_status y guíame paso a paso sin muros de texto.' } }],

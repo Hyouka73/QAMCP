@@ -4,7 +4,7 @@
 - **Rama:** `feat/qap-vnext-architecture`
 - **Autor / Rol:** Principal Software Architect y Teamwork Lead
 - **Fecha:** Octubre 2026 (Revisión Arquitectónica Profunda — Etapa 0 Corregida)
-- **Estado:** VNEXT-001 a VNEXT-006 terminadas; VNEXT-007 a VNEXT-012 completadas con limitaciones explícitas (2026-10-30). VNEXT-013 y posteriores pendientes de autorización.
+- **Estado:** VNEXT-001 a VNEXT-006 terminadas; VNEXT-007 a VNEXT-013 completadas con limitaciones explícitas (2026-10-30). VNEXT-014 y posteriores pendientes de autorización.
 - **Referencias:** D-010 (Evolución documentada por etapas), D-001 a D-015.
 
 ---
@@ -186,11 +186,22 @@ flowchart TD
   [Arquitectura, pruebas y límites](VNEXT-012_MCP_STATE_HANDLERS.md).
 
 #### `VNEXT-013` — Handler de Descubrimiento Autónomo (`discovery.handler.ts`)
-- **Estado:** Pendiente de autorización.
+- **Estado:** Completada con limitaciones (2026-10-30), por autorización posterior expresa.
 - **Paquetes afectados:** `@qap/mcp`.
 - **Dependencias:** `VNEXT-011`, `VNEXT-009`.
 - **Riesgo:** Medio.
 - **Alcance:** Conectar la tool `qap_discover` con el crawler black-box, devolviendo el resumen estructurado de hallazgos.
+
+- **Entrega:** DiscoveryHandler declarativo conectado al BlackBoxCrawler real, cuatro
+  propietarios declarativos/catorce legacy y 18 tools. Autorización exacta opt-in del
+  host ligada a binding y revisión de entorno; sin autenticación, fallback, archivos
+  legacy, avance lifecycle ni inferencias automáticas. Resumen seleccionado y commit
+  único del crawler. Corrección acotada del test clean; VNEXT-012 sigue 203/204.
+  Nuevas 37/37, dispatcher/SDK 46/46, estado 21/21; MCP final 181/241 con 60 fallos
+  de dependencias legacy conservados. Crawler 30/30, Knowledge 258/258, Engine
+  168/168, Shared 146/146; diez builds. Lint legacy 622→513, TypeScript 48→48.
+  Sin diagnósticos nuevos ni certificación global.
+  [Arquitectura, pruebas, incompatibilidades y límites](VNEXT-013_MCP_DISCOVERY_HANDLER.md).
 
 #### `VNEXT-014` — Conexión Real de `qap_plan` y `qap_test` (Eliminación de Mocks)
 - **Estado:** Pendiente de autorización.

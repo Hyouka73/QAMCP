@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
-import { existsSync, mkdtempSync, rmSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync, readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -411,7 +411,8 @@ describe('Suite MCP Server QAP v2.1 / v2.1.2', () => {
     expect(parsedReport.directorio_objetivo).toBe(tempDir);
     expect(parsedReport.reports.html).toBeDefined();
 
-    // Resetear con clean
+    // El contrato VNEXT-012 bloquea el reset y conserva todos los archivos.
+    const filesBeforeClean = readdirSync(join(tempDir, '.qa'), { recursive: true }).sort();
     const cleanResult = await handler(
       {
         method: 'tools/call',
@@ -422,10 +423,13 @@ describe('Suite MCP Server QAP v2.1 / v2.1.2', () => {
       },
       {}
     );
-    expect(cleanResult.isError).toBeFalsy();
+    expect(cleanResult.isError).toBe(true);
     const parsedClean = JSON.parse(cleanResult.content[0].text);
-    expect(parsedClean.directorio_objetivo).toBe(tempDir);
-    expect(existsSync(join(tempDir, '.qa'))).toBe(false);
+    expect(parsedClean).toMatchObject({ status: 'blocked', code: 'persistent_memory_reset_not_authorized', removed: [] });
+    expect(existsSync(join(tempDir, '.qa'))).toBe(true);
+    expect(existsSync(join(execDir, 'exec-test.json'))).toBe(true);
+    expect(existsSync(parsedReport.reports.html)).toBe(true);
+    expect(readdirSync(join(tempDir, '.qa'), { recursive: true }).sort()).toEqual(filesBeforeClean);
   });
 
   it('debe operar sobre targetPath independiente de cwd y validar qap_server', async () => {
