@@ -11,3 +11,5 @@ export { DiscoveryHandler, type DiscoveryAuthorization } from './handlers/discov
 export { ModuleObservationBridge, type ModuleBinding, type AssociationReceipt } from './handlers/module-observation-bridge.js';
 export { CanonicalInterviewService, INTERVIEW_CATEGORY_MAPPING, type IHumanReviewGateway,
   type HumanReviewRequest, type HumanReviewDecision, type RequirementProposal } from './handlers/canonical-interview-service.js';
+export { SqliteInterviewDraftStore, InterviewDraftError, type IInterviewDraftStore,
+  type SqliteInterviewDraftOptions, type InterviewScope, type InterviewDraftSnapshot } from './handlers/interview-draft-store.js';

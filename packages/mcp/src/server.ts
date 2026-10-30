@@ -238,7 +238,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
     // Binding selection elsewhere rejects duplicates; never create an ambiguous runtime.
     if (interviewBindings.filter(b => b.root === root).length !== 1) continue;
     interviews.set(root, new CanonicalInterviewService(bound.store, { projectRoot: root,
-      applicationId: bound.applicationId, environmentId: bound.environmentId, moduleBindings: bound.moduleBindings }, bound.humanReviewGateway));
+      applicationId: bound.applicationId, environmentId: bound.environmentId, moduleBindings: bound.moduleBindings }, bound.humanReviewGateway, bound.interviewDraftStore));
   }
   const runtimeDependencies: StateDependencies = { ...dependencies, canonicalInterviews: interviews };
   const migrated = new Set(['qap_status', 'qap_clean', 'qap_context_set', 'qap_discover']);

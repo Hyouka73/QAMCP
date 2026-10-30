@@ -546,3 +546,41 @@ limitaciones.** Base `801fbc9333cbc4461f842e395700c24d5142d99b`; un agente princ
 [Arquitectura, confianza, pruebas e inventario R3](VNEXT-013_R3_CANONICAL_INTERVIEW_REQUIREMENTS.md).
 No iniciar VNEXT-014: siguen independientes cierre, cobertura y planificador.
 Detener tras publicar exclusivamente lo comprobado.
+
+## VNEXT-013-R4 — Persistencia durable de entrevistas
+
+Autorización posterior exclusiva del 2026-10-30; base local/remota
+`6568a161d94494cf189775257362b57612e9f9fa`. Un agente principal, misma rama.
+**Completada con limitaciones.** No inicia ni declara lista VNEXT-014.
+
+- Puerto interno IInterviewDraftStore y backend SQLite separado v1, inyectado por
+  binding del host. Inicialización exclusiva explícita; status no crea bases.
+  Sin backend permanece modo efímero declarado; fallo del backend no cae a RAM.
+- Preguntas, propuestas exactas/digests, correcciones, aplazamientos, rechazos y
+  UUID/digest consumidos recuperables entre procesos. AES-256-GCM con clave del
+  host, directorio/ACL privados atestados, retención y eliminación autorizada
+  documentadas. No tokens, credenciales ni propuesta libre en respuestas MCP.
+- Reserva BEGIN IMMEDIATE transversal, versiones y CAS canónico; rollback físico,
+  salida de proceso antes del COMMIT y dos conexiones comprobados. Reconciliación
+  de requisito+recibo tras fallo entre las dos bases sin otra aprobación. No se
+  promete atomicidad entre ellas ni entrega de una respuesta MCP anterior.
+- Gateway humano independiente preservado. Estado persistido no concede autoridad.
+  Contextos/evidencias obsoletos bloqueados, sin borrar historia ni avanzar lifecycle.
+  Status lee snapshots reales; almacenamiento inaccesible => unknown/unavailable.
+- Nuevas **21/21**, entrevista R3 **42/42**; MCP final **266/324**, mismos **58 casos**
+  cotejados por archivo+título: **21 A, 32 B, 5 D**. Discovery **57/57**, dispatcher/SDK
+  **46/46**, state **21/21**, Knowledge **258/258**, Engine **168/168**, Shared
+  **146/146**, crawler **30/30**. Diez builds, MCP/CLI finales recompilados.
+- TypeScript amplio **47→47**, firmas idénticas; ESLint legacy **513→513**, cuatro
+  warnings conservados; lint normal de entrega limpio. Sin supresiones nuevas.
+  Detalles de intentos por sandbox, fixtures y carga conservados en el documento R4.
+- Límites: backend opt-in, UI/identidad humana productiva pendiente; clave/ACL y
+  backups gobernados por host; sin antirollback, rotación/purga automática ni worker.
+  Límite 1024 preguntas/4096 generaciones; reserva de escritura abarca gateway.
+  Ventana transversal contexto/filesystem heredada. No cobertura/cierre canónicos.
+- Sesión protegida previa excluida, sin inspección explícita ni hash. Solo código,
+  pruebas y docs; sin bases, logs, informes de ejecución, dist o fixtures generados.
+  Publicación exclusiva feat/qap-vnext-architecture, sin merge/rebase/force push.
+
+[Diseño, privacidad, reproducción, pruebas y límites R4](VNEXT-013_R4_DURABLE_INTERVIEW_STATE.md).
+Detener tras publicar R4. **No iniciar VNEXT-014.**

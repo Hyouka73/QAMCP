@@ -25,10 +25,8 @@ export class StatusHandler implements IMcpToolHandler {
     try {
       const bound = binding(rootDir, this.dependencies);
       if (bound?.moduleBindings?.length) {
-        const lifecycle = await new FileSystemStorage({ rootDir }).getLifecycleState();
         const bridge = new ModuleObservationBridge(bound.store, { ...bound, projectRoot: rootDir });
         for (const name of [...new Set(bound.moduleBindings.map(b => b.plannedName))].slice(0, 16)) {
-          if (lifecycle.session?.plan?.filter(p => p.module === name).length !== 1) continue;
           canonicalModules.push({ ...await bridge.project(name),
             interview: await this.dependencies.canonicalInterviews?.get(rootDir)?.status(name) ?? {
               availability: 'host_runtime_absent', human_review_required: true, coverage: 'not_certified' },

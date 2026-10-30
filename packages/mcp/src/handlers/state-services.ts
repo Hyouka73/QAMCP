@@ -12,6 +12,7 @@ import { McpToolError } from '../dispatcher.js';
 
 import type { ModuleBinding } from './module-observation-bridge.js';
 import type { CanonicalInterviewService, IHumanReviewGateway } from './canonical-interview-service.js';
+import type { IInterviewDraftStore } from './interview-draft-store.js';
 
 /** Host-owned, already-open store. No filename discovery, implicit open or close. */
 export interface ProjectKnowledgeBinding {
@@ -21,6 +22,7 @@ export interface ProjectKnowledgeBinding {
   readonly store: IKnowledgeStore;
   readonly moduleBindings?: readonly ModuleBinding[];
   readonly humanReviewGateway?: IHumanReviewGateway;
+  readonly interviewDraftStore?: IInterviewDraftStore;
 }
 export interface StateDependencies {
   /** Internal host runtime, never tool arguments. */

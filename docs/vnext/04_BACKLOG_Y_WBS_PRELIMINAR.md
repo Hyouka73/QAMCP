@@ -242,6 +242,23 @@ pendientes, concurrencia transversal de contexto, cierre y cobertura siguen
 pendientes. **No inicia ni declara apta VNEXT-014.**
 [Arquitectura, confianza, garantías y clasificación individual](VNEXT-013_R3_CANONICAL_INTERVIEW_REQUIREMENTS.md).
 
+**Nota correctiva VNEXT-013-R4 (2026-10-30):** completada con limitaciones.
+IInterviewDraftStore inyectado por host, SQLite separado v1 con snapshots/historia
+cifrados AES-256-GCM, clave/protección explícitas e inicialización exclusiva.
+Preguntas/propuestas/correcciones/aplazamientos/rechazos recuperados entre procesos;
+reserva de escritura transversal, versiones y CAS canónico, rollback y recuperación
+de requisito+recibo tras fallo entre bases sin nueva aprobación. Status durable con
+unknown/unavailable y contexto obsoleto; 18 tools/cuatro declarativas/catorce legacy.
+No dual-write ni avance lifecycle, cobertura/cierre o UI humana productiva.
+Nuevas **21/21**, R3 **42/42**; MCP **266/324**, mismos **58 históricos** cotejados
+individualmente (**21 A, 32 B, 5 D**). Discovery57/57, dispatcher46/46, state21/21,
+Knowledge258/258, Engine168/168, Shared146/146, crawler30/30 y diez builds.
+TypeScript **47→47**, ESLint legacy **513→513**, lint de entrega limpio, sin
+supresiones. Retención/eliminación autorizada, claves/ACL/backups del host,
+antirollback, UI y ventana transversal de contexto limitan operación productiva.
+**No inicia ni declara lista VNEXT-014.**
+[Contrato, pruebas físicas, privacidad y reproducción R4](VNEXT-013_R4_DURABLE_INTERVIEW_STATE.md).
+
 #### `VNEXT-014` — Conexión Real de `qap_plan` y `qap_test` (Eliminación de Mocks)
 - **Estado:** Pendiente de autorización.
 - **Paquetes afectados:** `@qap/mcp`, `@qap/playwright-runner`.
