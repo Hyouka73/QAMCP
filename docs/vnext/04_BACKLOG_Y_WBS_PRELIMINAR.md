@@ -4,7 +4,7 @@
 - **Rama:** `feat/qap-vnext-architecture`
 - **Autor / Rol:** Principal Software Architect y Teamwork Lead
 - **Fecha:** Octubre 2026 (Revisión Arquitectónica Profunda — Etapa 0 Corregida)
-- **Estado:** VNEXT-001 a VNEXT-006 terminadas; VNEXT-007 y VNEXT-008 completadas con limitaciones explícitas (2026-10-30). VNEXT-009 y posteriores pendientes de autorización.
+- **Estado:** VNEXT-001 a VNEXT-006 terminadas; VNEXT-007 y VNEXT-008 completadas con limitaciones explícitas (2026-10-30). VNEXT-009 completada con limitaciones (2026-10-30); VNEXT-010 y posteriores pendientes de autorización.
 - **Referencias:** D-010 (Evolución documentada por etapas), D-001 a D-015.
 
 ---
@@ -14,7 +14,7 @@
 Conforme a la directiva **D-010** y la corrección de inconsistencias de numeración del WBS, el trabajo se organiza en **7 Hitos Secuenciales (Hito 0 a Hito 6)** numerados de forma estrictamente continua (**VNEXT-001 a VNEXT-023**).
 
 > [!IMPORTANT]
-> **Estado de Autorización:** Solicitudes del 2026-10-30 autorizaron VNEXT-007 y posteriormente VNEXT-008, implementadas y verificadas con los límites documentados. Detener tras VNEXT-008. VNEXT-009 y posteriores requieren autorización nueva. Continuidad: [STATE.md](STATE.md).
+> **Estado de Autorización:** Solicitudes del 2026-10-30 autorizaron VNEXT-007 y posteriormente VNEXT-008, implementadas y verificadas con los límites documentados. Autorización posterior del 2026-10-30 incluye únicamente VNEXT-009, implementada con límites explícitos. Detener tras VNEXT-009; VNEXT-010 y posteriores requieren autorización nueva. Continuidad: [STATE.md](STATE.md).
 
 ```mermaid
 flowchart TD
@@ -119,11 +119,13 @@ flowchart TD
 - **Límites:** Una vista/ventana pasiva, no inventario exhaustivo ni sandbox OS; Chrome/Windows probados. Sin login, acciones, redirects seguidos, inline/eval, binarios, headers personalizados/preflight ni inferencias. [Arquitectura, API y reproducción](VNEXT-008_NETWORK_INTERCEPTOR.md). Detener; no iniciar VNEXT-009.
 
 #### `VNEXT-009` — Motor de Inferencia de Hipótesis y Asignación de Certeza
-- **Estado:** Pendiente de autorización.
+- **Estado:** Completada con limitaciones explícitas (2026-10-30), por autorización expresa. Agente principal único.
 - **Paquetes afectados:** `@qap/knowledge`.
 - **Dependencias:** `VNEXT-007`, `VNEXT-008`.
 - **Riesgo:** Medio.
-- **Alcance:** Algoritmo que procesa los datos extraídos por el crawler y genera entidades con estado `inferred`, calculando `confidence_score` empírico y vinculando la evidencia correspondiente.
+- **Alcance entregado:** KnowledgeInferenceEngine sobre IKnowledgeStore v1, cinco categorías de hipótesis con plantillas cerradas, puntaje heurístico desglosado (no probabilidad), abstención, deduplicación, CAS e historia con soporte persistido. Sin reglas confirmadas ni correlación HMAC entre ejecuciones.
+- **Verificación:** 20/20 nuevas; Shared146/146, Engine168/168, Knowledge258/258, Adapter139/139; diez builds, tipos/lint de entrega limpios. SQLite físico, conflictos, rollback y canarios. Diagnósticos legacy y ventana contexto/commit documentados.
+- **Límites y continuidad:** cobertura parcial, independencia no demostrada, clusters locales heurísticos, sin promoción. [API, fórmula, pruebas y límites](VNEXT-009_INFERENCE_ENGINE.md). Detener; VNEXT-010 no autorizada.
 
 #### `VNEXT-010` — Sondas de Observación Activa No Destructiva
 - **Estado:** Pendiente de autorización.

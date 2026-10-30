@@ -9,7 +9,8 @@ Actualizado: 2026-10-30. Agente principal único.
 expresa del 2026-10-30. No se certifica exploración SPA con JavaScript.
 **VNEXT-008 completada con limitaciones: observación dinámica pasiva acotada**, por
 autorización expresa del 2026-10-30. JavaScript/Fetch/XHR reales verificados mediante
-gateway seguro y barrera TCP/UDP. Detener aquí; VNEXT-009 y posteriores no autorizadas.
+gateway seguro y barrera TCP/UDP. VNEXT-009 fue autorizada posteriormente y se registra abajo.
+**VNEXT-009 completada con limitaciones: inferencia determinista sobre memoria persistida**, por autorización expresa del 2026-10-30. Detener tras publicarla; VNEXT-010 y posteriores no autorizadas.
 Leer este archivo y el WBS antes de elegir trabajo ante «continúa».
 
 ## Rama y cambios ajenos
@@ -192,3 +193,50 @@ nuevos handlers ni integración develop.
 
 [API, garantías empíricas, reproducción y límites VNEXT-008](VNEXT-008_NETWORK_INTERCEPTOR.md).
 Detener al publicar VNEXT-008; no iniciar VNEXT-009, Advisor, sondas, MCP ni integración develop.
+
+## Motor de inferencias VNEXT-009
+
+- Implementación/pruebas: `8766632`; documentación y cierre en el commit siguiente.
+
+- Base exacta `8a0a2f5f6ac3f19e3f8a5066d6d18fc5532c3817`; rama exclusiva
+  `feat/qap-vnext-architecture`, agente principal único. La nueva autorización reemplaza
+  exclusivamente la prohibición anterior de iniciar VNEXT-009. No se reauditaron etapas.
+- `KnowledgeInferenceEngine` y `calculateInferenceConfidence` exportados por Knowledge.
+  Consume exclusivamente observaciones/evidencias recuperadas del puerto v1; valida
+  procedencia, contexto anónimo, revisiones históricas, sesiones y estructura seleccionada.
+  Sin cambios Shared/Engine/SQLite, navegador, HTTP, credenciales, LLM, MCP ni CLI.
+- Cinco categorías: enlaces potenciales, controles, cadenas de links, clusters con links
+  recíprocos/formularios y riesgos (503, bloqueo, scripts, cobertura parcial). No requisitos,
+  defectos confirmados, navegación acreditada ni reglas de negocio específicas.
+- Puntaje heurístico reproducible, techo 0.72, desglose estructurado, no probabilidad.
+  Repetidos comparten unidad; I=1 conservador sin independencia demostrada. No correlación
+  de referencias HMAC entre ejecuciones; no decaimiento temporal ni refutación por ausencia.
+- Identidad determinista acotada a sesión/contexto/regla; deduplicación, nuevas revisiones
+  CAS, historia y pins de evidencia. Un lote <=32 writes; soportes <=16; páginas <=100;
+  observaciones default500/max1000, candidatos24/32, cálculo5/30s y complejidad acotada.
+  Conflictos y cursores inválidos rechazan sin writes parciales. Selecciones parciales no
+  eliminan soportes. Atributos DOM comparables contradictorios provocan abstención.
+- Pruebas nuevas **20/20**, SQLite físico: reapertura/historial/dedup/CAS/aislamiento,
+  trigger rollback, dos conexiones concurrentes, pins históricos, contexto/cursor, canarios
+  de payload/atributos/URLs/razonamientos sin propagación a inferencias/resultados/logs ni
+  DB/WAL/SHM de salida. La fuente hostil preexistente no se borra; arnés explicado en doc.
+- Regresiones completas ejecutadas: Shared **146/146**, Engine **168/168**, Knowledge
+  **258/258**, Playwright Adapter **139/139** secuencial. Diez builds aprobados.
+  TypeScript de Knowledge/test y lint de entrega limpios. No suite global certificada.
+- Primer intento Knowledge bajo sandbox: **255 pasan/3 fallan** en integración HTTP
+  loopback; ejecución permitida fuera del sandbox **258/258**. Vite TEMP inicial EPERM
+  corregido usando node_modules/.tmp-vnext. pnpm intentó validación registry bloqueada por
+  DNS: se usaron binarios locales instalados, sin cambios de dependencias/lockfile.
+- Typecheck amplio Knowledge/src incluye tests legacy intactos: TS2352 en document-detector
+  líneas48/49, TS18048 línea308; TS2353 waived_at en file-storage línea323. La compilación
+  de producción y el typecheck específico de la entrega pasan; no se alteraron aserciones.
+- Límites: ventanas/contexto y cancelación v1 heredadas; materialización/SQLite síncronos
+  no interrumpibles, sin límite OS de memoria. No independencia/correlación entre runs,
+  topología completa, navegación ejecutada ni promoción. Clusters locales heurísticos;
+  contradicción inicial limitada a atributos DOM comparables. Solo Windows/Node24.15.0.
+- Sesión protegida conservada, hash `28e1b8dbec7ccf194440cc4158ec6072c9b9ade4`,
+  excluida de staging/commits. Logs vnext009-* y bases sintéticas temporales excluidos.
+
+[Arquitectura, fórmula, API, pruebas, reproducción y límites VNEXT-009](VNEXT-009_INFERENCE_ENGINE.md).
+Detener tras publicar VNEXT-009. VNEXT-010, Advisor, sondas, nuevos handlers e integración
+con develop/main permanecen sin autorización.
