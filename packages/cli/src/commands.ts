@@ -29,7 +29,7 @@ import { handleDiscover } from './commands/discover.js';
 import { handleReport } from './commands/report.js';
 import { handleInitCommand } from './commands/init.js';
 import { handleValidate } from './commands/validate.js';
-import { handlePrune } from './commands/prune.js';
+import { handlePrune,  type PruneCommandOptions } from './commands/prune.js';
 import { handleRuntimeReindex } from './commands/reindex.js';
 import { handlePlan } from './commands/plan.js';
 import { handleMcp, handleMcpRegister } from './commands/mcp.js';
@@ -192,12 +192,13 @@ export function registerCommands(program: Command): void {
       await handleUpdate(moduleName, options);
     });
 
-  // Subcomando 'rollback'
+    // Subcomando 'rollback'
   program
     .command('rollback [module]')
-    .description('Restaura módulos y planes a estados previos desde .qa/cache/backups/')
-    .option('--to <id>', 'Identificador del respaldo a restaurar')
-    .action(async (moduleName?: string, options?: { to?: string }) => {
+    .description('Restaura un módulo a un respaldo previo desde .qa/cache/backups/')
+    .option('--to <id>', 'Identificador (timestamp) del respaldo a restaurar')
+    .option('-y, --yes', 'Restaura sin pedir confirmación')
+    .action(async (moduleName?: string, options?: { to?: string; yes?: boolean }) => {
       await handleRollback(moduleName, options);
     });
 
@@ -246,17 +247,19 @@ export function registerCommands(program: Command): void {
       await handleValidate(targetPath);
     });
 
-  // 6. Subcomando 'prune'
-  program
-    .command('prune')
-  .description('Elimina ejecuciones, capturas temporales y logs obsoletos')
-  .option('--older-than-days <dias>', 'Antigüedad máxima en días')
-  .option('--max-bytes <bytes>', 'Límite de cuota en disco')
-  .option('--max-entries <entradas>', 'Número máximo de ejecuciones a conservar')
-  .option('--dry-run', 'Audita sin eliminar ningún archivo')
-  .action(async (options) => {
-    await handlePrune(options);
-  });
+ // 6. Subcomando 'prune'
+   program
+     .command('prune')
+     .description('Elimina ejecuciones, capturas temporales y logs obsoletos')
+     .option('--older-than-days <dias>', 'Antigüedad máxima en días')
+     .option('--max-bytes <bytes>', 'Límite de cuota en disco')
+     .option('--max-entries <entradas>', 'Número máximo de ejecuciones a conservar')
+     .option('--include-screenshots', 'Incluir purga de capturas de pantalla de artefactos')
+     .option('--include-hashes', 'Incluir purga de snapshots DOM antiguos en caché')
+     .option('--dry-run', 'Audita sin eliminar ningún archivo')
+     .action(async (options: PruneCommandOptions) => {
+       await handlePrune(options);
+     });
 
   // 7. Grupo 'runtime' con 'reindex'
   const runtimeGroup = program

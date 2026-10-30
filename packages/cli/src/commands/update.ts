@@ -1,12 +1,13 @@
-import { existsSync, readdirSync, readFileSync} from 'node:fs';
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
 import { confirm } from '@inquirer/prompts';
-import { FileSystemStorage, ModuleBackupManager, SemanticHasher, UpdateGuard } from '@qap/knowledge';
+import { FileSystemStorage, ModuleBackupManager, UpdateGuard } from '@qap/knowledge';
 import type { Module, ModuleContext, Selectors } from '@qap/shared';
 import { parse } from 'yaml';
 
 import { DataError } from '../errors.js';
+import { computeModuleSemanticHash } from '../lib/module-semantic-hash.js';
 
 export interface UpdateCommandOptions {
   /** Aplica los cambios sin pedir confirmación. */
@@ -102,15 +103,6 @@ function findProtectedFiles(moduleDir: string): string[] {
   }
 
   return protectedFiles;
-}
-
-function readRawBaseRoute(contextPath: string): string | undefined {
-  try {
-    const parsed = parse(readFileSync(contextPath, 'utf-8')) as { base_route?: unknown } | null;
-    return typeof parsed?.base_route === 'string' ? parsed.base_route : undefined;
-  } catch {
-    return undefined;
-  }
 }
 
 async function loadCurrentSelectors(storage: FileSystemStorage, moduleName: string): Promise<Selectors | null> {
@@ -229,7 +221,6 @@ export async function handleUpdate(moduleName?: string, options: UpdateCommandOp
   if (!contextProtected && existsSync(contextPath)) {
     currentContext = await storage.getModuleContext(moduleName);
   }
-  const currentRoute = contextProtected ? readRawBaseRoute(contextPath) : currentContext?.base_route;
 
   const currentSelectors = await loadCurrentSelectors(storage, moduleName);
   const derivedSelectors = deriveSelectorsFromCachedModule(cachedModule);
@@ -262,12 +253,15 @@ export async function handleUpdate(moduleName?: string, options: UpdateCommandOp
     }
   }
 
+  // Hash semántico del estado previo: se guarda dentro del respaldo para que
+  // 'qap rollback' pueda verificar su integridad con SemanticHasher.
+  const previousHash = computeModuleSemanticHash(moduleDir);
   const backupPath = ModuleBackupManager.backupModule(rootDir, moduleName);
   if (backupPath) {
+    writeFileSync(join(backupPath, 'semantic-hash.json'), JSON.stringify(previousHash, null, 2), 'utf-8');
     console.log(`Respaldo creado en: ${backupPath}`);
   }
 
-  let finalRoute: string | undefined = currentRoute;
   if (metadataDiffs.length > 0) {
     const updatedContext: ModuleContext = {
       _version: currentContext?._version ?? '2',
@@ -278,14 +272,11 @@ export async function handleUpdate(moduleName?: string, options: UpdateCommandOp
       base_route: cachedModule.path ?? currentContext?.base_route,
     };
     await storage.saveModuleContext(moduleName, updatedContext);
-    finalRoute = updatedContext.base_route;
   }
 
-  let finalSelectors = currentSelectors?.selectors ?? {};
   if (selectorsDiffs.length > 0) {
-    finalSelectors = { ...finalSelectors, ...derivedSelectors };
     const mergedSelectors: Selectors = {
-      selectors: finalSelectors,
+      selectors: { ...(currentSelectors?.selectors ?? {}), ...derivedSelectors },
       metadata: {
         generated_at: new Date().toISOString(),
         source: 'qap update',
@@ -294,12 +285,8 @@ export async function handleUpdate(moduleName?: string, options: UpdateCommandOp
     await storage.saveModuleSelectors(moduleName, mergedSelectors);
   }
 
-  // Recalcula semantic-hash.json con el estado final de rutas y selectores.
-  const semanticHash = new SemanticHasher().generate(
-    { routes: finalRoute ? [finalRoute] : [], selectors: finalSelectors },
-    ['context.yaml', 'selectors.json']
-  );
-  await storage.saveSemanticHash(moduleName, semanticHash);
+  // Recalcula semantic-hash.json con el estado final del módulo.
+  await storage.saveSemanticHash(moduleName, computeModuleSemanticHash(moduleDir));
 
   console.log(`✔ Módulo '${moduleName}' actualizado (${diffs.length} campo(s) aplicados). Hash semántico recalculado.`);
 }
