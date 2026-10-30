@@ -13,8 +13,9 @@ gateway seguro y barrera TCP/UDP. VNEXT-009 fue autorizada posteriormente y se r
 **VNEXT-009 completada con limitaciones: inferencia determinista sobre memoria persistida**, por autorización expresa del 2026-10-30. Detener tras publicarla; VNEXT-010 y posteriores no autorizadas.
 **VNEXT-010 completada con limitaciones por autorización posterior del 2026-10-30: sondas de formulario vacío no destructivas.**
 Esta autorización sustituye exclusivamente el bloqueo anterior de VNEXT-010; el cierre y
-sus límites se registran al final. La autorización posterior de VNEXT-011 y su cierre
-con limitaciones se registran al final; VNEXT-012 y posteriores siguen sin autorización.
+sus límites se registran al final. Las autorizaciones posteriores de VNEXT-011 y
+VNEXT-012 y sus cierres con limitaciones se registran al final; VNEXT-013 y posteriores
+siguen sin autorización.
 Leer este archivo y el WBS antes de elegir trabajo ante «continúa».
 
 ## Rama y cambios ajenos
@@ -342,3 +343,45 @@ integración develop/main requieren autorización nueva.
 [Arquitectura, API, límites y verificación VNEXT-011](VNEXT-011_MCP_DISPATCHER.md).
 Detener tras publicar VNEXT-011. **No iniciar VNEXT-012**, VNEXT-013, VNEXT-014,
 Advisor ni integración develop/main sin autorización nueva.
+
+
+## Handlers de información y estado VNEXT-012
+
+- Autorización posterior expresa del 2026-10-30, exclusivamente VNEXT-012. Sustituye
+  el bloqueo anterior de esta microtarea, sin alterar los cierres históricos.
+  **Completada con limitaciones**, agente principal único. Base exacta
+  def1b015147d300b0f27552fa6d4b432b4b0d183; rama feat/qap-vnext-architecture.
+- StatusHandler, CleanHandler y ContextHandler registrados y sellados por el mismo
+  dispatcher. Sus bloques funcionales se retiran del switch; 15 nombres legacy
+  continúan reservados. Catálogo y prompts históricos conservados: 18 tools, mismo
+  orden, descripciones y esquemas; no hay fallback después de error declarativo.
+- Vinculación IKnowledgeStore explícita: ruta real, application_id, environment_id
+  y store abierto por el host. MCP no descubre/abre/crea bases ni cierra la instancia
+  inyectada. Estado unbound/unavailable/incompatible/partial documentado. Inventario
+  de una página por clase, sin convertir observaciones/inferencias en requisitos o
+  tests aprobados. Status deja de escribir scan.json.
+- Clean bloquea el reseteo general incluso con force=true; no elimina cachés, locks,
+  SQLite/WAL/SHM, perfiles, sesiones, bóvedas ni archivos personales. Contrato de
+  entrada intacto; semántica de éxito legacy expresamente incompatible con D-007.
+- Contexto conserva negocio/onboarding en YAML, correcciones y procedencia; consulta
+  identidad y política canónicas, bloquea discrepancias de URL y no realiza dual-write
+  ni proyección de roles/objetivos/flujos a entidades autoritativas. Puerto v1 y
+  esquema SQLite intactos. Serialización por proyecto, lock exclusivo, CAS por
+  contenido, diario before/after, publicación por rename y fallos parciales explícitos.
+  Recuperación de diario incompleto requiere revisión deliberada; sin replay automático.
+- MCP completo **203/204**: único fallo es la aserción histórica e intacta de clean
+  que exige borrar .qa. Pruebas nuevas **21/21**; integración real SDK y SQLite físico,
+  dos conexiones, CAS/historial/referencias/rollback/reapertura, aislamiento e integridad,
+  preservación física y junction externo. Knowledge **258/258**, Engine **168/168**,
+  Shared **146/146**; diez builds, MCP/CLI finales recompilados. No suite global certificada.
+- Lint de archivos de entrega limpio sin supresiones nuevas. Deuda server.ts bajo
+  --no-inline-config **798→622**; TypeScript amplio **48→48**, mismos diagnósticos
+  heredados normalizando orden textual de uniones, cero añadidos/en archivos nuevos.
+- Sesión protegida conservada y excluida de staging; hash Git de contenido
+  28e1b8dbec7ccf194440cc4158ec6072c9b9ade4. Sin uso de su contenido. Entrega:
+  git log --oneline def1b01..HEAD. Publicación exclusiva en la rama autorizada.
+
+[Arquitectura, políticas, pruebas y límites VNEXT-012](VNEXT-012_MCP_STATE_HANDLERS.md).
+Detener tras publicar VNEXT-012. **No iniciar VNEXT-013**, VNEXT-014, Advisor ni
+integración con develop/main. La infraestructura permite otra transferencia explícita
+solo tras nueva autorización.

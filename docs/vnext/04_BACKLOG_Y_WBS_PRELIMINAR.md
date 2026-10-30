@@ -4,7 +4,7 @@
 - **Rama:** `feat/qap-vnext-architecture`
 - **Autor / Rol:** Principal Software Architect y Teamwork Lead
 - **Fecha:** Octubre 2026 (Revisión Arquitectónica Profunda — Etapa 0 Corregida)
-- **Estado:** VNEXT-001 a VNEXT-006 terminadas; VNEXT-007 a VNEXT-011 completadas con limitaciones explícitas (2026-10-30). VNEXT-012 y posteriores pendientes de autorización.
+- **Estado:** VNEXT-001 a VNEXT-006 terminadas; VNEXT-007 a VNEXT-012 completadas con limitaciones explícitas (2026-10-30). VNEXT-013 y posteriores pendientes de autorización.
 - **Referencias:** D-010 (Evolución documentada por etapas), D-001 a D-015.
 
 ---
@@ -168,11 +168,22 @@ flowchart TD
   [Diseño, pruebas y limitaciones](VNEXT-011_MCP_DISPATCHER.md).
 
 #### `VNEXT-012` — Migración de Handlers de Información y Estado (`status`, `clean`, `context`)
-- **Estado:** Pendiente de autorización.
+- **Estado:** Completada con limitaciones (2026-10-30), por autorización posterior expresa.
 - **Paquetes afectados:** `@qap/mcp`.
 - **Dependencias:** `VNEXT-011`, `VNEXT-003`.
 - **Riesgo:** Bajo.
 - **Alcance:** Implementar `status.handler.ts`, `clean.handler.ts` y `context.handler.ts` conectándolos directamente al nuevo `IKnowledgeStore`.
+
+- **Entrega:** Tres propietarios declarativos reales, switch retirado para status/clean/context,
+  catálogo histórico de 18 herramientas conservado. Knowledge por vinculación explícita;
+  contexto YAML coexistente sin promociones ni dual-write. Clean bloquea el reseteo
+  general por integridad, incluso force=true: incompatibilidad observable declarada.
+  Diario legacy y reporte de fallos parciales; recuperación deliberada sin replay automático.
+  MCP completo 203/204 (único fallo: aserción intacta del borrado general); nuevas 21/21,
+  SQLite físico y dos conexiones; Knowledge 258/258, Engine 168/168, Shared 146/146,
+  diez builds. ESLint legacy 798→622; TypeScript 48→48, sin diagnósticos nuevos.
+  No suite global certificada. Sin iniciar VNEXT-013 ni cambiar IKnowledgeStore v1.
+  [Arquitectura, pruebas y límites](VNEXT-012_MCP_STATE_HANDLERS.md).
 
 #### `VNEXT-013` — Handler de Descubrimiento Autónomo (`discovery.handler.ts`)
 - **Estado:** Pendiente de autorización.
