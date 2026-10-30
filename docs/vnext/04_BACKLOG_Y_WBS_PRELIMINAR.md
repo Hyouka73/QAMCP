@@ -4,7 +4,7 @@
 - **Rama:** `feat/qap-vnext-architecture`
 - **Autor / Rol:** Principal Software Architect y Teamwork Lead
 - **Fecha:** Octubre 2026 (Revisión Arquitectónica Profunda — Etapa 0 Corregida)
-- **Estado:** VNEXT-001 a VNEXT-006 terminadas por autorización expresa, con límites documentados. VNEXT-007 y posteriores pendientes de autorización.
+- **Estado:** VNEXT-001 a VNEXT-006 terminadas; VNEXT-007 completada con limitaciones en modo estático anónimo (2026-10-30). VNEXT-008 y posteriores pendientes de autorización.
 - **Referencias:** D-010 (Evolución documentada por etapas), D-001 a D-015.
 
 ---
@@ -14,7 +14,7 @@
 Conforme a la directiva **D-010** y la corrección de inconsistencias de numeración del WBS, el trabajo se organiza en **7 Hitos Secuenciales (Hito 0 a Hito 6)** numerados de forma estrictamente continua (**VNEXT-001 a VNEXT-023**).
 
 > [!IMPORTANT]
-> **Estado de Autorización:** La solicitud del 2026-10-28 autorizó exclusivamente VNEXT-006, implementada y verificada con límites documentados. VNEXT-007 y posteriores requieren autorización nueva. Continuidad: [STATE.md](STATE.md).
+> **Estado de Autorización:** La solicitud del 2026-10-30 autorizó exclusivamente VNEXT-007, implementada y verificada en modo limitado estático. VNEXT-008 y posteriores requieren autorización nueva. Continuidad: [STATE.md](STATE.md).
 
 ```mermaid
 flowchart TD
@@ -98,11 +98,14 @@ flowchart TD
 - **Verificación:** 55 tests HTTP/TLS/IPv6 nuevos, 4 SQLite físicos finales, Shared 146/146, Engine 168/168; Knowledge completo 238/238; adapter comparado base 26/26 y actual 80/80 antes de añadir el test 1xx final. Diez builds. Límites legacy de tsc/lint y de deadline/store explícitos en [VNEXT-006](VNEXT-006_HTTP_RECONNAISSANCE.md).
 
 #### `VNEXT-007` — Crawler Black-Box Dirigido con Playwright
-- **Estado:** Pendiente de autorización.
+- **Estado:** Completada con limitaciones (2026-10-30): modo estático anónimo; exploración SPA ejecutando JavaScript no implementada ni certificada.
 - **Paquetes afectados:** `@qap/playwright-adapter`.
 - **Dependencias:** `VNEXT-006`.
 - **Riesgo:** Medio.
 - **Alcance:** Construir `BlackBoxCrawler` capaz de navegar la aplicación en modo incógnito/perfil limpio, mapear rutas accesibles, menús, enlaces, formularios y botones sin mutaciones destructivas.
+- **Entrega:** API tipada/exportada, BFS por URLs exactas y GET read-only consentidos; contextos nuevos offline/JS desactivado, transporte Node DNS fijado de VNEXT-006, proxy de denegación, sin 3xx al browser. DOM sanitizado, rutas opacas y estados candidatos/visitas distintos; commit atómico de evidencia y observaciones por puerto v1 intacto. Entidades de dominio diferidas sin identidad válida.
+- **Verificación:** 30 pruebas nuevas con Chrome real y SQLite físico; adapter completo 111/111, Shared 146/146, Engine 168/168, Knowledge 238/238, diez builds y tsc/lint focalizados. Proxy comprobado sin routing/offline; rollback real, canarios ausentes e historial conservado.
+- **Límites:** Shells SPA/skeleton registrados como dependientes de scripts, sin afirmar exploración dinámica ni protección SSRF de navegador general. Recursos externos y queries bloqueados. Criterios SPA/asíncronos limitados expresamente. [API, seguridad, reproducción y límites](VNEXT-007_BLACKBOX_CRAWLER.md). Detener; no iniciar VNEXT-008.
 
 #### `VNEXT-008` — Interceptor de Tráfico de Red y Extracción de Endpoints
 - **Estado:** Pendiente de autorización.

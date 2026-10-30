@@ -3,4 +3,6 @@ export * from './adapter.js';
 export * from './screenshots.js';
 export * from './reconnaissance/types.js';
 export * from './reconnaissance/service.js';
+export * from './crawler/types.js';
+export * from './crawler/service.js';
 
