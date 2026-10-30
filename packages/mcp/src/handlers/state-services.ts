@@ -11,6 +11,7 @@ import { TOOLS } from '../tool-catalog.js';
 import { McpToolError } from '../dispatcher.js';
 
 import type { ModuleBinding } from './module-observation-bridge.js';
+import type { CanonicalInterviewService, IHumanReviewGateway } from './canonical-interview-service.js';
 
 /** Host-owned, already-open store. No filename discovery, implicit open or close. */
 export interface ProjectKnowledgeBinding {
@@ -19,8 +20,11 @@ export interface ProjectKnowledgeBinding {
   readonly environmentId: string;
   readonly store: IKnowledgeStore;
   readonly moduleBindings?: readonly ModuleBinding[];
+  readonly humanReviewGateway?: IHumanReviewGateway;
 }
 export interface StateDependencies {
+  /** Internal host runtime, never tool arguments. */
+  readonly canonicalInterviews?: ReadonlyMap<string, CanonicalInterviewService>;
   /** Defaults to the server's cwd; explicit roots authorize additional projects. */
   readonly projectRoots?: readonly string[];
   readonly knowledgeBindings?: readonly ProjectKnowledgeBinding[];

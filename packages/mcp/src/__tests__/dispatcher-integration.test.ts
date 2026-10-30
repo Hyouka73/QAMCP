@@ -70,14 +70,23 @@ describe('real MCP client/server via linked transports', () => {
     expect(() => createMcpServer({ handlers: [handler] })).toThrow();
   });
 
-  it('preserves 17 definitions, discover schema/order and prompts; revises only its description', async () => {
+  it('preserves 16 definitions, order, prompts and legacy rules schema; adds explicit canonical interview operations', async () => {
     const baseline = JSON.parse(readFileSync(new URL('./fixtures/mcp-catalog-vnext010.json', import.meta.url), 'utf8'));
     const client = await connect();
     const tools = (await client.listTools()).tools;
     const oldTools = baseline.tools as Array<{ name: string; description: string }>;
     const changed = tools.find(tool => tool.name === 'qap_discover')!;
     expect(changed.description).not.toBe(oldTools.find(tool => tool.name === 'qap_discover')!.description);
-    expect({ tools: tools.map(tool => tool.name === 'qap_discover' ? { ...tool, description: oldTools.find(t => t.name === tool.name)!.description } : tool), prompts: (await client.listPrompts()).prompts }).toEqual(baseline);
+    const rules = tools.find(tool => tool.name === 'qap_rules_set')!;
+    expect(rules.inputSchema.properties?.canonical_interview).toMatchObject({ type: 'object', additionalProperties: false,
+      properties: { action: { enum: ['next', 'propose', 'correct', 'review', 'defer', 'resume'] } }, required: ['action'] });
+    expect({ tools: tools.map(tool => {
+      if (tool.name === 'qap_discover') return { ...tool, description: oldTools.find(t => t.name === tool.name)!.description };
+      if (tool.name !== 'qap_rules_set') return tool;
+      const properties = { ...tool.inputSchema.properties }; delete properties.canonical_interview;
+      return { ...tool, description: oldTools.find(t => t.name === tool.name)!.description,
+        inputSchema: { ...tool.inputSchema, properties } };
+    }), prompts: (await client.listPrompts()).prompts }).toEqual(baseline);
     expect(await client.getPrompt({ name: 'qap_start' })).toEqual({
       description: 'Onboarding paso a paso para QAP',
       messages: [{ role: 'user', content: { type: 'text', text: 'Inicia revisando el estado de QAP con qap_status y guíame paso a paso sin muros de texto.' } }],

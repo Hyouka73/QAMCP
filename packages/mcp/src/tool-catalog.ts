@@ -505,11 +505,25 @@ export const TOOLS: Tool[] = [
   },
   {
     name: 'qap_rules_set',
-    description: `Persiste reglas de negocio confirmadas o rechazadas por el usuario, y waivers de categoría, en rules.yaml de un módulo. Respuestas breves de usuario se guardan como borradores que requieren propuesta_enunciado sustantiva para emitir pregunta estructurada de confirmación. Usa operación atómica RMW. ${UX_DIRECTIVE}`,
+    description: `Ruta legacy: persiste reglas y waivers en rules.yaml con contexto legacy válido. Ruta explícita canonical_interview: entrevista canónica y propuestas; confirmar ExpectedRequirement exige un gateway de revisión humana inyectado por el host. Los argumentos MCP no acreditan autorización humana. Sin dual-write. ${UX_DIRECTIVE}`,
     inputSchema: {
       type: 'object',
       properties: {
         targetPath: TARGET_PATH_PROP,
+        canonical_interview: {
+          type: 'object', additionalProperties: false,
+          description: 'Operación canónica exclusiva; no combinar con argumentos de reglas legacy. Sin gateway solo preguntas y propuestas pendientes.',
+          properties: {
+            action: { type: 'string', enum: ['next', 'propose', 'correct', 'review', 'defer', 'resume'] },
+            question_id: { type: 'string' }, version: { type: 'integer', minimum: 0 },
+            expected_revision: { type: 'integer', minimum: 0 },
+            proposal: { type: 'object', additionalProperties: false, properties: {
+              title: { type: 'string', maxLength: 200 }, description: { type: 'string', maxLength: 4000 },
+              category: { type: 'string', enum: ['functional', 'business_rule', 'security', 'ui', 'ux', 'regression', 'performance'] },
+              acceptance_criteria: { type: 'array', maxItems: 20, items: { type: 'string', maxLength: 1000 } },
+            }, required: ['title', 'description'] },
+          }, required: ['action'],
+        },
         module: {
           type: 'string',
           description: 'Nombre del módulo al que pertenecen las reglas (ej: "auth", "dashboard")',

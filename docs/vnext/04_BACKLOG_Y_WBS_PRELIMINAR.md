@@ -226,6 +226,22 @@ discovery 57/57. Diez builds; ESLint 513 y TypeScript 47, sin diagnósticos nuev
 No resuelve todavía entrevistas/confirmación ni habilita VNEXT-014.
 [Modelo, pruebas, recuperación y límites R2](VNEXT-013_R2_MODULE_OBSERVATION_BRIDGE.md).
 
+**Nota correctiva VNEXT-013-R3 (2026-10-30):** completada con limitaciones.
+CanonicalInterviewService con preguntas estructuradas y propuestas en memoria;
+qap_rules_set añade una ruta canónica exclusiva, con revisión independiente del
+host y confirmación ligada al enunciado exacto/contexto/versiones. Sin gateway,
+confirmación bloqueada. ExpectedRequirement y recibo related_to de aprobación
+en transacción SQLite atómica, CAS, historial, reapertura y uso único durable por
+aplicación. Status separa requisitos/propuestas de reglas YAML; no hay avance
+lifecycle, cobertura certificada, archivos ficticios o evaluaciones de conformidad.
+MCP **245/303**, nuevas **42/42**, mismos **58 fallos (21 A, 32 B, 5 D)**;
+discovery 57/57, dispatcher/SDK 46/46, state 21/21, Knowledge 258/258, Engine
+168/168, Shared 146/146, crawler 30/30 y diez builds. ESLint 513 y TypeScript 47,
+sin diagnósticos nuevos. UI/autenticación humana de producción, persistencia de
+pendientes, concurrencia transversal de contexto, cierre y cobertura siguen
+pendientes. **No inicia ni declara apta VNEXT-014.**
+[Arquitectura, confianza, garantías y clasificación individual](VNEXT-013_R3_CANONICAL_INTERVIEW_REQUIREMENTS.md).
+
 #### `VNEXT-014` — Conexión Real de `qap_plan` y `qap_test` (Eliminación de Mocks)
 - **Estado:** Pendiente de autorización.
 - **Paquetes afectados:** `@qap/mcp`, `@qap/playwright-runner`.

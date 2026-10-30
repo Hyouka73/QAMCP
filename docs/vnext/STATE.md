@@ -505,3 +505,44 @@ develop/main sin autorización nueva.
   La asociación no declara listo VNEXT-014. Detener tras publicar R2.
 
 [Modelo, recuperación, evidencia y límites R2](VNEXT-013_R2_MODULE_OBSERVATION_BRIDGE.md).
+
+## VNEXT-013-R3 — Entrevista canónica y revisión humana
+
+Autorización posterior expresa del 2026-10-30, exclusivamente R3. **Completada con
+limitaciones.** Base `801fbc9333cbc4461f842e395700c24d5142d99b`; un agente principal.
+
+- CanonicalInterviewService reutiliza el puente R2 y bindings/revisiones vigentes.
+  Preguntas generales respaldadas por la proyección agregada; sin nombres de campos,
+  acciones o URLs inventados. Preguntas versionadas, respuesta libre, borradores
+  no autoritativos en memoria, corrección, aplazamiento y reanudación.
+- qap_rules_set incorpora canonical_interview como ruta explícita, sin fallback ni
+  dual-write. Se conservan cuatro handlers declarativos/catorce legacy, 18 tools,
+  orden y contrato legacy. No se traslada masivamente el bloque monolítico.
+- IHumanReviewGateway privilegiado inyectado por el host. La autorización vincula
+  proyecto/app/entorno/módulo, pregunta, contexto, texto/categoría/criterios exactos,
+  digest, versión y CAS. Los argumentos MCP no acreditan intervención humana.
+  Sin gateway, confirmar queda bloqueado. No se incluye UI/autenticación de producción.
+- ExpectedRequirement validado por Shared/planner, procedencia developer_interview,
+  verificador y evidencia human_review separados de observaciones motivadoras.
+  Requisito y recibo related_to de aprobación se guardan atómicamente con CAS;
+  uso único durable en la aplicación, reintentos idempotentes, historia/reapertura,
+  concurrencia y rollback comprobados en SQLite físico. No se crean assessments.
+- qap_status separa preguntas/propuestas/revisiones, requisitos draft/confirmed y
+  propuestas rechazadas. Cobertura not_certified, sin adelantar lifecycle o cierre.
+- Final MCP **245/303**, **42/42 nuevas**, mismos **58 fallos: 21 A, 32 B, 5 D**,
+  cotejados individualmente con R01–R60. Discovery **57/57**, dispatcher/SDK **46/46**,
+  state **21/21**, Knowledge **258/258**, Engine **168/168**, Shared **146/146**,
+  crawler **30/30** y diez builds. Sin certificación de suite global.
+- ESLint legacy **513→513**, TypeScript amplio **47→47**, mismas firmas; lint nuevo/
+  afectado sin diagnósticos. Sin supresiones o configuración nuevas.
+- Límites: propuestas pendientes solo en memoria; host responsable de UI, identidad,
+  revocación y unicidad entre aplicaciones. Atestación del host sin autenticación
+  criptográfica. Persiste la ventana transversal contexto/filesystem/commit del
+  puerto v1. Los 32 B no se declaran recuperados por garantías canónicas parciales.
+- Sesión protegida conservada, sin uso ni inspección explícita y excluida del staging.
+  Solo código/tests/docs; sin bases, logs o dist en staging. Publicación exclusivamente
+  en la rama autorizada. Commit/HEAD remoto se comunican al entregar.
+
+[Arquitectura, confianza, pruebas e inventario R3](VNEXT-013_R3_CANONICAL_INTERVIEW_REQUIREMENTS.md).
+No iniciar VNEXT-014: siguen independientes cierre, cobertura y planificador.
+Detener tras publicar exclusivamente lo comprobado.

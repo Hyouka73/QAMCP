@@ -6,6 +6,7 @@ import {
   readdirSync,
   rmSync,
   statSync,
+  realpathSync,
 } from 'node:fs';
 import { resolve, join, basename, extname } from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -88,6 +89,8 @@ import { TOOLS } from './tool-catalog.js';
 import { StatusHandler } from './handlers/status.handler.js';
 import { ContextHandler } from './handlers/context.handler.js';
 import { DiscoveryHandler, type DiscoveryAuthorization } from './handlers/discovery.handler.js';
+import { CanonicalInterviewService } from './handlers/canonical-interview-service.js';
+import { projectRoot as authorizedProjectRoot, result as canonicalResult } from './handlers/state-services.js';
 import { hasLegacyViewContext, legacyInterviewBlocked } from './handlers/legacy-discovery-contract.js';
 import { CleanHandler } from './handlers/clean.handler.js';
 import { checkPlaywrightBrowser, PLAYWRIGHT_INSTALL_COMMAND, detectarSubcarpetaWorkspace } from './handlers/state-runtime.js';
@@ -227,9 +230,20 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
       moduleBindings: binding.moduleBindings && Object.freeze(binding.moduleBindings.map(link => Object.freeze({ ...link }))),
     }))),
   };
+  const interviews = new Map<string, CanonicalInterviewService>();
+  const interviewBindings = (dependencies.knowledgeBindings ?? []).flatMap(bound => {
+    try { return [{ bound, root: realpathSync(bound.projectRoot) }]; } catch { return []; }
+  });
+  for (const { bound, root } of interviewBindings) {
+    // Binding selection elsewhere rejects duplicates; never create an ambiguous runtime.
+    if (interviewBindings.filter(b => b.root === root).length !== 1) continue;
+    interviews.set(root, new CanonicalInterviewService(bound.store, { projectRoot: root,
+      applicationId: bound.applicationId, environmentId: bound.environmentId, moduleBindings: bound.moduleBindings }, bound.humanReviewGateway));
+  }
+  const runtimeDependencies: StateDependencies = { ...dependencies, canonicalInterviews: interviews };
   const migrated = new Set(['qap_status', 'qap_clean', 'qap_context_set', 'qap_discover']);
   const dispatcher = new ToolDispatcher(TOOLS.filter(tool => !migrated.has(tool.name)).map(tool => tool.name));
-  dispatcher.register(new StatusHandler({ ...dependencies, browser: checkPlaywrightBrowser, view: buildViewDiscoveryContext }));
+  dispatcher.register(new StatusHandler({ ...runtimeDependencies, browser: checkPlaywrightBrowser, view: buildViewDiscoveryContext }));
   dispatcher.register(new CleanHandler(dependencies));
   dispatcher.register(new ContextHandler(dependencies));
   dispatcher.register(new DiscoveryHandler(dependencies, options.discoveryAuthorizations));
@@ -252,7 +266,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
 3. Cuando siguiente_accion trae pregunta, presentala con la herramienta ask_question: UNA sola pregunta por llamada, usando texto, formato y opciones tal cual (no inventes, reordenes ni agregues opciones). Deja siempre disponible la respuesta libre. Si formato es abierta, haz esa unica pregunta en texto y espera. Nunca agrupes varias preguntas en un mensaje ni preguntes algo que siguiente_accion no pidio. Si ask_question no existe en tu cliente, haz la misma pregunta en texto con las opciones numeradas, una a la vez.
 4. Tras cada respuesta, registrala con la tool de pregunta.registrar_con y sigue la nueva siguiente_accion. Si el usuario eligio una opcion usa su efecto; si escribio texto libre, registralo con source user y con sus palabras. Nunca registres como source user algo que el usuario no dijo ni eligio.
 5. Una sola pregunta al usuario por turno; los pasos de tipo trabajo no requieren preguntar: ejecútalos y sigue la nueva siguiente_accion. Antes de preguntar algo que pueda estar en el workspace, léelo (documentos, README, package.json).
-6. NUNCA llames qap_rules_set con datos no confirmados por el usuario.
+6. qap_rules_set legacy requiere datos confirmados por el usuario. Su ruta canonical_interview admite propuestas pendientes; solo un gateway independiente del host puede autorizar la confirmación canónica. source, status y from_option no acreditan autorización humana.
 7. Si una tool responde con status "blocked", sigue obligatoriamente 'desbloquear_con' y no intentes rodear el bloqueo.
 8. Para hipótesis DOM (source "dom", status "inferred"): CONFIRMA cada una con el usuario antes de marcarla como "confirmed". Presenta las hipótesis al usuario y pregunta cuáles son correctas.
 9. Presenta al usuario el resumen de cierre del módulo y llama qap_module_close solo con su confirmación explícita (user_confirmed: true).
@@ -2223,6 +2237,15 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         }
 
         case 'qap_rules_set': {
+          // Explicit route. No legacy fallback or dual write after canonical errors.
+          if (Object.hasOwn(args, 'canonical_interview')) {
+            const root = authorizedProjectRoot(args, dependencies, true);
+            if (Object.keys(args).some(k => !['targetPath', 'module', 'canonical_interview'].includes(k)) ||
+              typeof args.module !== 'string') return canonicalResult({ status: 'blocked', code: 'invalid_canonical_arguments' }, true);
+            const service = interviews.get(root);
+            return canonicalResult(service ? await service.execute(args.module, args.canonical_interview)
+              : { status: 'blocked', code: 'knowledge_unbound' });
+          }
           const moduleName = args.module ? String(args.module) : '';
           if (!moduleName) {
             return {

@@ -9,3 +9,5 @@ export { handleGapReportTools } from './tools/gap-report-tools.js';
 
 export { DiscoveryHandler, type DiscoveryAuthorization } from './handlers/discovery.handler.js';
 export { ModuleObservationBridge, type ModuleBinding, type AssociationReceipt } from './handlers/module-observation-bridge.js';
+export { CanonicalInterviewService, INTERVIEW_CATEGORY_MAPPING, type IHumanReviewGateway,
+  type HumanReviewRequest, type HumanReviewDecision, type RequirementProposal } from './handlers/canonical-interview-service.js';
