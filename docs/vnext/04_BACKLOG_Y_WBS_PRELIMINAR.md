@@ -4,7 +4,7 @@
 - **Rama:** `feat/qap-vnext-architecture`
 - **Autor / Rol:** Principal Software Architect y Teamwork Lead
 - **Fecha:** Octubre 2026 (Revisión Arquitectónica Profunda — Etapa 0 Corregida)
-- **Estado:** VNEXT-001 a VNEXT-006 terminadas; VNEXT-007 completada con limitaciones en modo estático anónimo (2026-10-30). VNEXT-008 y posteriores pendientes de autorización.
+- **Estado:** VNEXT-001 a VNEXT-006 terminadas; VNEXT-007 y VNEXT-008 completadas con limitaciones explícitas (2026-10-30). VNEXT-009 y posteriores pendientes de autorización.
 - **Referencias:** D-010 (Evolución documentada por etapas), D-001 a D-015.
 
 ---
@@ -14,7 +14,7 @@
 Conforme a la directiva **D-010** y la corrección de inconsistencias de numeración del WBS, el trabajo se organiza en **7 Hitos Secuenciales (Hito 0 a Hito 6)** numerados de forma estrictamente continua (**VNEXT-001 a VNEXT-023**).
 
 > [!IMPORTANT]
-> **Estado de Autorización:** La solicitud del 2026-10-30 autorizó exclusivamente VNEXT-007, implementada y verificada en modo limitado estático. VNEXT-008 y posteriores requieren autorización nueva. Continuidad: [STATE.md](STATE.md).
+> **Estado de Autorización:** Solicitudes del 2026-10-30 autorizaron VNEXT-007 y posteriormente VNEXT-008, implementadas y verificadas con los límites documentados. Detener tras VNEXT-008. VNEXT-009 y posteriores requieren autorización nueva. Continuidad: [STATE.md](STATE.md).
 
 ```mermaid
 flowchart TD
@@ -105,14 +105,18 @@ flowchart TD
 - **Alcance:** Construir `BlackBoxCrawler` capaz de navegar la aplicación en modo incógnito/perfil limpio, mapear rutas accesibles, menús, enlaces, formularios y botones sin mutaciones destructivas.
 - **Entrega:** API tipada/exportada, BFS por URLs exactas y GET read-only consentidos; contextos nuevos offline/JS desactivado, transporte Node DNS fijado de VNEXT-006, proxy de denegación, sin 3xx al browser. DOM sanitizado, rutas opacas y estados candidatos/visitas distintos; commit atómico de evidencia y observaciones por puerto v1 intacto. Entidades de dominio diferidas sin identidad válida.
 - **Verificación:** 30 pruebas nuevas con Chrome real y SQLite físico; adapter completo 111/111, Shared 146/146, Engine 168/168, Knowledge 238/238, diez builds y tsc/lint focalizados. Proxy comprobado sin routing/offline; rollback real, canarios ausentes e historial conservado.
-- **Límites:** Shells SPA/skeleton registrados como dependientes de scripts, sin afirmar exploración dinámica ni protección SSRF de navegador general. Recursos externos y queries bloqueados. Criterios SPA/asíncronos limitados expresamente. [API, seguridad, reproducción y límites](VNEXT-007_BLACKBOX_CRAWLER.md). Detener; no iniciar VNEXT-008.
+- **Límites:** Shells SPA/skeleton registrados como dependientes de scripts, sin afirmar exploración dinámica ni protección SSRF de navegador general. Recursos externos y queries bloqueados. Criterios SPA/asíncronos limitados expresamente. [API, seguridad, reproducción y límites](VNEXT-007_BLACKBOX_CRAWLER.md). Cierre histórico de VNEXT-007; la autorización posterior de VNEXT-008 se registra abajo.
 
 #### `VNEXT-008` — Interceptor de Tráfico de Red y Extracción de Endpoints
-- **Estado:** Pendiente de autorización.
+- **Estado:** Completada con limitaciones: observación dinámica pasiva acotada, Chrome real y SQLite físico (2026-10-30).
 - **Paquetes afectados:** `@qap/playwright-adapter`.
 - **Dependencias:** `VNEXT-007`.
-- **Riesgo:** Bajo.
+- **Riesgo:** Alto: ejecución dinámica con frontera de red; TCP/UDP comprobados empíricamente.
 - **Alcance:** Capturar llamadas XHR/Fetch generadas por la UI durante la navegación pasiva, extrayendo endpoints, métodos HTTP, query params y códigos de respuesta típicos con enmascaramiento de PII.
+- **Entrega:** NetworkTrafficObserver opt-in separado; gateway DNS fijado/peer/TLS, permisos por categoría/URL GET, proxy de denegación y CSP. Scripts reales, Fetch 200/XHR 503, estados respuesta/bloqueo/inconcluso y entrega CORS separados. Endpoints opacos con patrones seguros consentidos y muestras múltiples; query names permitidos sin valores. Evidencia estructurada y observaciones v1, lotes atómicos <=100 writes con fallos parciales explícitos.
+- **Seguridad:** Se detectó salida UDP WebRTC con la bandera heredada y se corrigió con la bandera Chromium actual. Prueba real sin routing/offline: cero HTTP/UDP prohibidos. Métodos de escritura, destinos fuera de alcance, DNS rebinding, scripts externos, SW/WS/frames/popups/downloads y token URL bloqueados; canarios ausentes de salida y SQLite/WAL/SHM/logs.
+- **Verificación:** 28 pruebas nuevas; adapter final 139/139 con archivos secuenciales, Shared 146/146, Engine 168/168, Knowledge 238/238; diez builds y tsc/lint focalizados. Consumidores CLI 6/6, MCP canario 1/1, runner 4/4, Auth 34 + 1 omitida POSIX. Un intento paralelo bajo carga falló en test legacy skeleton intacto; detalle conservado, sin certificar suite global.
+- **Límites:** Una vista/ventana pasiva, no inventario exhaustivo ni sandbox OS; Chrome/Windows probados. Sin login, acciones, redirects seguidos, inline/eval, binarios, headers personalizados/preflight ni inferencias. [Arquitectura, API y reproducción](VNEXT-008_NETWORK_INTERCEPTOR.md). Detener; no iniciar VNEXT-009.
 
 #### `VNEXT-009` — Motor de Inferencia de Hipótesis y Asignación de Certeza
 - **Estado:** Pendiente de autorización.

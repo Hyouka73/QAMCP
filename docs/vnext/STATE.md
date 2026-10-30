@@ -7,7 +7,9 @@ Actualizado: 2026-10-30. Agente principal único.
 **VNEXT-001 a VNEXT-006 terminadas** por autorización expresa, con límites documentados.
 **VNEXT-007 completada con limitaciones: crawler estático anónimo** por autorización
 expresa del 2026-10-30. No se certifica exploración SPA con JavaScript.
-Detener aquí. VNEXT-008 y posteriores requieren nueva autorización.
+**VNEXT-008 completada con limitaciones: observación dinámica pasiva acotada**, por
+autorización expresa del 2026-10-30. JavaScript/Fetch/XHR reales verificados mediante
+gateway seguro y barrera TCP/UDP. Detener aquí; VNEXT-009 y posteriores no autorizadas.
 Leer este archivo y el WBS antes de elegir trabajo ante «continúa».
 
 ## Rama y cambios ajenos
@@ -141,4 +143,52 @@ Al cierre de VNEXT-006 no había crawler. La entrega siguiente se registra abajo
   shells SPA únicamente, etiquetas de catálogo y rutas opacas por ejecución.
 
 [Arquitectura, API, evidencia, reproducción y límites VNEXT-007](VNEXT-007_BLACKBOX_CRAWLER.md).
-No iniciar VNEXT-008, Advisor, inferencias, nuevos handlers ni integración develop.
+La autorización posterior de VNEXT-008 se registra abajo. No iniciar Advisor, inferencias,
+nuevos handlers ni integración develop.
+
+## Interceptor y endpoints VNEXT-008
+
+- Implementación/pruebas: `ee4da42`; documentación de cierre en el commit siguiente.
+- Base exacta `5f85af41d828bebf75e5f9c919b4f5bb68750625`; rama exclusiva conservada.
+  Entrega: `git log --oneline 5f85af4..HEAD`. Sesión protegida conservada con hash
+  `28e1b8dbec7ccf194440cc4158ec6072c9b9ade4`, excluida de staging/commits.
+- `NetworkTrafficObserver` exportado por Playwright Adapter, modo obligatorio
+  `fresh_anonymous_dynamic_readonly`. Contexto nuevo sin credenciales, una navegación,
+  scripts/CSS/API GET por URL/categoría exactas. No acciones, formularios, retries ni
+  redirects seguidos. Crawler estático intacto. Sin nuevas dependencias ni cambios v1/SQLite.
+- Gateway Node VNEXT-006: DNS completo validado/fijado, peer/TLS, presupuestos acumulados,
+  sin continue/fallback/fetch del router. Proxy de denegación, SW/WS/frames/popups/downloads
+  bloqueados. CSP sin inline/eval/workers. Origen/MIME/CORS verificados con respuestas reales.
+  Origin opcional canónico en transporte, sin headers sensibles ni cookies reenviados.
+- Hallazgo empírico: bandera WebRTC heredada dejó escapar dos datagramas STUN. Bandera
+  actual adicional `--webrtc-ip-handling-policy=disable_non_proxied_udp` corrigió el escape.
+  Prueba final con JS/Fetch/WebSocket/WebRTC/navegación sin routing/offline: cero hits HTTP,
+  cero UDP al receptor y conexiones al proxy. No certificación de firewall/aislamiento OS;
+  volver a verificar en nuevas versiones. Chrome 156.0.8078.48/Windows/Node 24.15.0 probados.
+- Eventos reales fetch/xhr/other con ejecución/vista, método, endpoint HMAC, scope_status,
+  status HTTP solo si existió, outcome remoto y entrega browser separados. Inventario
+  siempre parcial. Query names de catálogo opt-in, nunca valores; rutas opacas salvo
+  catálogo estructural consentido y variables justificadas por >=2 paths distintos observados.
+- `network_traffic` + `http_recon_metadata` estructurado real, no HAR; revisión unreviewed.
+  Lotes de 50 pares/100 writes, cada uno atómico; committed/failed/not_attempted explícitos.
+  Fallo del segundo conserva primero; sin atomicidad global. Historial/aislamiento/referencias
+  y rollback SQLite físico verificados; sin canarios en resultado/DB/WAL/SHM/logs.
+- Límites máximos: 128 eventos/endpoints/requests, 32 recursos autorizados, 1 MiB acumulado
+  recibido/decoded/retenido cada uno, 60 s adquisición/10 s request/3 s ventana, concurrencia 1.
+  Sin networkidle. Vista no asentada y agotamiento registrados; RAM de Chromium sin cota OS.
+- Nuevas pruebas **28/28**. Adapter final completo **139/139** con archivos secuenciales,
+  incluidos 55 recon/30 crawler/26 legacy. Primera ejecución paralela también 139/139;
+  segunda con builds concurrentes 138/139 por legacy auth-classification skeleton caso 12
+  (esperaba 0 botones antes de timer, observó 2). Archivo/ruta legacy intactos; no se cambian
+  aserciones/timeouts. No se atribuye causalidad definitiva ni se certifica suite global.
+- Shared **146/146**, Engine **168/168**, Knowledge **238/238** completos. Auth focalizada
+  **34 + 1 omitida POSIX**, CLI Auth **6/6**, MCP no filtración **1/1** (14 no seleccionadas),
+  runner session-resolver **4/4**. Diez builds; afectados recompilados tras arreglo UDP.
+  tsc observer/crawler/recon incluyendo tests y lint archivos afectados sin diagnósticos.
+- Límites: solo vista inicial, JS/CSS exactos del mismo origen, API JSON/texto UTF-8;
+  sin inline/eval, binarios, autenticación, headers personalizados/preflight ni navegación
+  exhaustiva SPA. Ventana contexto/commit y cancelación store heredadas. Otros runtimes/
+  navegadores/SO no comprobados. Diagnósticos legacy tsc/lint globales siguen documentados.
+
+[API, garantías empíricas, reproducción y límites VNEXT-008](VNEXT-008_NETWORK_INTERCEPTOR.md).
+Detener al publicar VNEXT-008; no iniciar VNEXT-009, Advisor, sondas, MCP ni integración develop.
