@@ -4,7 +4,7 @@
 - **Rama:** `feat/qap-vnext-architecture`
 - **Autor / Rol:** Principal Software Architect y Teamwork Lead
 - **Fecha:** Octubre 2026 (Revisión Arquitectónica Profunda — Etapa 0 Corregida)
-- **Estado:** VNEXT-001 a VNEXT-006 terminadas; VNEXT-007 a VNEXT-010 completadas con limitaciones explícitas (2026-10-30). VNEXT-011 y posteriores pendientes de autorización.
+- **Estado:** VNEXT-001 a VNEXT-006 terminadas; VNEXT-007 a VNEXT-011 completadas con limitaciones explícitas (2026-10-30). VNEXT-012 y posteriores pendientes de autorización.
 - **Referencias:** D-010 (Evolución documentada por etapas), D-001 a D-015.
 
 ---
@@ -18,6 +18,9 @@ Conforme a la directiva **D-010** y la corrección de inconsistencias de numerac
 > Una autorización posterior del mismo día incluye exclusivamente VNEXT-010, implementada
 > y verificada con límites explícitos. Detener tras publicar VNEXT-010; VNEXT-011 y
 > posteriores requieren autorización nueva. No se reescriben los cierres históricos.
+> Autorización posterior del mismo día incluye exclusivamente VNEXT-011, completada
+> con limitaciones de ESLint/tipos legacy documentadas. Detener tras publicarla;
+> VNEXT-012 y posteriores requieren autorización nueva.
 
 ```mermaid
 flowchart TD
@@ -150,11 +153,19 @@ flowchart TD
 ### Hito 3: Desacoplamiento Modular del Servidor MCP
 
 #### `VNEXT-011` — Arquitectura de Handlers Declarativos para MCP
-- **Estado:** Pendiente de autorización.
+- **Estado:** Completada con limitaciones (2026-10-30), por autorización posterior expresa.
 - **Paquetes afectados:** `@qap/mcp`.
 - **Dependencias:** `VNEXT-001`, `VNEXT-002`.
 - **Riesgo:** Medio.
 - **Alcance:** Crear infraestructura de despachador declarativo (`src/dispatcher.ts`) e interfaz `IMcpToolHandler`. Eliminar supresión de reglas ESLint en `@qap/mcp`.
+- **Entrega:** Contrato/dispatcher exportados, registro explícito y sellado, reservas legacy,
+  validación estructural y errores nuevos sanitizados. Inyección opcional integrada al
+  servidor real; 18 herramientas y prompts compatibles, sin migrar implementaciones.
+  38 unitarias + 8 integraciones reales; MCP completo 183/183, diez builds, tipos nuevos
+  y lint afectados limpios. Supresión global de server.ts retirada; **eliminación total
+  pendiente**, con 798 diagnósticos bajo excepciones acotadas a bloques legacy (803 base).
+  Typecheck amplio conserva 48 diagnósticos legacy. No suite global certificada.
+  [Diseño, pruebas y limitaciones](VNEXT-011_MCP_DISPATCHER.md).
 
 #### `VNEXT-012` — Migración de Handlers de Información y Estado (`status`, `clean`, `context`)
 - **Estado:** Pendiente de autorización.

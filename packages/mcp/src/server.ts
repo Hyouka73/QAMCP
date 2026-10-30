@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-base-to-string, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any, @typescript-eslint/require-await, @typescript-eslint/no-unnecessary-type-assertion, @typescript-eslint/no-unsafe-return */
 import {
   existsSync,
   mkdirSync,
@@ -91,6 +90,7 @@ import {
 } from '@qap/reporter';
 
 import { getPhaseGuidance, buildInterviewNextAction, type SiguienteAccion, QAP_CORE_DIRECTIVES } from './guidance.js';
+import { ToolDispatcher, type IMcpToolHandler } from './dispatcher.js';
 
 let activeViewerServer: ViewerServerInstance | null = null;
 
@@ -217,6 +217,8 @@ const TARGET_PATH_PROP = {
   description: 'Ruta absoluta del proyecto objetivo sobre el cual operar. Si se omite, usa process.cwd()',
 };
 
+/* Legacy view helpers: pending typed migration. */
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
 function buildViewDiscoveryContext(
   rootDir: string,
   moduleName: string,
@@ -294,6 +296,8 @@ function buildModuleSummary(rules: any[], waivers: any[]) {
     total_waivers: (waivers || []).length,
   };
 }
+
+/* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
 
 const TOOLS: Tool[] = [
   {
@@ -922,8 +926,8 @@ function detectarSubcarpetaWorkspace(rootDir: string): string | null {
     const pkgPath = join(current, 'package.json');
     if (existsSync(pkgPath)) {
       try {
-        const parsedPkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
-        if (parsedPkg && parsedPkg.workspaces !== undefined) {
+        const parsedPkg: unknown = JSON.parse(readFileSync(pkgPath, 'utf-8'));
+        if (parsedPkg && typeof parsedPkg === 'object' && 'workspaces' in parsedPkg && parsedPkg.workspaces !== undefined) {
           hasPkgWorkspaces = true;
         }
       } catch {
@@ -939,7 +943,15 @@ function detectarSubcarpetaWorkspace(rootDir: string): string | null {
   return null;
 }
 
-export function createMcpServer(): Server {
+export interface McpServerOptions {
+  readonly handlers?: readonly IMcpToolHandler[];
+}
+
+export function createMcpServer(options: McpServerOptions = {}): Server {
+  const dispatcher = new ToolDispatcher(TOOLS.map(tool => tool.name));
+  for (const handler of options.handlers ?? []) dispatcher.register(handler);
+  dispatcher.seal();
+
   const server = new Server(
     {
       name: 'qap-mcp-server',
@@ -967,20 +979,17 @@ export function createMcpServer(): Server {
 
 
   // Manejador de lista de tools
-  server.setRequestHandler(ListToolsRequestSchema, async () => {
-    return { tools: TOOLS };
-  });
+  server.setRequestHandler(ListToolsRequestSchema, () =>
+    Promise.resolve({ tools: [...TOOLS, ...dispatcher.listTools()] }));
 
   // Manejador de lista de prompts
-  server.setRequestHandler(ListPromptsRequestSchema, async () => {
-    return { prompts: PROMPTS };
-  });
+  server.setRequestHandler(ListPromptsRequestSchema, () => Promise.resolve({ prompts: PROMPTS }));
 
   // Manejador de invocación de prompt
-  server.setRequestHandler(GetPromptRequestSchema, async (request) => {
+  server.setRequestHandler(GetPromptRequestSchema, (request) => {
     const { name } = request.params;
     if (name === 'qap_start') {
-      return {
+      return Promise.resolve({
         description: 'Onboarding paso a paso para QAP',
         messages: [
           {
@@ -991,14 +1000,17 @@ export function createMcpServer(): Server {
             },
           },
         ],
-      };
+      });
     }
     throw new Error(`Prompt desconocido: ${name}`);
   });
 
   // Manejador de llamadas a tools
-  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  server.setRequestHandler(CallToolRequestSchema, async (request, context) => {
     const { name, arguments: rawArgs } = request.params;
+    if (dispatcher.has(name)) return dispatcher.dispatch(request.params, context);
+    // Legacy invocation boundary; removed incrementally when handlers migrate.
+    /* eslint-disable @typescript-eslint/no-base-to-string, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any, @typescript-eslint/require-await, @typescript-eslint/no-unnecessary-type-assertion, @typescript-eslint/no-unsafe-return */
     const args = (rawArgs || {}) as Record<string, unknown>;
     const rootDir = args.targetPath ? resolve(String(args.targetPath)) : process.cwd();
 
@@ -6067,6 +6079,7 @@ export function createMcpServer(): Server {
     }
   });
 
+  /* eslint-enable */
   return server;
 }
 

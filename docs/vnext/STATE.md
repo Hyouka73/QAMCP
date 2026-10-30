@@ -13,7 +13,8 @@ gateway seguro y barrera TCP/UDP. VNEXT-009 fue autorizada posteriormente y se r
 **VNEXT-009 completada con limitaciones: inferencia determinista sobre memoria persistida**, por autorización expresa del 2026-10-30. Detener tras publicarla; VNEXT-010 y posteriores no autorizadas.
 **VNEXT-010 completada con limitaciones por autorización posterior del 2026-10-30: sondas de formulario vacío no destructivas.**
 Esta autorización sustituye exclusivamente el bloqueo anterior de VNEXT-010; el cierre y
-sus límites se registran al final. VNEXT-011 y posteriores permanecen sin autorización.
+sus límites se registran al final. La autorización posterior de VNEXT-011 y su cierre
+con limitaciones se registran al final; VNEXT-012 y posteriores siguen sin autorización.
 Leer este archivo y el WBS antes de elegir trabajo ante «continúa».
 
 ## Rama y cambios ajenos
@@ -302,3 +303,42 @@ con develop/main permanecen sin autorización.
 [API, seguridad, pruebas y reproducción VNEXT-010](VNEXT-010_ACTIVE_OBSERVATION_PROBES.md).
 Detener tras publicar VNEXT-010. VNEXT-011, Advisor, nuevos handlers y cualquier
 integración develop/main requieren autorización nueva.
+
+## Handlers declarativos MCP VNEXT-011
+
+- **Completada con limitaciones**, por autorización expresa posterior del 2026-10-30.
+  Base `7271c6932cdb13fef339a8e70774ba6a0a1fc55c`, rama exclusiva
+  `feat/qap-vnext-architecture`, agente principal único. Esta autorización sustituye
+  exclusivamente el bloqueo anterior de VNEXT-011. Entrega: `git log --oneline 7271c69..HEAD`.
+- `IMcpToolHandler`, `McpInvocationContext`, `McpToolError` y `ToolDispatcher`, exportados
+  por MCP. Registro explícito por instancia, orden determinista, nombres validados,
+  duplicados/reservas rechazados, metadatos copiados y sellado antes de invocar.
+- `createMcpServer(options?)` permite inyección opcional; las 18 herramientas legacy
+  conservan su ruta switch y reservan sus nombres. Sin nuevas herramientas públicas
+  en producción, migraciones anticipadas ni conexiones a servicios VNEXT-006 a 010.
+- SDK MCP instalado 1.30.0: valida envelope/resultado, no inputSchema por herramienta.
+  Dispatcher valida estructura básica, copia argumentos y ofrece validador específico.
+  Excepciones nuevas sanitizadas, códigos cerrados, sin logs sensibles; resultados
+  explícitos y errores legacy conservan responsabilidad/semántica previa. Cancelación
+  cooperativa, sin timeout/rollback ni validación completa de JSON Schema automática.
+- **38/38 unitarias + 8/8 integraciones reales** Client/Server/InMemoryTransport;
+  **21/21 server.test.ts**, conjunto focalizado **67/67**. Catálogo completo de la base
+  exacta comparado por snapshot: nombres/descripciones/esquemas/orden de 18 herramientas
+  y prompts intactos; prompts/get y status legacy sobre fixture temporal verificados.
+- **MCP completo 183/183 en 14 archivos**, fuera del sandbox con fixtures locales.
+  Primer recorrido bajo sandbox 171 pasan/12 fallan en dos suites legacy de navegador/
+  autenticación; no se reproducen fuera. Diez paquetes compilan. TypeScript estricto
+  dispatcher/unit tests y ESLint de archivos afectados limpios. No suite global certificada.
+- Typecheck amplio MCP conserva **48 diagnósticos legacy**, igual que la base; ninguno
+  nuevo tras comparación con fuentes base en memoria. Supresión global de server.ts
+  eliminada, excepciones acotadas a helpers y switch legacy. Diagnósticos sin supresiones:
+  **803 antes / 798 pendientes** (61 helpers, 737 invocación/switch), nueve clases.
+  **Eliminación total de supresiones pendiente**, requiere migraciones funcionales
+  posteriores; no se declara resuelta. eslint.config.mjs y aserciones legacy intactos.
+- Windows/Node 24.15.0. Sin datos personales ni cambios de persistencia/negocio.
+  Sesión protegida conservada con hash `28e1b8dbec7ccf194440cc4158ec6072c9b9ade4`,
+  excluida de staging/commits; logs/builds/fixtures temporales excluidos.
+
+[Arquitectura, API, límites y verificación VNEXT-011](VNEXT-011_MCP_DISPATCHER.md).
+Detener tras publicar VNEXT-011. **No iniciar VNEXT-012**, VNEXT-013, VNEXT-014,
+Advisor ni integración develop/main sin autorización nueva.
