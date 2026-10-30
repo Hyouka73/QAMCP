@@ -33,7 +33,9 @@ function untilAbort<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
 
 /** One GET, no agent/pool/proxy/cookie jar, no automatic redirects and no retry. */
 export async function acquire(url: URL, scope: ReconScope, input: ReconnaissanceInput,
-  limits: ReconLimits, budget: ReconBudget, globalSignal: AbortSignal): Promise<HttpCapture> {
+  limits: ReconLimits, budget: ReconBudget, globalSignal: AbortSignal, origin?: string): Promise<HttpCapture> {
+  // Only a canonical origin may be supplied by the browser gateway, never arbitrary headers.
+  if (origin !== undefined && parseOrigin(origin) !== origin) throw new ReconnaissanceError('SCOPE_BLOCKED');
   const signal = AbortSignal.any([globalSignal, AbortSignal.timeout(limits.request_timeout_ms)]);
   scope.authorize(url);
   if (budget.requests >= limits.max_requests) throw new ReconnaissanceError('REQUEST_LIMIT');
@@ -50,7 +52,7 @@ export async function acquire(url: URL, scope: ReconScope, input: Reconnaissance
       protocol: url.protocol, hostname: hostname(url), port: url.port || (secure ? 443 : 80),
       path: `${url.pathname}${url.search}`, method: 'GET', agent: false, maxHeaderSize: 16384, family: pinned.family,
       headers: { Accept: 'text/html, text/plain, application/xml;q=0.9, */*;q=0.1',
-        'Accept-Encoding': 'identity', 'User-Agent': 'QAP-Recon/1' },
+        'Accept-Encoding': 'identity', 'User-Agent': 'QAP-Recon/1', ...(origin ? { Origin: origin } : {}) },
       // Pin the checked DNS answer. Never resolve again between validation and connect.
       lookup: (_host, _options, callback) => callback(null, pinned.address, pinned.family),
       ...(secure ? { rejectUnauthorized: true, ...(input.tls_ca ? { ca: input.tls_ca } : {}),
@@ -129,4 +131,9 @@ export async function acquire(url: URL, scope: ReconScope, input: Reconnaissance
       });
     });
   });
+}
+
+function parseOrigin(value: string): string | undefined {
+  try { const parsed = new URL(value); return ['http:', 'https:'].includes(parsed.protocol) ? parsed.origin : undefined; }
+  catch { return undefined; }
 }

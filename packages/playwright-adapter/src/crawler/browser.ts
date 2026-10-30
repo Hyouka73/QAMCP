@@ -29,7 +29,10 @@ export async function launchIsolated(proxy: string, choice: CrawlerDependencies[
         proxy: { server: proxy, bypass: '<-loopback>' },
         args: ['--disable-background-networking', '--disable-component-update', '--disable-sync',
           '--dns-prefetch-disable', '--disable-quic', '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1',
-          '--force-webrtc-ip-handling-policy=disable_non_proxied_udp'] });
+          // Older content-shell and current Chrome use different switch names. Both are
+          // required here; the dynamic egress test verifies STUN at a real UDP receiver.
+          '--force-webrtc-ip-handling-policy=disable_non_proxied_udp',
+          '--webrtc-ip-handling-policy=disable_non_proxied_udp'] });
     } catch { /* only supported clean Chromium channels; never a user profile */ }
   }
   throw new Error('BROWSER_UNAVAILABLE');
