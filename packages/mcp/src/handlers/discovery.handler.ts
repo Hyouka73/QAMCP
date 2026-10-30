@@ -8,6 +8,7 @@ import { McpToolError, type IMcpToolHandler, type McpInvocationContext } from '.
 
 import { binding, definition, isObject, projectRoot, result, validateBase, type StateDependencies } from './state-services.js';
 import { discoveryIntegration } from './legacy-discovery-contract.js';
+import { ModuleObservationBridge, type AssociationReceipt } from './module-observation-bridge.js';
 
 /** Trusted host configuration. GET consent acknowledges possible server-side effects. */
 export interface DiscoveryAuthorization {
@@ -59,6 +60,7 @@ export class DiscoveryHandler implements IMcpToolHandler {
     if (!this.validateArguments(args) || !isObject(args)) throw new McpToolError('invalid_arguments');
     const blocked = (code: string, next = 'Revisar la configuración explícita del host.') => result({
       status: 'blocked', code, persistence: 'not_attempted', next_safe_action: next,
+      acquisition_status: 'blocked', acquisition_persistence: 'not_attempted', association_status: 'not_attempted', module_identity_status: 'not_resolved', coverage: 'partial',
     }, true);
     if (context.signal.aborted) return blocked('cancelled');
     if (['credentials', 'profile', 'profileId', 'storageState', 'cookies', 'session', 'auth'].some(k => Object.hasOwn(args, k))) {
@@ -87,6 +89,9 @@ export class DiscoveryHandler implements IMcpToolHandler {
         ? lifecycle.modules[args.name as string] : undefined;
       if (!module || ['closed', 'waived'].includes(module.state)) return blocked('module_restricted', 'qap_session_plan');
       if (lifecycle.session?.auth?.required) return blocked('authentication_not_supported');
+      const bridge = new ModuleObservationBridge(bound.store, { ...bound, projectRoot: root });
+      const planned = lifecycle.session?.plan?.filter(p => p.module === args.name) ?? [];
+      const identity = planned.length === 1 ? await bridge.resolve(args.name as string) : { status: 'plan_ambiguous_or_missing' };
       const currentEnvironment = await bound.store.get(bound.applicationId, 'environment', bound.environmentId);
       if (!currentEnvironment || currentEnvironment.revision !== env.revision) return blocked('authorization_context_mismatch');
       if (context.signal.aborted) return blocked('cancelled');
@@ -95,9 +100,23 @@ export class DiscoveryHandler implements IMcpToolHandler {
         authorization: config.authorization, limits: config.limits, signal: context.signal,
         isolation: 'fresh_anonymous_static',
       });
+      const receipt: AssociationReceipt | undefined = identity.status === 'resolved' && 'fingerprint' in identity && output.observations.length
+        ? { version: 1, binding: identity.fingerprint, execution: output.execution_id, observations: output.observations.map(o => o.id).sort() } : undefined;
+      const association = receipt ? await bridge.associate(args.name as string, receipt) : {
+        association_status: output.observations.length ? 'blocked' : 'not_attempted',
+        code: identity.status === 'resolved' ? 'context_changed_or_no_observations' : identity.status,
+        associated_observations: 0, confirmed_relations: 0, coverage: 'partial',
+      };
       // Positive selection: no DOM text, labels, selectors, URLs, payloads or arbitrary errors.
       return result({ status: output.status, application_id: bound.applicationId, environment_id: bound.environmentId,
+        status_scope: 'acquisition',
         requested_module: args.name, execution_id: output.execution_id, mode: output.mode,
+        acquisition_status: output.status, acquisition_persistence: output.observations.length ? 'committed' : 'not_attempted',
+        module_identity_status: identity.status, ...association, association_receipt: receipt,
+        association_next_safe_action: association.association_status === 'confirmed'
+          ? 'Revisión humana de observaciones; cobertura parcial.'
+          : receipt ? 'El host debe conservar y reintentar el mismo recibo solo con el contexto autorizado vigente.'
+            : 'El host debe aportar una vinculación inequívoca a un módulo canónico activo y revisiones vigentes; no se crean identidades.',
         counts: { candidate_routes: output.routes.filter(r => r.state === 'candidate').length,
           visited_routes: output.routes.filter(r => r.state === 'visited').length,
           blocked_routes: output.routes.filter(r => r.state === 'blocked').length, views: output.views.length,
@@ -110,12 +129,14 @@ export class DiscoveryHandler implements IMcpToolHandler {
         limitations: [...output.warnings], budgets: { ...output.budget }, limits: { ...output.limits },
         cleanup: { ...output.cleanup }, persistence: output.observations.length ? 'committed' : 'not_attempted',
         observations: output.observations.length, evidence: output.evidence.length,
-        integration: discoveryIntegration,
+        integration: { ...discoveryIntegration, module_association: association.association_status },
         next_safe_action: 'Revisar observaciones; no representan requisitos ni defectos confirmados. La entrevista legacy requiere contexto propio; repetir discovery no lo crea.',
       }, output.status === 'blocked' || output.status === 'indeterminate');
     } catch (error: unknown) {
       const code = error instanceof BlackBoxCrawlerError ? error.code : 'DISCOVERY_UNAVAILABLE';
       return result({ status: 'indeterminate', code,
+        acquisition_status: 'indeterminate', acquisition_persistence: code === 'PERSISTENCE_FAILED' ? 'failed' : 'not_attempted',
+        association_status: 'not_attempted', module_identity_status: 'not_resolved', coverage: 'partial',
         persistence: code === 'PERSISTENCE_FAILED' ? 'failed' : 'not_attempted',
         next_safe_action: 'Revisar el binding, la política y la disponibilidad del navegador; sin reintento automático.' }, true);
     }

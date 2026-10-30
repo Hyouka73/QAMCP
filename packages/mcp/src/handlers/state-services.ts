@@ -10,12 +10,15 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { TOOLS } from '../tool-catalog.js';
 import { McpToolError } from '../dispatcher.js';
 
+import type { ModuleBinding } from './module-observation-bridge.js';
+
 /** Host-owned, already-open store. No filename discovery, implicit open or close. */
 export interface ProjectKnowledgeBinding {
   readonly projectRoot: string;
   readonly applicationId: string;
   readonly environmentId: string;
   readonly store: IKnowledgeStore;
+  readonly moduleBindings?: readonly ModuleBinding[];
 }
 export interface StateDependencies {
   /** Defaults to the server's cwd; explicit roots authorize additional projects. */

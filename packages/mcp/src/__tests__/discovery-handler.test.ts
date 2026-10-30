@@ -15,6 +15,7 @@ import YAML from 'yaml';
 import { createMcpServer, type McpServerOptions } from '../server.js';
 import { DiscoveryHandler, type DiscoveryAuthorization } from '../handlers/discovery.handler.js';
 import { ToolDispatcher } from '../dispatcher.js';
+import { ModuleObservationBridge, type ModuleBinding, type AssociationReceipt } from '../handlers/module-observation-bridge.js';
 
 const roots: string[] = [];
 const stores: SqliteKnowledgeAdapter[] = [];
@@ -312,5 +313,157 @@ describe('VNEXT-013 real MCP black-box acquisition', () => {
     const client = await connect(f.options); expect(await call(client, f.root)).toMatchObject({ status: 'indeterminate', code: 'PERSISTENCE_FAILED', persistence: 'failed' });
     expect((await f.store.query('a', 'observation', { limit: 100 })).items).toHaveLength(0);
     expect((await f.store.query('a', 'evidence', { limit: 100 })).items).toHaveLength(0);
+  }, 30000);
+});
+
+async function bridgeFixture() {
+  const f = await fixture();
+  await f.store.commit('a', [{ kind: 'module', expected_revision: 0, trace, entity: {
+    id: 'module-catalog', application_id: 'a', key: 'catalog-key', title: 'Synthetic canonical module',
+    certainty: 'pending_review', criticality: 'medium', dependencies: [], created_at: time, updated_at: time, is_active: true,
+  } }]);
+  const link: ModuleBinding = { plannedName: 'catalog', moduleId: 'module-catalog', moduleKey: 'catalog-key', moduleRevision: 1,
+    applicationRevision: 1, environmentRevision: 1, provenance: 'host_declared' };
+  const context = { projectRoot: f.root, applicationId: 'a', environmentId: 'local', moduleBindings: [link] };
+  const options = { ...f.options, knowledgeBindings: [{ ...context, store: f.store }] };
+  return { ...f, link, context, options, bridge: new ModuleObservationBridge(f.store, context) };
+}
+
+describe('VNEXT-013-R2 canonical execution scope bridge', () => {
+  it.each(['missing', 'wrong-id', 'wrong-key', 'inactive', 'ambiguous', 'application', 'environment', 'revision', 'unplanned', 'id-key-conflict'])('rejects unsafe identity: %s', async scenario => {
+    const f = await bridgeFixture();
+    let context = f.context;
+    if (scenario === 'missing') context = { ...context, moduleBindings: [] };
+    if (scenario === 'wrong-id') context = { ...context, moduleBindings: [{ ...f.link, moduleId: 'missing' }] };
+    if (scenario === 'wrong-key') context = { ...context, moduleBindings: [{ ...f.link, moduleKey: canary }] };
+    if (scenario === 'ambiguous') context = { ...context, moduleBindings: [f.link, f.link] };
+    if (scenario === 'application') context = { ...context, applicationId: 'other' };
+    if (scenario === 'environment') context = { ...context, environmentId: 'other' };
+    if (scenario === 'revision') context = { ...context, moduleBindings: [{ ...f.link, moduleRevision: 2 }] };
+    if (scenario === 'unplanned') writeFileSync(f.lifecyclePath, JSON.stringify({ ...f.lifecycle, session: { ...f.lifecycle.session, plan: [] } }));
+    if (scenario === 'inactive' || scenario === 'id-key-conflict') {
+      const module = await f.store.get('a', 'module', f.link.moduleId); if (!module) throw new Error('fixture');
+      await f.store.commit('a', [{ kind: 'module', expected_revision: scenario === 'inactive' ? 1 : 0, trace,
+        entity: { ...module.entity, ...(scenario === 'inactive' ? { is_active: false } : { id: f.link.moduleKey, key: 'different-key' }) } }]);
+    }
+    expect((await new ModuleObservationBridge(f.store, context).resolve('catalog')).status).not.toBe('resolved');
+    expect((await f.store.query('a', 'relation')).items).toHaveLength(0);
+    expect(f.hits).toEqual([]);
+  });
+
+  it('persists real MCP/Chrome/MPA associations, reopens SQLite, projects status, and preserves epistemic planes', async () => {
+    const f = await bridgeFixture(); const client = await connect(f.options);
+    const lifecycle = readFileSync(f.lifecyclePath, 'utf8');
+    const data = await call(client, f.root, { description: canary, tags: [canary] });
+    expect(data).toMatchObject({ acquisition_status: 'partial', acquisition_persistence: 'committed', association_status: 'confirmed', module_identity_status: 'resolved', associated_observations: 6, confirmed_relations: 6, coverage: 'partial' });
+    const receipt = data.association_receipt as AssociationReceipt;
+    const records = (await f.store.query('a', 'relation')).items;
+    expect(records).toHaveLength(6);
+    for (const r of records) {
+      expect(r.entity).toMatchObject({ predicate: 'related_to', source: { kind: 'module', id: f.link.moduleId, revision: 1 }, target: { kind: 'observation', revision: 1 } });
+      expect(await f.store.get('a', 'observation', r.entity.target.id, r.entity.target.revision)).not.toBeNull();
+      expect(r.references).toContainEqual({ kind: 'module', id: f.link.moduleId, revision: 1 });
+      expect(r.trace.review).toBe('unreviewed');
+    }
+    const status = await invoke(client, f.root, 'qap_status');
+    expect(status.canonical_modules).toMatchObject([{ module_identity_status: 'resolved', executions: [{ association_status: 'confirmed', associated_observations: 6, candidate_views: 3, forms: 3, html_required_controls: 3, human_review_required: true }] }]);
+    expect(readFileSync(f.lifecyclePath, 'utf8')).toBe(lifecycle);
+    expect(existsSync(join(f.root, '.qa', 'modules'))).toBe(false);
+    for (const kind of ['requirement', 'assessment', 'inference', 'view'] as const) expect((await f.store.query('a', kind)).items).toHaveLength(0);
+    expect((await f.store.get('a', 'module', f.link.moduleId))?.entity.certainty).toBe('pending_review');
+    f.store.close();
+    const reopened = new SqliteKnowledgeAdapter(f.path); stores.push(reopened);
+    const bridge = new ModuleObservationBridge(reopened, f.context);
+    expect(await bridge.associate('catalog', { observations: receipt.observations, execution: receipt.execution, binding: receipt.binding, version: 1 }))
+      .toMatchObject({ association_status: 'confirmed', confirmed_relations: 6 });
+    expect((await reopened.query('a', 'relation')).items).toEqual(records);
+    for (const file of readdirSync(join(f.root, '.qa')).filter(n => n.startsWith('synthetic.sqlite'))) expect(readFileSync(join(f.root, '.qa', file)).includes(Buffer.from(canary))).toBe(false);
+    expect(JSON.stringify(status.canonical_modules)).not.toContain(canary);
+    const db = new DatabaseSync(f.path); expect(db.prepare('PRAGMA foreign_key_check').all()).toEqual([]); db.close();
+  }, 30000);
+
+  it('recovers after physical association rollback without reacquisition or history changes; rejects shortened and mixed receipts', async () => {
+    const f = await bridgeFixture();
+    const commits = vi.spyOn(f.store, 'commit');
+    const db = new DatabaseSync(f.path);
+    db.exec(`CREATE TRIGGER bridge_fail BEFORE INSERT ON knowledge_revisions WHEN NEW.kind='relation' BEGIN SELECT RAISE(ABORT, '${canary}'); END`);
+    const client = await connect(f.options); const data = await call(client, f.root);
+    expect(data).toMatchObject({ acquisition_persistence: 'committed', association_status: 'persistence_failed', confirmed_relations: 0 });
+    const receipt = data.association_receipt as AssociationReceipt;
+    const facts = (await f.store.query('a', 'observation')).items;
+    const evidence = (await f.store.query('a', 'evidence')).items;
+    expect(facts).toHaveLength(6); expect(evidence).toHaveLength(3);
+    expect((await f.store.query('a', 'relation')).items).toHaveLength(0);
+    db.exec('DROP TRIGGER bridge_fail'); db.close();
+    // Explicit synthetic prefix: the bridge itself always submits a single atomic edge batch.
+    const attempted = commits.mock.calls.find(([, writes]) => writes.some(w => w.kind === 'relation'))?.[1];
+    if (!attempted) throw new Error('missing attempted edges');
+    await f.store.commit('a', attempted.slice(0, 1));
+    expect(await f.bridge.project('catalog')).toMatchObject({ executions: [{ association_status: 'incomplete', associated_observations: 1, expected_observations: 6 }] });
+    const hits = [...f.hits];
+    expect(await f.bridge.associate('catalog', { ...receipt, extra: canary } as AssociationReceipt)).toMatchObject({ association_status: 'blocked', code: 'invalid_receipt' });
+    expect(await f.bridge.associate('catalog', { ...receipt, observations: receipt.observations.slice(1) })).toMatchObject({ association_status: 'blocked', code: 'persisted_fact_incompatible' });
+    expect(await f.bridge.associate('catalog', { ...receipt, execution: '00000000-0000-4000-8000-000000000000' })).toMatchObject({ association_status: 'blocked' });
+    expect(await f.bridge.associate('catalog', receipt)).toMatchObject({ association_status: 'confirmed', confirmed_relations: 6 });
+    expect(f.hits).toEqual(hits);
+    expect((await f.store.query('a', 'observation')).items).toEqual(facts); expect((await f.store.query('a', 'evidence')).items).toEqual(evidence);
+    for (const fact of facts) expect((await f.store.history('a', 'observation', fact.id)).items).toHaveLength(1);
+    const next = await call(client, f.root);
+    expect(next.execution_id).not.toBe(receipt.execution); expect((await f.store.query('a', 'relation')).items).toHaveLength(12);
+    expect(await f.bridge.associate('catalog', { ...receipt, observations: (next.association_receipt as AssociationReceipt).observations })).toMatchObject({ association_status: 'blocked' });
+  }, 30000);
+
+  it('two physical connections race with CAS; retry is idempotent and context changes block recovery', async () => {
+    const f = await bridgeFixture();
+    // Acquisition is real; deliberately leave it unassociated by omitting the host module mapping.
+    const client = await connect({ ...f.options, knowledgeBindings: [{ ...f.context, moduleBindings: [], store: f.store }] });
+    const data = await call(client, f.root);
+    expect(data).toMatchObject({ acquisition_persistence: 'committed', association_status: 'blocked', module_identity_status: 'unbound' });
+    const ids = (await f.store.query('a', 'observation')).items.map(o => o.id);
+    const receipt = await f.bridge.receipt('catalog', data.execution_id as string, ids); if (!receipt) throw new Error('fixture receipt');
+    const other = new SqliteKnowledgeAdapter(f.path); stores.push(other);
+    const second = new ModuleObservationBridge(other, f.context);
+    const outcomes = await Promise.all([f.bridge.associate('catalog', receipt), second.associate('catalog', receipt)]);
+    expect(outcomes.map(o => o.association_status)).toContain('confirmed');
+    expect(outcomes.map(o => o.association_status)).toContain('conflict');
+    expect(outcomes.every(o => ['confirmed', 'conflict'].includes(o.association_status))).toBe(true);
+    expect(await second.associate('catalog', receipt)).toMatchObject({ association_status: 'confirmed', confirmed_relations: 6 });
+    expect((await other.query('a', 'relation')).items).toHaveLength(6);
+    writeFileSync(f.lifecyclePath, JSON.stringify({ ...f.lifecycle, session: { ...f.lifecycle.session, id: 'changed' } }));
+    expect(await second.associate('catalog', receipt)).toMatchObject({ association_status: 'context_changed' });
+    expect((await other.query('a', 'relation')).items).toHaveLength(6);
+    writeFileSync(f.lifecyclePath, JSON.stringify(f.lifecycle));
+    const prior = (await other.query('a', 'relation')).items[0];
+    await other.commit('a', [{ kind: 'relation', entity: { ...prior.entity, predicate: 'supports' }, expected_revision: 1, trace: prior.trace }]);
+    expect(await second.associate('catalog', receipt)).toMatchObject({ association_status: 'conflict', code: 'existing_relation_mismatch' });
+    expect((await other.history('a', 'relation', prior.id)).items).toHaveLength(2);
+  }, 30000);
+
+  it('isolates same planned names across physical projects and rejects another project receipt', async () => {
+    const first = await bridgeFixture(), second = await bridgeFixture();
+    expect((await first.bridge.resolve('catalog')).status).toBe('resolved');
+    const identity = await first.bridge.resolve('catalog'); if (identity.status !== 'resolved') throw new Error('fixture');
+    const receipt: AssociationReceipt = { version: 1, binding: identity.fingerprint, execution: '00000000-0000-4000-8000-000000000000', observations: ['00000000-0000-4000-8000-000000000001'] };
+    expect(await second.bridge.associate('catalog', receipt)).toMatchObject({ association_status: 'context_changed', code: 'binding_changed' });
+    expect(await second.bridge.project('catalog')).toMatchObject({ association_status: 'absent', absence_does_not_imply_no_observations: true });
+    expect((await second.store.query('a', 'relation')).items).toHaveLength(0);
+  });
+
+  it('detects context changed at the edge commit boundary without deleting already acquired facts', async () => {
+    const f = await bridgeFixture();
+    const original = f.store.commit.bind(f.store);
+    vi.spyOn(f.store, 'commit').mockImplementation(async (app, writes) => {
+      if (writes.some(w => w.kind === 'relation')) {
+        const env = await f.store.get('a', 'environment', 'local'); if (!env) throw new Error('fixture');
+        await original('a', [{ kind: 'environment', expected_revision: env.revision, entity: { ...env.entity, rate_limit_ms: 1 }, trace }]);
+      }
+      return original(app, writes);
+    });
+    const client = await connect(f.options);
+    expect(await call(client, f.root)).toMatchObject({ acquisition_persistence: 'committed', association_status: 'context_changed', confirmed_relations: 0 });
+    expect((await f.store.query('a', 'observation')).items).toHaveLength(6);
+    expect((await f.store.query('a', 'evidence')).items).toHaveLength(3);
+    expect(await f.bridge.project('catalog')).toMatchObject({ module_identity_status: 'context_changed', association_status: 'unknown' });
+    const db = new DatabaseSync(f.path); expect(db.prepare('PRAGMA foreign_key_check').all()).toEqual([]); db.close();
   }, 30000);
 });

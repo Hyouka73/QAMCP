@@ -9,7 +9,8 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { getPhaseGuidance, buildInterviewNextAction, type SiguienteAccion } from '../guidance.js';
 import type { IMcpToolHandler } from '../dispatcher.js';
 
-import { definition, validateBase, projectRoot, readContext, readEnvironment, isObject, type StateDependencies, type LegacyEnvironment, knowledgeStatus, result, safeDocument, assertProjectSegment } from './state-services.js';
+import { binding, definition, validateBase, projectRoot, readContext, readEnvironment, isObject, type StateDependencies, type LegacyEnvironment, knowledgeStatus, result, safeDocument, assertProjectSegment } from './state-services.js';
+import { ModuleObservationBridge } from './module-observation-bridge.js';
 import { PLAYWRIGHT_INSTALL_COMMAND, detectarSubcarpetaWorkspace } from './state-runtime.js';
 import { discoveryIntegration, hasLegacyViewContext, legacyInterviewBlocked } from './legacy-discovery-contract.js';
 
@@ -20,11 +21,25 @@ export class StatusHandler implements IMcpToolHandler {
   async execute(raw: unknown): Promise<CallToolResult> {
     const rootDir = projectRoot(raw, this.dependencies, false);
     const knowledge = await knowledgeStatus(rootDir, this.dependencies);
+    const canonicalModules: unknown[] = [];
+    try {
+      const bound = binding(rootDir, this.dependencies);
+      if (bound?.moduleBindings?.length) {
+        const lifecycle = await new FileSystemStorage({ rootDir }).getLifecycleState();
+        const bridge = new ModuleObservationBridge(bound.store, { ...bound, projectRoot: rootDir });
+        for (const name of [...new Set(bound.moduleBindings.map(b => b.plannedName))].slice(0, 16)) {
+          if (lifecycle.session?.plan?.filter(p => p.module === name).length !== 1) continue;
+          canonicalModules.push(await bridge.project(name));
+        }
+      }
+    } catch { canonicalModules.push({ association_status: 'unavailable', coverage: 'unknown', human_review_required: true }); }
     const legacy = await this.inspectLegacyState(rootDir);
     const text = legacy.content[0];
     if (text.type !== 'text') return legacy;
     const payload = JSON.parse(text.text) as Record<string, unknown>;
-    return result({ ...payload, knowledge, integration: discoveryIntegration, provenance: { knowledge: 'IKnowledgeStore', onboarding: 'legacy_files', hallazgos_workspace: 'workspace_inspection', preflight: 'runtime' }, coverage: 'partial_inventory_not_test_verdicts' });
+    return result({ ...payload, knowledge, canonical_modules: canonicalModules,
+      canonical_bridge: { absence_does_not_imply_no_observations: true, coverage: 'partial', human_review_required: true },
+      integration: { ...discoveryIntegration, module_association: 'inspect_canonical_modules' }, provenance: { knowledge: 'IKnowledgeStore', onboarding: 'legacy_files', hallazgos_workspace: 'workspace_inspection', preflight: 'runtime' }, coverage: 'partial_inventory_not_test_verdicts' });
   }
   private async inspectLegacyState(rootDir: string): Promise<CallToolResult> {
 

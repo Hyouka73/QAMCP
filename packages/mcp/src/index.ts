@@ -8,3 +8,4 @@ export { handleInterviewTools } from './tools/interview-tools.js';
 export { handleGapReportTools } from './tools/gap-report-tools.js';
 
 export { DiscoveryHandler, type DiscoveryAuthorization } from './handlers/discovery.handler.js';
+export { ModuleObservationBridge, type ModuleBinding, type AssociationReceipt } from './handlers/module-observation-bridge.js';

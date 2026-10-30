@@ -466,3 +466,42 @@ develop/main sin autorización nueva.
   git log --oneline c207821..HEAD. Detener después de publicar esta correctiva.
 
 [Inventario de 60 casos, dependencias, cambios y verificación R1](VNEXT-013_R1_INTEGRATION_STABILIZATION.md).
+
+## Correctiva VNEXT-013-R2 — Puente módulo/observaciones
+
+- Autorización exclusiva posterior del 2026-10-30; base exacta
+  cfcbc95e47aa1058aa50828ba7c7cfa82fbb6853, rama feat/qap-vnext-architecture,
+  agente principal único. **Completada con limitaciones.** No iniciar VNEXT-014.
+- Host declara nombre planificado, ID/key del DomainModule existente y revisiones
+  de aplicación/entorno/módulo. Resolución inequívoca, módulo activo, plan y sesión
+  vigentes; sin crear entidades por nombre ni correlacionar rutas/tiempo.
+- related_to expresa alcance de ejecución; pins históricos de módulo/observación
+  y evidencia realmente recuperada. El crawler mantiene intacto su lote atómico
+  <=96; asociación posterior en otro commit <=64. No hay atomicidad común.
+- Recibo UUID/fingerprint para recuperación explícita del host, sin nueva tool,
+  navegación ni apertura SQLite. CAS, conflicto, prefijo incompleto, cambio de
+  contexto y rollback físico comprobados; no sobrescribe historia ni borra evidencia.
+  Ventana contextual del puerto v1 documentada, también detectada tras commit.
+- qap_discover separa adquisición/persistencia/asociación/identidad y cobertura
+  parcial. qap_status ofrece ejecuciones, tipos/conteos, evidencia histórica y
+  proyección acotada solo de lectura. Ausencia de asociación no implica ausencia
+  de observaciones. Sin DomainView ficticia, requisitos, hipótesis automáticas,
+  archivos legacy o cambio de lifecycle; rules_set mantiene su prerrequisito real.
+- MCP final **203/261**, mismos **58 fallos: 21 A, 32 B, 5 D**, cotejados uno a uno
+  con R01–R60. Nuevas **15/15**, discovery **57/57**, dispatcher/SDK **46/46**,
+  state handlers **21/21**; crawler **30/30**, Knowledge **258/258**, Engine
+  **168/168**, Shared **146/146**. Diez builds aprobados; no suite global certificada.
+- ESLint legacy **513→513**, TypeScript amplio **47→47**, firmas idénticas.
+  Lint de archivos afectados/tests sin diagnósticos; sin supresiones o config nuevas.
+- Chrome real 156.0.8078.48, Node 24.15.0, Windows, MPA sintética y SQLite físico:
+  reapertura, dos conexiones, CAS, nueva ejecución, fallo por trigger, recuperación,
+  canarios y separación epistemológica. No se extrapola a otros SO/navegadores.
+- Sesión protegida previa conservada y excluida; sin usarla ni inspeccionar su
+  contenido/calcular su hash. Solo código/tests/docs autorizados; logs/bases/dist
+  fuera de Git. Publicación exclusiva sin merge/rebase/reset/force; entrega:
+  git log --oneline cfcbc95..HEAD, HEAD remoto final comunicado al entregar.
+- Pendiente: contrato de entrevista y confirmación/persistencia de requisitos,
+  reconciliación de los casos A/B/D y verificación independiente de la cadena.
+  La asociación no declara listo VNEXT-014. Detener tras publicar R2.
+
+[Modelo, recuperación, evidencia y límites R2](VNEXT-013_R2_MODULE_OBSERVATION_BRIDGE.md).

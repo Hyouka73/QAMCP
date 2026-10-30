@@ -223,7 +223,9 @@ export interface McpServerOptions extends StateDependencies {
 export function createMcpServer(options: McpServerOptions = {}): Server {
   const dependencies: StateDependencies = {
     projectRoots: Object.freeze([...(options.projectRoots ?? [process.cwd()])]),
-    knowledgeBindings: Object.freeze((options.knowledgeBindings ?? []).map(binding => Object.freeze({ ...binding }))),
+    knowledgeBindings: Object.freeze((options.knowledgeBindings ?? []).map(binding => Object.freeze({ ...binding,
+      moduleBindings: binding.moduleBindings && Object.freeze(binding.moduleBindings.map(link => Object.freeze({ ...link }))),
+    }))),
   };
   const migrated = new Set(['qap_status', 'qap_clean', 'qap_context_set', 'qap_discover']);
   const dispatcher = new ToolDispatcher(TOOLS.filter(tool => !migrated.has(tool.name)).map(tool => tool.name));

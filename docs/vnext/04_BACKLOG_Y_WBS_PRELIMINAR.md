@@ -216,6 +216,16 @@ estabilización funcional incompleta y no apta para asumir resuelta la integraci
 necesaria para VNEXT-014.** No inicia ni autoriza tareas posteriores.
 [Inventario, grafo, límites y evidencia](VNEXT-013_R1_INTEGRATION_STABILIZATION.md).
 
+**Nota correctiva VNEXT-013-R2 (2026-10-30):** completada con limitaciones.
+Vinculación explícita del host a DomainModule existente, relaciones related_to
+con observaciones/evidencias reales fijadas a revisión, adquisición y asociación
+en commits separados, recuperación por recibo e idempotencia/CAS. Status incluye
+proyección observacional acotada; sin vistas/requisitos inventados ni avance
+lifecycle. MCP 203/261: mismos 58 fallos (21 A, 32 B, 5 D); nuevas 15/15,
+discovery 57/57. Diez builds; ESLint 513 y TypeScript 47, sin diagnósticos nuevos.
+No resuelve todavía entrevistas/confirmación ni habilita VNEXT-014.
+[Modelo, pruebas, recuperación y límites R2](VNEXT-013_R2_MODULE_OBSERVATION_BRIDGE.md).
+
 #### `VNEXT-014` — Conexión Real de `qap_plan` y `qap_test` (Eliminación de Mocks)
 - **Estado:** Pendiente de autorización.
 - **Paquetes afectados:** `@qap/mcp`, `@qap/playwright-runner`.
