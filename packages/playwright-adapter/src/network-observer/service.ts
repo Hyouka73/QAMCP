@@ -3,7 +3,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { isDeepStrictEqual } from 'node:util';
 
 import type { IKnowledgeStore, KnowledgeTrace, KnowledgeWrite } from '@qap/engine';
-import type { Browser, BrowserContext, Request, Route } from 'playwright-core';
+import type { Browser, BrowserContext, Page, Request, Route } from 'playwright-core';
 
 import { launchIsolated, startDenyProxy } from '../crawler/browser.js';
 import type { CrawlerDependencies } from '../crawler/types.js';
@@ -24,6 +24,17 @@ const methods = new Set(['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIO
 /** Passive single-view observer. Only Node's pinned transport acquires application bytes. */
 export class NetworkTrafficObserver {
   constructor(private readonly store: IKnowledgeStore, private readonly dependencies: CrawlerDependencies = {}) {}
+
+  /** Extension point only after acquisition is quiescent and permanently revoked.
+   * The deny proxy remains in place; offline mode adds a second browser barrier.
+   * No in-flight Node transport may overlap this phase. */
+  protected inspectSealedPage(_page: Page, _signal: AbortSignal): Promise<void> { void _page; void _signal; return Promise.resolve(); }
+
+  /** Native requestSubmit needs this sandbox capability. form-action remains 'none'. */
+  protected get nativeFormValidation(): boolean { return false; }
+
+  /** Active probes persist their own canonical provenance in a single atomic batch. */
+  protected get recordNetworkObservations(): boolean { return true; }
 
   async run(request: NetworkObserverInput): Promise<NetworkObserverResult> {
     let input: NetworkObserverInput, target: URL, scope: ReconScope, recon: ReconnaissanceInput;
@@ -164,7 +175,7 @@ export class NetworkTrafficObserver {
           // An explicit nonmatching value preserves denial; never forward credential permission.
           headers['access-control-allow-origin'] = cors === '*' || cors === target.origin ? cors : 'null';
           if (isDocument) {
-            const csp = `sandbox allow-scripts allow-same-origin; default-src 'none'; script-src ${[...scripts].join(' ') || "'none'"}; ` +
+            const csp = `sandbox allow-scripts allow-same-origin${this.nativeFormValidation ? ' allow-forms' : ''}; default-src 'none'; script-src ${[...scripts].join(' ') || "'none'"}; ` +
               `style-src ${[...presentation].join(' ') || "'none'"}; connect-src http: https: ws: wss:; ` +
               "worker-src 'none'; frame-src 'none'; object-src 'none'; form-action 'none'; base-uri 'none'";
             const originalCsp = response.headers['content-security-policy'];
@@ -180,7 +191,11 @@ export class NetworkTrafficObserver {
       };
       await context.route('**/*', route => {
         const event = capture(route.request());
-        if (!event || closed || signal.aborted) return route.abort('blockedbyclient').catch(() => undefined);
+        if (!event || closed || signal.aborted) {
+          result.budget.denied_requests++;
+          if (event) { event.reason = 'GATEWAY_SEALED_OR_CANCELLED'; event.outcome = 'blocked'; event.browser_outcome = 'blocked'; }
+          return route.abort('blockedbyclient').catch(() => undefined);
+        }
         // Bounded FIFO: every accepted request consumes an event slot; only one transport at a time.
         const task = queue.then(() => gateway(route, event));
         queue = task.catch(() => undefined); pending.add(task); void task.finally(() => pending.delete(task)).catch(() => undefined);
@@ -192,6 +207,11 @@ export class NetworkTrafficObserver {
       if (pending.size) warn('UNSETTLED_AT_WINDOW_END');
       // Structural count only: no HTML, values, IDs, text, errors or screenshots leave the page.
       result.view.dynamic_controls = Math.min(500, await page.locator('button,input,select,textarea').count());
+      closed = true;
+      await context.setOffline(true);
+      if (!pending.size && result.view.state === 'bounded_snapshot' && !signal.aborted) {
+        await this.inspectSealedPage(page, signal);
+      }
     } catch { warn(signal.aborted ? 'DEADLINE_OR_CANCELLED' : 'NAVIGATION_OR_BROWSER_FAILED'); }
     finally {
       closed = true; signal.removeEventListener('abort', abort);
@@ -207,8 +227,10 @@ export class NetworkTrafficObserver {
       endpoint.event_ids.push(event.id); if (!endpoint.states.includes(event.outcome)) endpoint.states.push(event.outcome);
     }
     if (input.authorization.structural_paths_acknowledged === true) structuralPatterns(result.endpoints, samples);
-    this.observations(input, result);
-    await this.persist(input, result, originalContext);
+    if (this.recordNetworkObservations) {
+      this.observations(input, result);
+      await this.persist(input, result, originalContext);
+    }
     result.status = result.events.length ? 'partial' : 'indeterminate'; result.budget.elapsed_ms = Date.now() - started;
     return result;
   }

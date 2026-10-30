@@ -7,4 +7,6 @@ export * from './crawler/types.js';
 export * from './crawler/service.js';
 export * from './network-observer/types.js';
 export * from './network-observer/service.js';
+export * from './probes/types.js';
+export * from './probes/service.js';
 
