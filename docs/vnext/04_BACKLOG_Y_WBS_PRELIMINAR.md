@@ -4,7 +4,7 @@
 - **Rama:** `feat/qap-vnext-architecture`
 - **Autor / Rol:** Principal Software Architect y Teamwork Lead
 - **Fecha:** Octubre 2026 (Revisión Arquitectónica Profunda — Etapa 0 Corregida)
-- **Estado:** VNEXT-001 a VNEXT-006 terminadas; VNEXT-007 y VNEXT-008 completadas con limitaciones explícitas (2026-10-30). VNEXT-009 completada con limitaciones (2026-10-30); VNEXT-010 y posteriores pendientes de autorización.
+- **Estado:** VNEXT-001 a VNEXT-006 terminadas; VNEXT-007 a VNEXT-010 completadas con limitaciones explícitas (2026-10-30). VNEXT-011 y posteriores pendientes de autorización.
 - **Referencias:** D-010 (Evolución documentada por etapas), D-001 a D-015.
 
 ---
@@ -15,6 +15,9 @@ Conforme a la directiva **D-010** y la corrección de inconsistencias de numerac
 
 > [!IMPORTANT]
 > **Estado de Autorización:** Solicitudes del 2026-10-30 autorizaron VNEXT-007 y posteriormente VNEXT-008, implementadas y verificadas con los límites documentados. Autorización posterior del 2026-10-30 incluye únicamente VNEXT-009, implementada con límites explícitos. Detener tras VNEXT-009; VNEXT-010 y posteriores requieren autorización nueva. Continuidad: [STATE.md](STATE.md).
+> Una autorización posterior del mismo día incluye exclusivamente VNEXT-010, implementada
+> y verificada con límites explícitos. Detener tras publicar VNEXT-010; VNEXT-011 y
+> posteriores requieren autorización nueva. No se reescriben los cierres históricos.
 
 ```mermaid
 flowchart TD
@@ -128,11 +131,19 @@ flowchart TD
 - **Límites y continuidad:** cobertura parcial, independencia no demostrada, clusters locales heurísticos, sin promoción. [API, fórmula, pruebas y límites](VNEXT-009_INFERENCE_ENGINE.md). Detener; VNEXT-010 no autorizada.
 
 #### `VNEXT-010` — Sondas de Observación Activa No Destructiva
-- **Estado:** Pendiente de autorización.
+- **Estado:** Completada con limitaciones (2026-10-30), por autorización expresa posterior.
 - **Paquetes afectados:** `@qap/playwright-adapter`, `@qap/knowledge`.
 - **Dependencias:** `VNEXT-009`.
 - **Riesgo:** Medio.
 - **Alcance:** Ejecutor de sondas seguras (ej. submit vacío para detonar mensajes de validación). **Regla D-011:** Comprueba reproducibilidad y consistencia observacional; no promueve reglas a `confirmed`.
+- **Entrega:** ActiveObservationProbe exportado; checkValidity y requestSubmit reales
+  sobre formulario vacío autorizado, contextos nuevos por ensayo, gateway sellado/offline
+  y proxy deny-only conservado. Evidencia estructural probe_result/active_probe y lote
+  SQLite atómico <=6 writes. Catálogo cerrado, sin formularios válidos ni credenciales.
+- **Limitaciones:** Windows/Node24/Chrome comprobados; sin garantía OS/RAM, formularios
+  poblados/hidden/password, frames/shadow DOM ni carga API. Store v1 sin CAS contextual ni
+  cancelación de operaciones SQLite. Consistencia no acredita corrección de negocio.
+  [Arquitectura, verificación y reproducción](VNEXT-010_ACTIVE_OBSERVATION_PROBES.md).
 
 ---
 

@@ -11,6 +11,9 @@ expresa del 2026-10-30. No se certifica exploración SPA con JavaScript.
 autorización expresa del 2026-10-30. JavaScript/Fetch/XHR reales verificados mediante
 gateway seguro y barrera TCP/UDP. VNEXT-009 fue autorizada posteriormente y se registra abajo.
 **VNEXT-009 completada con limitaciones: inferencia determinista sobre memoria persistida**, por autorización expresa del 2026-10-30. Detener tras publicarla; VNEXT-010 y posteriores no autorizadas.
+**VNEXT-010 completada con limitaciones por autorización posterior del 2026-10-30: sondas de formulario vacío no destructivas.**
+Esta autorización sustituye exclusivamente el bloqueo anterior de VNEXT-010; el cierre y
+sus límites se registran al final. VNEXT-011 y posteriores permanecen sin autorización.
 Leer este archivo y el WBS antes de elegir trabajo ante «continúa».
 
 ## Rama y cambios ajenos
@@ -240,3 +243,62 @@ Detener al publicar VNEXT-008; no iniciar VNEXT-009, Advisor, sondas, MCP ni int
 [Arquitectura, fórmula, API, pruebas, reproducción y límites VNEXT-009](VNEXT-009_INFERENCE_ENGINE.md).
 Detener tras publicar VNEXT-009. VNEXT-010, Advisor, sondas, nuevos handlers e integración
 con develop/main permanecen sin autorización.
+
+## Sondas de observación activa VNEXT-010
+
+- Implementación/pruebas: `ed1143a`; documentación de cierre en el commit siguiente.
+- **Completada con limitaciones**, por autorización expresa posterior del 2026-10-30.
+  Base `e2bb35a10db9e22d996734715a3a4de40658ce61`, rama exclusiva
+  `feat/qap-vnext-architecture`, agente principal único. Commits de entrega:
+  `git log --oneline e2bb35a..HEAD`. No se iniciaron tareas posteriores.
+- `ActiveObservationProbe` exportado por Playwright Adapter; API tipada y catálogo
+  cerrado: `native_empty_validation` con checkValidity real y `protected_empty_submit`
+  con requestSubmit real, sin clicks arbitrarios, datos rellenados ni force. Formulario
+  único/visible/vacío del documento principal y selector estructural explícitamente
+  autorizado. Rechazo de producción, perfiles/sesiones, passwords/hidden/file/image,
+  datos presentes, controles externos, objetivos ambiguos y submit de formulario válido.
+- Reutiliza VNEXT-008 mediante puntos protegidos mínimos: adquisición revocada antes
+  de interacción, offline, ausencia de transportes pendientes y proxy deny-only activo.
+  Protección DNS/IP/TLS, SW/WS/frames/popups/downloads y flags UDP heredados. Solo sonda B
+  añade allow-forms al sandbox para habilitar validación nativa; form-action sigue none.
+  CSP original restrictiva => indeterminado; no se inventa ejecución.
+- Dos ensayos independientes por defecto, tres máximo, browser/contexto/proxy nuevos.
+  Comparación solo de estados estructurales, restricciones/categorías HTML5, eventos y
+  cambios DOM. Estados consistent/inconsistent/indeterminate/blocked; un solo ensayo
+  nunca acredita reproducibilidad. Storage escrito por scripts queda en contexto
+  desechable, sin contaminar otro ensayo. Cancelación impide iniciar nuevos ensayos.
+- Solo observaciones probe_result/active_probe y evidencia dom_snippet estructural
+  seleccionada dentro del browser, sin valores/mensajes/HTML/URLs/credenciales/capturas.
+  UUIDs nuevos, contexto revalidado y un commit atómico <=6 writes por ejecución.
+  Reapertura, referencias, historia, aislamiento, rollback y contexto cambiado probados
+  en SQLite físico. Sin writes para abstenciones/capturas incompletas. Persistencia
+  committed/failed/not_attempted distinta del resultado observacional.
+- El observador interno no genera/persiste registros de red con procedencia crawler.
+  VNEXT-009 no admite active_probe: queda documentado y no se altera ni se falsifica la
+  fuente. No requisitos, conformidad pass, defectos confirmados ni cambios de inferencias.
+- Límites: un formulario/una navegación por ensayo; 100/200 controles, 500/1000 nodos,
+  100/200 eventos por categoría, 500/1000 cambios; ensayo 15/20s, global 40/60s,
+  ventana activa 100/1000ms. Adquisición exacta de documento/scripts/CSS, sin APIs:
+  máximo 128 requests y 1MiB por categoría/ensayo, concurrencia uno, sin retries.
+- Pruebas nuevas **25/25**. Adapter final completo **164/164** (55 recon, 30 crawler,
+  28 observer, 25 probes, 26 legacy). Shared **146/146**, Engine **168/168**, Knowledge
+  **258/258**, incluidas VNEXT-009: **736/736** focalizadas. Diez builds aprobados,
+  Adapter recompilado final; tipos probes/observer/crawler/recon incluidos tests y lint
+  de entrega sin diagnósticos. No suite global certificada.
+- Primer recorrido Adapter: 134 aprobadas, worker Vitest terminado inesperadamente
+  antes de completar observer (162 recopiladas entonces). Causa no determinada.
+  Observer aislado 28/28 y recorrido final 164/164, sin cambiar pruebas legacy.
+  Primer intento bajo sandbox no pudo acceder a loopback; verificaciones reales
+  repetidas mediante herramientas permitidas fuera de esa restricción.
+- Verificación y publicación detalladas en el documento de VNEXT-010. Matriz:
+  Windows, Node 24.15.0, Chrome 156.0.8078.48. Sesión protegida conservada con hash
+  `28e1b8dbec7ccf194440cc4158ec6072c9b9ade4` y excluida de staging.
+- Limitaciones: sin UI general, formularios válidos, autenticación, frames/shadow DOM,
+  APIs iniciales ni estado asíncrono posterior a la ventana. Sin certificación OS/RAM
+  o navegador comprometido; GET inicial requiere consentimiento semántico. Puerto v1
+  sin CAS contextual/cancelación de store; SQLite/limpieza no interrumpibles. Solo
+  matriz indicada. No suite global certificada; límites legacy de tipos/lint intactos.
+
+[API, seguridad, pruebas y reproducción VNEXT-010](VNEXT-010_ACTIVE_OBSERVATION_PROBES.md).
+Detener tras publicar VNEXT-010. VNEXT-011, Advisor, nuevos handlers y cualquier
+integración develop/main requieren autorización nueva.
