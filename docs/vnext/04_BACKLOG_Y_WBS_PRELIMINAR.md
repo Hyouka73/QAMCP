@@ -203,6 +203,19 @@ flowchart TD
   Sin diagnósticos nuevos ni certificación global.
   [Arquitectura, pruebas, incompatibilidades y límites](VNEXT-013_MCP_DISCOVERY_HANDLER.md).
 
+**Nota correctiva VNEXT-013-R1 (2026-10-30):** intervención posterior autorizada,
+sin renumerar tareas ni modificar el resultado histórico de VNEXT-013. Reproduce
+181/241 y clasifica individualmente sus 60 fallos (23 A, 32 B, 5 D). Corrige
+bloqueos/recomendaciones y escrituras sin contexto, sin materializar módulos ni
+promover observaciones. Dos aserciones obsoletas reconciliadas; final MCP
+188/246, con 58 fallos activos clasificados (21 A, 32 B, 5 D), cinco casos nuevos
+aprobados. Discovery 42/42, dispatcher/SDK 46/46, state 21/21, crawler 30/30;
+Knowledge 258/258, Engine 168/168, Shared 146/146, diez builds. ESLint 513→513,
+TypeScript 48→47, sin diagnósticos nuevos. **Completada con limitaciones;
+estabilización funcional incompleta y no apta para asumir resuelta la integración
+necesaria para VNEXT-014.** No inicia ni autoriza tareas posteriores.
+[Inventario, grafo, límites y evidencia](VNEXT-013_R1_INTEGRATION_STABILIZATION.md).
+
 #### `VNEXT-014` — Conexión Real de `qap_plan` y `qap_test` (Eliminación de Mocks)
 - **Estado:** Pendiente de autorización.
 - **Paquetes afectados:** `@qap/mcp`, `@qap/playwright-runner`.

@@ -88,6 +88,7 @@ import { TOOLS } from './tool-catalog.js';
 import { StatusHandler } from './handlers/status.handler.js';
 import { ContextHandler } from './handlers/context.handler.js';
 import { DiscoveryHandler, type DiscoveryAuthorization } from './handlers/discovery.handler.js';
+import { hasLegacyViewContext, legacyInterviewBlocked } from './handlers/legacy-discovery-contract.js';
 import { CleanHandler } from './handlers/clean.handler.js';
 import { checkPlaywrightBrowser, PLAYWRIGHT_INSTALL_COMMAND, detectarSubcarpetaWorkspace } from './handlers/state-runtime.js';
 import type { StateDependencies } from './handlers/state-services.js';
@@ -2339,6 +2340,12 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
             };
           }
 
+          // Canonical discovery cannot materialize this legacy prerequisite.
+          if (!hasLegacyViewContext(rootDir, moduleName, typeof args.view === 'string' && args.view ? args.view : 'default') &&
+              modEntry.state !== 'waived' && modEntry.state !== 'closed') {
+            return legacyInterviewBlocked(modEntry.state === 'planned');
+          }
+
           // Contrato blocked: módulo planned debe descubrirse primero (T10)
           if (modEntry.state === 'planned') {
             return {
@@ -3179,6 +3186,10 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
                 }, null, 2),
               }],
             };
+          }
+
+          if (action === 'close' && userConfirmed && !hasLegacyViewContext(rootDir, moduleName)) {
+            return legacyInterviewBlocked();
           }
 
           let rulesList: RuleEntry[] = [];

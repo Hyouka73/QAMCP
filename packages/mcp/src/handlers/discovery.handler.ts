@@ -7,6 +7,7 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { McpToolError, type IMcpToolHandler, type McpInvocationContext } from '../dispatcher.js';
 
 import { binding, definition, isObject, projectRoot, result, validateBase, type StateDependencies } from './state-services.js';
+import { discoveryIntegration } from './legacy-discovery-contract.js';
 
 /** Trusted host configuration. GET consent acknowledges possible server-side effects. */
 export interface DiscoveryAuthorization {
@@ -109,7 +110,8 @@ export class DiscoveryHandler implements IMcpToolHandler {
         limitations: [...output.warnings], budgets: { ...output.budget }, limits: { ...output.limits },
         cleanup: { ...output.cleanup }, persistence: output.observations.length ? 'committed' : 'not_attempted',
         observations: output.observations.length, evidence: output.evidence.length,
-        next_safe_action: 'Revisar observaciones; no representan requisitos ni defectos confirmados.',
+        integration: discoveryIntegration,
+        next_safe_action: 'Revisar observaciones; no representan requisitos ni defectos confirmados. La entrevista legacy requiere contexto propio; repetir discovery no lo crea.',
       }, output.status === 'blocked' || output.status === 'indeterminate');
     } catch (error: unknown) {
       const code = error instanceof BlackBoxCrawlerError ? error.code : 'DISCOVERY_UNAVAILABLE';

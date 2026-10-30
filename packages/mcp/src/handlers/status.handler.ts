@@ -11,6 +11,7 @@ import type { IMcpToolHandler } from '../dispatcher.js';
 
 import { definition, validateBase, projectRoot, readContext, readEnvironment, isObject, type StateDependencies, type LegacyEnvironment, knowledgeStatus, result, safeDocument, assertProjectSegment } from './state-services.js';
 import { PLAYWRIGHT_INSTALL_COMMAND, detectarSubcarpetaWorkspace } from './state-runtime.js';
+import { discoveryIntegration, hasLegacyViewContext, legacyInterviewBlocked } from './legacy-discovery-contract.js';
 
 export class StatusHandler implements IMcpToolHandler {
   readonly definition = definition('qap_status');
@@ -23,7 +24,7 @@ export class StatusHandler implements IMcpToolHandler {
     const text = legacy.content[0];
     if (text.type !== 'text') return legacy;
     const payload = JSON.parse(text.text) as Record<string, unknown>;
-    return result({ ...payload, knowledge, provenance: { knowledge: 'IKnowledgeStore', onboarding: 'legacy_files', hallazgos_workspace: 'workspace_inspection', preflight: 'runtime' }, coverage: 'partial_inventory_not_test_verdicts' });
+    return result({ ...payload, knowledge, integration: discoveryIntegration, provenance: { knowledge: 'IKnowledgeStore', onboarding: 'legacy_files', hallazgos_workspace: 'workspace_inspection', preflight: 'runtime' }, coverage: 'partial_inventory_not_test_verdicts' });
   }
   private async inspectLegacyState(rootDir: string): Promise<CallToolResult> {
 
@@ -247,6 +248,16 @@ export class StatusHandler implements IMcpToolHandler {
       for (const modName of candidateModules) {
         assertProjectSegment(modName);
         const modState = lifecycleState.modules?.[modName]?.state;
+        if (modState === 'interviewing' || modState === 'observed' || modState === 'consolidated') {
+          if (!hasLegacyViewContext(rootDir, modName)) {
+            const blocked = legacyInterviewBlocked().content[0];
+            if (blocked.type === 'text') {
+              const data = JSON.parse(blocked.text) as { siguiente_accion: SiguienteAccion };
+              interviewAction = data.siguiente_accion;
+            }
+            break;
+          }
+        }
         if (modState === 'interviewing' || modState === 'observed') {
           const planItem = (lifecycleState.session?.plan || []).find((p) => p.module === modName);
           const route = planItem?.path || '';

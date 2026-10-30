@@ -8,7 +8,9 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { CallToolResultSchema } from '@modelcontextprotocol/sdk/types.js';
 import { SqliteKnowledgeAdapter } from '@qap/knowledge';
+import { SchemaValidator } from '@qap/shared';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import YAML from 'yaml';
 
 import { createMcpServer, type McpServerOptions } from '../server.js';
 import { DiscoveryHandler, type DiscoveryAuthorization } from '../handlers/discovery.handler.js';
@@ -73,8 +75,85 @@ async function call(client: Client, root: string, args: Record<string, unknown> 
   const data = JSON.parse(item.text) as Record<string, unknown>;
   expect(item.text).not.toContain(canary); return data;
 }
+async function invoke(client: Client, root: string, name: string, args: Record<string, unknown> = {}) {
+  const response = await client.request({ method: 'tools/call', params: { name, arguments: { targetPath: root, ...args } } }, CallToolResultSchema);
+  const item = response.content[0]; if (item.type !== 'text') throw new Error('Expected text');
+  return JSON.parse(item.text) as Record<string, unknown>;
+}
 
 describe('VNEXT-013 real MCP black-box acquisition', () => {
+  it('R1: onboarding to anonymous discovery preserves planned state and explicitly blocks the legacy interview', async () => {
+    const f = await fixture(); rmSync(f.lifecyclePath);
+    const client = await connect(f.options);
+    expect(await invoke(client, f.root, 'qap_init', { baseUrl: f.origin })).toMatchObject({ status: 'success' });
+    expect(await invoke(client, f.root, 'qap_status')).toMatchObject({ fase: 'ONBOARDING' });
+    expect(await invoke(client, f.root, 'qap_context_set', {
+      objective: 'Validar el catálogo sintético de productos', roles: [{ name: 'visitante' }],
+      critical_flows: [{ name: 'Consultar catálogo' }], source_of_truth: { type: 'none', declared: true },
+    })).toMatchObject({ status: 'success' });
+    expect(await invoke(client, f.root, 'qap_session_plan', {
+      modules: [{ module: 'catalog', path: '/', priority: 'high' }], auth: { required: false },
+    })).toMatchObject({ status: 'success' });
+    const before = readFileSync(f.lifecyclePath, 'utf8');
+    expect(await call(client, f.root)).toMatchObject({ persistence: 'committed' });
+    const rules = await invoke(client, f.root, 'qap_rules_set', {
+      module: 'catalog', rules: [{ category: 'proposito', description: 'El catálogo permite consultar productos disponibles', source: 'user', status: 'confirmed' }],
+    });
+    expect(rules).toMatchObject({ status: 'blocked', code: 'legacy_interview_unavailable', persistence: 'not_attempted', desbloquear_con: { tool: 'qap_status' } });
+    expect(await invoke(client, f.root, 'qap_module_close', { module: 'catalog', action: 'close', user_confirmed: true, accept_gaps: true, accept_gaps_reason: 'Aceptación sintética explícita de brechas' }))
+      .toMatchObject({ status: 'blocked', code: 'legacy_interview_unavailable' });
+    expect(await invoke(client, f.root, 'qap_session_close')).toMatchObject({ status: 'blocked' });
+    expect(await invoke(client, f.root, 'qap_status')).toMatchObject({ fase: 'WORKING', integration: { discovery_advances_lifecycle: false, canonical_interview: 'unavailable' } });
+    expect(readFileSync(f.lifecyclePath, 'utf8')).toBe(before);
+    expect(existsSync(join(f.root, '.qa', 'modules', 'catalog'))).toBe(false);
+    expect((await f.store.query('a', 'observation', { limit: 100 })).items).toHaveLength(6);
+    expect((await f.store.query('a', 'requirement', { limit: 100 })).items).toHaveLength(0);
+  }, 30000);
+
+  it.each(['observed', 'consolidated'])('R1: stale %s state cannot manufacture rules or close a module without view context', async state => {
+    const f = await fixture();
+    writeFileSync(f.lifecyclePath, JSON.stringify({ ...f.lifecycle, modules: { catalog: { state, updated_at: time } } }));
+    const before = readFileSync(f.lifecyclePath, 'utf8'); const client = await connect(f.options);
+    expect(await invoke(client, f.root, 'qap_status')).toMatchObject({
+      siguiente_accion: { tipo: 'trabajo', tool: 'qap_status' },
+      integration: { canonical_interview: 'unavailable' },
+    });
+    expect(await invoke(client, f.root, 'qap_rules_set', { module: 'catalog', rules: [] }))
+      .toMatchObject({ status: 'blocked', code: 'legacy_interview_unavailable' });
+    expect(await invoke(client, f.root, 'qap_module_close', { module: 'catalog', action: 'close', user_confirmed: true }))
+      .toMatchObject({ status: 'blocked', code: 'legacy_interview_unavailable' });
+    expect(readFileSync(f.lifecyclePath, 'utf8')).toBe(before);
+    expect(existsSync(join(f.root, '.qa', 'modules', 'catalog'))).toBe(false);
+  });
+
+  it('R1: existing reviewed legacy context still accepts rules without promoting agent text or canonical observations', async () => {
+    const f = await fixture(); const client = await connect(f.options);
+    // Explicit pre-existing legacy fixture, never a projection of crawler output.
+    const view = { _version: '1', view_name: 'default', description: 'Synthetic legacy catalog', path: '/',
+      current_url: f.origin, tags: [], is_auth_view: false, session_saved: false, storage_state_used: false,
+      playwright_used: false, playwright_error: null, discovered_at: time, page_title: 'Synthetic', routes_found: ['/'] };
+    expect(new SchemaValidator().validateModuleView(view).valid).toBe(true);
+    const viewDir = join(f.root, '.qa', 'modules', 'catalog', 'views', 'default'); mkdirSync(viewDir, { recursive: true });
+    writeFileSync(join(viewDir, 'context.yaml'), YAML.stringify(view));
+    writeFileSync(f.lifecyclePath, JSON.stringify({ ...f.lifecycle, modules: { catalog: { state: 'observed', updated_at: time } } }));
+    expect(await invoke(client, f.root, 'qap_rules_set', { module: 'catalog', rules: [{
+      category: 'proposito', description: 'El catálogo muestra productos disponibles para consulta', source: 'agent', status: 'confirmed',
+    }] })).toMatchObject({ status: 'success' });
+    const stored = YAML.parse(readFileSync(join(f.root, '.qa', 'modules', 'catalog', 'rules.yaml'), 'utf8')) as { rules: Array<{ source: string; status: string }> };
+    expect(stored.rules).toHaveLength(1); expect(stored.rules[0]).toMatchObject({ source: 'agent', status: 'inferred' });
+    expect((await f.store.query('a', 'requirement', { limit: 100 })).items).toHaveLength(0);
+  });
+
+  it('R1: explicit waiver remains an honest exit without claiming discovery or test coverage', async () => {
+    const f = await fixture(); const client = await connect(f.options);
+    expect(await invoke(client, f.root, 'qap_module_close', { module: 'catalog', action: 'waive', user_confirmed: true,
+      reason: 'Se pospone la revisión funcional por decisión explícita del usuario' })).toMatchObject({ status: 'success' });
+    const lifecycle = JSON.parse(readFileSync(f.lifecyclePath, 'utf8')) as { modules: { catalog: { state: string } } };
+    expect(lifecycle.modules.catalog.state).toBe('waived');
+    expect(existsSync(join(f.root, '.qa', 'modules', 'catalog'))).toBe(false);
+    expect((await f.store.query('a', 'observation', { limit: 100 })).items).toHaveLength(0);
+  });
+
   it('owns exactly one route, preserves order, rejects collisions, and never falls back', async () => {
     const f = await fixture(); const spy = vi.spyOn(DiscoveryHandler.prototype, 'execute');
     const client = await connect(f.options); const tools = (await client.listTools()).tools;

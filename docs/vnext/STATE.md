@@ -431,3 +431,38 @@ solo tras nueva autorización.
 [Arquitectura, reproducción, contratos y resultados VNEXT-013](VNEXT-013_MCP_DISCOVERY_HANDLER.md).
 Detener tras publicar VNEXT-013. **No iniciar VNEXT-014**, Advisor ni integrar
 develop/main sin autorización nueva.
+
+## Correctiva VNEXT-013-R1 — Contratos e integración
+
+- Autorización posterior expresa del 2026-10-30; base exacta
+  c2078213236a50b540d8fa29fe891e5dff998416, agente principal único y misma rama.
+  **Completada con limitaciones; estabilización funcional del flujo INCOMPLETA.**
+  No iniciar ni autorizar VNEXT-014. Los cierres históricos anteriores no cambian.
+- Reproducción antes de editar: **181/241**, 60 fallos individuales inventariados:
+  **23 A, 32 B, 5 D; C/E/F=0** entre esos 60. Tres problemas adicionales de
+  integración identificados con pruebas rojas/verdes: recomendación circular,
+  escritura de reglas sin contexto y recomendación de cierre sobre estado
+  consolidated sin contexto. Guards explícitos sin inventar archivos/transiciones.
+- Reglas/cierre sin contexto legacy requieren prerrequisito real y responden
+  blocked/legacy_interview_unavailable, sin writes. Status/discovery explicitan
+  límites; observaciones no equivalen a reglas, cobertura o asociación de módulo.
+  Contexto legacy preexistente sigue admitiendo reglas; renuncia explícita conservada.
+- Dos expectativas obsoletas actualizadas individualmente (T8 y B6), sin eliminar
+  casos ni garantías. **MCP final 188/246**, 58 fallos clasificados, sin skips/todos:
+  originales **183/241**, nuevas **5/5**. Discovery **42/42** (37 conservadas),
+  dispatcher/SDK **46/46**, state **21/21**, crawler **30/30**, Knowledge **258/258**,
+  Engine **168/168**, Shared **146/146**; **diez builds aprobados**.
+- ESLint legacy **513→513**; TypeScript amplio **48→47** (se elimina unused parsed
+  en T8), cero añadidos. Producción afectada/tests nuevos limpios; warnings de
+  tests históricos modificados idénticos (3 y 7). Sin supresiones/config nuevas.
+- Persistencia/seguridad intactas: 18 tools, cuatro handlers, sin fallback,
+  autenticación implícita, bases automáticas, proyección dual o borrado de memoria.
+  Revisión acotada de c207821: canarios/literales sintéticos y rutas de entorno;
+  ningún secreto real identificado en el conjunto revisado, sin certificación universal.
+  Sesión protegida conservada, sin leer/usar/hash ni staging. Artefactos locales excluidos.
+- Pendiente crítico: observaciones → identidad de módulo/vista → entrevista/requisitos.
+  **No apto para iniciar VNEXT-014 suponiendo ese flujo resuelto.** No se certifica
+  suite global. Publicación exclusiva sin merge/rebase/force; entrega:
+  git log --oneline c207821..HEAD. Detener después de publicar esta correctiva.
+
+[Inventario de 60 casos, dependencias, cambios y verificación R1](VNEXT-013_R1_INTEGRATION_STABILIZATION.md).

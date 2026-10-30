@@ -350,7 +350,7 @@ describe('P3 Suite de Verificación MCP (T3 - T15)', () => {
   });
 
   // T8
-  it('T8: rules.yaml con manually_edited: true: discover no inserta reglas y lo indica', async () => {
+  it('T8: rules.yaml con manually_edited: true: discover no inserta reglas y declara el bloqueo canónico', async () => {
     await advanceToWorking([{ module: 'auth', path: '/login', priority: 'high' }]);
 
     const authDir = join(tempDir, '.qa', 'modules', 'auth');
@@ -371,8 +371,10 @@ describe('P3 Suite de Verificación MCP (T3 - T15)', () => {
     };
     writeFileSync(join(authDir, 'rules.yaml'), YAML.stringify(initialRules), 'utf-8');
 
-    const { parsed, text } = await callTool('qap_discover', { name: 'auth', path: '/login' });
-    expect(text).toContain('manually_edited');
+    const before = readFileSync(join(authDir, 'rules.yaml'), 'utf-8');
+    const { parsed } = await callTool('qap_discover', { name: 'auth', path: '/login' });
+    expect(parsed).toMatchObject({ status: 'blocked', code: 'knowledge_unbound', persistence: 'not_attempted' });
+    expect(readFileSync(join(authDir, 'rules.yaml'), 'utf-8')).toBe(before);
 
     // No debe haber insertado reglas DOM nuevas
     const postDoc = YAML.parse(readFileSync(join(authDir, 'rules.yaml'), 'utf-8'));

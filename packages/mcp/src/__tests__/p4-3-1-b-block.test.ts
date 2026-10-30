@@ -228,7 +228,14 @@ Plataforma SaaS B2B que digitaliza y centraliza el ciclo de vida del reclutamien
       expect(forbiddenTools).not.toContain(rPlan.parsed.siguiente_accion.tool);
     }
 
-    const rDisc = await call('qap_discover', { name: 'auth', path: '/login' });
+    // VNEXT-013 requires a host binding; the blocked result still obeys B6.
+    const rawDisc = await handler({ method: 'tools/call', params: {
+      name: 'qap_discover', arguments: { targetPath: tempDir, name: 'auth', path: '/login' },
+    } }, {});
+    expect(rawDisc.isError).toBe(true);
+    const rDisc = { parsed: JSON.parse(rawDisc.content[0].text) };
+    expect(rDisc.parsed).toMatchObject({ status: 'blocked', code: 'knowledge_unbound', persistence: 'not_attempted' });
+    expect(existsSync(join(tempDir, '.qa', 'modules', 'auth'))).toBe(false);
     if (rDisc.parsed.siguiente_accion?.tipo === 'trabajo') {
       expect(forbiddenTools).not.toContain(rDisc.parsed.siguiente_accion.tool);
     }
