@@ -90,7 +90,9 @@ import { StatusHandler } from './handlers/status.handler.js';
 import { ContextHandler } from './handlers/context.handler.js';
 import { DiscoveryHandler, type DiscoveryAuthorization } from './handlers/discovery.handler.js';
 import { CanonicalInterviewService } from './handlers/canonical-interview-service.js';
+import { CanonicalClosureService } from './handlers/canonical-closure-service.js';
 import { projectRoot as authorizedProjectRoot, result as canonicalResult } from './handlers/state-services.js';
+
 import { hasLegacyViewContext, legacyInterviewBlocked } from './handlers/legacy-discovery-contract.js';
 import { CleanHandler } from './handlers/clean.handler.js';
 import { checkPlaywrightBrowser, PLAYWRIGHT_INSTALL_COMMAND, detectarSubcarpetaWorkspace } from './handlers/state-runtime.js';
@@ -231,16 +233,22 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
     }))),
   };
   const interviews = new Map<string, CanonicalInterviewService>();
+  const closures = new Map<string, CanonicalClosureService>();
   const interviewBindings = (dependencies.knowledgeBindings ?? []).flatMap(bound => {
     try { return [{ bound, root: realpathSync(bound.projectRoot) }]; } catch { return []; }
   });
   for (const { bound, root } of interviewBindings) {
     // Binding selection elsewhere rejects duplicates; never create an ambiguous runtime.
     if (interviewBindings.filter(b => b.root === root).length !== 1) continue;
-    interviews.set(root, new CanonicalInterviewService(bound.store, { projectRoot: root,
-      applicationId: bound.applicationId, environmentId: bound.environmentId, moduleBindings: bound.moduleBindings }, bound.humanReviewGateway, bound.interviewDraftStore));
+    const context = { projectRoot: root,
+      applicationId: bound.applicationId, environmentId: bound.environmentId, moduleBindings: bound.moduleBindings };
+    interviews.set(root, new CanonicalInterviewService(bound.store, context, bound.humanReviewGateway, bound.interviewDraftStore));
+    if (bound.moduleClosureStore) {
+      closures.set(root, new CanonicalClosureService(bound.store, context, bound.moduleClosureStore, bound.moduleClosureReviewGateway));
+    }
   }
-  const runtimeDependencies: StateDependencies = { ...dependencies, canonicalInterviews: interviews };
+  const runtimeDependencies: StateDependencies = { ...dependencies, canonicalInterviews: interviews, canonicalClosures: closures };
+
   const migrated = new Set(['qap_status', 'qap_clean', 'qap_context_set', 'qap_discover']);
   const dispatcher = new ToolDispatcher(TOOLS.filter(tool => !migrated.has(tool.name)).map(tool => tool.name));
   dispatcher.register(new StatusHandler({ ...runtimeDependencies, browser: checkPlaywrightBrowser, view: buildViewDiscoveryContext }));
@@ -3108,12 +3116,35 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         }
 
         case 'qap_module_close': {
+          // Explicit canonical route
+          if (Object.hasOwn(args, 'canonical_closure')) {
+            const root = authorizedProjectRoot(args, dependencies, true);
+            if (typeof args.module !== 'string') return canonicalResult({ status: 'blocked', code: 'invalid_canonical_arguments' }, true);
+            const service = closures.get(root);
+            return canonicalResult(service ? await service.execute(args.module, args.canonical_closure)
+              : { status: 'blocked', code: 'knowledge_unbound' });
+          }
+
           const moduleName = args.module ? String(args.module).trim() : '';
+
+          // Amendment 4: Prevent legacy fallthrough if this module is bound in a canonical project
+          const bound = dependencies.knowledgeBindings?.find(b => {
+            try { return realpathSync(b.projectRoot) === rootDir; } catch { return false; }
+          });
+          if (bound?.moduleBindings?.some(b => b.plannedName === moduleName)) {
+            return canonicalResult({
+              status: 'blocked',
+              code: 'canonical_closure_required',
+              razon: 'Este módulo requiere cierre canónico mediante canonical_closure.',
+            }, true);
+          }
+
           const action = args.action ? String(args.action).trim() : '';
           const userConfirmed = args.user_confirmed === true;
           const reasonStr = typeof args.reason === 'string' ? args.reason.trim() : '';
 
           if (!moduleName || !action) {
+
             return {
               isError: true,
               content: [{
@@ -3508,6 +3539,36 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
             };
           }
 
+          // Bloquear prioritariamente si existen módulos canónicos vinculados sin cierre seguro
+          const closureService = closures.get(rootDir);
+          if (closureService) {
+            const check = await closureService.allModulesClosed();
+            if (!check.allClosed) {
+              return {
+                content: [{
+                  type: 'text',
+                  text: JSON.stringify({
+                    status: 'blocked',
+                    code: 'canonical_module_closure_required',
+                    directorio_objetivo: rootDir,
+                    fase: 'WORKING',
+                    razon: `No se puede cerrar la sesión: los siguientes módulos canónicos no cuentan con cierre o renuncia válidamente autorizados: ${check.unclosed.join(', ')}.`,
+                    unclosed_modules: check.unclosed,
+                    desbloquear_con: {
+                      tool: 'qap_module_close',
+                      descripcion: 'Cierra o renuncia a los módulos canónicos con qap_module_close y canonical_closure.',
+                    },
+                    siguiente_accion: {
+                      tipo: 'trabajo',
+                      descripcion: `Cierra los módulos canónicos pendientes (${check.unclosed.join(', ')}) antes de concluir la sesión.`,
+                      tool: 'qap_module_close',
+                    },
+                  }, null, 2),
+                }],
+              };
+            }
+          }
+
           const workingGate = canExitWorking(lifecycleState);
           if (!workingGate.passed) {
             return {
@@ -3542,6 +3603,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
               }],
             };
           }
+
 
           // Cierre exitoso y transición a WRAP_UP
           const qaDir = resolve(rootDir, '.qa');

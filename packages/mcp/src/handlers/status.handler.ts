@@ -27,11 +27,17 @@ export class StatusHandler implements IMcpToolHandler {
       if (bound?.moduleBindings?.length) {
         const bridge = new ModuleObservationBridge(bound.store, { ...bound, projectRoot: rootDir });
         for (const name of [...new Set(bound.moduleBindings.map(b => b.plannedName))].slice(0, 16)) {
-          canonicalModules.push({ ...await bridge.project(name),
+          const closureStatus = await this.dependencies.canonicalClosures?.get(rootDir)?.status(name);
+          canonicalModules.push({
+            plannedName: name,
+            ...await bridge.project(name),
             interview: await this.dependencies.canonicalInterviews?.get(rootDir)?.status(name) ?? {
               availability: 'host_runtime_absent', human_review_required: true, coverage: 'not_certified' },
+            closure: closureStatus ?? { state: 'working', ready_for_closure: false },
           });
         }
+
+
       }
     } catch { canonicalModules.push({ association_status: 'unavailable', coverage: 'unknown', human_review_required: true }); }
     const legacy = await this.inspectLegacyState(rootDir);

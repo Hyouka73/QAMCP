@@ -8,4 +8,6 @@
 export * from './epistemic-planes.js';
 export * from './contextual-dimensions.js';
 export * from './knowledge-entities.js';
+export * from './coverage-models.js';
 export * from './invariants-validator.js';
+

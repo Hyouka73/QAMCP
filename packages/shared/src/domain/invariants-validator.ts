@@ -11,6 +11,7 @@ import type {
   ApplicationObservation,
   AgentInference,
   ConformityAssessment,
+  RequirementCategory,
 } from './epistemic-planes.js';
 import type {
   BrowserCleanupPolicy,
@@ -23,6 +24,13 @@ import type {
   DomainView,
   ActionTarget,
 } from './knowledge-entities.js';
+import type {
+  GapAbsenceType,
+  GapStatus,
+} from './coverage-models.js';
+import { GAP_ABSENCE_TYPES, GAP_STATUSES } from './coverage-models.js';
+
+
 
 export interface InvariantViolation {
   code: string;
@@ -652,3 +660,650 @@ export function validateHistoricalPreservation<T extends { id: string; supersede
     violations,
   };
 }
+
+const VALID_REQUIREMENT_CATEGORIES: ReadonlySet<RequirementCategory> = new Set<RequirementCategory>([
+  'functional',
+  'business_rule',
+  'security',
+  'ui',
+  'ux',
+  'regression',
+  'performance',
+]);
+
+const FORBIDDEN_WIRE_AUTHORIZATION_KEYS = [
+  'approvalId',
+  'approval_id',
+  'signature',
+  'decision_id',
+  'decisionId',
+  'decided_by',
+  'decidedBy',
+];
+
+/**
+ * Valida de forma estricta un comando de cierre canónico (CanonicalClosureCommand) en la frontera MCP (R3 / Enmienda 1).
+ * Rechaza campos de autorización inyectados por el cliente, acciones desconocidas y justificaciones no sustantivas (< 15 chars).
+ */
+export function validateCanonicalClosureCommand(command: unknown): DomainValidationResult {
+  const violations: InvariantViolation[] = [];
+
+  if (!command || typeof command !== 'object' || Array.isArray(command)) {
+    return {
+      valid: false,
+      violations: [
+        {
+          code: 'COMMAND_OBJECT_REQUIRED',
+          field: 'command',
+          message: 'CanonicalClosureCommand debe ser un objeto no nulo.',
+          severity: 'error',
+        },
+      ],
+    };
+  }
+
+  const rec = command as Record<string, unknown>;
+
+  // Detectar inyección de autorización por el cliente
+  for (const forbiddenKey of FORBIDDEN_WIRE_AUTHORIZATION_KEYS) {
+    if (Object.hasOwn(rec, forbiddenKey)) {
+      violations.push({
+        code: 'CLIENT_AUTHORIZATION_INJECTION_FORBIDDEN',
+        field: forbiddenKey,
+        message: `El cliente MCP no puede inyectar campos de autorización '${forbiddenKey}'. La autoridad emana exclusivamente del host review gateway.`,
+        severity: 'error',
+      });
+    }
+  }
+
+  const action = rec.action;
+  const validActions = ['evaluate', 'close', 'waive', 'accept_gaps', 'declare_non_applicable'];
+  if (typeof action !== 'string' || !validActions.includes(action)) {
+    violations.push({
+      code: 'INVALID_COMMAND_ACTION',
+      field: 'action',
+      message: `La acción del comando debe ser una de: ${validActions.join(', ')}. Recibido: ${String(action)}`,
+      severity: 'error',
+    });
+    return { valid: false, violations };
+  }
+
+  const allowedKeysByAction: Record<string, readonly string[]> = {
+    evaluate: ['action'],
+    close: ['action'],
+    waive: ['action', 'reason'],
+    accept_gaps: ['action', 'accepted_gaps'],
+    declare_non_applicable: ['action', 'decisions'],
+  };
+
+  const allowedKeys = allowedKeysByAction[action];
+  for (const key of Object.keys(rec)) {
+    if (!allowedKeys.includes(key) && !FORBIDDEN_WIRE_AUTHORIZATION_KEYS.includes(key)) {
+      violations.push({
+        code: 'UNEXPECTED_COMMAND_FIELD',
+        field: key,
+        message: `El campo '${key}' no está permitido para la acción '${action}'.`,
+        severity: 'error',
+      });
+    }
+  }
+
+  if (action === 'waive') {
+    const reason = rec.reason;
+    if (typeof reason !== 'string' || reason.trim().length === 0) {
+      violations.push({
+        code: 'WAIVER_REASON_REQUIRED',
+        field: 'reason',
+        message: 'La acción waive requiere un motivo explicativo.',
+        severity: 'error',
+      });
+    } else if (reason.trim().length < 15) {
+      violations.push({
+        code: 'SUBSTANTIVE_WAIVER_REASON_REQUIRED',
+        field: 'reason',
+        message: 'El motivo de renuncia debe ser sustantivo (mínimo 15 caracteres no vacíos).',
+        severity: 'error',
+      });
+    }
+  } else if (action === 'accept_gaps') {
+    const acceptedGaps = rec.accepted_gaps;
+    if (!Array.isArray(acceptedGaps) || acceptedGaps.length === 0) {
+      violations.push({
+        code: 'ACCEPTED_GAPS_LIST_REQUIRED',
+        field: 'accepted_gaps',
+        message: 'La acción accept_gaps requiere un arreglo no vacío de brechas aceptadas.',
+        severity: 'error',
+      });
+    } else {
+      acceptedGaps.forEach((item, idx) => {
+        if (!item || typeof item !== 'object' || Array.isArray(item)) {
+          violations.push({
+            code: 'INVALID_ACCEPTED_GAP_ENTRY',
+            field: `accepted_gaps[${idx}]`,
+            message: 'Cada entrada en accepted_gaps debe ser un objeto.',
+            severity: 'error',
+          });
+          return;
+        }
+        const gapRec = item as Record<string, unknown>;
+        if (typeof gapRec.gap_id !== 'string' || gapRec.gap_id.trim().length === 0) {
+          violations.push({
+            code: 'GAP_ID_REQUIRED',
+            field: `accepted_gaps[${idx}].gap_id`,
+            message: 'Cada brecha debe especificar un gap_id válido.',
+            severity: 'error',
+          });
+        }
+        const gapReason = gapRec.reason;
+        if (typeof gapReason !== 'string' || gapReason.trim().length === 0) {
+          violations.push({
+            code: 'GAP_REASON_REQUIRED',
+            field: `accepted_gaps[${idx}].reason`,
+            message: 'Cada brecha aceptada debe especificar un motivo.',
+            severity: 'error',
+          });
+        } else if (gapReason.trim().length < 15) {
+          violations.push({
+            code: 'SUBSTANTIVE_GAP_ACCEPTANCE_REASON_REQUIRED',
+            field: `accepted_gaps[${idx}].reason`,
+            message: 'El motivo de aceptación de brecha debe ser sustantivo (mínimo 15 caracteres no vacíos).',
+            severity: 'error',
+          });
+        }
+      });
+    }
+  } else if (action === 'declare_non_applicable') {
+    const decisions = rec.decisions;
+    if (!Array.isArray(decisions) || decisions.length === 0) {
+      violations.push({
+        code: 'APPLICABILITY_DECISIONS_REQUIRED',
+        field: 'decisions',
+        message: 'La acción declare_non_applicable requiere un arreglo no vacío de decisiones.',
+        severity: 'error',
+      });
+    } else {
+      decisions.forEach((item, idx) => {
+        if (!item || typeof item !== 'object' || Array.isArray(item)) {
+          violations.push({
+            code: 'INVALID_DECISION_ENTRY',
+            field: `decisions[${idx}]`,
+            message: 'Cada entrada en decisions debe ser un objeto.',
+            severity: 'error',
+          });
+          return;
+        }
+        const decRec = item as Record<string, unknown>;
+        if (typeof decRec.category !== 'string' || !VALID_REQUIREMENT_CATEGORIES.has(decRec.category as RequirementCategory)) {
+          violations.push({
+            code: 'INVALID_DECISION_CATEGORY',
+            field: `decisions[${idx}].category`,
+            message: `Categoría inválida: ${String(decRec.category)}. Debe ser una de las categorías formales.`,
+            severity: 'error',
+          });
+        }
+        const decReason = decRec.reason;
+        if (typeof decReason !== 'string' || decReason.trim().length === 0) {
+          violations.push({
+            code: 'DECISION_REASON_REQUIRED',
+            field: `decisions[${idx}].reason`,
+            message: 'Cada declaración de no aplicabilidad debe especificar un motivo.',
+            severity: 'error',
+          });
+        } else if (decReason.trim().length < 15) {
+          violations.push({
+            code: 'SUBSTANTIVE_APPLICABILITY_REASON_REQUIRED',
+            field: `decisions[${idx}].reason`,
+            message: 'El motivo de no aplicabilidad debe ser sustantivo (mínimo 15 caracteres no vacíos).',
+            severity: 'error',
+          });
+        }
+      });
+    }
+  }
+
+  return {
+    valid: violations.length === 0,
+    violations,
+  };
+}
+
+/**
+ * Valida de forma estricta una brecha canónica (CanonicalGap) (R2 / Enmienda 5).
+ * Enforce: gap.absence_type === 'accepted_gap' ==> gap.status === 'accepted' && !!gap.acceptance_receipt.
+ */
+export function validateCanonicalGap(gap: unknown): DomainValidationResult {
+  const violations: InvariantViolation[] = [];
+
+  if (!gap || typeof gap !== 'object' || Array.isArray(gap)) {
+    return {
+      valid: false,
+      violations: [
+        {
+          code: 'GAP_OBJECT_REQUIRED',
+          field: 'gap',
+          message: 'CanonicalGap debe ser un objeto no nulo.',
+          severity: 'error',
+        },
+      ],
+    };
+  }
+
+  const g = gap as Record<string, unknown>;
+
+  if (typeof g.id !== 'string' || g.id.trim().length === 0) {
+    violations.push({
+      code: 'GAP_ID_REQUIRED',
+      field: 'id',
+      message: 'CanonicalGap requiere un ID estable no vacío.',
+      severity: 'error',
+    });
+  }
+
+  if (typeof g.module_key !== 'string' || g.module_key.trim().length === 0) {
+    violations.push({
+      code: 'GAP_MODULE_KEY_REQUIRED',
+      field: 'module_key',
+      message: 'CanonicalGap requiere un module_key no vacío.',
+      severity: 'error',
+    });
+  }
+
+  if (typeof g.category !== 'string' || !VALID_REQUIREMENT_CATEGORIES.has(g.category as RequirementCategory)) {
+    violations.push({
+      code: 'INVALID_GAP_CATEGORY',
+      field: 'category',
+      message: `Categoría de brecha inválida: ${String(g.category)}.`,
+      severity: 'error',
+    });
+  }
+
+  if (typeof g.absence_type !== 'string' || !GAP_ABSENCE_TYPES.includes(g.absence_type as GapAbsenceType)) {
+    violations.push({
+      code: 'INVALID_GAP_ABSENCE_TYPE',
+      field: 'absence_type',
+      message: `Tipo de ausencia inválido: ${String(g.absence_type)}. Debe ser uno de los 8 tipos formales.`,
+      severity: 'error',
+    });
+  }
+
+  if (typeof g.status !== 'string' || !GAP_STATUSES.includes(g.status as GapStatus)) {
+    violations.push({
+      code: 'INVALID_GAP_STATUS',
+      field: 'status',
+      message: `Estado de brecha inválido: ${String(g.status)}. Debe ser 'unaddressed', 'accepted' o 'deferred'.`,
+      severity: 'error',
+    });
+  }
+
+  if (typeof g.reason !== 'string' || g.reason.trim().length === 0) {
+    violations.push({
+      code: 'GAP_REASON_REQUIRED',
+      field: 'reason',
+      message: 'CanonicalGap requiere un motivo explícito.',
+      severity: 'error',
+    });
+  }
+
+  if (!Array.isArray(g.related_requirement_ids)) {
+    violations.push({
+      code: 'GAP_RELATED_REQUIREMENTS_REQUIRED',
+      field: 'related_requirement_ids',
+      message: 'related_requirement_ids debe ser un arreglo.',
+      severity: 'error',
+    });
+  }
+
+  if (g.provenance !== 'canonical_coverage_evaluator') {
+    violations.push({
+      code: 'INVALID_GAP_PROVENANCE',
+      field: 'provenance',
+      message: "La procedencia de CanonicalGap debe ser 'canonical_coverage_evaluator'.",
+      severity: 'error',
+    });
+  }
+
+  if (typeof g.created_at !== 'string' || Number.isNaN(Date.parse(g.created_at))) {
+    violations.push({
+      code: 'INVALID_GAP_CREATED_AT',
+      field: 'created_at',
+      message: 'created_at debe ser una fecha ISO-8601 válida.',
+      severity: 'error',
+    });
+  }
+
+  // Enmienda 5: Enforce ausencia/estado coherente y recibo de aceptación
+  if (g.absence_type === 'accepted_gap') {
+    if (g.status !== 'accepted') {
+      violations.push({
+        code: 'ACCEPTED_GAP_STATUS_MISMATCH',
+        field: 'status',
+        message: "Una brecha con absence_type 'accepted_gap' debe tener status 'accepted'.",
+        severity: 'error',
+      });
+    }
+    if (typeof g.acceptance_receipt !== 'string' || g.acceptance_receipt.trim().length === 0) {
+      violations.push({
+        code: 'ACCEPTED_GAP_RECEIPT_REQUIRED',
+        field: 'acceptance_receipt',
+        message: "Una brecha con absence_type 'accepted_gap' debe incluir un acceptance_receipt no vacío.",
+        severity: 'error',
+      });
+    }
+  }
+
+  if (g.status === 'accepted') {
+    if (typeof g.acceptance_receipt !== 'string' || g.acceptance_receipt.trim().length === 0) {
+      violations.push({
+        code: 'ACCEPTED_GAP_RECEIPT_REQUIRED',
+        field: 'acceptance_receipt',
+        message: "Una brecha con status 'accepted' debe incluir un acceptance_receipt no vacío.",
+        severity: 'error',
+      });
+    }
+  }
+
+  return {
+    valid: violations.length === 0,
+    violations,
+  };
+}
+
+/**
+ * Valida una decisión autoritativa de aplicabilidad de categoría (R1 / R2).
+ */
+export function validateCategoryApplicabilityDecision(decision: unknown): DomainValidationResult {
+  const violations: InvariantViolation[] = [];
+
+  if (!decision || typeof decision !== 'object' || Array.isArray(decision)) {
+    return {
+      valid: false,
+      violations: [
+        {
+          code: 'DECISION_OBJECT_REQUIRED',
+          field: 'decision',
+          message: 'CategoryApplicabilityDecision debe ser un objeto no nulo.',
+          severity: 'error',
+        },
+      ],
+    };
+  }
+
+  const d = decision as Record<string, unknown>;
+
+  if (typeof d.category !== 'string' || !VALID_REQUIREMENT_CATEGORIES.has(d.category as RequirementCategory)) {
+    violations.push({
+      code: 'INVALID_DECISION_CATEGORY',
+      field: 'category',
+      message: `Categoría inválida: ${String(d.category)}.`,
+      severity: 'error',
+    });
+  }
+
+  if (typeof d.applicable !== 'boolean') {
+    violations.push({
+      code: 'DECISION_APPLICABLE_BOOLEAN_REQUIRED',
+      field: 'applicable',
+      message: 'applicable debe ser un valor booleano.',
+      severity: 'error',
+    });
+  }
+
+  if (typeof d.reason !== 'string' || d.reason.trim().length === 0) {
+    violations.push({
+      code: 'DECISION_REASON_REQUIRED',
+      field: 'reason',
+      message: 'La decisión requiere un motivo explícito.',
+      severity: 'error',
+    });
+  } else if (d.reason.trim().length < 15) {
+    violations.push({
+      code: 'SUBSTANTIVE_APPLICABILITY_REASON_REQUIRED',
+      field: 'reason',
+      message: 'El motivo de aplicabilidad debe ser sustantivo (mínimo 15 caracteres no vacíos).',
+      severity: 'error',
+    });
+  }
+
+  if (typeof d.decided_by !== 'string' || d.decided_by.trim().length === 0) {
+    violations.push({
+      code: 'DECISION_DECIDED_BY_REQUIRED',
+      field: 'decided_by',
+      message: 'decided_by debe indicar la identidad autoritativa del host.',
+      severity: 'error',
+    });
+  }
+
+  if (typeof d.decision_id !== 'string' || d.decision_id.trim().length === 0) {
+    violations.push({
+      code: 'DECISION_ID_REQUIRED',
+      field: 'decision_id',
+      message: 'decision_id debe ser un identificador único no vacío.',
+      severity: 'error',
+    });
+  }
+
+  if (typeof d.decided_at !== 'string' || Number.isNaN(Date.parse(d.decided_at))) {
+    violations.push({
+      code: 'INVALID_DECISION_DATE',
+      field: 'decided_at',
+      message: 'decided_at debe ser una fecha ISO-8601 válida.',
+      severity: 'error',
+    });
+  }
+
+  return {
+    valid: violations.length === 0,
+    violations,
+  };
+}
+
+/**
+ * Valida de forma estricta los invariantes de CanonicalCoverageAssessment (R1 / R2 / Enmienda 6 / Mandato de Integridad).
+ * Enforces:
+ * - Zero execution coverage certification (strictly 'not_executed', 0 passed).
+ * - Tripartite coverage separation.
+ * - Closure verdict invariants (cannot be ready_for_closure with unaddressed gaps or pending requirements).
+ * - Category specification statuses have no is_waived.
+ */
+export function validateCoverageAssessmentInvariants(assessment: unknown): DomainValidationResult {
+  const violations: InvariantViolation[] = [];
+
+  if (!assessment || typeof assessment !== 'object' || Array.isArray(assessment)) {
+    return {
+      valid: false,
+      violations: [
+        {
+          code: 'ASSESSMENT_OBJECT_REQUIRED',
+          field: 'assessment',
+          message: 'CanonicalCoverageAssessment debe ser un objeto no nulo.',
+          severity: 'error',
+        },
+      ],
+    };
+  }
+
+  const a = assessment as Record<string, unknown>;
+
+  if (typeof a.module_key !== 'string' || a.module_key.trim().length === 0) {
+    violations.push({ code: 'MODULE_KEY_REQUIRED', field: 'module_key', message: 'module_key requerido.', severity: 'error' });
+  }
+
+  if (typeof a.module_id !== 'string' || a.module_id.trim().length === 0) {
+    violations.push({ code: 'MODULE_ID_REQUIRED', field: 'module_id', message: 'module_id requerido.', severity: 'error' });
+  }
+
+  if (typeof a.module_revision !== 'number' || !Number.isInteger(a.module_revision) || a.module_revision <= 0) {
+    violations.push({ code: 'INVALID_MODULE_REVISION', field: 'module_revision', message: 'module_revision debe ser entero positivo.', severity: 'error' });
+  }
+
+  if (typeof a.application_id !== 'string' || a.application_id.trim().length === 0) {
+    violations.push({ code: 'APPLICATION_ID_REQUIRED', field: 'application_id', message: 'application_id requerido.', severity: 'error' });
+  }
+
+  if (typeof a.environment_id !== 'string' || a.environment_id.trim().length === 0) {
+    violations.push({ code: 'ENVIRONMENT_ID_REQUIRED', field: 'environment_id', message: 'environment_id requerido.', severity: 'error' });
+  }
+
+  if (a.assessed_by !== 'canonical_coverage_service') {
+    violations.push({ code: 'INVALID_ASSESSED_BY', field: 'assessed_by', message: "assessed_by debe ser 'canonical_coverage_service'.", severity: 'error' });
+  }
+
+  if (typeof a.coverage_digest !== 'string' || !/^[0-9a-f]{64}$/i.test(a.coverage_digest)) {
+    violations.push({
+      code: 'INVALID_COVERAGE_DIGEST',
+      field: 'coverage_digest',
+      message: 'coverage_digest debe ser un hash SHA-256 en formato hexadecimal de 64 caracteres.',
+      severity: 'error',
+    });
+  }
+
+  // 1. INVARIANTE MANDATORIO DE EJECUCIÓN CERO (R1 / Mandato de Integridad)
+  const exec = a.execution_coverage as Record<string, unknown> | undefined;
+  if (!exec || typeof exec !== 'object') {
+    violations.push({
+      code: 'EXECUTION_COVERAGE_REQUIRED',
+      field: 'execution_coverage',
+      message: 'execution_coverage debe estar presente en el assessment.',
+      severity: 'error',
+    });
+  } else {
+    if (exec.status !== 'not_executed') {
+      violations.push({
+        code: 'EXECUTION_COVERAGE_UNVERIFIED_FORBIDDEN',
+        field: 'execution_coverage.status',
+        message: "En VNEXT-013-R5 la cobertura de ejecución debe ser estrictamente 'not_executed'. Certificar ejecución sin runner es una violación grave de integridad.",
+        severity: 'error',
+      });
+    }
+    if (exec.executed_count !== 0 || exec.passed_count !== 0 || exec.failed_count !== 0 || exec.indeterminate_count !== 0) {
+      violations.push({
+        code: 'EXECUTION_VERDICTS_FORBIDDEN',
+        field: 'execution_coverage',
+        message: 'No se permiten conteos de ejecución distintos de cero en R5.',
+        severity: 'error',
+      });
+    }
+  }
+
+  // 2. INVARIANTES DE COBERTURA DE ESPECIFICACIÓN
+  const spec = a.specification_coverage as Record<string, unknown> | undefined;
+  if (!spec || typeof spec !== 'object') {
+    violations.push({
+      code: 'SPECIFICATION_COVERAGE_REQUIRED',
+      field: 'specification_coverage',
+      message: 'specification_coverage debe ser un objeto.',
+      severity: 'error',
+    });
+  } else {
+    const totalGaps = spec.total_gaps_count as number;
+    const unaddressedGaps = spec.unaddressed_gaps_count as number;
+    const acceptedGaps = spec.accepted_gaps_count as number;
+    if (typeof totalGaps === 'number' && typeof unaddressedGaps === 'number' && typeof acceptedGaps === 'number') {
+      if (totalGaps !== unaddressedGaps + acceptedGaps) {
+        violations.push({
+          code: 'GAP_COUNT_INCONSISTENCY',
+          field: 'specification_coverage.total_gaps_count',
+          message: `total_gaps_count (${totalGaps}) debe ser igual a la suma de unaddressed (${unaddressedGaps}) + accepted (${acceptedGaps}).`,
+          severity: 'error',
+        });
+      }
+    }
+
+    // Enmienda 6: Verificar que ningún category_status contenga is_waived
+    const catStatuses = spec.category_statuses;
+    if (Array.isArray(catStatuses)) {
+      catStatuses.forEach((cs, idx) => {
+        if (cs && typeof cs === 'object' && Object.hasOwn(cs, 'is_waived')) {
+          const isWaived = (cs as Record<string, unknown>).is_waived;
+          if (isWaived !== false) {
+            violations.push({
+              code: 'CATEGORY_WAIVER_FORBIDDEN',
+              field: `specification_coverage.category_statuses[${idx}].is_waived`,
+              message: 'Las categorías individuales no admiten renuncia (is_waived). Solo el módulo completo puede ser renunciado.',
+              severity: 'error',
+            });
+          }
+        }
+      });
+    }
+
+    // Invariantes de veredicto de cierre
+    const verdict = a.closure_verdict;
+    if (verdict === 'ready_for_closure') {
+      if (unaddressedGaps > 0) {
+        violations.push({
+          code: 'READY_FOR_CLOSURE_WITH_UNADDRESSED_GAPS_FORBIDDEN',
+          field: 'closure_verdict',
+          message: `No se puede dictaminar 'ready_for_closure' con ${unaddressedGaps} brechas no abordadas.`,
+          severity: 'error',
+        });
+      }
+      const pendingReqs = spec.pending_requirements_count as number;
+      if (pendingReqs > 0) {
+        violations.push({
+          code: 'READY_FOR_CLOSURE_WITH_PENDING_REQUIREMENTS_FORBIDDEN',
+          field: 'closure_verdict',
+          message: `No se puede dictaminar 'ready_for_closure' con ${pendingReqs} requisitos pendientes.`,
+          severity: 'error',
+        });
+      }
+      if (spec.status !== 'complete') {
+        violations.push({
+          code: 'READY_FOR_CLOSURE_INCOMPLETE_SPECIFICATION',
+          field: 'closure_verdict',
+          message: "ready_for_closure requiere que specification_coverage.status sea 'complete'.",
+          severity: 'error',
+        });
+      }
+    } else if (verdict === 'blocked_by_gaps') {
+      if (unaddressedGaps === 0) {
+        violations.push({
+          code: 'BLOCKED_BY_GAPS_WITHOUT_GAPS',
+          field: 'closure_verdict',
+          message: "blocked_by_gaps requiere al menos una brecha no abordada.",
+          severity: 'error',
+        });
+      }
+    }
+  }
+
+  // 3. VALIDAR BRECHAS
+  if (Array.isArray(a.gaps)) {
+    a.gaps.forEach((gap, idx) => {
+      const res = validateCanonicalGap(gap);
+      if (!res.valid) {
+        res.violations.forEach(v => {
+          violations.push({
+            code: `GAP_${idx}_${v.code}`,
+            field: `gaps[${idx}].${v.field}`,
+            message: v.message,
+            severity: v.severity,
+          });
+        });
+      }
+    });
+  }
+
+  // 4. VALIDAR DECISIONES DE APLICABILIDAD
+  if (Array.isArray(a.applicability_decisions)) {
+    a.applicability_decisions.forEach((dec, idx) => {
+      const res = validateCategoryApplicabilityDecision(dec);
+      if (!res.valid) {
+        res.violations.forEach(v => {
+          violations.push({
+            code: `DECISION_${idx}_${v.code}`,
+            field: `applicability_decisions[${idx}].${v.field}`,
+            message: v.message,
+            severity: v.severity,
+          });
+        });
+      }
+    });
+  }
+
+  return {
+    valid: violations.length === 0,
+    violations,
+  };
+}
+

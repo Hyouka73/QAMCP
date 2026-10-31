@@ -584,3 +584,49 @@ Autorización posterior exclusiva del 2026-10-30; base local/remota
 
 [Diseño, privacidad, reproducción, pruebas y límites R4](VNEXT-013_R4_DURABLE_INTERVIEW_STATE.md).
 Detener tras publicar R4. **No iniciar VNEXT-014.**
+
+## VNEXT-013-R5 — Cobertura canónica y cierre seguro de módulos
+
+Autorización posterior exclusiva del 2026-10-31; base local/remota
+`7a906005c98afbdc9623762f1ee4e6035c9a781d`. Un agente principal, misma rama.
+**Completada con limitaciones.** No inicia ni declara lista VNEXT-014.
+
+- Modelo tripartito canónico en `@qap/shared`: `SpecificationCoverage` sobre 7 categorías
+  formales evaluada exclusivamente sobre requisitos confirmados (`developer_interview` + `human_review`);
+  `ReviewCoverage` con recibo inmutable del host gateway; `ExecutionCoverageSummary` estrictamente
+  `not_executed` (0 casos, 0 passed, 0 conformity assessments) en cumplimiento de los invariantes
+  anti-acreditación y anti-tamper (D-011, R1).
+- Taxonomía estricta de brechas (`CanonicalGap`) con 8 tipos de ausencia (`GapAbsenceType`).
+  Reglas de renuncia de categoría: justificación descriptiva obligatoria de al menos 15 caracteres;
+  rechazo de renuncia total de todas las categorías.
+- Almacenamiento seguro SQLite v1 separado (`SqliteModuleClosureStore`): snapshots cifrados
+  con AES-256-GCM, clave de 32 bytes provista por el host fuera de la base, metadatos y generaciones
+  monótonas para protección contra replay. Sin alterar el esquema canónico v2 de SQLite en Knowledge.
+- Cierre canónico en 2 fases (`CanonicalClosureService`):
+  - Fase 1: Pre-condiciones, brechas críticas y decisión del host review gateway (`IModuleClosureReviewGateway`).
+  - Fase 2: Transacción CAS en `closureStore` y recibo durable de relación en `IKnowledgeStore`.
+  - Amendment 3: Zero mutación de revisión del módulo (`module.revision` intacto) mediante relación
+    de cierre (`id: closure:<decisionId>`, `expected_revision: 0`, `source: module`, `target: application`),
+    preservando el invariante `module.revision === link.moduleRevision` de `ModuleObservationBridge`.
+  - Autoreconciliación y recuperación ante caídas verificadas en 4 escenarios: rollback en salida
+    prematura de proceso, autorreparación de recibo tras caída sin re-aprobación del gateway,
+    detección de corrupción/claves alteradas, y CAS concurrente entre conexiones.
+- Integración MCP:
+  - `qap_module_close`: Ruta explícita `canonical_closure`. Módulos canónicos vinculados llamados
+    sin ella quedan bloqueados con `canonical_closure_required` (Amendment 4).
+  - `qap_session_close`: Compuerta estricta que exige que todos los módulos canónicos vinculados
+    estén cerrados o renunciados (`canonical_module_closure_required`).
+  - `qap_status`: Proyecta `plannedName` y sección `closure` (`status: unclosed | closed | waived`).
+  - Catálogo MCP preservado en exactamente 18 herramientas.
+- Pruebas físicas: Nuevas **25/25** en `packages/mcp/src/__tests__/canonical-coverage.test.ts`,
+  **16/16** unitarias en `packages/shared/src/__tests__/domain/canonical-coverage-invariants.test.ts`
+  (162/162 total); Knowledge **258/258**, Engine **168/168**, crawler **30/30**, diez builds monorepo
+  aprobados (`pnpm -r build` exit code 0). 58 fallos legacy baseline conservados (21 A, 32 B, 5 D).
+- Límites: Cero ejecución de tests automáticos en R5 (reservado a VNEXT-014); gateway inyectado por
+  el host sin UI de usuario final; retención y claves gestionadas por el host.
+- Sesión protegida previa (`packages/playwright-runner/.qa/cache/sessions/admin-user.json`)
+  excluida y sin modificaciones. Solo código, pruebas y documentación autorizados.
+
+[Diseño, cobertura tripartita, pruebas físicas y límites R5](VNEXT-013_R5_CANONICAL_COVERAGE_MODULE_CLOSURE.md).
+Detener tras publicar R5. **No iniciar VNEXT-014.**
+

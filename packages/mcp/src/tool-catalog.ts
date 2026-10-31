@@ -607,6 +607,10 @@ export const TOOLS: Tool[] = [
           type: 'string',
           description: "Motivo justificado para action: 'waive' (obligatorio, >= 15 caracteres tras trim)",
         },
+        canonical_closure: {
+          type: 'object',
+          description: 'Comando de cierre canónico (CanonicalClosureCommand). En presencia de enlace canónico del host, opera exclusivamente mediante IModuleClosureReviewGateway.',
+        },
       },
       required: ['module', 'action', 'user_confirmed'],
     },

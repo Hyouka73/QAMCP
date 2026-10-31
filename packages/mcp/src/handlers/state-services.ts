@@ -13,6 +13,9 @@ import { McpToolError } from '../dispatcher.js';
 import type { ModuleBinding } from './module-observation-bridge.js';
 import type { CanonicalInterviewService, IHumanReviewGateway } from './canonical-interview-service.js';
 import type { IInterviewDraftStore } from './interview-draft-store.js';
+import type { CanonicalClosureService } from './canonical-closure-service.js';
+import type { IModuleClosureReviewGateway } from './module-closure-gateway.js';
+import type { IModuleClosureStore } from './module-closure-store.js';
 
 /** Host-owned, already-open store. No filename discovery, implicit open or close. */
 export interface ProjectKnowledgeBinding {
@@ -23,14 +26,18 @@ export interface ProjectKnowledgeBinding {
   readonly moduleBindings?: readonly ModuleBinding[];
   readonly humanReviewGateway?: IHumanReviewGateway;
   readonly interviewDraftStore?: IInterviewDraftStore;
+  readonly moduleClosureReviewGateway?: IModuleClosureReviewGateway;
+  readonly moduleClosureStore?: IModuleClosureStore;
 }
 export interface StateDependencies {
   /** Internal host runtime, never tool arguments. */
   readonly canonicalInterviews?: ReadonlyMap<string, CanonicalInterviewService>;
+  readonly canonicalClosures?: ReadonlyMap<string, CanonicalClosureService>;
   /** Defaults to the server's cwd; explicit roots authorize additional projects. */
   readonly projectRoots?: readonly string[];
   readonly knowledgeBindings?: readonly ProjectKnowledgeBinding[];
 }
+
 export class StateOperationError extends Error {
   constructor(readonly code: 'context_locked' | 'legacy_recovery_required' | 'legacy_conflict') { super(code); }
 }

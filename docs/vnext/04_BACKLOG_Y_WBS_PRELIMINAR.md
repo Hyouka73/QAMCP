@@ -259,6 +259,21 @@ antirollback, UI y ventana transversal de contexto limitan operación productiva
 **No inicia ni declara lista VNEXT-014.**
 [Contrato, pruebas físicas, privacidad y reproducción R4](VNEXT-013_R4_DURABLE_INTERVIEW_STATE.md).
 
+**Nota correctiva VNEXT-013-R5 (2026-10-31):** completada con limitaciones.
+Evaluación tripartita de cobertura (SpecificationCoverage, ReviewCoverage, ExecutionCoverageSummary)
+sobre requisitos confirmados; inventario reproducible de brechas con taxonomía canónica de 8 tipos
+(GapAbsenceType); compuerta humana del host (`IModuleClosureReviewGateway`) y almacenamiento durable
+en SQLite v1 separado (`SqliteModuleClosureStore`) con snapshots cifrados AES-256-GCM.
+Cierre canónico en 2 fases (2-Phase CAS) con recibo durable de relación en `IKnowledgeStore` sin
+mutación de revisión del módulo (`expected_revision: 0`), preservando `module.revision === link.moduleRevision`.
+Ruta explícita `canonical_closure` en `qap_module_close`, compuerta de bloqueo `canonical_closure_required`
+para módulos vinculados llamados sin ella, y compuerta de sesión `canonical_module_closure_required` en `qap_session_close`.
+Proyección de plannedName y closure en `qap_status`. Catálogo de 18 herramientas conservado.
+Nuevas **25/25** físicas en MCP, **16/16** unitarias en Shared (162/162 total); Knowledge **258/258**,
+Engine **168/168**, 10 builds exitosos (exit code 0). 58 fallos legacy baseline conservados (21 A, 32 B, 5 D).
+Cero ejecución de pruebas ni ConformityAssessment en R5. **No inicia ni declara lista VNEXT-014.**
+[Arquitectura, cobertura tripartita, pruebas físicas y límites R5](VNEXT-013_R5_CANONICAL_COVERAGE_MODULE_CLOSURE.md).
+
 #### `VNEXT-014` — Conexión Real de `qap_plan` y `qap_test` (Eliminación de Mocks)
 - **Estado:** Pendiente de autorización.
 - **Paquetes afectados:** `@qap/mcp`, `@qap/playwright-runner`.

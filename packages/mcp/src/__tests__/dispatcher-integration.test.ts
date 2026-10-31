@@ -82,11 +82,17 @@ describe('real MCP client/server via linked transports', () => {
       properties: { action: { enum: ['next', 'propose', 'correct', 'review', 'defer', 'resume'] } }, required: ['action'] });
     expect({ tools: tools.map(tool => {
       if (tool.name === 'qap_discover') return { ...tool, description: oldTools.find(t => t.name === tool.name)!.description };
+      if (tool.name === 'qap_module_close') {
+        const properties = { ...tool.inputSchema.properties }; delete properties.canonical_closure;
+        return { ...tool, description: oldTools.find(t => t.name === tool.name)!.description,
+          inputSchema: { ...tool.inputSchema, properties } };
+      }
       if (tool.name !== 'qap_rules_set') return tool;
       const properties = { ...tool.inputSchema.properties }; delete properties.canonical_interview;
       return { ...tool, description: oldTools.find(t => t.name === tool.name)!.description,
         inputSchema: { ...tool.inputSchema, properties } };
     }), prompts: (await client.listPrompts()).prompts }).toEqual(baseline);
+
     expect(await client.getPrompt({ name: 'qap_start' })).toEqual({
       description: 'Onboarding paso a paso para QAP',
       messages: [{ role: 'user', content: { type: 'text', text: 'Inicia revisando el estado de QAP con qap_status y guíame paso a paso sin muros de texto.' } }],
