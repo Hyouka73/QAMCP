@@ -15,7 +15,7 @@ gateway seguro y barrera TCP/UDP. VNEXT-009 fue autorizada posteriormente y se r
 Esta autorización sustituye exclusivamente el bloqueo anterior de VNEXT-010; el cierre y
 sus límites se registran al final. Las autorizaciones posteriores de VNEXT-011 y
 VNEXT-012 y VNEXT-013 y sus cierres con limitaciones se registran al final;
-Tras la resolución de incertidumbres técnicas post-R5 (§R1–§R4), VNEXT-014 cuenta con autorización condicional para la siguiente fase (sin haber sido implementada en esta entrega); VNEXT-015 y posteriores siguen sin autorización.
+Tras la resolución de incertidumbres técnicas post-R5 y la preparación técnica VNEXT-014-A ([014A_PREPARACION_TECNICA.md](014A_PREPARACION_TECNICA.md)), VNEXT-014 cuenta con plan técnico y dictamen formal completados; VNEXT-015 y posteriores siguen sin autorización.
 Leer este archivo y el WBS antes de elegir trabajo ante «continúa».
 
 ## Rama y cambios ajenos
@@ -812,3 +812,20 @@ La base arquitectónica post-R5 se encuentra **suficientemente estabilizada y ve
 3. **Cumplimiento del invariante D-011**: Los veredictos `ConformityAssessment.pass` y `ExecutionCoverageSummary` solo podrán emitirse a partir de ejecuciones físicas reales del runner Playwright sobre el navegador, jamás mediante inferencia o síntesis estática.
 4. **Manejo de retención y rollover**: Planificar la política de truncado o archivo antes de superar el límite de 4096 generaciones en `SqliteModuleClosureStore`.
 5. **No implementación prematura**: VNEXT-014 NO fue implementada en esta sesión, preservando la frontera de autorización.
+
+
+## Preparación técnica y verificación de prerrequisitos VNEXT-014-A (2026-11-02)
+
+Sesión multi-agente Teamwork (Explorer Git/Env, Explorer Inventory, Explorer Tests, Worker Doc).
+Rama exclusiva: `feat/qap-vnext-architecture`.
+HEAD verificado: `f955a9a3076ad1e82484499b47d2891a9e3eb40c` (cero divergencia, working tree limpio).
+Modo de integridad: `development` (diagnóstico, auditoría y planificación técnica — cero código de producción modificado).
+
+- **Verificación de Entorno y FTS5**: Node `v22.13.0` activo; Node 24 ausente localmente. Verificación funcional física de SQLite `CREATE VIRTUAL TABLE ... USING fts5` falló con `no such module: fts5` (exit code 1). Componentes FTS5 marcados como `BLOCKED (Ambiental)`.
+- **Suites Verificadas al 100%**: `@qap/shared` (162/162), `@qap/engine` (168/168), `@hyouka73/qap-cli` (78/78), `@qap/knowledge` lógica pura y DAG (174/174), `@qap/reporter` (47/47), `@qap/git-adapter` (5/5), garantías R5 (34/34), arnés de estrés (9/9), MCP Stdio (18/18).
+- **Inventario y Bloqueos Identificados**: Mapeo completo de `qap_plan`, `qap_test`, planificador DAG (`DependencyGraphResolver`) y `PlaywrightRunner`. Identificados bloqueos ambientales (FTS5 en Node 22, ausencia de binario Chromium `headless_shell-1234`) y de integración (`projectRoot` hardcodeado en runner, falta de dependencia workspace en MCP, invariante D-011 de cobertura en shared, mapeo `ExpectedRequirement` -> DAG).
+- **Plan de Implementación**: Definido para VNEXT-014-B (`PlanHandler` & DAG) y VNEXT-014-C (`TestHandler` & `PlaywrightRunner`), con criterios de aceptación y prompt autosuficiente para 014-B.
+- **Dictamen Formal**: `PARTIAL` (o `READY CON CONDICIONANTES AMBIENTALES`), habilitando de inmediato el desarrollo de VNEXT-014-B.
+
+[Informe de Preparación Técnica y Plan de Implementación VNEXT-014-A](014A_PREPARACION_TECNICA.md).
+
