@@ -641,3 +641,224 @@ describe('PlanHandler Real Declarative Implementation (VNEXT-014-B)', () => {
     expect(postExecContent).toBe(originalContent);
   });
 });
+
+describe('R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1)', () => {
+  // R1.1: Truncated or altered matrix.cases with intact YAMLs in disk
+  it('R1.1: rejects truncated or altered matrix.cases even when test cases on disk are intact (FAIL BEFORE / PASS AFTER)', async () => {
+    const root = initProject();
+    seedModule(root, 'checkout');
+    seedTestCase(root, 'checkout', 'TC-001');
+    seedTestCase(root, 'checkout', 'TC-002');
+
+    // Generate legitimate plan
+    const handler = new PlanHandler({ projectRoots: [root] });
+    await handler.execute(
+      { module: 'checkout', targetPath: root, environment: 'local' },
+      { requestId: 'test-r1-1', signal: new AbortController().signal }
+    );
+
+    const planPath = join(root, '.qa', 'modules', 'checkout', 'tests', 'plan.json');
+    const plan = JSON.parse(readFileSync(planPath, 'utf8'));
+
+    // Corrupt matrix by truncating TC-002 from matrix.cases
+    plan.matrix.cases = ['TC-001'];
+    writeFileSync(planPath, JSON.stringify(plan, null, 2), 'utf8');
+
+    const storage = new FileSystemStorage({ rootDir: root });
+    const check = await PlanHandler.verifyPlanIntegrity(storage, 'checkout');
+
+    // FAIL BEFORE: validity was 'valid' (cases_fingerprint on disk matched)
+    // PASS AFTER: validity is 'obsolete', code is 'cases_mismatch'
+    expect(check.validity).toBe('obsolete');
+    expect(check.is_fresh).toBe(false);
+    expect(check.code).toBe('cases_mismatch');
+    expect(check.reason).toContain('El número de casos en el plan (1) difiere de los casos ejecutables en disco (2)');
+  });
+
+  // R1.2: Inverted DAG dependency in matrix.cases
+  it('R1.2: rejects inverted DAG dependencies in matrix.cases (FAIL BEFORE / PASS AFTER)', async () => {
+    const root = initProject();
+    seedModule(root, 'checkout');
+    seedTestCase(root, 'checkout', 'TC-001', { depends_on: [] });
+    seedTestCase(root, 'checkout', 'TC-002', { depends_on: ['TC-001'] });
+
+    const handler = new PlanHandler({ projectRoots: [root] });
+    await handler.execute(
+      { module: 'checkout', targetPath: root, environment: 'local' },
+      { requestId: 'test-r1-2', signal: new AbortController().signal }
+    );
+
+    const planPath = join(root, '.qa', 'modules', 'checkout', 'tests', 'plan.json');
+    const plan = JSON.parse(readFileSync(planPath, 'utf8'));
+
+    // Invert the execution order: put TC-002 before its dependency TC-001
+    plan.matrix.cases = ['TC-002', 'TC-001'];
+    writeFileSync(planPath, JSON.stringify(plan, null, 2), 'utf8');
+
+    const storage = new FileSystemStorage({ rootDir: root });
+    const check = await PlanHandler.verifyPlanIntegrity(storage, 'checkout');
+
+    // FAIL BEFORE: validity was 'valid' (no DAG verification was performed in verifyPlanIntegrity)
+    // PASS AFTER: validity is 'obsolete', code is 'dag_order_mismatch'
+    expect(check.validity).toBe('obsolete');
+    expect(check.is_fresh).toBe(false);
+    expect(check.code).toBe('dag_order_mismatch');
+    expect(check.reason).toContain("Violación de dependencias DAG: la dependencia 'TC-001'");
+  });
+
+  // R1.3: Accepts valid alternate topological sorts
+  it('R1.3: accepts valid alternate topological orders without arbitrary positional rejection (FAIL BEFORE / PASS AFTER)', async () => {
+    const root = initProject();
+    seedModule(root, 'checkout');
+    // Independent cases: TC-001 and TC-002 have no mutual dependencies
+    seedTestCase(root, 'checkout', 'TC-001', { depends_on: [] });
+    seedTestCase(root, 'checkout', 'TC-002', { depends_on: [] });
+
+    const handler = new PlanHandler({ projectRoots: [root] });
+    await handler.execute(
+      { module: 'checkout', targetPath: root, environment: 'local' },
+      { requestId: 'test-r1-3', signal: new AbortController().signal }
+    );
+
+    const planPath = join(root, '.qa', 'modules', 'checkout', 'tests', 'plan.json');
+    const plan = JSON.parse(readFileSync(planPath, 'utf8'));
+
+    // Set reverse order [TC-002, TC-001], which is 100% topologically valid since both have 0 deps
+    plan.matrix.cases = ['TC-002', 'TC-001'];
+    writeFileSync(planPath, JSON.stringify(plan, null, 2), 'utf8');
+
+    const storage = new FileSystemStorage({ rootDir: root });
+    const check = await PlanHandler.verifyPlanIntegrity(storage, 'checkout');
+
+    // PASS AFTER: Accepts [TC-002, TC-001] as valid topological sort
+    expect(check.validity).toBe('valid');
+    expect(check.is_fresh).toBe(true);
+  });
+
+  // R1.4: Rejects environment mismatch
+  it('R1.4: rejects environment mismatch between plan and requested environment (FAIL BEFORE / PASS AFTER)', async () => {
+    const root = initProject();
+    seedModule(root, 'checkout');
+    seedTestCase(root, 'checkout', 'TC-001');
+
+    const handler = new PlanHandler({ projectRoots: [root] });
+    await handler.execute(
+      { module: 'checkout', targetPath: root, environment: 'local' },
+      { requestId: 'test-r1-4', signal: new AbortController().signal }
+    );
+
+    const storage = new FileSystemStorage({ rootDir: root });
+
+    // Verify requesting 'staging' when plan was generated for 'local'
+    const check = await PlanHandler.verifyPlanIntegrity(storage, 'checkout', { environment: 'staging' });
+
+    // FAIL BEFORE: Returned validity: 'valid' (environment was ignored)
+    // PASS AFTER: Returns validity: 'obsolete', code: 'environment_mismatch'
+    expect(check.validity).toBe('obsolete');
+    expect(check.is_fresh).toBe(false);
+    expect(check.code).toBe('environment_mismatch');
+    expect(check.reason).toContain("El plan fue generado para el entorno 'local', pero se solicitó 'staging'");
+  });
+
+  // R1.5: Rejects module mismatch
+  it('R1.5: rejects module mismatch when plan belongs to another module (FAIL BEFORE / PASS AFTER)', async () => {
+    const root = initProject();
+    seedModule(root, 'checkout');
+    seedTestCase(root, 'checkout', 'TC-001');
+
+    const handler = new PlanHandler({ projectRoots: [root] });
+    await handler.execute(
+      { module: 'checkout', targetPath: root, environment: 'local' },
+      { requestId: 'test-r1-5', signal: new AbortController().signal }
+    );
+
+    // Copy checkout's plan.json into billing module folder
+    seedModule(root, 'billing');
+    seedTestCase(root, 'billing', 'TC-001');
+    const checkoutPlanPath = join(root, '.qa', 'modules', 'checkout', 'tests', 'plan.json');
+    const billingPlanPath = join(root, '.qa', 'modules', 'billing', 'tests', 'plan.json');
+    writeFileSync(billingPlanPath, readFileSync(checkoutPlanPath, 'utf8'), 'utf8');
+
+    const storage = new FileSystemStorage({ rootDir: root });
+    const check = await PlanHandler.verifyPlanIntegrity(storage, 'billing');
+
+    // FAIL BEFORE: Returned validity: 'valid' (module mismatch was not validated)
+    // PASS AFTER: Returns validity: 'obsolete', code: 'module_mismatch'
+    expect(check.validity).toBe('obsolete');
+    expect(check.is_fresh).toBe(false);
+    expect(check.code).toBe('module_mismatch');
+    expect(check.reason).toContain("El plan especifica el módulo 'checkout', pero se solicitó 'billing'");
+  });
+
+  // R1.6: Distinguishes corrupt JSON from missing plan and rejects missing matrix
+  it('R1.6: distinguishes corrupt JSON from missing plan and rejects missing matrix (FAIL BEFORE / PASS AFTER)', async () => {
+    const root = initProject();
+    seedModule(root, 'checkout');
+    seedTestCase(root, 'checkout', 'TC-001');
+
+    const planPath = join(root, '.qa', 'modules', 'checkout', 'tests', 'plan.json');
+    const storage = new FileSystemStorage({ rootDir: root });
+
+    // 1. Missing plan file -> plan_missing
+    const missingCheck = await PlanHandler.verifyPlanIntegrity(storage, 'checkout');
+    expect(missingCheck.validity).toBe('not_found');
+    expect(missingCheck.code).toBe('plan_missing');
+
+    // 2. Corrupt JSON syntax on disk -> corrupt_plan (NOT plan_missing)
+    writeFileSync(planPath, '{"_version": "1", "module": "checkout", "matrix": ', 'utf8');
+    const corruptSyntaxCheck = await PlanHandler.verifyPlanIntegrity(storage, 'checkout');
+    expect(corruptSyntaxCheck.validity).toBe('unverifiable');
+    expect(corruptSyntaxCheck.code).toBe('corrupt_plan');
+    expect(corruptSyntaxCheck.reason).toContain('está corrupto o contiene JSON no válido');
+
+    // 3. Valid JSON but missing matrix section -> corrupt_plan
+    const missingMatrixPlan = {
+      _version: '1',
+      module: 'checkout',
+      checksum: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+      cases_fingerprint: 'dummy_hash',
+      cases_fingerprint_version: '1',
+      timestamp: '2026-11-02T00:00:00.000Z',
+    };
+    writeFileSync(planPath, JSON.stringify(missingMatrixPlan, null, 2), 'utf8');
+    const missingMatrixCheck = await PlanHandler.verifyPlanIntegrity(storage, 'checkout');
+    expect(missingMatrixCheck.validity).toBe('unverifiable');
+    expect(missingMatrixCheck.code).toBe('corrupt_plan');
+    expect(missingMatrixCheck.reason).toContain("El plan carece de una sección 'matrix.cases' válida");
+  });
+
+  // R1.7: Rejects unknown or incompatible fingerprint version and schema version
+  it('R1.7: rejects unknown or incompatible fingerprint and schema versions (FAIL BEFORE / PASS AFTER)', async () => {
+    const root = initProject();
+    seedModule(root, 'checkout');
+    seedTestCase(root, 'checkout', 'TC-001');
+
+    const handler = new PlanHandler({ projectRoots: [root] });
+    await handler.execute(
+      { module: 'checkout', targetPath: root, environment: 'local' },
+      { requestId: 'test-r1-7', signal: new AbortController().signal }
+    );
+
+    const planPath = join(root, '.qa', 'modules', 'checkout', 'tests', 'plan.json');
+    const originalPlan = JSON.parse(readFileSync(planPath, 'utf8'));
+    const storage = new FileSystemStorage({ rootDir: root });
+
+    // Incompatible cases_fingerprint_version = '99'
+    const incompatibleFpPlan = { ...originalPlan, cases_fingerprint_version: '99' };
+    writeFileSync(planPath, JSON.stringify(incompatibleFpPlan, null, 2), 'utf8');
+    const fpCheck = await PlanHandler.verifyPlanIntegrity(storage, 'checkout');
+    expect(fpCheck.validity).toBe('unverifiable');
+    expect(fpCheck.is_fresh).toBe(false);
+    expect(fpCheck.code).toBe('incompatible_version');
+    expect(fpCheck.reason).toContain("La versión de huella de casos ('99') no es reconocida o compatible");
+
+    // Incompatible schema _version = '2'
+    const incompatibleSchemaPlan = { ...originalPlan, _version: '2' };
+    writeFileSync(planPath, JSON.stringify(incompatibleSchemaPlan, null, 2), 'utf8');
+    const schemaCheck = await PlanHandler.verifyPlanIntegrity(storage, 'checkout');
+    expect(schemaCheck.validity).toBe('unverifiable');
+    expect(schemaCheck.is_fresh).toBe(false);
+    expect(schemaCheck.code).toBe('incompatible_version');
+    expect(schemaCheck.reason).toContain("La versión de esquema del plan ('2') no es compatible");
+  });
+});

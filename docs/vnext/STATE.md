@@ -867,4 +867,24 @@ Modo de integridad: `development` (Estabilización genuina de `PlanHandler`, 19/
 
 [Informe Técnico de Estabilización PlanHandler VNEXT-014-B-R1](014B_R1_ESTABILIZACION.md).
 
+## Frontera segura y preflight de ejecución VNEXT-014-C1 (2026-11-02)
+
+Sesión multi-agente Teamwork (`feat/qap-vnext-architecture`).  
+Base verificada: `6fcb3cd2328e9061c42efcebd128e4e159d564a3`.  
+Modo de integridad: `development`.
+
+- **Integridad Previa de Planes (R1)**: `verifyPlanIntegrity()` fortalecido con validación estricta de módulo y entorno solicitados, verificación de `cases_fingerprint_version`, validación topológica DAG compatible (admitiendo órdenes alternativos válidos sin rechazos posicionales arbitrarios) y manejo explícito de errores ante casos de prueba corruptos.
+- **Seguridad y Honestidad de PlaywrightRunner (R2)**: `PlaywrightRunner` respeta rigurosamente `options.projectRoot`, prohíbe resultado `passed` ante ejecuciones con 0 casos, rechaza explícitamente pasos desconocidos o no soportados, elimina `process.exit()` y manejadores globales de señales para proteger el proceso anfitrión MCP, propaga casos omitidos por dependencias insatisfechas y clasifica fallos de inicialización de Chromium como bloqueos de infraestructura.
+- **Línea Base de Pruebas Preservada (R3)**:
+  - Compilación monorepo: 10/10 paquetes compilados exitosamente (`pnpm build`).
+  - `@qap/shared`: 162/162 PASS.
+  - `@qap/engine`: 168/168 PASS.
+  - `@qap/mcp`: suites focalizadas y regresiones R1 aprobadas (26/26 en `plan-handler.test.ts`); 229 fallas históricas y ambientales preservadas intactas (cero regresiones).
+  - `@qap/playwright-runner`: interpolador (7/7) y nuevas pruebas de seguridad y honestidad (7/7) aprobadas al 100%; fallas de Chromium documentadas como bloqueos ambientales.
+  - Centinela MCP Stdio (`test-mcp-stdio.mjs`): 18/18 herramientas operativas, exit code 0.
+- **Invarianza y Restricciones (R4)**: `admin-user.json` inalterado (hash `429bbf6d57a1d798231b4204d52069b4077703de`), SQLite v2 inalterado, `qap_test` permanece intacto como stub, ramas `main` y `develop` sin tocar.
+- **Dictamen Formal (R5)**: `PASS`, habilitando de forma segura la fase VNEXT-014-C2.
+
+[Informe Técnico de Frontera Segura y Preflight VNEXT-014-C1](014C1_RUNNER_PREFLIGHT.md).
+
 
