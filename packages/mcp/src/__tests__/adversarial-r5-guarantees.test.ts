@@ -1218,6 +1218,160 @@ describe('Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2)', () => {
       expect(snap.closures.catalog).toBeDefined();
       expect(snap.closures.billing).toBeDefined();
     });
+
+    it('7.4: Simultaneous closure requests for same module with divergent gateway decisions persist exactly one closure and canonical receipt', async () => {
+      let callCount = 0;
+      const mockGateway: IModuleClosureReviewGateway = {
+        async reviewClosure(request: ModuleClosureReviewRequest): Promise<ModuleClosureReviewDecision | null> {
+          callCount++;
+          return {
+            approvalId: `appr-decision-${callCount}`,
+            requestDigest: request.requestDigest,
+            coverageDigest: request.coverageDigest,
+            reviewer: `reviewer-${callCount}`,
+            decidedAt: new Date().toISOString(),
+            expiresAt: new Date(Date.now() + 60_000).toISOString(),
+            decision: 'approve',
+          };
+        },
+      };
+
+      const f = await createCanonicalFixture({ gateway: mockGateway });
+
+      // Pre-declare non-applicable categories so catalog is ready_for_closure
+      await f.service.execute('catalog', {
+        action: 'declare_non_applicable',
+        decisions: [
+          { category: 'functional', reason: 'Pre-declaración autorizada formalmente para test' },
+          { category: 'business_rule', reason: 'Pre-declaración autorizada formalmente para test' },
+          { category: 'security', reason: 'Pre-declaración autorizada formalmente para test' },
+          { category: 'ui', reason: 'Pre-declaración autorizada formalmente para test' },
+          { category: 'ux', reason: 'Pre-declaración autorizada formalmente para test' },
+          { category: 'regression', reason: 'Pre-declaración autorizada formalmente para test' },
+          { category: 'performance', reason: 'Pre-declaración autorizada formalmente para test' },
+        ],
+      });
+
+      const closureStore2 = new SqliteModuleClosureStore({
+        path: f.closureDbPath,
+        projectRoot: f.root,
+        applicationId: 'app-adv',
+        environmentId: 'local',
+        protection: 'host_private_directory_and_managed_key',
+        key: f.closureKey,
+        initialize: false,
+      });
+      closers.push(() => closureStore2.close());
+      const service2 = new CanonicalClosureService(f.store, f.context, closureStore2, mockGateway);
+
+      // Fire two simultaneous requests for the same module 'catalog' across competing connections
+      // Request 1: close, Request 2: waive
+      const [resClose, resWaive] = await Promise.all([
+        f.service.execute('catalog', { action: 'close' }),
+        service2.execute('catalog', {
+          action: 'waive',
+          reason: 'Renuncia concurrente debidamente fundamentada para catalog.',
+        }),
+      ]);
+
+      const winner = (resClose.idempotent ? resWaive : resClose);
+      const loser = (resClose.idempotent ? resClose : resWaive);
+
+      expect(winner.idempotent).toBeUndefined();
+      expect(loser.idempotent).toBe(true);
+      expect(loser.decision_id).toBe(winner.decision_id);
+      expect(loser.status).toBe(winner.status);
+
+      // 3. Exactly one record in SqliteModuleClosureStore
+      const snap = f.closureStore.read({
+        projectRoot: f.context.projectRoot,
+        applicationId: f.context.applicationId,
+        environmentId: f.context.environmentId,
+      });
+      expect(snap.closures.catalog).toBeDefined();
+      expect(snap.closures.catalog.decisionId).toBe(winner.decision_id);
+      expect(snap.approvals.some(a => a[0] === winner.decision_id)).toBe(true);
+
+      // 4. Exactly ONE relation receipt in IKnowledgeStore (NO orphan receipt from loser)
+      const relations = await f.store.query('app-adv', 'relation');
+      expect(relations.items.length).toBe(1);
+      const expectedReceiptId = winner.status === 'waived' ? `waiver:${String(winner.decision_id)}` : `closure:${String(winner.decision_id)}`;
+      expect(relations.items[0].id).toBe(expectedReceiptId);
+
+      // 5. lifecycle.json must match winning status
+      const fsStorage = join(f.root, '.qa', 'project', 'lifecycle.json');
+      const lc = JSON.parse(readFileSync(fsStorage, 'utf8'));
+      expect(lc.modules.catalog.state).toBe(winner.status);
+    });
+
+    it('7.5: Rejects write error recovery if existing receipt has tampered provenance or mismatched entity', async () => {
+      const mockGateway = new MockReviewGateway();
+      const f = await createCanonicalFixture({ gateway: mockGateway });
+      const decisionId = 'dec-tampered-receipt-test';
+      mockGateway.requests = [];
+      mockGateway.reviewClosure = async (req) => ({
+        approvalId: decisionId,
+        requestDigest: req.requestDigest,
+        coverageDigest: req.coverageDigest,
+        reviewer: 'security-reviewer',
+        decidedAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
+        decision: 'approve',
+      });
+
+      // Pre-seed IKnowledgeStore with forged module entity and tampered relation having the same ID but forged source
+      await f.store.commit('app-adv', [
+        {
+          kind: 'module',
+          expected_revision: 0,
+          entity: {
+            id: 'module-forged-attacker',
+            application_id: 'app-adv',
+            key: 'forged',
+            title: 'Forged',
+            certainty: 'unconfirmed',
+            criticality: 'low',
+            dependencies: [],
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            is_active: true,
+          },
+          trace: {
+            source: 'attacker',
+            recorded_by: 'attacker',
+            recorded_at: new Date().toISOString(),
+            reason: 'attacker-seed',
+            review: 'unreviewed',
+            evidence_refs: [],
+          },
+        },
+        {
+          kind: 'relation',
+          expected_revision: 0,
+          entity: {
+            id: `waiver:${decisionId}`,
+            predicate: 'related_to',
+            source: { kind: 'module', id: 'module-forged-attacker', revision: 1 },
+            target: { kind: 'application', id: 'app-adv', revision: 1 },
+          },
+          trace: {
+            source: 'canonical_module_waiver_v1',
+            recorded_by: 'attacker',
+            recorded_at: new Date().toISOString(),
+            reason: 'tampered-digest',
+            review: 'reviewed',
+            evidence_refs: [],
+          },
+        },
+      ]);
+
+      // Attempt closure (waiver): store.commit will fail with expected_revision: 0 conflict.
+      // The service must NOT swallow the error: it must validate provenance and throw.
+      await expect(f.service.execute('catalog', {
+        action: 'waive',
+        reason: 'Renuncia formal para verificar rechazo de procedencia corrupta.',
+      })).rejects.toThrow(/closure_receipt_provenance_invalid|provenance/);
+    });
   });
 
 });

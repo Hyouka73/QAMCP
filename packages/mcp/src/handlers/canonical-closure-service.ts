@@ -84,6 +84,8 @@ export class CanonicalClosureService {
     if (!closure) return false;
 
     const receiptId = closure.status === 'waived' ? `waiver:${closure.decisionId}` : `closure:${closure.decisionId}`;
+    const expectedTraceSource = closure.status === 'waived' ? 'canonical_module_waiver_v1' : 'canonical_module_closure_v1';
+    const appRevision = this.context.moduleBindings?.find(b => b.plannedName === plannedName)?.applicationRevision ?? 1;
     let reconciled = false;
 
     // 1. Verificar recibo en IKnowledgeStore
@@ -98,10 +100,10 @@ export class CanonicalClosureService {
               id: receiptId,
               predicate: 'related_to',
               source: { kind: 'module', id: closure.moduleId, revision: closure.moduleRevision },
-              target: { kind: 'application', id: this.context.applicationId, revision: 1 },
+              target: { kind: 'application', id: this.context.applicationId, revision: appRevision },
             },
             trace: {
-              source: closure.status === 'waived' ? 'canonical_module_waiver_v1' : 'canonical_module_closure_v1',
+              source: expectedTraceSource,
               recorded_by: 'mcp_host',
               recorded_at: new Date().toISOString(),
               reason: closure.requestDigest,
@@ -111,9 +113,30 @@ export class CanonicalClosureService {
           },
         ]);
         reconciled = true;
+      } else {
+        const entity = existingReceipt.entity;
+        const trace = existingReceipt.trace;
+        if (
+          entity.id !== receiptId ||
+          entity.predicate !== 'related_to' ||
+          entity.source.kind !== 'module' ||
+          entity.source.id !== closure.moduleId ||
+          entity.source.revision !== closure.moduleRevision ||
+          entity.target.kind !== 'application' ||
+          entity.target.id !== this.context.applicationId ||
+          trace.source !== expectedTraceSource ||
+          trace.reason !== closure.requestDigest ||
+          trace.recorded_by !== 'mcp_host' ||
+          trace.review !== 'reviewed'
+        ) {
+          throw new Error('closure_receipt_provenance_invalid');
+        }
       }
-    } catch {
-      // Ignorar si ya existía en caso de carrera
+    } catch (err: unknown) {
+      if (err instanceof Error && err.message === 'closure_receipt_provenance_invalid') {
+        throw err;
+      }
+      // Ignorar si ya existía en caso de carrera legítima
     }
 
     // 2. Verificar estado en FileSystemStorage lifecycle.json
@@ -599,9 +622,10 @@ export class CanonicalClosureService {
     const maxAttempts = 3;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        await this.closureStore.transaction(scope, async snapshot => {
-          if (snapshot.closures[plannedName]) {
-            return;
+        const txOutcome = await this.closureStore.transaction(scope, async snapshot => {
+          const existing = snapshot.closures[plannedName];
+          if (existing) {
+            return { committed: false, record: existing };
           }
           if (snapshot.approvals.some(a => a[0] === decision.approvalId)) {
             throw new Error('closure_decision_reused');
@@ -618,7 +642,19 @@ export class CanonicalClosureService {
 
           snapshot.closures[plannedName] = record;
           snapshot.approvals.push([decision.approvalId, request.requestDigest]);
+          return { committed: true, record };
         });
+
+        if (!txOutcome.committed) {
+          return {
+            status: txOutcome.record.status,
+            idempotent: true,
+            decision_id: txOutcome.record.decisionId,
+            request_digest: txOutcome.record.requestDigest,
+            coverage_digest: txOutcome.record.coverageDigest,
+          };
+        }
+
         break;
       } catch (err: unknown) {
         const isConflict = err instanceof Error && (err.message.includes('conflict') || err.message.includes('busy'));
@@ -650,6 +686,7 @@ export class CanonicalClosureService {
 
     // 2. Persistir recibo relation en IKnowledgeStore (Enmienda 3: expected_revision: 0, ZERO module.revision mutation)
     const receiptId = status === 'waived' ? `waiver:${decision.approvalId}` : `closure:${decision.approvalId}`;
+    const expectedTraceSource = status === 'waived' ? 'canonical_module_waiver_v1' : 'canonical_module_closure_v1';
     try {
       await this.store.commit(this.context.applicationId, [
         {
@@ -662,7 +699,7 @@ export class CanonicalClosureService {
             target: { kind: 'application', id: this.context.applicationId, revision: link.applicationRevision },
           },
           trace: {
-            source: status === 'waived' ? 'canonical_module_waiver_v1' : 'canonical_module_closure_v1',
+            source: expectedTraceSource,
             recorded_by: 'mcp_host',
             recorded_at: new Date().toISOString(),
             reason: request.requestDigest,
@@ -674,6 +711,26 @@ export class CanonicalClosureService {
     } catch (err: unknown) {
       const existing = await this.store.get(this.context.applicationId, 'relation', receiptId);
       if (!existing) throw err;
+
+      // Cryptographic provenance & content validation
+      const entity = existing.entity;
+      const trace = existing.trace;
+      if (
+        entity.id !== receiptId ||
+        entity.predicate !== 'related_to' ||
+        entity.source.kind !== 'module' ||
+        entity.source.id !== link.moduleId ||
+        entity.source.revision !== link.moduleRevision ||
+        entity.target.kind !== 'application' ||
+        entity.target.id !== this.context.applicationId ||
+        entity.target.revision !== link.applicationRevision ||
+        trace.source !== expectedTraceSource ||
+        trace.reason !== request.requestDigest ||
+        trace.recorded_by !== 'mcp_host' ||
+        trace.review !== 'reviewed'
+      ) {
+        throw new Error('closure_receipt_provenance_invalid', { cause: err });
+      }
     }
 
 
