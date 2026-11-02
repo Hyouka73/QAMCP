@@ -417,10 +417,10 @@ describe('PlanHandler Real Declarative Implementation (VNEXT-014-B)', () => {
     expect(data.ordered_nodes).toEqual(['TC-001', 'TC-002']);
     expect(data.has_cycles).toBe(false);
 
-    // 3. Verify qap_test remains intact
+    // 3. Verify qap_test is dispatched to real TestHandler (migrated from legacy stub)
     const testToolRes = await callTool(client, 'qap_test', { module: 'orders', targetPath: root });
-    expect(testToolRes.data.estado).toBe('en_desarrollo');
-    expect(testToolRes.data.sprint_disponible).toBe(7);
+    expect(testToolRes.data.status).toBe('blocked');
+    expect(['navigation_not_authorized', 'plan_missing']).toContain(testToolRes.data.code);
   });
 
   // Criterion 9: Absence of synthetic plans
@@ -860,5 +860,144 @@ describe('R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEX
     expect(schemaCheck.is_fresh).toBe(false);
     expect(schemaCheck.code).toBe('incompatible_version');
     expect(schemaCheck.reason).toContain("La versión de esquema del plan ('2') no es compatible");
+  });
+
+  // R1.8: Rejects plan with missing cases_fingerprint_version
+  it('R1.8: rejects plan with missing cases_fingerprint_version (FAIL BEFORE / PASS AFTER)', async () => {
+    const root = initProject();
+    seedModule(root, 'checkout');
+    seedTestCase(root, 'checkout', 'TC-001');
+
+    const handler = new PlanHandler({ projectRoots: [root] });
+    await handler.execute(
+      { module: 'checkout', targetPath: root, environment: 'local' },
+      { requestId: 'test-r1-8', signal: new AbortController().signal }
+    );
+
+    const planPath = join(root, '.qa', 'modules', 'checkout', 'tests', 'plan.json');
+    const originalPlan = JSON.parse(readFileSync(planPath, 'utf8'));
+    delete originalPlan.cases_fingerprint_version;
+    writeFileSync(planPath, JSON.stringify(originalPlan, null, 2), 'utf8');
+
+    const storage = new FileSystemStorage({ rootDir: root });
+    const check = await PlanHandler.verifyPlanIntegrity(storage, 'checkout');
+
+    expect(check.validity).toBe('unverifiable');
+    expect(check.is_fresh).toBe(false);
+    expect(check.code).toBe('incompatible_version');
+    expect(check.reason).toContain("El plan carece del campo obligatorio de versión de huella de casos ('cases_fingerprint_version')");
+  });
+
+  // R1.9: Rejects plan with missing checksum
+  it('R1.9: rejects plan with missing checksum (FAIL BEFORE / PASS AFTER)', async () => {
+    const root = initProject();
+    seedModule(root, 'checkout');
+    seedTestCase(root, 'checkout', 'TC-001');
+
+    const handler = new PlanHandler({ projectRoots: [root] });
+    await handler.execute(
+      { module: 'checkout', targetPath: root, environment: 'local' },
+      { requestId: 'test-r1-9', signal: new AbortController().signal }
+    );
+
+    const planPath = join(root, '.qa', 'modules', 'checkout', 'tests', 'plan.json');
+    const originalPlan = JSON.parse(readFileSync(planPath, 'utf8'));
+    delete originalPlan.checksum;
+    writeFileSync(planPath, JSON.stringify(originalPlan, null, 2), 'utf8');
+
+    const storage = new FileSystemStorage({ rootDir: root });
+    const check = await PlanHandler.verifyPlanIntegrity(storage, 'checkout');
+
+    expect(check.validity).toBe('unverifiable');
+    expect(check.is_fresh).toBe(false);
+    expect(check.code).toBe('corrupt_plan');
+    expect(check.reason).toContain("El plan carece de un checksum de configuración ('checksum') válido");
+  });
+
+  // R1.10: Rejects plan with missing schema version (_version)
+  it('R1.10: rejects plan with missing schema version (FAIL BEFORE / PASS AFTER)', async () => {
+    const root = initProject();
+    seedModule(root, 'checkout');
+    seedTestCase(root, 'checkout', 'TC-001');
+
+    const handler = new PlanHandler({ projectRoots: [root] });
+    await handler.execute(
+      { module: 'checkout', targetPath: root, environment: 'local' },
+      { requestId: 'test-r1-10', signal: new AbortController().signal }
+    );
+
+    const planPath = join(root, '.qa', 'modules', 'checkout', 'tests', 'plan.json');
+    const originalPlan = JSON.parse(readFileSync(planPath, 'utf8'));
+    delete originalPlan._version;
+    writeFileSync(planPath, JSON.stringify(originalPlan, null, 2), 'utf8');
+
+    const storage = new FileSystemStorage({ rootDir: root });
+    const check = await PlanHandler.verifyPlanIntegrity(storage, 'checkout');
+
+    expect(check.validity).toBe('unverifiable');
+    expect(check.is_fresh).toBe(false);
+    expect(check.code).toBe('incompatible_version');
+    expect(check.reason).toContain("El plan carece del campo obligatorio de versión de esquema ('_version')");
+  });
+
+  // R1.11: Handles listTestCases failure as unverifiable, never success
+  it('R1.11: handles listTestCases failure as unverifiable and never as success (FAIL BEFORE / PASS AFTER)', async () => {
+    const root = initProject();
+    seedModule(root, 'empty-mod');
+    mkdirSync(join(root, '.qa', 'modules', 'empty-mod', 'tests'), { recursive: true });
+
+    // Create a plan with 0 cases
+    const planPath = join(root, '.qa', 'modules', 'empty-mod', 'tests', 'plan.json');
+    const zeroCasePlan = {
+      _version: '1',
+      module: 'empty-mod',
+      checksum: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+      cases_fingerprint: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+      cases_fingerprint_version: '1',
+      timestamp: '2026-11-02T00:00:00.000Z',
+      algorithm: 'sha256',
+      matrix: { cases: [], environment: 'local' },
+    };
+    writeFileSync(planPath, JSON.stringify(zeroCasePlan, null, 2), 'utf8');
+
+    const storage = new FileSystemStorage({ rootDir: root });
+    const listSpy = vi.spyOn(storage, 'listTestCases').mockRejectedValue(new Error('EACCES: permission denied'));
+
+    const check = await PlanHandler.verifyPlanIntegrity(storage, 'empty-mod');
+    listSpy.mockRestore();
+
+    // FAIL BEFORE: listTestCases error was swallowed by .catch(() => []), resulting in validity: 'valid' (FALSE SUCCESS!)
+    // PASS AFTER: validity is 'unverifiable', code is 'corrupt_test_case'
+    expect(check.validity).toBe('unverifiable');
+    expect(check.is_fresh).toBe(false);
+    expect(check.code).toBe('corrupt_test_case');
+    expect(check.reason).toContain("Error al listar los casos de prueba del módulo 'empty-mod'");
+    expect(check.reason).toContain('EACCES: permission denied');
+  });
+
+  // R1.12: Returns verified plan and cases snapshot for TOCTOU prevention
+  it('R1.12: returns verified plan and cases snapshot for TOCTOU prevention (FAIL BEFORE / PASS AFTER)', async () => {
+    const root = initProject();
+    seedModule(root, 'checkout');
+    seedTestCase(root, 'checkout', 'TC-001');
+    seedTestCase(root, 'checkout', 'TC-002');
+
+    const handler = new PlanHandler({ projectRoots: [root] });
+    await handler.execute(
+      { module: 'checkout', targetPath: root, environment: 'local' },
+      { requestId: 'test-r1-12', signal: new AbortController().signal }
+    );
+
+    const storage = new FileSystemStorage({ rootDir: root });
+    const check = await PlanHandler.verifyPlanIntegrity(storage, 'checkout', { environment: 'local' });
+
+    expect(check.validity).toBe('valid');
+    expect(check.is_fresh).toBe(true);
+    expect(check.plan).toBeDefined();
+    expect(check.plan?.module).toBe('checkout');
+    expect(check.plan?.matrix.cases).toEqual(['TC-001', 'TC-002']);
+    expect(check.verified_cases).toBeDefined();
+    expect(check.verified_cases?.length).toBe(2);
+    expect(check.verified_cases?.map(c => c.id)).toEqual(['TC-001', 'TC-002']);
   });
 });

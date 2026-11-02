@@ -24,6 +24,7 @@
     "@qap/engine": "workspace:*",
     "@qap/knowledge": "workspace:*",
     "@qap/playwright-adapter": "workspace:*",
+    "@qap/playwright-runner": "workspace:*",
     "@qap/reporter": "workspace:*",
     "@qap/shared": "workspace:*",
     "playwright-core": "^1.62.1",

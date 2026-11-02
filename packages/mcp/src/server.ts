@@ -95,6 +95,7 @@ import { projectRoot as authorizedProjectRoot, result as canonicalResult } from 
 import { hasLegacyViewContext, legacyInterviewBlocked } from './handlers/legacy-discovery-contract.js';
 import { CleanHandler } from './handlers/clean.handler.js';
 import { PlanHandler } from './handlers/plan.handler.js';
+import { TestHandler, type TestNavigationAuthorization } from './handlers/test.handler.js';
 import { checkPlaywrightBrowser, PLAYWRIGHT_INSTALL_COMMAND, detectarSubcarpetaWorkspace } from './handlers/state-runtime.js';
 import type { StateDependencies } from './handlers/state-services.js';
 export { checkPlaywrightBrowser, PLAYWRIGHT_INSTALL_COMMAND } from './handlers/state-runtime.js';
@@ -222,6 +223,7 @@ const PROMPTS: Prompt[] = [
  */
 export interface McpServerOptions extends StateDependencies {
   readonly discoveryAuthorizations?: readonly DiscoveryAuthorization[];
+  readonly testAuthorizations?: readonly TestNavigationAuthorization[];
   readonly handlers?: readonly IMcpToolHandler[];
 }
 
@@ -249,13 +251,14 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
   }
   const runtimeDependencies: StateDependencies = { ...dependencies, canonicalInterviews: interviews, canonicalClosures: closures };
 
-  const migrated = new Set(['qap_status', 'qap_clean', 'qap_context_set', 'qap_discover', 'qap_plan']);
+  const migrated = new Set(['qap_status', 'qap_clean', 'qap_context_set', 'qap_discover', 'qap_plan', 'qap_test']);
   const dispatcher = new ToolDispatcher(TOOLS.filter(tool => !migrated.has(tool.name)).map(tool => tool.name));
   dispatcher.register(new StatusHandler({ ...runtimeDependencies, browser: checkPlaywrightBrowser, view: buildViewDiscoveryContext }));
   dispatcher.register(new CleanHandler(dependencies));
   dispatcher.register(new ContextHandler(dependencies));
   dispatcher.register(new DiscoveryHandler(dependencies, options.discoveryAuthorizations));
   dispatcher.register(new PlanHandler(dependencies));
+  dispatcher.register(new TestHandler(dependencies, options.testAuthorizations));
   for (const handler of options.handlers ?? []) dispatcher.register(handler);
   dispatcher.seal();
 
@@ -1921,20 +1924,6 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
           };
         }
 
-        case 'qap_test': {
-          return {
-            content: [{
-              type: 'text',
-              text: JSON.stringify({
-                estado: 'en_desarrollo',
-                sprint_disponible: 7,
-                mensaje: 'La ejecución automatizada nativa de pruebas está programada para el Sprint 7. Actualmente el motor opera hasta el Sprint 5 (Descubrimiento, Mapeo y Knowledge Graph 2D).',
-                nota: 'No se ha ejecutado ninguna prueba. PROHIBIDO asumir resultado PASSED.',
-                accion_recomendada: 'Usa qap_discover para mapear el módulo y qap_server para visualizar el Knowledge Graph 2D.',
-              }, null, 2),
-            }],
-          };
-        }
 
         case 'qap_report': {
           const qaDir = resolve(rootDir, '.qa');

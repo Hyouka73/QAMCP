@@ -887,4 +887,31 @@ Modo de integridad: `development`.
 
 [Informe Técnico de Frontera Segura y Preflight VNEXT-014-C1](014C1_RUNNER_PREFLIGHT.md).
 
+## Implementación Declarativa de TestHandler y PlaywrightRunner VNEXT-014-C2 (2026-11-02)
+
+Sesión multi-agente Teamwork (`teamwork_worker_014c2_1`).  
+Rama exclusiva: `feat/qap-vnext-architecture`.  
+Base verificada: `f0ec028` (convergencia a `feat/qap-vnext-architecture`).  
+Modo de integridad: `development` (Reemplazo genuino de `qap_test` por `TestHandler`, 13/13 tests en suite nueva, ejecución física en Chromium real).
+
+- **Handler Declarativo Implementado (R2)**: `packages/mcp/src/handlers/test.handler.ts` implementa `IMcpToolHandler`, validación canónica de parámetros (`targetPath`, `module`, `environment`, `profile`, `headed`), requisito obligatorio de módulo (`module_required`), snapshot en memoria inmune a TOCTOU (`storageResolver` con `verified_cases`), control de navegación del host (`testAuthorizations` y `allowedOrigins`), aislamiento estricto de sesión (`allowImplicitAuth: false`) y clasificación honesta de errores (bloqueos de infraestructura vs fallos funcionales).
+- **Endurecimiento de Integridad Preflight (R1)**: `packages/mcp/src/handlers/plan.handler.ts` fortalecido con validación estricta de `_version === '1'`, `checksum` y `cases_fingerprint_version === '1'`, captura y tipado de casos corruptos (`corrupt_test_case`), y 5 regresiones añadidas (31/31 PASS en `plan-handler.test.ts`).
+- **Seguridad en PlaywrightRunner (R2)**: `packages/playwright-runner` incorpora opciones `allowImplicitAuth`, `profile`, `allowedOrigins` y `contextSetup`, enrutamiento de red abortivo contra URLs no consentidas, y cancelación de procesos vía `AbortSignal` (69/69 PASS en suite runner).
+- **Migración e Integración MCP (R3)**: `packages/mcp/src/server.ts` migra `qap_test` a `migrated = new Set([...])`, registra `TestHandler` en `ToolDispatcher` y elimina el stub legacy. Se preservan exactamente las 18 herramientas del catálogo de MCP.
+- **Suites Verificadas al 100% (R4)**:
+  - `test-handler.test.ts`: **13/13 PASS** (incluyendo escenario 13 con ejecución física en Chromium headless contra servidor HTTP local aislado).
+  - MCP core suites: **52/52 PASS**.
+  - Playwright runner suites: **69/69 PASS**.
+  - Monorepo `pnpm build`: **10/10 paquetes compilados exitosamente**.
+  - Centinela MCP Stdio (`test-mcp-stdio.mjs`): **18/18 herramientas operativas, exit code 0**.
+  - ESLint de archivos modificados: **0 errores, 0 warnings**.
+- **Invarianza y Restricciones**:
+  - `admin-user.json` hash verificado: `429bbf6d57a1d798231b4204d52069b4077703de` (intacto).
+  - Esquema SQLite canónico v2: intacto.
+  - Ramas `main` y `develop`: intactas.
+- **Dictamen Formal**: **PASS**, habilitando de forma segura la fase VNEXT-014-D.
+
+[Informe Técnico de TestHandler y PlaywrightRunner VNEXT-014-C2](014C2_TEST_HANDLER.md).
+
+
 

@@ -67,6 +67,8 @@ export interface PlanVigenciaCheck {
   stored_cases_fingerprint?: string;
   current_cases_fingerprint?: string;
   desbloquear_con?: 'qap_plan';
+  plan?: PlanMatrixPersisted;
+  verified_cases?: TestCase[];
 }
 
 export interface InspectPlanOptions {
@@ -229,13 +231,27 @@ export function inspectPlanVigencia(plan: unknown, options?: InspectPlanOptions)
 
   // 1. Verificación de versión de esquema del plan
   const schemaVersion = rawObj._version;
-  if (schemaVersion !== undefined && schemaVersion !== '1') {
+  if (schemaVersion === undefined || schemaVersion !== '1') {
     const versionDisplay = typeof schemaVersion === 'string' ? schemaVersion : JSON.stringify(schemaVersion);
     return {
       validity: 'unverifiable',
       is_fresh: false,
       code: 'incompatible_version',
-      reason: `La versión de esquema del plan ('${versionDisplay}') no es compatible. Versiones soportadas: '1'.`,
+      reason:
+        schemaVersion === undefined
+          ? "El plan carece del campo obligatorio de versión de esquema ('_version')."
+          : `La versión de esquema del plan ('${versionDisplay}') no es compatible. Versiones soportadas: '1'.`,
+      desbloquear_con: 'qap_plan',
+    };
+  }
+
+  // 1b. Verificación de presencia de checksum
+  if (!raw.checksum || typeof raw.checksum !== 'string' || !raw.checksum.trim()) {
+    return {
+      validity: 'unverifiable',
+      is_fresh: false,
+      code: 'corrupt_plan',
+      reason: "El plan carece de un checksum de configuración ('checksum') válido.",
       desbloquear_con: 'qap_plan',
     };
   }
@@ -254,13 +270,16 @@ export function inspectPlanVigencia(plan: unknown, options?: InspectPlanOptions)
 
   // 3. Compatibilidad de versión de huella de casos
   const fpVersion = rawObj.cases_fingerprint_version;
-  if (fpVersion !== undefined && fpVersion !== '1') {
+  if (fpVersion === undefined || fpVersion !== '1') {
     const fpVersionDisplay = typeof fpVersion === 'string' ? fpVersion : JSON.stringify(fpVersion);
     return {
       validity: 'unverifiable',
       is_fresh: false,
       code: 'incompatible_version',
-      reason: `La versión de huella de casos ('${fpVersionDisplay}') no es reconocida o compatible. Versiones soportadas: '1'.`,
+      reason:
+        fpVersion === undefined
+          ? "El plan carece del campo obligatorio de versión de huella de casos ('cases_fingerprint_version')."
+          : `La versión de huella de casos ('${fpVersionDisplay}') no es reconocida o compatible. Versiones soportadas: '1'.`,
       stored_checksum: typeof raw.checksum === 'string' ? raw.checksum : undefined,
       desbloquear_con: 'qap_plan',
     };
@@ -396,6 +415,8 @@ export function inspectPlanVigencia(plan: unknown, options?: InspectPlanOptions)
     is_fresh: true,
     stored_checksum: typeof raw.checksum === 'string' ? raw.checksum : undefined,
     stored_cases_fingerprint: raw.cases_fingerprint,
+    plan: raw as PlanMatrixPersisted,
+    verified_cases: options?.currentCases,
   };
 }
 
@@ -445,7 +466,18 @@ export async function verifyPlanIntegrity(
   const hasher = new SemanticHasher();
   const currentChecksum = hasher.computeHash({ routes, selectors });
 
-  const caseIds = await storage.listTestCases(moduleName).catch(() => []);
+  let caseIds: string[];
+  try {
+    caseIds = await storage.listTestCases(moduleName);
+  } catch (err) {
+    return {
+      validity: 'unverifiable',
+      is_fresh: false,
+      code: 'corrupt_test_case',
+      reason: `Error al listar los casos de prueba del módulo '${moduleName}': ${err instanceof Error ? err.message : String(err)}`,
+      desbloquear_con: 'qap_plan',
+    };
+  }
   const currentCases: TestCase[] = [];
   for (const id of caseIds) {
     try {

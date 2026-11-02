@@ -53,6 +53,32 @@ function classifyError(error: unknown): { category: FailureType; message: string
   return { category: 'assertion_failed', message };
 }
 
+export function isUrlAllowedByPolicy(urlStr: string, allowedOrigins: string[]): boolean {
+  if (!allowedOrigins || allowedOrigins.length === 0) return false;
+  if (urlStr === 'about:blank' || urlStr.startsWith('data:')) return true;
+  let parsed: URL;
+  try {
+    parsed = new URL(urlStr);
+  } catch {
+    return false;
+  }
+  const origin = parsed.origin;
+  const fullUrl = parsed.href;
+  for (const pattern of allowedOrigins) {
+    if (pattern === '*' || pattern === origin || pattern === fullUrl) {
+      return true;
+    }
+    const regexPattern = '^' + pattern
+      .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
+      .replace(/\*/g, '.*') + '$';
+    const regex = new RegExp(regexPattern);
+    if (regex.test(origin) || regex.test(fullUrl)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export interface PlaywrightRunnerOptions extends TestOptions {
   fail_fast?: boolean;
   /** Override opcional para pruebas: si se pasa, se usa en vez de cargar vía FileSystemStorage. */
@@ -63,6 +89,10 @@ export interface PlaywrightRunnerOptions extends TestOptions {
   projectRoot?: string;
   registerSignalHandlers?: boolean;
   signal?: AbortSignal;
+  allowImplicitAuth?: boolean;
+  profile?: string;
+  allowedOrigins?: string[];
+  contextSetup?: (context: BrowserContext) => Promise<void> | void;
 }
 
 export class PlaywrightRunner implements IRunner {
@@ -131,6 +161,13 @@ export class PlaywrightRunner implements IRunner {
       process.once('uncaughtException', uncaughtHandler);
     }
 
+    const abortListener = () => {
+      void cleanup();
+    };
+    if (options.signal) {
+      options.signal.addEventListener('abort', abortListener, { once: true });
+    }
+
     try {
       if (options.signal?.aborted) {
         throw new Error('Ejecución cancelada por AbortSignal.');
@@ -168,9 +205,15 @@ export class PlaywrightRunner implements IRunner {
       // 2. Resolver sesión autenticada con resolveModuleSession()
       type BrowserContextOptions = NonNullable<Parameters<Browser['newContext']>[0]>;
       let storageState: BrowserContextOptions['storageState'] = undefined;
-      if (moduleName) {
+      const shouldResolveSession = options.profile !== undefined || (Boolean(moduleName) && options.allowImplicitAuth !== false);
+      if (shouldResolveSession && moduleName) {
         try {
-          storageState = (await resolveModuleSession(projectRoot, moduleName)) as BrowserContextOptions['storageState'];
+          storageState = (await resolveModuleSession(
+            projectRoot,
+            moduleName,
+            options.profile,
+            { allowImplicitAuth: options.allowImplicitAuth }
+          )) as BrowserContextOptions['storageState'];
         } catch (error) {
           console.warn(`[PlaywrightRunner] No se pudo resolver la sesión autenticada para ${moduleName}:`, error);
         }
@@ -221,6 +264,23 @@ export class PlaywrightRunner implements IRunner {
       }
 
       context = await browser!.newContext(storageState ? { storageState } : undefined);
+
+      if (options.contextSetup) {
+        await options.contextSetup(context);
+      }
+
+      if (options.allowedOrigins && options.allowedOrigins.length > 0) {
+        const allowedPatterns = options.allowedOrigins;
+        await context.route('**/*', async (route) => {
+          const reqUrl = route.request().url();
+          if (isUrlAllowedByPolicy(reqUrl, allowedPatterns)) {
+            await route.continue();
+          } else {
+            await route.abort('blockedbyclient');
+          }
+        });
+      }
+
       const page = await context.newPage();
       page.setDefaultTimeout(timeout);
 
@@ -417,6 +477,9 @@ export class PlaywrightRunner implements IRunner {
       }
       console.error('[PlaywrightRunner] Error crítico durante la ejecución:', err);
     } finally {
+      if (options.signal) {
+        options.signal.removeEventListener('abort', abortListener);
+      }
       if (options.registerSignalHandlers) {
         process.removeListener('SIGINT', sigintHandler);
         process.removeListener('SIGTERM', sigtermHandler);

@@ -307,4 +307,43 @@ describe('PlaywrightRunner Safety & Honesty Regressions — VNEXT-014-C1 (R2)', 
     // PASS AFTER: process.exit is NEVER called by the runner in MCP library mode
     expect(exitSpy).not.toHaveBeenCalled();
   });
+
+  // REG-R2-08: Implicit session recovery disabled when allowImplicitAuth is false (R2 / F7)
+  it('REG-R2-08: prevents implicit auto-login and unattended browser launch when allowImplicitAuth is false (FAIL BEFORE / PASS AFTER)', async () => {
+    const customRoot = createTempDir('implicit-auth-test-');
+    const storage = new FileSystemStorage({ rootDir: customRoot });
+    // Write prereqs requiring 'admin'
+    await storage.writeYaml('.qa/modules/auth-mod/prereqs.yaml', {
+      _version: '1',
+      requires: {
+        auth: { primary: 'admin' },
+      },
+    });
+
+    const runner = new PlaywrightRunner();
+    const chromiumLaunchSpy = vi.spyOn(chromium, 'launch');
+
+    // Run with allowImplicitAuth: false
+    const result = await runner.execute(
+      { modules: ['auth-mod'], cases: [] },
+      { projectRoot: customRoot, allowImplicitAuth: false }
+    );
+
+    // Verify chromium.launch was NEVER called for auto-login
+    expect(chromiumLaunchSpy).not.toHaveBeenCalled();
+    expect(result.result).toBe('failed'); // 0 cases = failed
+  });
+
+  // REG-R2-09: Navigation policy and route interception blocks unauthorized destinations (R2 / F6)
+  it('REG-R2-09: isUrlAllowedByPolicy correctly verifies origins and wildcards (FAIL BEFORE / PASS AFTER)', async () => {
+    const { isUrlAllowedByPolicy } = await import('../src/runner.js');
+    const policy = ['http://localhost:*', 'http://127.0.0.1:8080'];
+
+    expect(isUrlAllowedByPolicy('http://localhost:3000/app', policy)).toBe(true);
+    expect(isUrlAllowedByPolicy('http://127.0.0.1:8080/login', policy)).toBe(true);
+    expect(isUrlAllowedByPolicy('http://127.0.0.1:9090/blocked', policy)).toBe(false);
+    expect(isUrlAllowedByPolicy('http://169.254.169.254/metadata', policy)).toBe(false);
+    expect(isUrlAllowedByPolicy('https://evil.internal.corp/steal', policy)).toBe(false);
+    expect(isUrlAllowedByPolicy('about:blank', policy)).toBe(true);
+  });
 });

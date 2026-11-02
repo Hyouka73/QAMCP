@@ -3,10 +3,15 @@ import { AuthManager, SessionStore, executeAutoLogin, executeHandoffLogin, readP
 import { FileSystemStorage } from '@qap/knowledge';
 import type { StorageState } from '@qap/auth';
 
+export interface SessionResolverOptions {
+  allowImplicitAuth?: boolean;
+}
+
 export async function resolveModuleSession(
   projectRoot: string = process.cwd(),
   moduleName: string,
-  overrideProfile?: string
+  overrideProfile?: string,
+  options?: SessionResolverOptions
 ): Promise<StorageState | null> {
   const storage = new FileSystemStorage({ rootDir: projectRoot });
   const prereqs = await storage.getModulePrereqs(moduleName);
@@ -22,6 +27,10 @@ export async function resolveModuleSession(
 
   if (session) {
     return session;
+  }
+
+  if (options?.allowImplicitAuth === false) {
+    return null;
   }
 
   const profile = await readProfile(profileId, projectRoot);
@@ -41,12 +50,12 @@ export async function resolveModuleSession(
     let newStorageState: StorageState;
 
     if (isHandoff) {
-      newStorageState = (await executeHandoffLogin(profile, browserContext)) as StorageState;
+      newStorageState = await executeHandoffLogin(profile, browserContext);
     } else {
       if (!credentials) {
         throw new Error(`No se pudieron resolver las credenciales para el perfil '${profileId}'.`);
       }
-      newStorageState = (await executeAutoLogin(profile, credentials, browserContext)) as StorageState;
+      newStorageState = await executeAutoLogin(profile, credentials, browserContext);
     }
 
     sessionStore.saveSession(profileId, newStorageState);
