@@ -185,8 +185,8 @@ Todos los requerimientos del Milestone M1 (VNEXT-014-C2) han sido satisfechos de
 ## 7. SHA de Git en Remoto
 
 - **Rama**: `feat/qap-vnext-architecture`
-- **Commit SHA**: `3abf9c44f4adeb0c83323110aab3237bf9a405fa`
-- **Entrega**: `git log --oneline 1714e19..3abf9c4`
+- **Commit SHA de implementación**: `fc5f3268043294149fafe801520c6e77f21360ec` (sobre `3abf9c44f4adeb0c83323110aab3237bf9a405fa`)
+- **Entrega**: `git log --oneline 1714e19..HEAD`
 
 ---
 
