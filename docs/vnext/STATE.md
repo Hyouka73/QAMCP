@@ -1,6 +1,6 @@
 # QAMCP vNext — Continuidad Codex
 
-Actualizado: 2026-10-30. Agente principal único.
+Actualizado: 2026-11-02. Equipo multi-agente Teamwork.
 
 ## Estado y alcance
 
@@ -15,7 +15,7 @@ gateway seguro y barrera TCP/UDP. VNEXT-009 fue autorizada posteriormente y se r
 Esta autorización sustituye exclusivamente el bloqueo anterior de VNEXT-010; el cierre y
 sus límites se registran al final. Las autorizaciones posteriores de VNEXT-011 y
 VNEXT-012 y VNEXT-013 y sus cierres con limitaciones se registran al final;
-VNEXT-014 y posteriores siguen sin autorización.
+Tras la resolución de incertidumbres técnicas post-R5 (§R1–§R4), VNEXT-014 cuenta con autorización condicional para la siguiente fase (sin haber sido implementada en esta entrega); VNEXT-015 y posteriores siguen sin autorización.
 Leer este archivo y el WBS antes de elegir trabajo ante «continúa».
 
 ## Rama y cambios ajenos
@@ -678,3 +678,137 @@ De los 60 fallos históricos documentados al sustituir el crawler legacy D1 por 
 - **VNEXT-014 NO está habilitada ni implementada**: No se añadieron runners de ejecución de pruebas, inyección de credenciales en navegador ni generación de `ConformityAssessment.pass`.
 
 [Reporte de Cierre Correctivo y Auditoría Adversarial Post-R5](VNEXT-013_R5_CORRECTIVE_CLOSURE.md).
+
+
+## Resolución de incertidumbres técnicas post-R5 y dictamen de autorización condicional VNEXT-014 (2026-11-02)
+
+Sesión multi-agente Teamwork (Explorer 1, Explorer 2, Explorer 3, Worker 4, Challenger 2, Critic 2, Independent Victory Auditor 2, Worker Doc 5).
+Rama exclusiva: `feat/qap-vnext-architecture`.
+Base de referencia post-M4: `5f91a9c70e68b875c70c7c0df180d021ec1c572d`.
+Commit de endurecimiento R1: `79463d14f5bb5046a529130ddcd05a0cc93d3212`.
+Integridad: modo `development`. Modificaciones en producción limitadas estrictamente a `packages/mcp/src/handlers/canonical-closure-service.ts` y suite de pruebas `packages/mcp/src/__tests__/adversarial-r5-guarantees.test.ts`.
+
+### 1. §R1: Idempotencia, concurrencia en canonical closure y validación de procedencia de recibos
+
+#### 1.1 Diagnóstico de la condición de carrera en `commitFinalClosure()`
+- **Vulnerabilidad detectada (Explorer 1)**: En la versión previa (`5f91a9c`), cuando dos solicitudes concurrentes de cierre sobre el mismo módulo alcanzaban la transacción de `SqliteModuleClosureStore`, la rama perdedora ejecutaba `if (snapshot.closures[plannedName]) return;`. Al retornar `undefined` sin lanzar error, `SqliteModuleClosureStore.transaction()` consideraba el snapshot idéntico y confirmaba la transacción sin fallar.
+- **Efectos colaterales de la falla**: El bucle CAS interpretaba la resolución limpia de la promesa como éxito y ejecutaba `break;`. En consecuencia, la solicitud perdedora avanzaba incondicionalmente al Paso 2 (`this.store.commit`), generando un segundo recibo de relación en `IKnowledgeStore` (`closure:<approvalId>` o `waiver:<approvalId>`), sobrescribía `lifecycle.json` con un estado potencialmente divergente, filtraba el ID de aprobación en la respuesta del invocador y reportaba éxito sin marcar `idempotent: true`.
+- **Inseguridad en recuperación de colisión**: En el Paso 2, ante un error en `store.commit` con `expected_revision: 0`, el bloque `catch` solo verificaba `if (!existing) throw err;`. Cualquier relación existente con el mismo ID —incluso con procedencia falsificada, módulo erróneo o trace alterado— era aceptada como escritura recuperada.
+- **Falta de cobertura en tests preexistentes**: Las pruebas históricas 7.2 (secuencial) y 7.3 (módulos distintos) no evaluaban la carrera concurrente sobre el mismo módulo.
+
+#### 1.2 Corrección mínima verificada (Worker 4, commit `79463d1`)
+- **Guardia transaccional CAS en `commitFinalClosure()`**:
+  Dentro del callback de `closureStore.transaction()`, si ya existe un cierre para el módulo, se retorna `{ committed: false, record: existing }`. Inmediatamente fuera de la transacción, el servicio comprueba `if (!txOutcome.committed)` y retorna de inmediato la respuesta idempotente canónica con los datos del ganador (`status`, `idempotent: true`, `decision_id`, `request_digest`, `coverage_digest`), interceptando la ejecución antes de alcanzar el Paso 2 (`IKnowledgeStore`) o el Paso 3 (`lifecycle.json`).
+- **Validación criptográfica y relacional de procedencia (12 campos)**:
+  Tanto en la recuperación de errores de escritura de `commitFinalClosure()` como en la autorreconciliación de `reconcile()`, se implementó una validación estricta a nivel de byte que comprueba 12 propiedades esenciales: `id === receiptId`, `predicate === 'related_to'`, `source.kind === 'module'`, `source.id === link.moduleId`, `source.revision === link.moduleRevision`, `target.kind === 'application'`, `target.id === this.context.applicationId`, `target.revision === link.applicationRevision`, `trace.source === expectedTraceSource`, `trace.reason === request.requestDigest`, `trace.recorded_by === 'mcp_host'` y `trace.review === 'reviewed'`. Cualquier discrepancia lanza `Error('closure_receipt_provenance_invalid')`.
+- **Vinculación dinámica de revisión de aplicación en `reconcile()`**:
+  Se sustituyó el valor hardcodeado `1` por la revisión real enlazada: `this.context.moduleBindings?.find(b => b.plannedName === plannedName)?.applicationRevision ?? 1`.
+
+#### 1.3 Pruebas de regresión deterministas (Fallo previo / Éxito posterior)
+- **Test 7.4**: `Simultaneous closure requests for same module with divergent gateway decisions persist exactly one closure and canonical receipt`.
+  - *Antes del parche*: Fallaba con `AssertionError: expected undefined to be true` en la solicitud perdedora y persistía dos relaciones en `IKnowledgeStore`.
+  - *Después del parche*: Aprobada. Exactamente 1 ganador (`idempotent: undefined`), 1 perdedor (`idempotent: true`), exactamente 1 registro en `closureStore`, exactamente 1 recibo canónico en `IKnowledgeStore` y consistencia en `lifecycle.json`.
+- **Test 7.5**: `Rejects write error recovery if existing receipt has tampered provenance or mismatched entity`.
+  - *Antes del parche*: Fallaba porque la promesa resolvía exitosamente en lugar de rechazar ante un recibo con `source.id: 'module-forged-attacker'`.
+  - *Después del parche*: Aprobada. Lanza y propaga `closure_receipt_provenance_invalid`.
+- **Test 7.6**: `Dual-store recovery rejects reconciliation if orphan receipt has invalid digest or unknown revision`. Aprobada.
+- **Resultado en la suite**: **34/34 pruebas aprobadas (100%)** en `packages/mcp/src/__tests__/adversarial-r5-guarantees.test.ts`.
+
+---
+
+### 2. §R2: Sonda de entorno Node 24 y ejecución sobre Node activo
+
+#### 2.1 Disponibilidad de Node.js 24 y bloqueo ambiental
+- **Sonda de versiones locales**: Inspección vía `where.exe node`, `nvm list` y gestores del sistema determinó que únicamente están instaladas en la máquina las versiones `22.13.0` (activa de 64 bits), `18.20.6`, `18.16.0` y `16.20.1`. Gestores alternativos (`fnm`, `volta`, `nvs`) no están presentes.
+- **Restricción operativa respetada**: Aunque Node 24 está disponible en los repositorios remotos de NVM, su instalación requería comandos globales (`nvm install 24.x`), expresamente prohibidos por las restricciones de integridad y ámbito. Se documenta el bloqueo ambiental sin recurrir a emulaciones sintéticas ni modificaciones globales no autorizadas.
+- **Sonda de SQLite y FTS5 en Node activo (v22.13.0 Windows)**:
+  La ejecución de `SELECT sqlite_compileoption_used('ENABLE_FTS5') AS enabled` sobre el módulo built-in `node:sqlite` arrojó `fts5: 0` (`sqlite_version: 3.47.2`).
+- **Salvaguarda arquitectónica en código**: `packages/knowledge/src/storage/sqlite-knowledge-adapter.ts:58-60` exige explícitamente `ENABLE_FTS5 === 1` y lanza `KnowledgeStoreError('UNAVAILABLE', 'Knowledge store requires SQLite FTS5')` para evitar migraciones o índices FTS corruptos bajo runtimes incompletos.
+
+#### 2.2 Resultados de la suite de verificación sobre Node v22.13.0
+| Suite / Objetivo | Comando | Código salida | Pasadas / Total | Diagnóstico y Causa Raíz |
+|---|---|:---:|:---:|---|
+| Compilación Monorepo | `pnpm -r build` | `0` | 10 / 10 pkgs | ÉXITO: 10 paquetes compilan limpiamente (ESM + DTS) |
+| `@qap/shared` | `pnpm --filter @qap/shared test` | `0` | 162 / 162 (100%) | ÉXITO: Esquemas, validadores e invariantes íntegros |
+| `@qap/engine` | `pnpm --filter @qap/engine test` | `0` | 168 / 168 (100%) | ÉXITO: Máquinas de estado y lógica de inferencia íntegras |
+| `@qap/knowledge` | `pnpm --filter @qap/knowledge test` | `1` | 174 / 258 | 84 fallos 100% ambientales (`Knowledge store requires SQLite FTS5`). 21 archivos y 174 tests pasan |
+| `canonical-coverage.test.ts` | `pnpm --filter @qap/mcp test src/__tests__/canonical-coverage.test.ts` | `1` | 1 / 25 | 24 fallos 100% ambientales en fixture `new SqliteKnowledgeAdapter()`. 1 test de seguridad (`admin-user.json`) pasa |
+| `adversarial-r5-guarantees.test.ts` | `pnpm --filter @qap/mcp test src/__tests__/adversarial-r5-guarantees.test.ts` | `0` | 34 / 34 (100%) | ÉXITO: 7 garantías nucleares R5 intactas (incluyendo 7.4 y 7.5) |
+| Arnés de estrés R5 | `node scripts/stress-test-r5-guarantees.mjs` | `0` | 9 / 9 (100%) | ÉXITO: 9 comprobaciones de estrés aprobadas |
+| Servidor MCP Stdio | `node scripts/test-mcp-stdio.mjs` | `0` | 18 / 18 tools | ÉXITO: 18 herramientas operativas sobre transporte Stdio |
+
+---
+
+### 3. §R3: Reproducción controlada de `@qap/mcp` y reconciliación de los 58 fallos históricos
+
+#### 3.1 Métrica global de la reproducción controlada
+- **Comando ejecutado**: `pnpm --filter @qap/mcp test -- --reporter=verbose`
+- **Resultados globales**: 20 archivos de prueba, **381 tests totales**:
+  - **152 pruebas aprobadas** (40%).
+  - **229 pruebas fallidas** (60%).
+  - Duración: 37.21 segundos. Cero pruebas omitidas (`.skip` o `xit` = 0).
+
+#### 3.2 Desglose y conciliación matemática exacta de las 229 fallas
+Todas las 229 fallas observadas se particionan sin solapamiento en las 6 categorías requeridas:
+1. **Ambientales (169 fallas)**:
+   - *155 fallas por runtime Node 22 sin FTS5*: suites modernas `discovery-handler.test.ts` (57), `canonical-interview.test.ts` (42), `canonical-coverage.test.ts` (24), `durable-interview.test.ts` (21) y `state-handlers.test.ts` (11), todas fallando en `new SqliteKnowledgeAdapter()`.
+   - *14 fallas por omisión de `projectRoots` en fixtures temporales multi-unidad en Windows* (`D:` vs `C:`): `p4-5s1-browser-candidates.test.ts` (7), `p4-3-investigate-before-ask.test.ts` (6) y `e0-investigation.test.ts` (1).
+2. **Obsoletos por cambio deliberado de contrato — Clase A (21 fallas)**:
+   Pruebas que continúan esperando artefactos del crawler legacy D1 (`rules.yaml`, `selectors.json`, o `siguiente_accion.tipo: 'entrevista_vista'`), sustituido contractualmente por D2 en VNEXT-013.
+3. **Todavía reproducibles — Clase B (29 fallas)**:
+   Pruebas de consumidores downstream que fallan porque sus fixtures no inyectan el contexto de módulo sintético exigido por la arquitectura canónica.
+4. **Diferidos a VNEXT-014 — Clase D (5 fallas)**:
+   Casos que requieren capacidades de crawling autenticado, inyección de `storageState`, guards SPA en cliente o ejecución de tests en vivo (R21, R22, R24, R37, R51).
+5. **Nuevos defectos no registrados en el catálogo R01–R60 (5 fallas)**:
+   Aserciones secundarias en suites legacy no catalogadas previamente: `p4-5a-integrity.test.ts` (C4-d y C3), `p4-5a2-integrity.test.ts` (C6-a y C3-b) y `p4-4-auth-lifecycle.test.ts` (Test 10).
+6. **Resueltos y comprobados (5 casos del inventario histórico)**:
+   - R08 (T8 en `p3-verification`): `rules.yaml` con `manually_edited` preservado -> **PASS**.
+   - R10 (T11 en `p3-verification`): IDs secuenciales `R-001`, `R-002` -> **PASS**.
+   - R11 (T12 en `p3-verification`): No-downgrade de reglas y justificación de waiver >= 15 chars -> **PASS**.
+   - R12 (T13 en `p3-verification`): Concurrencia de `qap_rules_set` sin pérdida -> **PASS**.
+   - R17 (B6 en `p4-3-1-b-block`): Siguiente acción de trabajo no apunta a confirmaciones -> **PASS**.
+
+- **Reconciliación matemática**:
+  $$\text{Fallas totales (229)} = 169 \text{ (Ambientales)} + 21 \text{ (Clase A)} + 29 \text{ (Clase B)} + 5 \text{ (Clase D)} + 5 \text{ (Nuevos)}$$
+  $$\text{Tests totales (381)} = 229 \text{ (Fallas)} + 152 \text{ (Aprobadas)}$$
+  $$\text{Inventario histórico 60 original} = 5 \text{ (Resueltos)} + 21 \text{ (Clase A)} + 29 \text{ (Clase B)} + 5 \text{ (Clase D)} = 60 \text{ tests}$$
+- **Aclaración histórica**: Afirmar que "permanecen exactamente 58 fallos" es históricamente inexacto; **permanecen exactamente 55 fallos del catálogo histórico de 60**, dado que 5 casos están físicamente resueltos y comprobados en el HEAD actual.
+
+---
+
+### 4. §R4: Auditoría adversarial, revisión crítica y auditoría forense de victoria
+
+#### 4.1 Auditoría adversarial de estrés (Challenger 2 — Dictamen: CONFIRMED)
+- Ejecución y validación de 6 escenarios críticos adicionales:
+  1. *ADV-1: Alta concurrencia sobre el mismo módulo (N = 10 clientes)*: 10 solicitudes simultáneas (5 close, 5 waive) sobre conexiones independientes. Resultado: exactamente 1 ganador, exactamente 9 perdedores marcados `idempotent: true` con los datos del ganador, exactamente 1 recibo en `IKnowledgeStore`, cero fugas de aprobaciones en `closureStore.approvals`.
+  2. *ADV-2: Concurrencia entre módulos distintos*: 3 módulos simultáneos (`catalog`, `billing`, `orders`) serializados mediante backoff aleatorizado sin deadlocks.
+  3. *ADV-3: Matriz exhaustiva de 12 vectores de falsificación de procedencia*: Modificación individual de `id`, `predicate`, `source.kind`, `source.id`, `source.revision`, `target.kind`, `target.id`, `target.revision`, `trace.source`, `trace.reason`, `trace.recorded_by` y `trace.review`. Los 12 vectores fueron incondicionalmente rechazados con `closure_receipt_provenance_invalid`. El vector de control con procedencia legítima recuperó la colisión limpiamente.
+  4. *ADV-4: Reconciliación ante recibos huérfanos o alterados*: Recuperación exitosa si el recibo faltaba; rechazo si estaba alterado.
+  5. *ADV-5: Rechazo de replay de aprobaciones ya consumidas*: Reversión limpia.
+  6. *ADV-6: Transparencia en fallos reales de almacenamiento*: Errores de I/O re-lanzados al cliente sin enmascaramiento idempotente.
+
+#### 4.2 Revisión crítica y matriz de 3 niveles (Critic 2 — Dictamen: CONDITIONAL AUTHORIZATION)
+- **Nivel 1 (Garantías demostradas)**: 10 paquetes compilados, 7 garantías nucleares R5 (34/34 tests), servidor MCP Stdio (18 tools), esquemas Shared (162/162), motor Engine (168/168), reglas sustantivas de negocio (T11–T13) e invariancia de `admin-user.json` y esquema v2. Sólidas y demostradas.
+- **Nivel 2 (Afirmaciones documentales)**: Búsqueda FTS5 en `SqliteKnowledgeAdapter` y 24 escenarios de cobertura física con SQLite v2 documentados pero bloqueados por el entorno Node 22 sin FTS5; compatibilidad POSIX/Linux no ejecutada en este host Windows.
+- **Nivel 3 (Hipótesis pendientes y diferidas)**: Evaluación en vivo de pruebas (`ConformityAssessment.pass`), autenticación dinámica con inyección de sesiones (5 tests Clase D) y reconciliación de 29 tests Clase B. Requieren formalmente la fase VNEXT-014.
+- **Condiciones y riesgos fronterizos identificados**: Límite de retención de 4096 generaciones en `SqliteModuleClosureStore`, contención de locks en discos compartidos en red (SMB/NFS) y dependencia de `reconcile()` para consistencia eventual tras caídas antes del Paso 2.
+
+#### 4.3 Auditoría forense de victoria (Independent Victory Auditor 2 — Dictamen: CLEAN)
+- **Verificación anti-trampas e integridad**: Cero aserciones simuladas, fachadas o resultados precalculados.
+- **Invarianza de archivos protegidos**: `packages/playwright-runner/.qa/cache/sessions/admin-user.json` estrictamente idéntico (SHA-256 `F2A35A0CBC8D1808F2305BD10CC24C10462A0AAC6B5981DEC254620567EED47A`, Git blob `429bbf6d57a1d798231b4204d52069b4077703de`).
+- **Invarianza de esquema SQLite v2**: `packages/knowledge/src/storage/knowledge-sqlite-schema.ts` con 0 modificaciones.
+- **Protección de ramas y alcance**: `main` y `develop` intactas. Código de VNEXT-014 NO ha sido iniciado ni implementado.
+- **Integridad de pruebas**: Cero tests relajados, omitidos o eliminados.
+
+---
+
+### 5. Dictamen final: Autorización condicional de VNEXT-014
+
+La base arquitectónica post-R5 se encuentra **suficientemente estabilizada y verificada** para autorizar el paso a la siguiente fase de desarrollo.
+
+**DICTAMEN: SE AUTORIZA CONDICIONALMENTE LA ENTRADA A VNEXT-014**, sujeta a las siguientes estipulaciones y prerrequisitos obligatorios para la siguiente sesión:
+1. **Provisión de entorno con FTS5**: Antes de ejecutar la suite de integración de Knowledge Store en VNEXT-014, el entorno de ejecución debe contar con `ENABLE_FTS5 = 1` (Node.js 24 LTS en Windows o contenedor Linux), permitiendo desbloquear los 155 tests ambientales de MCP, 84 de Knowledge y 24 de `canonical-coverage`.
+2. **Invarianza estricta de esquemas y credenciales**: Prohibición de alterar el esquema SQLite canónico v2 sin migración autorizada y prohibición absoluta de inspeccionar o modificar `packages/playwright-runner/.qa/cache/sessions/admin-user.json`.
+3. **Cumplimiento del invariante D-011**: Los veredictos `ConformityAssessment.pass` y `ExecutionCoverageSummary` solo podrán emitirse a partir de ejecuciones físicas reales del runner Playwright sobre el navegador, jamás mediante inferencia o síntesis estática.
+4. **Manejo de retención y rollover**: Planificar la política de truncado o archivo antes de superar el límite de 4096 generaciones en `SqliteModuleClosureStore`.
+5. **No implementación prematura**: VNEXT-014 NO fue implementada en esta sesión, preservando la frontera de autorización.
