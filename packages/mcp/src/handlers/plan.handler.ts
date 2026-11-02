@@ -1,5 +1,6 @@
-import { realpathSync } from 'node:fs';
-import { relative, isAbsolute, sep } from 'node:path';
+import { createHash } from 'node:crypto';
+import { existsSync, lstatSync, unlinkSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 import {
   FileSystemStorage,
@@ -30,6 +31,232 @@ export interface PlanArguments {
   targetPath?: string;
   module: string;
   environment?: string;
+}
+
+export interface PlanMatrixPersisted {
+  _version: '1';
+  module: string;
+  checksum: string;
+  cases_fingerprint: string;
+  cases_fingerprint_version: string;
+  timestamp: string;
+  algorithm: string;
+  matrix: {
+    cases: string[];
+    environment: string;
+  };
+}
+
+export interface PlanVigenciaCheck {
+  validity: 'valid' | 'obsolete' | 'unverifiable' | 'not_found';
+  is_fresh: boolean;
+  code?: 'config_mismatch' | 'cases_mismatch' | 'historical_plan' | 'dag_order_mismatch' | 'plan_missing';
+  reason?: string;
+  stored_checksum?: string;
+  current_checksum?: string;
+  stored_cases_fingerprint?: string;
+  current_cases_fingerprint?: string;
+  desbloquear_con?: 'qap_plan';
+}
+
+export interface InspectPlanOptions {
+  currentCases?: TestCase[];
+  currentChecksum?: string;
+  currentDagOrder?: string[];
+}
+
+function normalizeForHashing(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(normalizeForHashing);
+  }
+  if (value !== null && typeof value === 'object') {
+    const obj = value as Record<string, unknown>;
+    const sortedKeys = Object.keys(obj).sort();
+    const normalized: Record<string, unknown> = {};
+    for (const key of sortedKeys) {
+      normalized[key] = normalizeForHashing(obj[key]);
+    }
+    return normalized;
+  }
+  return value;
+}
+
+export function computeCasesFingerprint(cases: TestCase[]): {
+  cases_fingerprint: string;
+  cases_fingerprint_version: string;
+} {
+  const sortedCases = [...cases].sort((a, b) => a.id.localeCompare(b.id));
+  const canonicalCases = sortedCases.map(tc => {
+    const raw = tc as unknown as Record<string, unknown>;
+    const rawTags = Array.isArray(raw.tags) ? (raw.tags as unknown[]) : [];
+    const sortedTags = rawTags.map(String).sort();
+    return {
+      id: tc.id,
+      name: tc.name ?? '',
+      depends_on: Array.isArray(tc.depends_on) ? [...tc.depends_on].sort() : [],
+      tags: sortedTags,
+      manually_edited: Boolean(raw.manually_edited),
+      steps: normalizeForHashing(tc.steps ?? []),
+    };
+  });
+
+  const canonicalPayload = JSON.stringify({
+    _version: '1',
+    cases: canonicalCases,
+  });
+
+  const hash = createHash('sha256').update(canonicalPayload, 'utf8').digest('hex');
+  return {
+    cases_fingerprint: hash,
+    cases_fingerprint_version: '1',
+  };
+}
+
+export function inspectPlanVigencia(plan: unknown, options?: InspectPlanOptions): PlanVigenciaCheck {
+  if (!plan || typeof plan !== 'object') {
+    return {
+      validity: 'not_found',
+      is_fresh: false,
+      code: 'plan_missing',
+      reason: 'No se encontró el plan de pruebas especificado.',
+      desbloquear_con: 'qap_plan',
+    };
+  }
+
+  const raw = plan as Partial<PlanMatrixPersisted>;
+
+  // Historical plan lacking cases_fingerprint: unverifiable (never auto-validated, never deleted)
+  if (!raw.cases_fingerprint || typeof raw.cases_fingerprint !== 'string') {
+    return {
+      validity: 'unverifiable',
+      is_fresh: false,
+      code: 'historical_plan',
+      reason: "El plan existente fue generado con una versión anterior sin huella determinista de casos ('cases_fingerprint'). Debe regenerarse con 'qap_plan'.",
+      stored_checksum: typeof raw.checksum === 'string' ? raw.checksum : undefined,
+      desbloquear_con: 'qap_plan',
+    };
+  }
+
+  // Config drift check (routes or selectors)
+  if (
+    options?.currentChecksum !== undefined &&
+    typeof raw.checksum === 'string' &&
+    raw.checksum !== options.currentChecksum
+  ) {
+    return {
+      validity: 'obsolete',
+      is_fresh: false,
+      code: 'config_mismatch',
+      reason: 'La configuración del módulo (rutas o selectores) ha cambiado respecto al plan generado.',
+      stored_checksum: raw.checksum,
+      current_checksum: options.currentChecksum,
+      stored_cases_fingerprint: raw.cases_fingerprint,
+      desbloquear_con: 'qap_plan',
+    };
+  }
+
+  // Cases drift check (steps, dependencies, manual flags)
+  if (options?.currentCases !== undefined) {
+    const { cases_fingerprint: currentFp } = computeCasesFingerprint(options.currentCases);
+    if (raw.cases_fingerprint !== currentFp) {
+      return {
+        validity: 'obsolete',
+        is_fresh: false,
+        code: 'cases_mismatch',
+        reason: 'Los casos de prueba (pasos, dependencias o metadatos) han cambiado respecto al plan generado.',
+        stored_checksum: typeof raw.checksum === 'string' ? raw.checksum : undefined,
+        stored_cases_fingerprint: raw.cases_fingerprint,
+        current_cases_fingerprint: currentFp,
+        desbloquear_con: 'qap_plan',
+      };
+    }
+  }
+
+  // DAG ordering drift check
+  if (options?.currentDagOrder !== undefined) {
+    const storedCases = raw.matrix?.cases;
+    if (
+      !Array.isArray(storedCases) ||
+      storedCases.length !== options.currentDagOrder.length ||
+      storedCases.some((c, idx) => c !== options.currentDagOrder![idx])
+    ) {
+      return {
+        validity: 'obsolete',
+        is_fresh: false,
+        code: 'dag_order_mismatch',
+        reason: 'El orden de ejecución de los casos ha variado respecto al grafo topológico actual.',
+        stored_checksum: typeof raw.checksum === 'string' ? raw.checksum : undefined,
+        stored_cases_fingerprint: raw.cases_fingerprint,
+        desbloquear_con: 'qap_plan',
+      };
+    }
+  }
+
+  return {
+    validity: 'valid',
+    is_fresh: true,
+    stored_checksum: typeof raw.checksum === 'string' ? raw.checksum : undefined,
+    stored_cases_fingerprint: raw.cases_fingerprint,
+  };
+}
+
+export async function verifyPlanIntegrity(
+  storage: FileSystemStorage,
+  moduleName: string
+): Promise<PlanVigenciaCheck> {
+  const planPath = `.qa/modules/${moduleName}/tests/plan.json`;
+  let plan: unknown;
+  try {
+    plan = await storage.readJson<unknown>(planPath);
+  } catch {
+    return {
+      validity: 'not_found',
+      is_fresh: false,
+      code: 'plan_missing',
+      reason: `No se encontró el archivo de plan '${planPath}'.`,
+      desbloquear_con: 'qap_plan',
+    };
+  }
+
+  if (!plan) {
+    return {
+      validity: 'not_found',
+      is_fresh: false,
+      code: 'plan_missing',
+      reason: `No se encontró el archivo de plan '${planPath}'.`,
+      desbloquear_con: 'qap_plan',
+    };
+  }
+
+  const raw = plan as Partial<PlanMatrixPersisted>;
+  if (!raw.cases_fingerprint || typeof raw.cases_fingerprint !== 'string') {
+    return inspectPlanVigencia(plan);
+  }
+
+  const moduleContext = await storage.getModuleContext(moduleName).catch(() => null);
+  const moduleSelectors = await storage.getModuleSelectors(moduleName).catch(() => null);
+  const routes = moduleContext?.routes ?? [];
+  const selectors = moduleSelectors?.selectors ?? {};
+  const hasher = new SemanticHasher();
+  const currentChecksum = hasher.computeHash({ routes, selectors });
+
+  const caseIds = await storage.listTestCases(moduleName).catch(() => []);
+  const currentCases: TestCase[] = [];
+  for (const id of caseIds) {
+    try {
+      const tc = await storage.getTestCase(moduleName, id);
+      if (tc && Array.isArray(tc.steps) && tc.steps.length > 0) {
+        currentCases.push(tc);
+      }
+    } catch {
+      // Corrupted cases will trigger drift detection
+    }
+  }
+
+  return inspectPlanVigencia(plan, {
+    currentCases,
+    currentChecksum,
+  });
 }
 
 /**
@@ -74,27 +301,12 @@ export class PlanHandler implements IMcpToolHandler {
 
     const args = raw as PlanArguments;
 
-    // 1. Path resolution, symlink/junction rejection, and canonicalization
+    // 1. Path resolution, strict write authorization, symlink/junction & hardlink rejection
     let rootDir: string;
     try {
-      rootDir = projectRoot(args, this.dependencies, false);
-    } catch {
-      throw new McpToolError('invalid_arguments');
-    }
-
-    // 2. Strict authorization: verify targetPath is contained within host-authorized projectRoots
-    const roots = this.dependencies.projectRoots ?? [process.cwd()];
-    const isAuthorized = roots.some(allowed => {
-      try {
-        const canonicalAllowed = realpathSync(allowed);
-        const rel = relative(canonicalAllowed, rootDir);
-        return !isAbsolute(rel) && rel !== '..' && !rel.startsWith(`..${sep}`);
-      } catch {
-        return false;
-      }
-    });
-
-    if (!isAuthorized) {
+      rootDir = projectRoot(args, this.dependencies, true);
+    } catch (err) {
+      if (err instanceof McpToolError) throw err;
       throw new McpToolError('invalid_arguments');
     }
 
@@ -115,8 +327,8 @@ export class PlanHandler implements IMcpToolHandler {
           code: 'module_not_found',
           module: moduleName,
           environment,
-          message: `El módulo '${moduleName}' no existe en .qa/modules/. Ejecuta 'qap_discover' primero.`,
-          desbloquear_con: 'qap_discover',
+          message: `El módulo '${moduleName}' no existe en .qa/modules/. Verifique los módulos registrados con 'qap_status' o inicialice el módulo en el workspace antes de planificar.`,
+          desbloquear_con: 'qap_status',
         },
         true
       );
@@ -151,14 +363,14 @@ export class PlanHandler implements IMcpToolHandler {
           preservedCases.push(tc.id || caseId);
         }
         cases.push(tc);
-      } catch (err) {
+      } catch {
         return result(
           {
             status: 'error',
             code: 'corrupt_test_case',
             module: moduleName,
             case_id: caseId,
-            message: `Error al leer el archivo del caso de prueba '${caseId}': ${err instanceof Error ? err.message : String(err)}`,
+            message: `Error al leer el archivo del caso de prueba '${caseId}': el archivo está corrupto o tiene un formato no válido.`,
           },
           true
         );
@@ -282,11 +494,16 @@ export class PlanHandler implements IMcpToolHandler {
       // Best-effort semantic hashing
     }
 
-    // 9. Standard atomic persistence to .qa/modules/<name>/tests/plan.json
-    const planMatrix = {
+    // 9. Compute deterministic cases fingerprint over executable test cases
+    const { cases_fingerprint, cases_fingerprint_version } = computeCasesFingerprint(executableCases);
+
+    // 10. Standard atomic persistence to .qa/modules/<name>/tests/plan.json
+    const planMatrix: PlanMatrixPersisted = {
       _version: '1',
       module: moduleName,
       checksum: checksum ?? '',
+      cases_fingerprint,
+      cases_fingerprint_version,
       timestamp: new Date().toISOString(),
       algorithm: algorithm ?? 'sha256',
       matrix: {
@@ -296,12 +513,33 @@ export class PlanHandler implements IMcpToolHandler {
     };
 
     const planPath = `.qa/modules/${moduleName}/tests/plan.json`;
-    let persisted = false;
+    const fullPlanPath = resolve(rootDir, planPath);
     try {
       await storage.writeJson(planPath, planMatrix);
-      persisted = true;
     } catch {
-      // If disk write fails, proceed with in-memory plan
+      // Clean up partial or empty 0-byte file stub if present (R2.4)
+      try {
+        if (existsSync(fullPlanPath)) {
+          const stat = lstatSync(fullPlanPath);
+          if (stat.size === 0) {
+            unlinkSync(fullPlanPath);
+          }
+        }
+      } catch {
+        // Suppress cleanup failure
+      }
+
+      return result(
+        {
+          status: 'error',
+          code: 'persistence_failed',
+          module: moduleName,
+          environment,
+          persisted: false,
+          message: `No se pudo persistir el plan de pruebas para el módulo '${moduleName}'. Verifique los permisos de escritura del proyecto.`,
+        },
+        true
+      );
     }
 
     return result({
@@ -316,8 +554,21 @@ export class PlanHandler implements IMcpToolHandler {
       preserved_cases: preservedCases,
       total_cases: executableCases.length,
       checksum,
-      persisted,
-      plan_file: persisted ? planPath : undefined,
+      cases_fingerprint,
+      cases_fingerprint_version,
+      persisted: true,
+      plan_file: planPath,
     });
+  }
+
+  static inspectPlanVigencia(plan: unknown, options?: InspectPlanOptions): PlanVigenciaCheck {
+    return inspectPlanVigencia(plan, options);
+  }
+
+  static async verifyPlanIntegrity(
+    storage: FileSystemStorage,
+    moduleName: string
+  ): Promise<PlanVigenciaCheck> {
+    return verifyPlanIntegrity(storage, moduleName);
   }
 }

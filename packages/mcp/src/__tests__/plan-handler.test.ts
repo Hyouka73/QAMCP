@@ -1,16 +1,18 @@
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, symlinkSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, symlinkSync, linkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { CallToolResultSchema } from '@modelcontextprotocol/sdk/types.js';
-import { afterEach, describe, expect, it } from 'vitest';
+import { FileSystemStorage, SemanticHasher } from '@qap/knowledge';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import YAML from 'yaml';
 
-import { createMcpServer, type McpServerOptions } from '../server.js';
-import { PlanHandler } from '../handlers/plan.handler.js';
 import { McpToolError } from '../dispatcher.js';
+import { PlanHandler } from '../handlers/plan.handler.js';
+import { projectRoot } from '../handlers/state-services.js';
+import { createMcpServer, type McpServerOptions } from '../server.js';
 
 const directories: string[] = [];
 const connections: Array<{ client: Client; server: ReturnType<typeof createMcpServer> }> = [];
@@ -360,7 +362,9 @@ describe('PlanHandler Real Declarative Implementation (VNEXT-014-B)', () => {
     const data = JSON.parse(res.content[0].text as string);
     expect(data.status).toBe('blocked');
     expect(data.code).toBe('module_not_found');
-    expect(data.desbloquear_con).toBe('qap_discover');
+    expect(data.desbloquear_con).toBe('qap_status');
+    expect(data.message).not.toContain('qap_discover');
+    expect(data.message).toContain('qap_status');
   });
 
   // Criterion 7: Preservation of manually edited cases (UpdateGuard)
@@ -435,5 +439,205 @@ describe('PlanHandler Real Declarative Implementation (VNEXT-014-B)', () => {
     expect(data.cases).toEqual([]);
     expect(data.ordered_nodes).toEqual([]);
     expect(data.total_cases).toBeUndefined();
+  });
+
+  // =========================================================================
+  // VNEXT-014-B-R1 Stabilization Deterministic Regressions (FAIL BEFORE / PASS AFTER)
+  // =========================================================================
+
+  // Regression A: Checksum blindness vs cases_fingerprint sensitivity to YAML changes (R1.1, R1.2, R4)
+  it('detects modifications in YAML steps and dependencies post-plan generation (FAIL BEFORE / PASS AFTER)', async () => {
+    const root = initProject();
+    seedModule(root, 'billing');
+    seedTestCase(root, 'billing', 'TC-001', {
+      steps: [{ type: 'navigate', url: 'https://example.test/billing' }],
+    });
+    seedTestCase(root, 'billing', 'TC-002', {
+      depends_on: ['TC-001'],
+      steps: [{ type: 'click', selector: '#pay' }],
+    });
+
+    const handler = new PlanHandler({ projectRoots: [root] });
+    const res1 = await handler.execute(
+      { module: 'billing', targetPath: root },
+      { requestId: 'r1', signal: new AbortController().signal }
+    );
+    const data1 = JSON.parse(res1.content[0].text as string);
+
+    // Initial plan on disk
+    const planPath = join(root, '.qa', 'modules', 'billing', 'tests', 'plan.json');
+    const planBefore = JSON.parse(readFileSync(planPath, 'utf8'));
+    expect(planBefore.checksum).toBeDefined();
+    expect(planBefore.cases_fingerprint).toBeDefined();
+
+    // Modify steps in TC-001.yaml
+    const tc1Path = join(root, '.qa', 'modules', 'billing', 'tests', 'TC-001.yaml');
+    const tc1 = YAML.parse(readFileSync(tc1Path, 'utf8'));
+    tc1.steps.push({ type: 'assert', selector: '#confirmation', assertion_type: 'visible' });
+    writeFileSync(tc1Path, YAML.stringify(tc1), 'utf8');
+
+    // Modify dependency in TC-002.yaml
+    const tc2Path = join(root, '.qa', 'modules', 'billing', 'tests', 'TC-002.yaml');
+    const tc2 = YAML.parse(readFileSync(tc2Path, 'utf8'));
+    tc2.depends_on = [];
+    writeFileSync(tc2Path, YAML.stringify(tc2), 'utf8');
+
+    // FAIL BEFORE: The legacy checksum was blind to YAML step and dependency modifications!
+    const legacyHasher = new SemanticHasher();
+    const context = YAML.parse(readFileSync(join(root, '.qa', 'modules', 'billing', 'context.yaml'), 'utf8'));
+    const selectors = JSON.parse(readFileSync(join(root, '.qa', 'modules', 'billing', 'selectors.json'), 'utf8'));
+    const legacyChecksumAfter = legacyHasher.computeHash({ routes: context.routes, selectors: selectors.selectors });
+    expect(planBefore.checksum).toBe(legacyChecksumAfter); // PROVES legacy checksum failed to detect the change!
+
+    // PASS AFTER: cases_fingerprint detects the change and marks the plan obsolete
+    const res2 = await handler.execute(
+      { module: 'billing', targetPath: root },
+      { requestId: 'r2', signal: new AbortController().signal }
+    );
+    const data2 = JSON.parse(res2.content[0].text as string);
+    const planAfter = JSON.parse(readFileSync(planPath, 'utf8'));
+
+    expect(planAfter.cases_fingerprint).toBeDefined();
+    expect(planAfter.cases_fingerprint).not.toBe(planBefore.cases_fingerprint);
+    expect(data2.cases_fingerprint).not.toBe(data1.cases_fingerprint);
+
+    // Also inspect plan vigencia with PlanHandler.inspectPlanVigencia
+    const vigenciaCheck = PlanHandler.inspectPlanVigencia(planBefore, { currentCases: [tc1, tc2] });
+    expect(vigenciaCheck.validity).toBe('obsolete');
+    expect(vigenciaCheck.is_fresh).toBe(false);
+    expect(vigenciaCheck.code).toBe('cases_mismatch');
+  });
+
+  // Regression B: Authorized write enforcement with projectRoot(..., true) rejecting hardlinks in .qa (R2.1, R4)
+  it('enforces authorized write mode and rejects directories with hardlinks in .qa (FAIL BEFORE / PASS AFTER)', async () => {
+    const root = initProject();
+    seedModule(root, 'hardlink-mod');
+    seedTestCase(root, 'hardlink-mod', 'TC-001');
+
+    const sourceFile = join(root, '.qa', 'modules', 'hardlink-mod', 'context.yaml');
+    const hardlinkFile = join(root, '.qa', 'modules', 'hardlink-mod', 'context-hardlink.yaml');
+
+    try {
+      linkSync(sourceFile, hardlinkFile);
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'EPERM') return; // Skip if OS denies hardlinks
+    }
+
+    // FAIL BEFORE: Calling projectRoot with write=false tolerated hardlinks
+    expect(() => projectRoot({ targetPath: root }, { projectRoots: [root] }, false)).not.toThrow();
+
+    // PASS AFTER: PlanHandler with write=true strictly rejects hardlinks inside .qa
+    const handler = new PlanHandler({ projectRoots: [root] });
+    await expect(
+      handler.execute(
+        { module: 'hardlink-mod', targetPath: root },
+        { requestId: 'test-hardlink', signal: new AbortController().signal }
+      )
+    ).rejects.toThrow(McpToolError);
+  });
+
+  // Regression C: Persistence write failure handling (sanitized error response & no partial files) (R2.3, R2.4, R3.3, R4)
+  it('handles persistence write failure with sanitized error and no partial files (FAIL BEFORE / PASS AFTER)', async () => {
+    const root = initProject();
+    seedModule(root, 'fail-write');
+    seedTestCase(root, 'fail-write', 'TC-001');
+
+    const writeSpy = vi.spyOn(FileSystemStorage.prototype, 'writeJson').mockRejectedValueOnce(
+      new Error('EACCES: permission denied, open D:\\SensitiveInternalServerPath\\.qa\\plan.json.tmp')
+    );
+
+    const handler = new PlanHandler({ projectRoots: [root] });
+    const res = await handler.execute(
+      { module: 'fail-write', targetPath: root },
+      { requestId: 'test-fail-write', signal: new AbortController().signal }
+    );
+
+    writeSpy.mockRestore();
+
+    // FAIL BEFORE: res.isError was false, status was 'success', persisted was false (simulating success)
+    // PASS AFTER: res.isError is true, status is 'error', code is 'persistence_failed', persisted is false
+    expect(res.isError).toBe(true);
+    const data = JSON.parse(res.content[0].text as string);
+    expect(data.status).toBe('error');
+    expect(data.code).toBe('persistence_failed');
+    expect(data.persisted).toBe(false);
+    expect(data.module).toBe('fail-write');
+
+    // Ensure raw filesystem path and error traces are NOT leaked in MCP response
+    expect(data.message).not.toContain('SensitiveInternalServerPath');
+    expect(data.message).not.toContain('EACCES');
+    expect(data.message).toContain("No se pudo persistir el plan de pruebas para el módulo 'fail-write'");
+
+    // Verify no plan.json file remains on disk
+    const planFile = join(root, '.qa', 'modules', 'fail-write', 'tests', 'plan.json');
+    expect(existsSync(planFile)).toBe(false);
+  });
+
+  // Regression D: Historical plan without cases_fingerprint classified as unverifiable without deleting file (R1.3, R1.4, R4)
+  it('classifies historical plans without cases_fingerprint as unverifiable without deleting them (FAIL BEFORE / PASS AFTER)', async () => {
+    const root = initProject();
+    seedModule(root, 'historical-mod');
+    seedTestCase(root, 'historical-mod', 'TC-001');
+
+    const planPath = join(root, '.qa', 'modules', 'historical-mod', 'tests', 'plan.json');
+    const historicalPlan = {
+      _version: '1',
+      module: 'historical-mod',
+      checksum: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+      timestamp: '2026-10-30T00:00:00.000Z',
+      algorithm: 'sha256',
+      matrix: { cases: ['TC-001'], environment: 'local' },
+    };
+    writeFileSync(planPath, JSON.stringify(historicalPlan, null, 2), 'utf8');
+
+    // Inspect with static PlanHandler.inspectPlanVigencia
+    const status = PlanHandler.inspectPlanVigencia(historicalPlan);
+    expect(status.validity).toBe('unverifiable');
+    expect(status.is_fresh).toBe(false);
+    expect(status.code).toBe('historical_plan');
+    expect(status.desbloquear_con).toBe('qap_plan');
+
+    // Inspect with on-disk verifyPlanIntegrity
+    const storage = new FileSystemStorage({ rootDir: root });
+    const onDiskStatus = await PlanHandler.verifyPlanIntegrity(storage, 'historical-mod');
+    expect(onDiskStatus.validity).toBe('unverifiable');
+    expect(onDiskStatus.is_fresh).toBe(false);
+
+    // Verify historical plan file is NOT deleted
+    expect(existsSync(planPath)).toBe(true);
+  });
+
+  // Regression E: Manual case bit-for-bit preservation on disk and in execution order (R1.5, R4)
+  it('preserves manually edited test cases bit-for-bit on disk without modifying custom content (FAIL BEFORE / PASS AFTER)', async () => {
+    const root = initProject();
+    seedModule(root, 'manual-mod');
+    seedTestCase(root, 'manual-mod', 'TC-MANUAL', {
+      manually_edited: true,
+      steps: [
+        { type: 'navigate', url: 'https://custom.target/manual-flow' },
+        { type: 'assert', selector: '#custom-badge', assertion_type: 'visible' },
+      ],
+    });
+
+    const manualPath = join(root, '.qa', 'modules', 'manual-mod', 'tests', 'TC-MANUAL.yaml');
+    const originalContent = readFileSync(manualPath, 'utf8');
+    const originalBuffer = readFileSync(manualPath);
+
+    const handler = new PlanHandler({ projectRoots: [root] });
+    const res = await handler.execute(
+      { module: 'manual-mod', targetPath: root },
+      { requestId: 'test-manual-preserve', signal: new AbortController().signal }
+    );
+
+    const data = JSON.parse(res.content[0].text as string);
+    expect(data.status).toBe('success');
+    expect(data.preserved_cases).toContain('TC-MANUAL');
+    expect(data.ordered_nodes).toContain('TC-MANUAL');
+
+    // Verify bit-for-bit identical content on disk
+    const postExecBuffer = readFileSync(manualPath);
+    expect(postExecBuffer.equals(originalBuffer)).toBe(true);
+    const postExecContent = readFileSync(manualPath, 'utf8');
+    expect(postExecContent).toBe(originalContent);
   });
 });

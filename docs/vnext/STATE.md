@@ -843,4 +843,28 @@ Modo de integridad: `development` (Implementación genuina de `PlanHandler`, 14/
 
 [Informe Técnico de Implementación PlanHandler VNEXT-014-B](014B_PLAN_HANDLER.md).
 
+## Estabilización de PlanHandler VNEXT-014-B-R1 (2026-11-02)
+
+Sesión multi-agente Teamwork (`worker_m1`, Lead Implementation & QA Worker).  
+Rama exclusiva: `feat/qap-vnext-architecture`.  
+Base verificada: `8a9d128e649d41a96d4bc4ff6abe520db800733d`.  
+Modo de integridad: `development` (Estabilización genuina de `PlanHandler`, 19/19 tests pasando, FAIL BEFORE / PASS AFTER).
+
+- **Correcciones nucleares en `PlanHandler`**:
+  - `projectRoot(args, this.dependencies, true)` aplicado para comprobación estricta de autorización de escritura y rechazo inmediato de hardlinks (`nlink > 1`) en `.qa/`.
+  - Huella determinista y versionada de casos `cases_fingerprint` (versión '1') incorporada en `plan.json` junto al `checksum` canónico existente (compatibilidad CLI preservada).
+  - Métodos de inspección y vigencia `inspectPlanVigencia` y `verifyPlanIntegrity` expuestos para clasificar planes históricos como `unverifiable` (no validados automáticamente, no eliminados) y detectar obsolescencia ante cambios en casos YAML.
+  - Casos manuales (`manually_edited: true`) protegidos y preservados bit a bit en disco y en la resolución DAG.
+  - Manejo atómico y sanitizado de fallos de persistencia en disco: captura de excepciones en `writeJson`, limpieza de stubs de 0 bytes, y retorno de error estructurado (`persistence_failed`) sin falsear éxito ni filtrar rutas internas.
+  - Recomendación de desbloqueo ante módulo inexistente corregida a `qap_status` (sustituyendo la errónea llamada a `qap_discover`).
+- **Suites Verificadas al 100%**:
+  - `plan-handler.test.ts`: **19/19 PASS** (14 originales intactas + 5 regresiones deterministas FAIL BEFORE / PASS AFTER).
+  - CLI `plan-command.test.ts`: **4/4 PASS** (retrocompatibilidad verificada).
+  - Monorepo `pnpm build`: **10/10 paquetes compilados exitosamente**.
+  - Centinela MCP Stdio (`test-mcp-stdio.mjs`): **18/18 herramientas verificadas, exit code 0**.
+  - ESLint de archivos modificados: **0 errores, 0 warnings**.
+- **Dictamen Formal**: `PASS`, habilitando de forma segura la fase VNEXT-014-C.
+
+[Informe Técnico de Estabilización PlanHandler VNEXT-014-B-R1](014B_R1_ESTABILIZACION.md).
+
 
