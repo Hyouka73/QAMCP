@@ -130,6 +130,48 @@ describe('P3 Suite de Verificación MCP (T3 - T15)', () => {
     });
   }
 
+  function seedLegacyModuleFixture(moduleName = 'auth', view = 'default') {
+    const modDir = join(tempDir, '.qa', 'modules', moduleName, 'views', view);
+    mkdirSync(modDir, { recursive: true });
+    writeFileSync(
+      join(modDir, 'context.yaml'),
+      YAML.stringify({
+        module: moduleName,
+        view,
+        route: '/login',
+        storage_state_used: false,
+      }),
+      'utf-8'
+    );
+    writeFileSync(
+      join(modDir, 'selectors.json'),
+      JSON.stringify({
+        selectors: {
+          forms: [
+            {
+              id: `${moduleName}-form`,
+              selector: `#${moduleName}-form`,
+              fields: [
+                { key: 'user', name: 'user', id: 'user', type: 'text', required: true, label: 'Usuario' },
+                { key: 'pass', name: 'pass', id: 'pass', type: 'password', required: true, label: 'Contraseña' },
+              ],
+            },
+          ],
+          buttons: [{ key: 'enviar', text: 'Enviar', selector: 'button:has-text("Enviar")' }],
+        },
+      }),
+      'utf-8'
+    );
+    const lfPath = join(tempDir, '.qa', 'project', 'lifecycle.json');
+    if (existsSync(lfPath)) {
+      const state = JSON.parse(readFileSync(lfPath, 'utf-8'));
+      if (state.modules?.[moduleName]) {
+        state.modules[moduleName].state = 'observed';
+        writeFileSync(lfPath, JSON.stringify(state, null, 2), 'utf-8');
+      }
+    }
+  }
+
   // T3
   it('T3: Toda respuesta con siguiente_accion NO contiene "botones interactivos en modal" ni prohibición de listas', async () => {
     const forbiddenPhrases = [
@@ -451,6 +493,7 @@ describe('P3 Suite de Verificación MCP (T3 - T15)', () => {
   it('T11: Primera llamada exitosa: observed -> interviewing; ids R-001, R-002... secuenciales por módulo', async () => {
     await advanceToWorking([{ module: 'auth', path: '/login', priority: 'high' }]);
     await callTool('qap_discover', { name: 'auth', path: '/login' });
+    seedLegacyModuleFixture('auth');
 
     // Primera llamada exitosa a qap_rules_set sin IDs explícitos
     const { parsed } = await callTool('qap_rules_set', {
@@ -480,6 +523,7 @@ describe('P3 Suite de Verificación MCP (T3 - T15)', () => {
   it('T12: No-downgrade: regla source user confirmed no se sobrescribe con source dom/prd; waivers solo source user y reason no vacío; lote con regla inválida se rechaza completo', async () => {
     await advanceToWorking([{ module: 'auth', path: '/login', priority: 'high' }]);
     await callTool('qap_discover', { name: 'auth', path: '/login' });
+    seedLegacyModuleFixture('auth');
 
     // Registrar regla de usuario confirmada
     await callTool('qap_rules_set', {
@@ -518,13 +562,20 @@ describe('P3 Suite de Verificación MCP (T3 - T15)', () => {
     expect(rCheck.source).toBe('user');
     expect(rCheck.status).toBe('confirmed');
 
-    // Waivers: rechaza waiver con reason vacío
+    // Waivers: rechaza waiver con reason vacío o menor a 15 caracteres tras trim
     const rEmptyReason = await callTool('qap_rules_set', {
       module: 'auth',
       view: 'default',
       category_waivers: [{ category: 'sensibilidad', reason: '' }],
     });
     expect(rEmptyReason.res.isError).toBe(true);
+
+    const rShortReason = await callTool('qap_rules_set', {
+      module: 'auth',
+      view: 'default',
+      category_waivers: [{ category: 'sensibilidad', reason: 'muy corto' }],
+    });
+    expect(rShortReason.res.isError).toBe(true);
 
     // Lote con una regla inválida se rechaza completo sin escritura parcial
     const rInvalidBatch = await callTool('qap_rules_set', {
@@ -545,6 +596,7 @@ describe('P3 Suite de Verificación MCP (T3 - T15)', () => {
   it('T13: Dos llamadas concurrentes a qap_rules_set sin pérdida de actualización', async () => {
     await advanceToWorking([{ module: 'auth', path: '/login', priority: 'high' }]);
     await callTool('qap_discover', { name: 'auth', path: '/login' });
+    seedLegacyModuleFixture('auth');
 
     // Ejecución concurrente de dos llamadas a qap_rules_set
     const call1 = callTool('qap_rules_set', {

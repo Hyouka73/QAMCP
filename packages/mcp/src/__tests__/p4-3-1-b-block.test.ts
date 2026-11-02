@@ -17,7 +17,7 @@ describe('P4.3.1 Bloque B - Verificación y Cobertura de Correcciones', () => {
 
   beforeEach(() => {
     tempDir = mkdtempSync(join(tmpdir(), 'qap-b-block-'));
-    server = createMcpServer();
+    server = createMcpServer({ projectRoots: [tempDir] });
     // @ts-expect-error accessing internal request handler
     handler = server._requestHandlers.get(CallToolRequestSchema.shape.method.value);
   }, 15000);

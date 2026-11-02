@@ -71,7 +71,7 @@ describe('P4.2 Suite: Contrato Canónico de Pregunta y Verificación E2E (Criter
   beforeEach(() => {
     tempDir = mkdtempSync(join(tmpdir(), 'qap-p4-2-test-'));
     process.env.QAP_TARGET_DIR = tempDir;
-    server = createMcpServer();
+    server = createMcpServer({ projectRoots: [tempDir] });
     // @ts-expect-error accessing internal request handler
     handler = server._requestHandlers.get(CallToolRequestSchema.shape.method.value);
   });
@@ -91,6 +91,9 @@ describe('P4.2 Suite: Contrato Canónico de Pregunta y Verificación E2E (Criter
       },
       {}
     );
+    if (res.isError) {
+      throw new Error(`Tool ${name} failed: ${res.content?.[0]?.text}`);
+    }
     expect(res.isError).toBeFalsy();
     const parsed = JSON.parse(res.content[0].text) as McpToolResult;
     return { parsed, text: res.content[0].text, raw: res };

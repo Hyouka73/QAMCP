@@ -328,13 +328,14 @@ export class CanonicalClosureService {
       if ('status' in decision) return decision;
 
       // Commit atómico rápido
-      await this.closureStore.transaction(scope, async snapshot => {
+      await this.closureStore.transaction(scope, snapshot => {
         if (snapshot.approvals.some(a => a[0] === decision.approvalId)) {
           throw new Error('closure_decision_reused');
         }
         const existingDecs = snapshot.applicabilityDecisions[plannedName] ?? [];
         snapshot.applicabilityDecisions[plannedName] = [...existingDecs, ...decisions];
         snapshot.approvals.push([decision.approvalId, reviewReq.requestDigest]);
+        return Promise.resolve();
       });
 
       const freshEval = await this.coverageService.evaluate(plannedName);
@@ -392,13 +393,14 @@ export class CanonicalClosureService {
           acceptance_receipt: decision.approvalId,
         }));
 
-      await this.closureStore.transaction(scope, async snapshot => {
+      await this.closureStore.transaction(scope, snapshot => {
         if (snapshot.approvals.some(a => a[0] === decision.approvalId)) {
           throw new Error('closure_decision_reused');
         }
         const existingGaps = snapshot.acceptedGaps[plannedName] ?? [];
         snapshot.acceptedGaps[plannedName] = [...existingGaps, ...acceptedGapsList];
         snapshot.approvals.push([decision.approvalId, reviewReq.requestDigest]);
+        return Promise.resolve();
       });
 
       const freshEval = await this.coverageService.evaluate(plannedName);
@@ -538,7 +540,8 @@ export class CanonicalClosureService {
       };
     }
 
-    if (Date.now() > Date.parse(decision.expiresAt)) {
+    const parsedExp = Date.parse(decision.expiresAt);
+    if (!Number.isFinite(parsedExp) || Date.now() > parsedExp) {
       return {
         status: 'blocked',
         code: 'closure_review_expired',
@@ -566,6 +569,11 @@ export class CanonicalClosureService {
     waiverReason: string | undefined,
     assessment: CanonicalCoverageAssessment
   ): Promise<Record<string, unknown>> {
+    const parsedExp = Date.parse(decision.expiresAt);
+    if (!Number.isFinite(parsedExp) || Date.now() > parsedExp) {
+      throw new Error('closure_review_expired');
+    }
+
     const scope = {
       projectRoot: this.context.projectRoot,
       applicationId: this.context.applicationId,
@@ -587,46 +595,56 @@ export class CanonicalClosureService {
       committedAt: new Date().toISOString(),
     };
 
-    // 1. Transacción rápida CAS en SqliteModuleClosureStore
-    try {
-      await this.closureStore.transaction(scope, async snapshot => {
-        if (snapshot.closures[plannedName]) {
-          return;
-        }
-        if (snapshot.approvals.some(a => a[0] === decision.approvalId)) {
-          throw new Error('closure_decision_reused');
-        }
-
-        // Re-verificar que el estado canónico no derivó
-        const reCheck = await this.bridge.resolve(plannedName);
-        if (reCheck.status !== 'resolved') {
-          throw new Error('closure_context_changed');
-        }
-        if (reCheck.link.moduleRevision !== link.moduleRevision) {
-          throw new Error('closure_revision_conflict');
-        }
-
-        snapshot.closures[plannedName] = record;
-        snapshot.approvals.push([decision.approvalId, request.requestDigest]);
-      });
-    } catch (err: unknown) {
-      if (err instanceof Error && err.message.includes('conflict')) {
-        await new Promise(r => setTimeout(r, 60));
-      }
+    // 1. Transacción rápida CAS en SqliteModuleClosureStore con reintentos acotados ante contención
+    const maxAttempts = 3;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        const snap = this.closureStore.read(scope);
-        if (snap.closures[plannedName]) {
-          const c = snap.closures[plannedName];
-          return {
-            status: c.status,
-            idempotent: true,
-            decision_id: c.decisionId,
-            request_digest: c.requestDigest,
-            coverage_digest: c.coverageDigest,
-          };
+        await this.closureStore.transaction(scope, async snapshot => {
+          if (snapshot.closures[plannedName]) {
+            return;
+          }
+          if (snapshot.approvals.some(a => a[0] === decision.approvalId)) {
+            throw new Error('closure_decision_reused');
+          }
+
+          // Re-verificar que el estado canónico no derivó
+          const reCheck = await this.bridge.resolve(plannedName);
+          if (reCheck.status !== 'resolved') {
+            throw new Error('closure_context_changed');
+          }
+          if (reCheck.link.moduleRevision !== link.moduleRevision) {
+            throw new Error('closure_revision_conflict');
+          }
+
+          snapshot.closures[plannedName] = record;
+          snapshot.approvals.push([decision.approvalId, request.requestDigest]);
+        });
+        break;
+      } catch (err: unknown) {
+        const isConflict = err instanceof Error && (err.message.includes('conflict') || err.message.includes('busy'));
+        // Si el módulo ya fue cerrado concurrentemente de forma idéntica, retornar idempotente
+        try {
+          const snap = this.closureStore.read(scope);
+          if (snap.closures[plannedName]) {
+            const c = snap.closures[plannedName];
+            return {
+              status: c.status,
+              idempotent: true,
+              decision_id: c.decisionId,
+              request_digest: c.requestDigest,
+              coverage_digest: c.coverageDigest,
+            };
+          }
+        } catch { /* empty */ }
+
+        if (isConflict && attempt < maxAttempts) {
+          // Backoff entre 30ms y 60ms ante contención concurrente entre módulos distintos
+          const backoff = 30 + Math.floor(Math.random() * 30);
+          await new Promise(r => setTimeout(r, backoff));
+          continue;
         }
-      } catch { /* empty */ }
-      throw err;
+        throw err;
+      }
     }
 
 
