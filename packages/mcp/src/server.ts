@@ -92,9 +92,9 @@ import { DiscoveryHandler, type DiscoveryAuthorization } from './handlers/discov
 import { CanonicalInterviewService } from './handlers/canonical-interview-service.js';
 import { CanonicalClosureService } from './handlers/canonical-closure-service.js';
 import { projectRoot as authorizedProjectRoot, result as canonicalResult } from './handlers/state-services.js';
-
 import { hasLegacyViewContext, legacyInterviewBlocked } from './handlers/legacy-discovery-contract.js';
 import { CleanHandler } from './handlers/clean.handler.js';
+import { PlanHandler } from './handlers/plan.handler.js';
 import { checkPlaywrightBrowser, PLAYWRIGHT_INSTALL_COMMAND, detectarSubcarpetaWorkspace } from './handlers/state-runtime.js';
 import type { StateDependencies } from './handlers/state-services.js';
 export { checkPlaywrightBrowser, PLAYWRIGHT_INSTALL_COMMAND } from './handlers/state-runtime.js';
@@ -249,12 +249,13 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
   }
   const runtimeDependencies: StateDependencies = { ...dependencies, canonicalInterviews: interviews, canonicalClosures: closures };
 
-  const migrated = new Set(['qap_status', 'qap_clean', 'qap_context_set', 'qap_discover']);
+  const migrated = new Set(['qap_status', 'qap_clean', 'qap_context_set', 'qap_discover', 'qap_plan']);
   const dispatcher = new ToolDispatcher(TOOLS.filter(tool => !migrated.has(tool.name)).map(tool => tool.name));
   dispatcher.register(new StatusHandler({ ...runtimeDependencies, browser: checkPlaywrightBrowser, view: buildViewDiscoveryContext }));
   dispatcher.register(new CleanHandler(dependencies));
   dispatcher.register(new ContextHandler(dependencies));
   dispatcher.register(new DiscoveryHandler(dependencies, options.discoveryAuthorizations));
+  dispatcher.register(new PlanHandler(dependencies));
   for (const handler of options.handlers ?? []) dispatcher.register(handler);
   dispatcher.seal();
 
@@ -1865,37 +1866,6 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
           };
         }
 
-        case 'qap_plan': {
-          return {
-            content: [{
-              type: 'text',
-              text: JSON.stringify({
-                estado: 'en_desarrollo',
-                sprint_disponible: 6,
-                mensaje: 'La generación automática de planes de prueba está programada para el Sprint 6. Actualmente el motor opera en QAP v3.0: Descubrimiento, Entrevista de Reglas, Mapeo y Knowledge Graph.',
-                capacidades_actuales: [
-                  'qap_status',
-                  'qap_init',
-                  'qap_clean',
-                  'qap_auth_add',
-                  'qap_auth_list',
-                  'qap_context_set',
-                  'qap_context_ingest',
-                  'qap_session_plan',
-                  'qap_discover',
-                  'qap_rules_set',
-                  'qap_module_close',
-                  'qap_session_close',
-                  'qap_validate',
-                  'qap_report',
-                  'qap_server',
-                  'qap_prune',
-                ],
-                accion_recomendada: 'Usa qap_discover para registrar el módulo y qap_rules_set para confirmar las reglas de negocio de la vista.',
-              }, null, 2),
-            }],
-          };
-        }
 
 
         case 'qap_validate': {

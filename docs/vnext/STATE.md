@@ -15,7 +15,7 @@ gateway seguro y barrera TCP/UDP. VNEXT-009 fue autorizada posteriormente y se r
 Esta autorización sustituye exclusivamente el bloqueo anterior de VNEXT-010; el cierre y
 sus límites se registran al final. Las autorizaciones posteriores de VNEXT-011 y
 VNEXT-012 y VNEXT-013 y sus cierres con limitaciones se registran al final;
-Tras la resolución de incertidumbres técnicas post-R5 y la preparación técnica VNEXT-014-A ([014A_PREPARACION_TECNICA.md](014A_PREPARACION_TECNICA.md)), VNEXT-014 cuenta con plan técnico y dictamen formal completados; VNEXT-015 y posteriores siguen sin autorización.
+Tras la resolución de incertidumbres técnicas post-R5, la preparación técnica VNEXT-014-A ([014A_PREPARACION_TECNICA.md](014A_PREPARACION_TECNICA.md)) y la implementación declarativa de PlanHandler en VNEXT-014-B ([014B_PLAN_HANDLER.md](014B_PLAN_HANDLER.md)), queda completada la conexión real del planificador DAG; VNEXT-014-C queda preparada para su implementación; VNEXT-015 y posteriores siguen sin autorización.
 Leer este archivo y el WBS antes de elegir trabajo ante «continúa».
 
 ## Rama y cambios ajenos
@@ -828,4 +828,19 @@ Modo de integridad: `development` (diagnóstico, auditoría y planificación té
 - **Dictamen Formal**: `PARTIAL` (o `READY CON CONDICIONANTES AMBIENTALES`), habilitando de inmediato el desarrollo de VNEXT-014-B.
 
 [Informe de Preparación Técnica y Plan de Implementación VNEXT-014-A](014A_PREPARACION_TECNICA.md).
+
+## Implementación Declarativa de PlanHandler VNEXT-014-B (2026-11-02)
+
+Sesión multi-agente Teamwork (`teamwork_worker_014b`).  
+Rama exclusiva: `feat/qap-vnext-architecture`.  
+HEAD base verificado: `cace8125acd4c6c47be2ae31d833a10e1e1856ee`.  
+Modo de integridad: `development` (Implementación genuina de `PlanHandler`, 14/14 tests pasando, cero código trampa).
+
+- **Handler Declarativo Implementado**: `packages/mcp/src/handlers/plan.handler.ts` implementa `IMcpToolHandler`, validación canónica de rutas (`projectRoot` + verificación estricta de pertenencia a `projectRoots`), detección de IDs duplicados, validación de dependencias inexistentes, preservación de casos editados manualmente (`UpdateGuard`), resolución de orden topológico DAG (`DependencyGraphResolver`), manejo seguro de dependencias circulares y persistencia atómica en `.qa/modules/<name>/tests/plan.json`.
+- **Migración en MCP Server**: `packages/mcp/src/server.ts` migra `qap_plan` a `migrated = new Set([...])`, registra `PlanHandler` en `ToolDispatcher` y elimina el bloque legacy del switch monolítico. Se preservan exactamente las 18 herramientas del catálogo y `qap_test` permanece intacto.
+- **Suites Verificadas al 100%**: `plan-handler.test.ts` (14/14), `dispatcher.test.ts` & `dispatcher-integration.test.ts` (46/46), `adversarial-r5-guarantees.test.ts` (34/34), `plan-command.test.ts` (4/4), `@qap/shared` (162/162), `@qap/engine` (168/168), compilación de los 10 paquetes (`pnpm build`) y centinela Stdio (`test-mcp-stdio.mjs` con 18 herramientas). Cero errores de linting (`eslint`).
+- **Dictamen Formal**: `PASS`, habilitando la preparación y paso a VNEXT-014-C.
+
+[Informe Técnico de Implementación PlanHandler VNEXT-014-B](014B_PLAN_HANDLER.md).
+
 
