@@ -288,7 +288,17 @@ describe('TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4
     expect(dataNoMod.status).toBe('blocked');
     expect(dataNoMod.code).toBe('module_required');
 
-    // 3b. Environment mismatch (plan generated for local, requested staging)
+    // 3b. Non-string module argument returns structured block module_required
+    const resNonStringMod = await handler.execute(
+      { module: 123 as any, targetPath: root },
+      { requestId: 'test-scen-3a-nonstring', signal: new AbortController().signal }
+    );
+    expect(resNonStringMod.isError).toBe(true);
+    const dataNonStringMod = JSON.parse(resNonStringMod.content[0].text as string);
+    expect(dataNonStringMod.status).toBe('blocked');
+    expect(dataNonStringMod.code).toBe('module_required');
+
+    // 3c. Environment mismatch (plan generated for local, requested staging)
     const resEnvMismatch = await handler.execute(
       { module: 'billing', targetPath: root, environment: 'staging' },
       { requestId: 'test-scen-3b', signal: new AbortController().signal }
@@ -372,6 +382,30 @@ describe('TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4
     const dataRestricted = JSON.parse(resRestricted.content[0].text as string);
     expect(dataRestricted.status).toBe('blocked');
     expect(dataRestricted.code).toBe('navigation_not_authorized');
+
+    // 5c. HTTP 302 redirect from authorized origin to unauthorized origin is aborted by browser route interception
+    const redirectRoot = initProject(localServerUrl);
+    seedModule(redirectRoot, 'redirect-mod');
+    seedTestCase(redirectRoot, 'redirect-mod', 'TC-REDIRECT', {
+      steps: [
+        { type: 'navigate', url: `${localServerUrl}/redirect-unauthorized` },
+        { type: 'assert', selector: '#title', assertion_type: 'visible', timeout: 1000 },
+      ],
+    });
+    await generateLegitimatePlan(redirectRoot, 'redirect-mod', 'local');
+
+    const handlerRedirect = new TestHandler({ projectRoots: [redirectRoot] }, [
+      { projectRoot: redirectRoot, allowedOrigins: [`http://127.0.0.1:${localServerPort}`] },
+    ]);
+    const resRedirect = await handlerRedirect.execute(
+      { module: 'redirect-mod', targetPath: redirectRoot, environment: 'local' },
+      { requestId: 'test-scen-5c', signal: new AbortController().signal }
+    );
+    const dataRedirect = JSON.parse(resRedirect.content[0].text as string);
+    expect(dataRedirect.result).toBe('failed');
+    expect(dataRedirect.summary.failed).toBe(1);
+    expect(dataRedirect.cases[0].result).toBe('failed');
+    expect(dataRedirect.cases[0].failure_type).toBe('network_error');
   });
 
   // Scenario 6: Ausencia de navegador (error de infraestructura honesto)

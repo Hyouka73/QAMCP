@@ -273,10 +273,43 @@ export class PlaywrightRunner implements IRunner {
         const allowedPatterns = options.allowedOrigins;
         await context.route('**/*', async (route) => {
           const reqUrl = route.request().url();
-          if (isUrlAllowedByPolicy(reqUrl, allowedPatterns)) {
-            await route.continue();
-          } else {
+          if (!isUrlAllowedByPolicy(reqUrl, allowedPatterns)) {
             await route.abort('blockedbyclient');
+            return;
+          }
+
+          if (reqUrl === 'about:blank' || reqUrl.startsWith('data:')) {
+            await route.continue();
+            return;
+          }
+
+          try {
+            let currentUrl = reqUrl;
+            const maxRedirects = 10;
+            for (let hop = 0; hop <= maxRedirects; hop++) {
+              const response = await route.fetch({ url: currentUrl, maxRedirects: 0 });
+              const status = response.status();
+              if (status >= 300 && status < 400) {
+                const headers = response.headers();
+                const location = headers['location'] ?? headers['Location'];
+                if (!location) {
+                  await route.fulfill({ response });
+                  return;
+                }
+                const targetUrl = new URL(location, currentUrl).toString();
+                if (!isUrlAllowedByPolicy(targetUrl, allowedPatterns)) {
+                  await route.abort('blockedbyclient');
+                  return;
+                }
+                currentUrl = targetUrl;
+                continue;
+              }
+              await route.fulfill({ response });
+              return;
+            }
+            await route.abort('blockedbyclient');
+          } catch {
+            await route.abort('failed');
           }
         });
       }

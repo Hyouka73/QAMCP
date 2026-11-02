@@ -73,9 +73,8 @@ export class TestHandler implements IMcpToolHandler {
       return false;
     }
 
-    if (args.module !== undefined) {
+    if (args.module !== undefined && typeof args.module === 'string') {
       if (
-        typeof args.module !== 'string' ||
         args.module.length > 128 ||
         [...args.module].some(c => c.charCodeAt(0) < 32) ||
         /[\\/:]/.test(args.module) ||
