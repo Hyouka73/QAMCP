@@ -630,3 +630,51 @@ Autorización posterior exclusiva del 2026-10-31; base local/remota
 [Diseño, cobertura tripartita, pruebas físicas y límites R5](VNEXT-013_R5_CANONICAL_COVERAGE_MODULE_CLOSURE.md).
 Detener tras publicar R5. **No iniciar VNEXT-014.**
 
+
+
+## Sesión de estabilización y cierre correctivo post-R5 (2026-11-02)
+
+Autorización y despliegue multi-agente Teamwork (Explorer A, Explorer B, Critic 1, Challenger 1,
+Worker 2, Auditor Victoria, Worker Doc 3).
+Rama exclusiva: `feat/qap-vnext-architecture`.
+Base inicial de referencia: `d70f46a616447002f96a1dadd6e6f44924b24155`.
+Commit auditado y consolidado: `62ac9fc89c60cbe19266c8ea2dfb6b6e01b42ead`.
+
+### 1. Matriz de verificación física reproducible (Baseline)
+- `@qap/shared`: **162/162 pasadas** (17 archivos de prueba). Coincidencia exacta con métrica R5.
+- `@qap/engine`: **168/168 pasadas** (11 archivos de prueba). Coincidencia exacta con métrica R5.
+- `@qap/mcp` (Dispatcher): **46/46 pasadas** (38 unitarias + 8 integración).
+- Suite adversarial R5 (`packages/mcp/src/__tests__/adversarial-r5-guarantees.test.ts`): **32/32 pasadas** (100%).
+- Arnés de estrés R5 (`scripts/stress-test-r5-guarantees.mjs`): **9/9 comprobaciones aprobadas** (100%).
+- Compilaciones monorepo (`pnpm build`): **10/10 paquetes compilados exitosamente** (exit code 0).
+- Servidor Stdio MCP (`node scripts/test-mcp-stdio.mjs`): **18 herramientas catalogadas**, `qap_status` y `qap_init` verificados sobre transporte sin residuos en Git.
+
+### 2. Frontera ambiental de SQLite FTS5 (Node 22 vs Node 24 LTS)
+- En Windows bajo Node.js v22.13.0, el binario built-in `node:sqlite` carece de FTS5 (`fts5: 0`).
+- `SqliteKnowledgeAdapter` se rehúsa intencionalmente a instanciar o migrar la base (`KnowledgeStoreError: Knowledge store requires SQLite FTS5`), bloqueando 84 pruebas físicas en `@qap/knowledge` y 24 en `canonical-coverage.test.ts`.
+- Esta conducta es una salvaguarda defensiva legítima de integridad de datos; la ejecución completa 258/258 en Knowledge y 25/25 en `canonical-coverage` requiere Node 24.15.0+ LTS en Windows donde `ENABLE_FTS5 = 1`.
+- La suite adversarial `adversarial-r5-guarantees.test.ts` fue diseñada desacoplando `SqliteModuleClosureStore` físico cifrado con `MemoryKnowledgeStore`, demostrando las 7 garantías nucleares sin colisionar con esta frontera ambiental.
+
+### 3. Clasificación individualizada de los 58 fallos pendientes
+De los 60 fallos históricos documentados al sustituir el crawler legacy D1 por D2 en VNEXT-013, 2 fueron ajustados en R1 (T8 y B6), consolidando el inventario en **58 fallos pendientes**:
+- **21 Clase A**: Incompatibilidades de contrato con el crawler legacy D1 (asunciones de YAML, `entrevista_vista`, `rules.yaml` en disco, etc.).
+- **32 Clase B**: Desconexión de consumidores downstream (pruebas de reglas o cierre que no inyectan el contexto sintético que la seguridad canónica ahora exige).
+- **5 Clase D**: Capacidades diferidas formalmente a VNEXT-014 (crawling autenticado, validación de sesiones, client-side route guards en SPA, runner en vivo).
+- **0 Clase C**: Cero regresiones accidentales en contratos de producción.
+- **Estabilización focalizada de pruebas Clase B**: T11, T12 y T13 en `p3-verification.test.ts` fueron estabilizadas mediante la función `seedLegacyModuleFixture` (inyectando contexto sintético de módulo legacy), verificando al 100% (3/3 pasadas) las reglas sustantivas de negocio: no-downgrade de reglas de usuario sobre DOM/PRD, justificaciones descriptivas de waiver (>= 15 caracteres), rechazo de lotes inválidos y concurrencia sin pérdida de datos.
+
+### 4. Endurecimiento en código de producción (`canonical-closure-service.ts`)
+- **Blindaje contra fail-open en expiración**: Se añadió validación explícita `Number.isFinite(parsedExp)` en `requestGatewayDecision` y `commitFinalClosure`. Si `decision.expiresAt` es malformada o inválida, `Date.parse()` devuelve `NaN`. La condición anterior `Date.now() > NaN` evaluaba a `false` (fail-open); el nuevo guard intercepta y bloquea inmediatamente decisiones con marcas temporales inválidas.
+- **Bucle de reintentos acotado para CAS concurrente**: En `commitFinalClosure`, se incorporó un bucle de hasta 3 intentos con backoff aleatorizado (30–60 ms) ante conflictos de bloqueo (`BEGIN IMMEDIATE`), permitiendo que cierres concurrentes de módulos distintos se serialicen sin fallar.
+- **Corrección de contención multi-unidad en Windows**: Se configuró `createMcpServer({ projectRoots: [tempDir] })` en `p4-3-1-b-block.test.ts` (7/7 pasadas) y `p4-2-pregunta-contract.test.ts`, resolviendo el rechazo de rutas relativas entre unidades distintas (`D:` y `C:`) en `projectRoot()`.
+
+### 5. Invariancia de seguridad y esquema
+- El archivo protegido de sesión `packages/playwright-runner/.qa/cache/sessions/admin-user.json` permanece estrictamente inalterado e inexplorado (hash Git `429bbf6d57a1d798231b4204d52069b4077703de`).
+- El esquema canónico v2 de SQLite en `packages/knowledge/src/storage/knowledge-sqlite-schema.ts` tiene 0 modificaciones.
+- Las ramas `main` y `develop` no fueron tocadas.
+
+### 6. Dictamen de preparación y estado formal
+- **R5 NO se declara certificada al 100% integralmente**: Si bien las 7 garantías arquitectónicas fueron demostradas adversarialmente y el código fue endurecido, restan los 58 fallos legacy por reconciliar y la resolución de la frontera ambiental de FTS5.
+- **VNEXT-014 NO está habilitada ni implementada**: No se añadieron runners de ejecución de pruebas, inyección de credenciales en navegador ni generación de `ConformityAssessment.pass`.
+
+[Reporte de Cierre Correctivo y Auditoría Adversarial Post-R5](VNEXT-013_R5_CORRECTIVE_CLOSURE.md).
