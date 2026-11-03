@@ -31,6 +31,7 @@ export interface ExecutedStep {
   status: string;
   message?: string | null;
   screenshot?: string | null;
+  redacted_selectors_count?: number;
 }
 
 export interface ExecutedCase {

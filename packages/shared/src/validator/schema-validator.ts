@@ -17,6 +17,8 @@ import {
   ingestProposalSchema,
   repoMapSchema,
   moduleCandidatesSchema,
+  tcCaseSchema,
+  flowSchema,
 } from '../schemas/index.js';
 import type { ExecutionResult } from '../types/execution-result.type.js';
 import type { RepoMap } from '../types/repo-map.type.js';
@@ -210,6 +212,8 @@ export class SchemaValidator {
       ['ingest-proposal', this.ajv.compile(ingestProposalSchema)],
       ['project-repo-map', this.ajv.compile(repoMapSchema)],
       ['module-candidates', this.ajv.compile(moduleCandidatesSchema)],
+      ['tc-case', this.ajv.compile(tcCaseSchema)],
+      ['flow', this.ajv.compile(flowSchema)],
     ]);
   }
 
@@ -298,4 +302,12 @@ export class SchemaValidator {
   validateModuleCandidates(data: unknown): ValidationResult<ModuleCandidatesFile> {
     return this.runValidation<ModuleCandidatesFile>('module-candidates', data);
   }
-}
+
+  validateTcCase(data: unknown): ValidationResult {
+    return this.runValidation('tc-case', data);
+  }
+
+  validateFlow(data: unknown): ValidationResult {
+    return this.runValidation('flow', data);
+  }
+}

@@ -145,6 +145,11 @@
                   "type": ["string", "null"],
                   "description": "Selector objetivo de la acción si aplica"
                 },
+                "redacted_selectors_count": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Número de selectores redactados o anonimizados en este paso"
+                },
                 "duration_ms": {
                   "type": "number",
                   "minimum": 0,

@@ -20,6 +20,30 @@ export interface TCCase {
    */
   name: string;
   /**
+   * Optional title for the test case
+   */
+  title?: string;
+  /**
+   * Execution priority of the test case
+   */
+  priority?: string;
+  /**
+   * Sequence number in the plan
+   */
+  sequence?: number;
+  /**
+   * Indicates if the test case was manually edited
+   */
+  manually_edited?: boolean;
+  /**
+   * Semantic category of the test case
+   */
+  case_category?: 'happy_path' | 'bva' | 'rbac_negative';
+  /**
+   * Source rule ID that generated this test case
+   */
+  source_rule_id?: string;
+  /**
    * Tags associated with the test case
    */
   tags?: string[];
@@ -35,16 +59,60 @@ export interface TCCase {
      * Type of action to perform
      */
     type:
-      | "navigate"
-      | "fill"
-      | "click"
-      | "assert"
-      | "waitFor"
-      | "screenshot"
-      | "capture"
-      | "switch_auth"
-      | "evaluate"
-      | "intercept_network";
+      | 'navigate'
+      | 'fill'
+      | 'click'
+      | 'assert'
+      | 'waitFor'
+      | 'screenshot'
+      | 'capture'
+      | 'switch_auth'
+      | 'evaluate'
+      | 'intercept_network';
+    /**
+     * Retrocompatible action alias
+     */
+    action?: string;
+    /**
+     * Retrocompatible target alias
+     */
+    target?: string;
+    /**
+     * Retrocompatible condition alias
+     */
+    condition?: string;
+    /**
+     * Retrocompatible assignment alias
+     */
+    as?: string;
+    /**
+     * Retrocompatible profile alias
+     */
+    profile?: string;
+    /**
+     * Retrocompatible wait_for alias
+     */
+    wait_for?: string | number;
+    /**
+     * Behavior on failure
+     */
+    on_failure?: string;
+    /**
+     * Expected HTTP status code
+     */
+    expected_status?: number;
+    /**
+     * Additional arguments for the step
+     */
+    args?: string[];
+    /**
+     * Indicates sandbox execution
+     */
+    sandbox?: boolean;
+    /**
+     * Target attribute for the step
+     */
+    attribute?: string;
     /**
      * CSS selector or logical selector name for the target element
      */
@@ -69,7 +137,14 @@ export interface TCCase {
      * Type of assertion to perform
      */
     assertion_type?:
-      "equals" | "contains" | "visible" | "exists" | "not_visible" | "not_exists" | "count" | "attribute";
+      | 'equals'
+      | 'contains'
+      | 'visible'
+      | 'exists'
+      | 'not_visible'
+      | 'not_exists'
+      | 'count'
+      | 'attribute';
     /**
      * Expected number of elements matching the selector (for assertion_type 'count')
      */
@@ -105,7 +180,7 @@ export interface TCCase {
       /**
        * HTTP method to intercept
        */
-      method?: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
+      method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
       /**
        * Response to return instead
        */

@@ -20,6 +20,32 @@
       "type": "string",
       "description": "Name of the test case"
     },
+    "title": {
+      "type": "string",
+      "description": "Optional title for the test case"
+    },
+    "priority": {
+      "type": "string",
+      "description": "Execution priority of the test case"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Sequence number in the plan"
+    },
+    "manually_edited": {
+      "type": "boolean",
+      "description": "Indicates if the test case was manually edited"
+    },
+    "case_category": {
+      "type": "string",
+      "enum": ["happy_path", "bva", "rbac_negative"],
+      "description": "Semantic category of the test case"
+    },
+    "source_rule_id": {
+      "type": "string",
+      "description": "Source rule ID that generated this test case"
+    },
     "tags": {
       "type": "array",
       "description": "Tags associated with the test case",
@@ -49,6 +75,54 @@
             "enum": ["navigate", "fill", "click", "assert", "waitFor", "screenshot", "capture", "switch_auth", "evaluate", "intercept_network"],
             "description": "Type of action to perform"
           },
+          "action": {
+            "type": "string",
+            "description": "Retrocompatible action alias"
+          },
+          "target": {
+            "type": "string",
+            "description": "Retrocompatible target alias"
+          },
+          "condition": {
+            "type": "string",
+            "description": "Retrocompatible condition alias"
+          },
+          "as": {
+            "type": "string",
+            "description": "Retrocompatible assignment alias"
+          },
+          "profile": {
+            "type": "string",
+            "description": "Retrocompatible profile alias"
+          },
+          "wait_for": {
+            "anyOf": [
+              { "type": "string" },
+              { "type": "integer" }
+            ],
+            "description": "Retrocompatible wait_for alias"
+          },
+          "on_failure": {
+            "type": "string",
+            "description": "Behavior on failure"
+          },
+          "expected_status": {
+            "type": "integer",
+            "description": "Expected HTTP status code"
+          },
+          "args": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Additional arguments for the step"
+          },
+          "sandbox": {
+            "type": "boolean",
+            "description": "Indicates sandbox execution"
+          },
+          "attribute": {
+            "type": "string",
+            "description": "Target attribute for the step"
+          },
           "selector": {
             "type": "string",
             "description": "CSS selector or logical selector name for the target element"
@@ -70,7 +144,7 @@
             "type": "string",
             "description": "Expected value for assertions"
           },
-                    "assertion_type": {
+          "assertion_type": {
             "type": "string",
             "enum": ["equals", "contains", "visible", "exists", "not_visible", "not_exists", "count", "attribute"],
             "description": "Type of assertion to perform"
@@ -84,7 +158,6 @@
             "type": "string",
             "description": "HTML attribute name to check (for assertion_type 'attribute')"
           },
-
           "filename": {
             "type": "string",
             "description": "Filename for screenshot (optional, auto-generated if not provided)"
@@ -163,7 +236,7 @@
               "required": ["selector"]
             }
           },
-                    {
+          {
             "if": {
               "properties": { "type": { "const": "assert" } },
               "required": ["type"]
