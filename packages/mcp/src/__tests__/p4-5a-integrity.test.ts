@@ -129,8 +129,10 @@ describe('P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a
   }
 
   async function initAndAdvanceToWorking() {
-    await callTool('qap_init', { projectName: 'integrity-test' });
-    await callTool('qap_context_set', {
+    const init = await callTool('qap_init', { projectName: 'integrity-test' });
+    expect(init.res.isError).not.toBe(true);
+    expect(init.parsed.status).toBe('success');
+    const context = await callTool('qap_context_set', {
       framework: 'react',
       app_type: 'spa',
       objective: 'Plataforma empresarial para gestión de auditorías de calidad',
@@ -141,10 +143,15 @@ describe('P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a
       ],
       source_of_truth: { type: 'prd', declared: true, ref: 'prd-inline' },
     });
-    await callTool('qap_session_plan', {
+    expect(context.res.isError).not.toBe(true);
+    expect(context.parsed.status).toBe('success');
+    const plan = await callTool('qap_session_plan', {
       plan: [{ module: 'auditorias', path: '/auditorias', priority: 'high' }],
       auth: { required: false },
     });
+    expect(plan.res.isError).not.toBe(true);
+    expect(plan.parsed.status).toBe('success');
+    // The new canonical DiscoveryHandler does not synthesize legacy rules.
     await callTool('qap_discover', { name: 'auditorias', path: '/auditorias' });
   }
 
