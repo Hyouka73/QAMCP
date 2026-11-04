@@ -176,6 +176,7 @@ export class ReportHandler implements IMcpToolHandler {
         status: 'blocked',
         code: 'no_matching_execution',
         message: 'No existe una ejecución real guardada que coincida con la solicitud.',
+        razon: 'No hay ejecuciones válidas registradas para generar el reporte.',
         desbloquear_con: 'qap_test',
       }, true);
     }
