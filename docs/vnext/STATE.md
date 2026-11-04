@@ -914,4 +914,12 @@ Modo de integridad: `development` (Reemplazo genuino de `qap_test` por `TestHand
 [Informe Técnico de TestHandler y PlaywrightRunner VNEXT-014-C2](014C2_TEST_HANDLER.md).
 
 
+## VNEXT-014-D — ReportHandler y evidencia verificable (2026-11-04)
 
+- **Base remota comprobada:** `e44bbca51e2f35253b5d6cb0faabddde103b2bbc` en `feat/qap-vnext-architecture` al inicio de esta sesión.
+- **Código publicado:** `qap_report` migrado de switch legacy a `ReportHandler` declarativo, con 18 herramientas MCP preservadas a nivel de catálogo; selección de ejecución registrada, validación de esquema y conteos, filtrado por módulo, generación HTML/Markdown/JUnit/JSON y protección de referencias a screenshots.
+- **Corrección previa en TestHandler:** no devolver éxito ante esquema inválido o persistencia fallida, impedir IDs de ejecución usados como rutas inseguras y declarar persistencia parcial del historial.
+- **Regresiones nuevas:** cuatro pruebas sobre evidencias de TestHandler y ocho sobre ReportHandler; conciliación de fixture legado de `server.test.ts` que representaba falsamente `passed` con cero casos.
+- **Estado de verificación:** **PARTIAL / NO CERTIFICADO**. Los cambios fueron publicados a GitHub mediante el conector, pero no se ejecutaron `pnpm build`, Vitest, Chromium ni MCP Stdio en esta sesión. No se emiten PASS ni métricas de tests sin ejecución.
+- **Integridad:** ninguna escritura a `main/develop`, SQLite v2 ni `admin-user.json`; no se ejecutaron navegadores, ni se generaron `ConformityAssessment`.
+- **Siguiente compuerta:** ejecutar los comandos y criterios de aceptación de [014D_REPORT_HANDLER.md](014D_REPORT_HANDLER.md); corregir cualquier fallo antes de certificar VNEXT-014 y abrir VNEXT-015.
