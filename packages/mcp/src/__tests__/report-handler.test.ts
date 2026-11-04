@@ -152,4 +152,20 @@ describe('VNEXT-014-D declarative ReportHandler — persisted evidence only', ()
       expect(existsSync(join(root, '.qa', 'executions', 'exec_partial.report.' + extension))).toBe(true);
     }
   });
+
+  it('D-R08: rejects false PASS from a zero-case execution', async () => {
+    const root = workspace();
+    const storage = new FileSystemStorage({ rootDir: root });
+    const empty = evidence('exec_false_pass');
+    empty.cases = [];
+    empty.summary = { total: 0, passed: 0, failed: 0, skipped: 0, not_run: 0 };
+    // A schema-valid JSON is not sufficient to claim that any case was actually executed.
+    await storage.saveExecutionResult(empty.execution_id, empty);
+    const response = await new ReportHandler({ projectRoots: [root] }).execute(
+      { targetPath: root, executionId: empty.execution_id, format: 'json' }, context()
+    );
+    expect(response.isError).toBe(true);
+    expect(parse(response).code).toBe('invalid_execution_evidence');
+    expect(existsSync(join(root, '.qa', 'executions', 'exec_false_pass.report.json'))).toBe(false);
+  });
 });
