@@ -455,6 +455,10 @@ export const TOOLS: Tool[] = [
       type: 'object',
       properties: {
         targetPath: TARGET_PATH_PROP,
+        module: {
+          type: 'string',
+          description: 'Filtro opcional: módulo al que debe pertenecer la ejecución',
+        },
         executionId: {
           type: 'string',
           description: 'ID de la ejecución o módulo a reportar (si se omite, busca la última disponible)',
