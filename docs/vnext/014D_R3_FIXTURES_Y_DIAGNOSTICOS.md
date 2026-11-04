@@ -28,6 +28,8 @@ El diagnóstico diferencial del evaluador mostró que `createMcpServer()` captur
 | `p4-5a2-integrity.test.ts` | F50 y F54 | `projectRoots: [tempDir]` en setup con servidor del fixture HTTP existente; no cambiar autorización de app externa |
 | `p4-5s1-browser-candidates.test.ts` | F57–F63 | `projectRoots: [tmpDir]` y subfixtures `noFrontDir`/retrocompatibilidad anidados bajo la raíz permitida |
 
+**Comprobaciones preventivas añadidas:** los helpers de P4.5-A y P4.5-A2 verifican explícitamente el éxito de la inicialización y del contexto (además del plan en P4.5-A); P4.5-S1 comprueba la inicialización y fase de SCOPING antes de examinar candidatos. Estas comprobaciones hacen visible la primera compuerta rechazada en lugar de atribuir el fallo a campos/archivos posteriores.
+
 **Estos 18 casos son objetivos de revalidación, no 18 PASS nuevos.** Si después del setup correcto emergen defectos reales de contexto, autenticación, negocio o capacidades fuera de alcance, registrarlos sin cambiar aserciones para ocultarlos. Ningún permiso global o lectura sobre credenciales fue añadido.
 
 ### 2.2 Diagnóstico de `qap_discover`
