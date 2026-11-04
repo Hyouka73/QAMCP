@@ -434,6 +434,21 @@ export class TestHandler implements IMcpToolHandler {
     }
 
     const executionId = executionResult.execution_id;
+    // Schema v1 declares execution_id as a free-form string. Storage uses it in a
+    // filesystem path; enforce a safe basename before any persistence attempt.
+    if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(executionId)) {
+      return result(
+        {
+          status: 'error',
+          code: 'invalid_execution_id',
+          module: moduleName,
+          environment,
+          message: 'El identificador de ejecución no es seguro para persistencia. No se guardó ninguna ejecución.',
+        },
+        true
+      );
+    }
+
     try {
       await storage.saveExecutionResult(executionId, executionResult);
     } catch {
