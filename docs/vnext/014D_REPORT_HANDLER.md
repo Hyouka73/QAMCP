@@ -46,8 +46,8 @@ Contrato y restricciones:
 
 ### 2.3 Pruebas agregadas y conciliadas
 
-- `packages/mcp/src/__tests__/test-handler.test.ts`: 4 regresiones D-01..D-04 para esquema inválido, IDs inseguros, errores de guardado e historial parcial.
-- `packages/mcp/src/__tests__/report-handler.test.ts`: 8 regresiones D-R01..D-R08 para falta de evidencias, generación JSON, conteos incoherentes, selección por fecha/módulo, traversal, referencias de imágenes, generación de cuatro formatos y falsa aprobación con cero casos.
+- `packages/mcp/src/__tests__/test-handler.test.ts`: 7 regresiones D-01..D-07 para esquema inválido, IDs inseguros, errores de guardado e historial parcial.
+- `packages/mcp/src/__tests__/report-handler.test.ts`: 12 regresiones D-R01..D-R12 para falta de evidencias, generación JSON, conteos incoherentes, selección por fecha/módulo, traversal, referencias de imágenes, generación de cuatro formatos y falsa aprobación con cero casos.
 - `packages/mcp/src/__tests__/server.test.ts`: fixture de reporte legado conciliada con el invariante de no aprobar un resultado vacío; el bloqueo sin ejecuciones se considera error estructurado.
 
 **Importante:** los archivos de prueba fueron creados o modificados, pero NO ejecutados en esta sesión. Ninguna prueba de este bloque debe marcarse PASS hasta comprobarla en el workspace real.
@@ -88,3 +88,36 @@ Requisitos de aceptación: compilación de los 10 paquetes, regresiones focaliza
 3. Establecer política de evidencia de origen para distinguir ejecuciones físicas de archivos importados o manipulados.
 4. Completar pruebas con Node/SQLite FTS5 habilitado, Chromium real y CI sin depender de fixtures preexistentes.
 5. Cerrar formalmente VNEXT-014 y **solo entonces** comenzar VNEXT-015 (`ImpactAnalyzer`).
+
+## 6. Estabilización correctiva VNEXT-014-D-R1 (2026-11-04)
+
+**Estado:** código y regresiones publicadas; compilación/ejecución pendiente. Ningún resultado de prueba de este apartado está certificado.
+
+### Hallazgos confirmados por inspección del código
+
+1. **Colisión de identificadores:** `PlaywrightRunner` generaba cada `execution_id` con `Date.now()`. Dos ejecuciones en el mismo milisegundo podían apuntar al mismo nombre de archivo y sobrescribir datos anteriores. Corregido con `randomUUID()` y un identificador estable por invocación, en las tres salidas del runner.
+2. **Error crítico con inventario engañoso:** un fallo al crear `BrowserContext` o preparar un caso terminaba en el `catch` externo con `summary.failed = 1` y `cases = []`. El resultado ahora conserva cada caso restante como `not_run`, recupera los conteos del inventario y usa `result: error`, sin inventar aserciones funcionales.
+3. **Integridad semántica insuficiente:** el esquema JSON no garantizaba consistencia entre estados, totales, IDs y módulo/entorno. Nueva utilidad pura `packages/mcp/src/handlers/execution-evidence.ts` compartida por `TestHandler` y `ReportHandler`. Valida unicidad de casos, correspondencia de conteos y semántica de `passed / failed / partial / error`; no acredita procedencia física.
+4. **Errores del runner comunicados como completados:** si `PlaywrightRunner` devolvía `result: error` sin parecer fallo de arranque de Chromium, `TestHandler` podía dar `status: completed`. Ahora persiste el error canónico y devuelve un error MCP explícito `runner_execution_error`.
+5. **Regresión de compatibilidad E0c:** `lifecycle-v3-e2e.test.ts` espera `razon` y `siguiente_accion.tool` cuando `qap_report` está bloqueado sin ejecuciones. `ReportHandler` ahora conserva `razon`, dirige a `qap_status` y contempla tanto ausencia como existencia vacía del directorio de ejecuciones.
+
+### Regresiones preparadas
+
+- `TestHandler`: D-05 (módulo inconsistente), D-06 (conteos inconsistentes), D-07 (error crítico persistido sin falso éxito). Total D-01..D-07: **7 pruebas nuevas escritas, no ejecutadas**.
+- `ReportHandler`: D-R09 (partial contradictorio), D-R10 (IDs duplicados), D-R11 (integración MCP sobre transporte in-memory y catálogo de 18), D-R12 (carpeta de ejecuciones vacía y contrato legacy E0c). Total D-R01..D-R12: **12 pruebas nuevas escritas, no ejecutadas**.
+- `PlaywrightRunner`: REG-R2-10 (dos ejecuciones con mismo `Date.now`), REG-R2-11 (error de `BrowserContext` y preservación de `not_run`). Total en esta estabilización: **2 pruebas nuevas escritas, no ejecutadas**.
+- `server.test.ts`: el fixture reportado antes fue conciliado con D-011; la suite histórica `lifecycle-v3-e2e.test.ts` **no fue modificada**.
+
+**Contabilización:** 21 pruebas nuevas escritas en 014-D + D-R1 (7 + 12 + 2). No se suman a casos históricos ni se declara porcentaje de aprobación.
+
+### Compuerta de verificación actualizada
+
+Además de los comandos del §4, incluir:
+
+```powershell
+pnpm --filter @qap/mcp test -- src/__tests__/lifecycle-v3-e2e.test.ts
+pnpm --filter @qap/playwright-runner test -- test/runner-safety-honesty.test.ts
+pnpm --filter @qap/mcp exec eslint src/handlers/execution-evidence.ts
+```
+
+No iniciar VNEXT-015 ni fusionar la rama antes de ejecutar, corregir y registrar los resultados reales. La validación estática por inspección y la publicación de commits no sustituyen `pnpm build`, el navegador real, SQLite FTS5 y las pruebas funcionales.
