@@ -923,3 +923,14 @@ Modo de integridad: `development` (Reemplazo genuino de `qap_test` por `TestHand
 - **Estado de verificación:** **PARTIAL / NO CERTIFICADO**. Los cambios fueron publicados a GitHub mediante el conector, pero no se ejecutaron `pnpm build`, Vitest, Chromium ni MCP Stdio en esta sesión. No se emiten PASS ni métricas de tests sin ejecución.
 - **Integridad:** ninguna escritura a `main/develop`, SQLite v2 ni `admin-user.json`; no se ejecutaron navegadores, ni se generaron `ConformityAssessment`.
 - **Siguiente compuerta:** ejecutar los comandos y criterios de aceptación de [014D_REPORT_HANDLER.md](014D_REPORT_HANDLER.md); corregir cualquier fallo antes de certificar VNEXT-014 y abrir VNEXT-015.
+
+
+## VNEXT-014-D-R1 — Endurecimiento correctivo del runner y evidencias (2026-11-04)
+
+- **Implementación publicada exclusivamente en `feat/qap-vnext-architecture`**: IDs de ejecución resistentes a colisiones en `PlaywrightRunner`; errores de contexto o carga sin inventario ficticio; validación semántica compartida de `ExecutionResult`; rechazo explícito de resultados inconsistentes; persistencia de `error` sin devolver éxito MCP; compatibilidad del bloqueo E0c de `qap_report` con `siguiente_accion: qap_status`.
+- **Regresiones incorporadas y pendientes de ejecutar**: 7 D-01..D-07 en `test-handler.test.ts`, 12 D-R01..D-R12 en `report-handler.test.ts` y 2 REG-R2-10/11 en el runner. La suite legacy `lifecycle-v3-e2e.test.ts` se conservó sin cambios.
+- **Comprobación de GitHub**: la rama estaba inicialmente en `aa79498842353165523857d1c5bdd691aa4e8251` y no mostraba CI/status checks para ese commit. Los nuevos commits modificaron solo la rama de vNext.
+- **Estado formal**: **PARTIAL / NO CERTIFICADO**; no hubo acceso a un clon ejecutable del monorepo ni a un ejecutor CI. No se afirma que las pruebas nuevas pasen ni que VNEXT-014 haya concluido.
+- **Invariantes preservados por el alcance de los commits**: sin cambios a `main/develop`, al esquema SQLite canónico v2 ni al archivo protegido `admin-user.json`.
+- **Próxima acción**: ejecutar compilación, Vitest focalizado y de regresión, centinela MCP y pruebas físicas; corregir errores constatados. Solo entonces evaluar el cierre VNEXT-014 y la apertura VNEXT-015.
+- **Detalle técnico**: [014D_REPORT_HANDLER.md](014D_REPORT_HANDLER.md), §6.
