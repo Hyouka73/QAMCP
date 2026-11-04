@@ -114,6 +114,7 @@ export class ReportHandler implements IMcpToolHandler {
         status: 'blocked',
         code: 'no_recorded_executions',
         message: 'No existen ejecuciones persistidas para generar un informe.',
+        razon: 'No existen ejecuciones persistidas; ejecute qap_test antes de solicitar reportes.',
         desbloquear_con: 'qap_test',
       }, true);
     }
@@ -240,7 +241,7 @@ export class ReportHandler implements IMcpToolHandler {
         }
         const relativeOutput = join(executeDirectory, executionId + '.report.' + extension);
         await storage.write(relativeOutput, body);
-        paths[requested] = relativeOutput;
+        paths[requested] = resolve(root, relativeOutput);
       } catch {
         return result({
           status: 'partial',
@@ -255,13 +256,13 @@ export class ReportHandler implements IMcpToolHandler {
 
     return result({
       status: 'success',
+      directorio_objetivo: root,
       executionId,
       module: evidence.module,
       result: evidence.result,
       summary: evidence.summary,
       reports: paths,
       evidence_source: 'persisted_execution',
-      coverage_source: 'physical_runner_result',
       viewer_url: null,
     });
   }
