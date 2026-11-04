@@ -168,4 +168,34 @@ describe('VNEXT-014-D declarative ReportHandler — persisted evidence only', ()
     expect(parse(response).code).toBe('invalid_execution_evidence');
     expect(existsSync(join(root, '.qa', 'executions', 'exec_false_pass.report.json'))).toBe(false);
   });
+
+  it('D-R09: rejects a contradictory partial status with no failed, skipped or blocked cases', async () => {
+    const root = workspace();
+    const storage = new FileSystemStorage({ rootDir: root });
+    const contradicting = evidence('exec_bad_partial');
+    contradicting.result = 'partial';
+    await storage.saveExecutionResult(contradicting.execution_id, contradicting);
+    const response = await new ReportHandler({ projectRoots: [root] }).execute(
+      { targetPath: root, executionId: contradicting.execution_id, format: 'json' }, context()
+    );
+    expect(response.isError).toBe(true);
+    expect(parse(response).code).toBe('invalid_execution_evidence');
+  });
+
+  it('D-R10: rejects duplicate test identifiers without promoting ambiguous coverage', async () => {
+    const root = workspace();
+    const storage = new FileSystemStorage({ rootDir: root });
+    const duplicate = evidence('exec_duplicate_cases');
+    duplicate.cases = [
+      { id: 'TC-001', title: 'Original case', result: 'passed', duration_ms: 1 },
+      { id: 'TC-001', title: 'Duplicated case', result: 'passed', duration_ms: 1 },
+    ];
+    duplicate.summary = { total: 2, passed: 2, failed: 0, skipped: 0, not_run: 0 };
+    await storage.saveExecutionResult(duplicate.execution_id, duplicate);
+    const response = await new ReportHandler({ projectRoots: [root] }).execute(
+      { targetPath: root, executionId: duplicate.execution_id, format: 'json' }, context()
+    );
+    expect(response.isError).toBe(true);
+    expect(parse(response).code).toBe('invalid_execution_evidence');
+  });
 });
