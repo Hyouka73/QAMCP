@@ -54,14 +54,16 @@ describe('P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, 
     // @ts-expect-error accessing internal request handler for integration tests
     serverHandler = server._requestHandlers.get(CallToolRequestSchema.shape.method.value);
 
-    // Inicializar proyecto canónico .qa/ en tempDir
-    await serverHandler(
+    // Inicializar proyecto canónico .qa/ en tempDir; fail at the boundary
+    // instead of reporting unrelated downstream errors from absent fixtures.
+    const initialization = await serverHandler(
       {
         method: 'tools/call',
         params: { name: 'qap_init', arguments: { targetPath: tempDir } },
       },
       {}
     );
+    expect(JSON.parse(initialization.content[0].text).status).toBe('success');
 
     // Escribir environments.yaml apuntando al fixture HTTP local
     const envs = {
@@ -98,7 +100,7 @@ describe('P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, 
   }
 
   async function setupProjectContext(roles: Array<{ name: string; description: string }>) {
-    await callTool('qap_context_set', {
+    const updated = await callTool('qap_context_set', {
       framework: 'react',
       app_type: 'spa',
       objective: 'Plataforma empresarial agnóstica para verificación de integridad',
@@ -106,6 +108,8 @@ describe('P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, 
       roles,
       source_of_truth: { type: 'prd', declared: true, ref: 'prd-inline' },
     });
+    expect(updated.res.isError).not.toBe(true);
+    expect(updated.parsed.status).toBe('success');
   }
 
   // ==========================================
