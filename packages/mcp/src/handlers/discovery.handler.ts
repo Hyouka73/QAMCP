@@ -133,6 +133,11 @@ export class DiscoveryHandler implements IMcpToolHandler {
         next_safe_action: 'Revisar observaciones; no representan requisitos ni defectos confirmados. La entrevista legacy requiere contexto propio; repetir discovery no lo crea.',
       }, output.status === 'blocked' || output.status === 'indeterminate');
     } catch (error: unknown) {
+      // Root/symlink/host-scope rejection is not a crawler outage. Preserve a
+      // fixed, non-sensitive diagnostic without disclosing forbidden paths.
+      if (error instanceof McpToolError && error.code === 'invalid_arguments') {
+        return blocked('invalid_project_scope');
+      }
       const code = error instanceof BlackBoxCrawlerError ? error.code : 'DISCOVERY_UNAVAILABLE';
       return result({ status: 'indeterminate', code,
         acquisition_status: 'indeterminate', acquisition_persistence: code === 'PERSISTENCE_FAILED' ? 'failed' : 'not_attempted',
