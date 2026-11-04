@@ -11,6 +11,7 @@ import {
 import { SchemaValidator, type ExecutionResult } from '@qap/shared';
 
 import { McpToolError, type IMcpToolHandler, type McpInvocationContext } from '../dispatcher.js';
+
 import { isInternallyConsistentExecution } from './execution-evidence.js';
 import {
   definition,
