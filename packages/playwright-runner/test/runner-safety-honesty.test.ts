@@ -368,4 +368,26 @@ describe('PlaywrightRunner Safety & Honesty Regressions — VNEXT-014-C1 (R2)', 
     expect(first.result).toBe('failed');
     expect(second.result).toBe('failed');
   });
+
+  it('REG-R2-11: a browser-context setup failure reports an error and every planned case as not_run', async () => {
+    const runner = new PlaywrightRunner();
+    const browser = {
+      newContext: vi.fn().mockRejectedValueOnce(new Error('Browser context could not be allocated')),
+      close: vi.fn().mockResolvedValue(undefined),
+    };
+    vi.spyOn(chromium, 'launch').mockResolvedValueOnce(browser as any);
+    const result = await runner.execute(
+      { modules: ['checkout'], cases: ['TC-001', 'TC-002'] },
+      { projectRoot: createTempDir(), allowImplicitAuth: false }
+    );
+
+    expect(result.result).toBe('error');
+    expect(result.summary).toEqual({
+      total: 2, passed: 0, failed: 0, skipped: 0, not_run: 2,
+    });
+    expect(result.cases).toHaveLength(2);
+    expect(result.cases.map(item => item.id)).toEqual(['TC-001', 'TC-002']);
+    expect(result.cases.every(item => item.result === 'not_run')).toBe(true);
+    expect(browser.close).toHaveBeenCalled();
+  });
 });
