@@ -133,6 +133,8 @@ export class PlaywrightRunner implements IRunner {
     let totalNotRun = 0;
     const casesResult: ExecutedCase[] = [];
     let timedOut = false;
+    let unexpectedlyInterrupted = false;
+    const plannedCaseIds = plan.cases ?? [];
 
     // Rutina de limpieza ante cancelación o finalización
     const cleanup = async () => {
@@ -183,7 +185,7 @@ export class PlaywrightRunner implements IRunner {
       }
 
       // Si no hay casos que ejecutar, terminamos de forma honesta sin iniciar navegador
-      const initialCaseIds = plan.cases ?? [];
+      const initialCaseIds = plannedCaseIds;
       if (initialCaseIds.length === 0) {
         return {
           _version: '1',
@@ -508,10 +510,26 @@ export class PlaywrightRunner implements IRunner {
         }
       }
     } catch (err: unknown) {
-      if (casesResult.length === 0) {
-        totalFailed = Math.max(totalFailed, 1);
-      }
+      unexpectedlyInterrupted = true;
       console.error('[PlaywrightRunner] Error crítico durante la ejecución:', err);
+      // Preserve all planned cases, even if browser context creation or case
+      // loading failed outside the individual step handlers. Never fabricate a
+      // failing assertion or silently omit the unexecuted cases.
+      const accountedFor = new Set(casesResult.map(item => item.id));
+      for (const caseId of plannedCaseIds) {
+        if (accountedFor.has(caseId)) continue;
+        casesResult.push({
+          id: caseId,
+          title: caseId,
+          result: 'not_run',
+          not_run_reason: 'Interrupción crítica de la ejecución antes de completar el caso',
+          duration_ms: 0,
+        });
+        accountedFor.add(caseId);
+      }
+      totalPassed = casesResult.filter(item => item.result === 'passed').length;
+      totalFailed = casesResult.filter(item => item.result === 'failed').length;
+      totalNotRun = casesResult.filter(item => item.result === 'not_run').length;
     } finally {
       if (options.signal) {
         options.signal.removeEventListener('abort', abortListener);
@@ -527,7 +545,9 @@ export class PlaywrightRunner implements IRunner {
     const finishedAt = new Date().toISOString();
     const total = totalPassed + totalFailed + totalSkipped + totalNotRun;
     let overallResult: ExecutionStatus;
-    if (total === 0 || totalPassed === 0) {
+    if (unexpectedlyInterrupted) {
+      overallResult = 'error';
+    } else if (total === 0 || totalPassed === 0) {
       overallResult = 'failed';
     } else if (totalPassed === total) {
       overallResult = 'passed';
