@@ -346,4 +346,26 @@ describe('PlaywrightRunner Safety & Honesty Regressions — VNEXT-014-C1 (R2)', 
     expect(isUrlAllowedByPolicy('https://evil.internal.corp/steal', policy)).toBe(false);
     expect(isUrlAllowedByPolicy('about:blank', policy)).toBe(true);
   });
+
+  it('REG-R2-10: separate runs cannot overwrite one another when Date.now collides', async () => {
+    // Both calls deliberately share one millisecond; the ID must not depend on time alone.
+    vi.spyOn(Date, 'now').mockReturnValue(1840000000000);
+    const runner = new PlaywrightRunner();
+    const projectRoot = createTempDir('unique-execution-ids-');
+
+    const first = await runner.execute(
+      { modules: ['isolated-module'], cases: [] },
+      { projectRoot }
+    );
+    const second = await runner.execute(
+      { modules: ['isolated-module'], cases: [] },
+      { projectRoot }
+    );
+
+    expect(first.execution_id).not.toBe(second.execution_id);
+    expect(first.execution_id).toMatch(/^exec_[0-9]+_[a-f0-9]{32}$/);
+    expect(second.execution_id).toMatch(/^exec_[0-9]+_[a-f0-9]{32}$/);
+    expect(first.result).toBe('failed');
+    expect(second.result).toBe('failed');
+  });
 });
