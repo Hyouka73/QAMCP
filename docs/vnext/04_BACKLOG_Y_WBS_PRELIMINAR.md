@@ -4,7 +4,7 @@
 - **Rama:** `feat/qap-vnext-architecture`
 - **Autor / Rol:** Principal Software Architect y Teamwork Lead
 - **Fecha:** Octubre 2026 (Revisión Arquitectónica Profunda — Etapa 0 Corregida)
-- **Estado actual (2026-11-04):** VNEXT-001 a VNEXT-013 con límites históricos; VNEXT-014 auditado **NO-GO**. En R2 verificada: build 10 paquetes, runner 71/71 y regresiones D/D-R1 21/21 PASS; MCP serial 373 PASS/73 FAIL; lint global 46 errores/28 warnings. R3 corrige preparación de fixtures (18 casos objetivo) y diagnóstico Discovery, **sin revalidación posterior**. VNEXT-015 y posteriores no iniciados.
+- **Estado actual (2026-11-04):** VNEXT-001 a VNEXT-013 con límites históricos; VNEXT-014 auditado **NO-GO**. R3 independiente (SHA `22387b7`): build 10 paquetes PASS, runner 71/71 PASS, **18 casos objetivo recuperados**, MCP serial **391 PASS/56 FAIL** (447), 5 lifecycle FAIL. R4 publicada con reconciliación del aislamiento y una prueba integrada de crawler/entrevista/revisión/waiver/sesión, **sin ejecución posterior**. Lint global último dato R2: 46 errores/28 warnings. VNEXT-015 no iniciado.
 - **Referencias:** D-010 (Evolución documentada por etapas), D-001 a D-015.
 
 ---
@@ -275,7 +275,7 @@ Cero ejecución de pruebas ni ConformityAssessment en R5. **No inicia ni declara
 [Arquitectura, cobertura tripartita, pruebas físicas y límites R5](VNEXT-013_R5_CANONICAL_COVERAGE_MODULE_CLOSURE.md).
 
 #### `VNEXT-014` — Conexión Real de `qap_plan` y `qap_test` (Eliminación de Mocks)
-- **Estado:** En curso / **NO-GO de cierre**. R2 auditada físicamente sobre SHA `49aa44a`: build 10 paquetes PASS, runner 71/71, nuevas 21/21, MCP serial 373/446 (73 FAIL), lint global 46 errores/28 warnings. R3 corrigió fixtures y diagnóstico de ámbito, pruebas pendientes. Ver `014D_R2_AUDITORIA_INDEPENDIENTE_Y_RECONCILIACION.md` y `014D_R3_FIXTURES_Y_DIAGNOSTICOS.md`.
+- **Estado:** En curso / **NO-GO de cierre**. Auditoría R3 física: 10 builds PASS, 71/71 runner PASS, MCP 391/447 PASS y 56 FAIL; 18 fixes de fixtures aprobados y uno nuevo N01 por expectativa diagnóstica. R4 corrige N01 y añade recorrido real crawler→entrevista→gateway humano sintético→waiver→WRAP_UP, **pendiente de ejecutar**. Ver `014D_R4_INTEGRACION_CANONICA_Y_AISLAMIENTO.md`.
 - **Paquetes afectados:** `@qap/mcp`, `@qap/playwright-runner`.
 - **Dependencias:** `VNEXT-011`, `VNEXT-003`.
 - **Riesgo:** Alto.
@@ -283,14 +283,19 @@ Cero ejecución de pruebas ni ConformityAssessment en R5. **No inicia ni declara
 - **Backlog correctivo R2 (sin certificación):**
   - `014-R2-01` P0: contrato catálogo `qap_report.module`, 18 herramientas y snapshot legacy; **PASS auditado R2: dispatcher-integration 8/8**.
   - `014-R2-02` P0: cancelación pre-abortada y runner completo; **PASS auditado R2: C6.3 y runner 71/71**.
-  - `014-R2-03` P0: conciliación independiente R2: **73 actuales = 55 identificados en VNEXT-013 + 18 de preparación/contrato de fixtures con origen temporal indeterminado**; R3 corrigió las raíces y Markdown de estos 18, **revalidación R3 pendiente**.
+  - `014-R2-03` P0: **confirmado en R3**: los 18 fallos de preparación originales pasaron; siguen 55 casos del inventario histórico y se detectó N01 por cambio esperado de código de rechazo seguro. No asimilar 55 históricos a 55 regresiones nuevas.
   - `014-R2-04` P0: estabilizar el enlace lifecycle/Discovery canónico, preservando prerrequisitos y sin archivos simulados; **pendiente, 5/7 fallos lifecycle**.
-  - `014-R2-05` P1: clasificar 46 errores y 29 warnings de lint global por origen/alcance; **pendiente**.
+  - `014-R2-05` P1: clasificar 46 errores y 28 warnings del último lint global auditado R2 por origen/alcance; R3 focal limpio, **global pendiente**.
   - `014-R2-06` P1: investigar sensibilidad al paralelismo (81 vs 74 fallos MCP); **pendiente**.
-  - `014-R2-07` P0: compuerta final de 10 builds, runner completo, MCP serial, lint y Stdio sobre HEAD R3; **pendiente**.
-  - `014-R3-01` P0: validar 18 fixtures E0d/P4.3/P4.5-A/P4.5-A2/P4.5-S1 con raíz autorizada y resultados de negocio originales; **cambios publicados, sin PASS**.
-  - `014-R3-02` P1: validar `DiscoveryHandler` bloqueando ámbito no autorizado con `invalid_project_scope`, sin fugas ni escrituras; **código y prueba publicados, sin PASS**.
-- **Compuerta de salida:** sin GO ni VNEXT-015 hasta revisión con pruebas físicas posteriores a R2 y dictamen documentado. [Registro y comandos reproducibles](014D_R2_AUDITORIA_INDEPENDIENTE_Y_RECONCILIACION.md).
+  - `014-R2-07` P0: compuerta final sobre HEAD R4 tras correcciones, 10 builds, runner, MCP serial, lint global, Stdio y cadena canónica; **pendiente**.
+  - `014-R3-01` P0: **PASS independiente R3 para los 18 casos de fixtures** con aserciones originales intactas; quedan 55 garantías históricas no certificadas.
+  - `014-R3-02` P1: **PASS independiente R3**, rechazo `invalid_project_scope` sin fugas/escrituras; N01 de test multiserver pendiente de revalidación R4.
+- **Tareas R4:**
+  - `014-R4-01` P0: actualizar N01 manteniendo comprobaciones de aislamiento antes/después, dos servidores HTTP y dos stores SQLite; **publicado, sin ejecución**.
+  - `014-R4-02` P0: comprobar adquisición real→asociación canónica→propuesta→aprobación independiente→cierre denegado→waiver autorizado→WRAP_UP; **test publicado, sin ejecución**.
+  - `014-R4-03` P0: cerrar defectos reales que revele el test R4; migrar los cinco escenarios lifecycle sin inventar contexto legacy y resolver gradualmente los otros 50 casos históricos; **pendiente**.
+  - `014-R4-04` P1: verificar cierre canónico `closed` con cobertura auténtica y revisar diferencias de capacidades auth/SPA vs crawler anónimo; **pendiente**.
+- **Compuerta de salida:** sin GO ni VNEXT-015 hasta pruebas físicas de R4, reconciliación de las garantías históricas y dictamen firmado por SHA. [Registro R4 y comandos](014D_R4_INTEGRACION_CANONICA_Y_AISLAMIENTO.md).
 
 
 ---
