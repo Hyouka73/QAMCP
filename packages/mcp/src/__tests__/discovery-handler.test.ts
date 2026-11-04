@@ -218,11 +218,30 @@ describe('VNEXT-013 real MCP black-box acquisition', () => {
   it('keeps project bindings and physical stores isolated between server instances', async () => {
     const first = await fixture(); const second = await fixture();
     const client = await connect(first.options);
-    expect(await call(client, second.root)).toMatchObject({ status: 'indeterminate', persistence: 'not_attempted' });
+
+    // A denial is now a scoped, non-sensitive block, not a browser outage.
+    expect(await call(client, second.root)).toMatchObject({
+      status: 'blocked', code: 'invalid_project_scope', persistence: 'not_attempted',
+      acquisition_status: 'blocked', association_status: 'not_attempted',
+    });
     expect(first.hits).toEqual([]); expect(second.hits).toEqual([]);
+    expect((await first.store.query('a', 'observation', { limit: 100 })).items).toHaveLength(0);
+    expect((await second.store.query('a', 'observation', { limit: 100 })).items).toHaveLength(0);
+
+    // The first authorized instance must still acquire real evidence only
+    // in its own store; a denied cross-project call cannot poison it.
     expect(await call(client, first.root)).toMatchObject({ persistence: 'committed' });
+    expect((await first.store.query('a', 'observation', { limit: 100 })).items).toHaveLength(6);
     expect((await second.store.query('a', 'observation', { limit: 100 })).items).toHaveLength(0);
     expect(second.hits).toEqual([]);
+
+    // Independently authorized server 2 remains functional afterwards.
+    const other = await connect(second.options);
+    expect(await call(other, second.root)).toMatchObject({ persistence: 'committed' });
+    expect((await first.store.query('a', 'observation', { limit: 100 })).items).toHaveLength(6);
+    expect((await second.store.query('a', 'observation', { limit: 100 })).items).toHaveLength(6);
+    expect(first.hits).toEqual(['/', '/about', '/contact']);
+    expect(second.hits).toEqual(['/', '/about', '/contact']);
   }, 30000);
 
   it.each([false, true])('distinguishes static completion from a script dependent shell (%s)', async scripted => {
