@@ -418,23 +418,64 @@ export class TestHandler implements IMcpToolHandler {
     const validator = new SchemaValidator();
     const schemaValidation = validator.validateExecutionResult(executionResult);
     if (!schemaValidation.valid) {
-      console.warn(
-        '[TestHandler] Advertencia de validación de esquema en ExecutionResult:',
-        schemaValidation.errors
+      // Never persist or report an execution that violates the canonical schema.
+      // In particular, an invalid execution_id must never reach filesystem paths.
+      return result(
+        {
+          status: 'error',
+          code: 'invalid_execution_result',
+          module: moduleName,
+          environment,
+          message: 'El runner devolvió un resultado incompatible con el esquema canónico. No se guardó ninguna ejecución.',
+          desbloquear_con: 'qap_status',
+        },
+        true
       );
     }
 
     const executionId = executionResult.execution_id;
     try {
       await storage.saveExecutionResult(executionId, executionResult);
+    } catch {
+      return result(
+        {
+          status: 'error',
+          code: 'execution_not_persisted',
+          module: moduleName,
+          environment,
+          message: 'La ejecución terminó, pero no se pudo guardar su resultado. No se acreditó como ejecución persistida.',
+          desbloquear_con: 'qap_status',
+        },
+        true
+      );
+    }
+
+    try {
       await storage.appendHistory(moduleName, {
         execution_id: executionId,
         timestamp: executionResult.finished_at,
         result: executionResult.result,
         summary: executionResult.summary,
       });
-    } catch (persistErr) {
-      console.error('[TestHandler] Error al persistir el resultado de ejecución:', persistErr);
+    } catch {
+      // A report can use the saved execution, but the history is incomplete.
+      // Do not claim full success or retry the browser execution implicitly.
+      return result(
+        {
+          status: 'partial',
+          code: 'execution_history_not_persisted',
+          module: moduleName,
+          environment,
+          execution_id: executionId,
+          execution_saved: true,
+          history_saved: false,
+          result: executionResult.result,
+          summary: executionResult.summary,
+          message: 'El resultado se guardó, pero falló la actualización del historial.',
+          desbloquear_con: 'qap_status',
+        },
+        true
+      );
     }
 
     // Note: NEVER create automated ConformityAssessment in SQLite (enforced by design).
