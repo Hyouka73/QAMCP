@@ -77,6 +77,12 @@ describe('real MCP client/server via linked transports', () => {
     const oldTools = baseline.tools as Array<{ name: string; description: string }>;
     const changed = tools.find(tool => tool.name === 'qap_discover')!;
     expect(changed.description).not.toBe(oldTools.find(tool => tool.name === 'qap_discover')!.description);
+    // qap_report was intentionally extended in VNEXT-014-D. Assert its
+    // new contract first; strip only this known additive property when
+    // comparing the remaining vNext-010 legacy surface with its frozen fixture.
+    const report = tools.find(tool => tool.name === 'qap_report')!;
+    expect(report.inputSchema.properties?.module).toMatchObject({ type: 'string' });
+    expect(report.inputSchema.required ?? []).not.toContain('module');
     const rules = tools.find(tool => tool.name === 'qap_rules_set')!;
     expect(rules.inputSchema.properties?.canonical_interview).toMatchObject({ type: 'object', additionalProperties: false,
       properties: { action: { enum: ['next', 'propose', 'correct', 'review', 'defer', 'resume'] } }, required: ['action'] });
@@ -86,6 +92,11 @@ describe('real MCP client/server via linked transports', () => {
         const properties = { ...tool.inputSchema.properties }; delete properties.canonical_closure;
         return { ...tool, description: oldTools.find(t => t.name === tool.name)!.description,
           inputSchema: { ...tool.inputSchema, properties } };
+      }
+      if (tool.name === 'qap_report') {
+        const properties = { ...tool.inputSchema.properties };
+        delete properties.module;
+        return { ...tool, inputSchema: { ...tool.inputSchema, properties } };
       }
       if (tool.name !== 'qap_rules_set') return tool;
       const properties = { ...tool.inputSchema.properties }; delete properties.canonical_interview;
