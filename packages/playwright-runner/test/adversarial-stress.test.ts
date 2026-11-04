@@ -655,10 +655,11 @@ describe('Adversarial Stress & Empirical Challenge Suite — PlaywrightRunner', 
       expect(process.listenerCount('uncaughtException')).toBe(uncaughtBefore);
     });
 
-    it('C6.3: cooperative cancellation with pre-aborted AbortSignal halts cleanly', async () => {
+    it('C6.3: pre-aborted cancellation returns error and accounts for every unexecuted case', async () => {
       const runner = new PlaywrightRunner();
       const projectRoot = createTempDir();
       const controller = new AbortController();
+      const launchSpy = vi.spyOn(chromium, 'launch');
       controller.abort();
 
       const result = await runner.execute(
@@ -669,8 +670,19 @@ describe('Adversarial Stress & Empirical Challenge Suite — PlaywrightRunner', 
         }
       );
 
-      expect(result.result).toBe('failed');
-      expect(result.summary.not_run).toBe(0);
+      // An aborted run cannot claim failed product assertions, or silently
+      // lose planned cases. Preserve the D-011 evidence-integrity contract.
+      expect(result.result).toBe('error');
+      expect(result.summary).toEqual({
+        total: 2,
+        passed: 0,
+        failed: 0,
+        skipped: 0,
+        not_run: 2,
+      });
+      expect(result.cases.map(item => item.id)).toEqual(['TC-1', 'TC-2']);
+      expect(result.cases.every(item => item.result === 'not_run')).toBe(true);
+      expect(launchSpy).not.toHaveBeenCalled();
     });
 
     it('C6.4: cooperative cancellation mid-execution marks remaining cases not_run without crashing process', async () => {
