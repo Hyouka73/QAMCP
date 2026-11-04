@@ -83,6 +83,27 @@ async function invoke(client: Client, root: string, name: string, args: Record<s
 }
 
 describe('VNEXT-013 real MCP black-box acquisition', () => {
+  it('R3: unauthorized disposable root is a scoped block, not a fabricated browser outage', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'qap-discovery-denied-'));
+    roots.push(root);
+    const client = await connect({ projectRoots: [] });
+    const response = await client.request({
+      method: 'tools/call',
+      params: { name: 'qap_discover', arguments: { targetPath: root, name: 'catalog', path: '/' } },
+    }, CallToolResultSchema);
+    const item = response.content[0];
+    expect(response.isError).toBe(true);
+    expect(item.type).toBe('text');
+    if (item.type !== 'text') throw new Error('Expected text');
+    const payload = JSON.parse(item.text) as Record<string, unknown>;
+    expect(payload).toMatchObject({
+      status: 'blocked', code: 'invalid_project_scope', persistence: 'not_attempted',
+      acquisition_status: 'blocked', association_status: 'not_attempted',
+    });
+    expect(item.text).not.toContain(root);
+    expect(existsSync(join(root, '.qa'))).toBe(false);
+  });
+
   it('R1: onboarding to anonymous discovery preserves planned state and explicitly blocks the legacy interview', async () => {
     const f = await fixture(); rmSync(f.lifecyclePath);
     const client = await connect(f.options);
