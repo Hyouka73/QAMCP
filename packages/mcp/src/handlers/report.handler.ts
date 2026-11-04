@@ -101,7 +101,12 @@ export class ReportHandler implements IMcpToolHandler {
         code: 'no_recorded_executions',
         message: 'No existen ejecuciones persistidas para generar un informe.',
         razon: 'No existen ejecuciones persistidas; ejecute qap_test antes de solicitar reportes.',
-        desbloquear_con: 'qap_test',
+        desbloquear_con: 'qap_status',
+        siguiente_accion: {
+          tipo: 'trabajo',
+          tool: 'qap_status',
+          descripcion: 'Consulta el estado del proyecto; todavía no hay ejecuciones registradas.',
+        },
       }, true);
     }
 
@@ -177,7 +182,12 @@ export class ReportHandler implements IMcpToolHandler {
         code: 'no_matching_execution',
         message: 'No existe una ejecución real guardada que coincida con la solicitud.',
         razon: 'No hay ejecuciones válidas registradas para generar el reporte.',
-        desbloquear_con: 'qap_test',
+        desbloquear_con: 'qap_status',
+        siguiente_accion: {
+          tipo: 'trabajo',
+          tool: 'qap_status',
+          descripcion: 'Consulta el estado antes de ejecutar o reportar nuevas pruebas.',
+        },
       }, true);
     }
     if (evidence.execution_id !== executionId ||
