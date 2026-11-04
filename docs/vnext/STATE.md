@@ -1,6 +1,6 @@
 # QAMCP vNext — Continuidad Codex
 
-Actualizado: 2026-11-02. Equipo multi-agente Teamwork.
+Actualizado: 2026-11-04. Estado histórico Teamwork preservado; auditoría independiente y reconciliación R2 al final.
 
 ## Estado y alcance
 
@@ -934,3 +934,13 @@ Modo de integridad: `development` (Reemplazo genuino de `qap_test` por `TestHand
 - **Invariantes preservados por el alcance de los commits**: sin cambios a `main/develop`, al esquema SQLite canónico v2 ni al archivo protegido `admin-user.json`.
 - **Próxima acción**: ejecutar compilación, Vitest focalizado y de regresión, centinela MCP y pruebas físicas; corregir errores constatados. Solo entonces evaluar el cierre VNEXT-014 y la apertura VNEXT-015.
 - **Detalle técnico**: [014D_REPORT_HANDLER.md](014D_REPORT_HANDLER.md), §6.
+
+## VNEXT-014-D-R2 — Auditoría independiente y conciliación de compuertas (2026-11-04)
+
+- **Evaluador independiente:** comprobó el SHA `0016c22b012877817bde6fe153fea2e39dbfb187` en Windows/Node 24.15.0 con dependencias del lockfile y preservó sin abrir la modificación local preexistente de la sesión protegida. Este informe fue aportado por el usuario; el revisor GitHub no ejecutó estas pruebas ni importó sus logs locales.
+- **Compuertas comprobadas en ese SHA:** `pnpm build` 10/10 paquetes PASS; 21 regresiones nuevas D/D-R1 PASS; TestHandler + ReportHandler focal 32/32 PASS; Chromium físico headless 151.0.7922.34 PASS sintético; MCP Stdio aislado 18 tools PASS; FTS5 en memoria PASS.
+- **Bloqueos de ese SHA:** runner 70 PASS/1 FAIL (C6.3 pre-abort), MCP serial 372 PASS/74 FAIL (446), lifecycle 2 PASS/5 FAIL (7), lint global 46 errores/29 warnings. El informe paralelo MCP registró 365 PASS/81 FAIL y timeouts adicionales; no confundir cargas repetidas con casos distintos.
+- **Correcciones R2 publicadas sin reejecución posterior:** `dispatcher-integration.test.ts` conserva fixture vNext-010 y verifica extensión deliberada opcional de `qap_report.module`; `adversarial-stress.test.ts` C6.3 exige `result:error`, dos casos `not_run`, cero aserciones fallidas ficticias y cero lanzamiento de navegador; `report.handler.ts` separa grupos de importación parent/sibling. Estas correcciones concilian contratos, **no prueban todavía un nuevo PASS**.
+- **Deuda histórica contextualizada:** VNEXT-013 inventarió R01–R60 y más adelante 58 casos pendientes; los cinco fallos lifecycle actuales ya figuraban nominalmente en R01–R05. No se declara que los 74 rojos actuales sean 74 regresiones nuevas, ni se resta el baseline histórico sin reconciliar cada título.
+- **Dictamen:** **NO-GO para cerrar VNEXT-014 y NO-GO para abrir VNEXT-015 con supuesto de compuerta verde.** Próximo paso: reejecución independiente sobre HEAD R2, clasificación de 74 fallos MCP y corrección por contrato canónico sin bypasses/fixtures engañosos. Backlog R2: `014-R2-01` a `014-R2-07` documentado en WBS.
+- **Documentación principal:** [014D_R2_AUDITORIA_INDEPENDIENTE_Y_RECONCILIACION.md](014D_R2_AUDITORIA_INDEPENDIENTE_Y_RECONCILIACION.md).
