@@ -230,4 +230,17 @@ describe('VNEXT-014-D declarative ReportHandler — persisted evidence only', ()
       await server.close();
     }
   });
+
+  it('D-R12: an initialized but empty executions directory returns a compatible blocked reason', async () => {
+    const root = workspace();
+    mkdirSync(join(root, '.qa', 'executions'), { recursive: true });
+    const response = await new ReportHandler({ projectRoots: [root] }).execute(
+      { targetPath: root, format: 'all' }, context()
+    );
+    const body = parse(response);
+    expect(response.isError).toBe(true);
+    expect(body.status).toBe('blocked');
+    expect(body.code).toBe('no_matching_execution');
+    expect(String(body.razon)).toContain('ejecuciones');
+  });
 });
