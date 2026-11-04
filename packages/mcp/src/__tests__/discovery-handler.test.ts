@@ -1,3 +1,4 @@
+import { randomBytes, randomUUID } from 'node:crypto';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, rmSync, existsSync } from 'node:fs';
 import { createServer, type Server as HttpServer } from 'node:http';
 import { tmpdir } from 'node:os';
@@ -16,9 +17,13 @@ import { createMcpServer, type McpServerOptions } from '../server.js';
 import { DiscoveryHandler, type DiscoveryAuthorization } from '../handlers/discovery.handler.js';
 import { ToolDispatcher } from '../dispatcher.js';
 import { ModuleObservationBridge, type ModuleBinding, type AssociationReceipt } from '../handlers/module-observation-bridge.js';
+import { SqliteModuleClosureStore } from '../handlers/module-closure-store.js';
+import type { IModuleClosureReviewGateway } from '../handlers/module-closure-gateway.js';
+import type { IHumanReviewGateway } from '../handlers/canonical-interview-service.js';
 
 const roots: string[] = [];
 const stores: SqliteKnowledgeAdapter[] = [];
+const closureStores: SqliteModuleClosureStore[] = [];
 const servers: HttpServer[] = [];
 const clients: Array<{ client: Client; server: ReturnType<typeof createMcpServer> }> = [];
 const canary = 'PRIVATE_VNEXT013_76fb';
@@ -29,6 +34,7 @@ afterEach(async () => {
   vi.restoreAllMocks();
   for (const c of clients.splice(0)) { await c.client.close(); await c.server.close(); }
   for (const server of servers.splice(0)) { server.closeAllConnections(); await new Promise<void>(r => server.close(() => r())); }
+  closureStores.splice(0).forEach(s => s.close());
   stores.splice(0).forEach(s => s.close());
   roots.splice(0).forEach(root => rmSync(root, { recursive: true, force: true }));
 });
@@ -370,6 +376,122 @@ async function bridgeFixture() {
 }
 
 describe('VNEXT-013-R2 canonical execution scope bridge', () => {
+
+  it('R4: real crawler to canonical interview, independent review, secure waiver and WRAP_UP through MCP', async () => {
+    const f = await bridgeFixture();
+
+    // This fixture deliberately provides an independent, explicit host decision.
+    // An MCP caller cannot forge either approval. No unattended approval exists.
+    let reviewAllowed = false;
+    let closureAllowed = false;
+    let reviewRequests = 0;
+    let closureRequests = 0;
+    const interviewApprovalId = randomUUID();
+    const closureApprovalId = randomUUID();
+    const interviewGateway: IHumanReviewGateway = {
+      review: async request => {
+        reviewRequests++;
+        if (!reviewAllowed) return null;
+        return {
+          requestDigest: request.requestDigest,
+          approvalId: interviewApprovalId,
+          decision: 'confirm',
+          presentedStatementDigest: request.statementDigest,
+          reviewer: 'synthetic-independent-business-reviewer',
+          decidedAt: new Date(Date.now() - 1000).toISOString(),
+          expiresAt: new Date(Date.now() + 60_000).toISOString(),
+        };
+      },
+    };
+    const closureGateway: IModuleClosureReviewGateway = {
+      reviewClosure: async request => {
+        closureRequests++;
+        if (!closureAllowed) return null;
+        return {
+          requestDigest: request.requestDigest,
+          approvalId: closureApprovalId,
+          decision: 'approve',
+          reviewer: 'synthetic-independent-closure-reviewer',
+          decidedAt: new Date(Date.now() - 1000).toISOString(),
+          expiresAt: new Date(Date.now() + 60_000).toISOString(),
+        };
+      },
+    };
+    const closureStore = new SqliteModuleClosureStore({
+      projectRoot: f.root, applicationId: 'a', environmentId: 'local',
+      path: join(f.root, 'closure.sqlite'), key: randomBytes(32),
+      protection: 'host_private_directory_and_managed_key', initialize: true,
+    });
+    closureStores.push(closureStore);
+    const client = await connect({
+      ...f.options,
+      knowledgeBindings: [{
+        ...f.context, store: f.store, humanReviewGateway: interviewGateway,
+        moduleClosureStore: closureStore, moduleClosureReviewGateway: closureGateway,
+      }],
+    });
+
+    // Real local HTTP/Chromium acquisition, real SQLite observations and
+    // host-declared module relation. No legacy rules.yaml projection.
+    const acquisition = await call(client, f.root);
+    expect(acquisition).toMatchObject({
+      acquisition_persistence: 'committed', module_identity_status: 'resolved',
+      association_status: 'confirmed', associated_observations: 6,
+    });
+    expect((await f.store.query('a', 'observation')).items).toHaveLength(6);
+    expect((await f.store.query('a', 'requirement')).items).toHaveLength(0);
+
+    const command = (canonical_interview: unknown) => invoke(client, f.root, 'qap_rules_set', {
+      module: 'catalog', canonical_interview,
+    });
+    const opened = await command({ action: 'next' });
+    expect(opened).toMatchObject({ status: 'interviewing', association_status: 'available',
+      question: { category: 'proposito' } });
+    const questionId = opened.question.id as string;
+    expect(await command({ action: 'propose', question_id: questionId, version: 0, expected_revision: 0,
+      proposal: { title: 'Consultar el catálogo', description: 'El catálogo debe mostrar los productos disponibles para la consulta.',
+        category: 'functional' } })).toMatchObject({ status: 'pending_review' });
+    const review = { action: 'review', question_id: questionId, version: 1 };
+    expect(await command(review)).toMatchObject({ status: 'blocked', code: 'human_review_not_authorized' });
+    expect((await f.store.query('a', 'requirement')).items).toHaveLength(0);
+    expect(reviewRequests).toBe(1);
+    reviewAllowed = true;
+    expect(await command(review)).toMatchObject({ status: 'confirmed', revision: 1 });
+    expect((await f.store.query('a', 'requirement')).items).toHaveLength(1);
+
+    const status = await invoke(client, f.root, 'qap_status');
+    expect(status).toMatchObject({ canonical_modules: [{
+      interview: { confirmed_requirements: 1, coverage: 'not_certified' },
+    }] });
+    expect(await invoke(client, f.root, 'qap_module_close', {
+      module: 'catalog', action: 'close', user_confirmed: true,
+    })).toMatchObject({ status: 'blocked', code: 'canonical_closure_required' });
+    expect(await invoke(client, f.root, 'qap_session_close'))
+      .toMatchObject({ status: 'blocked', code: 'canonical_module_closure_required' });
+    expect(await invoke(client, f.root, 'qap_module_close', {
+      module: 'catalog', canonical_closure: { action: 'evaluate' },
+    })).toMatchObject({ status: 'evaluated' });
+
+    // The independent host deliberately approves a *waiver*, NOT a full
+    // coverage certification. This remains honest about missing categories.
+    const waive = { module: 'catalog', canonical_closure: {
+      action: 'waive', reason: 'Renuncia sintética de prueba por cobertura pendiente de revisión',
+    } };
+    expect(await invoke(client, f.root, 'qap_module_close', waive))
+      .toMatchObject({ status: 'blocked', code: 'closure_review_pending' });
+    expect(closureRequests).toBe(1);
+    closureAllowed = true;
+    expect(await invoke(client, f.root, 'qap_module_close', waive))
+      .toMatchObject({ status: 'waived' });
+
+    const closed = await invoke(client, f.root, 'qap_session_close');
+    expect(closed).toMatchObject({ status: 'success' });
+    expect((await invoke(client, f.root, 'qap_status')).fase).toBe('WRAP_UP');
+    expect((await f.store.query('a', 'requirement')).items).toHaveLength(1);
+    expect(existsSync(join(f.root, '.qa', 'modules', 'catalog', 'rules.yaml'))).toBe(false);
+    expect(f.hits).toEqual(['/', '/about', '/contact']);
+  }, 45000);
+
   it.each(['missing', 'wrong-id', 'wrong-key', 'inactive', 'ambiguous', 'application', 'environment', 'revision', 'unplanned', 'id-key-conflict'])('rejects unsafe identity: %s', async scenario => {
     const f = await bridgeFixture();
     let context = f.context;
