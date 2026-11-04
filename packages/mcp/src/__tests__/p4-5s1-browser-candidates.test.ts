@@ -30,10 +30,15 @@ describe('P4.5-S1: Preflight browser, Module Candidates, and Session Plan', () =
   });
 
   async function initAndAdvanceToScoping(c: Client, dir: string) {
-    await c.callTool({
+    const initialized = await c.callTool({
       name: 'qap_init',
       arguments: { targetPath: dir }
     });
+    expect(initialized.isError).not.toBe(true);
+    const initText = initialized.content[0];
+    expect(initText.type).toBe('text');
+    if (initText.type !== 'text') throw new Error('Expected qap_init text response');
+    expect(JSON.parse(initText.text).status).toBe('success');
 
     // Provide environments.yaml with url
     const envsPath = path.join(dir, '.qa', 'project', 'environments.yaml');
@@ -70,6 +75,7 @@ describe('P4.5-S1: Preflight browser, Module Candidates, and Session Plan', () =
     }) as { content: Array<{ type: string; text: string }> };
 
     const parsed = JSON.parse(setRes.content[0].text);
+    expect(parsed.status).toBe('success');
     expect(parsed.fase).toBe('SCOPING');
   }
 
