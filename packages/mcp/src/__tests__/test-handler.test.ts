@@ -737,3 +737,105 @@ describe('TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4
     expect(failCase.failure_type).toMatch(/selector_not_found|assertion_failed/);
   }, 15000);
 });
+
+
+describe('VNEXT-014-D preflight — execution evidence integrity', () => {
+  async function setup(): Promise<string> {
+    const root = initProject(localServerUrl);
+    seedModule(root, 'evidence-mod');
+    seedTestCase(root, 'evidence-mod', 'TC-001');
+    await generateLegitimatePlan(root, 'evidence-mod');
+    return root;
+  }
+
+  function sampleExecution(executionId = 'exec_evidence_001') {
+    const now = new Date().toISOString();
+    return {
+      _version: '1',
+      execution_id: executionId,
+      module: 'evidence-mod',
+      env: 'local',
+      started_at: now,
+      finished_at: now,
+      result: 'passed',
+      timed_out: false,
+      summary: { total: 1, passed: 1, failed: 0, skipped: 0, not_run: 0 },
+      cases: [{ id: 'TC-001', title: 'Test Case TC-001', result: 'passed', duration_ms: 1 }],
+    };
+  }
+
+  async function executeMocked(root: string, execution: unknown) {
+    const runner = { execute: vi.fn().mockResolvedValue(execution) };
+    const handler = new TestHandler(
+      { projectRoots: [root] },
+      {
+        testAuthorizations: [{ projectRoot: root, allowedOrigins: ['*'] }],
+        runner,
+      }
+    );
+    const response = await handler.execute(
+      { module: 'evidence-mod', targetPath: root, environment: 'local' },
+      { requestId: 'evidence-preflight', signal: new AbortController().signal }
+    );
+    return { response, body: JSON.parse(response.content[0].text as string) as Record<string, unknown>, runner };
+  }
+
+  it('D-01: does not persist schema-invalid runner outputs', async () => {
+    const root = await setup();
+    const save = vi.spyOn(FileSystemStorage.prototype, 'saveExecutionResult');
+    const invalid = { ...sampleExecution(), result: 'nonexistent_result' };
+
+    const { response, body } = await executeMocked(root, invalid);
+
+    expect(response.isError).toBe(true);
+    expect(body.status).toBe('error');
+    expect(body.code).toBe('invalid_execution_result');
+    expect(save).not.toHaveBeenCalled();
+    expect(existsSync(join(root, '.qa', 'executions', 'exec_evidence_001.json'))).toBe(false);
+  });
+
+  it('D-02: refuses traversal-capable execution IDs despite schema v1 accepting strings', async () => {
+    const root = await setup();
+    const save = vi.spyOn(FileSystemStorage.prototype, 'saveExecutionResult');
+
+    const { response, body } = await executeMocked(root, sampleExecution('../outside'));
+
+    expect(response.isError).toBe(true);
+    expect(body.code).toBe('invalid_execution_id');
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it('D-03: failed execution persistence cannot be reported as success or recorded in history', async () => {
+    const root = await setup();
+    vi.spyOn(FileSystemStorage.prototype, 'saveExecutionResult')
+      .mockRejectedValueOnce(new Error('private disk path: no space'));
+    const append = vi.spyOn(FileSystemStorage.prototype, 'appendHistory');
+
+    const { response, body } = await executeMocked(root, sampleExecution());
+
+    expect(response.isError).toBe(true);
+    expect(body.status).toBe('error');
+    expect(body.code).toBe('execution_not_persisted');
+    expect(JSON.stringify(body)).not.toContain('private disk path');
+    expect(append).not.toHaveBeenCalled();
+  });
+
+  it('D-04: history failure preserves saved evidence but returns an explicit partial error', async () => {
+    const root = await setup();
+    vi.spyOn(FileSystemStorage.prototype, 'appendHistory')
+      .mockRejectedValueOnce(new Error('history file locked'));
+
+    const { response, body } = await executeMocked(root, sampleExecution());
+
+    expect(response.isError).toBe(true);
+    expect(body.status).toBe('partial');
+    expect(body.code).toBe('execution_history_not_persisted');
+    expect(body.execution_saved).toBe(true);
+    expect(body.history_saved).toBe(false);
+    expect(body.execution_id).toBe('exec_evidence_001');
+    const persisted = JSON.parse(
+      readFileSync(join(root, '.qa', 'executions', 'exec_evidence_001.json'), 'utf8')
+    );
+    expect(persisted.result).toBe('passed');
+  });
+});
