@@ -484,8 +484,16 @@ describe('VNEXT-013-R2 canonical execution scope bridge', () => {
     expect(await invoke(client, f.root, 'qap_module_close', waive))
       .toMatchObject({ status: 'waived' });
 
+    const lifecycleAfterWaiver = JSON.parse(readFileSync(f.lifecyclePath, 'utf8')) as {
+      modules: { catalog: { state: string } };
+    };
+    expect(lifecycleAfterWaiver.modules.catalog.state).toBe('waived');
+    expect((await f.store.query('a', 'relation')).items
+      .some(item => item.trace.source === 'canonical_module_waiver_v1')).toBe(true);
+
     const closed = await invoke(client, f.root, 'qap_session_close');
-    expect(closed).toMatchObject({ status: 'success' });
+    expect(closed).toMatchObject({ status: 'success', fase: 'WRAP_UP' });
+    expect(existsSync(closed.report_path as string)).toBe(true);
     expect((await invoke(client, f.root, 'qap_status')).fase).toBe('WRAP_UP');
     expect((await f.store.query('a', 'requirement')).items).toHaveLength(1);
     expect(existsSync(join(f.root, '.qa', 'modules', 'catalog', 'rules.yaml'))).toBe(false);
