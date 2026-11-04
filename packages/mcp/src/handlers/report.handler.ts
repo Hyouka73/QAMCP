@@ -11,6 +11,7 @@ import {
 import { SchemaValidator, type ExecutionResult } from '@qap/shared';
 
 import { McpToolError, type IMcpToolHandler, type McpInvocationContext } from '../dispatcher.js';
+import { isInternallyConsistentExecution } from './execution-evidence.js';
 import {
   definition,
   isObject,
@@ -32,24 +33,9 @@ interface ReportArguments {
 const SAFE_EXECUTION_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
 const FORMATS: readonly ReportFormat[] = ['all', 'html', 'markdown', 'junit', 'json'];
 
-/** Ensure the source JSON is internally consistent before deriving a report. */
+/** Semantic evidence integrity; JSON schema validation runs separately. */
 export function validateReportEvidence(evidence: ExecutionResult): boolean {
-  const counts = { passed: 0, failed: 0, skipped: 0, not_run: 0 };
-  const ids = new Set<string>();
-  for (const testCase of evidence.cases) {
-    if (ids.has(testCase.id)) return false;
-    ids.add(testCase.id);
-    counts[testCase.result]++;
-  }
-  const s = evidence.summary;
-  return (
-    s.total === evidence.cases.length &&
-    s.passed === counts.passed &&
-    s.failed === counts.failed &&
-    s.skipped === counts.skipped &&
-    s.not_run === counts.not_run &&
-    (evidence.result !== 'passed' || (s.total > 0 && s.passed === s.total))
-  );
+  return isInternallyConsistentExecution(evidence);
 }
 
 /**
