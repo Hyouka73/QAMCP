@@ -57,7 +57,7 @@ Reutiliza el fixture ya probado de `bridgeFixture()`, con binding explícito `Mo
 - Lint global: último dato auditado en R2 46 errores y 28 warnings; no volver a asociarlo automáticamente a HEAD R4.
 - Sin tests/compilación/studio/certificación física R4 en esta sesión. Estado NO-GO.
 
-## 5. Comp puerta de auditoría R4
+## 5. Compuerta de auditoría R4
 
 En checkout local Windows, usar la rama `feat/qap-vnext-architecture` y proteger íntegramente `packages/playwright-runner/.qa/cache/sessions/admin-user.json`. Verificar `git status`, rama, ancestralidad y actualización `--ff-only` antes de ejecutar. No modificar fuentes ni flags del producto.
 
