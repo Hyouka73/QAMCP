@@ -510,6 +510,25 @@ export class TestHandler implements IMcpToolHandler {
 
     // Note: NEVER create automated ConformityAssessment in SQLite (enforced by design).
 
+    if (executionResult.result === 'error') {
+      // Unlike a failed product assertion, a critical runner error is not
+      // a completed functional evaluation. Keep its persisted evidence visible
+      // while marking the MCP call as unsuccessful.
+      return result(
+        {
+          status: 'error',
+          code: 'runner_execution_error',
+          module: moduleName,
+          environment,
+          execution_id: executionId,
+          summary: executionResult.summary,
+          message: 'La ejecución se interrumpió. El resultado y los casos no ejecutados quedaron registrados sin acreditar conformidad.',
+          desbloquear_con: 'qap_status',
+        },
+        true
+      );
+    }
+
     // 11. Final Structured MCP Response (Distinguishing PASS, FAIL, PARTIAL)
     return result({
       status: executionResult.result === 'passed' ? 'success' : 'completed',
