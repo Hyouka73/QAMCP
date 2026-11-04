@@ -106,7 +106,8 @@ describe('P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a
 
   beforeEach(() => {
     tempDir = mkdtempSync(join(tmpdir(), 'qap-p45a-'));
-    server = createMcpServer();
+    // Explicit authorization belongs to the host fixture, not targetPath.
+    server = createMcpServer({ projectRoots: [tempDir] });
     // @ts-expect-error accessing internal handler
     handler = server._requestHandlers.get(CallToolRequestSchema.shape.method.value);
   });
