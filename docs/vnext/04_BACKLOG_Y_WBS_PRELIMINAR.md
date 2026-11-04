@@ -275,7 +275,7 @@ Cero ejecución de pruebas ni ConformityAssessment en R5. **No inicia ni declara
 [Arquitectura, cobertura tripartita, pruebas físicas y límites R5](VNEXT-013_R5_CANONICAL_COVERAGE_MODULE_CLOSURE.md).
 
 #### `VNEXT-014` — Conexión Real de `qap_plan` y `qap_test` (Eliminación de Mocks)
-- **Estado:** Pendiente de autorización.
+- **Estado:** En curso: A, B, C1 y C2 implementados; D (migración de reportes y evidencias) publicada el 2026-11-04 con certificación dinámica pendiente. Ver `014D_REPORT_HANDLER.md`.
 - **Paquetes afectados:** `@qap/mcp`, `@qap/playwright-runner`.
 - **Dependencias:** `VNEXT-011`, `VNEXT-003`.
 - **Riesgo:** Alto.
