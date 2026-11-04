@@ -21,6 +21,7 @@ import {
   type StateDependencies,
 } from './state-services.js';
 import { verifyPlanIntegrity, type PlanVigenciaCheck } from './plan.handler.js';
+import { isInternallyConsistentExecution } from './execution-evidence.js';
 
 export interface TestNavigationAuthorization {
   readonly projectId?: string;
@@ -427,6 +428,20 @@ export class TestHandler implements IMcpToolHandler {
           module: moduleName,
           environment,
           message: 'El runner devolvió un resultado incompatible con el esquema canónico. No se guardó ninguna ejecución.',
+          desbloquear_con: 'qap_status',
+        },
+        true
+      );
+    }
+
+    if (!isInternallyConsistentExecution(executionResult, { module: moduleName, environment })) {
+      return result(
+        {
+          status: 'error',
+          code: 'inconsistent_execution_result',
+          module: moduleName,
+          environment,
+          message: 'El resultado devuelto por el runner no corresponde al módulo/entorno o sus conteos y estados son inconsistentes. No se guardó evidencia.',
           desbloquear_con: 'qap_status',
         },
         true
