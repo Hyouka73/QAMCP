@@ -4,7 +4,7 @@
 - **Rama:** `feat/qap-vnext-architecture`
 - **Autor / Rol:** Principal Software Architect y Teamwork Lead
 - **Fecha:** Octubre 2026 (Revisión Arquitectónica Profunda — Etapa 0 Corregida)
-- **Estado:** VNEXT-001 a VNEXT-006 terminadas; VNEXT-007 a VNEXT-013 completadas con limitaciones explícitas (2026-10-30). VNEXT-014 y posteriores pendientes de autorización.
+- **Estado actual (2026-11-04):** VNEXT-001 a VNEXT-013 con cierres históricos y limitaciones; VNEXT-014 implementado parcialmente y auditado con dictamen **NO-GO** (10 builds PASS, 21 regresiones D/D-R1 PASS; runner 70/71, MCP serial 372/446, lint global FAIL). Correcciones R2 publicadas, **revalidación pendiente**. VNEXT-015 y posteriores no iniciados.
 - **Referencias:** D-010 (Evolución documentada por etapas), D-001 a D-015.
 
 ---
@@ -275,11 +275,21 @@ Cero ejecución de pruebas ni ConformityAssessment en R5. **No inicia ni declara
 [Arquitectura, cobertura tripartita, pruebas físicas y límites R5](VNEXT-013_R5_CANONICAL_COVERAGE_MODULE_CLOSURE.md).
 
 #### `VNEXT-014` — Conexión Real de `qap_plan` y `qap_test` (Eliminación de Mocks)
-- **Estado:** En curso: A, B, C1 y C2 implementados; D (migración de reportes y evidencias) publicada el 2026-11-04 con certificación dinámica pendiente. Ver `014D_REPORT_HANDLER.md`.
+- **Estado:** En curso / **NO-GO de cierre**: A, B, C1, C2, D y R1 implementados; auditoría física del SHA `0016c22` encontró 21 regresiones nuevas PASS pero runner 1 FAIL, MCP serial 74 FAIL y lint global 46 errores. R2 publicó conciliaciones contractuales sin ejecución posterior. Ver `014D_REPORT_HANDLER.md` y `014D_R2_AUDITORIA_INDEPENDIENTE_Y_RECONCILIACION.md`.
 - **Paquetes afectados:** `@qap/mcp`, `@qap/playwright-runner`.
 - **Dependencias:** `VNEXT-011`, `VNEXT-003`.
 - **Riesgo:** Alto.
 - **Alcance:** Eliminar las respuestas estáticas mockeadas (`estado: 'en_desarrollo'`). Conectar `qap_plan` con el planificador DAG y `qap_test` con `PlaywrightRunner`.
+- **Backlog correctivo R2 (sin certificación):**
+  - `014-R2-01` P0: revalidar contrato catálogo `qap_report.module`, 18 herramientas y snapshot legacy; **corrección de test publicada, pendiente de comprobar**.
+  - `014-R2-02` P0: revalidar cancelación pre-abortada y runner completo; **corrección de test publicada, pendiente de comprobar**.
+  - `014-R2-03` P0: reconciliar los 74 fallos MCP serial por caso/título y compararlos con el historial R01–R60; **pendiente**.
+  - `014-R2-04` P0: estabilizar el enlace lifecycle/Discovery canónico, preservando prerrequisitos y sin archivos simulados; **pendiente**.
+  - `014-R2-05` P1: clasificar 46 errores y 29 warnings de lint global por origen/alcance; **pendiente**.
+  - `014-R2-06` P1: investigar sensibilidad al paralelismo (81 vs 74 fallos MCP); **pendiente**.
+  - `014-R2-07` P0: compuerta final de 10 builds, runner completo, MCP serial, lint y Stdio sobre nuevo SHA; **pendiente**.
+- **Compuerta de salida:** sin GO ni VNEXT-015 hasta revisión con pruebas físicas posteriores a R2 y dictamen documentado. [Registro y comandos reproducibles](014D_R2_AUDITORIA_INDEPENDIENTE_Y_RECONCILIACION.md).
+
 
 ---
 
