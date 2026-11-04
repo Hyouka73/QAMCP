@@ -838,4 +838,31 @@ describe('VNEXT-014-D preflight — execution evidence integrity', () => {
     );
     expect(persisted.result).toBe('passed');
   });
+
+  it('D-05: rejects a schema-valid execution associated with a different module', async () => {
+    const root = await setup();
+    const save = vi.spyOn(FileSystemStorage.prototype, 'saveExecutionResult');
+    const swapped = { ...sampleExecution('exec_wrong_module'), module: 'other-module' };
+
+    const { response, body } = await executeMocked(root, swapped);
+
+    expect(response.isError).toBe(true);
+    expect(body.code).toBe('inconsistent_execution_result');
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it('D-06: rejects summary totals that disagree with executed cases', async () => {
+    const root = await setup();
+    const save = vi.spyOn(FileSystemStorage.prototype, 'saveExecutionResult');
+    const incorrect = {
+      ...sampleExecution('exec_wrong_count'),
+      summary: { total: 2, passed: 2, failed: 0, skipped: 0, not_run: 0 },
+    };
+
+    const { response, body } = await executeMocked(root, incorrect);
+
+    expect(response.isError).toBe(true);
+    expect(body.code).toBe('inconsistent_execution_result');
+    expect(save).not.toHaveBeenCalled();
+  });
 });
