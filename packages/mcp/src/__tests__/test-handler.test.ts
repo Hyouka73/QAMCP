@@ -865,4 +865,31 @@ describe('VNEXT-014-D preflight — execution evidence integrity', () => {
     expect(body.code).toBe('inconsistent_execution_result');
     expect(save).not.toHaveBeenCalled();
   });
+
+  it('D-07: a critical runner error persists not_run evidence without reporting MCP success', async () => {
+    const root = await setup();
+    const interrupted = {
+      ...sampleExecution('exec_interrupted'),
+      result: 'error',
+      summary: { total: 1, passed: 0, failed: 0, skipped: 0, not_run: 1 },
+      cases: [{
+        id: 'TC-001',
+        title: 'Test Case TC-001',
+        result: 'not_run',
+        not_run_reason: 'Interrupción crítica de la ejecución',
+        duration_ms: 0,
+      }],
+    };
+
+    const { response, body } = await executeMocked(root, interrupted);
+
+    expect(response.isError).toBe(true);
+    expect(body.status).toBe('error');
+    expect(body.code).toBe('runner_execution_error');
+    const saved = JSON.parse(
+      readFileSync(join(root, '.qa', 'executions', 'exec_interrupted.json'), 'utf8')
+    ) as { result: string; summary: { not_run: number } };
+    expect(saved.result).toBe('error');
+    expect(saved.summary.not_run).toBe(1);
+  });
 });
