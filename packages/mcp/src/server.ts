@@ -74,10 +74,6 @@ import {
 } from '@qap/engine';
 import {
   startViewerServer,
-  generateHtmlReport,
-  generateMarkdownReport,
-  generateJunitReport,
-  generateJsonReport,
   QapDatabase,
   PruningEngine,
   type ViewerServerInstance,
@@ -96,6 +92,7 @@ import { hasLegacyViewContext, legacyInterviewBlocked } from './handlers/legacy-
 import { CleanHandler } from './handlers/clean.handler.js';
 import { PlanHandler } from './handlers/plan.handler.js';
 import { TestHandler, type TestNavigationAuthorization } from './handlers/test.handler.js';
+import { ReportHandler } from './handlers/report.handler.js';
 import { checkPlaywrightBrowser, PLAYWRIGHT_INSTALL_COMMAND, detectarSubcarpetaWorkspace } from './handlers/state-runtime.js';
 import type { StateDependencies } from './handlers/state-services.js';
 export { checkPlaywrightBrowser, PLAYWRIGHT_INSTALL_COMMAND } from './handlers/state-runtime.js';
@@ -251,7 +248,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
   }
   const runtimeDependencies: StateDependencies = { ...dependencies, canonicalInterviews: interviews, canonicalClosures: closures };
 
-  const migrated = new Set(['qap_status', 'qap_clean', 'qap_context_set', 'qap_discover', 'qap_plan', 'qap_test']);
+  const migrated = new Set(['qap_status', 'qap_clean', 'qap_context_set', 'qap_discover', 'qap_plan', 'qap_test', 'qap_report']);
   const dispatcher = new ToolDispatcher(TOOLS.filter(tool => !migrated.has(tool.name)).map(tool => tool.name));
   dispatcher.register(new StatusHandler({ ...runtimeDependencies, browser: checkPlaywrightBrowser, view: buildViewDiscoveryContext }));
   dispatcher.register(new CleanHandler(dependencies));
@@ -259,6 +256,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
   dispatcher.register(new DiscoveryHandler(dependencies, options.discoveryAuthorizations));
   dispatcher.register(new PlanHandler(dependencies));
   dispatcher.register(new TestHandler(dependencies, options.testAuthorizations));
+  dispatcher.register(new ReportHandler(dependencies));
   for (const handler of options.handlers ?? []) dispatcher.register(handler);
   dispatcher.seal();
 
@@ -1924,155 +1922,6 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
           };
         }
 
-
-        case 'qap_report': {
-          const qaDir = resolve(rootDir, '.qa');
-          const storage = new FileSystemStorage({ rootDir });
-          const format = String(args.format || 'all');
-          let executionId = args.executionId ? String(args.executionId) : undefined;
-
-          const execDir = join(qaDir, 'executions');
-          let executionFiles: string[] = [];
-          if (existsSync(execDir)) {
-            executionFiles = readdirSync(execDir).filter((f) => f.endsWith('.json') && !f.endsWith('.report.json'));
-          }
-
-          if (executionFiles.length === 0) {
-            return {
-              content: [
-                {
-                  type: 'text',
-                  text: JSON.stringify(
-                    {
-                      status: 'blocked',
-                      directorio_objetivo: rootDir,
-                      razon: 'Los reportes de ejecución requieren ejecuciones reales registradas; no existen ejecuciones previas en .qa/executions/ (el runner de pruebas aún no existe en este sprint).',
-                      desbloquear_con: {
-                        tool: 'qap_status',
-                        descripcion: 'Ejecuta pruebas cuando el runner esté disponible o consulta el estado actual con qap_status.',
-                      },
-                      siguiente_accion: {
-                        tipo: 'trabajo',
-                        descripcion: 'No hay ejecuciones registradas para generar reportes. Consulta el estado del proyecto con qap_status.',
-                        tool: 'qap_status',
-                      },
-                    },
-                    null,
-                    2
-                  ),
-                },
-              ],
-            };
-          }
-
-          if (!executionId) {
-            executionFiles.sort().reverse();
-            executionId = executionFiles[0].replace('.json', '');
-          }
-
-          const execResult = await storage.getExecutionResult(executionId);
-          if (!execResult) {
-            return {
-              content: [
-                {
-                  type: 'text',
-                  text: JSON.stringify(
-                    {
-                      status: 'blocked',
-                      directorio_objetivo: rootDir,
-                      razon: `No se encontró el resultado de ejecución para el id '${executionId}'.`,
-                      desbloquear_con: {
-                        tool: 'qap_status',
-                        descripcion: 'Consulta el estado del proyecto con qap_status.',
-                      },
-                      siguiente_accion: {
-                        tipo: 'trabajo',
-                        descripcion: `Resultado de ejecución '${executionId}' no encontrado. Consulta el estado con qap_status.`,
-                        tool: 'qap_status',
-                      },
-                    },
-                    null,
-                    2
-                  ),
-                },
-              ],
-            };
-          }
-
-          const reportsGenerated: Record<string, string> = {};
-          const outDir = join(qaDir, 'executions');
-          if (!existsSync(outDir)) {
-            mkdirSync(outDir, { recursive: true });
-          }
-
-          if (format === 'all' || format === 'html') {
-            const html = await generateHtmlReport(execResult, { storage });
-            const htmlPath = join(outDir, `${executionId}.report.html`);
-            writeFileSync(htmlPath, html, 'utf-8');
-            reportsGenerated.html = htmlPath;
-          }
-
-          if (format === 'all' || format === 'markdown') {
-            const md = generateMarkdownReport(execResult);
-            const mdPath = join(outDir, `${executionId}.report.md`);
-            writeFileSync(mdPath, md, 'utf-8');
-            reportsGenerated.markdown = mdPath;
-          }
-
-          if (format === 'all' || format === 'junit') {
-            const junit = generateJunitReport(execResult);
-            const junitPath = join(outDir, `${executionId}.report.xml`);
-            writeFileSync(junitPath, junit, 'utf-8');
-            reportsGenerated.junit = junitPath;
-          }
-
-          if (format === 'all' || format === 'json') {
-            const json = generateJsonReport(execResult);
-            const jsonPath = join(outDir, `${executionId}.report.json`);
-            writeFileSync(jsonPath, json, 'utf-8');
-            reportsGenerated.json = jsonPath;
-          }
-
-          const viewerUrl = activeViewerServer
-            ? `http://localhost:${activeViewerServer.port}/api/reports/${executionId}/html`
-            : null;
-
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify(
-                  {
-                    status: 'success',
-                    directorio_objetivo: rootDir,
-                    message: `✔ Reporte generado exitosamente para ${executionId}`,
-                    executionId,
-                    reports: reportsGenerated,
-                    viewer_url: viewerUrl,
-                    siguiente_accion: {
-                      tipo: 'decision',
-                      descripcion: 'Reporte generado. Elige si abrir el visor interactivo o consultar el estado.',
-                      tool: 'qap_server',
-                      pregunta: makeDecisionQuestion(
-                        'decision_post_reporte',
-                        `Reporte generado en ${reportsGenerated.html ? 'HTML' : 'formato seleccionado'}. Selecciona la siguiente acción para visualizar o consultar el estado:`,
-                        [
-                          { id: 'server', etiqueta: 'Abrir visor del Knowledge Graph 2D (qap_server)', recomendada: true },
-                          { id: 'status', etiqueta: 'Ver estado del proyecto (qap_status)' },
-                          { id: 'concluir', etiqueta: 'Concluir sesión de pruebas' },
-                        ],
-                        true,
-                        { tool: 'qap_server', campo: 'action' }
-                      ),
-                    },
-                  },
-                  null,
-                  2
-                ),
-              },
-            ],
-          };
-        }
 
         case 'qap_server': {
           const qaDir = resolve(rootDir, '.qa');
