@@ -18,7 +18,8 @@ describe('P4.5-S1: Preflight browser, Module Candidates, and Session Plan', () =
   beforeEach(async () => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'qap-p4-5s1-test-'));
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-    const server = createMcpServer();
+    // Restrict writes to this disposable root and its nested test projects.
+    const server = createMcpServer({ projectRoots: [tmpDir] });
     await server.connect(serverTransport);
     client = new Client({ name: 'test-client', version: '1.0.0' }, { capabilities: {} });
     await client.connect(clientTransport);
@@ -251,7 +252,7 @@ describe('P4.5-S1: Preflight browser, Module Candidates, and Session Plan', () =
   });
 
   it('C7: pregunta de alcance sin candidatos o sin front es byte a byte identica a la original', async () => {
-    const noFrontDir = fs.mkdtempSync(path.join(os.tmpdir(), 'qap-nofront-c7-'));
+    const noFrontDir = fs.mkdtempSync(path.join(tmpDir, 'qap-nofront-c7-'));
     try {
       await client.callTool({
         name: 'qap_init',
@@ -437,7 +438,7 @@ describe('P4.5-S1: Preflight browser, Module Candidates, and Session Plan', () =
     expect(planData.plan[4].priority).toBe('medium');
 
     // Retrocompatibilidad: formato tradicional con modules
-    const retroDir = fs.mkdtempSync(path.join(os.tmpdir(), 'qap-retro-plan-'));
+    const retroDir = fs.mkdtempSync(path.join(tmpDir, 'qap-retro-plan-'));
     try {
       await initAndAdvanceToScoping(client, retroDir);
       const retroPlanRes = await client.callTool({
