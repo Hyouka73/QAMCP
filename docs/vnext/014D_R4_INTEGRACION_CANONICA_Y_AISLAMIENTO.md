@@ -44,7 +44,7 @@ Reutiliza el fixture ya probado de `bridgeFixture()`, con binding explícito `Mo
 - `qap_status` proyecta `confirmed_requirements:1` pero conserva `coverage:not_certified`. No se inventa certificación de pruebas.
 - El cierre legacy de un módulo enlazado devuelve `canonical_closure_required`; `qap_session_close` permanece bloqueado hasta resolución del módulo.
 - `canonical_closure.evaluate` evalúa sin cerrar. Se prueba una **renuncia (waive)** con motivo sustantivo, primero sin autorización del gateway (`closure_review_pending`) y luego con decisión sintética explícita del host. No se intenta certificar cierre completo con categorías sin cubrir.
-- Solo tras la renuncia aprobada se intenta `qap_session_close` y se comprueba `WRAP_UP`. La prueba verifica que persista el requisito confirmado sin crear `rules.yaml` legacy ficticio y que los hits HTTP sean los esperados.
+- Solo tras la renuncia aprobada se intenta `qap_session_close` y se comprueba `WRAP_UP`. La prueba exige estado `waived` persistido en lifecycle, recibo `canonical_module_waiver_v1` en SQLite, generación física del archivo de reporte de sesión y conservación del requisito confirmado sin crear `rules.yaml` legacy ficticio. Verifica también el inventario de hits HTTP esperados.
 
 **Límite:** es una prueba de integración técnica con decisiones sintéticas del host en un entorno desechable, **no una aprobación humana real, una prueba E2E de interfaz de usuario ni una afirmación de que el producto posee UI de revisión**. Se comprueba un camino válido de renuncia, no `closed` con cobertura funcional total. Su ejecución puede descubrir defectos reales entre el closure-store, lifecycle y reporting. **No asignar PASS hasta ejecutarla.**
 
