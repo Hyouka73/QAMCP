@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 
 import type { IRunner } from '@qap/engine';
@@ -101,6 +102,8 @@ export class PlaywrightRunner implements IRunner {
     options: PlaywrightRunnerOptions = {}
   ): Promise<ExecutionResult> {
     const startedAt = new Date().toISOString();
+    // One stable collision-resistant identifier for every exit path of this run.
+    const executionId = `exec_${Date.now()}_${randomUUID().replace(/-/g, '')}`;
     const projectRoot = options.projectRoot ? path.resolve(options.projectRoot) : process.cwd();
     const storage = new FileSystemStorage({ rootDir: projectRoot });
 
@@ -184,7 +187,7 @@ export class PlaywrightRunner implements IRunner {
       if (initialCaseIds.length === 0) {
         return {
           _version: '1',
-          execution_id: `exec_${Date.now()}`,
+          execution_id: executionId,
           module: moduleName,
           env,
           started_at: startedAt,
@@ -245,7 +248,7 @@ export class PlaywrightRunner implements IRunner {
 
         return {
           _version: '1',
-          execution_id: `exec_${Date.now()}`,
+          execution_id: executionId,
           module: moduleName,
           env,
           started_at: startedAt,
@@ -534,7 +537,7 @@ export class PlaywrightRunner implements IRunner {
 
     return {
       _version: '1',
-      execution_id: `exec_${Date.now()}`,
+      execution_id: executionId,
       module: moduleName,
       env,
       started_at: startedAt,
