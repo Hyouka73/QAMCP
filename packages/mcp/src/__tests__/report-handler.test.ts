@@ -2,10 +2,13 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, mkdirSync } from 'node:f
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { FileSystemStorage } from '@qap/knowledge';
 import type { ExecutionResult } from '@qap/shared';
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { createMcpServer } from '../server.js';
 import { ReportHandler } from '../handlers/report.handler.js';
 
 const roots: string[] = [];
@@ -197,5 +200,34 @@ describe('VNEXT-014-D declarative ReportHandler — persisted evidence only', ()
     );
     expect(response.isError).toBe(true);
     expect(parse(response).code).toBe('invalid_execution_evidence');
+  });
+
+  it('D-R11: exposes exactly 18 tools and invokes the migrated report via MCP transport', async () => {
+    const root = workspace();
+    const storage = new FileSystemStorage({ rootDir: root });
+    await storage.saveExecutionResult('exec_mcp_report', evidence('exec_mcp_report'));
+    const server = createMcpServer({ projectRoots: [root] });
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'report-regression', version: '1.0.0' }, { capabilities: {} });
+    try {
+      await server.connect(serverTransport);
+      await client.connect(clientTransport);
+      const tools = await client.listTools();
+      expect(tools.tools).toHaveLength(18);
+      expect(tools.tools.map(tool => tool.name)).toContain('qap_report');
+      const response = await client.callTool({
+        name: 'qap_report',
+        arguments: { targetPath: root, executionId: 'exec_mcp_report', format: 'json' },
+      });
+      expect(response.isError).toBeFalsy();
+      const payload = JSON.parse(
+        (response.content as Array<{ type: string; text: string }>)[0].text
+      ) as Record<string, unknown>;
+      expect(payload.status).toBe('success');
+      expect(payload.executionId).toBe('exec_mcp_report');
+    } finally {
+      await client.close();
+      await server.close();
+    }
   });
 });
