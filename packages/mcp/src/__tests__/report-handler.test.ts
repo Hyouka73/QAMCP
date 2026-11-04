@@ -242,5 +242,6 @@ describe('VNEXT-014-D declarative ReportHandler — persisted evidence only', ()
     expect(body.status).toBe('blocked');
     expect(body.code).toBe('no_matching_execution');
     expect(String(body.razon)).toContain('ejecuciones');
+    expect((body.siguiente_accion as { tool: string }).tool).toBe('qap_status');
   });
 });
