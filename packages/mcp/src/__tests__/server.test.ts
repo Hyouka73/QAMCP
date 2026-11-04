@@ -372,7 +372,7 @@ describe('Suite MCP Server QAP v2.1 / v2.1.2', () => {
       },
       {}
     );
-    expect(blockedReportResult.isError).toBeFalsy();
+    expect(blockedReportResult.isError).toBe(true);
     const parsedBlocked = JSON.parse(blockedReportResult.content[0].text);
     expect(parsedBlocked.status).toBe('blocked');
     expect(parsedBlocked.razon).toContain('ejecuciones');
@@ -391,8 +391,8 @@ describe('Suite MCP Server QAP v2.1 / v2.1.2', () => {
         finished_at: '2026-09-19T19:10:18Z',
         result: 'passed',
         timed_out: false,
-        summary: { total: 0, passed: 0, failed: 0, skipped: 0, not_run: 0 },
-        cases: [],
+        summary: { total: 1, passed: 1, failed: 0, skipped: 0, not_run: 0 },
+        cases: [{ id: 'TC-001', title: 'Fixture del generador', result: 'passed', duration_ms: 10 }],
       })
     );
     const reportResult = await handler(
