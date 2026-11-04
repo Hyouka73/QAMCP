@@ -49,7 +49,8 @@ describe('P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, 
     inMemoryKeychain.clear();
     tempDir = mkdtempSync(join(tmpdir(), 'qap-p45a2-test-'));
 
-    const server = createMcpServer();
+    // Host-authorized fixture root: passing targetPath alone is not permission.
+    const server = createMcpServer({ projectRoots: [tempDir] });
     // @ts-expect-error accessing internal request handler for integration tests
     serverHandler = server._requestHandlers.get(CallToolRequestSchema.shape.method.value);
 
