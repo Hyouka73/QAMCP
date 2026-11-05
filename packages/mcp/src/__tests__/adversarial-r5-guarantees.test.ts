@@ -1361,7 +1361,7 @@ describe('Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2)', () => {
             application_id: 'app-adv',
             key: 'forged',
             title: 'Forged',
-            certainty: 'unconfirmed',
+            certainty: 'observed',
             criticality: 'low',
             dependencies: [],
             created_at: new Date().toISOString(),
@@ -1404,14 +1404,50 @@ describe('Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2)', () => {
         reason: 'Renuncia formal para verificar rechazo de procedencia corrupta.',
       })).rejects.toThrow(/closure_receipt_provenance_invalid|provenance/);
 
-      // The forged receipt remains visibly invalid after reopening Knowledge,
-      // and the legacy lifecycle cannot be advanced by a rejected receipt.
+      // The forged receipt cannot advance lifecycle. The legitimate host
+      // decision already committed in the separate Closure database remains;
+      // rejecting a receipt does not pretend to roll back both databases.
       const stored = await f.store.get('app-adv', 'relation', `waiver:${decisionId}`);
       expect(stored?.entity.source.id).toBe('module-forged-attacker');
       expect(stored?.trace.recorded_by).toBe('attacker');
       const physical = JSON.parse(readFileSync(join(f.root, '.qa', 'project', 'lifecycle.json'), 'utf8'));
       expect(physical.phase).toBe('WORKING');
       expect(physical.modules.catalog.state).toBe('planned');
+
+      const beforeReopen = f.closureStore.read(f.context);
+      expect(beforeReopen.approvals).toHaveLength(1);
+      expect(beforeReopen.approvals[0][0]).toBe(decisionId);
+      expect(beforeReopen.closures.catalog.decisionId).toBe(decisionId);
+      expect((await f.store.query('app-adv', 'relation')).items).toHaveLength(1);
+      expect(f.store).toBeInstanceOf(SqliteKnowledgeAdapter);
+      (f.store as SqliteKnowledgeAdapter).close();
+      f.closureStore.close();
+      const reopened = new SqliteKnowledgeAdapter(f.knowledgeDbPath);
+      const reopenedClosure = new SqliteModuleClosureStore({
+        path: f.closureDbPath, ...f.context,
+        protection: 'host_private_directory_and_managed_key', key: f.closureKey, initialize: false,
+      });
+      closers.push(() => reopened.close(), () => reopenedClosure.close());
+      expect(reopenedClosure.read(f.context)).toEqual(beforeReopen);
+      const receipts = (await reopened.query('app-adv', 'relation')).items;
+      expect(receipts).toHaveLength(1);
+      expect(receipts[0]).toEqual(stored);
+      expect(receipts[0].entity.target).toEqual({ kind: 'application', id: 'app-adv', revision: 1 });
+      expect(receipts[0].trace.reason).toBe('tampered-digest');
+      const retry = new CanonicalClosureService(reopened, f.context, reopenedClosure, mockGateway);
+      await expect(retry.execute('catalog', {
+        action: 'waive', reason: 'Renuncia formal para verificar rechazo de procedencia corrupta.',
+      })).rejects.toThrow(/closure_receipt_provenance_invalid|provenance/);
+      expect(reopenedClosure.read(f.context)).toEqual(beforeReopen);
+      expect((await reopened.query('app-adv', 'relation')).items).toEqual(receipts);
+      expect(JSON.parse(readFileSync(join(f.root, '.qa', 'project', 'lifecycle.json'), 'utf8'))).toEqual(physical);
+      for (const path of [f.knowledgeDbPath, f.closureDbPath]) {
+        const db = new DatabaseSync(path, { readOnly: true });
+        try {
+          expect(db.prepare('PRAGMA integrity_check').get()?.integrity_check).toBe('ok');
+          expect(db.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
+        } finally { db.close(); }
+      }
     });
   });
 
