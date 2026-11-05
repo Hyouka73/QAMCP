@@ -1653,7 +1653,7 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
     }
 
     // RES-CODEX-A02: valid Knowledge CAS commits retaining the original digest.
-    for (const tamper of ['source', 'target'] as const) {
+    for (const tamper of ['source', 'source-process', 'target', 'revision'] as const) {
       it('RES-CODEX-A02 refuses changed canonical receipt ' + tamper, async () => {
         const f = await fixture({
           gateway: { reviewClosure: async request => makeDecision(request) },
@@ -1672,15 +1672,35 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
               const receipt = await f.store.get('app-r5', 'relation', receiptId);
               expect(receipt).not.toBeNull();
               if (!receipt) throw new Error('missing fixture receipt');
-              await f.store.commit('app-r5', [{
-                kind: 'relation',
-                expected_revision: receipt.revision,
-                entity: tamper === 'target'
-                  ? { ...receipt.entity, target: { kind: 'module', id: 'mod-catalog', revision: 1 } }
-                  : receipt.entity,
-                trace: tamper === 'source'
-                  ? { ...receipt.trace, source: 'wrong-provenance' } : receipt.trace,
-              }]);
+              if (tamper === 'source-process') {
+                const entry = new URL('../../../knowledge/dist/index.js', import.meta.url).href;
+                const childCode = [
+                  'const { SqliteKnowledgeAdapter } = await import(' + JSON.stringify(entry) + ');',
+                  'const store = new SqliteKnowledgeAdapter(process.argv[1]);',
+                  'const receipt = await store.get("app-r5", "relation", process.argv[2]);',
+                  'await store.commit("app-r5", [{ kind: "relation",',
+                  '  expected_revision: receipt.revision, entity: receipt.entity,',
+                  '  trace: { ...receipt.trace, source: "wrong-provenance" } }]);',
+                  'store.close();',
+                ].join('\\n');
+                const child = spawnSync(process.execPath, ['--input-type=module',
+                  '-e', childCode, f.knowledgePath, receiptId],
+                { encoding: 'utf8', timeout: 12000 });
+                expect(child.status, child.stderr || child.stdout).toBe(0);
+              } else {
+                await f.store.commit('app-r5', [{
+                  kind: 'relation',
+                  expected_revision: receipt.revision,
+                  entity: tamper === 'target'
+                    ? { ...receipt.entity, target: { kind: 'module', id: 'mod-catalog', revision: 1 } }
+                    : receipt.entity,
+                  trace: tamper === 'source'
+                    ? { ...receipt.trace, source: 'wrong-provenance' }
+                    : tamper === 'revision'
+                      ? { ...receipt.trace, recorded_at: new Date().toISOString() }
+                      : receipt.trace,
+                }]);
+              }
             }
             return original.call(this);
           }
