@@ -2,6 +2,7 @@ import {
   existsSync,
   mkdirSync,
   writeFileSync,
+  renameSync,
   readFileSync,
   readdirSync,
   rmSync,
@@ -3455,120 +3456,177 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
           }
 
 
-          // Cierre exitoso y transición a WRAP_UP
-          const qaDir = resolve(rootDir, '.qa');
-          const contextPath = join(qaDir, 'project', 'context.yaml');
-          let parsedContext: any = null;
-          if (existsSync(contextPath)) {
-            try {
-              parsedContext = YAML.parse(readFileSync(contextPath, 'utf-8'));
-            } catch { /* empty */ }
-          }
-
-          const sessionId = lifecycleState.session?.id || randomUUID();
-          const startedAt = lifecycleState.session?.started_at || new Date().toISOString();
-          const closedAt = new Date().toISOString();
-
-          // Recopilar módulos para el reporte de brechas
-          const allModuleNames = new Set([
-            ...(lifecycleState.session?.plan || []).map((p: any) => p.module),
-            ...Object.keys(lifecycleState.modules || {}),
-          ]);
-
-          // The canonical host ledger is authoritative for bound modules.
-          // Never reinterpret their empty legacy YAML as zero gaps or approval.
-          const canonicalReports = closureService ? await closureService.sessionReport() : [];
-          const canonicalNames = new Set(canonicalReports.map(report => report.module));
-          const legacyNames = [...allModuleNames].filter(name => !canonicalNames.has(name));
-          const moduleRulesMap: Record<string, { rules?: any[]; category_waivers?: any[] }> = {};
-          for (const mName of legacyNames) {
-            try {
-              const rf = await storage.getModuleRules(mName);
-              moduleRulesMap[mName] = {
-                rules: rf?.rules || [],
-                category_waivers: rf?.category_waivers || [],
-              };
-            } catch {
-              moduleRulesMap[mName] = { rules: [], category_waivers: [] };
+          // Keep the exact approved lifecycle, not only its phase. This
+          // detects plan, module, session, phase and history drift across the
+          // asynchronous reconciliation and inventory/report stages.
+          const approvedLifecycle = JSON.stringify(lifecycleState);
+          return storage.commitLifecycleStateWithFence(async (current, commit) => {
+            if (current.phase !== 'WORKING' ||
+                JSON.stringify(current) !== approvedLifecycle) {
+              return canonicalResult({
+                status: 'blocked', code: 'session_context_changed',
+                fase: current.phase,
+                razon: 'La sesión, el plan o los módulos cambiaron antes del cierre; vuelve a consultar qap_status.',
+                desbloquear_con: { tool: 'qap_status' },
+              }, true);
             }
-          }
+            const finalGate = canExitWorking(current);
+            if (!finalGate.passed) {
+              return canonicalResult({
+                status: 'blocked', code: 'session_gate_changed',
+                fase: current.phase, faltantes: finalGate.faltantes,
+                razon: 'El estado vigente no supera la compuerta de salida de WORKING.',
+                desbloquear_con: { tool: 'qap_module_close' },
+              }, true);
+            }
+            const finalize = async () => {
+              // Do not reconcile under the lifecycle lock: that would reenter it.
+              const lifecycleState = current;
+              // Cierre exitoso y transición a WRAP_UP
+              const qaDir = resolve(rootDir, '.qa');
+              const contextPath = join(qaDir, 'project', 'context.yaml');
+              let parsedContext: any = null;
+              if (existsSync(contextPath)) {
+                try {
+                  parsedContext = YAML.parse(readFileSync(contextPath, 'utf-8'));
+                } catch { /* empty */ }
+              }
 
-          const gapParams = {
-            sessionId,
-            startedAt,
-            closedAt,
-            projectContext: parsedContext,
-            plan: (lifecycleState.session?.plan || []).filter((p: any) => !canonicalNames.has(p.module)),
-            modules: Object.fromEntries(Object.entries(lifecycleState.modules || {})
-              .filter(([name]) => !canonicalNames.has(name))),
-            moduleRules: moduleRulesMap,
-          };
-          const legacyReportMd = legacyNames.length ? generateSessionGapReport(gapParams) : '';
-          const gapReportMd = canonicalReports.length
-            ? renderCanonicalSessionReport(canonicalReports) +
-              (legacyReportMd ? '\n---\n\n# Módulos legacy no vinculados\n\n' + legacyReportMd : '')
-            : legacyReportMd;
-          const gapSummary = computeSessionGapSummary(gapParams);
+              const sessionId = lifecycleState.session?.id || randomUUID();
+              const startedAt = lifecycleState.session?.started_at || new Date().toISOString();
+              const closedAt = new Date().toISOString();
 
-          const sessionsDir = join(qaDir, 'project', 'sessions');
-          if (!existsSync(sessionsDir)) {
-            mkdirSync(sessionsDir, { recursive: true });
-          }
+              // Recopilar módulos para el reporte de brechas
+              const allModuleNames = new Set([
+                ...(lifecycleState.session?.plan || []).map((p: any) => p.module),
+                ...Object.keys(lifecycleState.modules || {}),
+              ]);
 
-          const reportFilePath = join(sessionsDir, `${sessionId}.report.md`);
-          writeFileSync(reportFilePath, gapReportMd, 'utf-8');
+              // The canonical host ledger is authoritative for bound modules.
+              // Never reinterpret their empty legacy YAML as zero gaps or approval.
+              const canonicalReports = closureService ? await closureService.sessionReport() : [];
+              const canonicalNames = new Set(canonicalReports.map(report => report.module));
+              const legacyNames = [...allModuleNames].filter(name => !canonicalNames.has(name));
+              const moduleRulesMap: Record<string, { rules?: any[]; category_waivers?: any[] }> = {};
+              for (const mName of legacyNames) {
+                try {
+                  const rf = await storage.getModuleRules(mName);
+                  moduleRulesMap[mName] = {
+                    rules: rf?.rules || [],
+                    category_waivers: rf?.category_waivers || [],
+                  };
+                } catch {
+                  moduleRulesMap[mName] = { rules: [], category_waivers: [] };
+                }
+              }
 
-          await storage.updateLifecycleState(async (curr) => {
-            const trans = transitionProject(curr, 'WRAP_UP', 'Sesión cerrada exitosamente: todos los módulos del plan finalizados');
-            if (trans.state) curr = trans.state;
-            return curr;
+              const gapParams = {
+                sessionId,
+                startedAt,
+                closedAt,
+                projectContext: parsedContext,
+                plan: (lifecycleState.session?.plan || []).filter((p: any) => !canonicalNames.has(p.module)),
+                modules: Object.fromEntries(Object.entries(lifecycleState.modules || {})
+                  .filter(([name]) => !canonicalNames.has(name))),
+                moduleRules: moduleRulesMap,
+              };
+              const legacyReportMd = legacyNames.length ? generateSessionGapReport(gapParams) : '';
+              const gapReportMd = canonicalReports.length
+                ? renderCanonicalSessionReport(canonicalReports) +
+                  (legacyReportMd ? '\n---\n\n# Módulos legacy no vinculados\n\n' + legacyReportMd : '')
+                : legacyReportMd;
+              const gapSummary = computeSessionGapSummary(gapParams);
+
+              const sessionsDir = join(qaDir, 'project', 'sessions');
+              if (!existsSync(sessionsDir)) {
+                mkdirSync(sessionsDir, { recursive: true });
+              }
+
+              const reportFilePath = join(sessionsDir, `${sessionId}.report.md`);
+              // The persisted lifecycle transition is the linearization point.
+              // Under lifecycle -> Knowledge fences, verify gates and save without
+              // releasing either lock between receipt validation and durable state.
+              const transition = transitionProject(current, 'WRAP_UP',
+                'Sesión cerrada exitosamente: todos los módulos del plan finalizados',
+                { checkGates: true });
+              if (!transition.success || !transition.state || transition.state.phase !== 'WRAP_UP') {
+                return canonicalResult({
+                  status: 'blocked',
+                  code: 'session_transition_rejected',
+                  fase: current.phase,
+                  razon: 'La transición a WRAP_UP fue rechazada; no se ha cerrado la sesión.',
+                  desbloquear_con: { tool: 'qap_status' },
+                }, true);
+              }
+              // Report is published before lifecycle commit: after a crash at this
+              // boundary a retry in WORKING safely recreates it without new review.
+              // A failed context gate never publishes a report.
+              const stagingPath = reportFilePath + '.' + randomUUID() + '.tmp';
+              try {
+                writeFileSync(stagingPath, gapReportMd, { encoding: 'utf-8', flag: 'wx' });
+                renameSync(stagingPath, reportFilePath);
+              } finally {
+                rmSync(stagingPath, { force: true });
+              }
+              commit(transition.state);
+              const persisted = await storage.getLifecycleState();
+              if (persisted.phase !== 'WRAP_UP' ||
+                  persisted.session?.id !== transition.state.session?.id ||
+                  JSON.stringify(persisted) !== JSON.stringify(transition.state)) {
+                throw new Error('session_close_persisted_state_mismatch');
+              }
+
+              return {
+                content: [{
+                  type: 'text',
+                  text: JSON.stringify({
+                    status: 'success',
+                    directorio_objetivo: rootDir,
+                    message: `✔ Sesión '${sessionId}' cerrada exitosamente. Proyecto transicionado a fase WRAP_UP.`,
+                    fase: 'WRAP_UP',
+                    session_id: sessionId,
+                    report_path: reportFilePath,
+                    reporte_brechas_path: reportFilePath,
+                    cobertura_alcance: {
+                      origen: canonicalReports.length ? 'legacy_only_not_canonical_coverage' : 'legacy',
+                      flujos: { cubiertos: gapSummary.flujos_cubiertos, declarados: gapSummary.flujos_totales },
+                      roles: { con_perfil_verificado: gapSummary.roles_verificados, declarados: gapSummary.roles_totales },
+                      resumen_texto: gapSummary.cobertura_alcance,
+                    },
+                    brechas_detectadas: canonicalReports.length ? null :
+                      (gapSummary.flujos_totales - gapSummary.flujos_cubiertos) + (gapSummary.roles_totales - gapSummary.roles_verificados),
+                    cierre_canonico: canonicalReports.length ? {
+                      modulos_cerrados: canonicalReports.filter(r => r.state === 'closed').length,
+                      modulos_waived: canonicalReports.filter(r => r.state === 'waived').length,
+                      requisitos_confirmados_actuales: canonicalReports.reduce((total, r) =>
+                        total + r.current_confirmed_requirements.length, 0),
+                      cobertura_ejecucion: 'not_certified_by_session_report',
+                      aprobacion_humana_autentica: 'requires_independent_host_evidence',
+                    } : undefined,
+                    siguiente_accion: {
+                      tipo: 'decision',
+                      descripcion: `Sesión concluida. Reporte de brechas generado en ${reportFilePath}. Puedes revisar el Knowledge Graph (qap_server) o iniciar una nueva sesión (qap_session_plan).`,
+                      tool: 'qap_server',
+                      pregunta: makeDecisionQuestion(
+                        'decision_post_cierre_sesion',
+                        `La sesión ha finalizado exitosamente. El reporte de brechas está disponible en ${reportFilePath}. Selecciona si explorar el Knowledge Graph con qap_server o iniciar una nueva sesión con qap_session_plan.`,
+                        [
+                          { id: 'server', etiqueta: 'Revisar Knowledge Graph interactivo (qap_server)', recomendada: true },
+                          { id: 'plan', etiqueta: 'Iniciar nueva sesión de pruebas (qap_session_plan)' },
+                        ],
+                        true,
+                        { tool: 'qap_server', campo: 'action' }
+                      ),
+                    },
+                  }, null, 2),
+                }],
+              };
+            };
+            return closureService
+              ? closureService.withSessionReportFence(finalize)
+              : finalize();
           });
 
-          return {
-            content: [{
-              type: 'text',
-              text: JSON.stringify({
-                status: 'success',
-                directorio_objetivo: rootDir,
-                message: `✔ Sesión '${sessionId}' cerrada exitosamente. Proyecto transicionado a fase WRAP_UP.`,
-                fase: 'WRAP_UP',
-                session_id: sessionId,
-                report_path: reportFilePath,
-                reporte_brechas_path: reportFilePath,
-                cobertura_alcance: {
-                  origen: canonicalReports.length ? 'legacy_only_not_canonical_coverage' : 'legacy',
-                  flujos: { cubiertos: gapSummary.flujos_cubiertos, declarados: gapSummary.flujos_totales },
-                  roles: { con_perfil_verificado: gapSummary.roles_verificados, declarados: gapSummary.roles_totales },
-                  resumen_texto: gapSummary.cobertura_alcance,
-                },
-                brechas_detectadas: canonicalReports.length ? null :
-                  (gapSummary.flujos_totales - gapSummary.flujos_cubiertos) + (gapSummary.roles_totales - gapSummary.roles_verificados),
-                cierre_canonico: canonicalReports.length ? {
-                  modulos_cerrados: canonicalReports.filter(r => r.state === 'closed').length,
-                  modulos_waived: canonicalReports.filter(r => r.state === 'waived').length,
-                  requisitos_confirmados_actuales: canonicalReports.reduce((total, r) =>
-                    total + r.current_confirmed_requirements.length, 0),
-                  cobertura_ejecucion: 'not_certified_by_session_report',
-                  aprobacion_humana_autentica: 'requires_independent_host_evidence',
-                } : undefined,
-                siguiente_accion: {
-                  tipo: 'decision',
-                  descripcion: `Sesión concluida. Reporte de brechas generado en ${reportFilePath}. Puedes revisar el Knowledge Graph (qap_server) o iniciar una nueva sesión (qap_session_plan).`,
-                  tool: 'qap_server',
-                  pregunta: makeDecisionQuestion(
-                    'decision_post_cierre_sesion',
-                    `La sesión ha finalizado exitosamente. El reporte de brechas está disponible en ${reportFilePath}. Selecciona si explorar el Knowledge Graph con qap_server o iniciar una nueva sesión con qap_session_plan.`,
-                    [
-                      { id: 'server', etiqueta: 'Revisar Knowledge Graph interactivo (qap_server)', recomendada: true },
-                      { id: 'plan', etiqueta: 'Iniciar nueva sesión de pruebas (qap_session_plan)' },
-                    ],
-                    true,
-                    { tool: 'qap_server', campo: 'action' }
-                  ),
-                },
-              }, null, 2),
-            }],
-          };
         }
 
         default:
