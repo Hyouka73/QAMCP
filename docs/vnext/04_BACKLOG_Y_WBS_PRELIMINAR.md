@@ -582,3 +582,12 @@ La extensión LENDUS se planifica fuera del núcleo público (LENDUS-EXT-001–0
 **A (P1) = PENDIENTE certificación; C (cierre VNEXT-014 y merge) = NO-GO** por integridad sin auditoría nueva, aceptación humana real y reconciliación MCP no terminadas. El procedimiento/fecha de posible merge a develop se decidirá tras GO C, con objetivo antes del 20/11/2026 y sin desplazar el MVP.
 
 Informe de reparación, límites y pruebas: [VNEXT-014-REPARACION-FINAL/INFORME.md](implementaciones/VNEXT-014-REPARACION-FINAL/INFORME.md).
+
+
+## Anexo de control 2026-11-05 — Convergencia VNEXT-014 (aditivo)
+
+Nota aditiva: no se altera el estado de ninguna tarea terminada ni se reescriben criterios aprobados.
+
+- **VNEXT-014:** sigue **En curso / NO-GO de cierre integral**. Se distinguen 014-A (implementación funcional `qap_plan`/`qap_test`: suites verdes en serie), 014-B (integridad: C01, A01, A02 verificados por el autor, pendientes de auditoría independiente) y 014-C (certificación integral: 63 identidades MCP, revisión humana auténtica, E01 por carga, lint histórico 34/28, requisitos WBS). **Propuesta no aplicada**: acotar el cierre técnico a 014-A+B y mover 014-C a una tarea de certificación explícita; requiere aprobación de responsables.
+- **VNEXT-015:** tareas originales **pendientes/no implementadas**. GO técnico para desarrollo aislado desde `541c925a6c1194bc2c85ab5a42b2b54e66f4d82c` en `feat/vnext-015-impact-analyzer`, solo `@qap/engine`/`@qap/knowledge`/`@qap/shared`. No autoriza merge. [Preparación](implementaciones/VNEXT-014-CONVERGENCIA/PREPARACION_VNEXT-015.md).
+- Informe: [VNEXT-014-CONVERGENCIA/INFORME.md](implementaciones/VNEXT-014-CONVERGENCIA/INFORME.md). Fechas 16/11, 19/11 y 20/11/2026 sin modificación.
