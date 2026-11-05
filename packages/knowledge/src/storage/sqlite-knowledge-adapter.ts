@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/require-await -- Promise port over synchronous SQLite; never yield inside a transaction. */
 import { createHmac } from 'node:crypto';
+import { realpathSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { resolve } from 'node:path';
 import type { DatabaseSync, SQLInputValue } from 'node:sqlite';
 
 import {
@@ -40,12 +42,15 @@ export class SqliteKnowledgeAdapter implements IKnowledgeStore, IActionTargetSea
   private closed = false;
   private readonly planner = new KnowledgeCommitPlanner();
   private readonly databasePath: string;
+  private readonly databaseIdentity?: string;
   private readonly lockTimeoutMs: number;
+  /** Prevent synchronous SQLite busy waits from starving local fence owners. */
+  private static readonly fenceTails = new Map<string, Promise<void>>();
 
   constructor(path: string, options: SqliteKnowledgeOptions = {}) {
     identity(path);
     const timeout = options.busy_timeout_ms ?? 1000;
-    this.databasePath = path;
+    this.databasePath = path === ':memory:' ? path : resolve(path);
     this.lockTimeoutMs = timeout;
     if (!Number.isSafeInteger(timeout) || timeout < 0 || timeout > 60_000) fail('INVALID_DATA');
     try {
@@ -53,7 +58,7 @@ export class SqliteKnowledgeAdapter implements IKnowledgeStore, IActionTargetSea
       // must retain its prefix (bare 'sqlite' is not a builtin in downstream bundles).
       const loadBuiltin = createRequire(import.meta.url);
       const sqlite = loadBuiltin('node:sqlite') as typeof import('node:sqlite');
-      this.db = new sqlite.DatabaseSync(path);
+      this.db = new sqlite.DatabaseSync(this.databasePath);
     } catch { fail('UNAVAILABLE'); }
     try {
       this.db.exec(`PRAGMA busy_timeout = ${timeout}; PRAGMA foreign_keys = ON`);
@@ -64,8 +69,16 @@ export class SqliteKnowledgeAdapter implements IKnowledgeStore, IActionTargetSea
       }
       this.cursorKey = this.transaction('IMMEDIATE', () => initializeKnowledgeSchema(this.db));
       // Reject foreign/unknown schemas before any persistent journal mode change.
-      if (path !== ':memory:' && this.db.prepare('PRAGMA journal_mode = WAL').get()!.journal_mode !== 'wal') fail('UNAVAILABLE');
+      if (this.databasePath !== ':memory:' && this.db.prepare('PRAGMA journal_mode = WAL').get()!.journal_mode !== 'wal') fail('UNAVAILABLE');
       this.db.exec('PRAGMA synchronous = FULL');
+      if (this.databasePath !== ':memory:') {
+        // Pin a real absolute pathname and inode, not the caller's mutable cwd.
+        const canonical = realpathSync(this.databasePath);
+        const stat = statSync(canonical);
+        if (!stat.isFile()) fail('UNAVAILABLE');
+        this.databasePath = canonical;
+        this.databaseIdentity = `${stat.dev}:${stat.ino}`;
+      }
     } catch (error) {
       this.db.close();
       if (error instanceof KnowledgeStoreError) throw error;
@@ -78,33 +91,53 @@ export class SqliteKnowledgeAdapter implements IKnowledgeStore, IActionTargetSea
   }
 
   /**
-   * A separate SQLite connection holds BEGIN IMMEDIATE until an independent
-   * ClosureStore COMMIT completes. The original connection remains readable.
-   * Memory databases cannot provide this cross-connection guarantee.
+   * Hold a writer fence on the SAME physical SQLite database used for reads.
+   * FIFO queue avoids starving another promise on the same Node event loop.
+   * SQLite protects against writers in other processes.
    */
   async withWriteFence<T>(applicationId: string, operation: () => Promise<T>): Promise<T> {
     identity(applicationId);
-    if (this.closed || this.databasePath === ':memory:') return fail('UNAVAILABLE');
-    let fence: DatabaseSync;
-    try {
-      const sqlite = createRequire(import.meta.url)('node:sqlite') as typeof import('node:sqlite');
-      fence = new sqlite.DatabaseSync(this.databasePath);
-    } catch {
-      return fail('UNAVAILABLE');
-    }
+    if (this.closed || this.databasePath === ':memory:' || !this.databaseIdentity) return fail('UNAVAILABLE');
+    const previous = SqliteKnowledgeAdapter.fenceTails.get(this.databasePath);
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const tail = previous ? previous.then(() => gate) : gate;
+    SqliteKnowledgeAdapter.fenceTails.set(this.databasePath, tail);
+    let fence: DatabaseSync | undefined;
     let acquired = false;
     try {
+      if (previous) await previous;
+      if (this.closed) return fail('UNAVAILABLE');
+      // Reject deleted/replaced files BEFORE opening another connection.
+      const canonical = realpathSync(this.databasePath);
+      const stat = statSync(canonical);
+      if (canonical !== this.databasePath || !stat.isFile() ||
+        `${stat.dev}:${stat.ino}` !== this.databaseIdentity) return fail('UNAVAILABLE');
+      const sqlite = createRequire(import.meta.url)('node:sqlite') as typeof import('node:sqlite');
+      // existing files only: avoid accidentally creating an unrelated database
+      fence = new sqlite.DatabaseSync(canonical, { readOnly: false });
+      const attached = fence.prepare('PRAGMA database_list').all() as Array<{ name: string; file: string }>;
+      const file = attached.find(row => row.name === 'main')?.file;
+      if (!file || realpathSync(file) !== this.databasePath) return fail('UNAVAILABLE');
+      const afterOpen = statSync(canonical);
+      if (`${afterOpen.dev}:${afterOpen.ino}` !== this.databaseIdentity) return fail('UNAVAILABLE');
       fence.exec(`PRAGMA busy_timeout = ${this.lockTimeoutMs}; BEGIN IMMEDIATE`);
       acquired = true;
+      const underLock = statSync(canonical);
+      if (`${underLock.dev}:${underLock.ino}` !== this.databaseIdentity) return fail('UNAVAILABLE');
       return await operation();
     } catch (error) {
-      if (!acquired) return fail('CONFLICT');
+      if (!acquired && !(error instanceof KnowledgeStoreError)) return fail('CONFLICT');
       throw error;
     } finally {
       if (acquired) {
-        try { fence.exec('ROLLBACK'); } catch { /* Do not mask the callback result. */ }
+        try { fence?.exec('ROLLBACK'); } catch { /* Do not mask callback outcome. */ }
       }
-      fence.close();
+      fence?.close();
+      release();
+      if (SqliteKnowledgeAdapter.fenceTails.get(this.databasePath) === tail) {
+        SqliteKnowledgeAdapter.fenceTails.delete(this.databasePath);
+      }
     }
   }
 
