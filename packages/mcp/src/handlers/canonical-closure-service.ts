@@ -751,7 +751,7 @@ export class CanonicalClosureService {
           if (snap.closures[plannedName]) {
             const c = snap.closures[plannedName];
             if (!this.isAuthorizedDurableClosure(plannedName, c, snap)) {
-              throw new Error('invalid_durable_closure');
+              throw new Error('invalid_durable_closure', { cause: err });
             }
             return {
               status: c.status,
