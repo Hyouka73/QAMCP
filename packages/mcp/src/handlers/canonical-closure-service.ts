@@ -329,6 +329,20 @@ export class CanonicalClosureService {
           closure.moduleRevision !== binding.moduleRevision) {
         throw new Error('canonical_report_authorization_or_binding_invalid');
       }
+      // A validated decision must also have its canonical relation receipt.
+      // reconcile() runs before sessionReport() during the session-close gate.
+      const receiptId = (closure.status === 'waived' ? 'waiver:' : 'closure:') + closure.decisionId;
+      const receipt = await this.store.get(this.context.applicationId, 'relation', receiptId);
+      if (!receipt || receipt.id !== receiptId ||
+          receipt.entity.predicate !== 'related_to' ||
+          receipt.entity.source.kind !== 'module' ||
+          receipt.entity.source.id !== closure.moduleId ||
+          receipt.entity.source.revision !== closure.moduleRevision ||
+          receipt.trace.reason !== closure.requestDigest ||
+          receipt.trace.recorded_by !== 'mcp_host' ||
+          receipt.trace.review !== 'reviewed') {
+        throw new Error('canonical_report_receipt_missing_or_invalid');
+      }
       const requirements: CanonicalSessionModuleReport['current_confirmed_requirements'][number][] = [];
       let pending = 0;
       let cursor: string | undefined;
@@ -364,12 +378,12 @@ export class CanonicalClosureService {
         waiver_reason: closure.waiverReason,
         current_confirmed_requirements: requirements,
         current_pending_requirements_count: pending,
-        accepted_gaps: (snapshot.acceptedGaps[binding.plannedName] ?? [])
+        accepted_gaps: (snapshot.acceptedGaps?.[binding.plannedName] ?? [])
           .filter(gap => gap.status === 'accepted')
           .map(gap => ({ id: gap.id, category: gap.category, reason: gap.reason,
             acceptance_receipt: gap.acceptance_receipt })),
         closure_accepted_gaps: closure.acceptedGaps ?? [],
-        applicability_decisions: snapshot.applicabilityDecisions[binding.plannedName] ?? [],
+        applicability_decisions: snapshot.applicabilityDecisions?.[binding.plannedName] ?? [],
         closure_non_applicable_categories: closure.nonApplicableCategories ?? [],
       });
     }
