@@ -4,7 +4,7 @@
 - **Rama:** `feat/qap-vnext-architecture`
 - **Autor / Rol:** Principal Software Architect y Teamwork Lead
 - **Fecha:** Octubre 2026 (Revisión Arquitectónica Profunda — Etapa 0 Corregida)
-- **Estado actual (2026-11-04):** VNEXT-001 a VNEXT-013 con límites históricos; VNEXT-014 **NO-GO**. Auditoría R4-R2 independiente (SHA `4ed8511`): build 10 PASS; coverage 26/26, discovery 59/59, runner 71/71 y Stdio 18 tools PASS; MCP serial **394 PASS/55 FAIL** (449); lint focal 4 errores y global **38 errores/28 warnings**. Primera llamada de cierre recuperada PASS. Sondas internas revelaron A02 (motivo de renuncia demasiado corto) y A03 (aprobación no correlacionada) con fail-open. R4-R3 implementa validación durable fail-closed y 7 regresiones, **sin ejecutar**. VNEXT-015 no iniciado.
+- **Estado actual (2026-11-04):** VNEXT-001 a VNEXT-013 con límites históricos. VNEXT-014 **NO-GO**. R4-R3 auditada en SHA `7e0142a`: 401 PASS / 55 FAIL de 456 MCP, 7/7 casos adversariales, runner 71/71, Stdio 18 herramientas y lint global 35 errores / 28 advertencias. VNEXT-015 sigue pendiente.
 - **Referencias:** D-010 (Evolución documentada por etapas), D-001 a D-015.
 
 ---
@@ -275,7 +275,7 @@ Cero ejecución de pruebas ni ConformityAssessment en R5. **No inicia ni declara
 [Arquitectura, cobertura tripartita, pruebas físicas y límites R5](VNEXT-013_R5_CANONICAL_COVERAGE_MODULE_CLOSURE.md).
 
 #### `VNEXT-014` — Conexión Real de `qap_plan` y `qap_test` (Eliminación de Mocks)
-- **Estado:** En curso / **NO-GO de cierre**. Auditoría R4-R2: **394/449 PASS (55 FAIL)**, 26/26 coverage, 59/59 discovery, runner 71/71, Stdio 18, lint global 38 errores/28 warnings. R4-R1-A01 (primera llamada post-reconcile) PASS. Nuevos hallazgos R4-R2-A02/A03: registro interno inválido con razón menor a 15 caracteres o aprobación ausente podía emitir recibo y cerrar la sesión. R4-R3 corrige todas las rutas de reconciliación, consulta e idempotencia, **prueba pendiente**. [R4-R3](014D_R4_R3_VALIDACION_DURABLE_CIERRE.md).
+- **Estado:** En curso / **NO-GO de cierre**. En R4-R3 se verificaron A02 y A03, Crash 2/3 y el primer cierre R4-R2-A01. Persisten los 55 fallos históricos, el lint y R4-R3-A01. [Evidencia](auditorias/VNEXT-014-R4-R3/INFORME.md).
 - **Paquetes afectados:** `@qap/mcp`, `@qap/playwright-runner`.
 - **Dependencias:** `VNEXT-011`, `VNEXT-003`.
 - **Riesgo:** Alto.
@@ -300,13 +300,14 @@ Cero ejecución de pruebas ni ConformityAssessment en R5. **No inicia ni declara
   - `014-R4-R1-03` P0: **auditado R4-R1**: build 10 PASS, discovery 59/59, coverage 25/25, runner 71/71, Stdio 18; MCP 393/448 (55 FAIL), lint focal 12 errores y global 46/28; **NO-GO**.
   - `014-R4-R2-01` P0: **PASS independiente R4-R2**, primera llamada post-reconcile devuelve WRAP_UP y genera reporte fiel sin aprobación nueva.
   - `014-R4-R2-02` P0: **PASS independiente R4-R2**, recuperación de waiver durable sin duplicación de recibos/historial.
-  - `014-R4-R2-03` P1: limpieza dirigida de lint en coverage: 12→4 diagnósticos focales confirmados R4-R2; R4-R3 retiró los 4 imports restantes, **validación pendiente**.
+  - `014-R4-R2-03` P1. **Verificado en R4-R3.** Los cuatro diagnósticos restantes de imports desaparecieron de coverage.
   - `014-R4-R2-04` P0: **auditado R4-R2**, build 10, coverage 26/26, discovery 59/59, runner 71/71, Stdio 18; MCP 394/449 con 55 FAIL, lint global 38/28. NO-GO.
-  - `014-R4-R3-01` P0: motivo durable de waiver debe tener 15+ caracteres sustantivos **antes** de recibo/proyección; **código y pruebas publicados, sin ejecutar**.
-  - `014-R4-R3-02` P0: correlación 1:1 del `decisionId/requestDigest` con `snapshot.approvals` para todo cierre durable, incluyendo lectura/idempotencia; **publicado, sin ejecutar**.
-  - `014-R4-R3-03` P0: siete casos adversariales de store inconsistente, cero recibos, cero reporte y `qap_session_close` bloqueado; **publicado, sin ejecutar**.
-  - `014-R4-R3-04` P1: comprobar lint focal tras eliminar cuatro imports sin uso, MCP 55 históricos, runner, Stdio y global sobre HEAD R4-R3; **pendiente**.
-- **Compuerta de salida:** sin GO ni VNEXT-015 hasta verificar R4-R3, reconciliar 55 garantías y obtener lint global limpio. [Documento R4-R3](014D_R4_R3_VALIDACION_DURABLE_CIERRE.md).
+  - `014-R4-R3-01` P0. **PASS independiente.** Motivos durables corto y blanco se rechazan antes de emitir recibo o proyectar el cierre.
+  - `014-R4-R3-02` P0. **PASS independiente.** Correlación 1:1 verificada para asiento ausente, digest distinto y duplicación de aprobaciones.
+  - `014-R4-R3-03` P0. **7/7 PASS independiente.** Bloqueo de cierre y cero recibos, reportes o mutaciones en los fixtures inconsistentes.
+  - `014-R4-R3-04` P1. **Matriz ejecutada.** Runner y Stdio PASS, MCP con 55 fallos históricos y lint pendiente (un error focal, 35 errores globales y 28 advertencias).
+  - `014-R4-R3-05` P2. **Pendiente R4-R3-A01.** Conciliar el guidance de `qap_status` con el cierre canónico cuando el lifecycle legacy esté terminal.
+- **Compuerta de salida:** VNEXT-014 sigue NO-GO hasta resolver las garantías MCP pendientes, el guidance y el lint global. [Documento R4-R3](014D_R4_R3_VALIDACION_DURABLE_CIERRE.md).
 
 
 ---

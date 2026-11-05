@@ -1,6 +1,6 @@
 # QAMCP vNext — Continuidad Codex
 
-Actualizado: 2026-11-04. Estado histórico Teamwork preservado; auditoría independiente y reconciliación R2 al final.
+Actualizado: 2026-11-04. Estado histórico Teamwork preservado; auditoría independiente R4-R3 al final.
 
 ## Estado y alcance
 
@@ -990,3 +990,10 @@ Modo de integridad: `development` (Reemplazo genuino de `qap_test` por `TestHand
 - **Regresiones R4-R3 publicadas y pendientes:** siete casos nuevos en `canonical-coverage.test.ts` inyectan estados durables sintéticos: razón de un carácter, razón blanca, aprobación ausente/digest distinto/duplicada, `closed` sin aprobación y lifecycle ya terminal sin aprobación. Todos deben bloquear `qap_session_close`, no crear recibo ni reporte, no reescribir lifecycle, y bloquear reintento de `execute`; además deben conservar las regresiones positivas (Crash 2/3, waiver válido, primera llamada a WRAP_UP). Retirados cuatro imports sin uso del test, **sin inferir PASS de lint**.
 - **Dictamen:** VNEXT-014 **NO-GO** hasta auditoría física R4-R3 y reconciliación de 55 garantías históricas/lint global. VNEXT-015 sin iniciar. No tocar `main/develop`, archivo de sesión protegido, credenciales ni producción.
 - **Documento:** [014D_R4_R3_VALIDACION_DURABLE_CIERRE.md](014D_R4_R3_VALIDACION_DURABLE_CIERRE.md).
+
+### Resultado independiente R4-R3 (2026-11-04)
+
+- **SHA auditado:** `7e0142a97c67fa1c65c46a83e2a5f003b0b435cd`. Build 10 paquetes, casos adversariales 7/7, Coverage 33/33, Discovery 59/59 en reintento, runner 71/71 y Stdio 18 herramientas con `qap_init` real. Crash 2/3 y primer cierre de R4-R2-A01 PASS.
+- **A02 y A03 verificados.** Los registros inválidos quedan bloqueados sin recibo, reporte, consulta al gateway ni cambio de lifecycle. **R4-R3-A01 (P2) pendiente.** `qap_status` todavía recomienda cerrar cuando el lifecycle legacy está terminal y la autorización durable es inválida. El estado canónico y la compuerta de cierre bloquean correctamente.
+- **VNEXT-014 NO-GO.** MCP integral completo **401 PASS / 55 FAIL de 456**, con los 55 títulos históricos. Lint global **35 errores / 28 advertencias**. Los cuatro imports quedaron limpios y persiste un error focal `preserve-caught-error`. Quedan por corregir guidance, reconciliar los fallos históricos y cerrar lint. VNEXT-015 sigue pendiente.
+- [Informe y evidencia publicada](auditorias/VNEXT-014-R4-R3/INFORME.md).
