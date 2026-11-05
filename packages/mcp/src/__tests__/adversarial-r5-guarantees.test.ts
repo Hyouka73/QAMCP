@@ -1,5 +1,5 @@
 import { randomBytes, randomUUID, createHash } from 'node:crypto';
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -965,8 +965,16 @@ describe('Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2)', () => {
           targetPath: f.root,
         },
       });
-      const sessionParsed = JSON.parse((sessionRes.content[0] as any).text);
+      expect(sessionRes.isError).toBeFalsy();
+      const sessionParsed = JSON.parse((sessionRes.content[0] as any).text) as {
+        status: string; fase: string; report_path: string; code?: string;
+      };
+      expect(sessionParsed).toMatchObject({ status: 'success', fase: 'WRAP_UP' });
       expect(sessionParsed.code).not.toBe('canonical_module_closure_required');
+      expect(existsSync(sessionParsed.report_path)).toBe(true);
+      expect(readFileSync(sessionParsed.report_path, 'utf8')).toContain('catalog');
+      expect(JSON.parse(readFileSync(join(f.root, '.qa', 'project', 'lifecycle.json'), 'utf8')).phase).toBe('WRAP_UP');
+      expect((await f.store.query('app-adv', 'relation')).items).toHaveLength(1);
     });
   });
 
