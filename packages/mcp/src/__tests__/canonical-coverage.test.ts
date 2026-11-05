@@ -745,6 +745,25 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
       const client = await mcpClient(f, {
         reviewClosure: async () => { throw new Error('recovery_must_not_request_new_approval'); },
       });
+      const statusReply = await client.callTool({
+        name: 'qap_status', arguments: { targetPath: f.root },
+      });
+      const statusData = JSON.parse((statusReply.content[0] as { text: string }).text) as {
+        canonical_modules: Array<{ plannedName: string; closure: { state: string; ready_for_closure: boolean } }>;
+        siguiente_accion?: { tool?: string; descripcion: string };
+        canonical_pending_closure_modules?: string[];
+      };
+      const cat = statusData.canonical_modules.find(m => m.plannedName === 'catalog');
+      expect(cat?.closure).toMatchObject({ state: 'working', ready_for_closure: false });
+      expect(statusData.siguiente_accion?.tool).not.toBe('qap_session_close');
+      if ('terminal' in scenario && scenario.terminal) {
+        expect(statusData).toMatchObject({
+          estados_modulos: { catalog: 'waived' },
+          canonical_pending_closure_modules: ['catalog'],
+          siguiente_accion: { tool: 'qap_module_close', module: 'catalog' },
+        });
+        expect(statusData.siguiente_accion?.descripcion).toContain('cierre canónico');
+      }
       const reply = await client.callTool({
         name: 'qap_session_close', arguments: { targetPath: f.root },
       });
@@ -757,6 +776,28 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
       expect(readFileSync(f.lifecyclePath, 'utf8')).toBe(lifecycleBefore);
       expect(f.closureStore.read(f.context)).toEqual(durableBefore);
       expect((await f.store.query('app-r5', 'relation')).items).toEqual(beforeRelations);
+    });
+
+    it('R4-R4-A01 positive: a legitimately authorized durable waiver still recommends session close', async () => {
+      const f = await fixture({
+        gateway: { reviewClosure: async request => makeDecision(request, 'approve') },
+      });
+      expect(await f.closureService.execute('catalog', {
+        action: 'waive', reason: 'Renuncia canónica legítima con autorización del host',
+      })).toMatchObject({ status: 'waived' });
+
+      const client = await mcpClient(f);
+      const reply = await client.callTool({
+        name: 'qap_status', arguments: { targetPath: f.root },
+      });
+      const data = JSON.parse((reply.content[0] as { text: string }).text) as {
+        canonical_modules: Array<{ plannedName: string; closure: { state: string } }>;
+        siguiente_accion: { tool: string };
+        canonical_pending_closure_modules?: string[];
+      };
+      expect(data.canonical_modules.find(m => m.plannedName === 'catalog')?.closure.state).toBe('waived');
+      expect(data.siguiente_accion.tool).toBe('qap_session_close');
+      expect(data.canonical_pending_closure_modules).toBeUndefined();
     });
 
     it('R4-R2-A01: first session close uses recovered waiver metadata for the gate and physical report', async () => {
