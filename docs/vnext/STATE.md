@@ -1,6 +1,6 @@
 # QAMCP vNext — Continuidad Codex
 
-Actualizado: 2026-11-05. Estado histórico preservado; resultado independiente R4-R11 al final.
+Actualizado: 2026-11-05. Estado histórico preservado; resultado independiente R4-R12 al final.
 
 ## Estado y alcance
 
@@ -1157,7 +1157,20 @@ Modo de integridad: `development` (Reemplazo genuino de `qap_test` por `TestHand
 ## VNEXT-014-D-R4-R12 — Guard de expiración al COMMIT y replay de gaps (2026-11-05)
 
 - Entrada: [auditoría R4-R11](auditorias/VNEXT-014-R4-R11/INFORME.md); código auditado `4bb22547349a407b1eeb2383e6981af5dd1db07a`. Baseline: build10 PASS, Coverage51/51, MCP413 PASS/63 FAIL de476, Interview44/44, Discovery59/59, Runner71/71 y lint histórico34/28.
-- R4-R11-A04: **implementado, pendiente de pruebas físicas**. Política de expiración al COMMIT durable; `AsyncLocalStorage` propagado por servicio, guard síncrono en ClosureStore tras último await y antes del COMMIT, rollback y respuesta `closure_review_expired`.
-- R4-R11-A06: **implementado, pendiente de pruebas físicas**. Reintento de brecha exacta acepta solo aprobación durable correlacionada con digest base reconstruido, misma razón e IDs, bajo fences; no solicita otro consentimiento, no duplica historia/recibos. Distinto motivo/digest/ID bloquea.
+- R4-R11-A04: **declaración previa a auditoría; resultado comprobado abajo**. Política de expiración al COMMIT durable; `AsyncLocalStorage` propagado por servicio, guard síncrono en ClosureStore tras último await y antes del COMMIT, rollback y respuesta `closure_review_expired`.
+- R4-R11-A06: **declaración previa a auditoría; resultado comprobado abajo**. Reintento de brecha exacta acepta solo aprobación durable correlacionada con digest base reconstruido, misma razón e IDs, bajo fences; no solicita otro consentimiento, no duplica historia/recibos. Distinto motivo/digest/ID bloquea.
 - Dos pruebas focales nuevas agregadas, SIN ejecución certificada. Se mantienen 55 fallos históricos y ocho Memory sin fence; E0a/E1/E2/E3/Criterio9 y recorrido integrado real siguen pendientes.
 - **VNEXT-014 NO-GO; VNEXT-015 no iniciado.** [Nota R4-R12](014H_R4_R12_EXPIRY_GAP_REPLAY.md).
+
+
+## Resultado independiente R4-R12 — auditoría publicada (2026-11-05)
+
+- **SHA exacto auditado:** 7ccf3db1a6f259f6a5c51521518bbb399a13fda2; worktree aislado detached, sin fuentes posteriores. Publicación exclusivamente documental en feat/qap-vnext-architecture.
+- **Matriz física:** instalación congelada, FTS5 y build10 PASS; focales R12 2/2, R11 1/1, R10 5/5, R9 5/5, R8 3/3; Coverage53/53, Interview44/44, Discovery59/59, Runner71/71, Stdio servidor/CLI18+init PASS. MCP **415 PASS/63 FAIL de478**: 413 PASS y63 FAIL conservados por identidad, dos altas PASS, cero bajas/regresiones nominales. Scenario4 intacto PASS.
+- **Lint:** 34 errores/28 advertencias;62 diagnósticos idénticos tras mapear diff, siete aserciones desplazadas. Foco ampliado a siete archivos:7 errores históricos/0 advertencias, sin altas reales.
+- **A04: PASS acotado; P2 residual W01.** 24 negativos (4acciones×6posiciones), incluido después del INSERT físico, conservan snapshot/historial/recibos/lifecycle. Wrappers await/setImmediate conservan ALS. Cola con timer preexistente pierde ALS y las cuatro acciones persisten vencidas; accept_gaps luego reproduce ese receipt. Control con AsyncLocalStorage.snapshot bloquea4/4. No se demostró ese bypass en composición oficial directa; falta contrato de propagación verificable del puerto.
+- **A06: replay exacto verificado con autoridad original válidamente consumida.** Una/dos brechas reales, misma razón/orden/receipt y digest base reconstruido; sin segundo gateway/historia/recibo. Cambios de selección/orden/razón/requisito/revisión/sesión/módulo/binding o autoridad bloquean sin writes. Dos procesos y kill tras commit recuperan replay sin nueva autoridad. Carrera de primera aceptación: uno gana, otro context_changed y retry idempotente.
+- **Compatibilidad:** A01/A03,64 intercalados oficiales,40 fingerprint,junction,locks,terminales concurrentes/recibos falsificados,seis kills close/waive y cierres históricos R9 vuelven a pasar con límites. SQLite cwd y exclusión conexión/proceso PASS; rename/unlink EBUSY no certifica sustitución ni otros SO.
+- **VNEXT-014 NO-GO; VNEXT-015 no iniciado.**55 históricos+ocho fixtures Memory sin fence conservados; falta integrado auténtico A closed+B waived+reporte+WRAP_UP+replanificación. No ACID común Closure+Knowledge+FS ni aprobación humana certificada con gateways de fixture.
+
+[Informe](auditorias/VNEXT-014-R4-R12/INFORME.md) · [Concurrencia](auditorias/VNEXT-014-R4-R12/EVIDENCIA_CONCURRENCIA.md) · [Diferencial](auditorias/VNEXT-014-R4-R12/DIFERENCIAL_MCP.md) · [Siguiente bloque](auditorias/VNEXT-014-R4-R12/SIGUIENTE_BLOQUE_P0.md).

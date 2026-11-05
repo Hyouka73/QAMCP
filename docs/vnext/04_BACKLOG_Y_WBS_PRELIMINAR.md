@@ -4,7 +4,7 @@
 - **Rama:** `feat/qap-vnext-architecture`
 - **Autor / Rol:** Principal Software Architect y Teamwork Lead
 - **Fecha:** Octubre 2026 (Revisión Arquitectónica Profunda — Etapa 0 Corregida)
-- **Estado actual (2026-11-05):** VNEXT-014 NO-GO. R4-R11 auditado en 4bb22547349a407b1eeb2383e6981af5dd1db07a: MCP413 PASS/63 FAIL de476, Coverage51/51, lint34 errores/28 advertencias. A01 casing y A03 terminal concurrente verificados con límites; A04/A06 e integrado auténtico pendientes. VNEXT-015 sin iniciar.
+- **Estado actual (2026-11-05):** VNEXT-014 NO-GO. R4-R12 auditado en 7ccf3db1a6f259f6a5c51521518bbb399a13fda2:MCP415/63/478,Coverage53/53,build10,lint34/28. A06 verificado con límites;A04 directo PASS,P2W01 cola sin ALS persiste vencido. Integrado auténtico pendiente,VNEXT015sin iniciar.
 - **Referencias:** D-010 (Evolución documentada por etapas), D-001 a D-015.
 
 ---
@@ -477,8 +477,21 @@ Cero ejecución de pruebas ni ConformityAssessment en R5. **No inicia ni declara
 
 ### Continuidad VNEXT-014-D-R4-R12 (2026-11-05)
 
-- `014-R4-R12-01` P2: **implementado/QA pendiente** — A04 expiración de autorización al commit SQLite, validación tras último await y final síncrono, rollback sin falsa aprobación.
-- `014-R4-R12-02` P2: **implementado/QA pendiente** — A06 replay exacto de accept_gaps con aprobación almacenada y digest base reconstruido; no reutilizar recibos para motivo/ID/contexto diferente.
-- `014-R4-R12-03` P1/P2 verificación: dos nuevas pruebas focales, matriz completa Codex 478 MCP esperadas (baseline476), build10/coverage53/runner71/Interview44/Discovery59/stdio18/lint; comparar identidades exactas y reproducir demoras físicas.
+- `014-R4-R12-01` P2: **PASS directo condicionado; W01 pendiente** — 24 negativos con rollback, incluso tras INSERT; cola preexistente sin ALS persiste vencido4/4, control snapshot bloquea4/4. Corregir propagación/contrato del puerto.
+- `014-R4-R12-02` P2: **verificado con autoridad original válida** — replay1/2gaps,readback,negativos,dosprocesos,killtrascommit PASS sin nuevo gateway/historia/recibo. W01 impide deducir vigencia de cualquier commit por mero receipt.
+- `014-R4-R12-03` P1/P2 verificación: **ejecutada** — dos altas PASS,MCP415/63/478,Scenario4 intacto;build10/Coverage53/Runner71/Interview44/Discovery59/Stdio18+init PASS,lint34/28sin altas reales. A01/A03 y recuperación repetidos.
 - `014-R4-R12-04` P0: **pendiente** — migrar 8 fixtures Memory a garantías SQLite, reconciliar 55 fallos históricos y cadena integrada real init→plan→Discovery→interview/review→A closed→B waived→reporte→WRAP_UP→replanificación, sin autoridad ficticia.
 - `014-R4-R12-05` Limitaciones: sustituir/renombrar SQLite bajo otros SO, writer raw fuera de fence y crash/energía entre Closure+Knowledge+FS no certificados. [Detalle](014H_R4_R12_EXPIRY_GAP_REPLAY.md).
+
+
+## Resultado independiente R4-R12 — auditoría publicada (2026-11-05)
+
+- **SHA exacto auditado:** 7ccf3db1a6f259f6a5c51521518bbb399a13fda2; worktree aislado detached, sin fuentes posteriores. Publicación exclusivamente documental en feat/qap-vnext-architecture.
+- **Matriz física:** instalación congelada, FTS5 y build10 PASS; focales R12 2/2, R11 1/1, R10 5/5, R9 5/5, R8 3/3; Coverage53/53, Interview44/44, Discovery59/59, Runner71/71, Stdio servidor/CLI18+init PASS. MCP **415 PASS/63 FAIL de478**: 413 PASS y63 FAIL conservados por identidad, dos altas PASS, cero bajas/regresiones nominales. Scenario4 intacto PASS.
+- **Lint:** 34 errores/28 advertencias;62 diagnósticos idénticos tras mapear diff, siete aserciones desplazadas. Foco ampliado a siete archivos:7 errores históricos/0 advertencias, sin altas reales.
+- **A04: PASS acotado; P2 residual W01.** 24 negativos (4acciones×6posiciones), incluido después del INSERT físico, conservan snapshot/historial/recibos/lifecycle. Wrappers await/setImmediate conservan ALS. Cola con timer preexistente pierde ALS y las cuatro acciones persisten vencidas; accept_gaps luego reproduce ese receipt. Control con AsyncLocalStorage.snapshot bloquea4/4. No se demostró ese bypass en composición oficial directa; falta contrato de propagación verificable del puerto.
+- **A06: replay exacto verificado con autoridad original válidamente consumida.** Una/dos brechas reales, misma razón/orden/receipt y digest base reconstruido; sin segundo gateway/historia/recibo. Cambios de selección/orden/razón/requisito/revisión/sesión/módulo/binding o autoridad bloquean sin writes. Dos procesos y kill tras commit recuperan replay sin nueva autoridad. Carrera de primera aceptación: uno gana, otro context_changed y retry idempotente.
+- **Compatibilidad:** A01/A03,64 intercalados oficiales,40 fingerprint,junction,locks,terminales concurrentes/recibos falsificados,seis kills close/waive y cierres históricos R9 vuelven a pasar con límites. SQLite cwd y exclusión conexión/proceso PASS; rename/unlink EBUSY no certifica sustitución ni otros SO.
+- **VNEXT-014 NO-GO; VNEXT-015 no iniciado.**55 históricos+ocho fixtures Memory sin fence conservados; falta integrado auténtico A closed+B waived+reporte+WRAP_UP+replanificación. No ACID común Closure+Knowledge+FS ni aprobación humana certificada con gateways de fixture.
+
+[Seis informes](auditorias/VNEXT-014-R4-R12/INFORME.md).
