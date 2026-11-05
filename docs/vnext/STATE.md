@@ -1,6 +1,6 @@
 # QAMCP vNext — Continuidad Codex
 
-Actualizado: 2026-11-04. Estado histórico Teamwork preservado; auditoría independiente R4-R4 al final.
+Actualizado: 2026-11-04. Estado histórico Teamwork preservado; auditoría independiente R4-R5 al final.
 
 ## Estado y alcance
 
@@ -1024,3 +1024,10 @@ Modo de integridad: `development` (Reemplazo genuino de `qap_test` por `TestHand
 - **Comprobación siguiente:** Codex audita el SHA exacto R4-R5 con Node 24/SQLite FTS5, build, Vitest, runner, Stdio y lint, publica solo informes y logs saneados bajo `docs/vnext/auditorias/VNEXT-014-R4-R5/`, actualiza este STATE, backlog y nota R4-R5, y hace push documental únicamente a la rama vNext.
 - **Estado formal:** **R4-R5 PUBLICADA / NO CERTIFICADA; VNEXT-014 NO-GO; VNEXT-015 sin iniciar**. Deuda MCP 55 fallos históricos, lint global 34 errores/28 warnings y E2E `closed` de cobertura real, multi-módulo/replanificación pendientes. Ningún cambio a `main/develop`, SQLite canónico v2 o sesión protegida.
 - **Nota:** [014D_R4_R5_STATUS_GUIDANCE_SIN_LIMITE.md](014D_R4_R5_STATUS_GUIDANCE_SIN_LIMITE.md).
+
+### Resultado independiente R4-R5 (2026-11-04)
+
+- **SHA de código auditado** `f531e4e6b444c06ad85fd1f5f533837fd3467145`. Build 10 paquetes, R4-R5 3/3, Coverage 37/37, Discovery 59/59, runner 71/71 y Stdio 18 herramientas con qap_init real.
+- **R4-R4-A02 verificado.** Con 16/17 waivers válidos la recomendación y el cierre coinciden, inventario visible 16 y reporte físico. Con el último sin aprobación, pendiente exacto, cierre bloqueado y sin reporte. Sonda SDK adicional confirma cero nuevas consultas de aprobación y snapshots intactos.
+- **VNEXT-014 NO-GO.** MCP 405 PASS / 55 FAIL de 460. Los 55 conservan identidad. ESLint focal limpio, global 34 errores / 28 advertencias. [Clasificación por primera aserción y contrato](auditorias/VNEXT-014-R4-R5/CLASIFICACION_55_FALLOS.md). Siguiente trabajo, integrar los cinco lifecycle sobre los stores canónicos preservando preguntas, revisión, cobertura real, cierre y replanificación. Después migrar las suites por garantía y resolver lint. VNEXT-015 sigue sin iniciar.
+- [Informe independiente publicado](auditorias/VNEXT-014-R4-R5/INFORME.md).

@@ -4,7 +4,7 @@
 **Rama única de trabajo:** `feat/qap-vnext-architecture`  
 **Base de código auditada físicamente:** `9df524501eb2365df9f204f2134bd86ebdc36717` (R4-R4)  
 **Commit documental Codex:** `12fbca16e9a5265b20ed12c14f7f0a8d8602a514`  
-**Estado R4-R5:** cambios publicados en GitHub, **aún no probados físicamente**. VNEXT-014 **NO-GO**, VNEXT-015 no iniciado.
+**Estado R4-R5:** auditoría independiente ejecutada sobre `f531e4e6b444c06ad85fd1f5f533837fd3467145`, resultado en sección 7. VNEXT-014 **NO-GO**, VNEXT-015 no iniciado.
 
 ## 1. Auditoría independiente R4-R4
 
@@ -37,7 +37,7 @@ Se sustituyó el bucle `for (const name of boundNames.slice(0,16))` por un bucle
 - Si los 17 módulos tienen renuncias válidas, la recomendación de cierre se mantiene, sin crear una aprobación sintética.
 - No se cambian el esquema SQLite, `canExitWorking`, el servicio durable, el catálogo MCP ni la política de autorización.
 
-## 4. Regresiones incorporadas y pendientes de ejecutar
+## 4. Regresiones incorporadas al publicar la corrección
 
 Archivo `packages/mcp/src/__tests__/canonical-coverage.test.ts`, Suite 5.
 
@@ -53,7 +53,7 @@ La prueba parametrizada `R4-R5-A02` tiene tres variantes:
 
 Cada fixture crea módulos físicos en `IKnowledgeStore`, plan y lifecycle reales, cierres con razón sustantiva y aprobaciones correlacionadas excepto el control negativo; verifica que la foto durable de cierre se conserve y que la autoridad no se invente.
 
-**Afirmaciones no certificadas:** no se ha ejecutado `pnpm build`, Vitest, Chromium ni lint sobre el nuevo HEAD. La matriz **402/55** corresponde a R4-R4; R4-R5 agrega **tres** tests, que solo cuentan como PASS después de ejecución real.
+**Estado histórico al publicar el código:** no se había ejecutado `pnpm build`, Vitest, Chromium ni lint sobre el nuevo HEAD. La matriz **402/55** corresponde a R4-R4; R4-R5 agrega **tres** tests, que solo cuentan como PASS después de ejecución real.
 
 ## 5. Próxima compuerta independiente
 
@@ -80,3 +80,27 @@ Repetir Stdio MCP 18 tools y `qap_init` en fixture permitido; preservar los 55 f
 - Lint global: baseline **34 errores / 28 warnings**. No hay certificación del nuevo HEAD hasta su ejecución.
 - No se acreditó aún un E2E de cierre `closed` mediante cobertura real, ni la sesión multi-módulo con replanificación, ni la UI humana de aprobación fuera de fixtures sintéticos.
 - VNEXT-014 **NO-GO** y VNEXT-015 **NO INICIADO** hasta compuertas completas.
+
+## 7. Auditoría independiente ejecutada (2026-11-04)
+
+**SHA de código auditado** `f531e4e6b444c06ad85fd1f5f533837fd3467145`. Windows x64, worktree aislado, Node 24.15.0, SQLite 3.51.3 con FTS5 verificado, pnpm 11.3.0 con lockfile congelado y Chromium 153.0.8010.12. Las mediciones corresponden a este SHA y preceden a su publicación documental.
+
+| Compuerta | Resultado | Salida |
+| --- | --- | ---: |
+| Build | 10 paquetes | 0 |
+| R4-R5-A02 focal | 3/3 | 0 |
+| Coverage | 37/37 | 0 |
+| Discovery | 59/59 | 0 |
+| MCP serial | 405 PASS / 55 FAIL de 460 | 1 |
+| Runner | 71/71 | 0 |
+| Lint focal | 0 errores / 0 advertencias | 0 |
+| Lint global | 34 errores / 28 advertencias | 1 |
+| Stdio | 18 herramientas y qap_init real | 0 |
+
+**R4-R4-A02 PASS.** Con 16 y 17 waivers válidos, status recomendó cerrar y session_close alcanzó WRAP_UP con reporte. El inventario permaneció limitado a 16. Con el último asiento ausente entre 17, status identificó el módulo 17, el cierre bloqueó y no se escribió reporte. Una sonda adicional del SDK confirmó los tres resultados, snapshots durables intactos y cero consultas al gateway. Coverage conserva las regresiones R4-R3, el positivo R4-R4, Crash 2/3 y el primer cierre R4-R2-A01.
+
+El cruce físico de los JSON conservó los 402 PASS y los 55 FAIL comunes por archivo y título. Las tres altas pasaron. El análisis adicional clasifica los 55 por primera aserción y contrato. Los cinco lifecycle requieren integración canónica E2E y preservación de sus garantías, en particular closed por cobertura real y replanificación. No se certifican por la ausencia de una regresión nueva.
+
+**Dictamen VNEXT-014 NO-GO**, con R4-R4-A02 verificado. Pendientes las garantías históricas, el lint global y las compuertas de cierre real y replanificación. VNEXT-015 sigue sin iniciar.
+
+[Informe](auditorias/VNEXT-014-R4-R5/INFORME.md) · [Evidencia status](auditorias/VNEXT-014-R4-R5/EVIDENCIA_STATUS.md) · [Diferencial MCP](auditorias/VNEXT-014-R4-R5/DIFERENCIAL_MCP.md) · [Clasificación de los 55](auditorias/VNEXT-014-R4-R5/CLASIFICACION_55_FALLOS.md) · [Lint](auditorias/VNEXT-014-R4-R5/LINT.md) · [Comandos](auditorias/VNEXT-014-R4-R5/COMANDOS.md)
