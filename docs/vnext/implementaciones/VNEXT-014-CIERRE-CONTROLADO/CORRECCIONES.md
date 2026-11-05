@@ -24,7 +24,9 @@
 
 **Cambio:** bandera opt-in `physicalKnowledge` sobre una instancia `SqliteKnowledgeAdapter` en archivo temporal; no se introduce un fence falso. Las ocho identidades 3.1/3.2/3.3/5.4/7.2/7.3/7.4/7.5 optan a SQLite. Las pruebas sin opt-in siguen en Memory y los negativos existentes sin fence se conservan. 3.1/3.2 exigen `blocked/closure_context_changed` y comprueban efectos nulos. 7.3/7.4 usan una segunda conexión Knowledge y Closure física; 7.3 verifica dos approvals y recibos distintos. Se conservan los nombres originales.
 
-**Commits:** `7c1ce0d`, `72ae8c3`, `ba28dfc`.
+**Commits:** `7c1ce0d`, `72ae8c3`, `ba28dfc`, `96f0f3e`, `cd56f9f`.
+
+**Refuerzo de oráculos:** 5.4 ahora exige respuesta MCP no-error, `success/WRAP_UP`, reporte físico existente, lifecycle actualizado y recibo único. 7.5 exige que el recibo falsificado conserve su procedencia visible tras el rechazo y que el lifecycle permanezca `WORKING/planned`. Estas aserciones todavía **no han sido ejecutadas**.
 
 **Reserva:** un cambio de fixture no acredita ninguna garantía hasta ejecutar el caso real sobre Windows/Node con FTS5; es posible que aparezcan defectos posteriores antes ocultos por el primer bloqueo. Cada hallazgo nuevo debe registrarse con reproducción antes de modificar producción.
 
