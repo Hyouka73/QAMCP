@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 import { closeSync, existsSync, lstatSync, openSync, realpathSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -40,9 +41,16 @@ export interface ModuleClosureSnapshot {
 export type ClosureStoreAvailability = 'compatible' | 'not_initialized' | 'incompatible' | 'corrupt' | 'unavailable';
 
 export class ClosureStoreError extends Error {
-  constructor(readonly code: ClosureStoreAvailability | 'conflict' | 'write_failed' | 'scope_mismatch' | 'retention_limit' | 'decision_reused') {
+  constructor(readonly code: ClosureStoreAvailability | 'conflict' | 'write_failed' | 'scope_mismatch' | 'retention_limit' | 'decision_reused' | 'authorization_expired') {
     super(`Module closure store: ${code}`);
   }
+}
+
+const commitDeadline = new AsyncLocalStorage<number>();
+
+export async function withClosureCommitDeadline<T>(deadlineMs: number, action: () => Promise<T>): Promise<T> {
+  if (!Number.isFinite(deadlineMs)) throw new ClosureStoreError('authorization_expired');
+  return commitDeadline.run(deadlineMs, action);
 }
 
 export interface IModuleClosureStore {
@@ -217,6 +225,8 @@ export class SqliteModuleClosureStore implements IModuleClosureStore {
       const { snapshot, generation } = this.latest(db);
       const before = JSON.stringify(snapshot);
       const result = await operation(snapshot);
+      const deadline = commitDeadline.getStore();
+      if (deadline !== undefined && Date.now() >= deadline) throw new ClosureStoreError('authorization_expired');
       if (JSON.stringify(snapshot) !== before) {
         if (generation >= 4096) throw new ClosureStoreError('retention_limit');
         const nonce = randomBytes(12);
@@ -226,6 +236,7 @@ export class SqliteModuleClosureStore implements IModuleClosureStore {
         const payload = Buffer.concat([nonce, cipher.getAuthTag(), ciphertext]);
         db.prepare('INSERT INTO closure_history(generation, payload) VALUES (?, ?)').run(generation + 1, payload);
       }
+      if (deadline !== undefined && Date.now() >= deadline) throw new ClosureStoreError('authorization_expired');
       db.exec('COMMIT');
       return result;
     } catch (error) {
