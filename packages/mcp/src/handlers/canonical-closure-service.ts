@@ -491,6 +491,7 @@ export class CanonicalClosureService {
           const recovered = await lifecycle.withLifecycleFence(() =>
             this.store.withWriteFence!(this.context.applicationId, async () => {
               const snapshot = this.closureStore.read(scope);
+              const originalSnapshotDigest = digest(snapshot);
               const allStored = Object.values(snapshot.acceptedGaps).flat();
               const stored = snapshot.acceptedGaps[plannedName] ?? [];
               const pairs = typedCmd.accepted_gaps.map(g =>
@@ -524,7 +525,8 @@ export class CanonicalClosureService {
               if (current.status !== 'evaluated' ||
                 !typedCmd.accepted_gaps.every(g => current.assessment.gaps.some(a =>
                   a.id === g.gap_id && a.reason === g.reason &&
-                  a.status === 'accepted' && a.acceptance_receipt === approvalId))) return undefined;
+                  a.status === 'accepted' && a.acceptance_receipt === approvalId)) ||
+                digest(this.closureStore.read(scope)) !== originalSnapshotDigest) return undefined;
               return {
                 status: 'gaps_accepted', idempotent: true,
                 accepted_gaps: typedCmd.accepted_gaps,
