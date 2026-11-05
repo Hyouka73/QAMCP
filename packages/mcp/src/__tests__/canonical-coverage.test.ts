@@ -32,14 +32,14 @@ import type {
 import type { BridgeContext } from '../handlers/module-observation-bridge.js';
 
 const roots: string[] = [];
-const closers: Array<() => void> = [];
+const closers: Array<() => void | Promise<void>> = [];
 const time = '2026-10-31T12:00:00.000Z';
 
-afterEach(() => {
+afterEach(async () => {
   vi.restoreAllMocks();
-  closers.splice(0).reverse().forEach(close => {
-    try { close(); } catch { /* ignore */ }
-  });
+  for (const close of closers.splice(0).reverse()) {
+    try { await close(); } catch { /* ignore */ }
+  }
   roots.splice(0).forEach(root => {
     try { rmSync(root, { recursive: true, force: true }); } catch { /* ignore */ }
   });
@@ -482,6 +482,7 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
       });
 
       const res = await f.closureService.execute('catalog', { action: 'close' });
+      expect(reqCaptured).toMatchObject({ action: 'close', plannedName: 'catalog' });
       expect(res.status).toBe('blocked');
       expect(res.code).toBe('closure_review_invalid');
     });
@@ -514,6 +515,7 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
       });
 
       expect(res.status).toBe('waived');
+      expect(reviewReq).toMatchObject({ action: 'waive', plannedName: 'catalog' });
       f.closureStore.close();
 
       // Read raw database bytes on disk
@@ -553,12 +555,14 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
 
       const res = await f.closureService.execute('catalog', { action: 'close' });
       expect(res.status).toBe('closed');
+      expect(reviewReq).toMatchObject({ action: 'close', plannedName: 'catalog' });
 
       // Verify module revision is strictly UNCHANGED
       const moduleAfter = await f.store.get('app-r5', 'module', 'mod-catalog');
       expect(moduleAfter?.revision).toBe(1);
 
       // Verify receipt relation exists in IKnowledgeStore
+      if (typeof res.decision_id !== 'string') throw new Error('Expected host approval decision ID');
       const receiptId = `closure:${res.decision_id}`;
       const receipt = await f.store.get('app-r5', 'relation', receiptId);
       expect(receipt).toBeDefined();
@@ -621,9 +625,9 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
       await server.connect(serverTransport);
       const client = new Client({ name: 'test-client', version: '1.0' }, { capabilities: {} });
       await client.connect(clientTransport);
-      closers.push(() => {
-        client.close();
-        server.close();
+      closers.push(async () => {
+        await client.close();
+        await server.close();
       });
       return client;
     }
@@ -832,14 +836,11 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
     });
 
     it('Scenario 2: Crash after closureStore commits decision but before IKnowledgeStore or lifecycle.json updates recovers via self-healing reconciler', async () => {
-      let capturedReq: ModuleClosureReviewRequest | undefined;
-      let capturedDec: ModuleClosureReviewDecision | undefined;
-
+      let gatewayInvocations = 0;
       const gateway: IModuleClosureReviewGateway = {
         reviewClosure: async r => {
-          capturedReq = r;
-          capturedDec = makeDecision(r, 'approve');
-          return capturedDec;
+          gatewayInvocations++;
+          return makeDecision(r, 'approve');
         },
       };
 
@@ -909,6 +910,7 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
       const replayRes = await f.closureService.execute('catalog', { action: 'close' });
       expect(replayRes.status).toBe('waived');
       expect(replayRes.idempotent).toBe(true);
+      expect(gatewayInvocations).toBe(0);
     });
 
     it('Scenario 3: Crash after IKnowledgeStore receipt commit returns idempotent response on retry', async () => {
@@ -982,6 +984,7 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
       expect([resA.status, resB.status]).toContain('waived');
       // At least one is waived; the second is either idempotent: true or completed
       expect(resA.status === 'waived' && resB.status === 'waived').toBe(true);
+      expect(callCount).toBeGreaterThan(0);
     });
   });
 
