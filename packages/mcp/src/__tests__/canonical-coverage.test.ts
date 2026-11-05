@@ -599,7 +599,7 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
   });
 
   describe('Suite 5: MCP Integration & Lifecycle Guards (R4 / F8)', () => {
-    async function mcpClient(f: Awaited<ReturnType<typeof fixture>>) {
+    async function mcpClient(f: Awaited<ReturnType<typeof fixture>>, gateway?: IModuleClosureReviewGateway) {
       const server = createMcpServer({
         projectRoots: [f.root],
         knowledgeBindings: [
@@ -610,7 +610,7 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
             store: f.store,
             moduleBindings: f.context.moduleBindings,
             moduleClosureStore: f.closureStore,
-            moduleClosureReviewGateway: {
+            moduleClosureReviewGateway: gateway ?? {
               reviewClosure: async r => makeDecision(r, 'approve'),
             },
           },
@@ -681,6 +681,70 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
       expect(payload.status).toBe('blocked');
       expect(payload.code).toBe('canonical_module_closure_required');
       expect(payload.unclosed_modules).toContain('catalog');
+    });
+
+    it('R4-R2-A01: first session close uses recovered waiver metadata for the gate and physical report', async () => {
+      const approvedReason = '  Renuncia sintética autorizada para recuperación del cierre en primera llamada  ';
+      let approvals = 0;
+      const f = await fixture({
+        gateway: {
+          reviewClosure: async request => {
+            approvals++;
+            return makeDecision(request, 'approve');
+          },
+        },
+      });
+      const waived = await f.closureService.execute('catalog', {
+        action: 'waive', reason: approvedReason,
+      });
+      expect(waived.status).toBe('waived');
+      expect(approvals).toBe(1);
+      const durable = f.closureStore.read(f.context).closures.catalog;
+      expect(durable).toMatchObject({ status: 'waived', waiverReason: approvedReason });
+
+      // Simulate a partial filesystem write, not a missing durable decision.
+      const lifecycle = JSON.parse(readFileSync(f.lifecyclePath, 'utf8')) as {
+        modules: { catalog: { state: string; waived_reason?: string } };
+        history: Array<{ to: string; reason?: string }>;
+      };
+      expect(lifecycle.modules.catalog).toMatchObject({
+        state: 'waived', waived_reason: approvedReason,
+      });
+      const originalHistory = structuredClone(lifecycle.history);
+      const receiptsBefore = (await f.store.query('app-r5', 'relation')).items;
+      expect(receiptsBefore.some(item => item.trace.source === 'canonical_module_waiver_v1')).toBe(true);
+      delete lifecycle.modules.catalog.waived_reason;
+      writeFileSync(f.lifecyclePath, JSON.stringify(lifecycle), 'utf8');
+
+      // Session close may reconcile the existing receipt, but must never call
+      // another approval gateway or need a second session-close invocation.
+      const client = await mcpClient(f, {
+        reviewClosure: async () => { throw new Error('unexpected_second_host_approval'); },
+      });
+      const first = await client.callTool({
+        name: 'qap_session_close', arguments: { targetPath: f.root },
+      });
+      expect(first.isError).not.toBe(true);
+      const payload = JSON.parse((first.content[0] as { text: string }).text) as {
+        status: string; fase: string; report_path: string;
+      };
+      expect(payload).toMatchObject({ status: 'success', fase: 'WRAP_UP' });
+      expect(existsSync(payload.report_path)).toBe(true);
+
+      const repaired = JSON.parse(readFileSync(f.lifecyclePath, 'utf8')) as typeof lifecycle & { phase: string };
+      expect(repaired.phase).toBe('WRAP_UP');
+      expect(repaired.modules.catalog).toMatchObject({
+        state: 'waived', waived_reason: approvedReason,
+      });
+      expect(repaired.history.filter(entry => entry.to === 'catalog:waived')).toEqual(
+        originalHistory.filter(entry => entry.to === 'catalog:waived'),
+      );
+      expect((await f.store.query('app-r5', 'relation')).items).toEqual(receiptsBefore);
+      expect(approvals).toBe(1);
+      const report = readFileSync(payload.report_path, 'utf8');
+      expect(report).toContain('catalog');
+      expect(report).toContain('waived');
+      expect(report).toContain(approvedReason.trim());
     });
 
     it('qap_status reports honest canonical coverage and closure indicators without false 100%', async () => {
