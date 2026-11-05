@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 
-import { transitionModule, type IKnowledgeStore, type KnowledgeRecord } from '@qap/engine';
+import { transitionModule, KnowledgeStoreError, type IKnowledgeStore, type KnowledgeRecord } from '@qap/engine';
 import { FileSystemStorage } from '@qap/knowledge';
 import {
   validateCanonicalClosureCommand,
@@ -883,10 +883,12 @@ export class CanonicalClosureService {
       applicationId: this.context.applicationId,
       environmentId: this.context.environmentId,
     };
+    let knowledgeFenceEntered = false;
     try {
       const lifecycle = new FileSystemStorage({ rootDir: this.context.projectRoot });
       return await lifecycle.withLifecycleFence(async () =>
         this.store.withWriteFence!(this.context.applicationId, async () => {
+        knowledgeFenceEntered = true;
         const identity = await this.bridge.resolve(plannedName);
         if (identity.status !== 'resolved') {
           return blocked('closure_context_changed', 'La sesión o el módulo cambiaron antes del consentimiento.');
@@ -912,8 +914,19 @@ export class CanonicalClosureService {
         return blocked('closure_review_expired',
           'La decisión expiró antes del commit durable en SQLite.');
       }
-      return blocked('closure_consistency_conflict',
-        'No fue posible garantizar el snapshot autorizado hasta el commit durable.');
+      // Only expected snapshot drift or a fence acquisition conflict is a
+      // recoverable consistency block. Failures *inside* the fence (e.g. I/O,
+      // corruption, or unexpected store exceptions) are real operation errors.
+      if ((error instanceof KnowledgeStoreError && error.code === 'CONFLICT' && !knowledgeFenceEntered) ||
+          (error instanceof Error && (
+            error.message === 'closure_context_changed' ||
+            error.message === 'closure_revision_conflict' ||
+            error.message === 'lifecycle_context_missing'
+          ))) {
+        return blocked('closure_consistency_conflict',
+          'No fue posible garantizar el snapshot autorizado hasta el commit durable.');
+      }
+      throw error;
     }
   }
 
