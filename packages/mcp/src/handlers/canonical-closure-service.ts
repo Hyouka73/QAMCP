@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 
-import { transitionModule, type IKnowledgeStore } from '@qap/engine';
+import { transitionModule, type IKnowledgeStore, type KnowledgeRecord } from '@qap/engine';
 import { FileSystemStorage } from '@qap/knowledge';
 import {
   validateCanonicalClosureCommand,
@@ -114,6 +114,50 @@ export class CanonicalClosureService {
   }
 
   /**
+   * One receipt contract for recovery and report projection. Authorization is
+   * checked against the durable host approval separately; the receipt alone
+   * never grants permission to close a module or session.
+   */
+  private validCanonicalReceipt(
+    receipt: KnowledgeRecord<'relation'> | null,
+    closure: ModuleClosureRecord,
+    applicationRevision: number
+  ): boolean {
+    const receiptId = (closure.status === 'waived' ? 'waiver:' : 'closure:') + closure.decisionId;
+    const source = closure.status === 'waived'
+      ? 'canonical_module_waiver_v1' : 'canonical_module_closure_v1';
+    return receipt !== null &&
+      receipt.application_id === this.context.applicationId &&
+      receipt.kind === 'relation' &&
+      receipt.id === receiptId && receipt.revision >= 1 &&
+      receipt.entity.id === receiptId &&
+      receipt.entity.predicate === 'related_to' &&
+      receipt.entity.source.kind === 'module' &&
+      receipt.entity.source.id === closure.moduleId &&
+      receipt.entity.source.revision === closure.moduleRevision &&
+      receipt.entity.target.kind === 'application' &&
+      receipt.entity.target.id === this.context.applicationId &&
+      receipt.entity.target.revision === applicationRevision &&
+      receipt.trace.source === source &&
+      receipt.trace.reason === closure.requestDigest &&
+      receipt.trace.recorded_by === 'mcp_host' &&
+      receipt.trace.review === 'reviewed' &&
+      Array.isArray(receipt.trace.evidence_refs);
+  }
+
+  /**
+   * Report and lifecycle commit must share the Knowledge write fence. Call
+   * only while holding the FileSystemStorage lifecycle lock: lifecycle ->
+   * Knowledge -> Closure read. No host review or reconciliation inside.
+   */
+  async withSessionReportFence<T>(operation: () => Promise<T>): Promise<T> {
+    if (!this.store.withWriteFence) {
+      throw new Error('canonical_report_consistency_fence_required');
+    }
+    return this.store.withWriteFence(this.context.applicationId, operation);
+  }
+
+  /**
    * Reconciliador de autorrecuperación (Enmienda 8 / Crash Scenario 2).
    * Detecta si SqliteModuleClosureStore registró una decisión confirmada pero el proceso se cayó
    * antes de persistir el recibo relation en IKnowledgeStore o actualizar lifecycle.json.
@@ -168,25 +212,13 @@ export class CanonicalClosureService {
             },
           },
         ]);
-        reconciled = true;
-      } else {
-        const entity = existingReceipt.entity;
-        const trace = existingReceipt.trace;
-        if (
-          entity.id !== receiptId ||
-          entity.predicate !== 'related_to' ||
-          entity.source.kind !== 'module' ||
-          entity.source.id !== closure.moduleId ||
-          entity.source.revision !== closure.moduleRevision ||
-          entity.target.kind !== 'application' ||
-          entity.target.id !== this.context.applicationId ||
-          trace.source !== expectedTraceSource ||
-          trace.reason !== closure.requestDigest ||
-          trace.recorded_by !== 'mcp_host' ||
-          trace.review !== 'reviewed'
-        ) {
+        const written = await this.store.get(this.context.applicationId, 'relation', receiptId);
+        if (!this.validCanonicalReceipt(written, closure, appRevision)) {
           throw new Error('closure_receipt_provenance_invalid');
         }
+        reconciled = true;
+      } else if (!this.validCanonicalReceipt(existingReceipt, closure, appRevision)) {
+        throw new Error('closure_receipt_provenance_invalid');
       }
     } catch (err: unknown) {
       if (err instanceof Error && err.message === 'closure_receipt_provenance_invalid') {
@@ -333,14 +365,7 @@ export class CanonicalClosureService {
       // reconcile() runs before sessionReport() during the session-close gate.
       const receiptId = (closure.status === 'waived' ? 'waiver:' : 'closure:') + closure.decisionId;
       const receipt = await this.store.get(this.context.applicationId, 'relation', receiptId);
-      if (!receipt || receipt.id !== receiptId ||
-          receipt.entity.predicate !== 'related_to' ||
-          receipt.entity.source.kind !== 'module' ||
-          receipt.entity.source.id !== closure.moduleId ||
-          receipt.entity.source.revision !== closure.moduleRevision ||
-          receipt.trace.reason !== closure.requestDigest ||
-          receipt.trace.recorded_by !== 'mcp_host' ||
-          receipt.trace.review !== 'reviewed') {
+      if (!this.validCanonicalReceipt(receipt, closure, binding.applicationRevision)) {
         throw new Error('canonical_report_receipt_missing_or_invalid');
       }
       const requirements: CanonicalSessionModuleReport['current_confirmed_requirements'][number][] = [];
@@ -351,7 +376,7 @@ export class CanonicalClosureService {
         const page = await this.store.query(this.context.applicationId, 'requirement',
           { limit: 100, ...(cursor ? { cursor } : {}) });
         for (const record of page.items) {
-          const entity = record.entity as ExpectedRequirement;
+          const entity = record.entity;
           if (entity.module_key !== binding.moduleKey || !entity.is_active || entity.superseded_by) continue;
           const provenance = entity.provenance ?? entity.source;
           if ((entity.validation_status ?? entity.status) === 'confirmed' &&
