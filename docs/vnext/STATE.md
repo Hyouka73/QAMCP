@@ -1,6 +1,6 @@
 # QAMCP vNext — Continuidad Codex
 
-Actualizado: 2026-11-04. Estado histórico Teamwork preservado; auditoría independiente R4-R3 al final.
+Actualizado: 2026-11-04. Estado histórico Teamwork preservado; auditoría independiente R4-R4 al final.
 
 ## Estado y alcance
 
@@ -1007,3 +1007,10 @@ Modo de integridad: `development` (Reemplazo genuino de `qap_test` por `TestHand
 - **Entrega GitHub obligatoria:** el siguiente auditor Codex verifica R4-R4 en el worktree físico, actualiza `docs/vnext/014D_R4_R4_STATUS_GUIDANCE_CANONICO.md`, `STATE.md` y `04_BACKLOG_Y_WBS_PRELIMINAR.md`, y publica informes/logs saneados bajo `docs/vnext/auditorias/VNEXT-014-R4-R4/`, con commit/push exclusivamente documental en `feat/qap-vnext-architecture`. El usuario no necesita transportar archivos entre computadoras.
 - **Estado formal:** **R4-R4 PUBLICADA / NO CERTIFICADA; VNEXT-014 NO-GO; VNEXT-015 sin iniciar**. Permanecen 55 garantías históricas MCP, lint global y cierre `closed` por cobertura auténtica, sesión multi-módulo y replanificación. No alterar `main/develop`, el archivo protegido de sesiones, el esquema SQLite v2 ni secretos.
 - **Nota técnica:** [014D_R4_R4_STATUS_GUIDANCE_CANONICO.md](014D_R4_R4_STATUS_GUIDANCE_CANONICO.md).
+
+### Resultado independiente R4-R4 (2026-11-04)
+
+- **SHA de código auditado** `9df524501eb2365df9f204f2134bd86ebdc36717`. Build 10 paquetes, R4-R3 7/7 y R4-R4 1/1, Coverage 34/34, Discovery 59/59, runner 71/71 y Stdio 18 herramientas con `qap_init` real. Crash 2/3 y primer cierre R4-R2-A01 PASS.
+- **R4-R3-A01 verificado.** Se bloquea la recomendación ante cierre inválido y se conserva para el waiver autorizado del control positivo. **R4-R4-A02 pendiente.** Con 17 waivers válidos, el límite de inventario deja el módulo 17 como falso pendiente aunque el cierre real genera reporte y alcanza WRAP_UP.
+- **VNEXT-014 NO-GO.** MCP serial **402 PASS / 55 FAIL de 457**, sin cambios en los 55 títulos históricos. ESLint focal limpio con `preserve-caught-error` resuelto. Lint global **34 errores / 28 advertencias**. Pendientes el guidance para más de 16 vínculos, los casos MCP históricos, el lint global y las compuertas previas de cobertura real y replanificación. VNEXT-015 sigue pendiente.
+- [Informe independiente](auditorias/VNEXT-014-R4-R4/INFORME.md).

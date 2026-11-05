@@ -4,7 +4,7 @@
 **Rama de código:** `feat/qap-vnext-architecture`  
 **Base de código auditada:** `7e0142a97c67fa1c65c46a83e2a5f003b0b435cd` (R4-R3)  
 **Commit documental de Codex:** `230f61f4fe91f4583fcf1706e61923316d05c374`  
-**Estado R4-R4:** código, pruebas y documentación **publicados sin prueba física del nuevo HEAD**. **VNEXT-014 continúa NO-GO.**
+**Estado R4-R4:** auditoría independiente ejecutada sobre `9df524501eb2365df9f204f2134bd86ebdc36717`. **VNEXT-014 continúa NO-GO.**
 
 ## 1. Auditoría R4-R3 verificada
 
@@ -20,7 +20,7 @@ Fuente primaria: [Informe independiente publicado por Codex](auditorias/VNEXT-01
 
 `StatusHandler.execute` construye la propiedad `canonical_modules[].closure` consultando `CanonicalClosureService.status`, pero obtiene `siguiente_accion` mediante `inspectLegacyState()`, que llama `getPhaseGuidance` sobre el estado de `lifecycle.json` sin conciliar el cierre canónico vinculado al host. Un terminal legacy no prueba que el módulo esté canónicamente autorizado.
 
-## 3. Corrección R4-R4 (sin ejecución independiente)
+## 3. Corrección R4-R4 publicada
 
 `packages/mcp/src/handlers/status.handler.ts`:
 
@@ -71,3 +71,17 @@ Repetir Stdio 18 tools con `qap_init` sintético si el entorno lo permite. Compa
 - Lint global pendiente (baseline R4-R3 35 errores y 28 advertencias).
 - Sensibilidad a timeout de cancelación/worker Discovery bajo carga, causa no demostrada.
 - **VNEXT-014 NO-GO** hasta resolver garantías, lint y compuertas físicas; VNEXT-015 no iniciado.
+
+## 7. Resultado independiente R4-R4 (2026-11-04)
+
+SHA de código auditado `9df524501eb2365df9f204f2134bd86ebdc36717`. Worktree aislado, Windows x64, Node 24.15.0 con SQLite FTS5 3.51.3, lockfile congelado y Chromium 153.0.8010.12.
+
+- Build 10 paquetes, focos R4-R3 7/7 y R4-R4 1/1, Coverage 34/34, Discovery 59/59 al primer intento, runner 71/71 y Stdio 18 herramientas con `qap_init` real. Todas estas ejecuciones salieron 0.
+- R4-R3-A01 verificado para los siete fixtures adversariales. En el caso terminal inválido se conserva la proyección legacy y se recomienda revisar el módulo. Un waiver durable válido en el control positivo conserva `qap_session_close`. Crash 2/3 y R4-R2-A01 pasan.
+- MCP serial 402 PASS / 55 FAIL de 457, salida 1. Los 55 históricos coinciden por archivo y título. El único caso añadido pasó.
+- ESLint focal limpio, salida 0. Desapareció `preserve-caught-error` en la línea 754. Lint global 34 errores y 28 advertencias, salida 1.
+- **R4-R4-A02 (P2)**. Con 17 módulos con waiver válido, `qap_status` marcó el último como pendiente y recomendó `qap_module_close`, aunque `qap_session_close` llegó a WRAP_UP con reporte. El límite de 16 del inventario limita también la verificación de pendientes. El control de 16 recomendó el cierre correctamente.
+
+**NO-GO** por el falso pendiente R4-R4-A02, los 55 casos históricos y el lint global. VNEXT-015 sigue pendiente.
+
+[Informe completo](auditorias/VNEXT-014-R4-R4/INFORME.md) · [Diferencial MCP](auditorias/VNEXT-014-R4-R4/DIFERENCIAL_MCP.md) · [Evidencia de status](auditorias/VNEXT-014-R4-R4/EVIDENCIA_STATUS.md) · [Lint](auditorias/VNEXT-014-R4-R4/LINT.md) · [Comandos y códigos](auditorias/VNEXT-014-R4-R4/COMANDOS.md)

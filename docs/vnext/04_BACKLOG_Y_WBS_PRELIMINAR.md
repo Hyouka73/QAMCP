@@ -4,7 +4,7 @@
 - **Rama:** `feat/qap-vnext-architecture`
 - **Autor / Rol:** Principal Software Architect y Teamwork Lead
 - **Fecha:** Octubre 2026 (Revisión Arquitectónica Profunda — Etapa 0 Corregida)
-- **Estado actual (2026-11-04):** VNEXT-001 a VNEXT-013 con límites históricos. VNEXT-014 **NO-GO**. R4-R3 auditada en SHA `7e0142a`: 401 PASS / 55 FAIL de 456 MCP, 7/7 casos adversariales, runner 71/71, Stdio 18 herramientas y lint global 35 errores / 28 advertencias. Hallazgo R4-R3-A01: status recomienda un cierre canónico bloqueado; R4-R4 corrige guidance y lint focal, **sin prueba física**. VNEXT-015 sigue pendiente.
+- **Estado actual (2026-11-04):** VNEXT-001 a VNEXT-013 con límites históricos. VNEXT-014 **NO-GO**. R4-R4 auditada en SHA `9df5245`, 402 PASS / 55 FAIL de 457 MCP, ESLint focal limpio y global 34 errores / 28 advertencias. R4-R3-A01 verificado, R4-R4-A02 pendiente. VNEXT-015 sin iniciar.
 - **Referencias:** D-010 (Evolución documentada por etapas), D-001 a D-015.
 
 ---
@@ -306,11 +306,12 @@ Cero ejecución de pruebas ni ConformityAssessment en R5. **No inicia ni declara
   - `014-R4-R3-02` P0. **PASS independiente.** Correlación 1:1 verificada para asiento ausente, digest distinto y duplicación de aprobaciones.
   - `014-R4-R3-03` P0. **7/7 PASS independiente.** Bloqueo de cierre y cero recibos, reportes o mutaciones en los fixtures inconsistentes.
   - `014-R4-R3-04` P1. **Matriz ejecutada.** Runner y Stdio PASS, MCP con 55 fallos históricos y lint pendiente (un error focal, 35 errores globales y 28 advertencias).
-  - `014-R4-R3-05` P2. **Código y tests R4-R4 publicados, pendiente QA.** `qap_status` evita recomendar `qap_session_close` si el host declara módulos canónicos sin cierre autorizado, aunque lifecycle legacy esté terminal.
-  - `014-R4-R4-01` P2. Cambiar solo guidance de cierre falso en WORKING conservando la proyección canónica y la recomendación positiva para waiver autorizado; **publicado sin auditoría**.
-  - `014-R4-R4-02` P1. Añadir regresión pública para los siete cierres inválidos y positivo válido, más corrección de error `preserve-caught-error`; **publicado sin auditoría**.
-  - `014-R4-R4-03` P0. Codex debe verificar R4-R4 con build, MCP serial, runner, Stdio, lint, actualizar informe/STATE/backlog y publicar documentos auditados en esta rama; **pendiente**.
-- **Compuerta de salida:** VNEXT-014 sigue NO-GO hasta auditoría independiente R4-R4, resolver 55 garantías MCP y lint global. [Nota R4-R4](014D_R4_R4_STATUS_GUIDANCE_CANONICO.md).
+  - `014-R4-R3-05` P2. **PASS independiente R4-R4.** Siete casos inválidos sin recomendación de cierre, incluido lifecycle legacy terminal.
+  - `014-R4-R4-01` P2. **Verificado para los fixtures de un módulo.** El waiver válido conserva la recomendación. Pendiente el borde con 17 módulos del hallazgo R4-R4-A02.
+  - `014-R4-R4-02` P1. **PASS independiente.** Siete negativos y un positivo aprobados, `preserve-caught-error` corregido.
+  - `014-R4-R4-03` P0. **Auditoría ejecutada y publicada.** [Matriz y evidencia](auditorias/VNEXT-014-R4-R4/INFORME.md).
+  - `014-R4-R4-04` P2. **Pendiente R4-R4-A02.** Separar el límite de inventario de la validación de pendientes y cubrir el módulo 17 válido e inválido.
+- **Compuerta de salida:** VNEXT-014 sigue NO-GO hasta resolver R4-R4-A02, las 55 garantías MCP y lint global. [Nota R4-R4](014D_R4_R4_STATUS_GUIDANCE_CANONICO.md).
 
 
 ---
