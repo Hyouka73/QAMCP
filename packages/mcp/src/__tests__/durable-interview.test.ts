@@ -207,6 +207,9 @@ describe('R4 encrypted durable interview state', () => {
     expect((await f.store.query('a', 'requirement')).items).toHaveLength(0);
   });
 
+  // Six sequential synchronous child processes, each with an individual budget.
+  const CHILD_BUDGET_MS = 30_000;
+  const DURABLE_CHILD_COUNT = 6;
   it('terminates Node processes between real MCP SDK operations and reopens both physical stores', async () => {
     const f = await fixture(); f.drafts.close(); f.store.close();
     const script = `
@@ -235,10 +238,11 @@ describe('R4 encrypted durable interview state', () => {
       await client.close(); await server.close(); drafts.close(); store.close();
       process.stdout.write(JSON.stringify({results,exact,request:request&&{requestDigest:request.requestDigest,statementDigest:request.statementDigest}}));
     `;
+    // The test deadline must cover the sum of its own child-process budgets.
     const child = (commands: unknown[], d?: HumanReviewDecision) => {
       const r = spawnSync(process.execPath, ['--input-type=module', '-e', script], { cwd: resolve('.'), encoding: 'utf8',
         env: { ...process.env, QAP_R4_DIST: pathToFileURL(resolve('dist/index.js')).href },
-        input: JSON.stringify({ knowledgePath: f.knowledgePath, context: f.context, options: { ...f.options, key: undefined }, key: Buffer.from(f.options.key).toString('hex'), commands, decision: d, expected: proposal.description }), timeout: 30000 });
+        input: JSON.stringify({ knowledgePath: f.knowledgePath, context: f.context, options: { ...f.options, key: undefined }, key: Buffer.from(f.options.key).toString('hex'), commands, decision: d, expected: proposal.description }), timeout: CHILD_BUDGET_MS });
       expect(r.status, r.stderr).toBe(0); expect(r.stdout).not.toContain(proposal.description);
       return JSON.parse(r.stdout) as { results: Array<Record<string, any>>; exact: boolean; request?: HumanReviewRequest };
     };
@@ -260,5 +264,5 @@ describe('R4 encrypted durable interview state', () => {
     expect((await reopened.query('a', 'relation')).items).toHaveLength(1);
     expect(readFileSync(f.lifecyclePath, 'utf8')).toBe(before);
     expect(existsSync(join(f.root, '.qa', 'modules'))).toBe(false);
-  }, 30000);
+  }, CHILD_BUDGET_MS * DURABLE_CHILD_COUNT + 15_000);
 });
