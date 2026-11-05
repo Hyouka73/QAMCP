@@ -39,10 +39,14 @@ export class SqliteKnowledgeAdapter implements IKnowledgeStore, IActionTargetSea
   private readonly cursorKey: string;
   private closed = false;
   private readonly planner = new KnowledgeCommitPlanner();
+  private readonly databasePath: string;
+  private readonly lockTimeoutMs: number;
 
   constructor(path: string, options: SqliteKnowledgeOptions = {}) {
     identity(path);
     const timeout = options.busy_timeout_ms ?? 1000;
+    this.databasePath = path;
+    this.lockTimeoutMs = timeout;
     if (!Number.isSafeInteger(timeout) || timeout < 0 || timeout > 60_000) fail('INVALID_DATA');
     try {
       // Lazy builtin load preserves legacy consumers on older Node runtimes. node:sqlite
@@ -71,6 +75,37 @@ export class SqliteKnowledgeAdapter implements IKnowledgeStore, IActionTargetSea
 
   close(): void {
     if (!this.closed) { this.db.close(); this.closed = true; }
+  }
+
+  /**
+   * A separate SQLite connection holds BEGIN IMMEDIATE until an independent
+   * ClosureStore COMMIT completes. The original connection remains readable.
+   * Memory databases cannot provide this cross-connection guarantee.
+   */
+  async withWriteFence<T>(applicationId: string, operation: () => Promise<T>): Promise<T> {
+    identity(applicationId);
+    if (this.closed || this.databasePath === ':memory:') return fail('UNAVAILABLE');
+    let fence: DatabaseSync;
+    try {
+      const sqlite = createRequire(import.meta.url)('node:sqlite') as typeof import('node:sqlite');
+      fence = new sqlite.DatabaseSync(this.databasePath);
+    } catch {
+      return fail('UNAVAILABLE');
+    }
+    let acquired = false;
+    try {
+      fence.exec(`PRAGMA busy_timeout = ${this.lockTimeoutMs}; BEGIN IMMEDIATE`);
+      acquired = true;
+      return await operation();
+    } catch (error) {
+      if (!acquired) return fail('CONFLICT');
+      throw error;
+    } finally {
+      if (acquired) {
+        try { fence.exec('ROLLBACK'); } catch { /* Do not mask the callback result. */ }
+      }
+      fence.close();
+    }
   }
 
   async searchActionTargets(request: ActionTargetSearchRequest): Promise<ActionTargetSearchHit[]> {

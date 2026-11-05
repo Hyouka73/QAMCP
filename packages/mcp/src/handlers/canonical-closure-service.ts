@@ -12,7 +12,7 @@ import {
 
 
 import { ModuleObservationBridge, type BridgeContext } from './module-observation-bridge.js';
-import { CanonicalCoverageService } from './canonical-coverage-service.js';
+import { CanonicalCoverageService, type CoverageEvaluationOptions } from './canonical-coverage-service.js';
 import type { IModuleClosureStore, ModuleClosureRecord, ModuleClosureSnapshot } from './module-closure-store.js';
 import type {
   IModuleClosureReviewGateway,
@@ -434,30 +434,22 @@ export class CanonicalClosureService {
       const decision = await this.requestGatewayDecision(reviewReq);
       if ('status' in decision) return decision;
 
-      // A delayed host decision is valid only for the exact canonical
-      // specification that produced the reviewed request.
-      const current = await this.coverageService.evaluate(plannedName, { applicabilityDecisions: decisions });
-      if (current.status !== 'evaluated' ||
-        current.assessment.coverage_digest !== reviewReq.coverageDigest) {
-        return {
-          status: 'blocked',
-          code: 'closure_context_changed',
-          razon: 'La cobertura o el contexto cambió mientras se esperaba la aprobación.',
-        };
-      }
-
-      // The audit timestamp must be the independent host's decision time,
-      // never the time of a previously pending review request.
+      // Persist only under a durable Knowledge fence; preserve host timestamp.
       const approvedDecisions = decisions.map(d => ({ ...d, decided_at: decision.decidedAt }));
-      await this.closureStore.transaction(scope, snapshot => {
-        if (snapshot.approvals.some(a => a[0] === decision.approvalId)) {
-          throw new Error('closure_decision_reused');
-        }
-        const existingDecs = snapshot.applicabilityDecisions[plannedName] ?? [];
-        snapshot.applicabilityDecisions[plannedName] = [...existingDecs, ...approvedDecisions];
-        snapshot.approvals.push([decision.approvalId, reviewReq.requestDigest]);
-        return Promise.resolve();
-      });
+      const persisted = await this.persistWithKnowledgeFence(plannedName, reviewReq, decision,
+        { applicabilityDecisions: decisions }, expectedSnapshot =>
+          this.closureStore.transaction(scope, snapshot => {
+            if (digest(snapshot) !== expectedSnapshot) throw new Error('closure_context_changed');
+            if (snapshot.approvals.some(a => a[0] === decision.approvalId)) {
+              throw new Error('closure_decision_reused');
+            }
+            if (Date.now() >= Date.parse(decision.expiresAt)) throw new Error('closure_review_expired');
+            const existingDecs = snapshot.applicabilityDecisions[plannedName] ?? [];
+            snapshot.applicabilityDecisions[plannedName] = [...existingDecs, ...approvedDecisions];
+            snapshot.approvals.push([decision.approvalId, reviewReq.requestDigest]);
+            return Promise.resolve(true);
+          }));
+      if (typeof persisted !== 'boolean') return persisted;
 
       const freshEval = await this.coverageService.evaluate(plannedName);
       return {
@@ -514,15 +506,20 @@ export class CanonicalClosureService {
           acceptance_receipt: decision.approvalId,
         }));
 
-      await this.closureStore.transaction(scope, snapshot => {
-        if (snapshot.approvals.some(a => a[0] === decision.approvalId)) {
-          throw new Error('closure_decision_reused');
-        }
-        const existingGaps = snapshot.acceptedGaps[plannedName] ?? [];
-        snapshot.acceptedGaps[plannedName] = [...existingGaps, ...acceptedGapsList];
-        snapshot.approvals.push([decision.approvalId, reviewReq.requestDigest]);
-        return Promise.resolve();
-      });
+      const persisted = await this.persistWithKnowledgeFence(plannedName, reviewReq, decision,
+        { acceptedGaps: typedCmd.accepted_gaps }, expectedSnapshot =>
+          this.closureStore.transaction(scope, snapshot => {
+            if (digest(snapshot) !== expectedSnapshot) throw new Error('closure_context_changed');
+            if (snapshot.approvals.some(a => a[0] === decision.approvalId)) {
+              throw new Error('closure_decision_reused');
+            }
+            if (Date.now() >= Date.parse(decision.expiresAt)) throw new Error('closure_review_expired');
+            const existingGaps = snapshot.acceptedGaps[plannedName] ?? [];
+            snapshot.acceptedGaps[plannedName] = [...existingGaps, ...acceptedGapsList];
+            snapshot.approvals.push([decision.approvalId, reviewReq.requestDigest]);
+            return Promise.resolve(true);
+          }));
+      if (typeof persisted !== 'boolean') return persisted;
 
       const freshEval = await this.coverageService.evaluate(plannedName);
       return {
@@ -633,6 +630,52 @@ export class CanonicalClosureService {
     };
   }
 
+  /**
+   * Consume host approval with a bounded Knowledge write fence held through
+   * ClosureStore commit. Both current Knowledge and ClosureStore must match
+   * the reviewed snapshot. Receipts remain a separate, recoverable step.
+   */
+  private async persistWithKnowledgeFence<T>(
+    plannedName: string,
+    request: ModuleClosureReviewRequest,
+    decision: ModuleClosureReviewDecision,
+    options: CoverageEvaluationOptions,
+    write: (closureSnapshotDigest: string) => Promise<T>,
+    requireReady = false
+  ): Promise<T | { status: 'blocked'; code: string; razon: string }> {
+    const blocked = (code: string, razon: string) => ({ status: 'blocked' as const, code, razon });
+    if (!this.store.withWriteFence) {
+      return blocked('closure_consistency_fence_required',
+        'El almacén canónico no ofrece una frontera de consistencia hasta la persistencia.');
+    }
+    const scope = {
+      projectRoot: this.context.projectRoot,
+      applicationId: this.context.applicationId,
+      environmentId: this.context.environmentId,
+    };
+    try {
+      return await this.store.withWriteFence(this.context.applicationId, async () => {
+        const before = digest(this.closureStore.read(scope));
+        const current = await this.coverageService.evaluate(plannedName, options);
+        const after = digest(this.closureStore.read(scope));
+        if (before !== after || current.status !== 'evaluated' ||
+          current.assessment.coverage_digest !== request.coverageDigest ||
+          (requireReady && current.assessment.closure_verdict !== 'ready_for_closure')) {
+          return blocked('closure_context_changed',
+            'La cobertura, el contexto o las decisiones cambiaron antes del commit.');
+        }
+        const expiresAt = Date.parse(decision.expiresAt);
+        if (!Number.isFinite(expiresAt) || Date.now() >= expiresAt) {
+          return blocked('closure_review_expired', 'La autorización expiró antes de consumirse.');
+        }
+        return await write(after);
+      });
+    } catch {
+      return blocked('closure_consistency_conflict',
+        'No fue posible garantizar el snapshot autorizado hasta el commit durable.');
+    }
+  }
+
   private async requestGatewayDecision(
     request: ModuleClosureReviewRequest
   ): Promise<ModuleClosureReviewDecision | { readonly status: 'blocked'; readonly code: string; readonly razon: string }> {
@@ -694,8 +737,9 @@ export class CanonicalClosureService {
     assessment: CanonicalCoverageAssessment
   ): Promise<Record<string, unknown>> {
     const parsedExp = Date.parse(decision.expiresAt);
-    if (!Number.isFinite(parsedExp) || Date.now() > parsedExp) {
-      throw new Error('closure_review_expired');
+    if (!Number.isFinite(parsedExp) || Date.now() >= parsedExp) {
+      return { status: 'blocked', code: 'closure_review_expired',
+        razon: 'La autorización expiró antes de persistir el cierre.' };
     }
 
     const scope = {
@@ -723,7 +767,11 @@ export class CanonicalClosureService {
     const maxAttempts = 3;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        const txOutcome = await this.closureStore.transaction(scope, async snapshot => {
+        const fenced = await this.persistWithKnowledgeFence(plannedName, request, decision,
+          status === 'waived' ? { isWaived: true, waiverReason } : {},
+          expectedSnapshot => this.closureStore.transaction(scope, async snapshot => {
+          if (digest(snapshot) !== expectedSnapshot) throw new Error('closure_context_changed');
+          if (Date.now() >= Date.parse(decision.expiresAt)) throw new Error('closure_review_expired');
           const existing = snapshot.closures[plannedName];
           if (existing) {
             if (!this.isAuthorizedDurableClosure(plannedName, existing, snapshot)) {
@@ -747,7 +795,9 @@ export class CanonicalClosureService {
           snapshot.closures[plannedName] = record;
           snapshot.approvals.push([decision.approvalId, request.requestDigest]);
           return { committed: true, record };
-        });
+        }), status === 'closed');
+        if ('status' in fenced) return fenced;
+        const txOutcome = fenced;
 
         if (!txOutcome.committed) {
           return {

@@ -151,4 +151,11 @@ export interface IKnowledgeStore {
   history<K extends KnowledgeKind>(applicationId: string, kind: K, id: string,
     page?: KnowledgePageRequest): Promise<KnowledgePage<KnowledgeRecord<K>>>;
   commit(applicationId: string, writes: readonly KnowledgeWrite[]): Promise<KnowledgeRecord[]>;
+  /**
+   * Optional host capability: a write fence excluding all concurrent writers
+   * (including other processes) until the asynchronous operation has settled.
+   * Revalidate while fenced; never hold this through human review. Absence must
+   * fail closed for cross-store authorization. Not a distributed transaction.
+   */
+  withWriteFence?<T>(applicationId: string, operation: () => Promise<T>): Promise<T>;
 }
