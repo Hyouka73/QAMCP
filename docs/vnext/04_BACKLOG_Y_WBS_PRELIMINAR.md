@@ -482,3 +482,15 @@ Cero ejecución de pruebas ni ConformityAssessment en R5. **No inicia ni declara
 - `014-R4-R12-03` P1/P2 verificación: dos nuevas pruebas focales, matriz completa Codex 478 MCP esperadas (baseline476), build10/coverage53/runner71/Interview44/Discovery59/stdio18/lint; comparar identidades exactas y reproducir demoras físicas.
 - `014-R4-R12-04` P0: **pendiente** — migrar 8 fixtures Memory a garantías SQLite, reconciliar 55 fallos históricos y cadena integrada real init→plan→Discovery→interview/review→A closed→B waived→reporte→WRAP_UP→replanificación, sin autoridad ficticia.
 - `014-R4-R12-05` Limitaciones: sustituir/renombrar SQLite bajo otros SO, writer raw fuera de fence y crash/energía entre Closure+Knowledge+FS no certificados. [Detalle](014H_R4_R12_EXPIRY_GAP_REPLAY.md).
+
+
+---
+
+## Hito 7 y 8 — Propuesta documental de ampliación agnóstica (2026-11-05, NO AUTORIZADA)
+
+**Estado:** PROPUESTA / NO-GO para implementación. No altera, sustituye ni autoriza VNEXT-001–023; conserva todas sus compuertas y el historial de auditorías de VNEXT-014.
+
+- [Auditoría de compatibilidad develop vs vNext y conservación de trabajo paralelo](06_AUDITORIA_CRUCE_DEVELOP_VNEXT.md).
+- [WBS ampliado propuesto: VNEXT-024–033, contratos genéricos, UTCP opcional, ARTEMIS y extensión LENDUS separada](07_WBS_QAP_AGNOSTICO_Y_EXTENSIONES.md).
+
+La extensión LENDUS se planifica fuera del núcleo público (LENDUS-EXT-001–007). QAP permanece agnóstico y utilizable sin UTCP, ARTEMIS, código fuente de la aplicación ni dependencias de Jira/Xray. No integrar feature sobre develop, ni pisar contribuciones de BVA, CLI update/rollback, prune y schemas sin compuerta cruzada de migración y pruebas. **La ampliación documental no autoriza iniciar VNEXT-015–033 ni un merge.**
