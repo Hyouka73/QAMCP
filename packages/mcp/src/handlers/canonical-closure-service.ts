@@ -159,7 +159,8 @@ export class CanonicalClosureService {
    */
   private async projectLifecycleClosure(plannedName: string, closure: ModuleClosureRecord): Promise<boolean> {
     const waivedReason = closure.status === 'waived' && typeof closure.waiverReason === 'string'
-      ? closure.waiverReason.trim() : undefined;
+      && closure.waiverReason.trim().length > 0
+      ? closure.waiverReason : undefined;
     if (closure.status === 'waived' && !waivedReason) return false;
 
     const fsStorage = new FileSystemStorage({ rootDir: this.context.projectRoot });
