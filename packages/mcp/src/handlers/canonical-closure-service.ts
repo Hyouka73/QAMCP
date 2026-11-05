@@ -13,6 +13,7 @@ import {
 
 
 import { ModuleObservationBridge, type BridgeContext } from './module-observation-bridge.js';
+import { CanonicalClosureError } from './canonical-closure-error.js';
 import { CanonicalCoverageService, type CoverageEvaluationOptions } from './canonical-coverage-service.js';
 import { ClosureStoreError, withClosureCommitDeadline,
   type IModuleClosureStore, type ModuleClosureRecord, type ModuleClosureSnapshot } from './module-closure-store.js';
@@ -358,14 +359,14 @@ export class CanonicalClosureService {
       if (!closure || !this.isAuthorizedDurableClosure(binding.plannedName, closure, snapshot) ||
           closure.moduleId !== binding.moduleId || closure.moduleKey !== binding.moduleKey ||
           closure.moduleRevision !== binding.moduleRevision) {
-        throw new Error('canonical_report_authorization_or_binding_invalid');
+        throw new CanonicalClosureError('canonical_report_authorization_or_binding_invalid');
       }
       // A validated decision must also have its canonical relation receipt.
       // reconcile() runs before sessionReport() during the session-close gate.
       const receiptId = (closure.status === 'waived' ? 'waiver:' : 'closure:') + closure.decisionId;
       const receipt = await this.store.get(this.context.applicationId, 'relation', receiptId);
       if (!this.validCanonicalReceipt(receipt, closure, binding.applicationRevision)) {
-        throw new Error('canonical_report_receipt_missing_or_invalid');
+        throw new CanonicalClosureError('canonical_report_receipt_missing_or_invalid');
       }
       const requirements: CanonicalSessionModuleReport['current_confirmed_requirements'][number][] = [];
       let pending = 0;
@@ -570,14 +571,14 @@ export class CanonicalClosureService {
       const persisted = await this.persistWithKnowledgeFence(plannedName, reviewReq, decision,
         { applicabilityDecisions: decisions }, (expectedSnapshot, contextFingerprint) =>
           this.closureStore.transaction(scope, async snapshot => {
-            if (digest(snapshot) !== expectedSnapshot) throw new Error('closure_context_changed');
+            if (digest(snapshot) !== expectedSnapshot) throw new ClosureStoreError('context_changed');
             const currentIdentity = await this.bridge.resolve(plannedName);
             if (currentIdentity.status !== 'resolved' ||
-              currentIdentity.fingerprint !== contextFingerprint) throw new Error('closure_context_changed');
+              currentIdentity.fingerprint !== contextFingerprint) throw new ClosureStoreError('context_changed');
             if (snapshot.approvals.some(a => a[0] === decision.approvalId)) {
               throw new Error('closure_decision_reused');
             }
-            if (Date.now() >= Date.parse(decision.expiresAt)) throw new Error('closure_review_expired');
+            if (Date.now() >= Date.parse(decision.expiresAt)) throw new ClosureStoreError('authorization_expired');
             const existingDecs = snapshot.applicabilityDecisions[plannedName] ?? [];
             snapshot.applicabilityDecisions[plannedName] = [...existingDecs, ...approvedDecisions];
             snapshot.approvals.push([decision.approvalId, reviewReq.requestDigest]);
@@ -735,14 +736,14 @@ export class CanonicalClosureService {
             throw new Error('closure_accepted_gaps_invalid');
           }
           return this.closureStore.transaction(scope, async snapshot => {
-            if (digest(snapshot) !== expectedSnapshot) throw new Error('closure_context_changed');
+            if (digest(snapshot) !== expectedSnapshot) throw new ClosureStoreError('context_changed');
             const currentIdentity = await this.bridge.resolve(plannedName);
             if (currentIdentity.status !== 'resolved' ||
-              currentIdentity.fingerprint !== contextFingerprint) throw new Error('closure_context_changed');
+              currentIdentity.fingerprint !== contextFingerprint) throw new ClosureStoreError('context_changed');
             if (snapshot.approvals.some(a => a[0] === decision.approvalId)) {
               throw new Error('closure_decision_reused');
             }
-            if (Date.now() >= Date.parse(decision.expiresAt)) throw new Error('closure_review_expired');
+            if (Date.now() >= Date.parse(decision.expiresAt)) throw new ClosureStoreError('authorization_expired');
             const existingGaps = snapshot.acceptedGaps[plannedName] ?? [];
             snapshot.acceptedGaps[plannedName] = [...existingGaps, ...acceptedGapsList];
             snapshot.approvals.push([decision.approvalId, reviewReq.requestDigest]);
@@ -916,6 +917,7 @@ export class CanonicalClosureService {
       // recoverable consistency block. Unexpected I/O, corruption and store
       // exceptions must propagate, not impersonate an ordinary conflict.
       if ((error instanceof KnowledgeStoreError && error.code === 'CONFLICT') ||
+          (error instanceof ClosureStoreError && ['context_changed', 'revision_conflict'].includes(error.code)) ||
           (error instanceof Error && (
             error.message === 'closure_context_changed' ||
             error.message === 'closure_revision_conflict' ||
@@ -1022,8 +1024,8 @@ export class CanonicalClosureService {
         const fenced = await this.persistWithKnowledgeFence(plannedName, request, decision,
           status === 'waived' ? { isWaived: true, waiverReason } : {},
           (expectedSnapshot, contextFingerprint) => this.closureStore.transaction(scope, async snapshot => {
-          if (digest(snapshot) !== expectedSnapshot) throw new Error('closure_context_changed');
-          if (Date.now() >= Date.parse(decision.expiresAt)) throw new Error('closure_review_expired');
+          if (digest(snapshot) !== expectedSnapshot) throw new ClosureStoreError('context_changed');
+          if (Date.now() >= Date.parse(decision.expiresAt)) throw new ClosureStoreError('authorization_expired');
           const existing = snapshot.closures[plannedName];
           if (existing) {
             if (!this.isAuthorizedDurableClosure(plannedName, existing, snapshot)) {
@@ -1038,11 +1040,11 @@ export class CanonicalClosureService {
           // Re-verificar que el estado canónico no derivó
           const reCheck = await this.bridge.resolve(plannedName);
           if (reCheck.status !== 'resolved') {
-            throw new Error('closure_context_changed');
+            throw new ClosureStoreError('context_changed');
           }
           if (reCheck.fingerprint !== contextFingerprint ||
             reCheck.link.moduleRevision !== link.moduleRevision) {
-            throw new Error('closure_revision_conflict');
+            throw new ClosureStoreError('revision_conflict');
           }
 
           snapshot.closures[plannedName] = record;

@@ -20,6 +20,7 @@ import { CanonicalCoverageService } from '../handlers/canonical-coverage-service
 import { CanonicalClosureService } from '../handlers/canonical-closure-service.js';
 import {
   SqliteModuleClosureStore,
+  ClosureStoreError,
   type SqliteModuleClosureOptions,
   type IModuleClosureStore,
   type ClosureScope,
@@ -675,6 +676,25 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
         action: 'waive',
         reason: 'Renuncia autorizada formalmente; el fallo físico debe propagarse.',
       })).rejects.toThrow('unexpected_closure_disk_write_failure');
+      expect(f.closureStore.read(f.context)).toEqual(before);
+      expect((await f.store.query('app-r5', 'relation')).items).toHaveLength(0);
+    });
+
+    it.each(['UNAVAILABLE', 'write_failed'] as const)('014-CODEX-002: %s remains a real error rather than a consistency block', async code => {
+      const f = await fixture();
+      const before = f.closureStore.read(f.context);
+      const error = code === 'UNAVAILABLE'
+        ? new KnowledgeStoreError(code, 'synthetic_disk_error') : new ClosureStoreError(code);
+      const brokenStore: IModuleClosureStore = {
+        read: scope => f.closureStore.read(scope),
+        transaction: async () => { throw error; }, close: () => {},
+      };
+      const service = new CanonicalClosureService(f.store, f.context, brokenStore, {
+        reviewClosure: async request => makeDecision(request),
+      });
+      await expect(service.execute('catalog', {
+        action: 'waive', reason: 'Renuncia de prueba para verificar un fallo inesperado de almacenamiento.',
+      })).rejects.toBe(error);
       expect(f.closureStore.read(f.context)).toEqual(before);
       expect((await f.store.query('app-r5', 'relation')).items).toHaveLength(0);
     });

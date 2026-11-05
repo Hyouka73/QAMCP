@@ -89,6 +89,7 @@ import { StatusHandler } from './handlers/status.handler.js';
 import { ContextHandler } from './handlers/context.handler.js';
 import { DiscoveryHandler, type DiscoveryAuthorization } from './handlers/discovery.handler.js';
 import { CanonicalInterviewService } from './handlers/canonical-interview-service.js';
+import { CanonicalClosureError } from './handlers/canonical-closure-error.js';
 import { CanonicalClosureService } from './handlers/canonical-closure-service.js';
 import { renderCanonicalSessionReport } from './handlers/canonical-session-report.js';
 import { projectRoot as authorizedProjectRoot, result as canonicalResult } from './handlers/state-services.js';
@@ -3686,7 +3687,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         content: [
           {
             type: 'text',
-            text: JSON.stringify({ status: 'error', code: 'internal_tool_error', error_id: errorId }),
+            text: JSON.stringify({ status: 'error', code: err instanceof CanonicalClosureError ? err.publicCode() ?? 'internal_tool_error' : 'internal_tool_error', error_id: errorId }),
           },
         ],
       };

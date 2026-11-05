@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/require-await -- Promise port over synchronous SQLite; never yield inside a transaction. */
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { createHmac } from 'node:crypto';
 import { realpathSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -46,6 +47,15 @@ export class SqliteKnowledgeAdapter implements IKnowledgeStore, IActionTargetSea
   private readonly lockTimeoutMs: number;
   /** Prevent synchronous SQLite busy waits from starving local fence owners. */
   private static readonly fenceTails = new Map<string, Promise<void>>();
+  // Context of the fence owner, distinct from another connection/process trying
+  // to write. The active flag expires even in asynchronous descendants.
+  private static readonly fenceOwners = new AsyncLocalStorage<readonly { path: string; active: boolean }[]>();
+
+  private rejectReentrantWrite(): void {
+    if (SqliteKnowledgeAdapter.fenceOwners.getStore()?.some(owner => owner.active && owner.path === this.databasePath)) {
+      fail('CONFLICT');
+    }
+  }
 
   constructor(path: string, options: SqliteKnowledgeOptions = {}) {
     identity(path);
@@ -97,6 +107,7 @@ export class SqliteKnowledgeAdapter implements IKnowledgeStore, IActionTargetSea
    */
   async withWriteFence<T>(applicationId: string, operation: () => Promise<T>): Promise<T> {
     identity(applicationId);
+    this.rejectReentrantWrite();
     if (this.closed || this.databasePath === ':memory:' || !this.databaseIdentity) return fail('UNAVAILABLE');
     const previous = SqliteKnowledgeAdapter.fenceTails.get(this.databasePath);
     let release!: () => void;
@@ -125,7 +136,13 @@ export class SqliteKnowledgeAdapter implements IKnowledgeStore, IActionTargetSea
       acquired = true;
       const underLock = statSync(canonical);
       if (`${underLock.dev}:${underLock.ino}` !== this.databaseIdentity) return fail('UNAVAILABLE');
-      return await operation();
+      const owner = { path: this.databasePath, active: true };
+      try {
+        return await SqliteKnowledgeAdapter.fenceOwners.run(
+          [...(SqliteKnowledgeAdapter.fenceOwners.getStore() ?? []), owner], operation);
+      } finally {
+        owner.active = false;
+      }
     } catch (error) {
       if (!acquired && !(error instanceof KnowledgeStoreError)) return fail('CONFLICT');
       throw error;
@@ -235,6 +252,9 @@ export class SqliteKnowledgeAdapter implements IKnowledgeStore, IActionTargetSea
 
   async commit(app: string, writes: readonly KnowledgeWrite[]): Promise<KnowledgeRecord[]> {
     identity(app);
+    // Never synchronously wait for our own async fence to release. Reads remain
+    // allowed; reentrant writes are an explicit conflict with zero SQL effects.
+    this.rejectReentrantWrite();
     // Scan before acquiring the writer lock. Never yield while holding a transaction.
     let prepared: KnowledgeWrite[];
     try { prepared = this.planner.prepare(writes); } catch { return fail('INVALID_DATA'); }

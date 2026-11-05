@@ -41,7 +41,7 @@ export interface ModuleClosureSnapshot {
 export type ClosureStoreAvailability = 'compatible' | 'not_initialized' | 'incompatible' | 'corrupt' | 'unavailable';
 
 export class ClosureStoreError extends Error {
-  constructor(readonly code: ClosureStoreAvailability | 'conflict' | 'write_failed' | 'scope_mismatch' | 'retention_limit' | 'decision_reused' | 'authorization_expired') {
+  constructor(readonly code: ClosureStoreAvailability | 'conflict' | 'context_changed' | 'revision_conflict' | 'write_failed' | 'scope_mismatch' | 'retention_limit' | 'decision_reused' | 'authorization_expired') {
     super(`Module closure store: ${code}`);
   }
 }

@@ -42,6 +42,31 @@ describe('IKnowledgeStore contract — physical SQLite files', () => {
 });
 
 describe('SqliteKnowledgeAdapter physical guarantees', () => {
+  it('rejects reentrant writes and nested fences without waiting, then permits writes after release', async () => {
+    const { path } = fixture();
+    const store = open(path);
+    const other = open(path);
+    await store.commit('a', [application(), write('module', moduleEntity)]);
+    await store.withWriteFence('a', async () => {
+      expect((await store.get('a', 'module', 'm'))?.revision).toBe(1);
+      for (const connection of [store, other]) {
+        await expect(connection.commit('a', [write('module', { ...moduleEntity, title: 'Rejected' }, 1)]))
+          .rejects.toMatchObject({ code: 'CONFLICT' });
+        await expect(connection.withWriteFence('a', async () => undefined))
+          .rejects.toMatchObject({ code: 'CONFLICT' });
+      }
+      expect((await other.get('a', 'module', 'm'))?.revision).toBe(1);
+    });
+    await other.commit('a', [write('module', { ...moduleEntity, title: 'After release' }, 1)]);
+    store.close(); other.close();
+    expect((await open(path).get('a', 'module', 'm'))?.revision).toBe(2);
+    const db = new DatabaseSync(path);
+    try {
+      expect(db.prepare('PRAGMA integrity_check').get()?.integrity_check).toBe('ok');
+      expect(db.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
+    } finally { db.close(); }
+  });
+
   it('persists revisions, provenance, pinned historical links and pagination across reopen', async () => {
     const { path } = fixture();
     const first = open(path);
