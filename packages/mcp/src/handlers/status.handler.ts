@@ -31,18 +31,22 @@ export class StatusHandler implements IMcpToolHandler {
         const bridge = new ModuleObservationBridge(bound.store, { ...bound, projectRoot: rootDir });
         const boundNames = [...new Set(bound.moduleBindings.map(b => b.plannedName))];
         for (const name of boundNames) unresolvedCanonicalModules.add(name);
-        for (const name of boundNames.slice(0, 16)) {
+        // Verify every host-bound closure. The 16-item limit belongs only to
+        // presentation; it must never cap the session-close guidance gate.
+        for (const [index, name] of boundNames.entries()) {
           const closureStatus = await this.dependencies.canonicalClosures?.get(rootDir)?.status(name);
           if (closureStatus?.state === 'closed' || closureStatus?.state === 'waived') {
             unresolvedCanonicalModules.delete(name);
           }
-          canonicalModules.push({
-            plannedName: name,
-            ...await bridge.project(name),
-            interview: await this.dependencies.canonicalInterviews?.get(rootDir)?.status(name) ?? {
-              availability: 'host_runtime_absent', human_review_required: true, coverage: 'not_certified' },
-            closure: closureStatus ?? { state: 'working', ready_for_closure: false },
-          });
+          if (index < 16) {
+            canonicalModules.push({
+              plannedName: name,
+              ...await bridge.project(name),
+              interview: await this.dependencies.canonicalInterviews?.get(rootDir)?.status(name) ?? {
+                availability: 'host_runtime_absent', human_review_required: true, coverage: 'not_certified' },
+              closure: closureStatus ?? { state: 'working', ready_for_closure: false },
+            });
+          }
         }
 
 
