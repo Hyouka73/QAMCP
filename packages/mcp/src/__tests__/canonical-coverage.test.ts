@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
@@ -1581,6 +1582,125 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
       expect(report).toContain('no certificada');
       expect(f.closureStore.read(f.context)).toEqual(before);
     });
+
+
+    // RES-CODEX-A01: reproductions use the official lifecycle updater, not a
+    // fabricated get() response. Synthetic gateway is not human consent.
+    for (const scenario of ['planned', 'planned-process', 'session', 'phase'] as const) {
+      it('RES-CODEX-A01 serializes concurrent ' + scenario + ' writer before close', async () => {
+        const f = await fixture({
+          gateway: { reviewClosure: async request => makeDecision(request) },
+        });
+        expect((await f.closureService.execute('catalog', {
+          action: 'waive', reason: 'Waiver sintético para reproducción de cierre concurrente',
+        })).status).toBe('waived');
+        const beforeReceipt = (await f.store.query('app-r5', 'relation')).items;
+        let injected = false;
+        const original = CanonicalClosureService.prototype.sessionReport;
+        vi.spyOn(CanonicalClosureService.prototype, 'sessionReport').mockImplementation(
+          async function (this: CanonicalClosureService) {
+            if (!injected) {
+              injected = true;
+              if (scenario === 'planned-process') {
+                const entry = pathToFileURL(join(process.cwd(),
+                  'packages', 'knowledge', 'dist', 'index.js')).href;
+                const childCode = [
+                  'const { FileSystemStorage } = await import(' + JSON.stringify(entry) + ');',
+                  'const storage = new FileSystemStorage({ rootDir: process.argv[1] });',
+                  'await storage.updateLifecycleState(state => {',
+                  '  state.modules.late = { state: "planned", updated_at: ' + JSON.stringify(time) + ' };',
+                  '  state.session.plan.push({ module: "late", path: "/late" });',
+                  '  return state;',
+                  '});',
+                ].join('\n');
+                const child = spawnSync(process.execPath, ['--input-type=module', '-e',
+                  childCode, f.root], { encoding: 'utf8', timeout: 12000 });
+                expect(child.status, child.stderr || child.stdout).toBe(0);
+              } else {
+                const storage = new FileSystemStorage({ rootDir: f.root });
+                await storage.updateLifecycleState(current => {
+                  if (scenario === 'planned') {
+                    current.modules.late = { state: 'planned', updated_at: time };
+                    current.session!.plan.push({ module: 'late', path: '/late' });
+                  } else if (scenario === 'session') {
+                    current.session!.id = 'session-concurrent-new';
+                  } else {
+                    current.phase = 'SCOPING';
+                  }
+                  return current;
+                });
+              }
+            }
+            return original.call(this);
+          }
+        );
+        const client = await mcpClient(f);
+        const response = await client.callTool({
+          name: 'qap_session_close', arguments: { targetPath: f.root },
+        });
+        const result = JSON.parse((response.content[0] as { text: string }).text) as {
+          status: string; code?: string; fase?: string; report_path?: string;
+        };
+        expect(injected).toBe(true);
+        expect(result).toMatchObject({ status: 'blocked', code: 'session_context_changed' });
+        const physical = JSON.parse(readFileSync(f.lifecyclePath, 'utf8')) as {
+          phase: string; session: { id: string }; modules: Record<string, { state: string }>;
+        };
+        expect(physical.phase).toBe(scenario === 'phase' ? 'SCOPING' : 'WORKING');
+        if (scenario.startsWith('planned')) expect(physical.modules.late.state).toBe('planned');
+        if (scenario === 'session') expect(physical.session.id).toBe('session-concurrent-new');
+        expect(existsSync(join(f.root, '.qa/project/sessions/session-r5.report.md'))).toBe(false);
+        expect((await f.store.query('app-r5', 'relation')).items).toEqual(beforeReceipt);
+      });
+    }
+
+    // RES-CODEX-A02: valid Knowledge CAS commits retaining the original digest.
+    for (const tamper of ['source', 'target'] as const) {
+      it('RES-CODEX-A02 refuses changed canonical receipt ' + tamper, async () => {
+        const f = await fixture({
+          gateway: { reviewClosure: async request => makeDecision(request) },
+        });
+        expect((await f.closureService.execute('catalog', {
+          action: 'waive', reason: 'Waiver sintético para probar integridad del recibo',
+        })).status).toBe('waived');
+        const decisionId = f.closureStore.read(f.context).closures.catalog!.decisionId;
+        const receiptId = 'waiver:' + decisionId;
+        const original = CanonicalClosureService.prototype.sessionReport;
+        let changed = false;
+        vi.spyOn(CanonicalClosureService.prototype, 'sessionReport').mockImplementation(
+          async function (this: CanonicalClosureService) {
+            if (!changed) {
+              changed = true;
+              const receipt = await f.store.get('app-r5', 'relation', receiptId);
+              expect(receipt).not.toBeNull();
+              if (!receipt) throw new Error('missing fixture receipt');
+              await f.store.commit('app-r5', [{
+                kind: 'relation',
+                expected_revision: receipt.revision,
+                entity: tamper === 'target'
+                  ? { ...receipt.entity, target: { kind: 'module', id: 'mod-catalog', revision: 1 } }
+                  : receipt.entity,
+                trace: tamper === 'source'
+                  ? { ...receipt.trace, source: 'wrong-provenance' } : receipt.trace,
+              }]);
+            }
+            return original.call(this);
+          }
+        );
+        const client = await mcpClient(f);
+        const response = await client.callTool({
+          name: 'qap_session_close', arguments: { targetPath: f.root },
+        });
+        const outcome = JSON.parse((response.content[0] as { text: string }).text) as {
+          status: string; report_path?: string;
+        };
+        expect(changed).toBe(true);
+        expect(outcome.status).not.toBe('success');
+        expect(outcome.report_path).toBeUndefined();
+        expect(JSON.parse(readFileSync(f.lifecyclePath, 'utf8')).phase).toBe('WORKING');
+        expect(existsSync(join(f.root, '.qa/project/sessions/session-r5.report.md'))).toBe(false);
+      });
+    }
 
     it('VNEXT-014 rescue: controlled A closed + B waived produces distinct canonical report sections', async () => {
       // Both gateway responses are test fixtures, NOT actual human decisions.
