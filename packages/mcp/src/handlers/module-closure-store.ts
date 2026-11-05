@@ -53,6 +53,18 @@ export function withClosureCommitDeadline<T>(deadlineMs: number, action: () => P
   return commitDeadline.run(deadlineMs, action);
 }
 
+/**
+ * Privileged host contract: SQL closure transaction must execute in the same
+ * AsyncLocalStorage context as withClosureCommitDeadline. A wrapper/decorator
+ * that queues work using timers/tasks created before the review request is
+ * NOT an authorized host composition unless it explicitly propagates the ALS
+ * context and rechecks the deadline before physical COMMIT.
+ *
+ * This interface is structurally typed and cannot enforce propagation at
+ * runtime for arbitrary third-party decorators. The standard host composition
+ * uses SqliteModuleClosureStore directly; do not claim a universal deadline
+ * guarantee for arbitrary IModuleClosureStore implementations.
+ */
 export interface IModuleClosureStore {
   read(scope: ClosureScope): ModuleClosureSnapshot;
   transaction<T>(scope: ClosureScope, operation: (snapshot: ModuleClosureSnapshot) => Promise<T>): Promise<T>;
