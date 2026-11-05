@@ -449,3 +449,12 @@ Cero ejecución de pruebas ni ConformityAssessment en R5. **No inicia ni declara
 - **A05: aceptación funcional acotada PASS.** Brecha existente real derivada por Coverage, propuesta base, motivo exacto, decisión correlacionada del gateway de fixture, receipt y readback SQLite; negativos de IDs inexistentes/duplicados, motivo cambiado, revisión/requisito nuevo y approvalId reutilizado sin nueva autoridad. No es aprobación humana ni certificación integrada. Retry ya aceptado bloquea sin duplicación; éxito idempotente pendiente de contrato (A06).
 - **A03/A04 siguen abiertas.** Local waived+blocked/context_changed y Scenario4 FAIL, retry externo idempotente; un schedule multiproceso sí PASS no acredita todos los intercalados. Las cuatro ramas pueden consumir aprobación durable después de expiresAt al demorar tras callback. Definir consumo y guard final si se exige vigencia a commit. Cierres históricos R9 mantienen autoridad, recibos e historial; rollback probado conserva estado y libera locks.
 - **Dictamen: VNEXT-014 NO-GO; VNEXT-015 no iniciado.** Corregir P1 y reconciliar garantías/matriz antes de certificar A closed+B waived+reporte fiel+WRAP_UP+replanificación auténticos. No se sembraron aprobaciones ni requisitos ficticios para certificar ese recorrido. [Siguiente bloque según evidencia](auditorias/VNEXT-014-R4-R10/SIGUIENTE_BLOQUE_P0.md).
+
+
+### Continuidad VNEXT-014-D-R4-R11 (2026-11-05)
+
+- `014-R4-R11-01` P1: **implementado/pendiente de QA** — normalización física del nombre de lock oficial `FileSystemStorage` ante casing Windows, regresiones de las cuatro acciones y prueba multihost/proceso del mismo archivo.
+- `014-R4-R11-02` P2: **implementado/pendiente de QA** — retorno idempotente de terminal concurrente solo con aprobación durable correlacionada, relectura tras liberar fences y reconciliación; verificar Scenario4/recibos/crash.
+- `014-R4-R11-03` P2: **pendiente** — política de expiración A04 al COMMIT físico sin escribir approvals vencidos.
+- `014-R4-R11-04` P2: **pendiente** — replay exacto A06 de `accept_gaps` con razón y receipt anteriores, sin reutilizar autoridad para nuevos motivos/IDs.
+- `014-R4-R11-05` P0: **pendiente** — auditoría R11 y recorrido integral canónico E0a/E1/E2/E3/Criterio9. Mantener 55 históricos y ocho fixtures memory + Scenario4, no suprimir.

@@ -1128,3 +1128,12 @@ Modo de integridad: `development` (Reemplazo genuino de `qap_test` por `TestHand
 - **A05: aceptación funcional acotada PASS.** Brecha existente real derivada por Coverage, propuesta base, motivo exacto, decisión correlacionada del gateway de fixture, receipt y readback SQLite; negativos de IDs inexistentes/duplicados, motivo cambiado, revisión/requisito nuevo y approvalId reutilizado sin nueva autoridad. No es aprobación humana ni certificación integrada. Retry ya aceptado bloquea sin duplicación; éxito idempotente pendiente de contrato (A06).
 - **A03/A04 siguen abiertas.** Local waived+blocked/context_changed y Scenario4 FAIL, retry externo idempotente; un schedule multiproceso sí PASS no acredita todos los intercalados. Las cuatro ramas pueden consumir aprobación durable después de expiresAt al demorar tras callback. Definir consumo y guard final si se exige vigencia a commit. Cierres históricos R9 mantienen autoridad, recibos e historial; rollback probado conserva estado y libera locks.
 - **Dictamen: VNEXT-014 NO-GO; VNEXT-015 no iniciado.** Corregir P1 y reconciliar garantías/matriz antes de certificar A closed+B waived+reporte fiel+WRAP_UP+replanificación auténticos. No se sembraron aprobaciones ni requisitos ficticios para certificar ese recorrido. [Siguiente bloque según evidencia](auditorias/VNEXT-014-R4-R10/SIGUIENTE_BLOQUE_P0.md).
+
+
+## VNEXT-014-D-R4-R11 — Ajuste de locks oficiales y relectura del ganador (2026-11-05)
+
+- Código base auditado en R4-R10: `e7d3717d9311ed73736568b13ce99e131d617453`; documentación auditora en `741b02561ca959a31f5b010a921923cbea4dbcac`. Informe: [R4-R10](auditorias/VNEXT-014-R4-R10/INFORME.md).
+- R4-R10-A01 P1: **implementación nueva, QA independiente pendiente**. Namespace de lock usa ruta física canónica y casefold exclusivo Windows; prueba de aliases uppercase para las cuatro acciones agregada, aún sin ejecución certificada.
+- R4-R10-A03 P2: se reconsulta terminal durable autorizado tras devolver el control de los fences en ruta de conflicto del cierre. No reportar idempotencia concurrente PASS hasta repetir Scenario4 con procesos y recibos.
+- A02 condicionado a entorno Windows; A04 (deadline físico) y A06 (replay de gap) pendientes. Build, suite integral y lint de R11 sin ejecutar aquí.
+- **VNEXT-014 permanece NO-GO; VNEXT-015 no iniciado.** [Nota R4-R11](014G_R4_R11_CANONICAL_LOCKS.md).
