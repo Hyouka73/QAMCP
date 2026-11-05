@@ -1,6 +1,6 @@
 # QAMCP vNext — Continuidad Codex
 
-Actualizado: 2026-11-05. Estado histórico preservado; resultado independiente R4-R9 al final.
+Actualizado: 2026-11-05. Estado histórico preservado; resultado independiente R4-R10 al final.
 
 ## Estado y alcance
 
@@ -1107,7 +1107,7 @@ Modo de integridad: `development` (Reemplazo genuino de `qap_test` por `TestHand
 - **Compuerta:** corregir P1 y regresión de concurrencia, preservar negativos/historial/recuperación y reconciliar matriz; después completar A closed+B waived+reporte/WRAP_UP/replanificación y E0a/E1/E2/E3/criterio9 sin requisitos confirmados ni aprobaciones ficticias para certificar integrado. [Siguiente bloque](auditorias/VNEXT-014-R4-R9/SIGUIENTE_BLOQUE_P0.md).
 
 
-## VNEXT-014-D-R4-R10 — Remediación P1 publicada, QA pendiente (2026-11-05)
+## VNEXT-014-D-R4-R10 — Declaración de implementación previa a auditoría (2026-11-05)
 
 - Entrada: informe R4-R9 en `docs/vnext/auditorias/VNEXT-014-R4-R9/`, HEAD documental `05c0253b90c179612a166f1d98702efd14f99be7`.
 - A01: se reutiliza lock de lifecycle de FileSystemStorage y se verifica huella completa hasta la transacción; garantía condicionada a escritores cooperantes.
@@ -1116,3 +1116,15 @@ Modo de integridad: `development` (Reemplazo genuino de `qap_test` por `TestHand
 - A03: cola introducida, pero idempotencia concurrente por certificar. A04: vencimiento al COMMIT todavía pendiente. No afirmar atomicidad entre bases ni FS.
 - Estado: implementación publicada, **NO-GO** sin build/test físico de R4-R10; 55 históricos sin reconciliar y recorrido canónico A closed + B waived + reporte/WRAP_UP/replanificación pendiente.
 - [Nota técnica R4-R10](014F_R4_R10_ESTABILIZACION_P1.md) · [Auditoría previa R4-R9](auditorias/VNEXT-014-R4-R9/INFORME.md).
+
+## Resultado independiente R4-R10 — auditoría publicada (2026-11-05)
+
+- **SHA de código auditado:** e7d3717d9311ed73736568b13ce99e131d617453. Worktree aislado exacto; publicación exclusivamente documental en feat/qap-vnext-architecture. Esta publicación no toca main ni develop. [Informe](auditorias/VNEXT-014-R4-R10/INFORME.md).
+- **Matriz física:** instalación congelada, Node 24.15.0/SQLite 3.51.3/FTS5 y build de diez paquetes PASS; cinco R4-R10, cinco R4-R9 y tres R4-R8 PASS; Coverage **49 PASS / 1 FAIL de 50**, Interview **44/44**, Discovery **59/59**, Runner **71/71** y Stdio **18 herramientas + qap_init**, servidor y CLI, PASS.
+- **MCP integral:** **411 PASS / 64 FAIL de 475**. Las 470 identidades R9 conservan resultado: 406 PASS y 64 FAIL; cinco altas PASS, cero bajas y cero cambios de estado. Persisten los 55 históricos y nueve fallos adicionales R9: ocho fixtures MemoryKnowledgeStore sin fence y Scenario4 concurrente SQLite. [Diferencial exacto](auditorias/VNEXT-014-R4-R10/DIFERENCIAL_MCP.md).
+- **ESLint:** global **34 errores / 28 advertencias**, focal ampliado **5 errores / 0 advertencias**. Los 62 diagnósticos globales son idénticos a R9; cero altas/bajas, L01 sigue corregido. Sin alterar expectativas ni supresiones. [Lint](auditorias/VNEXT-014-R4-R10/LINT.md).
+- **A02: PASS condicionado para cwd y archivo estable en Windows.** La ruta relativa permanece vinculada a la base original; conexión y proceso independientes bloqueados durante fence y recuperables al liberar. Rename/unlink reales devolvieron EBUSY: desaparición/sustitución no alcanzadas físicamente, sin certificación universal por realpath/dev/ino ni atomicidad entre bases/FS.
+- **A01: P1 residual R4-R10-A01 reproducido.** Escritores oficiales FileSystemStorage con distinta capitalización de la misma ruta Windows generan locks distintos; después del último fingerprint cambian sesión/plan y las cuatro acciones persisten autorización para contexto previo. Otro proceso usando updateLifecycleState reproduce el bypass. Con ruta idéntica sí hay exclusión y recuperación. Corregir identidad/namespace estable del lock, no solo releer contexto. [Reproducción, causa y propuesta](auditorias/VNEXT-014-R4-R10/EVIDENCIA_CONCURRENCIA.md).
+- **A05: aceptación funcional acotada PASS.** Brecha existente real derivada por Coverage, propuesta base, motivo exacto, decisión correlacionada del gateway de fixture, receipt y readback SQLite; negativos de IDs inexistentes/duplicados, motivo cambiado, revisión/requisito nuevo y approvalId reutilizado sin nueva autoridad. No es aprobación humana ni certificación integrada. Retry ya aceptado bloquea sin duplicación; éxito idempotente pendiente de contrato (A06).
+- **A03/A04 siguen abiertas.** Local waived+blocked/context_changed y Scenario4 FAIL, retry externo idempotente; un schedule multiproceso sí PASS no acredita todos los intercalados. Las cuatro ramas pueden consumir aprobación durable después de expiresAt al demorar tras callback. Definir consumo y guard final si se exige vigencia a commit. Cierres históricos R9 mantienen autoridad, recibos e historial; rollback probado conserva estado y libera locks.
+- **Dictamen: VNEXT-014 NO-GO; VNEXT-015 no iniciado.** Corregir P1 y reconciliar garantías/matriz antes de certificar A closed+B waived+reporte fiel+WRAP_UP+replanificación auténticos. No se sembraron aprobaciones ni requisitos ficticios para certificar ese recorrido. [Siguiente bloque según evidencia](auditorias/VNEXT-014-R4-R10/SIGUIENTE_BLOQUE_P0.md).
