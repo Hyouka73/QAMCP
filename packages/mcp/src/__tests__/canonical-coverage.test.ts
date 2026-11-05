@@ -1709,12 +1709,15 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
         const response = await client.callTool({
           name: 'qap_session_close', arguments: { targetPath: f.root },
         });
-        const outcome = JSON.parse((response.content[0] as { text: string }).text) as {
-          status: string; report_path?: string;
-        };
+        const text = (response.content[0] as { text: string }).text;
         expect(changed).toBe(true);
-        expect(outcome.status).not.toBe('success');
-        expect(outcome.report_path).toBeUndefined();
+        if (response.isError) {
+          expect(text).toContain('canonical_report_receipt_missing_or_invalid');
+        } else {
+          const outcome = JSON.parse(text) as { status: string; report_path?: string };
+          expect(outcome.status).not.toBe('success');
+          expect(outcome.report_path).toBeUndefined();
+        }
         expect(JSON.parse(readFileSync(f.lifecyclePath, 'utf8')).phase).toBe('WORKING');
         expect(existsSync(join(f.root, '.qa/project/sessions/session-r5.report.md'))).toBe(false);
       });
