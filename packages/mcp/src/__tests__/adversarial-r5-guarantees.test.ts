@@ -1204,7 +1204,11 @@ describe('Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2)', () => {
         initialize: false,
       });
       closers.push(() => closureStore2.close());
-      const service2 = new CanonicalClosureService(f.store, f.context, closureStore2, mockGateway);
+      // Independent physical SQLite handles: exercise the canonical fence
+      // across connections, not just a shared in-memory store object.
+      const knowledgeStore2 = new SqliteKnowledgeAdapter(f.knowledgeDbPath);
+      closers.push(() => knowledgeStore2.close());
+      const service2 = new CanonicalClosureService(knowledgeStore2, f.context, closureStore2, mockGateway);
 
       // Run concurrent closures for two distinct modules across competing connections
       const [resCatalog, resBilling] = await Promise.all([
@@ -1229,6 +1233,10 @@ describe('Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2)', () => {
       });
       expect(snap.closures.catalog).toBeDefined();
       expect(snap.closures.billing).toBeDefined();
+      expect(snap.closures.catalog.decisionId).not.toBe(snap.closures.billing.decisionId);
+      expect(snap.approvals).toHaveLength(2);
+      const receipts = await f.store.query('app-adv', 'relation');
+      expect(receipts.items).toHaveLength(2);
     });
 
     it('7.4: Simultaneous closure requests for same module with divergent gateway decisions persist exactly one closure and canonical receipt', async () => {
@@ -1274,7 +1282,11 @@ describe('Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2)', () => {
         initialize: false,
       });
       closers.push(() => closureStore2.close());
-      const service2 = new CanonicalClosureService(f.store, f.context, closureStore2, mockGateway);
+      // Independent physical SQLite handles: exercise the canonical fence
+      // across connections, not just a shared in-memory store object.
+      const knowledgeStore2 = new SqliteKnowledgeAdapter(f.knowledgeDbPath);
+      closers.push(() => knowledgeStore2.close());
+      const service2 = new CanonicalClosureService(knowledgeStore2, f.context, closureStore2, mockGateway);
 
       // Fire two simultaneous requests for the same module 'catalog' across competing connections
       // Request 1: close, Request 2: waive
