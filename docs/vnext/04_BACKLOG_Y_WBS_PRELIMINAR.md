@@ -427,3 +427,13 @@ Cero ejecución de pruebas ni ConformityAssessment en R5. **No inicia ni declara
 - **Lint L01 certificado:** global **34 errores/28 warnings**, foco ampliado **5/0**; exactamente 62 diagnósticos históricos idénticos, una baja prefer-const, cero altas. El lint histórico sigue pendiente.
 - **Límites adicionales:** R4-R9-A04 registra expiración posible entre callback y commit, no vigencia a commit; definir contrato de consumo. **R4-R9-A05 P1 preexistente:** accept_gaps sobre brecha existente falla por receipt ausente antes del gateway, reproducido también en servicio R4-R8. Las sondas no certifican aceptación funcional ni E2E humano. Nuevo digest invalida solicitudes antiguas incluso sin pendientes; closed/waived históricos se conservan sin recalcular autoridad.
 - **Compuerta:** corregir P1 y regresión de concurrencia, preservar negativos/historial/recuperación y reconciliar matriz; después completar A closed+B waived+reporte/WRAP_UP/replanificación y E0a/E1/E2/E3/criterio9 sin requisitos confirmados ni aprobaciones ficticias para certificar integrado. [Siguiente bloque](auditorias/VNEXT-014-R4-R9/SIGUIENTE_BLOQUE_P0.md).
+
+
+### Continuidad vigente VNEXT-014-D-R4-R10 (2026-11-05)
+
+- `014-R4-R10-01` P1. **Código publicado, QA pendiente:** anclaje absoluto/canónico de Knowledge SQLite, comprobación `dev:ino` y cola FIFO local. Sonda cwd/dos procesos obligatoria; no afirmar defensa universal de archivos sustituidos.
+- `014-R4-R10-02` P1. **Código publicado, QA pendiente:** `withLifecycleFence` reutiliza bloqueo de FileSystemStorage; lock order lifecycle→Knowledge→Closure. Condicionado a escritores oficiales; verificar integridad ante direct-write externo.
+- `014-R4-R10-03` P1. **Código publicado, QA pendiente:** accept_gaps exige gap existente/pendiente, razón y aprobación host; no usa recibos inventados ni acepta IDs desconocidos.
+- `014-R4-R10-04` P2. **PARCIAL:** cola local protege concurrencia dentro del mismo event loop; faltan retries/idempotencia físicos A03.
+- `014-R4-R10-05` P2. **PENDIENTE:** expiración A04 al commit físico. Aún no garantizada.
+- `014-R4-R10-06` P0. **PENDIENTE:** auditar R4-R10, reconciliar nueve fallos nominales vs 55 históricos; después recorrido E0a/E1/E2/E3/C9. VNEXT-015 no iniciar. [Detalle](014F_R4_R10_ESTABILIZACION_P1.md).

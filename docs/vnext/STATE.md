@@ -1105,3 +1105,14 @@ Modo de integridad: `development` (Reemplazo genuino de `qap_test` por `TestHand
 - **Lint L01 certificado:** global **34 errores/28 warnings**, foco ampliado **5/0**; exactamente 62 diagnósticos históricos idénticos, una baja prefer-const, cero altas. El lint histórico sigue pendiente.
 - **Límites adicionales:** R4-R9-A04 registra expiración posible entre callback y commit, no vigencia a commit; definir contrato de consumo. **R4-R9-A05 P1 preexistente:** accept_gaps sobre brecha existente falla por receipt ausente antes del gateway, reproducido también en servicio R4-R8. Las sondas no certifican aceptación funcional ni E2E humano. Nuevo digest invalida solicitudes antiguas incluso sin pendientes; closed/waived históricos se conservan sin recalcular autoridad.
 - **Compuerta:** corregir P1 y regresión de concurrencia, preservar negativos/historial/recuperación y reconciliar matriz; después completar A closed+B waived+reporte/WRAP_UP/replanificación y E0a/E1/E2/E3/criterio9 sin requisitos confirmados ni aprobaciones ficticias para certificar integrado. [Siguiente bloque](auditorias/VNEXT-014-R4-R9/SIGUIENTE_BLOQUE_P0.md).
+
+
+## VNEXT-014-D-R4-R10 — Remediación P1 publicada, QA pendiente (2026-11-05)
+
+- Entrada: informe R4-R9 en `docs/vnext/auditorias/VNEXT-014-R4-R9/`, HEAD documental `05c0253b90c179612a166f1d98702efd14f99be7`.
+- A01: se reutiliza lock de lifecycle de FileSystemStorage y se verifica huella completa hasta la transacción; garantía condicionada a escritores cooperantes.
+- A02: se fija ruta canónica e identidad física de Knowledge SQLite; cola FIFO local para proteger titular contra busy_timeout sin avanzar.
+- A05: accept_gaps propone brecha base sin aprobación; valida IDs reales y aplica el recibo verdadero del host tras consentimiento. Cinco regresiones agregadas sin ejecutar.
+- A03: cola introducida, pero idempotencia concurrente por certificar. A04: vencimiento al COMMIT todavía pendiente. No afirmar atomicidad entre bases ni FS.
+- Estado: implementación publicada, **NO-GO** sin build/test físico de R4-R10; 55 históricos sin reconciliar y recorrido canónico A closed + B waived + reporte/WRAP_UP/replanificación pendiente.
+- [Nota técnica R4-R10](014F_R4_R10_ESTABILIZACION_P1.md) · [Auditoría previa R4-R9](auditorias/VNEXT-014-R4-R9/INFORME.md).
