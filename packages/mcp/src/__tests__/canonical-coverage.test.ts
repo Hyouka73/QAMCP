@@ -3,7 +3,6 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { pathToFileURL } from 'node:url';
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
@@ -1602,8 +1601,7 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
             if (!injected) {
               injected = true;
               if (scenario === 'planned-process') {
-                const entry = pathToFileURL(join(process.cwd(),
-                  'packages', 'knowledge', 'dist', 'index.js')).href;
+                const entry = new URL('../../../knowledge/dist/index.js', import.meta.url).href;
                 const childCode = [
                   'const { FileSystemStorage } = await import(' + JSON.stringify(entry) + ');',
                   'const storage = new FileSystemStorage({ rootDir: process.argv[1] });',
