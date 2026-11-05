@@ -1,7 +1,7 @@
 import type { CanonicalSessionModuleReport } from './canonical-closure-service.js';
 
 /** Markdown is documentary output, not a source of authorizations or executions. */
-const markdownSpecials = new Set(['\\', '`, '*', '_', '{', '}', '[', ']', '<', '>', '|']);
+const markdownSpecials = new Set(['\\', '`', '*', '_', '{', '}', '[', ']', '<', '>', '|']);
 const clean = (value: string | number | boolean | null | undefined): string =>
   [...String(value ?? '').replace(/[\r\n\t]+/g, ' ')]
     .map(char => markdownSpecials.has(char) ? '\\' + char : char)
