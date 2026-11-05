@@ -752,6 +752,101 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
       expect(f.closureStore.read(f.context)).toEqual(start);
     });
 
+    it('R4-R12-A04: authorization expiring after callback rolls back all four SQLite commits', async () => {
+      const confirmedReqs: NonNullable<FixtureOptions['confirmedReqs']> = [
+        { category: 'functional', title: 'R1' },
+        { category: 'business_rule', title: 'R2' },
+        { category: 'security', title: 'R3' },
+        { category: 'ui', title: 'R4' },
+        { category: 'ux', title: 'R5' },
+        { category: 'regression', title: 'R6' },
+        { category: 'performance', title: 'R7' },
+      ];
+      for (const action of ['declare_non_applicable', 'accept_gaps', 'close', 'waive'] as const) {
+        let expiry = 0;
+        const f = await fixture({
+          confirmedReqs: action === 'close' ? confirmedReqs : undefined,
+          gateway: {
+            reviewClosure: async request => {
+              expiry = Date.now() + 350;
+              return { ...makeDecision(request), expiresAt: new Date(expiry).toISOString() };
+            },
+          },
+        });
+        const before = f.closureStore.read(f.context);
+        const delayed: IModuleClosureStore = {
+          read: scope => f.closureStore.read(scope),
+          transaction: async <T>(scope: ClosureScope, operation: (snapshot: ModuleClosureSnapshot) => Promise<T>): Promise<T> =>
+            f.closureStore.transaction(scope, async snapshot => {
+              const result = await operation(snapshot);
+              await new Promise(resolve => setTimeout(resolve, Math.max(40, expiry - Date.now() + 40)));
+              return result;
+            }),
+          close: () => {},
+        };
+        const svc = new CanonicalClosureService(f.store, f.context, delayed, {
+          reviewClosure: async request => {
+            expiry = Date.now() + 350;
+            return { ...makeDecision(request), expiresAt: new Date(expiry).toISOString() };
+          },
+        });
+        const coverage = await f.coverageService.evaluate('catalog');
+        expect(coverage.status).toBe('evaluated');
+        if (coverage.status !== 'evaluated') throw new Error('invalid_test_fixture');
+        const gap = coverage.assessment.gaps.find(g => g.status === 'unaddressed');
+        const cmd = action === 'declare_non_applicable' ? {
+          action, decisions: [{ category: 'performance', reason: 'No aplicable con aprobación expresa del responsable.' }],
+        } : action === 'accept_gaps' ? {
+          action, accepted_gaps: [{ gap_id: gap!.id, reason: 'Riesgo concreto de brecha aceptado por el responsable de calidad.' }],
+        } : action === 'waive' ? {
+          action, reason: 'Renuncia autorizada para verificar expiración antes de commit.',
+        } : { action };
+        const outcome = await svc.execute('catalog', cmd);
+        expect(outcome).toMatchObject({ status: 'blocked', code: 'closure_review_expired' });
+        expect(f.closureStore.read(f.context)).toEqual(before);
+        expect((await f.store.query('app-r5', 'relation')).items).toHaveLength(0);
+        expect(readFileSync(f.lifecyclePath, 'utf8')).toContain('"state": "planned"');
+      }
+    });
+
+    it('R4-R12-A06: exact accepted gap replay returns prior receipt without a new decision', async () => {
+      let approvals = 0;
+      const f = await fixture({ gateway: {
+        reviewClosure: async req => { approvals++; return makeDecision(req); },
+      } });
+      const baseline = await f.coverageService.evaluate('catalog');
+      expect(baseline.status).toBe('evaluated');
+      if (baseline.status !== 'evaluated') return;
+      const gap = baseline.assessment.gaps.find(g => g.status === 'unaddressed');
+      expect(gap).toBeDefined();
+      const selected = [{ gap_id: gap!.id, reason: 'La brecha concreta fue aceptada con motivo de riesgo verificable.' }];
+      const first = await f.closureService.execute('catalog', { action: 'accept_gaps', accepted_gaps: selected });
+      expect(first.status).toBe('gaps_accepted');
+      const before = f.closureStore.read(f.context);
+      const replay = await f.closureService.execute('catalog', { action: 'accept_gaps', accepted_gaps: selected });
+      expect(replay).toMatchObject({
+        status: 'gaps_accepted', idempotent: true, decision_id: first.decision_id,
+      });
+      expect(approvals).toBe(1);
+      expect(f.closureStore.read(f.context)).toEqual(before);
+
+      const altered = await f.closureService.execute('catalog', { action: 'accept_gaps',
+        accepted_gaps: [{ ...selected[0], reason: 'Motivo cambiado: nunca reutilizar la autorización anterior.' }],
+      });
+      expect(altered).toMatchObject({ status: 'blocked', code: 'closure_gap_selection_invalid' });
+      expect(approvals).toBe(1);
+      expect(f.closureStore.read(f.context)).toEqual(before);
+
+      await f.closureStore.transaction(f.context, async snapshot => {
+        snapshot.approvals[0][1] = 'digest-corrupto';
+      });
+      const tampered = f.closureStore.read(f.context);
+      const denied = await f.closureService.execute('catalog', { action: 'accept_gaps', accepted_gaps: selected });
+      expect(denied).toMatchObject({ status: 'blocked', code: 'closure_gap_selection_invalid' });
+      expect(f.closureStore.read(f.context)).toEqual(tampered);
+      expect(approvals).toBe(1);
+    });
+
     it('R4-R10-A01: a direct filesystem mutation before closure transaction fails the fingerprint guard', async () => {
       const f = await fixture({ confirmedReqs: [{ category: 'functional', title: 'Consulta aprobada' }] });
       const interleaved: IModuleClosureStore = {
