@@ -1682,7 +1682,7 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
                   '  expected_revision: receipt.revision, entity: receipt.entity,',
                   '  trace: { ...receipt.trace, source: "wrong-provenance" } }]);',
                   'store.close();',
-                ].join('\\n');
+                ].join('\n');
                 const child = spawnSync(process.execPath, ['--input-type=module',
                   '-e', childCode, f.knowledgePath, receiptId],
                 { encoding: 'utf8', timeout: 12000 });
