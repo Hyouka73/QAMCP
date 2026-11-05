@@ -1,6 +1,6 @@
 # QAMCP vNext — Continuidad Codex
 
-Actualizado: 2026-11-05. Estado histórico preservado; resultado independiente R4-R7 al final.
+Actualizado: 2026-11-05. Estado histórico preservado; resultado independiente R4-R8 al final.
 
 ## Estado y alcance
 
@@ -1076,3 +1076,13 @@ Modo de integridad: `development` (Reemplazo genuino de `qap_test` por `TestHand
 - **Siguiente tarea:** Codex debe auditar SHA exacto R4-R8 con Node 24/FTS5, build, foco R4-R8, cobertura/entrevista/discovery/MCP serial, runner, ESLint, Stdio y sondas de compatibilidad/hashes; publicar `docs/vnext/auditorias/VNEXT-014-R4-R8/` e informes actualizados mediante commit exclusivamente documental en la rama vNext, separando SHA de código y SHA documental. El usuario no transportará informes.
 - **Estado:** **VNEXT-014 NO-GO**, R4-R8 publicada sin QA independiente, VNEXT-015 no iniciado. Luego continuar `closed` auténtico con requisitos aprobados, aplicabilidad con consentimiento separado, módulo B waived, reporte físico fiel y replanificación; preservar garantías históricas E0a/E1/E2/E3/criterio 9, 55 fallos MCP, 34 errores/28 warnings de lint y timeout Discovery abierto.
 - [Nota R4-R8](014D_R4_R8_APLICABILIDAD_DIFERIDA.md) · [Informe independiente R4-R7](auditorias/VNEXT-014-R4-R7/INFORME.md).
+
+### Resultado independiente R4-R8 (2026-11-05)
+
+- **Código auditado exacto:** `44c69f826a0599eeee400ff413ae9faedeeecd75`; contexto recuperado de GitHub, worktree aislado, Node 24.15.0/SQLite 3.51.3 FTS5, pnpm 12.3.4, Chromium 153 y lockfile congelado. Build 10 paquetes; R4-R8-A01 **3/3**, Coverage **40/40**, Interview **44/44**, Discovery **59/59** aislado y en integral, Runner **71/71**, Stdio servidor/CLI **18 tools + qap_init** PASS.
+- **R4-R7-A01 corregido con alcance:** mismos pendientes conservan ambos digests, aprobación diferida aceptada y decided_at exacto del host leído en segunda conexión. Categoría/motivo/revisión diferentes invalidan; mutación durante gateway bloquea sin escrituras de autorización. No declarar atomicidad entre stores.
+- **R4-R8-A02 P1 de producción reproducido:** requisito modificado después de la revalidación y antes de transacción ClosureStore permite declared_non_applicable y persistencia de una aprobación/decisión para cobertura obsoleta. Sonda externa con SQLite y decorador determinista del puerto; límite transversal preexistente estrechado, no eliminado. Resolver contrato de vigencia hasta commit y probar la frontera adversarial antes de certificar.
+- **Históricos:** servicios exactos R4-R7 producen closed/waived físicos reconocidos por R4-R8 y conservados al reabrir, con rechazo al sustituir el digest de aprobación por uno ajeno. El hash evaluado sí cambia con aplicabilidad; no asumir equivalencia entre algoritmos ni compatibilidad automática de solicitudes pendientes antiguas.
+- **MCP 410 PASS / 55 FAIL de 465:** 407 aprobaciones y 55 fallos comunes con identidad exacta, tres altas PASS, cero bajas. Crash 2/3, cierre durable y guidance 17 conservados. Discovery no reproduce timeout; causa histórica pendiente. Lint foco **6 errores/0 warnings**, global **35 errores/28 warnings**, 62 históricos iguales y una alta **R4-R8-L01 P2**, prefer-const en test nuevo línea 542.
+- **VNEXT-014 NO-GO; VNEXT-015 sin iniciar.** Siguiente P0 preparado documentalmente: vigencia transversal, requisito desde entrevista, aplicabilidad aprobada, cobertura completa, A closed, B waived, reporte físico fiel, WRAP_UP y nueva sesión; preservar E0a/E1/E2/E3/criterio 9 y distinguir especificación de ejecución funcional aprobada. No se implementó ni se modificaron código/tests/esquemas/sesiones. Commit documental separado del SHA auditado, identificable en historial del informe y en entrega.
+- [Informe R4-R8](auditorias/VNEXT-014-R4-R8/INFORME.md) · [Evidencia](auditorias/VNEXT-014-R4-R8/EVIDENCIA_APLICABILIDAD.md) · [MCP](auditorias/VNEXT-014-R4-R8/DIFERENCIAL_MCP.md) · [P0](auditorias/VNEXT-014-R4-R8/SIGUIENTE_BLOQUE_P0.md).

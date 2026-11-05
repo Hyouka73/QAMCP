@@ -4,7 +4,7 @@
 **Rama:** `feat/qap-vnext-architecture`  
 **Baseline físico de código auditado:** `ea75eb2c52266b174e6d24917c1b089d56834900` (R4-R7)  
 **Commit documental Codex del baseline:** `d0fa36f0baaf1baaf6ea20e3bea592cb4c398921`  
-**Estado R4-R8:** corrección y tres regresiones publicadas en GitHub, **sin pruebas físicas del nuevo HEAD**. VNEXT-014 **NO-GO**; VNEXT-015 no iniciado.
+**Estado R4-R8:** auditoría independiente ejecutada sobre `44c69f826a0599eeee400ff413ae9faedeeecd75`. **R4-R7-A01 corregido para aprobación diferida sin deriva; carrera residual A02 P1 reproducida. VNEXT-014 NO-GO**; VNEXT-015 no iniciado. Las secciones 1–6 conservan el contexto previo a la auditoría; el resultado vigente está en la sección 7.
 
 ## 1. Auditoría R4-R7 independiente confirmada
 
@@ -73,3 +73,14 @@ Publicar bajo `docs/vnext/auditorias/VNEXT-014-R4-R8/` `INFORME.md`, `EVIDENCIA_
 **Después de verificar A01**: componer `closed` auténtico con requisitos confirmados y categorías aplicables/excluidas por autoridad independiente; agregar módulo B con waiver, reporte físico y replanificación, conservando E0a/E1/E2/E3/criterio 9. Los 55 fallos históricos y lint global siguen siendo bloqueos formales.
 
 **Dictamen:** R4-R8 **PUBLICADA / NO CERTIFICADA**, VNEXT-014 **NO-GO**, VNEXT-015 **NO INICIADO**.
+
+## 7. Resultado independiente ejecutado (2026-11-05)
+
+- **Código exacto:** `44c69f826a0599eeee400ff413ae9faedeeecd75`. Worktree aislado, Node 24.15.0/SQLite 3.51.3 FTS5, pnpm 12.3.4, Chromium 153 y lockfile congelado. Build 10 PASS; R4-R8-A01 **3/3**, Coverage **40/40**, Interview **44/44**, Discovery **59/59** aislado y en integral, Runner **71/71**, Stdio **18 herramientas + qap_init** por servidor y CLI.
+- **A01 verificado con alcance:** dos pendientes idénticos mantienen coverage/request digest; aprobación posterior de la primera aceptada y fecha exacta del host conservada con readback. Cambiar categoría/motivo/revisión invalida; mutación durante gateway bloquea sin approvals/decisiones. No equivale a atomicidad entre stores.
+- **R4-R8-A02 P1, carrera residual de producción:** sonda externa coloca una mutación de requisito después de la reevaluación y antes de delegar a la transacción SQLite real de ClosureStore. Obtiene declared_non_applicable con una aprobación y una decisión persistidas para la cobertura anterior, aunque el requisito ya tiene revisión 2. La última lectura no queda protegida hasta commit. Es límite preexistente estrechado por R4-R8; no se declara resuelta la carrera por los tres tests nuevos.
+- **Compatibilidad histórica probada en fixtures:** servicios exactos R4-R7 crean closed/waived físicos, R4-R8 conserva autoridad y registros al reabrir; digest ajeno en asiento correlacionado bloquea ambos. La evaluación nueva cambia hashes con aplicabilidad; no migrar ni equiparar algoritmos. Pendientes de inbox de versión anterior pueden necesitar nueva presentación/aprobación; esto es distinto de conservar terminales ya consumidos.
+- **MCP 410 PASS / 55 FAIL de 465:** 407 PASS y 55 FAIL comunes por identidad exacta, tres altas aprobadas, cero bajas. Los cinco lifecycle y otros 50 históricos mantienen deuda de garantía; no se debilitaron tests. Discovery no reprodujo timeout, causa histórica abierta.
+- **Lint:** foco **6 errores/0 warnings**, global **35 errores/28 warnings**. 62 diagnósticos históricos intactos y una alta **R4-R8-L01 P2**, prefer-const en canonical-coverage.test.ts:542:11. No se corrigió código ni test.
+- **Dictamen vigente:** A01 funcional acotado PASS; **VNEXT-014 NO-GO** por A02, lint, 55 fallos y composición closed/waived/reporte/replanificación pendiente. Commit documental separado del SHA auditado, resuelto por historial del informe y comunicado en entrega; publicación exclusivamente documental a la rama autorizada.
+- [Informe y métricas](auditorias/VNEXT-014-R4-R8/INFORME.md) · [Evidencia reproducible](auditorias/VNEXT-014-R4-R8/EVIDENCIA_APLICABILIDAD.md) · [Diferencial](auditorias/VNEXT-014-R4-R8/DIFERENCIAL_MCP.md) · [Siguiente P0](auditorias/VNEXT-014-R4-R8/SIGUIENTE_BLOQUE_P0.md).
