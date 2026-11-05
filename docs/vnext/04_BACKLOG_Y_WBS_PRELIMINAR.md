@@ -4,7 +4,7 @@
 - **Rama:** `feat/qap-vnext-architecture`
 - **Autor / Rol:** Principal Software Architect y Teamwork Lead
 - **Fecha:** Octubre 2026 (Revisión Arquitectónica Profunda — Etapa 0 Corregida)
-- **Estado actual (2026-11-05):** VNEXT-014 **NO-GO**. R4-R7 auditado en ea75eb2: integración propuesta/revisión/cobertura PASS; entrevista 44/44, Coverage 37/37, Discovery 59/59, runner 71/71, Stdio 18 + init. MCP 407 PASS / 55 FAIL de 462, mismas 55 identidades. Lint focal ampliado 5 errores/0 advertencias; global 34/28 idéntico. A01 P1 preexistente en reintentos de aplicabilidad; closed + waiver, reporte y replanificación siguen pendientes. VNEXT-015 sin iniciar.
+- **Estado actual (2026-11-05):** VNEXT-014 NO-GO. R4-R7 auditado: 407 PASS y 55 FAIL de 462 MCP, lint global 34 errores/28 warnings. R4-R7-A01: la autorización diferida cambiaba digest por timestamp; R4-R8 corrige la identidad de reintento, guarda tiempo real y agrega tres regresiones; no auditada físicamente. Closed, waiver, reporte y replanificación pendientes. VNEXT-015 sin iniciar.
 - **Referencias:** D-010 (Evolución documentada por etapas), D-001 a D-015.
 
 ---
