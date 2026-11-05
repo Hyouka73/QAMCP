@@ -1,6 +1,6 @@
 # QAMCP vNext — Continuidad Codex
 
-Actualizado: 2026-11-05. Estado histórico preservado; resultado independiente R4-R10 al final.
+Actualizado: 2026-11-05. Estado histórico preservado; resultado independiente R4-R11 al final.
 
 ## Estado y alcance
 
@@ -1133,7 +1133,22 @@ Modo de integridad: `development` (Reemplazo genuino de `qap_test` por `TestHand
 ## VNEXT-014-D-R4-R11 — Ajuste de locks oficiales y relectura del ganador (2026-11-05)
 
 - Código base auditado en R4-R10: `e7d3717d9311ed73736568b13ce99e131d617453`; documentación auditora en `741b02561ca959a31f5b010a921923cbea4dbcac`. Informe: [R4-R10](auditorias/VNEXT-014-R4-R10/INFORME.md).
-- R4-R10-A01 P1: **implementación nueva, QA independiente pendiente**. Namespace de lock usa ruta física canónica y casefold exclusivo Windows; prueba de aliases uppercase para las cuatro acciones agregada, aún sin ejecución certificada.
-- R4-R10-A03 P2: se reconsulta terminal durable autorizado tras devolver el control de los fences en ruta de conflicto del cierre. No reportar idempotencia concurrente PASS hasta repetir Scenario4 con procesos y recibos.
-- A02 condicionado a entorno Windows; A04 (deadline físico) y A06 (replay de gap) pendientes. Build, suite integral y lint de R11 sin ejecutar aquí.
+- R4-R10-A01 P1: **verificado con límites Windows en R11**. Aliases de casing y junction de raíz comparten lock; 64 intercalados de cuatro acciones/mutaciones/posiciones/procesos PASS. Escritores raw ajenos al contrato no quedan protegidos.
+- R4-R10-A03 P2: **verificado en escenarios R11**. Scenario4 intacto PASS aislado e integral; competencia multiproceso, recibos/autoridad negativos y pérdida de respuesta sin duplicar.
+- A02 condicionado a entorno Windows; A04 (deadline físico) y A06 (replay de gap) siguen pendientes. Matriz R11 ejecutada: ver resultados independientes abajo.
 - **VNEXT-014 permanece NO-GO; VNEXT-015 no iniciado.** [Nota R4-R11](014G_R4_R11_CANONICAL_LOCKS.md).
+
+
+## Resultado independiente R4-R11 — auditoría publicada (2026-11-05)
+
+- **Código exacto auditado:** 4bb22547349a407b1eeb2383e6981af5dd1db07a; worktree detached aislado, sin incorporar fuentes posteriores. Publicación exclusivamente documental a feat/qap-vnext-architecture; main y develop fuera de esta entrega.
+- **Matriz:** instalación congelada y FTS5 reales PASS; build **10/10**; regresión R11 **1/1** (incluye cuatro acciones), R10 **5/5**, R9 **5/5**, R8 **3/3**; Coverage **51/51**, Interview **44/44**, Discovery **59/59**, Runner **71/71**; Stdio servidor/CLI **18 herramientas + qap_init + ONBOARDING**.
+- **MCP: 413 PASS / 63 FAIL de 476.** Frente R10: 411 PASS conservados, 63 FAIL conservados, Scenario4 FAIL→PASS y una alta R11 PASS; cero bajas/regresiones nuevas. Los **55 históricos + ocho fixtures MemoryKnowledgeStore sin fence** siguen fallando por identidad exacta. Scenario4 y sus expectativas permanecen intactos.
+- **ESLint:** global **34 errores / 28 advertencias**, focal ampliado **5 errores / 0 advertencias**; 62 diagnósticos idénticos a R10, cero altas/bajas. Sin supresiones ni configuración alteradas.
+- **R4-R10-A01 P1: corrección comprobada en el alcance Windows ensayado.** Reproducción histórica e7d de las cuatro acciones recupera el bypass por casing; en R11 pasan 64 intercalados (cuatro acciones × session/plan/phase/state × entrada/después de callback × mismo/otro proceso). Un único lock, contexto intacto hasta commit y escritores recuperables. Junction de raíz, excepción y kill/recovery pasan. Solo escritores cooperantes de FileSystemStorage; raw FS posterior al callback sigue fuera del contrato.
+- **R4-R10-A03 P2: corregido en escenarios auditados.** Waive+waive y close+waive, adapters/stores separados y procesos físicos, recuperan el terminal ganador autorizado sin segunda aprobación/recibo/historia. Dos módulos distintos cierran con dos autoridades independientes. Recibos alterados y aprobaciones ausentes/duplicadas/digest distinto bloquean sin writes adicionales.
+- **A04 y A06 continúan abiertos.** Las cuatro acciones aún pueden persistir después de expiresAt al demorar tras el último callback. Repetir accept_gaps exacto sobre una brecha existente devuelve blocked/closure_gap_selection_invalid sin duplicar autoridad; no éxito idempotente.
+- **Recuperación física:** seis kills (close/waive × antes de commit / después de Closure / después del recibo Knowledge); readback confirma rollback o estados parciales esperados. Retry tras stale recupera una aprobación, un recibo y una generación de historial; después de commit no pide otro gateway. No hay atomicidad entre las dos SQLite y filesystem.
+- **Dictamen: VNEXT-014 NO-GO; VNEXT-015 no iniciado.** No se certifican POSIX/otros volúmenes ni identidad universal SQLite por realpath/dev/ino. Rename/unlink abiertos siguen EBUSY en Windows. A closed+B waived+reporte fiel+WRAP_UP+replanificación con revisión humana auténtica permanece pendiente; gateways y requisitos de fixtures no certifican ese integrado.
+
+[Informe](auditorias/VNEXT-014-R4-R11/INFORME.md) · [Evidencia](auditorias/VNEXT-014-R4-R11/EVIDENCIA_CONCURRENCIA.md) · [Diferencial](auditorias/VNEXT-014-R4-R11/DIFERENCIAL_MCP.md) · [Siguiente bloque](auditorias/VNEXT-014-R4-R11/SIGUIENTE_BLOQUE_P0.md).
