@@ -3322,7 +3322,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
 
         case 'qap_session_close': {
           const storage = new FileSystemStorage({ rootDir });
-          const lifecycleState = await storage.getLifecycleState();
+          let lifecycleState = await storage.getLifecycleState();
 
           if (lifecycleState.phase !== 'WORKING') {
             return {
@@ -3371,6 +3371,30 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
                       descripcion: `Cierra los módulos canónicos pendientes (${check.unclosed.join(', ')}) antes de concluir la sesión.`,
                       tool: 'qap_module_close',
                     },
+                  }, null, 2),
+                }],
+              };
+            }
+          }
+
+          // allModulesClosed() reconciles durable canonical waivers into lifecycle.json.
+          // The snapshot read before that awaited operation may lack waived_reason.
+          // Read again so the gate AND the gap report use the same repaired state.
+          if (closureService) {
+            lifecycleState = await storage.getLifecycleState();
+            // Keep the phase gate even if another writer changed the session
+            // during reconciliation; never close a non-WORKING session.
+            if (lifecycleState.phase !== 'WORKING') {
+              return {
+                content: [{
+                  type: 'text',
+                  text: JSON.stringify({
+                    status: 'blocked',
+                    code: 'session_phase_changed',
+                    directorio_objetivo: rootDir,
+                    fase: lifecycleState.phase,
+                    razon: 'La fase de sesión cambió durante la conciliación; vuelve a consultar qap_status antes de cerrar.',
+                    desbloquear_con: { tool: 'qap_status' },
                   }, null, 2),
                 }],
               };
