@@ -3674,13 +3674,19 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
       }
 
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
+      // Exception messages, causes and stacks are untrusted: ports can include
+      // paths, credentials or database payloads. Log only fixed classifications
+      // and a correlation ID; never serialize the exception itself.
+      const errorId = randomUUID();
+      const category = err instanceof TypeError ? 'type_error'
+        : err instanceof RangeError ? 'range_error' : 'unexpected_error';
+      console.error('[QAP MCP] tool_execution_failed', { error_id: errorId, category });
       return {
         isError: true,
         content: [
           {
             type: 'text',
-            text: `Error ejecutando ${name}: ${errorMessage}`,
+            text: JSON.stringify({ status: 'error', code: 'internal_tool_error', error_id: errorId }),
           },
         ],
       };

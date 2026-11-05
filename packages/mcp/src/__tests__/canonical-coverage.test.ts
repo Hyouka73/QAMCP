@@ -1225,6 +1225,42 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
       return client;
     }
 
+    it('014-CODEX-001: MCP sanitizes unexpected closure errors without false durable effects', async () => {
+      const f = await fixture();
+      const before = f.closureStore.read(f.context);
+      const lifecycleBefore = readFileSync(f.lifecyclePath, 'utf8');
+      const canary = 'SYNTHETIC_CANARY_014 C:/synthetic/PRIVATE_PATH token=FAKE_TOKEN';
+      vi.spyOn(f.closureStore, 'transaction').mockRejectedValue(new Error(canary));
+      const diagnostic = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const client = await mcpClient(f);
+      const response = await client.callTool({
+        name: 'qap_module_close', arguments: {
+          targetPath: f.root, module: 'catalog',
+          canonical_closure: { action: 'waive', reason: 'Renuncia sintética autorizada para probar el error de disco.' },
+        },
+      });
+      expect(response.isError).toBe(true);
+      const publicText = JSON.stringify(response);
+      expect(publicText).not.toContain('SYNTHETIC_CANARY_014');
+      expect(publicText).not.toContain('PRIVATE_PATH');
+      expect(publicText).not.toContain('FAKE_TOKEN');
+      const payload = JSON.parse((response.content as Array<{ text: string }>)[0].text);
+      expect(payload).toMatchObject({ status: 'error', code: 'internal_tool_error' });
+      expect(payload.error_id).toMatch(/^[a-f0-9-]{36}$/);
+      expect(diagnostic).toHaveBeenCalledWith('[QAP MCP] tool_execution_failed', {
+        error_id: payload.error_id, category: 'unexpected_error',
+      });
+      expect(JSON.stringify(diagnostic.mock.calls)).not.toContain(canary);
+      expect(f.closureStore.read(f.context)).toEqual(before);
+      f.closureStore.close();
+      expect(f.openClosureStore().read(f.context)).toEqual(before);
+      f.store.close();
+      const reopened = new SqliteKnowledgeAdapter(f.knowledgePath);
+      closers.push(() => reopened.close());
+      expect((await reopened.query('app-r5', 'relation')).items).toHaveLength(0);
+      expect(readFileSync(f.lifecyclePath, 'utf8')).toBe(lifecycleBefore);
+    });
+
     it('qap_module_close routes canonical_closure cleanly through MCP SDK client', async () => {
       const f = await fixture();
       const client = await mcpClient(f);
