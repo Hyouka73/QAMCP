@@ -4,7 +4,7 @@
 - **Rama:** `feat/qap-vnext-architecture`
 - **Autor / Rol:** Principal Software Architect y Teamwork Lead
 - **Fecha:** Octubre 2026 (Revisión Arquitectónica Profunda — Etapa 0 Corregida)
-- **Estado actual (2026-11-04):** VNEXT-001 a VNEXT-013 con límites históricos. VNEXT-014 **NO-GO**. R4-R4 auditada en SHA `9df5245`, 402 PASS / 55 FAIL de 457 MCP, ESLint focal limpio y global 34 errores / 28 advertencias. R4-R3-A01 verificado, R4-R4-A02 pendiente. VNEXT-015 sin iniciar.
+- **Estado actual (2026-11-04):** VNEXT-001 a VNEXT-013 con límites históricos. VNEXT-014 **NO-GO**. R4-R4 auditada en SHA `9df5245`, 402 PASS / 55 FAIL de 457 MCP, ESLint focal limpio y global 34 errores / 28 advertencias. R4-R3-A01 verificado; R4-R4-A02 (falso pendiente para módulo 17) reproducido. R4-R5 corrigió bucle de validación y añadió tres regresiones, **sin pruebas físicas**. VNEXT-015 sin iniciar.
 - **Referencias:** D-010 (Evolución documentada por etapas), D-001 a D-015.
 
 ---
@@ -310,8 +310,11 @@ Cero ejecución de pruebas ni ConformityAssessment en R5. **No inicia ni declara
   - `014-R4-R4-01` P2. **Verificado para los fixtures de un módulo.** El waiver válido conserva la recomendación. Pendiente el borde con 17 módulos del hallazgo R4-R4-A02.
   - `014-R4-R4-02` P1. **PASS independiente.** Siete negativos y un positivo aprobados, `preserve-caught-error` corregido.
   - `014-R4-R4-03` P0. **Auditoría ejecutada y publicada.** [Matriz y evidencia](auditorias/VNEXT-014-R4-R4/INFORME.md).
-  - `014-R4-R4-04` P2. **Pendiente R4-R4-A02.** Separar el límite de inventario de la validación de pendientes y cubrir el módulo 17 válido e inválido.
-- **Compuerta de salida:** VNEXT-014 sigue NO-GO hasta resolver R4-R4-A02, las 55 garantías MCP y lint global. [Nota R4-R4](014D_R4_R4_STATUS_GUIDANCE_CANONICO.md).
+  - `014-R4-R4-04` P2. **Código R4-R5 publicado, pendiente QA.** Desacoplar validación de todos los vínculos del límite de inventario visual (16) y cubrir el módulo 17 válido e inválido.
+  - `014-R4-R5-01` P2. Consultar cierre canónico de todos los módulos vinculados para decidir guidance sin modificar el límite de visualización; **publicado sin ejecución**.
+  - `014-R4-R5-02` P2. Tres pruebas físicas 16 válidos, 17 válidos, 17 con último cierre inválido: guidance, cierre y reporte; **test publicado sin ejecución**.
+  - `014-R4-R5-03` P0. Codex ejecutará build, coverage, discovery, MCP serial, runner, Stdio y lint sobre HEAD R4-R5, publicando informe en GitHub; **pendiente**.
+- **Compuerta de salida:** VNEXT-014 sigue NO-GO hasta auditar R4-R5, resolver las 55 garantías MCP y lint global. [Nota R4-R5](014D_R4_R5_STATUS_GUIDANCE_SIN_LIMITE.md).
 
 
 ---
