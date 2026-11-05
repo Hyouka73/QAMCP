@@ -4,7 +4,7 @@
 - **Rama:** `feat/qap-vnext-architecture`
 - **Autor / Rol:** Principal Software Architect y Teamwork Lead
 - **Fecha:** Octubre 2026 (Revisión Arquitectónica Profunda — Etapa 0 Corregida)
-- **Estado actual (2026-11-04):** VNEXT-001 a VNEXT-013 con límites históricos; VNEXT-014 **NO-GO**. Auditoría R4 independiente (SHA `ed2955f`): build 10 paquetes PASS, runner 71/71 PASS, MCP serial **392 PASS/56 FAIL** (448), aislamiento N01 PASS, fallo integrado R4-I01 por omisión de `waived_reason`; 55 fallos de contratos históricos. Lint global **46 errores/28 warnings**. Corrección R4-R1 publicada en código y pruebas **sin ejecución posterior**. VNEXT-015 no iniciado.
+- **Estado actual (2026-11-04):** VNEXT-001 a VNEXT-013 con límites históricos; VNEXT-014 **NO-GO**. Auditoría independiente R4-R1 (SHA `fd89c9d`, Node 24 con FTS5): build 10 paquetes PASS; discovery 59/59, coverage 25/25, runner 71/71, Stdio 18 tools; MCP serial **393 PASS/55 FAIL** (448). Lint global **46 errores/28 warnings** y focal coverage 12 errores. R4-R2 corrigió un segundo defecto: la primera sesión-close leía estado anterior a reconcile; **corrección/test nuevos publicados sin ejecutar**. VNEXT-015 no iniciado.
 - **Referencias:** D-010 (Evolución documentada por etapas), D-001 a D-015.
 
 ---
@@ -275,7 +275,7 @@ Cero ejecución de pruebas ni ConformityAssessment en R5. **No inicia ni declara
 [Arquitectura, cobertura tripartita, pruebas físicas y límites R5](VNEXT-013_R5_CANONICAL_COVERAGE_MODULE_CLOSURE.md).
 
 #### `VNEXT-014` — Conexión Real de `qap_plan` y `qap_test` (Eliminación de Mocks)
-- **Estado:** En curso / **NO-GO de cierre**. R4 auditada: runner 71/71, MCP 392/448 PASS con 56 fallos, N01 multiserver PASS; R4-I01 llega a renuncia canónica persistida pero `qap_session_close` bloquea por `waived_reason` ausente. R4-R1 corrige proyección/recuperación del motivo autorizado, añade regresiones, **revalidación pendiente**. Ver `014D_R4_R1_WAIVER_LIFECYCLE.md`.
+- **Estado:** En curso / **NO-GO de cierre**. R4-R1 auditada: R4-I01, Crash 2 y 3, N01 PASS; MCP serial **393/448 PASS, 55 FAIL**, lint global 46 errores/28 warnings. Sonda posterior descubre R4-R1-A01: `qap_session_close` reconcilia el motivo en SQLite/FS pero su primera llamada continúa bloqueada por snapshot antiguo. R4-R2 cambia orden de lectura, añade regresión, **sin verificación física**. Ver `014D_R4_R2_CIERRE_SESION_RECONCILIADO.md`.
 - **Paquetes afectados:** `@qap/mcp`, `@qap/playwright-runner`.
 - **Dependencias:** `VNEXT-011`, `VNEXT-003`.
 - **Riesgo:** Alto.
@@ -295,10 +295,14 @@ Cero ejecución de pruebas ni ConformityAssessment en R5. **No inicia ni declara
   - `014-R4-02` P0: **R4-I01 FAIL**: adquisición, entrevista, autorización sintética y waiver SQLite pasan; cierre de sesión bloqueado por `waived_reason` omitido. R4-R1 corrige proyección, **revalidación pendiente**.
   - `014-R4-03` P0: **corrección R4-I01 publicada sin ejecución**; corregir fallos que se expongan después y migrar los cinco escenarios lifecycle sin contexto falso, más los otros 50 históricos; **pendiente**.
   - `014-R4-04` P1: verificar cierre canónico `closed` con cobertura auténtica y revisar diferencias de capacidades auth/SPA vs crawler anónimo; **pendiente**.
-  - `014-R4-R1-01` P0: verificar `waived_reason` exacto + historial y recibo de decisión durable en el E2E, seguido de reporte físico/WRAP_UP; **publicado, sin prueba**.
-  - `014-R4-R1-02` P0: verificar recuperación de estado `waived` sin motivo usando solo closureStore, no nuevas aprobaciones, sin duplicar historial/recibos; **publicado, sin prueba**.
-  - `014-R4-R1-03` P0: revalidar 10 builds, suite discovery, canonical-coverage, MCP serial, runner, lint focal y global y Stdio sobre el HEAD nuevo; **pendiente**.
-- **Compuerta de salida:** sin GO ni VNEXT-015 hasta pruebas físicas de R4-R1, reconciliación de las garantías históricas y dictamen por SHA. [Registro R4-R1](014D_R4_R1_WAIVER_LIFECYCLE.md).
+  - `014-R4-R1-01` P0: **PASS independiente R4-R1**: E2E R4-I01 llega a WRAP_UP, genera reporte físico y conserva aprobación sintética, historia y recibo.
+  - `014-R4-R1-02` P0: **PASS independiente R4-R1**: Crash Scenarios 2/3 recuperan waiver sin duplicación ni nueva aprobación.
+  - `014-R4-R1-03` P0: **auditado R4-R1**: build 10 PASS, discovery 59/59, coverage 25/25, runner 71/71, Stdio 18; MCP 393/448 (55 FAIL), lint focal 12 errores y global 46/28; **NO-GO**.
+  - `014-R4-R2-01` P0: primera llamada `qap_session_close` debe releer lifecycle tras `allModulesClosed` y usarlo en guard/reporte; **código publicado, sin prueba**.
+  - `014-R4-R2-02` P0: regresión con waiver durable, metadata FS borrada, gateway sin autorización nueva y recibo/historia constantes; **test publicado, sin prueba**.
+  - `014-R4-R2-03` P1: limpieza dirigida de lint en coverage (cleanup asíncrono, aserciones de requests, validación `decision_id`), **revalidación pendiente**.
+  - `014-R4-R2-04` P0: ejecutar build, coverage/discovery, MCP serial, runner, lint global y Stdio sobre R4-R2 y reconciliar 55 casos por título; **pendiente**.
+- **Compuerta de salida:** sin GO ni VNEXT-015 hasta verificación independiente R4-R2, conciliación de 55 garantías y lint global limpio. [Documento R4-R2](014D_R4_R2_CIERRE_SESION_RECONCILIADO.md).
 
 
 ---
