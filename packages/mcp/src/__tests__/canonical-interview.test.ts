@@ -111,6 +111,65 @@ async function draft(service: CanonicalInterviewService) {
 }
 
 describe('R3 canonical interview and independent host authorization', () => {
+  it('R4-R6-I01: qap_status resumes a real pending canonical question without YAML, approval or state mutation', async () => {
+    const inbox = new ReviewInbox();
+    const f = await fixture(inbox);
+    await f.associate();
+    const mcp = await f.connect();
+
+    const initial = await mcp.invoke('qap_status');
+    expect(initial.siguiente_accion?.canonical_interview).toBeUndefined();
+    expect((await f.store.query('a', 'requirement')).items).toHaveLength(0);
+
+    const opened = await mcp.call({ action: 'next' });
+    expect(opened).toMatchObject({
+      status: 'interviewing', question: { module: 'catalog', category: 'proposito' },
+    });
+    const lifecycleBefore = readFileSync(f.lifecyclePath, 'utf8');
+    const historyBefore = await f.store.query('a', 'relation');
+
+    const status = await mcp.invoke('qap_status');
+    expect(status).toMatchObject({
+      fase: 'WORKING',
+      siguiente_accion: {
+        tipo: 'trabajo',
+        tool: 'qap_rules_set',
+        module: 'catalog',
+        canonical_interview: { action: 'next' },
+      },
+      canonical_modules: [{
+        plannedName: 'catalog',
+        interview: {
+          availability: 'general_questions_available',
+          human_review_required: true,
+          coverage: 'not_certified',
+        },
+      }],
+    });
+    expect(status.siguiente_accion.descripcion).toContain('revisión humana independiente');
+    const pendingCount = status.canonical_modules[0].interview.pending_questions as number;
+    expect(pendingCount).toBeGreaterThan(0);
+
+    const again = await mcp.invoke('qap_status');
+    expect(again.siguiente_accion).toEqual(status.siguiente_accion);
+    expect(again.canonical_modules[0].interview.pending_questions).toBe(pendingCount);
+
+    const continued = await mcp.invoke('qap_rules_set', {
+      module: status.siguiente_accion.module,
+      canonical_interview: status.siguiente_accion.canonical_interview,
+    });
+    expect(continued).toMatchObject({
+      status: 'interviewing',
+      question: { id: opened.question.id, version: opened.question.version },
+    });
+
+    expect(readFileSync(f.lifecyclePath, 'utf8')).toBe(lifecycleBefore);
+    expect((await f.store.query('a', 'relation')).items).toEqual(historyBefore.items);
+    expect((await f.store.query('a', 'requirement')).items).toHaveLength(0);
+    expect(inbox.requests).toHaveLength(0);
+    expect(existsSync(join(f.root, '.qa', 'modules', 'catalog', 'rules.yaml'))).toBe(false);
+  });
+
   it('real MCP + host inbox + physical SQLite: present, propose, approve, persist, read status, retry, reopen', async () => {
     const inbox = new ReviewInbox(), f = await fixture(inbox); await f.associate();
     const before = readFileSync(f.lifecyclePath, 'utf8'), mcp = await f.connect();
