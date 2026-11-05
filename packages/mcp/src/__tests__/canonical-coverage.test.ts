@@ -432,6 +432,146 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
   });
 
   describe('Suite 3: Host Review Gateway & Trust Boundary (R3)', () => {
+    it('R4-R8-A01: deferred non-applicability review retains request identity and persists actual host decision time', async () => {
+      const requests: ModuleClosureReviewRequest[] = [];
+      let authorized: ModuleClosureReviewDecision | null = null;
+      const gateway: IModuleClosureReviewGateway = {
+        reviewClosure: async request => {
+          requests.push(structuredClone(request));
+          return authorized;
+        },
+      };
+      const f = await fixture({ gateway, confirmedReqs: [{
+        category: 'functional', title: 'Consulta autorizada', criteria: ['Permitir consultar el catálogo autorizado'],
+      }] });
+      const command = {
+        action: 'declare_non_applicable' as const,
+        decisions: [{
+          category: 'performance' as const,
+          reason: 'La revisión del negocio declara esta categoría no aplicable a la funcionalidad.',
+        }],
+      };
+
+      expect(await f.closureService.execute('catalog', command)).toMatchObject({
+        status: 'blocked', code: 'closure_review_pending',
+      });
+      await new Promise(resolve => setTimeout(resolve, 20));
+      expect(await f.closureService.execute('catalog', command)).toMatchObject({
+        status: 'blocked', code: 'closure_review_pending',
+      });
+      expect(requests).toHaveLength(2);
+      expect(requests[1].coverageDigest).toBe(requests[0].coverageDigest);
+      expect(requests[1].requestDigest).toBe(requests[0].requestDigest);
+      const before = f.closureStore.read(f.context);
+      expect(before.applicabilityDecisions.catalog).toBeUndefined();
+      expect(before.approvals).toHaveLength(0);
+
+      authorized = makeDecision(requests[0]);
+      const decidedAt = authorized.decidedAt;
+      const approved = await f.closureService.execute('catalog', command);
+      expect(approved).toMatchObject({ status: 'declared_non_applicable', decisions: command.decisions });
+      expect(requests[2].requestDigest).toBe(requests[0].requestDigest);
+      const after = f.closureStore.read(f.context);
+      expect(after.applicabilityDecisions.catalog).toHaveLength(1);
+      expect(after.applicabilityDecisions.catalog[0]).toMatchObject({
+        category: 'performance', applicable: false, decided_at: decidedAt,
+      });
+      expect(after.approvals).toEqual([[authorized.approvalId, requests[0].requestDigest]]);
+      expect((await f.coverageService.evaluate('catalog'))).toMatchObject({
+        status: 'evaluated',
+        assessment: {
+          specification_coverage: { category_statuses: expect.arrayContaining([
+            expect.objectContaining({ category: 'performance', applicability: 'not_applicable', status: 'not_applicable' }),
+          ]) },
+          execution_coverage: { status: 'not_executed' },
+        },
+      });
+      const reopened = f.openClosureStore();
+      expect(reopened.read(f.context)).toEqual(after);
+    });
+
+    it('R4-R8-A01: stale approval cannot authorize changed reason or canonical requirement revision', async () => {
+      const requests: ModuleClosureReviewRequest[] = [];
+      let authorized: ModuleClosureReviewDecision | null = null;
+      const gateway: IModuleClosureReviewGateway = {
+        reviewClosure: async request => {
+          requests.push(structuredClone(request));
+          return authorized;
+        },
+      };
+      const f = await fixture({ gateway, confirmedReqs: [{
+        category: 'functional', title: 'R1', criteria: ['Criterio verificable para consulta legítima'],
+      }] });
+      const command = {
+        action: 'declare_non_applicable' as const,
+        decisions: [{
+          category: 'performance' as const,
+          reason: 'El negocio confirma que el rendimiento no es aplicable a este módulo aislado.',
+        }],
+      };
+      expect(await f.closureService.execute('catalog', command)).toMatchObject({
+        status: 'blocked', code: 'closure_review_pending',
+      });
+      const pending = requests[0];
+      authorized = makeDecision(pending);
+      const withChangedReason = await f.closureService.execute('catalog', {
+        ...command, decisions: [{ ...command.decisions[0],
+          reason: 'El negocio cambió su motivo y exige revisar nuevamente la aplicabilidad.' }],
+      });
+      expect(withChangedReason).toMatchObject({ status: 'blocked', code: 'closure_review_invalid' });
+      expect(requests[1].requestDigest).not.toBe(pending.requestDigest);
+      expect(f.closureStore.read(f.context).approvals).toHaveLength(0);
+
+      const original = await f.store.get('app-r5', 'requirement', 'req-conf-1');
+      expect(original).toBeDefined();
+      await f.store.commit('app-r5', [{
+        kind: 'requirement',
+        expected_revision: original!.revision,
+        entity: { ...original!.entity, description: 'El requisito cambió tras la solicitud de revisión.' },
+        trace: original!.trace,
+      }]);
+      const changedKnowledge = await f.closureService.execute('catalog', command);
+      expect(changedKnowledge).toMatchObject({ status: 'blocked', code: 'closure_review_invalid' });
+      expect(requests[2].coverageDigest).not.toBe(pending.coverageDigest);
+      expect(requests[2].requestDigest).not.toBe(pending.requestDigest);
+      expect(f.closureStore.read(f.context).approvals).toHaveLength(0);
+      expect(f.closureStore.read(f.context).applicabilityDecisions.catalog).toBeUndefined();
+    });
+
+    it('R4-R8-A01: host approval is rejected if knowledge mutates while awaiting the gateway', async () => {
+      let f: Awaited<ReturnType<typeof fixture>>;
+      let changed = false;
+      const gateway: IModuleClosureReviewGateway = {
+        reviewClosure: async request => {
+          if (!changed) {
+            changed = true;
+            const prior = await f.store.get('app-r5', 'requirement', 'req-conf-1');
+            expect(prior).toBeDefined();
+            await f.store.commit('app-r5', [{
+              kind: 'requirement', expected_revision: prior!.revision,
+              entity: { ...prior!.entity, description: 'Revisión concurrente antes del consentimiento de cierre.' },
+              trace: prior!.trace,
+            }]);
+          }
+          return makeDecision(request);
+        },
+      };
+      f = await fixture({ gateway, confirmedReqs: [{
+        category: 'functional', title: 'R1', criteria: ['Revisión debe ser independiente y vigente'],
+      }] });
+      const before = f.closureStore.read(f.context);
+      const outcome = await f.closureService.execute('catalog', {
+        action: 'declare_non_applicable',
+        decisions: [{
+          category: 'performance',
+          reason: 'El negocio indica que la prueba de rendimiento no corresponde a este alcance.',
+        }],
+      });
+      expect(outcome).toMatchObject({ status: 'blocked', code: 'closure_context_changed' });
+      expect(f.closureStore.read(f.context)).toEqual(before);
+      expect((await f.store.get('app-r5', 'requirement', 'req-conf-1'))?.revision).toBe(2);
+    });
+
     it('blocks closure when host gateway is absent or returns null (pending)', async () => {
       const f = await fixture(); // No gateway
       const res = await f.closureService.execute('catalog', { action: 'close' });
