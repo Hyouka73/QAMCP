@@ -3456,10 +3456,72 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
           }
 
 
-          // Keep the exact approved lifecycle, not only its phase. This
-          // detects plan, module, session, phase and history drift across the
-          // asynchronous reconciliation and inventory/report stages.
+          // Report inventory is deliberately collected BEFORE acquiring the
+          // lifecycle lock. The official concurrent writer used in the
+          // adversarial test can finish, and any drift is rejected below.
           const approvedLifecycle = JSON.stringify(lifecycleState);
+          // Cierre exitoso y transición a WRAP_UP
+          const qaDir = resolve(rootDir, '.qa');
+          const contextPath = join(qaDir, 'project', 'context.yaml');
+          let parsedContext: any = null;
+          if (existsSync(contextPath)) {
+            try {
+              parsedContext = YAML.parse(readFileSync(contextPath, 'utf-8'));
+            } catch { /* empty */ }
+          }
+
+          const sessionId = lifecycleState.session?.id || randomUUID();
+          const startedAt = lifecycleState.session?.started_at || new Date().toISOString();
+          const closedAt = new Date().toISOString();
+
+          // Recopilar módulos para el reporte de brechas
+          const allModuleNames = new Set([
+            ...(lifecycleState.session?.plan || []).map((p: any) => p.module),
+            ...Object.keys(lifecycleState.modules || {}),
+          ]);
+
+          // The canonical host ledger is authoritative for bound modules.
+          // Never reinterpret their empty legacy YAML as zero gaps or approval.
+          const canonicalReports = closureService ? await closureService.sessionReport() : [];
+          const canonicalNames = new Set(canonicalReports.map(report => report.module));
+          const legacyNames = [...allModuleNames].filter(name => !canonicalNames.has(name));
+          const moduleRulesMap: Record<string, { rules?: any[]; category_waivers?: any[] }> = {};
+          for (const mName of legacyNames) {
+            try {
+              const rf = await storage.getModuleRules(mName);
+              moduleRulesMap[mName] = {
+                rules: rf?.rules || [],
+                category_waivers: rf?.category_waivers || [],
+              };
+            } catch {
+              moduleRulesMap[mName] = { rules: [], category_waivers: [] };
+            }
+          }
+
+          const gapParams = {
+            sessionId,
+            startedAt,
+            closedAt,
+            projectContext: parsedContext,
+            plan: (lifecycleState.session?.plan || []).filter((p: any) => !canonicalNames.has(p.module)),
+            modules: Object.fromEntries(Object.entries(lifecycleState.modules || {})
+              .filter(([name]) => !canonicalNames.has(name))),
+            moduleRules: moduleRulesMap,
+          };
+          const legacyReportMd = legacyNames.length ? generateSessionGapReport(gapParams) : '';
+          const gapReportMd = canonicalReports.length
+            ? renderCanonicalSessionReport(canonicalReports) +
+              (legacyReportMd ? '\n---\n\n# Módulos legacy no vinculados\n\n' + legacyReportMd : '')
+            : legacyReportMd;
+          const gapSummary = computeSessionGapSummary(gapParams);
+
+          const sessionsDir = join(qaDir, 'project', 'sessions');
+          if (!existsSync(sessionsDir)) {
+            mkdirSync(sessionsDir, { recursive: true });
+          }
+
+          const reportFilePath = join(sessionsDir, `${sessionId}.report.md`);
+
           return storage.commitLifecycleStateWithFence(async (current, commit) => {
             if (current.phase !== 'WORKING' ||
                 JSON.stringify(current) !== approvedLifecycle) {
@@ -3480,69 +3542,20 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
               }, true);
             }
             const finalize = async () => {
-              // Do not reconcile under the lifecycle lock: that would reenter it.
-              const lifecycleState = current;
-              // Cierre exitoso y transición a WRAP_UP
-              const qaDir = resolve(rootDir, '.qa');
-              const contextPath = join(qaDir, 'project', 'context.yaml');
-              let parsedContext: any = null;
-              if (existsSync(contextPath)) {
-                try {
-                  parsedContext = YAML.parse(readFileSync(contextPath, 'utf-8'));
-                } catch { /* empty */ }
-              }
-
-              const sessionId = lifecycleState.session?.id || randomUUID();
-              const startedAt = lifecycleState.session?.started_at || new Date().toISOString();
-              const closedAt = new Date().toISOString();
-
-              // Recopilar módulos para el reporte de brechas
-              const allModuleNames = new Set([
-                ...(lifecycleState.session?.plan || []).map((p: any) => p.module),
-                ...Object.keys(lifecycleState.modules || {}),
-              ]);
-
-              // The canonical host ledger is authoritative for bound modules.
-              // Never reinterpret their empty legacy YAML as zero gaps or approval.
-              const canonicalReports = closureService ? await closureService.sessionReport() : [];
-              const canonicalNames = new Set(canonicalReports.map(report => report.module));
-              const legacyNames = [...allModuleNames].filter(name => !canonicalNames.has(name));
-              const moduleRulesMap: Record<string, { rules?: any[]; category_waivers?: any[] }> = {};
-              for (const mName of legacyNames) {
-                try {
-                  const rf = await storage.getModuleRules(mName);
-                  moduleRulesMap[mName] = {
-                    rules: rf?.rules || [],
-                    category_waivers: rf?.category_waivers || [],
-                  };
-                } catch {
-                  moduleRulesMap[mName] = { rules: [], category_waivers: [] };
+              // Reproject under lifecycle -> Knowledge write fences. Receipts,
+              // durable approvals, bindings and the requirement inventory
+              // must still match the report prepared without locks.
+              if (closureService) {
+                const checkedReports = await closureService.sessionReport();
+                if (JSON.stringify(checkedReports) !== JSON.stringify(canonicalReports)) {
+                  return canonicalResult({
+                    status: 'blocked', code: 'session_report_context_changed',
+                    fase: current.phase,
+                    razon: 'Los recibos, aprobaciones o requisitos cambiaron mientras se preparaba el reporte.',
+                    desbloquear_con: { tool: 'qap_status' },
+                  }, true);
                 }
               }
-
-              const gapParams = {
-                sessionId,
-                startedAt,
-                closedAt,
-                projectContext: parsedContext,
-                plan: (lifecycleState.session?.plan || []).filter((p: any) => !canonicalNames.has(p.module)),
-                modules: Object.fromEntries(Object.entries(lifecycleState.modules || {})
-                  .filter(([name]) => !canonicalNames.has(name))),
-                moduleRules: moduleRulesMap,
-              };
-              const legacyReportMd = legacyNames.length ? generateSessionGapReport(gapParams) : '';
-              const gapReportMd = canonicalReports.length
-                ? renderCanonicalSessionReport(canonicalReports) +
-                  (legacyReportMd ? '\n---\n\n# Módulos legacy no vinculados\n\n' + legacyReportMd : '')
-                : legacyReportMd;
-              const gapSummary = computeSessionGapSummary(gapParams);
-
-              const sessionsDir = join(qaDir, 'project', 'sessions');
-              if (!existsSync(sessionsDir)) {
-                mkdirSync(sessionsDir, { recursive: true });
-              }
-
-              const reportFilePath = join(sessionsDir, `${sessionId}.report.md`);
               // The persisted lifecycle transition is the linearization point.
               // Under lifecycle -> Knowledge fences, verify gates and save without
               // releasing either lock between receipt validation and durable state.
