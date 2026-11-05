@@ -20,6 +20,9 @@ const tempDirs: string[] = [];
 let localHttpServer: HttpServer | null = null;
 let localServerPort = 0;
 let localServerUrl = '';
+const pendingInvocations: Promise<unknown>[] = [];
+const invocationControllers: AbortController[] = [];
+const executeHandler = TestHandler.prototype.execute;
 
 function createTempDir(prefix = 'qap-test-handler-'): string {
   const dir = fs_mkdtemp(prefix);
@@ -143,6 +146,16 @@ async function startLocalHttpServer(): Promise<{ server: HttpServer; port: numbe
 }
 
 beforeEach(async () => {
+  // Vitest can time out while handler/runner work is still pending. Own every
+  // invocation, attach rejection handling immediately, and drain before rm.
+  vi.spyOn(TestHandler.prototype, 'execute').mockImplementation(function (this: TestHandler, raw, context) {
+    const controller = new AbortController();
+    invocationControllers.push(controller);
+    const signal = AbortSignal.any([controller.signal, context.signal]);
+    const operation = executeHandler.call(this, raw, { ...context, signal });
+    pendingInvocations.push(operation.then(() => undefined, () => undefined));
+    return operation;
+  });
   if (!localHttpServer) {
     const s = await startLocalHttpServer();
     localHttpServer = s.server;
@@ -151,7 +164,9 @@ beforeEach(async () => {
   }
 });
 
-afterEach(() => {
+afterEach(async () => {
+  invocationControllers.splice(0).forEach(controller => controller.abort());
+  await Promise.all(pendingInvocations.splice(0));
   vi.restoreAllMocks();
   for (const dir of tempDirs.splice(0)) {
     try {

@@ -136,10 +136,19 @@ export class PlaywrightRunner implements IRunner {
     let unexpectedlyInterrupted = false;
     const plannedCaseIds = plan.cases ?? [];
 
-    // Rutina de limpieza ante cancelación o finalización
+    // Cancellation interrupts browser work, but ownership of the module lock
+    // lasts until execute has drained. A launch/context acquired after abort
+    // is closed by the final pass, never leaked by an early cleanup snapshot.
+    let closeTail = Promise.resolve();
+    const closeResources = () => {
+      closeTail = closeTail.then(async () => {
+        if (context) await context.close().catch(() => {});
+        if (browser) await browser.close().catch(() => {});
+      });
+      return closeTail;
+    };
     const cleanup = async () => {
-      if (context) await context.close().catch(() => {});
-      if (browser) await browser.close().catch(() => {});
+      await closeResources();
       if (releaseLock) {
         try {
           await releaseLock();
@@ -167,7 +176,10 @@ export class PlaywrightRunner implements IRunner {
     }
 
     const abortListener = () => {
-      void cleanup();
+      void closeResources();
+    };
+    const checkCancellation = () => {
+      if (options.signal?.aborted) throw new Error('Ejecución cancelada por AbortSignal.');
     };
     if (options.signal) {
       options.signal.addEventListener('abort', abortListener, { once: true });
@@ -183,6 +195,7 @@ export class PlaywrightRunner implements IRunner {
         const lockManager = new LockManager({ rootDir: projectRoot });
         releaseLock = await lockManager.acquireModuleLock(moduleName);
       }
+      checkCancellation();
 
       // Si no hay casos que ejecutar, terminamos de forma honesta sin iniciar navegador
       const initialCaseIds = plannedCaseIds;
@@ -224,6 +237,7 @@ export class PlaywrightRunner implements IRunner {
         }
       }
 
+      checkCancellation();
       // 3. Inicializar navegador Chromium con aislamiento de errores de infraestructura
       let isInfrastructureError = false;
       let infrastructureErrorMessage: string | undefined;
@@ -239,6 +253,7 @@ export class PlaywrightRunner implements IRunner {
         console.error('[PlaywrightRunner] Error de infraestructura al iniciar el navegador Chromium:', launchErr);
       }
 
+      checkCancellation();
       if (isInfrastructureError) {
         const notRunCases: ExecutedCase[] = initialCaseIds.map((caseId) => ({
           id: caseId,
@@ -269,10 +284,12 @@ export class PlaywrightRunner implements IRunner {
       }
 
       context = await browser!.newContext(storageState ? { storageState } : undefined);
+      checkCancellation();
 
       if (options.contextSetup) {
         await options.contextSetup(context);
       }
+      checkCancellation();
 
       if (options.allowedOrigins && options.allowedOrigins.length > 0) {
         const allowedPatterns = options.allowedOrigins;
