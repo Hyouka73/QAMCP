@@ -13,7 +13,8 @@ import {
 
 import { ModuleObservationBridge, type BridgeContext } from './module-observation-bridge.js';
 import { CanonicalCoverageService, type CoverageEvaluationOptions } from './canonical-coverage-service.js';
-import type { IModuleClosureStore, ModuleClosureRecord, ModuleClosureSnapshot } from './module-closure-store.js';
+import { ClosureStoreError, withClosureCommitDeadline,
+  type IModuleClosureStore, type ModuleClosureRecord, type ModuleClosureSnapshot } from './module-closure-store.js';
 import type {
   IModuleClosureReviewGateway,
   ModuleClosureReviewRequest,
@@ -704,9 +705,14 @@ export class CanonicalClosureService {
         if (!Number.isFinite(expiresAt) || Date.now() >= expiresAt) {
           return blocked('closure_review_expired', 'La autorización expiró antes de consumirse.');
         }
-        return await write(after, identity.fingerprint);
+        return await withClosureCommitDeadline(expiresAt,
+          () => write(after, identity.fingerprint));
       }));
-    } catch {
+    } catch (error) {
+      if (error instanceof ClosureStoreError && error.code === 'authorization_expired') {
+        return blocked('closure_review_expired',
+          'La decisión expiró antes del commit durable en SQLite.');
+      }
       return blocked('closure_consistency_conflict',
         'No fue posible garantizar el snapshot autorizado hasta el commit durable.');
     }
