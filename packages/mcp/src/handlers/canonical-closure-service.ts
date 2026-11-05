@@ -8,7 +8,6 @@ import {
   type CanonicalCoverageAssessment,
   type CategoryApplicabilityDecision,
   type CanonicalGap,
-  type ExpectedRequirement,
   validateExpectedRequirement,
 } from '@qap/shared';
 
