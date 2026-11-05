@@ -1174,3 +1174,17 @@ Modo de integridad: `development` (Reemplazo genuino de `qap_test` por `TestHand
 - **VNEXT-014 NO-GO; VNEXT-015 no iniciado.**55 históricos+ocho fixtures Memory sin fence conservados; falta integrado auténtico A closed+B waived+reporte+WRAP_UP+replanificación. No ACID común Closure+Knowledge+FS ni aprobación humana certificada con gateways de fixture.
 
 [Informe](auditorias/VNEXT-014-R4-R12/INFORME.md) · [Concurrencia](auditorias/VNEXT-014-R4-R12/EVIDENCIA_CONCURRENCIA.md) · [Diferencial](auditorias/VNEXT-014-R4-R12/DIFERENCIAL_MCP.md) · [Siguiente bloque](auditorias/VNEXT-014-R4-R12/SIGUIENTE_BLOQUE_P0.md).
+
+---
+
+## Continuidad de implementación VNEXT-014-RESCATE (2026-11-05; publicación GitHub sin ejecución local)
+
+- **Punto de partida verificado:** `f36e5ba60470c2443690d78a4b68bad966891b69` en `feat/qap-vnext-architecture`, después de integrar documentación de roadmap. Baseline auditado R4-R12: `7ccf3db1a6f259f6a5c51521518bbb399a13fda2`; **415 PASS / 63 FAIL de 478** pertenece SOLO a ese baseline, no a esta implementación.
+- **Bloque A implementado y publicado, sin certificación física:** `host-composition.ts` y `server.ts` conectan manifiesto opt-in del host Stdio con Knowledge SQLite existente, draft/closure stores cifrados provisionados, bindings/revisiones, política Discovery explícita, gestión de recursos y fail-closed ante ausencia de closure store. Sin manifiesto conserva legacy. No se crean autorizaciones de navegación ni gateways humanos a partir del cliente MCP.
+- **Bloque B implementado y publicado, sin certificación física:** `CanonicalClosureService.sessionReport()` y `canonical-session-report.ts` verifican aprobaciones durables/receipts y producen sección documental canónica; excluyen módulos vinculados del cálculo legacy, separan especificación, revisión y ejecución, y no declaran PASS funcional.
+- **Bloque C parcial:** pruebas añadidas para composición Stdio (por opciones idénticas), rutas negativas, reporte waiver y fixture de dos módulos A closed/B waived; **NO ejecutadas**. El flujo auténtico `qap_init`→plan→Discovery→entrevista→decisión humana→A/B→reporte→WRAP_UP→replanificación aún no certificado. Se requiere host review gateway real inyectado por aplicación independiente; los fixtures no representan consentimiento humano.
+- **Bloque D P1 pendiente:** reconciliación física por identidad de 63 fallos MCP históricos (55 legacy + ocho `MemoryKnowledgeStore` sin `withWriteFence`). No se suprimieron ni renombraron pruebas históricas, no se creó fence simulado, no se modificaron expectativas para mejorar métricas.
+- **Bloque E P2 pendiente:** A04-W01 de pérdida de deadline por wrapper de cola/timer externo no quedó modificado ni demostrado en esta composición. Requiere decidir si está en contrato soportado y conservar negativos de rollback.
+- **Estado:** **NO-GO para certificación VNEXT-014 y merge completo a develop.** Primero auditoría física independiente Codex del diff real + pruebas integradas/seguridad; después corrección documentada por ChatGPT si hay fallos. Objetivos vigentes: certificación 16/11, decisión/merge solo con GO antes del 19/11 y MVP 20/11, sin mover trabajos completados a pendiente.
+- [Informe de implementación](implementaciones/VNEXT-014-RESCATE/INFORME.md) · [Composición host](implementaciones/VNEXT-014-RESCATE/HOST_STDIO.md) · [Auditoría anterior independiente](auditorias/VNEXT-014-R4-R12/INFORME.md).
+
