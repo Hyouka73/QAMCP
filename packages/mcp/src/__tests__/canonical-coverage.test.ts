@@ -658,6 +658,27 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
       }
     });
 
+    it('VNEXT-014-CF01: unexpected closure persistence errors propagate without a false consistency block', async () => {
+      const f = await fixture();
+      const before = f.closureStore.read(f.context);
+      const brokenStore: IModuleClosureStore = {
+        read: scope => f.closureStore.read(scope),
+        transaction: async <T>(): Promise<T> => {
+          throw new Error('unexpected_closure_disk_write_failure');
+        },
+        close: () => {},
+      };
+      const svc = new CanonicalClosureService(f.store, f.context, brokenStore, {
+        reviewClosure: async request => makeDecision(request),
+      });
+      await expect(svc.execute('catalog', {
+        action: 'waive',
+        reason: 'Renuncia autorizada formalmente; el fallo físico debe propagarse.',
+      })).rejects.toThrow('unexpected_closure_disk_write_failure');
+      expect(f.closureStore.read(f.context)).toEqual(before);
+      expect((await f.store.query('app-r5', 'relation')).items).toHaveLength(0);
+    });
+
     it('R4-R9-A02: missing fencing capability blocks even valid host decisions', async () => {
       const f = await fixture({ confirmedReqs: [{ category: 'functional', title: 'R9' }] });
       const noFence = new Proxy(f.store, {
