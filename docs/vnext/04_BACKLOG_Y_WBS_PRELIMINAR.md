@@ -527,3 +527,15 @@ Un usuario QA debe poder, en una aplicación web de prueba autorizada sin accede
 - **No alterar históricos:** cualquier tarea completada del cronograma del equipo permanece completada; no cambiar sus estados a pendiente por hallazgos posteriores. Abrir nueva tarea de corrección y documentar evidencia separada.
 
 **Fuentes de WBS operativo:** [Google Sheets - Detalle WBS & Evidencias](https://docs.google.com/spreadsheets/d/1DC_MTJI-ALQt8s87BNm-1rfv9gK3yM4J3st9-oBUN2U/edit?gid=1106357705#gid=1106357705), [Gantt](https://docs.google.com/spreadsheets/d/1DC_MTJI-ALQt8s87BNm-1rfv9gK3yM4J3st9-oBUN2U/edit?gid=1436032129#gid=1436032129).
+
+
+---
+
+## Hito 7 y 8 — Propuesta documental de ampliación agnóstica (2026-11-05, NO AUTORIZADA)
+
+**Estado:** PROPUESTA / NO-GO para implementación. No altera, sustituye ni autoriza VNEXT-001–023; conserva todas sus compuertas y el historial de auditorías de VNEXT-014.
+
+- [Auditoría de compatibilidad develop vs vNext y conservación de trabajo paralelo](06_AUDITORIA_CRUCE_DEVELOP_VNEXT.md).
+- [WBS ampliado propuesto: VNEXT-024–033, contratos genéricos, UTCP opcional, ARTEMIS y extensión LENDUS separada](07_WBS_QAP_AGNOSTICO_Y_EXTENSIONES.md).
+
+La extensión LENDUS se planifica fuera del núcleo público (LENDUS-EXT-001–007). QAP permanece agnóstico y utilizable sin UTCP, ARTEMIS, código fuente de la aplicación ni dependencias de Jira/Xray. No integrar feature sobre develop, ni pisar contribuciones de BVA, CLI update/rollback, prune y schemas sin compuerta cruzada de migración y pruebas. **La ampliación documental no autoriza iniciar VNEXT-015–033 ni un merge.**
