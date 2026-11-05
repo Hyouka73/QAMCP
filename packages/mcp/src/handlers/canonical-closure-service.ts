@@ -128,7 +128,7 @@ export class CanonicalClosureService {
     return receipt !== null &&
       receipt.application_id === this.context.applicationId &&
       receipt.kind === 'relation' &&
-      receipt.id === receiptId && receipt.revision >= 1 &&
+      receipt.id === receiptId && receipt.revision === 1 &&
       receipt.entity.id === receiptId &&
       receipt.entity.predicate === 'related_to' &&
       receipt.entity.source.kind === 'module' &&
