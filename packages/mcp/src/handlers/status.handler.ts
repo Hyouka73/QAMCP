@@ -22,12 +22,20 @@ export class StatusHandler implements IMcpToolHandler {
     const rootDir = projectRoot(raw, this.dependencies, false);
     const knowledge = await knowledgeStatus(rootDir, this.dependencies);
     const canonicalModules: unknown[] = [];
+    // A terminal state in lifecycle.json is not proof of a valid canonical
+    // closure. Track host-bound modules until their durable closure validates.
+    const unresolvedCanonicalModules = new Set<string>();
     try {
       const bound = binding(rootDir, this.dependencies);
       if (bound?.moduleBindings?.length) {
         const bridge = new ModuleObservationBridge(bound.store, { ...bound, projectRoot: rootDir });
-        for (const name of [...new Set(bound.moduleBindings.map(b => b.plannedName))].slice(0, 16)) {
+        const boundNames = [...new Set(bound.moduleBindings.map(b => b.plannedName))];
+        for (const name of boundNames) unresolvedCanonicalModules.add(name);
+        for (const name of boundNames.slice(0, 16)) {
           const closureStatus = await this.dependencies.canonicalClosures?.get(rootDir)?.status(name);
+          if (closureStatus?.state === 'closed' || closureStatus?.state === 'waived') {
+            unresolvedCanonicalModules.delete(name);
+          }
           canonicalModules.push({
             plannedName: name,
             ...await bridge.project(name),
@@ -44,6 +52,28 @@ export class StatusHandler implements IMcpToolHandler {
     const text = legacy.content[0];
     if (text.type !== 'text') return legacy;
     const payload = JSON.parse(text.text) as Record<string, unknown>;
+    const nextAction = payload.siguiente_accion as SiguienteAccion | undefined;
+    // Never recommend qap_session_close based only on the legacy lifecycle:
+    // the actual session-close gate also requires every bound canonical module
+    // to have a host-authorized durable closure.
+    if (
+      payload.fase === 'WORKING' &&
+      nextAction?.tool === 'qap_session_close' &&
+      unresolvedCanonicalModules.size > 0
+    ) {
+      const pending = [...unresolvedCanonicalModules];
+      const first = pending[0];
+      const description = `La sesión no puede cerrarse: los módulos ${pending.join(', ')} aún no cuentan con un cierre canónico válido. Revisa su cierre y aprobación mediante qap_module_close; si hay un registro durable inconsistente, se requiere intervención del host antes de reintentar.`;
+      payload.siguiente_accion = {
+        tipo: 'trabajo',
+        descripcion: description,
+        tool: 'qap_module_close',
+        module: first,
+        modulo: first,
+      } satisfies SiguienteAccion;
+      payload._guidance_for_assistant = description;
+      payload.canonical_pending_closure_modules = pending;
+    }
     return result({ ...payload, knowledge, canonical_modules: canonicalModules,
       canonical_bridge: { absence_does_not_imply_no_observations: true, coverage: 'partial', human_review_required: true },
       integration: { ...discoveryIntegration, module_association: 'inspect_canonical_modules' }, provenance: { knowledge: 'IKnowledgeStore', onboarding: 'legacy_files', hallazgos_workspace: 'workspace_inspection', preflight: 'runtime' }, coverage: 'partial_inventory_not_test_verdicts' });
