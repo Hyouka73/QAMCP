@@ -495,3 +495,35 @@ Cero ejecución de pruebas ni ConformityAssessment en R5. **No inicia ni declara
 - **VNEXT-014 NO-GO; VNEXT-015 no iniciado.**55 históricos+ocho fixtures Memory sin fence conservados; falta integrado auténtico A closed+B waived+reporte+WRAP_UP+replanificación. No ACID común Closure+Knowledge+FS ni aprobación humana certificada con gateways de fixture.
 
 [Seis informes](auditorias/VNEXT-014-R4-R12/INFORME.md).
+
+
+---
+
+## Integración MVP vNext → develop — plazo máximo 19/11/2026
+
+**Fecha de decisión:** 2026-11-05. **Destino único de este plan de merge:** WBS vNext. **Fecha de entrega general del equipo:** 20/11/2026, inamovible. Este bloque es un plan transversal de convergencia; NO cierra ni sustituye VNEXT-014, NO autoriza omitir resultados NO-GO y NO inicia VNEXT-015. La propuesta de VNEXT-024–033/UTCP/ARTEMIS/LENDUS es posterior al MVP y no forma parte del alcance obligatorio de noviembre.
+
+### Resultado mínimo para utilizar QAP desde develop
+
+Un usuario QA debe poder, en una aplicación web de prueba autorizada sin acceder al repositorio del producto: definir/consultar contexto, registrar **requisito esperado confirmado**, obtener/editar un caso UI, planificar, ejecutar acciones y aserciones reales con Playwright, consultar evidencias y resultado, repetir una regresión y obtener un reporte. Las reglas observadas/inferidas no pueden transformarse en requisitos confirmados; casos generados BVA/RBAC de develop son candidatos hasta que tengan oráculo autorizado. Conservar compatibilidad CLI/MCP y persistencia/historial; no exigir LENDUS, UTCP ni ARTEMIS.
+
+### Tareas específicas de integración (solo vNext)
+
+| ID | Fecha límite | Responsable | Descripción / salida | Dependencias / decisión |
+|---|---|---|---|---|
+| VNEXT-MVP-INT-01 | 10/11/2026 | Responsable de vNext | Releer HEAD de develop y feature, comparar WBS real de equipo, inventariar aportes S81-001/002/003/006, schemas, update/prune y códigos; congelar matriz de compatibilidad y SHAs. No tocar develop. | R4-R12 y continuidad de VNEXT-014; [auditoría cruzada](06_AUDITORIA_CRUCE_DEVELOP_VNEXT.md) cuando esté incorporada |
+| VNEXT-MVP-INT-02 | 16/11/2026 | Responsable de vNext + auditor QA independiente | Resolver y **certificar** VNEXT-014, incluyendo 55 fallos históricos + ocho Memory fixtures, consentimiento/expiry y flujo integrado auténtico. Separar deuda preexistente y defectos de bloqueo con justificación aprobada; prohibido renombrar/suprimir pruebas para aparentar GO. Identificar cambios de vNext aptos para integración. | **GO de 014 imprescindible para merge completo** |
+| VNEXT-MVP-INT-03 | 18/11/2026 | Responsable de vNext + Diego | Crear rama temporal desde HEAD actual de develop y realizar merge de prueba de vNext mediante Git, sin push a develop; resolver add/add de docs/vnext (preservar historial original), exportaciones knowledge y contratos TC, migraciones YAML↔canónico, CLI update/rollback/prune, BVA/RBAC. Ejecutar suites de ambos padres y flujo MVP web de develop. | INT-01, INT-02 y entregable funcional DEV-MVP-01/02 del WBS de Google Sheets |
+| VNEXT-MVP-INT-04 | **19/11/2026** | Responsable de vNext (aprobación) + Diego (revisión) | **COMPUERTA GO/NO-GO y punto explícito de merge hacia develop**. Si build 10/10, suites originales de ambas ramas, MCP/CLI/runner, fixtures de migración, seguridad, evidencia auténtica y MVP web quedan verificados sin nuevos P0/P1, aprobar PR de integración y **fusionar a develop antes del 20/11/2026**, sin force-push; registrar merge SHA y rollback plan. | INT-03, GO 014, revisión humana de ambos responsables. No basta con merge textual limpio. |
+| VNEXT-MVP-INT-05 | 20/11/2026 | QA / equipo | Ejecución limpia desde HEAD real develop fusionado: instalación→configuración→requisito confirmado→caso→plan→ejecución UI→evidencia→reporte→regresión; documentar onboarding mínimo, comandos y SHA. | INT-04 GO; el WBS de develop conserva cierre H-10 el 20/11 |
+
+**Regla de fecha y seguridad:** el merge **está programado como máximo para el jueves 19/11/2026**, antes del cierre viernes 20/11. Si INT-02/03/04 da NO-GO, no sobreescribir develop ni fingir merge; elevar de inmediato el bloqueo de calendario y entregar el MVP propio de develop, con la razón concreta de por qué vNext no es integrable. La fecha no autoriza desactivar pruebas, ocultar fallos ni fusionar estado canónico inconsistente. Un merge parcial/feature flag solo se decidirá en un plan revisado y con rutas explícitas; no presentarlo como merge íntegro de vNext.
+
+### Decisiones de alcance hasta el 20/11
+
+- **Sí en develop:** terminar lo que Diego ya desarrolla (S81-002 RBAC, S81-003 casos, flujos existentes S82) y demostrar un pequeño recorrido web con casos y evidencias; añadir solo tareas DEV-MVP-01/02 para revisión de oráculos y entrega funcional. No copiar un segundo motor canónico.
+- **Sí en vNext:** estabilización R4-014 en curso, reconciliación de contratos y ejecución de este plan de merge, con CODE/QA gates auténticos.
+- **No antes del 20/11:** implementar UTCP, ARTEMIS, recetas de LENDUS, colaboración multiusuario y VNEXT-024–033. Solo diseño documental aprobado más adelante.
+- **No alterar históricos:** cualquier tarea completada del cronograma del equipo permanece completada; no cambiar sus estados a pendiente por hallazgos posteriores. Abrir nueva tarea de corrección y documentar evidencia separada.
+
+**Fuentes de WBS operativo:** [Google Sheets - Detalle WBS & Evidencias](https://docs.google.com/spreadsheets/d/1DC_MTJI-ALQt8s87BNm-1rfv9gK3yM4J3st9-oBUN2U/edit?gid=1106357705#gid=1106357705), [Gantt](https://docs.google.com/spreadsheets/d/1DC_MTJI-ALQt8s87BNm-1rfv9gK3yM4J3st9-oBUN2U/edit?gid=1436032129#gid=1436032129).
