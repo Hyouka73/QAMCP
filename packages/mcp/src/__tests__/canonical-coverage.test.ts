@@ -831,6 +831,15 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
       const receiptAfter = await f.store.get('app-r5', 'relation', `waiver:${dec.approvalId}`);
       expect(receiptAfter).toBeDefined();
       expect(receiptAfter?.entity.predicate).toBe('related_to');
+      const recoveredLifecycle = JSON.parse(readFileSync(f.lifecyclePath, 'utf8')) as {
+        modules: { catalog: { state: string; waived_reason?: string } };
+        history: Array<{ to: string }>;
+      };
+      expect(recoveredLifecycle.modules.catalog).toMatchObject({
+        state: 'waived', waived_reason: 'Motivo de prueba para autorrecuperación Crash 2',
+      });
+      expect(recoveredLifecycle.history.some(entry => entry.to === 'catalog:waived')).toBe(true);
+      expect(await f.closureService.reconcile('catalog')).toBe(false);
 
       // Calling execute again succeeds idempotently without error 'closure_decision_reused'
       const replayRes = await f.closureService.execute('catalog', { action: 'close' });
@@ -857,6 +866,30 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
       });
       expect(retryCall.status).toBe('waived');
       expect(retryCall.idempotent).toBe(true);
+
+      const saved = JSON.parse(readFileSync(f.lifecyclePath, 'utf8')) as {
+        modules: { catalog: { state: string; waived_reason?: string } };
+        history: Array<{ to: string }>;
+      };
+      expect(saved.modules.catalog).toMatchObject({
+        state: 'waived', waived_reason: 'Renuncia completa para probar idempotencia tras crash',
+      });
+      const originalHistory = saved.history;
+      const originalReceipts = (await f.store.query('app-r5', 'relation')).items.length;
+
+      // Reproduce the R4-I01 partial state: a terminal marker survives but
+      // its approved reason is lost. Recovery must use the durable record,
+      // not a new approval or a fabricated justification.
+      delete saved.modules.catalog.waived_reason;
+      writeFileSync(f.lifecyclePath, JSON.stringify(saved), 'utf8');
+      expect(await f.closureService.reconcile('catalog')).toBe(true);
+      const repaired = JSON.parse(readFileSync(f.lifecyclePath, 'utf8')) as typeof saved;
+      expect(repaired.modules.catalog).toMatchObject({
+        state: 'waived', waived_reason: 'Renuncia completa para probar idempotencia tras crash',
+      });
+      expect(repaired.history).toEqual(originalHistory);
+      expect((await f.store.query('app-r5', 'relation')).items).toHaveLength(originalReceipts);
+      expect(await f.closureService.reconcile('catalog')).toBe(false);
     });
 
     it('Scenario 4: Two concurrent closures cleanly serialize and prevent double consumption of decision', async () => {
