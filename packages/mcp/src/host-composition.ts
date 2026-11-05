@@ -145,11 +145,13 @@ function discoveryPolicy(
     authorization: {
       read_only_acknowledged: true,
       navigation_urls,
-      ...(input.allowed_ips ? { allowed_ips: [...input.allowed_ips] as string[] } : {}),
+      ...(Array.isArray(input.allowed_ips) ?
+        { allowed_ips: [...input.allowed_ips] as string[] } : {}),
       ...(typeof input.allow_public_network === 'boolean' ?
         { allow_public_network: input.allow_public_network } : {}),
     },
-    ...(input.limits ? { limits: { ...input.limits } } : {}),
+    ...(object(input.limits) ?
+      { limits: { ...input.limits } as DiscoveryAuthorization['limits'] } : {}),
     ...(input.browser ? { dependencies: { browser: { channel: input.browser.channel as 'chrome' | 'msedge' } } } : {}),
   };
 }
