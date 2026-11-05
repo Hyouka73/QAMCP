@@ -1582,6 +1582,72 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
       expect(f.closureStore.read(f.context)).toEqual(before);
     });
 
+    it('VNEXT-014 rescue: controlled A closed + B waived produces distinct canonical report sections', async () => {
+      // Both gateway responses are test fixtures, NOT actual human decisions.
+      const gateway: IModuleClosureReviewGateway = {
+        reviewClosure: async request => makeDecision(request, 'approve'),
+      };
+      const categories: RequirementCategory[] = [
+        'functional', 'business_rule', 'security', 'ui', 'ux', 'regression', 'performance',
+      ];
+      const f = await fixture({
+        gateway,
+        confirmedReqs: categories.map(category => ({
+          category, title: 'A-' + category,
+          criteria: ['Criterio comprobable para ' + category],
+        })),
+      });
+      const trace = { source: 'synthetic', recorded_by: 'fixture', recorded_at: time,
+        reason: 'Fixture para módulo B', review: 'unreviewed' as const, evidence_refs: [] };
+      await f.store.commit('app-r5', [{
+        kind: 'module', expected_revision: 0, trace,
+        entity: { id: 'mod-b', application_id: 'app-r5', key: 'module-b',
+          title: 'Módulo B', certainty: 'confirmed', criticality: 'medium',
+          dependencies: [], created_at: time, updated_at: time, is_active: true },
+      }]);
+      const lifecycle = JSON.parse(readFileSync(f.lifecyclePath, 'utf8')) as typeof f.lifecycle;
+      lifecycle.modules = { ...lifecycle.modules,
+        'module-b': { state: 'planned', updated_at: time } };
+      lifecycle.session.plan.push({ module: 'module-b', path: '/b' });
+      writeFileSync(f.lifecyclePath, JSON.stringify(lifecycle));
+      const moduleBindings: NonNullable<BridgeContext['moduleBindings']> = [
+        ...f.context.moduleBindings!,
+        { plannedName: 'module-b', moduleId: 'mod-b', moduleKey: 'module-b',
+          moduleRevision: 1, applicationRevision: 1, environmentRevision: 1,
+          provenance: 'host_declared' },
+      ];
+      const service = new CanonicalClosureService(f.store,
+        { ...f.context, moduleBindings }, f.closureStore, gateway);
+      const closed = await service.execute('catalog', { action: 'close' });
+      expect(closed.status).toBe('closed');
+      const waived = await service.execute('module-b', {
+        action: 'waive', reason: 'Renuncia autorizada en fixture controlado para el módulo B',
+      });
+      expect(waived.status).toBe('waived');
+      const before = f.closureStore.read(f.context);
+      const client = await mcpClient(f, {
+        reviewClosure: async () => { throw new Error('No new approvals on session close'); },
+      }, moduleBindings);
+      const response = await client.callTool({
+        name: 'qap_session_close', arguments: { targetPath: f.root },
+      });
+      const payload = JSON.parse((response.content[0] as { text: string }).text) as {
+        status: string; fase: string; report_path: string;
+        cierre_canonico: { modulos_cerrados: number; modulos_waived: number };
+      };
+      expect(payload).toMatchObject({
+        status: 'success', fase: 'WRAP_UP',
+        cierre_canonico: { modulos_cerrados: 1, modulos_waived: 1 },
+      });
+      const report = readFileSync(payload.report_path, 'utf8');
+      expect(report).toContain('Módulo: catalog');
+      expect(report).toContain('Módulo: module-b');
+      expect(report).toContain('A-functional');
+      expect(report).toContain('Renuncia autorizada en fixture controlado');
+      expect(report).toContain('no certificada');
+      expect(f.closureStore.read(f.context)).toEqual(before);
+    });
+
     it('qap_status reports honest canonical coverage and closure indicators without false 100%', async () => {
       const f = await fixture();
       const client = await mcpClient(f);
