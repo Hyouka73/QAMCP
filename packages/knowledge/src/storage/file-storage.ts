@@ -6,6 +6,7 @@ import {
   appendFileSync,
   renameSync,
   realpathSync,
+  rmSync,
 } from 'node:fs';
 import {
   readFile,
@@ -304,6 +305,38 @@ export class FileSystemStorage implements IStorage {
       writeFileSync(tempPath, content, 'utf-8');
       renameSync(tempPath, fullPath);
       return updated;
+    });
+  }
+
+  /**
+   * A synchronous commit inside the lifecycle lock for cross-store finalization.
+   * The caller may hold the Knowledge write fence while calling commit(), so
+   * there is no release gap between receipt validation and lifecycle persistence.
+   *
+   * Lock order: lifecycle -> Knowledge -> Closure (read only). Do not call
+   * saveLifecycleState/updateLifecycleState from this transaction (reentrant lock).
+   * A rejected transaction never invokes commit and leaves lifecycle unchanged.
+   */
+  async commitLifecycleStateWithFence<T>(
+    transaction: (current: LifecycleState, commit: (next: LifecycleState) => void) => Promise<T>
+  ): Promise<T> {
+    const fullPath = this.resolvePath('.qa/project/lifecycle.json');
+    mkdirSync(dirname(fullPath), { recursive: true });
+    return this.withLock(fullPath, async () => {
+      const current = await this.getLifecycleState();
+      let committed = false;
+      const commit = (next: LifecycleState): void => {
+        if (committed) throw new Error('lifecycle_commit_already_performed');
+        const tempPath = `${fullPath}.${randomBytes(6).toString('hex')}.tmp`;
+        try {
+          writeFileSync(tempPath, JSON.stringify(next, null, 2), 'utf-8');
+          renameSync(tempPath, fullPath);
+          committed = true;
+        } finally {
+          rmSync(tempPath, { force: true });
+        }
+      };
+      return transaction(current, commit);
     });
   }
 
