@@ -807,6 +807,62 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
       expect(f.closureStore.read(f.context).approvals).toHaveLength(1);
     });
 
+    it.skipIf(process.platform !== 'win32')('R4-R11-A01: case-aliased official writers wait through durable authorization in all four actions', async () => {
+      const confirmedReqs: FixtureOptions['confirmedReqs'] = [
+        { category: 'functional', title: 'R1' },
+        { category: 'business_rule', title: 'R2' },
+        { category: 'security', title: 'R3' },
+        { category: 'ui', title: 'R4' },
+        { category: 'ux', title: 'R5' },
+        { category: 'regression', title: 'R6' },
+        { category: 'performance', title: 'R7' },
+      ];
+      for (const action of ['declare_non_applicable', 'accept_gaps', 'waive', 'close'] as const) {
+        const f = await fixture({ confirmedReqs: action === 'close' ? confirmedReqs : undefined });
+        const aliasStorage = new FileSystemStorage({ rootDir: f.root.toUpperCase() });
+        let writerCompleted = false;
+        let pendingWriter: Promise<void> | undefined;
+        const wrapped: IModuleClosureStore = {
+          read: scope => f.closureStore.read(scope),
+          transaction: async <T>(scope: ClosureScope, operation: (snapshot: ModuleClosureSnapshot) => Promise<T>): Promise<T> =>
+            f.closureStore.transaction(scope, async snapshot => {
+              const result = await operation(snapshot);
+              // Reproduce the original P1: same physical root with a different
+              // Windows casing, between callback return and SQLite COMMIT.
+              pendingWriter = aliasStorage.saveLifecycleState({
+                ...f.lifecycle,
+                session: { ...f.lifecycle.session, id: 'new-session-after-commit' },
+              }).then(() => { writerCompleted = true; });
+              await new Promise(resolve => setTimeout(resolve, 70));
+              expect(writerCompleted).toBe(false);
+              return result;
+            }),
+          close: () => {},
+        };
+        const svc = new CanonicalClosureService(f.store, f.context, wrapped, {
+          reviewClosure: async request => makeDecision(request),
+        });
+        const evaluation = await f.coverageService.evaluate('catalog');
+        expect(evaluation.status).toBe('evaluated');
+        if (evaluation.status !== 'evaluated') throw new Error('invalid_test_fixture');
+        const gap = evaluation.assessment.gaps.find(g => g.status === 'unaddressed');
+        const cmd = action === 'declare_non_applicable' ? {
+          action, decisions: [{ category: 'performance', reason: 'No aplica al contrato aprobado por el responsable.' }],
+        } : action === 'accept_gaps' ? {
+          action, accepted_gaps: [{ gap_id: gap!.id, reason: 'Brecha de cobertura aceptada con riesgo documentado por el host.' }],
+        } : action === 'waive' ? {
+          action, reason: 'Renuncia aprobada por revisión independiente del host para la prueba.',
+        } : { action };
+        const result = await svc.execute('catalog', cmd);
+        expect(result.status).toBe(action === 'declare_non_applicable' ? 'declared_non_applicable' :
+          action === 'accept_gaps' ? 'gaps_accepted' : action === 'waive' ? 'waived' : 'closed');
+        expect(pendingWriter).toBeDefined();
+        await pendingWriter;
+        expect(writerCompleted).toBe(true);
+        expect(f.closureStore.read(f.context).approvals).toHaveLength(1);
+      }
+    });
+
     it('R4-R10-A02: changing cwd never moves the active SQLite writer fence', async () => {
       const root = mkdtempSync(join(tmpdir(), 'qap-r10-path-'));
       roots.push(root);
