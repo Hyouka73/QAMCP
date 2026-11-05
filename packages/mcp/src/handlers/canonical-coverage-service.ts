@@ -371,7 +371,17 @@ export class CanonicalCoverageService {
       confirmedRequirements.map(r => [r.id, r.revision]).sort(),
       categoryStatuses,
       gaps.map(g => [g.id, g.status, g.absence_type, g.acceptance_receipt]).sort(),
-      Array.from(applicabilityMap.entries()).sort(),
+      // A retryable host review must be bound to the actual applicability
+      // decision, not the transient clock time when the request was built.
+      // Preserve decided_at in the assessment/store for audit, but do not
+      // let a fresh timestamp invalidate an otherwise identical pending
+      // request. Category, applicability, reason, reviewer and decision ID
+      // remain part of the digest; requirement revisions and context are
+      // independently bound above.
+      Array.from(applicabilityMap.entries())
+        .map(([category, decision]) => [category, decision.applicable, decision.reason,
+          decision.decided_by, decision.decision_id])
+        .sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
     ]);
 
     const assessment: CanonicalCoverageAssessment = {
