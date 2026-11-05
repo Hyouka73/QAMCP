@@ -197,3 +197,9 @@ Las ejecuciones anteriores no se han realizado en este segundo chequeo; son **re
 ## 9. Política de publicación y cambios futuros
 
 Este documento queda publicado directamente en `feat/qap-vnext-architecture`, sin cambios productivos ni pruebas físicas en esta intervención. La rama temporal inicial no será utilizada para nuevos trabajos y debe eliminarse después de recuperar esta documentación. La próxima persona que implemente debe recapturar ambos HEAD y revisar si el WBS/STATE cambió; los números de commits y conflictos son un snapshot del 2026-11-05. Un cambio de alcance necesita acta antes de alterar dependencias, estados o definición de GO.
+
+## 7. Enmienda aditiva 2026-11-05 — rama correctiva VNEXT-014
+
+**Decisión posterior del responsable:** para los cambios correctivos de VNEXT-014 se crea `fix/vnext-014-cierre-controlado`, nacida de `e4d7fbc2c6e4525b4e5fab38ec22e0cd365305d6`, como **excepción concreta** a PRO-05. No se borra PRO-05 ni se altera el estado de tareas históricamente terminadas. El trabajo de VNEXT-015 y la rama vNext original no se sobrescriben ni se fusionan aquí.
+
+Las correcciones publicadas y la migración de ocho fixtures permanecen **sin certificación física**. Las 63 identidades mantienen su trazabilidad en `implementaciones/VNEXT-014-CIERRE-CONTROLADO/MATRIZ_HALLAZGOS.md`; 55 no intervenidas. Se exige Codex independiente, E01/Windows, lint, E2E/autoridad humana real y GO/NO-GO formal antes de cualquier integración. **INT-02, INT-04 y merge a develop siguen NO-GO**. Fechas 16/19/20 de noviembre intactas; no se relajan compuertas para cumplirlas.
