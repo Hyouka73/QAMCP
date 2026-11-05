@@ -1,4 +1,5 @@
 import { existsSync, lstatSync, readFileSync, realpathSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { dirname, isAbsolute, resolve } from 'node:path';
 
 import { SqliteKnowledgeAdapter } from '@qap/knowledge';
@@ -43,6 +44,36 @@ function existingFile(path: unknown, label: string): string {
     throw new Error('Unsafe host configuration file: ' + label);
   }
   return candidate;
+}
+
+/**
+ * Existing-only must reject an empty or v1 store BEFORE the mutating adapter
+ * constructor runs. Read-only connection + query_only are intentional:
+ * migration and provisioning happen through explicit administrative setup.
+ */
+function preflightExistingKnowledge(path: string): void {
+  const sqlite = createRequire(import.meta.url)('node:sqlite') as typeof import('node:sqlite');
+  const db = new sqlite.DatabaseSync(path, { readOnly: true });
+  try {
+    db.exec('PRAGMA query_only = ON');
+    const version = db.prepare('PRAGMA user_version').get()?.user_version;
+    const applicationId = db.prepare('PRAGMA application_id').get()?.application_id;
+    if (version !== 2 || applicationId !== 0x5141504b) {
+      throw new Error('Host Knowledge must be provisioned at schema v2 before startup.');
+    }
+    const migrations = db.prepare(
+      'SELECT version, integrity_result FROM knowledge_migrations ORDER BY version'
+    ).all();
+    if (migrations.length !== 2 || migrations[0].version !== 1 ||
+        migrations[1].version !== 2 ||
+        migrations.some(row => row.integrity_result !== 'ok')) {
+      throw new Error('Host Knowledge is not fully provisioned.');
+    }
+    // The adapter performs full checksums, schema and FTS integrity validation
+    // after this non-mutating version gate.
+  } finally {
+    db.close();
+  }
 }
 
 function secret(env: NodeJS.ProcessEnv, name: unknown): Buffer {
@@ -146,12 +177,12 @@ function discoveryPolicy(
       read_only_acknowledged: true,
       navigation_urls,
       ...(Array.isArray(input.allowed_ips) ?
-        { allowed_ips: [...input.allowed_ips] as string[] } : {}),
+        { allowed_ips: input.allowed_ips.map((value: unknown) => requiredText(value, 'allowed_ips')) } : {}),
       ...(typeof input.allow_public_network === 'boolean' ?
         { allow_public_network: input.allow_public_network } : {}),
     },
     ...(object(input.limits) ?
-      { limits: { ...input.limits } as DiscoveryAuthorization['limits'] } : {}),
+      { limits: { ...input.limits } } : {}),
     ...(input.browser ? { dependencies: { browser: { channel: input.browser.channel as 'chrome' | 'msedge' } } } : {}),
   };
 }
@@ -179,7 +210,8 @@ export async function loadHostComposition(
 
   const closeables: Array<{ close(): void }> = [];
   try {
-    // Existing-only: never silently initialize a privileged Knowledge database.
+    // Fail before the mutating adapter can create/migrate a supplied empty/v1 DB.
+    preflightExistingKnowledge(dbPath);
     const store = new SqliteKnowledgeAdapter(dbPath);
     closeables.push(store);
     const application = await store.get(app, 'application', app);
