@@ -1192,7 +1192,7 @@ Modo de integridad: `development` (Reemplazo genuino de `qap_test` por `TestHand
 
 ## Continuidad — Reparación focal VNEXT-014 (2026-11-05)
 
-- **Referencia precedente:** auditoría independiente `docs/vnext/auditorias/VNEXT-014-RESCATE-CODEX/` sobre `e71818ac6fdaa1847e300a67bd4540fbfbd514c5`. HEAD remoto inicial de intervención `7cfdefca9482b59d0c5606fb70d23903483373f3`. Código y pruebas anteriores a los nuevos documentos: `c15bbb671ab55029334853f183aecd9344aeef55`.
+- **Referencia precedente:** auditoría independiente `docs/vnext/auditorias/VNEXT-014-RESCATE-CODEX/` sobre `e71818ac6fdaa1847e300a67bd4540fbfbd514c5`. HEAD remoto inicial de intervención `7cfdefca9482b59d0c5606fb70d23903483373f3`. Código y pruebas anteriores a los nuevos documentos: `a05bfcc1e0981073a9fc6ac50ead68eeb2808cac`.
 - **Publicado en esta rama:** corrección focal `RES-CODEX-A01` (contexto, compuerta, transición/estado físico y locks lifecycle→Knowledge), `RES-CODEX-A02` (validador único de recibos, revisiones y relectura protegida), `A03` (preflight SQLite existing-only no mutante) y ajustes focales `L01`. Regresiones adicionales A01/A02 multiproceso y A03 read-only añadidas.
 - **Importante:** los cambios **no han sido compilados, ejecutados ni aprobados por Codex**; no declarar PASS por simple publicación. No hay nueva medida de MCP ni de ESLint. Baseline auditor **anterior**, exclusivamente histórico: 423 PASS/63 FAIL de 486 con un worker, global lint 39 errores/28 advertencias.
 - **A04-W01:** wrapper temporizado que pierde AsyncLocalStorage sigue fuera de las garantías de composición estándar comprobadas; extensión del puerto no autorizada ni corregida aquí. **RES-CODEX-E01:** paralelismo MCP no resuelto; se documentan errores extra y causa por determinar.
