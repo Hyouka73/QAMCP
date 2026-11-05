@@ -25,6 +25,7 @@ export class StatusHandler implements IMcpToolHandler {
     // A terminal state in lifecycle.json is not proof of a valid canonical
     // closure. Track host-bound modules until their durable closure validates.
     const unresolvedCanonicalModules = new Set<string>();
+    let pendingCanonicalInterview: string | undefined;
     try {
       const bound = binding(rootDir, this.dependencies);
       if (bound?.moduleBindings?.length) {
@@ -39,10 +40,23 @@ export class StatusHandler implements IMcpToolHandler {
             unresolvedCanonicalModules.delete(name);
           }
           if (index < 16) {
+            const interview = await this.dependencies.canonicalInterviews?.get(rootDir)?.status(name);
+            // Only resume questions actually held by the host in the current
+            // canonical context. No generated questions, implied approval, or
+            // legacy YAML is needed merely to recommend a continuation.
+            if (
+              !pendingCanonicalInterview &&
+              closureStatus?.state === 'working' &&
+              interview?.availability === 'general_questions_available' &&
+              typeof interview.pending_questions === 'number' &&
+              interview.pending_questions > 0
+            ) {
+              pendingCanonicalInterview = name;
+            }
             canonicalModules.push({
               plannedName: name,
               ...await bridge.project(name),
-              interview: await this.dependencies.canonicalInterviews?.get(rootDir)?.status(name) ?? {
+              interview: interview ?? {
                 availability: 'host_runtime_absent', human_review_required: true, coverage: 'not_certified' },
               closure: closureStatus ?? { state: 'working', ready_for_closure: false },
             });
@@ -77,6 +91,18 @@ export class StatusHandler implements IMcpToolHandler {
       } satisfies SiguienteAccion;
       payload._guidance_for_assistant = description;
       payload.canonical_pending_closure_modules = pending;
+    }
+    if (payload.fase === 'WORKING' && pendingCanonicalInterview) {
+      const description = `El módulo '${pendingCanonicalInterview}' tiene una pregunta canónica pendiente del host. Reanúdala mediante qap_rules_set con canonical_interview.action=next; la respuesta requiere revisión humana independiente antes de acreditar cobertura o cerrar.`;
+      payload.siguiente_accion = {
+        tipo: 'trabajo',
+        tool: 'qap_rules_set',
+        module: pendingCanonicalInterview,
+        modulo: pendingCanonicalInterview,
+        canonical_interview: { action: 'next' },
+        descripcion: description,
+      } satisfies SiguienteAccion;
+      payload._guidance_for_assistant = description;
     }
     return result({ ...payload, knowledge, canonical_modules: canonicalModules,
       canonical_bridge: { absence_does_not_imply_no_observations: true, coverage: 'partial', human_review_required: true },
