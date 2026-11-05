@@ -2,9 +2,9 @@
 
 **Fecha:** 2026-11-05  
 **Rama exclusiva:** `feat/qap-vnext-architecture`  
-**Último código auditado físicamente:** `fbc089c02b71828994a62af1a9eb6d28e33cb4bb` (R4-R6)  
+**Último código auditado físicamente:** `ea75eb2c52266b174e6d24917c1b089d56834900` (R4-R7)
 **Auditoría documental R4-R6:** `8b9b7b84cfff70d91e55a2a2b1ef6578994eedd9`  
-**Estado R4-R7:** regresión de integración **publicada, pendiente de compilación y auditoría independiente**. VNEXT-014 **NO-GO**; VNEXT-015 no iniciado.
+**Estado R4-R7:** integración **verificada físicamente**; lint focal ampliado y global rojos, hallazgo A01 P1 preexistente de reintento de aplicabilidad. VNEXT-014 **NO-GO**; VNEXT-015 no iniciado.
 
 ## 1. Baseline recibido en GitHub
 
@@ -24,7 +24,7 @@ Fronteras reutilizadas sin bypass: `CanonicalInterviewService` (pregunta, propue
 
 La ausencia de aprobación o una decisión para un digest anterior **no** confirma ni modifica el requisito. La cobertura solo considera requisitos persistidos con confirmación verificable y criterios de aceptación; las restantes categorías de aplicabilidad desconocida siguen bloqueando `closed`. `execution_coverage` permanece `not_executed`.
 
-## 3. Cambios publicados pendientes de ejecución
+## 3. Cambios publicados y auditados en R4-R7
 
 Archivo: `packages/mcp/src/__tests__/canonical-interview.test.ts`, suite R3 canónica.
 
@@ -83,3 +83,11 @@ Solo autorizar commits/push de Markdown y logs saneados a `feat/qap-vnext-archit
 - Revisión de nueva evidencia/revisión y política expresa de invalidez y reapertura, sin reabrir módulos `closed` implícitamente.
 - Migración de los **55 casos históricos** por garantía equivalente, diseño soportado de auth/SPA, saneamiento global de lint y diagnóstico del timeout Discovery.
 - **VNEXT-014 NO-GO** y **VNEXT-015 no iniciado** hasta compuertas integrales de evidencia y seguridad.
+
+### Resultado independiente R4-R7 (2026-11-05)
+
+- **Código auditado:** `ea75eb2c52266b174e6d24917c1b089d56834900`; worktree aislado, Node 24.22.1/SQLite 3.53.4 FTS5, lockfile congelado y Chromium 153. Build 10 paquetes PASS; R4-R7-I01 1/1, entrevista **44/44**, Coverage **37/37**, Discovery **59/59** aislado y en integral, runner **71/71**, Stdio **18 herramientas + init** por servidor y CLI.
+- **Tramo R4-R7 verificado:** propuesta sin autorización bloqueada; corrección v1→v2 cambia digest; decisión vieja rechazada; host independiente confirma el texto exacto, 1 requisito y 1 recibo, retry idempotente y segunda conexión SQLite exacta. Cobertura cambia de 0 a 1 requisito, 7 a 6 brechas, functional satisfecha y otras categorías unknown; cierre bloqueado, ejecución not_executed, lifecycle intacto y sin rules.yaml.
+- **Matriz MCP:** **407 PASS / 55 FAIL de 462**. Mismas 55 identidades, 406 PASS comunes y una alta R4-R7-I01 aprobada. Lint focal solicitado **5 errores/0 warnings**, todos históricos de canonical-coverage-service (foco ampliado frente a R4-R6); global **34 errores/28 advertencias**, 62 diagnósticos idénticos. Discovery no reprodujo timeout, causa histórica sigue pendiente.
+- **Hallazgo 014-R4-R7-A01 P1 preexistente:** declare_non_applicable regenera decided_at y sus digests al repetir la misma petición pendiente; una aprobación posterior del digest anterior devuelve closure_review_invalid sin writes. Afecta inbox desacoplado; no se observó bypass. Resolver antes de componer el siguiente P0. Detalles y sonda reproducible en [evidencia](auditorias/VNEXT-014-R4-R7/EVIDENCIA_INTEGRACION.md).
+- **Dictamen:** R4-R7 propuesta/revisión/cobertura **PASS funcional acotado**; **VNEXT-014 NO-GO**, VNEXT-015 sin iniciar. Pendientes closed auténtico, decisiones independientes de aplicabilidad/cierre, segundo módulo waived, reporte canónico y replanificación; conservar E0a/E1/E2/E3/criterio 9 y los otros 50 casos. [Informe](auditorias/VNEXT-014-R4-R7/INFORME.md), [siguiente P0](auditorias/VNEXT-014-R4-R7/SIGUIENTE_BLOQUE_P0.md).
