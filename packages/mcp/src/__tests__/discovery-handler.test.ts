@@ -485,9 +485,14 @@ describe('VNEXT-013-R2 canonical execution scope bridge', () => {
       .toMatchObject({ status: 'waived' });
 
     const lifecycleAfterWaiver = JSON.parse(readFileSync(f.lifecyclePath, 'utf8')) as {
-      modules: { catalog: { state: string } };
+      modules: { catalog: { state: string; waived_reason?: string } };
+      history: Array<{ to: string; reason?: string }>;
     };
-    expect(lifecycleAfterWaiver.modules.catalog.state).toBe('waived');
+    expect(lifecycleAfterWaiver.modules.catalog).toMatchObject({
+      state: 'waived', waived_reason: waive.canonical_closure.reason,
+    });
+    expect(lifecycleAfterWaiver.history.some(entry =>
+      entry.to === 'catalog:waived' && entry.reason === waive.canonical_closure.reason)).toBe(true);
     expect((await f.store.query('a', 'relation')).items
       .some(item => item.trace.source === 'canonical_module_waiver_v1')).toBe(true);
 
