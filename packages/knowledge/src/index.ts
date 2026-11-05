@@ -29,3 +29,4 @@ export * from './storage/lock-manager.js';
 export * from './storage/sqlite-knowledge-adapter.js';
 
 export * from './inference/knowledge-inference-engine.js';
+export * from './impact/impact-analyzer.js';
