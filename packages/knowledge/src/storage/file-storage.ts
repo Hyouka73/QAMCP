@@ -5,6 +5,7 @@ import {
   writeFileSync,
   appendFileSync,
   renameSync,
+  realpathSync,
 } from 'node:fs';
 import {
   readFile,
@@ -85,10 +86,19 @@ export class FileSystemStorage implements IStorage {
       writeFileSync(targetPath, '', 'utf-8');
     }
 
+    // All host writers to the same physical file must use the same lock,
+    // including Windows path-case aliases and directory junction aliases.
+    // Hash the canonical pathname, never the caller's spelling or a mutable
+    // file inode (the lifecycle file is atomically replaced by rename).
+    // On case-sensitive POSIX filesystems, retain the original case.
+    const physicalPath = realpathSync.native(targetPath);
+    const lockIdentity = process.platform === 'win32'
+      ? physicalPath.replaceAll('\\', '/').toLowerCase()
+      : physicalPath;
     const release = await lockfile.lock(targetPath, {
       retries: { retries: 10, minTimeout: 50, maxTimeout: 500 },
       stale: 10000,
-      lockfilePath: join(this.getLockDir(), `${createHash('sha256').update(targetPath).digest('hex')}.lock`),
+      lockfilePath: join(this.getLockDir(), `${createHash('sha256').update(lockIdentity).digest('hex')}.lock`),
     });
 
     try {
