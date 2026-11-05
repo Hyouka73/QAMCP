@@ -833,7 +833,38 @@ export class CanonicalClosureService {
           snapshot.approvals.push([decision.approvalId, request.requestDigest]);
           return { committed: true, record };
         }), status === 'closed');
-        if ('status' in fenced) return fenced;
+        if ('status' in fenced) {
+          // A competing caller may have committed an authorized terminal row
+          // while we waited for the lifecycle/Knowledge fence. Re-read that
+          // durable authority AFTER the fences are released, rather than
+          // reporting a false context conflict or requesting a new approval.
+          if (fenced.code === 'closure_context_changed' ||
+            fenced.code === 'closure_consistency_conflict') {
+            try {
+              const latest = this.closureStore.read(scope);
+              const winner = latest.closures[plannedName];
+              if (winner) {
+                if (!this.isAuthorizedDurableClosure(plannedName, winner, latest)) {
+                  return {
+                    status: 'blocked', code: 'invalid_durable_closure',
+                    razon: 'El cierre concurrente no conserva autorización canónica válida.',
+                  };
+                }
+                await this.reconcile(plannedName);
+                return {
+                  status: winner.status,
+                  idempotent: true,
+                  decision_id: winner.decisionId,
+                  request_digest: winner.requestDigest,
+                  coverage_digest: winner.coverageDigest,
+                };
+              }
+            } catch {
+              // Never turn an unavailable/tampered durable store into success.
+            }
+          }
+          return fenced;
+        }
         const txOutcome = fenced;
 
         if (!txOutcome.committed) {
