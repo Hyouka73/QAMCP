@@ -4,7 +4,7 @@
 - **Rama:** `feat/qap-vnext-architecture`
 - **Autor / Rol:** Principal Software Architect y Teamwork Lead
 - **Fecha:** Octubre 2026 (Revisión Arquitectónica Profunda — Etapa 0 Corregida)
-- **Estado actual (2026-11-04):** VNEXT-001 a VNEXT-013 con límites históricos. VNEXT-014 **NO-GO**. SHA R4-R5 auditado `f531e4e`, 405 PASS / 55 FAIL de 460 MCP, Coverage 37/37, Discovery 59/59, runner 71/71 y Stdio 18. R4-R4-A02 PASS físico. ESLint focal limpio, global 34 errores / 28 advertencias. VNEXT-015 sin iniciar.
+- **Estado actual (2026-11-04):** VNEXT-001 a VNEXT-013 con límites históricos. VNEXT-014 **NO-GO**. SHA R4-R5 auditado `f531e4e`: 405 PASS / 55 FAIL de 460 MCP, Coverage 37/37, Discovery 59/59, runner 71/71, Stdio 18. R4-R4-A02 PASS físico, lint focal limpio, global 34 errores/28 advertencias. Los 55 fallos ya están clasificados. R4-R6 inicia integración P0 de continuidad de entrevista canónica vía status y agrega regresión real, **sin pruebas físicas del nuevo HEAD**. VNEXT-015 sin iniciar.
 - **Referencias:** D-010 (Evolución documentada por etapas), D-001 a D-015.
 
 ---
@@ -314,8 +314,12 @@ Cero ejecución de pruebas ni ConformityAssessment en R5. **No inicia ni declara
   - `014-R4-R5-01` P2. **PASS independiente.** Guidance y cierre coinciden para 16/17 waivers válidos y último inválido.
   - `014-R4-R5-02` P2. **3/3 PASS físico.** Foco, Coverage e integral aprueban los tres escenarios. Sonda adicional confirma reporte/ausencia y autoridad intacta.
   - `014-R4-R5-03` P0. **Auditoría ejecutada y publicada.** MCP 405/460 PASS, 55 históricos intactos. [Informe](auditorias/VNEXT-014-R4-R5/INFORME.md).
-  - `014-R4-R5-04` P0. **Clasificación ejecutada, corrección pendiente.** Priorizar cinco lifecycle con integración canónica real, luego entrevista/auth/esquemas y migración de garantías. [55 fallos clasificados](auditorias/VNEXT-014-R4-R5/CLASIFICACION_55_FALLOS.md).
-- **Compuerta de salida:** VNEXT-014 sigue NO-GO hasta resolver las 55 garantías, lint global y el recorrido de cobertura real y replanificación. [Nota R4-R5](014D_R4_R5_STATUS_GUIDANCE_SIN_LIMITE.md).
+  - `014-R4-R5-04` P0. **Clasificación ejecutada.** Cinco lifecycle exigen integración de entrevista, cobertura real, cierre y replanificación; después auth/esquemas y demás garantías. [55 fallos clasificados](auditorias/VNEXT-014-R4-R5/CLASIFICACION_55_FALLOS.md).
+  - `014-R4-R6-01` P0. [Continuidad de entrevista canónica](014D_R4_R6_CONTINUIDAD_ENTREVISTA_CANONICA.md): si el host tiene preguntas realmente pendientes, status recomienda `qap_rules_set` con `canonical_interview.action=next` sin inventar YAML/aprobación; **código publicado sin auditoría**.
+  - `014-R4-R6-02` P0. Prueba real SDK/SQLite `R4-R6-I01`: pregunta estable entre status y next, estado y recibos inmutables, cero revisión humana implícita; **publicada, no ejecutada**.
+  - `014-R4-R6-03` P0. Codex verifica compilación, entrevistas, coverage, discovery, MCP serial, runner, lint y Stdio, y publica el informe documental en GitHub; **pendiente**.
+  - `014-R4-R6-04` P0. **Siguiente bloque, no implementado:** propuesta/corrección y revisión de host, cobertura real para cierre `closed`, sesión multi-módulo con waiver, reporte/replanificación y equivalencia contractual E0a–criterio 9.
+- **Compuerta de salida:** VNEXT-014 sigue NO-GO hasta certificar el nuevo bloque P0 R4-R6, completar integración canónica que sustituya las garantías legacy, resolver los 55 casos y lint global. [Nota R4-R6](014D_R4_R6_CONTINUIDAD_ENTREVISTA_CANONICA.md).
 
 
 ---
