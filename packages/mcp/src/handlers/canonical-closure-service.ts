@@ -13,7 +13,7 @@ import {
 
 import { ModuleObservationBridge, type BridgeContext } from './module-observation-bridge.js';
 import { CanonicalCoverageService } from './canonical-coverage-service.js';
-import type { IModuleClosureStore, ModuleClosureRecord } from './module-closure-store.js';
+import type { IModuleClosureStore, ModuleClosureRecord, ModuleClosureSnapshot } from './module-closure-store.js';
 import type {
   IModuleClosureReviewGateway,
   ModuleClosureReviewRequest,
@@ -61,6 +61,35 @@ export class CanonicalClosureService {
   }
 
   /**
+   * A terminal SQLite row is not authority by itself. Its host approval must
+   * exist exactly once in the same encrypted durable snapshot and be bound to
+   * the request digest. Validate before generating a receipt or projecting a
+   * terminal lifecycle state, including on read/idempotent/recovery paths.
+   */
+  private isAuthorizedDurableClosure(
+    plannedName: string,
+    closure: ModuleClosureRecord,
+    snapshot: ModuleClosureSnapshot
+  ): boolean {
+    if (
+      closure.plannedName !== plannedName ||
+      (closure.status !== 'closed' && closure.status !== 'waived') ||
+      typeof closure.decisionId !== 'string' || closure.decisionId.trim().length === 0 ||
+      typeof closure.requestDigest !== 'string' || closure.requestDigest.trim().length === 0
+    ) return false;
+
+    // Match the public canonical command invariant; whitespace-only padding
+    // cannot turn a non-substantive waiver into an authorized exit.
+    if (
+      closure.status === 'waived' &&
+      (typeof closure.waiverReason !== 'string' || closure.waiverReason.trim().length < 15)
+    ) return false;
+
+    const matches = snapshot.approvals.filter(pair => pair[0] === closure.decisionId);
+    return matches.length === 1 && matches[0][1] === closure.requestDigest;
+  }
+
+  /**
    * Reconciliador de autorrecuperación (Enmienda 8 / Crash Scenario 2).
    * Detecta si SqliteModuleClosureStore registró una decisión confirmada pero el proceso se cayó
    * antes de persistir el recibo relation en IKnowledgeStore o actualizar lifecycle.json.
@@ -81,7 +110,10 @@ export class CanonicalClosureService {
     }
 
     const closure = snapshot.closures[plannedName];
-    if (!closure) return false;
+    if (!closure || !this.isAuthorizedDurableClosure(plannedName, closure, snapshot)) {
+      // Fail closed before a receipt, lifecycle write, or a second host review.
+      return false;
+    }
 
     const receiptId = closure.status === 'waived' ? `waiver:${closure.decisionId}` : `closure:${closure.decisionId}`;
     const expectedTraceSource = closure.status === 'waived' ? 'canonical_module_waiver_v1' : 'canonical_module_closure_v1';
@@ -161,7 +193,7 @@ export class CanonicalClosureService {
     const waivedReason = closure.status === 'waived' && typeof closure.waiverReason === 'string'
       && closure.waiverReason.trim().length > 0
       ? closure.waiverReason : undefined;
-    if (closure.status === 'waived' && !waivedReason) return false;
+    if (closure.status === 'waived' && (!waivedReason || waivedReason.trim().length < 15)) return false;
 
     const fsStorage = new FileSystemStorage({ rootDir: this.context.projectRoot });
     const lifecycle = await fsStorage.getLifecycleState();
@@ -213,7 +245,11 @@ export class CanonicalClosureService {
     let closure: ModuleClosureRecord | undefined;
     try {
       const snapshot = this.closureStore.read(scope);
-      closure = snapshot.closures[plannedName];
+      const candidate = snapshot.closures[plannedName];
+      if (candidate && !this.isAuthorizedDurableClosure(plannedName, candidate, snapshot)) {
+        return { state: 'working', ready_for_closure: false };
+      }
+      closure = candidate;
     } catch {
       // Almacén aún no inicializado
     }
@@ -304,6 +340,13 @@ export class CanonicalClosureService {
 
     const existingClosure = currentSnapshot?.closures[plannedName];
     if (existingClosure) {
+      if (!currentSnapshot || !this.isAuthorizedDurableClosure(plannedName, existingClosure, currentSnapshot)) {
+        return {
+          status: 'blocked',
+          code: 'invalid_durable_closure',
+          razon: 'El cierre canónico persistido no tiene motivo sustantivo o aprobación correlacionada válida.',
+        };
+      }
       return {
         status: existingClosure.status,
         idempotent: true,
@@ -666,6 +709,9 @@ export class CanonicalClosureService {
         const txOutcome = await this.closureStore.transaction(scope, async snapshot => {
           const existing = snapshot.closures[plannedName];
           if (existing) {
+            if (!this.isAuthorizedDurableClosure(plannedName, existing, snapshot)) {
+              throw new Error('invalid_durable_closure');
+            }
             return { committed: false, record: existing };
           }
           if (snapshot.approvals.some(a => a[0] === decision.approvalId)) {
@@ -704,6 +750,9 @@ export class CanonicalClosureService {
           const snap = this.closureStore.read(scope);
           if (snap.closures[plannedName]) {
             const c = snap.closures[plannedName];
+            if (!this.isAuthorizedDurableClosure(plannedName, c, snap)) {
+              throw new Error('invalid_durable_closure');
+            }
             return {
               status: c.status,
               idempotent: true,
