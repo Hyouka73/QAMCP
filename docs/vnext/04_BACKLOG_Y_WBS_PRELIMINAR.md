@@ -326,7 +326,7 @@ Cero ejecución de pruebas ni ConformityAssessment en R5. **No inicia ni declara
   - `014-R4-R8-02` P1. **3 pruebas nuevas no ejecutadas:** consentimiento diferido sobre el mismo digest; rechazo de motivo/requisito modificado; rechazo de cambio concurrente en gateway.
   - `014-R4-R8-03` P0. **Pendiente auditoría independiente:** compilar y ejecutar Suite 3, Coverage, Interview, Discovery, MCP serial, Runner, ESLint y Stdio; publicar en GitHub el diferencial y evidencia. [Documento R4-R8](014D_R4_R8_APLICABILIDAD_DIFERIDA.md).
 - **Auditoría R4-R6:** [informe y evidencia](auditorias/VNEXT-014-R4-R6/INFORME.md). Continuidad certificada; timeout de Discovery conservado y causa interna pendiente, sin nuevos fallos nominales en el integral.
-- **Compuerta de salida:** VNEXT-014 sigue NO-GO hasta resolver A01 y completar el recorrido canónico closed/waived/reporte/replanificación, resolver las 55 garantías y lint global. [Nota R4-R7](014D_R4_R7_PROPUESTA_REVISION_COBERTURA_CANONICA.md).
+- **Compuerta de salida:** VNEXT-014 sigue NO-GO hasta auditar R4-R8, completar closed/waived/reporte/replanificación, resolver las 55 garantías históricas y lint global. [Nota R4-R8](014D_R4_R8_APLICABILIDAD_DIFERIDA.md).
 
 
 ---
