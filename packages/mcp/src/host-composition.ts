@@ -93,8 +93,9 @@ export async function loadHostComposition(
   const payload: unknown = JSON.parse(readFileSync(path, 'utf8'));
   if (!object(payload) || payload.version !== 1) throw new Error('Unsupported host manifest version.');
   const root = requiredText(payload.projectRoot, 'projectRoot');
-  if (!isAbsolute(root) || resolve(root) !== root || realpathSync(root) !== root) {
-    throw new Error('Project root must be an existing canonical absolute path.');
+  if (!isAbsolute(root) || resolve(root) !== root || realpathSync(root) !== root ||
+      !lstatSync(root).isDirectory()) {
+    throw new Error('Project root must be an existing canonical absolute directory.');
   }
   const app = requiredText(payload.applicationId, 'applicationId');
   const environment = requiredText(payload.environmentId, 'environmentId');
@@ -132,12 +133,15 @@ export async function loadHostComposition(
           payload.interviewDraft.protection !== 'host_private_directory_and_managed_key') {
         throw new Error('Interview store requires host protection attestation.');
       }
-      interviewDraftStore = new SqliteInterviewDraftStore({
-        ...scope,
-        path: existingFile(payload.interviewDraft.dbPath, 'interviewDraft.dbPath'),
-        key: secret(env, payload.interviewDraft.keyEnv),
-        protection: 'host_private_directory_and_managed_key',
-      });
+      const draftKey = secret(env, payload.interviewDraft.keyEnv);
+      try {
+        interviewDraftStore = new SqliteInterviewDraftStore({
+          ...scope,
+          path: existingFile(payload.interviewDraft.dbPath, 'interviewDraft.dbPath'),
+          key: draftKey,
+          protection: 'host_private_directory_and_managed_key',
+        });
+      } finally { draftKey.fill(0); }
       closeables.push(interviewDraftStore);
       interviewDraftStore.read(scope); // Never silently accept unavailable/corrupt stores.
     }
@@ -146,12 +150,15 @@ export async function loadHostComposition(
           payload.moduleClosure.protection !== 'host_private_directory_and_managed_key') {
         throw new Error('Closure store requires host protection attestation.');
       }
-      moduleClosureStore = new SqliteModuleClosureStore({
-        ...scope,
-        path: existingFile(payload.moduleClosure.dbPath, 'moduleClosure.dbPath'),
-        key: secret(env, payload.moduleClosure.keyEnv),
-        protection: 'host_private_directory_and_managed_key',
-      });
+      const closureKey = secret(env, payload.moduleClosure.keyEnv);
+      try {
+        moduleClosureStore = new SqliteModuleClosureStore({
+          ...scope,
+          path: existingFile(payload.moduleClosure.dbPath, 'moduleClosure.dbPath'),
+          key: closureKey,
+          protection: 'host_private_directory_and_managed_key',
+        });
+      } finally { closureKey.fill(0); }
       closeables.push(moduleClosureStore);
       moduleClosureStore.read(scope);
     }
