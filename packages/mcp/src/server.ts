@@ -69,6 +69,7 @@ import {
   sanitizeDomString,
   generarRenderTexto,
   guardPregunta,
+  KnowledgeStoreError,
   type ViewDiscoveryContext,
   type DomForm,
   type Pregunta,
@@ -3522,7 +3523,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
 
           const reportFilePath = join(sessionsDir, `${sessionId}.report.md`);
 
-          return storage.commitLifecycleStateWithFence(async (current, commit) => {
+          return await storage.commitLifecycleStateWithFence(async (current, commit) => {
             if (current.phase !== 'WORKING' ||
                 JSON.stringify(current) !== approvedLifecycle) {
               return canonicalResult({
@@ -3635,9 +3636,27 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
                 }],
               };
             };
-            return closureService
-              ? closureService.withSessionReportFence(finalize)
-              : finalize();
+            if (!closureService) return finalize();
+            // Only a failure to ACQUIRE the Knowledge write fence is expected
+            // contention. A CONFLICT raised after the operation started comes
+            // from inside finalize() and must stay an unexpected failure.
+            let fenceEntered = false;
+            try {
+              return await closureService.withSessionReportFence(() => {
+                fenceEntered = true;
+                return finalize();
+              });
+            } catch (error) {
+              if (!fenceEntered && error instanceof KnowledgeStoreError && error.code === 'CONFLICT') {
+                return canonicalResult({
+                  status: 'blocked', code: 'knowledge_write_fence_unavailable',
+                  fase: current.phase,
+                  razon: 'Otro proceso mantiene el Knowledge write fence; la sesi�n sigue en WORKING, no se public� reporte y puede reintentarse al liberarse.',
+                  desbloquear_con: { tool: 'qap_session_close', campo: 'confirmar' },
+                }, true);
+              }
+              throw error;
+            }
           });
 
         }

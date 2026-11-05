@@ -1,11 +1,12 @@
 import { randomBytes, randomUUID } from 'node:crypto';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import { KnowledgeStoreError } from '@qap/engine';
 import { FileSystemStorage, SqliteKnowledgeAdapter } from '@qap/knowledge';
 import {
   type RequirementCategory,
@@ -34,6 +35,21 @@ import type { BridgeContext } from '../handlers/module-observation-bridge.js';
 const roots: string[] = [];
 const closers: Array<() => void | Promise<void>> = [];
 const time = '2026-10-31T12:00:00.000Z';
+
+/**
+ * Attach rejection handling to a started operation in the same tick and make
+ * afterEach drain it BEFORE temporary roots are removed. Resolves to
+ * undefined on success or to the rejection reason, so a late failure is
+ * asserted by the test instead of surfacing as an unhandled rejection.
+ */
+function trackPending(operation: Promise<unknown>): Promise<unknown> {
+  const outcome = operation.then(
+    () => undefined,
+    (error: unknown) => error ?? new Error('pending_operation_rejected'),
+  );
+  closers.push(async () => { await outcome; });
+  return outcome;
+}
 
 afterEach(async () => {
   vi.restoreAllMocks();
@@ -875,13 +891,13 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
       const f = await fixture({ confirmedReqs: [{ category: 'functional', title: 'Consulta aprobada' }] });
       const storage = new FileSystemStorage({ rootDir: f.root });
       let saveCompleted = false;
-      let pendingSave: Promise<void> | undefined;
+      let pendingSave: Promise<unknown> | undefined;
       const interleaved: IModuleClosureStore = {
         read: scope => f.closureStore.read(scope),
         transaction: async <T>(scope: ClosureScope, operation: (snapshot: ModuleClosureSnapshot) => Promise<T>): Promise<T> => {
-          pendingSave = storage.saveLifecycleState({
+          pendingSave = trackPending(storage.saveLifecycleState({
             ...f.lifecycle, session: { ...f.lifecycle.session, id: 'after-commit-session' },
-          }).then(() => { saveCompleted = true; });
+          }).then(() => { saveCompleted = true; }));
           const result = await f.closureStore.transaction(scope, operation);
           expect(saveCompleted).toBe(false);
           return result;
@@ -897,7 +913,7 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
       });
       expect(result.status).toBe('declared_non_applicable');
       expect(pendingSave).toBeDefined();
-      await pendingSave;
+      expect(await pendingSave).toBeUndefined();
       expect(saveCompleted).toBe(true);
       expect((await storage.getLifecycleState()).session.id).toBe('after-commit-session');
       expect(f.closureStore.read(f.context).approvals).toHaveLength(1);
@@ -917,7 +933,7 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
         const f = await fixture({ confirmedReqs: action === 'close' ? confirmedReqs : undefined });
         const aliasStorage = new FileSystemStorage({ rootDir: f.root.toUpperCase() });
         let writerCompleted = false;
-        let pendingWriter: Promise<void> | undefined;
+        let pendingWriter: Promise<unknown> | undefined;
         const wrapped: IModuleClosureStore = {
           read: scope => f.closureStore.read(scope),
           transaction: async <T>(scope: ClosureScope, operation: (snapshot: ModuleClosureSnapshot) => Promise<T>): Promise<T> =>
@@ -925,10 +941,10 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
               const result = await operation(snapshot);
               // Reproduce the original P1: same physical root with a different
               // Windows casing, between callback return and SQLite COMMIT.
-              pendingWriter = aliasStorage.saveLifecycleState({
+              pendingWriter = trackPending(aliasStorage.saveLifecycleState({
                 ...f.lifecycle,
                 session: { ...f.lifecycle.session, id: 'new-session-after-commit' },
-              }).then(() => { writerCompleted = true; });
+              }).then(() => { writerCompleted = true; }));
               await new Promise(resolve => setTimeout(resolve, 70));
               expect(writerCompleted).toBe(false);
               return result;
@@ -953,7 +969,7 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
         expect(result.status).toBe(action === 'declare_non_applicable' ? 'declared_non_applicable' :
           action === 'accept_gaps' ? 'gaps_accepted' : action === 'waive' ? 'waived' : 'closed');
         expect(pendingWriter).toBeDefined();
-        await pendingWriter;
+        expect(await pendingWriter).toBeUndefined();
         expect(writerCompleted).toBe(true);
         expect(f.closureStore.read(f.context).approvals).toHaveLength(1);
       }
@@ -1619,9 +1635,9 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
                 await storage.updateLifecycleState(current => {
                   if (scenario === 'planned') {
                     current.modules.late = { state: 'planned', updated_at: time };
-                    current.session!.plan.push({ module: 'late', path: '/late' });
+                    current.session.plan.push({ module: 'late', path: '/late' });
                   } else if (scenario === 'session') {
-                    current.session!.id = 'session-concurrent-new';
+                    current.session.id = 'session-concurrent-new';
                   } else {
                     current.phase = 'SCOPING';
                   }
@@ -1661,7 +1677,7 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
         expect((await f.closureService.execute('catalog', {
           action: 'waive', reason: 'Waiver sintético para probar integridad del recibo',
         })).status).toBe('waived');
-        const decisionId = f.closureStore.read(f.context).closures.catalog!.decisionId;
+        const decisionId = f.closureStore.read(f.context).closures.catalog.decisionId;
         const receiptId = 'waiver:' + decisionId;
         const original = CanonicalClosureService.prototype.sessionReport;
         let changed = false;
@@ -1722,6 +1738,132 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
         expect(existsSync(join(f.root, '.qa/project/sessions/session-r5.report.md'))).toBe(false);
       });
     }
+
+    // VNEXT-014-C01: an OFFICIAL second process (real SqliteKnowledgeAdapter
+    // fence, real FileSystemStorage lifecycle lock) holds the Knowledge write
+    // fence while qap_session_close tries to acquire it.
+    describe('VNEXT-014-C01 Knowledge fence contention', () => {
+      async function holdKnowledgeFence(knowledgePath: string) {
+        const entry = new URL('../../../knowledge/dist/index.js', import.meta.url).href;
+        const childCode = [
+          'const { SqliteKnowledgeAdapter } = await import(' + JSON.stringify(entry) + ');',
+          'const store = new SqliteKnowledgeAdapter(process.argv[1]);',
+          'await store.withWriteFence("app-r5", async () => {',
+          '  process.stdout.write("HELD\\n");',
+          '  await new Promise(resolve => { process.stdin.resume(); process.stdin.on("end", resolve); });',
+          '});',
+          'store.close();',
+        ].join('\n');
+        const child = spawn(process.execPath, ['--input-type=module', '-e', childCode, knowledgePath],
+          { stdio: ['pipe', 'pipe', 'pipe'] });
+        let stderr = '';
+        child.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString(); });
+        const exited = new Promise<number | null>(resolve => child.once('exit', code => resolve(code)));
+        await new Promise<void>((resolve, reject) => {
+          const timer = setTimeout(() => reject(new Error('fence holder did not start: ' + stderr)), 10_000);
+          child.stdout.on('data', (chunk: Buffer) => {
+            if (chunk.toString().includes('HELD')) { clearTimeout(timer); resolve(); }
+          });
+          void exited.then(code => { clearTimeout(timer); reject(new Error('fence holder exited ' + code + ': ' + stderr)); });
+        });
+        return {
+          release: async () => { child.stdin.end(); expect(await exited, stderr).toBe(0); },
+          kill: () => { if (child.exitCode === null) child.kill(); },
+        };
+      }
+
+      async function closedFixture() {
+        const f = await fixture({
+          gateway: { reviewClosure: async request => makeDecision(request) },
+        });
+        expect((await f.closureService.execute('catalog', {
+          action: 'waive', reason: 'Waiver sint�tico para contenci�n del fence Knowledge',
+        })).status).toBe('waived');
+        return f;
+      }
+      const reportPath = (root: string) => join(root, '.qa/project/sessions/session-r5.report.md');
+
+      it('returns a specific blocked result while another process holds the fence, then retries with the same durable authority', async () => {
+        const f = await closedFixture();
+        const lifecycleBefore = readFileSync(f.lifecyclePath, 'utf8');
+        const receiptsBefore = (await f.store.query('app-r5', 'relation')).items;
+        const closureBefore = f.closureStore.read(f.context);
+        const client = await mcpClient(f, {
+          reviewClosure: async () => { throw new Error('No second approval should be needed.'); },
+        });
+        const holder = await holdKnowledgeFence(f.knowledgePath);
+        try {
+          const response = await client.callTool({
+            name: 'qap_session_close', arguments: { targetPath: f.root },
+          });
+          // Blocked MCP results follow the repository convention isError=true.
+          expect(response.isError).toBe(true);
+          const blocked = JSON.parse((response.content as Array<{ text: string }>)[0].text) as {
+            status: string; code?: string; fase?: string; report_path?: string;
+          };
+          expect(blocked).toMatchObject({
+            status: 'blocked', code: 'knowledge_write_fence_unavailable', fase: 'WORKING',
+          });
+          expect(blocked.report_path).toBeUndefined();
+          expect(readFileSync(f.lifecyclePath, 'utf8')).toBe(lifecycleBefore);
+          expect(JSON.parse(lifecycleBefore).phase).toBe('WORKING');
+          expect(existsSync(reportPath(f.root))).toBe(false);
+          expect(f.closureStore.read(f.context)).toEqual(closureBefore);
+        } finally {
+          holder.kill();
+        }
+        await holder.release().catch(() => undefined);
+
+        const retry = await client.callTool({
+          name: 'qap_session_close', arguments: { targetPath: f.root },
+        });
+        const outcome = JSON.parse((retry.content as Array<{ text: string }>)[0].text) as {
+          status: string; fase: string; report_path: string;
+        };
+        expect(outcome).toMatchObject({ status: 'success', fase: 'WRAP_UP' });
+        expect(existsSync(outcome.report_path)).toBe(true);
+        expect(JSON.parse(readFileSync(f.lifecyclePath, 'utf8')).phase).toBe('WRAP_UP');
+        expect((await f.store.query('app-r5', 'relation')).items).toEqual(receiptsBefore);
+        expect(f.closureStore.read(f.context)).toEqual(closureBefore);
+      });
+
+      it('does not turn unknown acquisition failures or in-fence CONFLICTs into normal blocks', async () => {
+        for (const mode of ['unavailable', 'inside-conflict'] as const) {
+          const f = await closedFixture();
+          const lifecycleBefore = readFileSync(f.lifecyclePath, 'utf8');
+          if (mode === 'unavailable') {
+            vi.spyOn(f.store, 'withWriteFence').mockRejectedValue(
+              new KnowledgeStoreError('UNAVAILABLE', 'fence store unavailable'));
+          } else {
+            const original = CanonicalClosureService.prototype.sessionReport;
+            let calls = 0;
+            vi.spyOn(CanonicalClosureService.prototype, 'sessionReport').mockImplementation(
+              async function (this: CanonicalClosureService) {
+                if (++calls === 2) throw new KnowledgeStoreError('CONFLICT', 'raised inside the fence');
+                return original.call(this);
+              }
+            );
+          }
+          const client = await mcpClient(f);
+          let rejected: boolean;
+          try {
+            const response = await client.callTool({
+              name: 'qap_session_close', arguments: { targetPath: f.root },
+            });
+            const text = (response.content as Array<{ text: string }>)[0].text;
+            expect(text).not.toContain('knowledge_write_fence_unavailable');
+            expect(text).not.toContain('"status": "success"');
+            rejected = response.isError === true;
+          } catch {
+            rejected = true;
+          }
+          expect(rejected, mode).toBe(true);
+          expect(readFileSync(f.lifecyclePath, 'utf8')).toBe(lifecycleBefore);
+          expect(existsSync(reportPath(f.root))).toBe(false);
+          vi.restoreAllMocks();
+        }
+      });
+    });
 
     it('VNEXT-014 rescue: controlled A closed + B waived produces distinct canonical report sections', async () => {
       // Both gateway responses are test fixtures, NOT actual human decisions.
