@@ -1,6 +1,6 @@
 # QAMCP vNext — Continuidad Codex
 
-Actualizado: 2026-11-04. Estado histórico Teamwork preservado; auditoría independiente R4-R5 al final.
+Actualizado: 2026-11-05. Estado histórico preservado; resultado independiente R4-R6 al final.
 
 ## Estado y alcance
 
@@ -1040,3 +1040,13 @@ Modo de integridad: `development` (Reemplazo genuino de `qap_test` por `TestHand
 - **Regresión real pendiente de ejecución:** `R4-R6-I01` en `canonical-interview.test.ts` usa el SDK MCP, SQLite y `ModuleObservationBridge` para comprobar que antes de abrir una pregunta no hay entrevista inventada, que después `qap_status` indica el comando canónico exacto, que la repetición es estable y devuelve el mismo ID/versión, sin modificar lifecycle, relaciones ni requisitos, sin nueva aprobación gateway ni `rules.yaml`.
 - **Límites:** esta entrega **no arregla ni reetiqueta los cinco tests lifecycle históricos**; no prueba cierre `closed`, dos módulos con waiver+closed, reporte/replanificación ni UI humana fuera de fixtures. No suponer nueva matriz 406/461. Codex debe ejecutar sobre el HEAD real y publicar documentación bajo `docs/vnext/auditorias/VNEXT-014-R4-R6/`, actualizar esta nota y el backlog, commit/push SOLO documental a la rama vNext. No afectar `main/develop`, SQLite v2, tokens ni sesión protegida.
 - **Dictamen:** **R4-R6 PUBLICADA / NO CERTIFICADA; VNEXT-014 NO-GO; VNEXT-015 sin iniciar**. Fuente de trabajo: [014D_R4_R6_CONTINUIDAD_ENTREVISTA_CANONICA.md](014D_R4_R6_CONTINUIDAD_ENTREVISTA_CANONICA.md).
+
+
+### Resultado independiente R4-R6 (2026-11-05)
+
+- **Código auditado:** `fbc089c02b71828994a62af1a9eb6d28e33cb4bb`. Remoto y worktree aislado verificados, Node 24.15.0/SQLite FTS5, dependencias congeladas. Build 10 paquetes PASS, R4-R6-I01 1/1, entrevista 43/43, Coverage 37/37, runner 71/71 y Stdio 18 herramientas + qap_init real PASS.
+- **Continuidad verificada.** Status no inventa preguntas, reanuda mediante next la pregunta real con ID/versión estable, sin confirmar requisitos, pedir aprobación o generar rules.yaml. Sonda externa confirma tablas SQLite, DB/WAL y lifecycle intactos para v0/v1. Cierre durable, recuperación en primera llamada y guidance de 17 módulos conservan sus regresiones PASS.
+- **Matriz:** MCP **406 PASS / 55 FAIL de 461**, los mismos 55 títulos históricos y una alta aprobada. Discovery inicial 58 PASS/1 timeout de cancelación, luego 59/59 en integral y repetición aislada. La intermitencia ya registrada en R4-R3 conserva causa interna indeterminada. Lint focal limpio; global 34 errores/28 advertencias, diagnósticos sin cambios.
+- **Siguiente P0:** composición física de propuesta/corrección → revisión independiente → requisito confirmado → evaluación, reutilizando servicios/gateways existentes. Después closed por requisitos nacidos de entrevista, segundo módulo waived, reporte y nueva sesión; conservar invalidación por revisión y límites de ejecución not_executed. No migrar los 55 por expectativas más débiles.
+- **Dictamen:** R4-R6 continuidad verificada; **VNEXT-014 NO-GO**, VNEXT-015 sin iniciar. Publicación solo documental, SHA de código separado del commit del informe. Checkout original, sesión protegida, producción, tests y esquemas intactos.
+- [Informe publicado](auditorias/VNEXT-014-R4-R6/INFORME.md), [diferencial](auditorias/VNEXT-014-R4-R6/DIFERENCIAL_MCP.md), [análisis P0](auditorias/VNEXT-014-R4-R6/SIGUIENTE_BLOQUE_P0.md).

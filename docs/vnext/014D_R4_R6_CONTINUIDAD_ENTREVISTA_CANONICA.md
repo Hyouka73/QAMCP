@@ -4,7 +4,7 @@
 **Rama exclusiva:** `feat/qap-vnext-architecture`  
 **Base física auditada:** `f531e4e6b444c06ad85fd1f5f533837fd3467145` (R4-R5)  
 **Commit documental de Codex R4-R5:** `be35ae4354facd7780befb57e58d31af1eebd09e`  
-**Estado R4-R6:** código y regresión publicados, **sin compilación ni ejecución independiente nueva**. VNEXT-014 **NO-GO**.
+**Estado R4-R6:** continuidad verificada físicamente el 2026-11-05 sobre `fbc089c02b71828994a62af1a9eb6d28e33cb4bb`. MCP 406 PASS / 55 FAIL de 461; VNEXT-014 **NO-GO**. Registro previo a auditoría preservado abajo como historia.
 
 ## 1. Resultado R4-R5 certificado antes de estos cambios
 
@@ -20,7 +20,7 @@ La clasificación individual de Codex muestra un bloqueo de integración transve
 
 El caso lifecycle E0a (línea histórica 140) recibió `siguiente_accion.tipo='trabajo'` donde el test antiguo esperaba una pregunta legacy. Esto **no significa** que deba fabricarse `rules.yaml` ni una entrevista confirmada a partir de crawler. La garantía equivalente a acreditar primero es continuidad real de preguntas pendientes por `qap_status` → `qap_rules_set.canonical_interview`, sin salto de autoridad ni escritura implícita. E1/E2/E3 y la cadena completa quedan para bloques posteriores.
 
-## 3. Implementación publicada (no auditada físicamente)
+## 3. Implementación publicada (descripción previa a auditoría)
 
 **`packages/mcp/src/handlers/status.handler.ts`:**
 
@@ -32,7 +32,7 @@ El caso lifecycle E0a (línea histórica 140) recibió `siguiente_accion.tipo='t
 
 **`packages/mcp/src/guidance.ts`:** `SiguienteAccion` tipa explícitamente el parámetro seguro `canonical_interview?:{action:'next'}`. No se introducen argumentos de aprobación, `from_option` o `user_confirmed`, ni se modifica el esquema del almacenamiento.
 
-## 4. Regresión física creada y pendiente
+## 4. Regresión creada (registro previo a ejecución)
 
 Se añadió `R4-R6-I01: qap_status resumes a real pending canonical question without YAML, approval or state mutation` a `packages/mcp/src/__tests__/canonical-interview.test.ts`.
 
@@ -45,7 +45,7 @@ Aserciones exigidas:
 3. Consultar status dos veces es estable y no cambia el conteo pendiente. La llamada explícita a `qap_rules_set` recupera **el mismo ID y versión** de pregunta.
 4. Lifecycle byte a byte, relaciones y `ExpectedRequirement` permanecen intactos tras status/next; el inbox del gateway no recibe solicitudes de revisión; no existe `rules.yaml`.
 
-Esta prueba **no ha sido ejecutada** sobre el nuevo HEAD. Sobre el baseline MCP R4-R5 había 460 pruebas, de las cuales 405 pasaban. Este bloque agrega una nueva; las cifras finales deben ser **medidas**, nunca extrapoladas.
+En el registro previo, esta prueba aún no había sido ejecutada sobre el nuevo HEAD. El baseline R4-R5 tenía 460 pruebas y 405 PASS. La medición independiente posterior se registra en la sección 7: 406 PASS / 55 FAIL de 461.
 
 ## 5. Límite explícito del alcance y secuencia P0
 
@@ -78,4 +78,19 @@ pnpm lint
 
 **Publicación obligatoria:** Codex actualiza `docs/vnext/014D_R4_R6_CONTINUIDAD_ENTREVISTA_CANONICA.md`, `docs/vnext/STATE.md` y `docs/vnext/04_BACKLOG_Y_WBS_PRELIMINAR.md`; publica informes con comandos, resultado integral, diferencial, lint y evidencia de continuidad bajo `docs/vnext/auditorias/VNEXT-014-R4-R6/`. Commit/push **solo documental** en `feat/qap-vnext-architecture`, con SHA de código auditado distinto del commit documental. Sin tocar `main/develop`, SQLite v2, credenciales, sesiones protegidas o producción.
 
-**Criterio de resultado:** R4-R6 **NO CERTIFICADA** hasta ejecución; VNEXT-014 **NO-GO** mientras persistan las garantías históricas y lint global. No iniciar VNEXT-015.
+**Criterio de resultado previo:** R4-R6 requería ejecución física. La sección 7 acredita la continuidad; VNEXT-014 continúa **NO-GO** por garantías históricas pendientes y lint global. No iniciar VNEXT-015.
+
+
+## 7. Resultado independiente ejecutado R4-R6 — 2026-11-05
+
+**SHA de código auditado:** `fbc089c02b71828994a62af1a9eb6d28e33cb4bb`, remoto verificado en la rama exclusiva. Node 24.15.0 / SQLite 3.51.3 FTS5 / lockfile congelado / Chromium 153. Se reutilizó el worktree aislado sin alterar el checkout original ni la sesión protegida.
+
+- Build 10 paquetes PASS; R4-R6-I01 **1/1 PASS**; entrevista **43/43**; Coverage **37/37**; runner **71/71**; Stdio **18 herramientas + qap_init real** PASS.
+- Discovery inicial **58 PASS / 1 timeout** del caso de cancelación en vuelo; integral y repetición aislada **59/59 PASS**. El mismo timeout aparece en R4-R3; no se identificó la operación interna detenida ni se considera resuelta su intermitencia.
+- MCP integral serial **406 PASS / 55 FAIL de 461**. Cruce nominal: 405 PASS/55 FAIL comunes intactos y una alta R4-R6-I01 físicamente aprobada. Los cinco lifecycle históricos siguen fallando.
+- ESLint focal **0/0**; global **34 errores / 28 advertencias**, sin diagnósticos nuevos o retirados frente a R4-R5 por archivo/línea/regla.
+- La sonda independiente confirma ausencia de preguntas inventadas y recuperación del mismo ID/versión en pregunta recién abierta (v0) y propuesta pendiente (v1), cero requisitos, cero consultas al gateway, sin YAML y con tablas/DB/WAL/lifecycle intactos. Coverage e integral conservan cierre durable y guidance de 17 módulos.
+
+**Dictamen:** continuidad R4-R6 verificada; VNEXT-014 **NO-GO** por deuda histórica, lint y composición pendiente hasta cobertura auténtica, closed, reporte y replanificación. Reutilizar servicios/gateways existentes para el siguiente bloque P0; no implementar otra entrevista ni autoridad en argumentos MCP. VNEXT-015 no iniciado.
+
+[Informe](auditorias/VNEXT-014-R4-R6/INFORME.md), [evidencia](auditorias/VNEXT-014-R4-R6/EVIDENCIA_ENTREVISTA.md), [siguiente bloque P0](auditorias/VNEXT-014-R4-R6/SIGUIENTE_BLOQUE_P0.md), [logs](auditorias/VNEXT-014-R4-R6/LOGS.md). Publicación exclusivamente documental; el SHA de código no es el SHA del commit de este informe.

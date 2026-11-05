@@ -4,7 +4,7 @@
 - **Rama:** `feat/qap-vnext-architecture`
 - **Autor / Rol:** Principal Software Architect y Teamwork Lead
 - **Fecha:** Octubre 2026 (Revisión Arquitectónica Profunda — Etapa 0 Corregida)
-- **Estado actual (2026-11-04):** VNEXT-001 a VNEXT-013 con límites históricos. VNEXT-014 **NO-GO**. SHA R4-R5 auditado `f531e4e`: 405 PASS / 55 FAIL de 460 MCP, Coverage 37/37, Discovery 59/59, runner 71/71, Stdio 18. R4-R4-A02 PASS físico, lint focal limpio, global 34 errores/28 advertencias. Los 55 fallos ya están clasificados. R4-R6 inicia integración P0 de continuidad de entrevista canónica vía status y agrega regresión real, **sin pruebas físicas del nuevo HEAD**. VNEXT-015 sin iniciar.
+- **Estado actual (2026-11-05):** VNEXT-014 **NO-GO**. R4-R6 auditado en `fbc089c`: continuidad PASS, MCP 406 PASS / 55 FAIL de 461, entrevista 43/43, Coverage 37/37, Discovery 59/59 tras timeout inicial conservado, runner 71/71, Stdio 18 + init. Lint focal limpio, global 34 errores/28 advertencias. Siguiente P0: composición de propuesta/revisión/confirmación/cobertura y después closed + waiver, reporte y replanificación. VNEXT-015 sin iniciar.
 - **Referencias:** D-010 (Evolución documentada por etapas), D-001 a D-015.
 
 ---
@@ -315,11 +315,12 @@ Cero ejecución de pruebas ni ConformityAssessment en R5. **No inicia ni declara
   - `014-R4-R5-02` P2. **3/3 PASS físico.** Foco, Coverage e integral aprueban los tres escenarios. Sonda adicional confirma reporte/ausencia y autoridad intacta.
   - `014-R4-R5-03` P0. **Auditoría ejecutada y publicada.** MCP 405/460 PASS, 55 históricos intactos. [Informe](auditorias/VNEXT-014-R4-R5/INFORME.md).
   - `014-R4-R5-04` P0. **Clasificación ejecutada.** Cinco lifecycle exigen integración de entrevista, cobertura real, cierre y replanificación; después auth/esquemas y demás garantías. [55 fallos clasificados](auditorias/VNEXT-014-R4-R5/CLASIFICACION_55_FALLOS.md).
-  - `014-R4-R6-01` P0. [Continuidad de entrevista canónica](014D_R4_R6_CONTINUIDAD_ENTREVISTA_CANONICA.md): si el host tiene preguntas realmente pendientes, status recomienda `qap_rules_set` con `canonical_interview.action=next` sin inventar YAML/aprobación; **código publicado sin auditoría**.
-  - `014-R4-R6-02` P0. Prueba real SDK/SQLite `R4-R6-I01`: pregunta estable entre status y next, estado y recibos inmutables, cero revisión humana implícita; **publicada, no ejecutada**.
-  - `014-R4-R6-03` P0. Codex verifica compilación, entrevistas, coverage, discovery, MCP serial, runner, lint y Stdio, y publica el informe documental en GitHub; **pendiente**.
-  - `014-R4-R6-04` P0. **Siguiente bloque, no implementado:** propuesta/corrección y revisión de host, cobertura real para cierre `closed`, sesión multi-módulo con waiver, reporte/replanificación y equivalencia contractual E0a–criterio 9.
-- **Compuerta de salida:** VNEXT-014 sigue NO-GO hasta certificar el nuevo bloque P0 R4-R6, completar integración canónica que sustituya las garantías legacy, resolver los 55 casos y lint global. [Nota R4-R6](014D_R4_R6_CONTINUIDAD_ENTREVISTA_CANONICA.md).
+  - `014-R4-R6-01` P0. [Continuidad de entrevista canónica](014D_R4_R6_CONTINUIDAD_ENTREVISTA_CANONICA.md): si el host tiene preguntas realmente pendientes, status recomienda `qap_rules_set` con `canonical_interview.action=next` sin inventar YAML/aprobación; **PASS independiente R4-R6**.
+  - `014-R4-R6-02` P0. Prueba real SDK/SQLite `R4-R6-I01`: pregunta estable entre status y next, estado y recibos inmutables, cero revisión humana implícita; **PASS físico R4-R6: foco, 43/43 entrevista e integral**.
+  - `014-R4-R6-03` P0. Codex verifica compilación, entrevistas, coverage, discovery, MCP serial, runner, lint y Stdio, y publica el informe documental en GitHub; **ejecutado R4-R6: 406/461 PASS, 55 históricos intactos; lint global pendiente**.
+  - `014-R4-R6-04` P0. **Siguiente bloque P0:** componer propuesta/corrección, revisión de host, requisito confirmado y evaluación sobre los servicios existentes; después `closed` con requisitos de entrevista, sesión multi-módulo waived/closed, reporte/replanificación y equivalencia E0a–criterio 9. [Interfaces, dependencias y aceptación](auditorias/VNEXT-014-R4-R6/SIGUIENTE_BLOQUE_P0.md).
+- **Auditoría R4-R6:** [informe y evidencia](auditorias/VNEXT-014-R4-R6/INFORME.md). Continuidad certificada; timeout de Discovery conservado y causa interna pendiente, sin nuevos fallos nominales en el integral.
+- **Compuerta de salida:** VNEXT-014 sigue NO-GO hasta completar integración canónica que sustituya las garantías legacy, resolver los 55 casos y lint global. [Nota R4-R6](014D_R4_R6_CONTINUIDAD_ENTREVISTA_CANONICA.md).
 
 
 ---
