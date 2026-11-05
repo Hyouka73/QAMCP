@@ -4,7 +4,7 @@
 **Repositorio:** Hyouka73/QAMCP  
 **Rama exclusiva:** feat/qap-vnext-architecture  
 **HEAD inicial comprobado:** 7cfdefca9482b59d0c5606fb70d23903483373f3  
-**HEAD de código y regresiones (anterior a documentación):** c15bbb671ab55029334853f183aecd9344aeef55  
+**HEAD de código y regresiones (anterior a documentación):** a05bfcc1e0981073a9fc6ac50ead68eeb2808cac  
 **Snapshot de auditoría anterior:** e71818ac6fdaa1847e300a67bd4540fbfbd514c5
 
 > **Estado: implementación publicada; validación física independiente PENDIENTE.** Ningún build, test, lint o ensayo de concurrencia se ejecutó desde este entorno. No inferir PASS, GO P1 ni cierre del hito a partir del diff. Codex debe ejecutar los arneses y publicar dictamen propio. Se conserva intacto el inventario de las 63 fallas anteriores.
@@ -76,7 +76,7 @@ No equiparar 63 FAIL con 63 defectos productivos nuevos. No diferir las regresio
 
 ## 7. Commits, fuentes y evidencia
 
-Commits de implementación/pruebas entre `7cfdefca` y `c15bbb67` (recuperar lista exacta con `git log --oneline 7cfdefca..HEAD` y contrastar SHA productivo): validador de recibos, transacción protegida de lifecycle, handler de cierre, preflight host, saneamiento renderer y regresiones SQLite/MCP. Se efectuaron correcciones pequeñas adicionales de import, path hijo, revisión sellada y formato del código de subprocess. Los archivos afectados son:
+Commits de implementación/pruebas entre `7cfdefca` y `a05bfcc1` (recuperar lista exacta con `git log --oneline 7cfdefca..HEAD` y contrastar SHA productivo): validador de recibos, transacción protegida de lifecycle, handler de cierre, preflight host, saneamiento renderer y regresiones SQLite/MCP. Se efectuaron correcciones pequeñas adicionales de import, path hijo, revisión sellada y formato del código de subprocess. Los archivos afectados son:
 - `packages/mcp/src/handlers/canonical-closure-service.ts`
 - `packages/knowledge/src/storage/file-storage.ts`
 - `packages/mcp/src/server.ts`
