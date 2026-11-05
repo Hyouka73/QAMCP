@@ -4,6 +4,7 @@ import { dirname, isAbsolute, resolve } from 'node:path';
 import { SqliteKnowledgeAdapter } from '@qap/knowledge';
 
 import { SqliteInterviewDraftStore } from './handlers/interview-draft-store.js';
+import type { DiscoveryAuthorization } from './handlers/discovery.handler.js';
 import { SqliteModuleClosureStore } from './handlers/module-closure-store.js';
 import type { ModuleBinding } from './handlers/module-observation-bridge.js';
 import type { McpServerOptions } from './server.js';
@@ -79,6 +80,78 @@ function declaredModules(value: unknown): ModuleBinding[] {
     });
   }
   return modules;
+}
+
+/**
+ * Discovery consent must be declared verbatim by the trusted host. No automatic
+ * consent for application URLs, public/private IPs or authenticated traffic.
+ * Crawler itself revalidates destination, DNS, policy and network scope.
+ */
+function discoveryPolicy(
+  input: unknown,
+  scope: { projectRoot: string; applicationId: string; environmentId: string },
+  currentRevision: number,
+): DiscoveryAuthorization | undefined {
+  if (input === undefined) return;
+  if (!object(input) || input.read_only_acknowledged !== true ||
+      input.environmentRevision !== currentRevision ||
+      !Array.isArray(input.navigation_urls) ||
+      !input.navigation_urls.length || input.navigation_urls.length > 64) {
+    throw new Error('Explicit pinned read-only Discovery authorization required.');
+  }
+  const navigation_urls = input.navigation_urls.map(item => {
+    const value = requiredText(item, 'discovery.navigation_urls');
+    let url: URL;
+    try { url = new URL(value); }
+    catch { throw new Error('Discovery URL must be absolute and exact.'); }
+    if (!['http:', 'https:'].includes(url.protocol) ||
+        !url.hostname || url.username || url.password || url.hash || url.href !== value) {
+      throw new Error('Discovery URL must be absolute and exact.');
+    }
+    return value;
+  });
+  if (new Set(navigation_urls).size !== navigation_urls.length) {
+    throw new Error('Duplicate Discovery navigation authorization.');
+  }
+  if (input.allowed_ips !== undefined &&
+      (!Array.isArray(input.allowed_ips) || input.allowed_ips.length > 64 ||
+       input.allowed_ips.some(value => typeof value !== 'string' ||
+         !/^[0-9a-fA-F:.]{2,45}$/.test(value)))) {
+    throw new Error('Invalid host Discovery allowed_ips.');
+  }
+  if (input.allow_public_network !== undefined &&
+      typeof input.allow_public_network !== 'boolean') {
+    throw new Error('Invalid public-network Discovery authorization.');
+  }
+  if (input.limits !== undefined) {
+    if (!object(input.limits) || Object.keys(input.limits).some(key =>
+        !['max_pages', 'max_depth', 'total_timeout_ms', 'navigation_timeout_ms',
+          'max_requests', 'max_bytes', 'max_redirects', 'max_elements'].includes(key)) ||
+        Object.values(input.limits).some(value => !Number.isSafeInteger(value) ||
+          (value as number) < 1)) {
+      throw new Error('Invalid bounded host Discovery limits.');
+    }
+  }
+  if (input.browser !== undefined && (
+      !object(input.browser) ||
+      Object.keys(input.browser).some(key => key !== 'channel') ||
+      !['chrome', 'msedge'].includes(String(input.browser.channel))
+    )) {
+    throw new Error('Unsupported host Discovery browser selector.');
+  }
+  return {
+    ...scope,
+    environmentRevision: currentRevision,
+    authorization: {
+      read_only_acknowledged: true,
+      navigation_urls,
+      ...(input.allowed_ips ? { allowed_ips: [...input.allowed_ips] as string[] } : {}),
+      ...(typeof input.allow_public_network === 'boolean' ?
+        { allow_public_network: input.allow_public_network } : {}),
+    },
+    ...(input.limits ? { limits: { ...input.limits } } : {}),
+    ...(input.browser ? { dependencies: { browser: { channel: input.browser.channel as 'chrome' | 'msedge' } } } : {}),
+  };
 }
 
 /** No manifest means legacy-only startup; malformed opt-in ALWAYS fails startup. */
@@ -170,6 +243,11 @@ export async function loadHostComposition(
           // Never infer review authority from a JSON manifest or an MCP client.
           // An application host may inject a genuine gateway through createMcpServer.
         }],
+        ...(payload.discoveryAuthorization !== undefined ? {
+          discoveryAuthorizations: [
+            discoveryPolicy(payload.discoveryAuthorization, scope, target.revision)!,
+          ],
+        } : {}),
       },
       close() {
         for (const resource of [...closeables].reverse()) resource.close();
