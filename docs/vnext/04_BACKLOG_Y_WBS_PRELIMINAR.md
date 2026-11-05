@@ -559,3 +559,26 @@ La extensión LENDUS se planifica fuera del núcleo público (LENDUS-EXT-001–0
 
 **Resultado actual:** implementación A/B publicada y C ampliada con fixtures de integración; **ninguna prueba física de esta implementación ejecutada todavía**. D/E continúan abiertas. El reporte distingue HEAD auditado y documental. [Implementación](implementaciones/VNEXT-014-RESCATE/INFORME.md) · [Contrato de host](implementaciones/VNEXT-014-RESCATE/HOST_STDIO.md).
 
+
+
+---
+
+## Anexo de control 2026-11-05 — VNEXT-014 focal y aislamiento de VNEXT-015
+
+**Nota aditiva:** las tareas históricas terminadas conservan su fecha, estado y evidencia original. El anexo no las reabre ni reescribe; deja el avance y dependencias a la fecha de esta intervención.
+
+| Trabajo correctivo | Estado de implementación | Estado de certificación independiente | Bloquea |
+| --- | --- | --- | --- |
+| `RES-CODEX-A01`: sesión/plan/fase y transición físicamente consistente | Cambios y cuatro regresiones publicados | PENDIENTE P1; no PASS atribuido | GO A y GO C |
+| `RES-CODEX-A02`: recibos, trace.source, destino/revisión, fence | Cambios y cuatro regresiones publicados | PENDIENTE P1; no PASS atribuido | GO A y GO C |
+| `RES-CODEX-A03`: existing-only sin migración involuntaria | Preflight + caso de hash/esquema publicado | PENDIENTE P2 | GO C/release |
+| `RES-CODEX-L01`: cinco errores nuevos de ESLint | Fuente ajustada sin supresiones | PENDIENTE lint focal/global | GO C/release |
+| `A04-W01`: wrappers que pierden contexto ALS | Alcance limitado documentado; infraestructura nueva no implementada | Riesgo condicionado, validar composición soportada | Extensiones privilegiadas/release |
+| `RES-CODEX-E01`: MCP en paralelo y cleanup/temporales/locks | Clasificación preliminar sin alterar timeouts | PENDIENTE reproducción | GO C/release |
+| 55 históricos + ocho Memory, identidad completa | Matriz previa intacta, no se borraron tests | 423/63 de 486 **solo baseline anterior** | GO C; no bloquea necesariamente GO B |
+
+**VNEXT-015 — ImpactAnalyzer**: mantener las tareas originales **pendientes/no implementadas**. Sus dependencias declaradas (`VNEXT-003` y `VNEXT-009`) están históricamente completas. **B = GO técnico condicionado** para desarrollarlo aisladamente sobre nueva rama desde vNext, limitado a `@qap/engine`/`@qap/knowledge` y DAG, sin acoplarse a `qap_session_close`, `qap_test`, `TestHandler` ni reporter de VNEXT-014. Requiere autorización, pruebas y revisión antes de volver a integrar en vNext. No es GO para fusionar vNext en develop.
+
+**A (P1) = PENDIENTE certificación; C (cierre VNEXT-014 y merge) = NO-GO** por integridad sin auditoría nueva, aceptación humana real y reconciliación MCP no terminadas. El procedimiento/fecha de posible merge a develop se decidirá tras GO C, con objetivo antes del 20/11/2026 y sin desplazar el MVP.
+
+Informe de reparación, límites y pruebas: [VNEXT-014-REPARACION-FINAL/INFORME.md](implementaciones/VNEXT-014-REPARACION-FINAL/INFORME.md).
