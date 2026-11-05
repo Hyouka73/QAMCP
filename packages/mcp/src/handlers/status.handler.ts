@@ -46,7 +46,8 @@ export class StatusHandler implements IMcpToolHandler {
             // legacy YAML is needed merely to recommend a continuation.
             if (
               !pendingCanonicalInterview &&
-              closureStatus?.state === 'working' &&
+              closureStatus?.state !== 'closed' &&
+              closureStatus?.state !== 'waived' &&
               interview?.availability === 'general_questions_available' &&
               typeof interview.pending_questions === 'number' &&
               interview.pending_questions > 0
