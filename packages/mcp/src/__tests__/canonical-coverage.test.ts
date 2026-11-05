@@ -1,17 +1,14 @@
-import { randomBytes, randomUUID, createHash } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { SqliteKnowledgeAdapter } from '@qap/knowledge';
 import {
-  type ExpectedRequirement,
   type RequirementCategory,
-  type CanonicalGap,
   type CategoryApplicabilityDecision,
   validateCoverageAssessmentInvariants,
 } from '@qap/shared';
@@ -685,6 +682,80 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
       expect(payload.status).toBe('blocked');
       expect(payload.code).toBe('canonical_module_closure_required');
       expect(payload.unclosed_modules).toContain('catalog');
+    });
+
+    it.each([
+      { name: 'short reason', status: 'waived' as const, reason: 'x', approval: 'matching' },
+      { name: 'blank reason', status: 'waived' as const, reason: '    ', approval: 'matching' },
+      { name: 'missing approval', status: 'waived' as const, reason: 'Renuncia autorizada con motivo sustantivo', approval: 'missing' },
+      { name: 'mismatched approval digest', status: 'waived' as const, reason: 'Renuncia autorizada con motivo sustantivo', approval: 'mismatched' },
+      { name: 'duplicated approval', status: 'waived' as const, reason: 'Renuncia autorizada con motivo sustantivo', approval: 'duplicate' },
+      { name: 'closed without approval', status: 'closed' as const, reason: undefined, approval: 'missing' },
+      { name: 'already waived without approval', status: 'waived' as const, reason: 'Renuncia autorizada con motivo sustantivo', approval: 'missing', terminal: true },
+    ])('R4-R3: inconsistent durable closure $name cannot create receipt or reach WRAP_UP', async scenario => {
+      const f = await fixture();
+      const decisionId = randomUUID();
+      const requestDigest = 'request_durable_' + 'e'.repeat(48);
+      const beforeRelations = (await f.store.query('app-r5', 'relation')).items;
+      expect(beforeRelations).toHaveLength(0);
+      await f.closureStore.transaction(f.context, async snapshot => {
+        snapshot.closures.catalog = {
+          moduleKey: 'catalog',
+          moduleId: 'mod-catalog',
+          moduleRevision: 1,
+          plannedName: 'catalog',
+          status: scenario.status,
+          decisionId,
+          reviewer: 'synthetic-reviewer',
+          decidedAt: time,
+          requestDigest,
+          coverageDigest: 'b'.repeat(64),
+          waiverReason: scenario.reason,
+          committedAt: new Date().toISOString(),
+        };
+        if (scenario.approval === 'matching' || scenario.approval === 'duplicate') {
+          snapshot.approvals.push([decisionId, requestDigest]);
+          if (scenario.approval === 'duplicate') snapshot.approvals.push([decisionId, requestDigest]);
+        } else if (scenario.approval === 'mismatched') {
+          snapshot.approvals.push([decisionId, 'different_request_digest']);
+        }
+      });
+
+      if ('terminal' in scenario && scenario.terminal) {
+        const prior = JSON.parse(readFileSync(f.lifecyclePath, 'utf8')) as {
+          modules: { catalog: { state: string; waived_reason?: string } };
+        };
+        prior.modules.catalog = {
+          state: 'waived', waived_reason: 'Renuncia autorizada con motivo sustantivo',
+        };
+        writeFileSync(f.lifecyclePath, JSON.stringify(prior), 'utf8');
+      }
+      const lifecycleBefore = readFileSync(f.lifecyclePath, 'utf8');
+      const durableBefore = f.closureStore.read(f.context);
+
+      expect(await f.closureService.reconcile('catalog')).toBe(false);
+      expect(await f.closureService.status('catalog')).toMatchObject({
+        state: 'working', ready_for_closure: false,
+      });
+      expect(await f.closureService.execute('catalog', { action: 'close' })).toMatchObject({
+        status: 'blocked', code: 'invalid_durable_closure',
+      });
+
+      const client = await mcpClient(f, {
+        reviewClosure: async () => { throw new Error('recovery_must_not_request_new_approval'); },
+      });
+      const reply = await client.callTool({
+        name: 'qap_session_close', arguments: { targetPath: f.root },
+      });
+      const data = JSON.parse((reply.content[0] as { text: string }).text) as Record<string, unknown>;
+      expect(data).toMatchObject({
+        status: 'blocked', code: 'canonical_module_closure_required', fase: 'WORKING',
+      });
+      expect(data).not.toHaveProperty('report_path');
+      expect(existsSync(join(f.root, '.qa', 'project', 'sessions', 'session-r5.report.md'))).toBe(false);
+      expect(readFileSync(f.lifecyclePath, 'utf8')).toBe(lifecycleBefore);
+      expect(f.closureStore.read(f.context)).toEqual(durableBefore);
+      expect((await f.store.query('app-r5', 'relation')).items).toEqual(beforeRelations);
     });
 
     it('R4-R2-A01: first session close uses recovered waiver metadata for the gate and physical report', async () => {
