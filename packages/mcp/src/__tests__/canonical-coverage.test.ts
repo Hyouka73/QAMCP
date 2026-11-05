@@ -20,6 +20,9 @@ import { CanonicalClosureService } from '../handlers/canonical-closure-service.j
 import {
   SqliteModuleClosureStore,
   type SqliteModuleClosureOptions,
+  type IModuleClosureStore,
+  type ClosureScope,
+  type ModuleClosureSnapshot,
 } from '../handlers/module-closure-store.js';
 import type {
   IModuleClosureReviewGateway,
@@ -539,7 +542,6 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
     });
 
     it('R4-R8-A01: host approval is rejected if knowledge mutates while awaiting the gateway', async () => {
-      let f: Awaited<ReturnType<typeof fixture>>;
       let changed = false;
       const gateway: IModuleClosureReviewGateway = {
         reviewClosure: async request => {
@@ -556,7 +558,7 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
           return makeDecision(request);
         },
       };
-      f = await fixture({ gateway, confirmedReqs: [{
+      const f = await fixture({ gateway, confirmedReqs: [{
         category: 'functional', title: 'R1', criteria: ['Revisión debe ser independiente y vigente'],
       }] });
       const before = f.closureStore.read(f.context);
@@ -570,6 +572,133 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
       expect(outcome).toMatchObject({ status: 'blocked', code: 'closure_context_changed' });
       expect(f.closureStore.read(f.context)).toEqual(before);
       expect((await f.store.get('app-r5', 'requirement', 'req-conf-1'))?.revision).toBe(2);
+    });
+
+    it('R4-R9-A02: writing a requirement after final validation cannot persist an obsolete approval', async () => {
+      const f = await fixture({
+        gateway: { reviewClosure: async r => makeDecision(r) },
+        confirmedReqs: [{ category: 'functional', title: 'Consulta', criteria: ['Consulta verificable'] }],
+      });
+      const before = f.closureStore.read(f.context);
+      let attempted = false;
+      const interleaved: IModuleClosureStore = {
+        read: scope => f.closureStore.read(scope),
+        transaction: async <T>(scope: ClosureScope, operation: (snapshot: ModuleClosureSnapshot) => Promise<T>): Promise<T> => {
+          attempted = true;
+          const req = await f.store.get('app-r5', 'requirement', 'req-conf-1');
+          expect(req).toBeDefined();
+          await f.store.commit('app-r5', [{
+            kind: 'requirement', expected_revision: req!.revision,
+            entity: { ...req!.entity, description: 'Cambio concurrente posterior a la revalidación' },
+            trace: req!.trace,
+          }]);
+          return f.closureStore.transaction(scope, operation);
+        },
+        close: () => {},
+      };
+      const svc = new CanonicalClosureService(f.store, f.context, interleaved, {
+        reviewClosure: async r => makeDecision(r),
+      });
+      const result = await svc.execute('catalog', {
+        action: 'declare_non_applicable',
+        decisions: [{ category: 'performance',
+          reason: 'El propietario autoriza excluir rendimiento del alcance de este catálogo.' }],
+      });
+      expect(attempted).toBe(true);
+      expect(result).toMatchObject({ status: 'blocked', code: 'closure_consistency_conflict' });
+      expect(f.closureStore.read(f.context)).toEqual(before);
+      expect((await f.store.get('app-r5', 'requirement', 'req-conf-1'))?.revision).toBe(1);
+    });
+
+    it('R4-R9-A02: both close and waive reject concurrent Knowledge writes before durable commit', async () => {
+      for (const action of ['close', 'waive'] as const) {
+        const f = await fixture({
+          confirmedReqs: ['functional', 'business_rule', 'security', 'ui', 'ux', 'regression', 'performance']
+            .map(category => ({ category: category as RequirementCategory,
+              title: category, criteria: ['Criterio de aceptación verificable'] })),
+        });
+        const prior = f.closureStore.read(f.context);
+        const interleaved: IModuleClosureStore = {
+          read: scope => f.closureStore.read(scope),
+          transaction: async <T>(scope: ClosureScope, operation: (snapshot: ModuleClosureSnapshot) => Promise<T>): Promise<T> => {
+            const req = await f.store.get('app-r5', 'requirement', 'req-conf-1');
+            expect(req).toBeDefined();
+            await f.store.commit('app-r5', [{
+              kind: 'requirement', expected_revision: req!.revision,
+              entity: { ...req!.entity, description: 'Cambio concurrente inadmisible' }, trace: req!.trace,
+            }]);
+            return f.closureStore.transaction(scope, operation);
+          },
+          close: () => {},
+        };
+        const svc = new CanonicalClosureService(f.store, f.context, interleaved, {
+          reviewClosure: async r => makeDecision(r),
+        });
+        const result = await svc.execute('catalog', action === 'close'
+          ? { action } : { action, reason: 'Motivo de renuncia confirmado por el propietario del sistema' });
+        expect(result).toMatchObject({ status: 'blocked', code: 'closure_consistency_conflict' });
+        expect(f.closureStore.read(f.context)).toEqual(prior);
+        expect((await f.store.query('app-r5', 'relation')).items).toHaveLength(0);
+      }
+    });
+
+    it('R4-R9-A02: missing fencing capability blocks even valid host decisions', async () => {
+      const f = await fixture({ confirmedReqs: [{ category: 'functional', title: 'R9' }] });
+      const noFence = new Proxy(f.store, {
+        get(target, property) {
+          if (property === 'withWriteFence') return undefined;
+          const value: unknown = Reflect.get(target, property, target);
+          return typeof value === 'function' ? value.bind(target) : value;
+        },
+      });
+      const svc = new CanonicalClosureService(noFence, f.context, f.closureStore, {
+        reviewClosure: async r => makeDecision(r),
+      });
+      const before = f.closureStore.read(f.context);
+      const result = await svc.execute('catalog', {
+        action: 'declare_non_applicable',
+        decisions: [{ category: 'performance',
+          reason: 'El alcance de negocio no requiere rendimientos garantizados.' }],
+      });
+      expect(result).toMatchObject({ status: 'blocked', code: 'closure_consistency_fence_required' });
+      expect(f.closureStore.read(f.context)).toEqual(before);
+    });
+
+    it('R4-R9-A02: delayed fence acquisition does not consume an expired decision', async () => {
+      const f = await fixture({
+        gateway: { reviewClosure: async r => ({
+          ...makeDecision(r), expiresAt: new Date(Date.now() + 15).toISOString(),
+        }) },
+      });
+      const originalFence = f.store.withWriteFence.bind(f.store);
+      f.store.withWriteFence = async <T>(app: string, operation: () => Promise<T>): Promise<T> => {
+        await new Promise(resolve => setTimeout(resolve, 40));
+        return originalFence(app, operation);
+      };
+      const before = f.closureStore.read(f.context);
+      const result = await f.closureService.execute('catalog', {
+        action: 'waive',
+        reason: 'Renuncia temporal válida, pero aprobación caducada antes del commit',
+      });
+      expect(result).toMatchObject({ status: 'blocked', code: 'closure_review_expired' });
+      expect(f.closureStore.read(f.context)).toEqual(before);
+    });
+
+    it('R4-R9-A02: an updated pending requirement changes the coverage digest', async () => {
+      const f = await fixture({ observationalReqs: [{ category: 'security', title: 'Hipótesis pendiente' }] });
+      const initial = await f.coverageService.evaluate('catalog');
+      expect(initial.status).toBe('evaluated');
+      const prior = await f.store.get('app-r5', 'requirement', 'req-obs-1');
+      expect(prior).toBeDefined();
+      await f.store.commit('app-r5', [{
+        kind: 'requirement', expected_revision: prior!.revision,
+        entity: { ...prior!.entity, description: 'Versión pendiente revisada' }, trace: prior!.trace,
+      }]);
+      const updated = await f.coverageService.evaluate('catalog');
+      expect(updated.status).toBe('evaluated');
+      if (initial.status === 'evaluated' && updated.status === 'evaluated') {
+        expect(updated.assessment.coverage_digest).not.toBe(initial.assessment.coverage_digest);
+      }
     });
 
     it('blocks closure when host gateway is absent or returns null (pending)', async () => {

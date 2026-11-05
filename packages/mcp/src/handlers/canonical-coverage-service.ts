@@ -369,6 +369,9 @@ export class CanonicalCoverageService {
       link.moduleRevision,
       resolution.fingerprint,
       confirmedRequirements.map(r => [r.id, r.revision]).sort(),
+      // Pending and rejected observational revisions must also invalidate a
+      // previously reviewed snapshot, even in a non-applicable category.
+      pendingRequirements.map(r => [r.id, r.revision]).sort(),
       categoryStatuses,
       gaps.map(g => [g.id, g.status, g.absence_type, g.acceptance_receipt]).sort(),
       // A retryable host review must be bound to the actual applicability
