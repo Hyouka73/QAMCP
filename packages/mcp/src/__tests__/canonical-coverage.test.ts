@@ -6,7 +6,7 @@ import { join } from 'node:path';
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import { SqliteKnowledgeAdapter } from '@qap/knowledge';
+import { FileSystemStorage, SqliteKnowledgeAdapter } from '@qap/knowledge';
 import {
   type RequirementCategory,
   type CategoryApplicabilityDecision,
@@ -701,6 +701,137 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
       expect(updated.status).toBe('evaluated');
       if (initial.status === 'evaluated' && updated.status === 'evaluated') {
         expect(updated.assessment.coverage_digest).not.toBe(initial.assessment.coverage_digest);
+      }
+    });
+
+    it('R4-R10-A05: approves an existing gap with the real host approval receipt', async () => {
+      const requests: ModuleClosureReviewRequest[] = [];
+      const f = await fixture({ gateway: {
+        reviewClosure: async req => { requests.push(req); return makeDecision(req); },
+      } });
+      const before = await f.coverageService.evaluate('catalog');
+      expect(before.status).toBe('evaluated');
+      if (before.status !== 'evaluated') return;
+      const gap = before.assessment.gaps.find(g => g.status === 'unaddressed');
+      expect(gap).toBeDefined();
+      const selected = [{ gap_id: gap!.id, reason: 'Aceptación consciente de la brecha documentada por el responsable.' }];
+      const result = await f.closureService.execute('catalog', { action: 'accept_gaps', accepted_gaps: selected });
+      expect(result.status).toBe('gaps_accepted');
+      expect(requests).toHaveLength(1);
+      expect(requests[0].coverageDigest).toBe(before.assessment.coverage_digest);
+      expect(requests[0].acceptedGaps).toEqual(selected);
+      const snapshot = f.closureStore.read(f.context);
+      expect(snapshot.approvals).toHaveLength(1);
+      expect(snapshot.acceptedGaps.catalog).toHaveLength(1);
+      expect(snapshot.acceptedGaps.catalog[0]).toMatchObject({
+        id: gap!.id, reason: selected[0].reason, status: 'accepted',
+        acceptance_receipt: snapshot.approvals[0][0],
+      });
+      const reopened = f.openClosureStore();
+      expect(reopened.read(f.context)).toEqual(snapshot);
+    });
+
+    it('R4-R10-A05: never requests approval for missing or duplicate gap IDs', async () => {
+      let calls = 0;
+      const f = await fixture({ gateway: {
+        reviewClosure: async req => { calls++; return makeDecision(req); },
+      } });
+      const start = f.closureStore.read(f.context);
+      const gap = (await f.coverageService.evaluate('catalog'));
+      expect(gap.status).toBe('evaluated');
+      if (gap.status !== 'evaluated') return;
+      const valid = { gap_id: gap.assessment.gaps[0].id, reason: 'Brecha reconocida y aceptada expresamente por la coordinación.' };
+      for (const accepted_gaps of [
+        [{ gap_id: 'missing:gap', reason: valid.reason }],
+        [valid, valid],
+      ]) {
+        const result = await f.closureService.execute('catalog', { action: 'accept_gaps', accepted_gaps });
+        expect(result).toMatchObject({ status: 'blocked', code: 'closure_gap_selection_invalid' });
+      }
+      expect(calls).toBe(0);
+      expect(f.closureStore.read(f.context)).toEqual(start);
+    });
+
+    it('R4-R10-A01: a direct filesystem mutation before closure transaction fails the fingerprint guard', async () => {
+      const f = await fixture({ confirmedReqs: [{ category: 'functional', title: 'Consulta aprobada' }] });
+      const interleaved: IModuleClosureStore = {
+        read: scope => f.closureStore.read(scope),
+        transaction: async <T>(scope: ClosureScope, operation: (snapshot: ModuleClosureSnapshot) => Promise<T>): Promise<T> => {
+          const drifted = { ...f.lifecycle, session: { ...f.lifecycle.session, id: 'other-session' } };
+          writeFileSync(f.lifecyclePath, JSON.stringify(drifted));
+          return f.closureStore.transaction(scope, operation);
+        },
+        close: () => {},
+      };
+      const svc = new CanonicalClosureService(f.store, f.context, interleaved, {
+        reviewClosure: async req => makeDecision(req),
+      });
+      const before = f.closureStore.read(f.context);
+      const result = await svc.execute('catalog', {
+        action: 'declare_non_applicable', decisions: [{ category: 'performance',
+          reason: 'El propietario determina que esta categoría no aplica a su contrato.' }],
+      });
+      expect(result).toMatchObject({ status: 'blocked', code: 'closure_consistency_conflict' });
+      expect(f.closureStore.read(f.context)).toEqual(before);
+    });
+
+    it('R4-R10-A01: the official lifecycle writer waits until authorization persistence releases the lock', async () => {
+      const f = await fixture({ confirmedReqs: [{ category: 'functional', title: 'Consulta aprobada' }] });
+      const storage = new FileSystemStorage({ rootDir: f.root });
+      let saveCompleted = false;
+      let pendingSave: Promise<void> | undefined;
+      const interleaved: IModuleClosureStore = {
+        read: scope => f.closureStore.read(scope),
+        transaction: async <T>(scope: ClosureScope, operation: (snapshot: ModuleClosureSnapshot) => Promise<T>): Promise<T> => {
+          pendingSave = storage.saveLifecycleState({
+            ...f.lifecycle, session: { ...f.lifecycle.session, id: 'after-commit-session' },
+          }).then(() => { saveCompleted = true; });
+          const result = await f.closureStore.transaction(scope, operation);
+          expect(saveCompleted).toBe(false);
+          return result;
+        },
+        close: () => {},
+      };
+      const svc = new CanonicalClosureService(f.store, f.context, interleaved, {
+        reviewClosure: async req => makeDecision(req),
+      });
+      const result = await svc.execute('catalog', {
+        action: 'declare_non_applicable', decisions: [{ category: 'performance',
+          reason: 'Aprobación válida del propietario del módulo en el contexto inicial.' }],
+      });
+      expect(result.status).toBe('declared_non_applicable');
+      expect(pendingSave).toBeDefined();
+      await pendingSave;
+      expect(saveCompleted).toBe(true);
+      expect((await storage.getLifecycleState()).session.id).toBe('after-commit-session');
+      expect(f.closureStore.read(f.context).approvals).toHaveLength(1);
+    });
+
+    it('R4-R10-A02: changing cwd never moves the active SQLite writer fence', async () => {
+      const root = mkdtempSync(join(tmpdir(), 'qap-r10-path-'));
+      roots.push(root);
+      const another = join(root, 'another-cwd');
+      mkdirSync(another);
+      const initialCwd = process.cwd();
+      let knowledge: SqliteKnowledgeAdapter | undefined;
+      try {
+        process.chdir(root);
+        knowledge = new SqliteKnowledgeAdapter('pinned.sqlite', { busy_timeout_ms: 0 });
+        process.chdir(another);
+        const { DatabaseSync } = await import('node:sqlite');
+        await knowledge.withWriteFence('app-r5', async () => {
+          const competing = new DatabaseSync(join(root, 'pinned.sqlite'));
+          try {
+            competing.exec('PRAGMA busy_timeout=0');
+            expect(() => competing.exec('BEGIN IMMEDIATE')).toThrow();
+          } finally {
+            competing.close();
+          }
+        });
+        expect(existsSync(join(another, 'pinned.sqlite'))).toBe(false);
+      } finally {
+        knowledge?.close();
+        process.chdir(initialCwd);
       }
     });
 
