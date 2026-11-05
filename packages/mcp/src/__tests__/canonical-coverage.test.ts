@@ -667,12 +667,14 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
     it('R4-R9-A02: delayed fence acquisition does not consume an expired decision', async () => {
       const f = await fixture({
         gateway: { reviewClosure: async r => ({
-          ...makeDecision(r), expiresAt: new Date(Date.now() + 15).toISOString(),
+          ...makeDecision(r), expiresAt: new Date(Date.now() + 300).toISOString(),
         }) },
       });
       const originalFence = f.store.withWriteFence.bind(f.store);
+      let enteredFence = false;
       f.store.withWriteFence = async <T>(app: string, operation: () => Promise<T>): Promise<T> => {
-        await new Promise(resolve => setTimeout(resolve, 40));
+        enteredFence = true;
+        await new Promise(resolve => setTimeout(resolve, 420));
         return originalFence(app, operation);
       };
       const before = f.closureStore.read(f.context);
@@ -680,6 +682,7 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
         action: 'waive',
         reason: 'Renuncia temporal válida, pero aprobación caducada antes del commit',
       });
+      expect(enteredFence).toBe(true);
       expect(result).toMatchObject({ status: 'blocked', code: 'closure_review_expired' });
       expect(f.closureStore.read(f.context)).toEqual(before);
     });
