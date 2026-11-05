@@ -38,6 +38,8 @@ export interface CoverageEvaluationOptions {
   readonly isWaived?: boolean;
   readonly waiverReason?: string;
   readonly decisionId?: string;
+  /** Read-only replay comparison: temporarily restore named accepted gaps to pending. */
+  readonly excludeStoredAcceptedGapIds?: readonly string[];
 }
 
 export type CoverageEvaluationResult =
@@ -105,8 +107,9 @@ export class CanonicalCoverageService {
 
     // Combinar brechas aceptadas
     const acceptedGapsMap = new Map<string, { reason: string; receipt?: string }>();
+    const excludedForReplay = new Set(options?.excludeStoredAcceptedGapIds ?? []);
     for (const g of storedGaps) {
-      if (g.status === 'accepted') {
+      if (g.status === 'accepted' && !excludedForReplay.has(g.id)) {
         acceptedGapsMap.set(g.id, { reason: g.reason, receipt: g.acceptance_receipt });
       }
     }
