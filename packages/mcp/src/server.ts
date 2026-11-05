@@ -88,6 +88,7 @@ import { ContextHandler } from './handlers/context.handler.js';
 import { DiscoveryHandler, type DiscoveryAuthorization } from './handlers/discovery.handler.js';
 import { CanonicalInterviewService } from './handlers/canonical-interview-service.js';
 import { CanonicalClosureService } from './handlers/canonical-closure-service.js';
+import { renderCanonicalSessionReport } from './handlers/canonical-session-report.js';
 import { projectRoot as authorizedProjectRoot, result as canonicalResult } from './handlers/state-services.js';
 import { hasLegacyViewContext, legacyInterviewBlocked } from './handlers/legacy-discovery-contract.js';
 import { CleanHandler } from './handlers/clean.handler.js';
@@ -3474,8 +3475,13 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
             ...Object.keys(lifecycleState.modules || {}),
           ]);
 
+          // The canonical host ledger is authoritative for bound modules.
+          // Never reinterpret their empty legacy YAML as zero gaps or approval.
+          const canonicalReports = closureService ? await closureService.sessionReport() : [];
+          const canonicalNames = new Set(canonicalReports.map(report => report.module));
+          const legacyNames = [...allModuleNames].filter(name => !canonicalNames.has(name));
           const moduleRulesMap: Record<string, { rules?: any[]; category_waivers?: any[] }> = {};
-          for (const mName of allModuleNames) {
+          for (const mName of legacyNames) {
             try {
               const rf = await storage.getModuleRules(mName);
               moduleRulesMap[mName] = {
@@ -3492,11 +3498,16 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
             startedAt,
             closedAt,
             projectContext: parsedContext,
-            plan: lifecycleState.session?.plan || [],
-            modules: lifecycleState.modules || {},
+            plan: (lifecycleState.session?.plan || []).filter((p: any) => !canonicalNames.has(p.module)),
+            modules: Object.fromEntries(Object.entries(lifecycleState.modules || {})
+              .filter(([name]) => !canonicalNames.has(name))),
             moduleRules: moduleRulesMap,
           };
-          const gapReportMd = generateSessionGapReport(gapParams);
+          const legacyReportMd = legacyNames.length ? generateSessionGapReport(gapParams) : '';
+          const gapReportMd = canonicalReports.length
+            ? renderCanonicalSessionReport(canonicalReports) +
+              (legacyReportMd ? '\n---\n\n# Módulos legacy no vinculados\n\n' + legacyReportMd : '')
+            : legacyReportMd;
           const gapSummary = computeSessionGapSummary(gapParams);
 
           const sessionsDir = join(qaDir, 'project', 'sessions');
@@ -3525,11 +3536,21 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
                 report_path: reportFilePath,
                 reporte_brechas_path: reportFilePath,
                 cobertura_alcance: {
+                  origen: canonicalReports.length ? 'legacy_only_not_canonical_coverage' : 'legacy',
                   flujos: { cubiertos: gapSummary.flujos_cubiertos, declarados: gapSummary.flujos_totales },
                   roles: { con_perfil_verificado: gapSummary.roles_verificados, declarados: gapSummary.roles_totales },
                   resumen_texto: gapSummary.cobertura_alcance,
                 },
-                brechas_detectadas: (gapSummary.flujos_totales - gapSummary.flujos_cubiertos) + (gapSummary.roles_totales - gapSummary.roles_verificados),
+                brechas_detectadas: canonicalReports.length ? null :
+                  (gapSummary.flujos_totales - gapSummary.flujos_cubiertos) + (gapSummary.roles_totales - gapSummary.roles_verificados),
+                cierre_canonico: canonicalReports.length ? {
+                  modulos_cerrados: canonicalReports.filter(r => r.state === 'closed').length,
+                  modulos_waived: canonicalReports.filter(r => r.state === 'waived').length,
+                  requisitos_confirmados_actuales: canonicalReports.reduce((total, r) =>
+                    total + r.current_confirmed_requirements.length, 0),
+                  cobertura_ejecucion: 'not_certified_by_session_report',
+                  aprobacion_humana_autentica: 'requires_independent_host_evidence',
+                } : undefined,
                 siguiente_accion: {
                   tipo: 'decision',
                   descripcion: `Sesión concluida. Reporte de brechas generado en ${reportFilePath}. Puedes revisar el Knowledge Graph (qap_server) o iniciar una nueva sesión (qap_session_plan).`,
