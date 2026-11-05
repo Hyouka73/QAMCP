@@ -6,14 +6,14 @@ import { DatabaseSync } from 'node:sqlite';
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import type { IKnowledgeStore } from '@qap/engine';
+import { SqliteKnowledgeAdapter } from '@qap/knowledge';
 import {
   validateExpectedRequirement,
   validateCanonicalClosureCommand,
   validateCoverageAssessmentInvariants,
 } from '@qap/shared';
 import { describe, expect, it, afterEach, vi } from 'vitest';
-import type { IKnowledgeStore } from '@qap/engine';
-import { SqliteKnowledgeAdapter } from '@qap/knowledge';
 
 import { createMcpServer } from '../server.js';
 import { CanonicalCoverageService } from '../handlers/canonical-coverage-service.js';
