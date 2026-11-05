@@ -1,6 +1,6 @@
 # QAMCP vNext — Continuidad Codex
 
-Actualizado: 2026-11-05. Estado histórico preservado; resultado independiente R4-R8 al final.
+Actualizado: 2026-11-05. Estado histórico preservado; resultado independiente R4-R9 al final.
 
 ## Estado y alcance
 
@@ -1096,3 +1096,12 @@ Modo de integridad: `development` (Reemplazo genuino de `qap_test` por `TestHand
 - **Limitaciones:** el bloqueo se limita a escrituras por conexiones SQLite cooperantes a un mismo archivo físico; no constituye atomicidad/crash transaccional entre dos bases, ni cubre otros adaptadores, memoria aislada, mutaciones fuera de SQLite, ni garantiza latencia. El recibo Knowledge posterior al commit del cierre sigue recuperable por conciliación. **No afirmar PASS ni GO.**
 - **Siguiente control:** Codex debe auditar exactamente el SHA remoto publicado tras R4-R9, instalar dependencias desde lockfile, ejecutar build, pruebas focales e integrales y prueba adversarial con segunda conexión/proceso, comparar los 55 fallos y publicar informe únicamente documental en el repo. Continuar composición P0 después de auditar. **VNEXT-014 NO-GO; VNEXT-015 sin iniciar.**
 - [Nota técnica R4-R9](014E_R4_R9_CONSISTENCY_FENCE.md).
+
+### Resultado independiente R4-R9 (2026-11-05)
+
+- **SHA de código auditado:** 09c9ce276c9c328026de4236dadf0a85d8e94d21; worktree detached aislado, sin código posterior. **VNEXT-014 NO-GO; VNEXT-015 no iniciado.** [Informe independiente](auditorias/VNEXT-014-R4-R9/INFORME.md).
+- **R4-R8-A02: corrección condicionada comprobada**, para mismo archivo físico estable y escritores SQLite normales. Otra conexión y otro proceso bloqueados durante fence; recuperan escritura tras release, excepción y terminación física. No atomicidad Knowledge/Closure/FS. **R4-R9-A02 P1:** ruta relativa + cambio de cwd hace que fence abra otro archivo y permite la aprobación obsoleta; no se demostró cwd cambiante en servidor productivo. **R4-R9-A01 P1:** cambio real de session/plan en lifecycle después de revalidar persiste autorización para contexto anterior, incluido close/waive. Reproducciones y correcciones en [evidencia](auditorias/VNEXT-014-R4-R9/EVIDENCIA_CONCURRENCIA.md).
+- **Matriz física:** install congelado/FTS5/Node24.15.0 y diez builds PASS; cinco R9 y tres R8 PASS; Coverage **44/45**, Interview44/44, Discovery59/59, Runner71/71; Stdio18+qap_init por servidor/CLI PASS. MCP **406 PASS / 64 FAIL de 470**: 55 históricos idénticos + ocho incompatibilidades del MemoryKnowledgeStore sin fence + Scenario4 concurrente SQLite real (R4-R9-A03 P2: ganador waived/perdedor blocked, retry posterior idempotente). Sin bajas ni tests/expectativas cambiados.
+- **Lint L01 certificado:** global **34 errores/28 warnings**, foco ampliado **5/0**; exactamente 62 diagnósticos históricos idénticos, una baja prefer-const, cero altas. El lint histórico sigue pendiente.
+- **Límites adicionales:** R4-R9-A04 registra expiración posible entre callback y commit, no vigencia a commit; definir contrato de consumo. **R4-R9-A05 P1 preexistente:** accept_gaps sobre brecha existente falla por receipt ausente antes del gateway, reproducido también en servicio R4-R8. Las sondas no certifican aceptación funcional ni E2E humano. Nuevo digest invalida solicitudes antiguas incluso sin pendientes; closed/waived históricos se conservan sin recalcular autoridad.
+- **Compuerta:** corregir P1 y regresión de concurrencia, preservar negativos/historial/recuperación y reconciliar matriz; después completar A closed+B waived+reporte/WRAP_UP/replanificación y E0a/E1/E2/E3/criterio9 sin requisitos confirmados ni aprobaciones ficticias para certificar integrado. [Siguiente bloque](auditorias/VNEXT-014-R4-R9/SIGUIENTE_BLOQUE_P0.md).
