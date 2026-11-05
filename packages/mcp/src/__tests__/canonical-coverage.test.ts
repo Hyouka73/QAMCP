@@ -600,7 +600,11 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
   });
 
   describe('Suite 5: MCP Integration & Lifecycle Guards (R4 / F8)', () => {
-    async function mcpClient(f: Awaited<ReturnType<typeof fixture>>, gateway?: IModuleClosureReviewGateway) {
+    async function mcpClient(
+      f: Awaited<ReturnType<typeof fixture>>,
+      gateway?: IModuleClosureReviewGateway,
+      moduleBindings?: BridgeContext['moduleBindings']
+    ) {
       const server = createMcpServer({
         projectRoots: [f.root],
         knowledgeBindings: [
@@ -609,7 +613,7 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
             applicationId: 'app-r5',
             environmentId: 'local',
             store: f.store,
-            moduleBindings: f.context.moduleBindings,
+            moduleBindings: moduleBindings ?? f.context.moduleBindings,
             moduleClosureStore: f.closureStore,
             moduleClosureReviewGateway: gateway ?? {
               reviewClosure: async r => makeDecision(r, 'approve'),
@@ -776,6 +780,115 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
       expect(readFileSync(f.lifecyclePath, 'utf8')).toBe(lifecycleBefore);
       expect(f.closureStore.read(f.context)).toEqual(durableBefore);
       expect((await f.store.query('app-r5', 'relation')).items).toEqual(beforeRelations);
+    });
+
+    it.each([
+      { count: 16, invalidLast: false },
+      { count: 17, invalidLast: false },
+      { count: 17, invalidLast: true },
+    ])('R4-R5-A02: $count bound modules, last invalid=$invalidLast, preview stays capped but guidance checks all', async scenario => {
+      const f = await fixture();
+      const names = [
+        'catalog',
+        ...Array.from({ length: scenario.count - 1 }, (_, index) => `module-${index + 2}`),
+      ];
+      const extra = names.slice(1);
+      const durableReason = '  Renuncia sustantiva de fixture autorizada por host para probar el límite  ';
+      const trace = {
+        source: 'synthetic', recorded_by: 'fixture', recorded_at: time,
+        reason: 'Fixture sintético sin datos reales', review: 'unreviewed' as const, evidence_refs: [],
+      };
+      if (extra.length > 0) {
+        await f.store.commit('app-r5', extra.map(name => ({
+          kind: 'module' as const,
+          expected_revision: 0,
+          trace,
+          entity: {
+            id: `mod-${name}`, application_id: 'app-r5', key: name, title: name,
+            certainty: 'confirmed' as const, criticality: 'medium' as const,
+            dependencies: [], created_at: time, updated_at: time, is_active: true,
+          },
+        })));
+      }
+
+      const bindings: BridgeContext['moduleBindings'] = names.map(name => ({
+        plannedName: name,
+        moduleId: name === 'catalog' ? 'mod-catalog' : `mod-${name}`,
+        moduleKey: name, moduleRevision: 1, applicationRevision: 1,
+        environmentRevision: 1, provenance: 'host_declared' as const,
+      }));
+      const lifecycle = JSON.parse(readFileSync(f.lifecyclePath, 'utf8')) as {
+        phase: string;
+        modules: Record<string, { state: string; updated_at: string; waived_reason?: string }>;
+        session: { plan: Array<{ module: string; path: string }> };
+      };
+      lifecycle.modules = Object.fromEntries(names.map(name => [
+        name, { state: 'waived', updated_at: time, waived_reason: durableReason },
+      ]));
+      lifecycle.session.plan = names.map(name => ({ module: name, path: `/${name}` }));
+      writeFileSync(f.lifecyclePath, JSON.stringify(lifecycle), 'utf8');
+
+      await f.closureStore.transaction(f.context, async snapshot => {
+        for (const name of names) {
+          const decisionId = randomUUID();
+          const requestDigest = `digest_${name}_${'f'.repeat(48)}`;
+          snapshot.closures[name] = {
+            moduleKey: name,
+            moduleId: name === 'catalog' ? 'mod-catalog' : `mod-${name}`,
+            moduleRevision: 1,
+            plannedName: name,
+            status: 'waived',
+            decisionId,
+            reviewer: 'synthetic-reviewer',
+            decidedAt: time,
+            requestDigest,
+            coverageDigest: 'a'.repeat(64),
+            waiverReason: durableReason,
+            committedAt: time,
+          };
+          if (!(scenario.invalidLast && name === names[names.length - 1])) {
+            snapshot.approvals.push([decisionId, requestDigest]);
+          }
+        }
+      });
+      const durableBefore = f.closureStore.read(f.context);
+      const client = await mcpClient(f, {
+        reviewClosure: async () => { throw new Error('unexpected_approval_for_seeded_durable_closure'); },
+      }, bindings);
+      const statusReply = await client.callTool({ name: 'qap_status', arguments: { targetPath: f.root } });
+      const status = JSON.parse((statusReply.content[0] as { text: string }).text) as {
+        canonical_modules: Array<{ plannedName: string; closure: { state: string } }>;
+        siguiente_accion: { tool: string };
+        canonical_pending_closure_modules?: string[];
+      };
+      expect(status.canonical_modules).toHaveLength(16);
+      expect(status.canonical_modules.every(m => m.closure.state === 'waived')).toBe(true);
+      if (scenario.invalidLast) {
+        expect(status).toMatchObject({
+          siguiente_accion: { tool: 'qap_module_close', module: names[names.length - 1] },
+          canonical_pending_closure_modules: [names[names.length - 1]],
+        });
+      } else {
+        expect(status.siguiente_accion.tool).toBe('qap_session_close');
+        expect(status.canonical_pending_closure_modules).toBeUndefined();
+      }
+
+      const closeReply = await client.callTool({ name: 'qap_session_close', arguments: { targetPath: f.root } });
+      const close = JSON.parse((closeReply.content[0] as { text: string }).text) as {
+        status: string; fase: string; code?: string; report_path?: string; unclosed_modules?: string[];
+      };
+      if (scenario.invalidLast) {
+        expect(close).toMatchObject({
+          status: 'blocked', fase: 'WORKING', code: 'canonical_module_closure_required',
+        });
+        expect(close.unclosed_modules).toContain(names[names.length - 1]);
+        expect(close.report_path).toBeUndefined();
+      } else {
+        expect(close).toMatchObject({ status: 'success', fase: 'WRAP_UP' });
+        expect(close.report_path).toBeDefined();
+        expect(existsSync(close.report_path!)).toBe(true);
+      }
+      expect(f.closureStore.read(f.context)).toEqual(durableBefore);
     });
 
     it('R4-R4-A01 positive: a legitimately authorized durable waiver still recommends session close', async () => {
