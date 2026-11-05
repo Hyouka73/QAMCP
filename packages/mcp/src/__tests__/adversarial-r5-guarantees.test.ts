@@ -1,11 +1,13 @@
 import { randomBytes, randomUUID, createHash } from 'node:crypto';
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import type { IKnowledgeStore } from '@qap/engine';
+import { SqliteKnowledgeAdapter } from '@qap/knowledge';
 import {
   validateExpectedRequirement,
   validateCanonicalClosureCommand,
@@ -75,6 +77,7 @@ async function createCanonicalFixture(options: {
   gateway?: IModuleClosureReviewGateway;
   requirements?: Array<Record<string, unknown>>;
   extraModules?: boolean;
+  physicalKnowledge?: boolean;
 } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'qap-adv-'));
   roots.push(root);
@@ -103,7 +106,13 @@ async function createCanonicalFixture(options: {
   };
   writeFileSync(lifecyclePath, JSON.stringify(lifecycle, null, 2));
 
-  const store = new MemoryKnowledgeStore();
+  // Historical negative tests intentionally use MemoryKnowledgeStore without a
+  // fence. Positive closure/CAS tests opt in to a real, durable SQLite fence.
+  const knowledgeDbPath = join(root, '.qa', 'private', 'canonical.sqlite');
+  const physicalStore = options.physicalKnowledge
+    ? new SqliteKnowledgeAdapter(knowledgeDbPath) : undefined;
+  if (physicalStore) closers.push(() => physicalStore.close());
+  const store: IKnowledgeStore = physicalStore ?? new MemoryKnowledgeStore();
 
   const trace = {
     source: 'synthetic',
@@ -230,6 +239,7 @@ async function createCanonicalFixture(options: {
     context,
     closureStore,
     closureDbPath,
+    knowledgeDbPath,
     closureKey,
     gateway,
     service,
@@ -519,7 +529,7 @@ describe('Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2)', () => {
   describe('Guarantee 3: Obsolete Revision Invalidation Stress-Testing', () => {
     it('3.1: Aborts and rolls back if module revision mutates during human review window', async () => {
       const mockGateway = new MockReviewGateway();
-      const f = await createCanonicalFixture({ gateway: mockGateway });
+      const f = await createCanonicalFixture({ gateway: mockGateway, physicalKnowledge: true });
 
       const originalReview = mockGateway.reviewClosure.bind(mockGateway);
       mockGateway.reviewClosure = async (req) => {
@@ -554,13 +564,13 @@ describe('Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2)', () => {
         return dec;
       };
 
-      // Transaction aborts and wraps internal error in write_failed
-      await expect(
-        f.service.execute('catalog', {
-          action: 'waive',
-          reason: 'Renuncia formal debidamente fundamentada para auditoría de seguridad.',
-        })
-      ).rejects.toThrow();
+      // The current wire contract returns an explicit blocked result on
+      // obsolete approval context; it must not consume the host decision.
+      const denied = await f.service.execute('catalog', {
+        action: 'waive',
+        reason: 'Renuncia formal debidamente fundamentada para auditoría de seguridad.',
+      });
+      expect(denied).toMatchObject({ status: 'blocked', code: 'closure_context_changed' });
 
       // Ensure that closure was NOT committed
       const snap = f.closureStore.read(f.context);
@@ -573,7 +583,7 @@ describe('Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2)', () => {
 
     it('3.2: Aborts if module is deactivated during review', async () => {
       const mockGateway = new MockReviewGateway();
-      const f = await createCanonicalFixture({ gateway: mockGateway });
+      const f = await createCanonicalFixture({ gateway: mockGateway, physicalKnowledge: true });
 
       const originalReview = mockGateway.reviewClosure.bind(mockGateway);
       mockGateway.reviewClosure = async (req) => {
@@ -608,17 +618,19 @@ describe('Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2)', () => {
         return dec;
       };
 
-      await expect(
-        f.service.execute('catalog', {
-          action: 'waive',
-          reason: 'Renuncia formal debidamente fundamentada para auditoría de seguridad.',
-        })
-      ).rejects.toThrow();
+      const denied = await f.service.execute('catalog', {
+        action: 'waive',
+        reason: 'Renuncia formal debidamente fundamentada para auditoría de seguridad.',
+      });
+      expect(denied).toMatchObject({ status: 'blocked', code: 'closure_context_changed' });
+      expect(f.closureStore.read(f.context).closures.catalog).toBeUndefined();
+      expect(f.closureStore.read(f.context).approvals).toHaveLength(0);
+      expect((await f.store.query('app-adv', 'relation')).items).toHaveLength(0);
     });
 
     it('3.3: Prevents approvalId reuse across closure attempts', async () => {
       const mockGateway = new MockReviewGateway();
-      const f = await createCanonicalFixture({ gateway: mockGateway });
+      const f = await createCanonicalFixture({ gateway: mockGateway, physicalKnowledge: true });
 
       const r1 = await f.service.execute('catalog', {
         action: 'waive',
@@ -905,7 +917,7 @@ describe('Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2)', () => {
     });
 
     it('5.4: Canonical closure unlocks qap_session_close', async () => {
-      const f = await createCanonicalFixture();
+      const f = await createCanonicalFixture({ physicalKnowledge: true });
 
       const server = createMcpServer({
         projectRoots: [f.root],
@@ -953,8 +965,16 @@ describe('Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2)', () => {
           targetPath: f.root,
         },
       });
-      const sessionParsed = JSON.parse((sessionRes.content[0] as any).text);
+      expect(sessionRes.isError).toBeFalsy();
+      const sessionParsed = JSON.parse((sessionRes.content[0] as any).text) as {
+        status: string; fase: string; report_path: string; code?: string;
+      };
+      expect(sessionParsed).toMatchObject({ status: 'success', fase: 'WRAP_UP' });
       expect(sessionParsed.code).not.toBe('canonical_module_closure_required');
+      expect(existsSync(sessionParsed.report_path)).toBe(true);
+      expect(readFileSync(sessionParsed.report_path, 'utf8')).toContain('catalog');
+      expect(JSON.parse(readFileSync(join(f.root, '.qa', 'project', 'lifecycle.json'), 'utf8')).phase).toBe('WRAP_UP');
+      expect((await f.store.query('app-adv', 'relation')).items).toHaveLength(1);
     });
   });
 
@@ -1155,7 +1175,7 @@ describe('Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2)', () => {
 
     it('7.2: CanonicalClosureService serializes closure and second attempt is idempotent: true', async () => {
       const mockGateway = new MockReviewGateway();
-      const f = await createCanonicalFixture({ gateway: mockGateway });
+      const f = await createCanonicalFixture({ gateway: mockGateway, physicalKnowledge: true });
 
       // First closure
       const res1 = await f.service.execute('catalog', {
@@ -1180,7 +1200,7 @@ describe('Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2)', () => {
 
     it('7.3: Concurrent closure of distinct modules succeeds via bounded retry loop under SQLite CAS lock', async () => {
       const mockGateway = new MockReviewGateway();
-      const f = await createCanonicalFixture({ gateway: mockGateway, extraModules: true });
+      const f = await createCanonicalFixture({ gateway: mockGateway, extraModules: true, physicalKnowledge: true });
 
       const closureStore2 = new SqliteModuleClosureStore({
         path: f.closureDbPath,
@@ -1192,7 +1212,11 @@ describe('Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2)', () => {
         initialize: false,
       });
       closers.push(() => closureStore2.close());
-      const service2 = new CanonicalClosureService(f.store, f.context, closureStore2, mockGateway);
+      // Independent physical SQLite handles: exercise the canonical fence
+      // across connections, not just a shared in-memory store object.
+      const knowledgeStore2 = new SqliteKnowledgeAdapter(f.knowledgeDbPath);
+      closers.push(() => knowledgeStore2.close());
+      const service2 = new CanonicalClosureService(knowledgeStore2, f.context, closureStore2, mockGateway);
 
       // Run concurrent closures for two distinct modules across competing connections
       const [resCatalog, resBilling] = await Promise.all([
@@ -1217,6 +1241,10 @@ describe('Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2)', () => {
       });
       expect(snap.closures.catalog).toBeDefined();
       expect(snap.closures.billing).toBeDefined();
+      expect(snap.closures.catalog.decisionId).not.toBe(snap.closures.billing.decisionId);
+      expect(snap.approvals).toHaveLength(2);
+      const receipts = await f.store.query('app-adv', 'relation');
+      expect(receipts.items).toHaveLength(2);
     });
 
     it('7.4: Simultaneous closure requests for same module with divergent gateway decisions persist exactly one closure and canonical receipt', async () => {
@@ -1236,7 +1264,7 @@ describe('Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2)', () => {
         },
       };
 
-      const f = await createCanonicalFixture({ gateway: mockGateway });
+      const f = await createCanonicalFixture({ gateway: mockGateway, physicalKnowledge: true });
 
       // Pre-declare non-applicable categories so catalog is ready_for_closure
       await f.service.execute('catalog', {
@@ -1262,7 +1290,11 @@ describe('Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2)', () => {
         initialize: false,
       });
       closers.push(() => closureStore2.close());
-      const service2 = new CanonicalClosureService(f.store, f.context, closureStore2, mockGateway);
+      // Independent physical SQLite handles: exercise the canonical fence
+      // across connections, not just a shared in-memory store object.
+      const knowledgeStore2 = new SqliteKnowledgeAdapter(f.knowledgeDbPath);
+      closers.push(() => knowledgeStore2.close());
+      const service2 = new CanonicalClosureService(knowledgeStore2, f.context, closureStore2, mockGateway);
 
       // Fire two simultaneous requests for the same module 'catalog' across competing connections
       // Request 1: close, Request 2: waive
@@ -1306,7 +1338,7 @@ describe('Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2)', () => {
 
     it('7.5: Rejects write error recovery if existing receipt has tampered provenance or mismatched entity', async () => {
       const mockGateway = new MockReviewGateway();
-      const f = await createCanonicalFixture({ gateway: mockGateway });
+      const f = await createCanonicalFixture({ gateway: mockGateway, physicalKnowledge: true });
       const decisionId = 'dec-tampered-receipt-test';
       mockGateway.requests = [];
       mockGateway.reviewClosure = async (req) => ({
@@ -1371,6 +1403,15 @@ describe('Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2)', () => {
         action: 'waive',
         reason: 'Renuncia formal para verificar rechazo de procedencia corrupta.',
       })).rejects.toThrow(/closure_receipt_provenance_invalid|provenance/);
+
+      // The forged receipt remains visibly invalid after reopening Knowledge,
+      // and the legacy lifecycle cannot be advanced by a rejected receipt.
+      const stored = await f.store.get('app-adv', 'relation', `waiver:${decisionId}`);
+      expect(stored?.entity.source.id).toBe('module-forged-attacker');
+      expect(stored?.trace.recorded_by).toBe('attacker');
+      const physical = JSON.parse(readFileSync(join(f.root, '.qa', 'project', 'lifecycle.json'), 'utf8'));
+      expect(physical.phase).toBe('WORKING');
+      expect(physical.modules.catalog.state).toBe('planned');
     });
   });
 

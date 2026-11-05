@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 
-import { transitionModule, type IKnowledgeStore, type KnowledgeRecord } from '@qap/engine';
+import { transitionModule, KnowledgeStoreError, type IKnowledgeStore, type KnowledgeRecord } from '@qap/engine';
 import { FileSystemStorage } from '@qap/knowledge';
 import {
   validateCanonicalClosureCommand,
@@ -912,8 +912,19 @@ export class CanonicalClosureService {
         return blocked('closure_review_expired',
           'La decisión expiró antes del commit durable en SQLite.');
       }
-      return blocked('closure_consistency_conflict',
-        'No fue posible garantizar el snapshot autorizado hasta el commit durable.');
+      // Only recognized snapshot drift or SQLite write contention is a
+      // recoverable consistency block. Unexpected I/O, corruption and store
+      // exceptions must propagate, not impersonate an ordinary conflict.
+      if ((error instanceof KnowledgeStoreError && error.code === 'CONFLICT') ||
+          (error instanceof Error && (
+            error.message === 'closure_context_changed' ||
+            error.message === 'closure_revision_conflict' ||
+            error.message === 'lifecycle_context_missing'
+          ))) {
+        return blocked('closure_consistency_conflict',
+          'No fue posible garantizar el snapshot autorizado hasta el commit durable.');
+      }
+      throw error;
     }
   }
 
