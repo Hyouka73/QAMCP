@@ -44,6 +44,56 @@ import YAML from 'yaml';
 
 const LOCKS_DIR = '.qa/cache/locks';
 
+/**
+ * In-process coordination between lock-free readers and atomic replacements.
+ *
+ * Verified cause (see VNEXT-014-CONVERGENCIA/E01): on Windows, renameSync()
+ * replacing a destination that has ANY open handle (including a concurrent
+ * fs.promises.readFile in the same process) fails with EPERM. Readers do not
+ * take the cross-process lock, so a writer can lose to an unrelated read.
+ * This gate makes same-process readers drain before a replacement and holds
+ * new readers back while it runs. It is NOT a retry: no operation is repeated.
+ * Readers in OTHER processes remain outside this guarantee.
+ */
+class ReplaceGate {
+  private static readonly gates = new Map<string, ReplaceGate>();
+  private readers = 0;
+  private replacing = 0;
+  private waiters: Array<() => void> = [];
+
+  static for(physicalKey: string): ReplaceGate {
+    let gate = ReplaceGate.gates.get(physicalKey);
+    if (!gate) { gate = new ReplaceGate(); ReplaceGate.gates.set(physicalKey, gate); }
+    return gate;
+  }
+
+  private wake(): void {
+    const pending = this.waiters;
+    this.waiters = [];
+    for (const resume of pending) resume();
+  }
+
+  async read<T>(operation: () => Promise<T>): Promise<T> {
+    while (this.replacing > 0) await new Promise<void>(resolve => this.waiters.push(resolve));
+    this.readers++;
+    try { return await operation(); } finally {
+      this.readers--;
+      if (this.readers === 0) this.wake();
+    }
+  }
+
+  async replace<T>(operation: () => T): Promise<T> {
+    this.replacing++;
+    try {
+      while (this.readers > 0) await new Promise<void>(resolve => this.waiters.push(resolve));
+      return operation();
+    } finally {
+      this.replacing--;
+      if (this.replacing === 0) this.wake();
+    }
+  }
+}
+
 export interface FileSystemStorageOptions {
   /** Directorio raiz del proyecto (donde vive .qa/). Por defecto, process.cwd(). */
   rootDir?: string;
@@ -109,8 +159,16 @@ export class FileSystemStorage implements IStorage {
     }
   }
 
+  private gateFor(fullPath: string): ReplaceGate {
+    const key = process.platform === 'win32'
+      ? fullPath.replaceAll('\\', '/').toLowerCase()
+      : fullPath;
+    return ReplaceGate.for(key);
+  }
+
   async read(path: string): Promise<string> {
-    return await readFile(this.resolvePath(path), 'utf-8');
+    const fullPath = this.resolvePath(path);
+    return this.gateFor(fullPath).read(() => readFile(fullPath, 'utf-8'));
   }
   
    /**
@@ -119,19 +177,23 @@ export class FileSystemStorage implements IStorage {
    */
 
    async readBuffer(path: string): Promise<Buffer> {
-    return await readFile(this.resolvePath(path));
+    const fullPath = this.resolvePath(path);
+    return this.gateFor(fullPath).read(() => readFile(fullPath));
   }
 
   async write(path: string, content: string): Promise<void> {
     const fullPath = this.resolvePath(path);
     mkdirSync(dirname(fullPath), { recursive: true });
 
-    await this.withLock(fullPath, () => {
+    await this.withLock(fullPath, () => this.gateFor(fullPath).replace(() => {
       const tempPath = `${fullPath}.${randomBytes(6).toString('hex')}.tmp`;
-      writeFileSync(tempPath, content, 'utf-8');
-      renameSync(tempPath, fullPath);
-      return Promise.resolve();
-    });
+      try {
+        writeFileSync(tempPath, content, 'utf-8');
+        renameSync(tempPath, fullPath);
+      } finally {
+        rmSync(tempPath, { force: true });
+      }
+    }));
   }
 
   async exists(path: string): Promise<boolean> {
@@ -301,9 +363,15 @@ export class FileSystemStorage implements IStorage {
       const current = await this.getLifecycleState();
       const updated = await mutator(current);
       const content = JSON.stringify(updated, null, 2);
-      const tempPath = `${fullPath}.${randomBytes(6).toString('hex')}.tmp`;
-      writeFileSync(tempPath, content, 'utf-8');
-      renameSync(tempPath, fullPath);
+      await this.gateFor(fullPath).replace(() => {
+        const tempPath = `${fullPath}.${randomBytes(6).toString('hex')}.tmp`;
+        try {
+          writeFileSync(tempPath, content, 'utf-8');
+          renameSync(tempPath, fullPath);
+        } finally {
+          rmSync(tempPath, { force: true });
+        }
+      });
       return updated;
     });
   }
@@ -420,9 +488,15 @@ export class FileSystemStorage implements IStorage {
 
       const updated = await mutator(current);
       const content = YAML.stringify(updated);
-      const tempPath = `${fullPath}.${randomBytes(6).toString('hex')}.tmp`;
-      writeFileSync(tempPath, content, 'utf-8');
-      renameSync(tempPath, fullPath);
+      await this.gateFor(fullPath).replace(() => {
+        const tempPath = `${fullPath}.${randomBytes(6).toString('hex')}.tmp`;
+        try {
+          writeFileSync(tempPath, content, 'utf-8');
+          renameSync(tempPath, fullPath);
+        } finally {
+          rmSync(tempPath, { force: true });
+        }
+      });
       return updated;
     });
   }
