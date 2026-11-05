@@ -539,3 +539,23 @@ Un usuario QA debe poder, en una aplicación web de prueba autorizada sin accede
 - [WBS ampliado propuesto: VNEXT-024–033, contratos genéricos, UTCP opcional, ARTEMIS y extensión LENDUS separada](07_WBS_QAP_AGNOSTICO_Y_EXTENSIONES.md).
 
 La extensión LENDUS se planifica fuera del núcleo público (LENDUS-EXT-001–007). QAP permanece agnóstico y utilizable sin UTCP, ARTEMIS, código fuente de la aplicación ni dependencias de Jira/Xray. No integrar feature sobre develop, ni pisar contribuciones de BVA, CLI update/rollback, prune y schemas sin compuerta cruzada de migración y pruebas. **La ampliación documental no autoriza iniciar VNEXT-015–033 ni un merge.**
+
+---
+
+## VNEXT-014-RESCATE — nueva implementación y compuertas (2026-11-05)
+
+**Conservación de WBS:** no se cambian las actividades cerradas anteriormente; estos ítems son nuevos y reflejan verificación pendiente. No son ampliaciones VNEXT-015–033. **Ningún merge autorizado por estos commits.**
+
+| ID nuevo | Fecha límite | Estado | Trabajo y evidencia de salida |
+| --- | --- | --- | --- |
+| 014-RES-A | 10/11/2026 | **Código publicado, verificación pendiente** | Composición host Stdio explícita con SQLite físico, revisiones de módulo, Discover consentido y sin privilegios implícitos. Certificar subprocess real servidor+CLI y errores de configuración. |
+| 014-RES-B | 10/11/2026 | **Código publicado, verificación pendiente** | Reporte de cierre canónico con fuente durable, receipts, requisitos actuales, brechas/aplicabilidad, waivers y separación de ejecución; certificar archivo y rollback/estados parciales. |
+| 014-RES-C | 12/11/2026 | **Parcial, NO-GO** | Certificar `init→context→plan→Discovery autorizado→asociación→entrevista→ExpectedRequirement humano→coverage→A closed+B waived→reporte→WRAP_UP→replanificación`, con host humano real separado de fixtures. |
+| 014-RES-D | 13/11/2026 | **Pendiente** | Reconciliar 63 identidades MCP (55 históricas+8 fixtures sin fence) en SQLite real, sin cambios oportunistas de expectativas, preservando negativos y clasificaciones legítimas. |
+| 014-RES-E | 13/11/2026 | **Pendiente** | Verificar frontera de `AsyncLocalStorage` A04-W01 y soportabilidad de wrappers; corregir proporcionalmente solo si el adaptador real lo requiere, con tests de expiración y rollback. |
+| 014-RES-QA | **16/11/2026** | **Pendiente** | Codex independiente: Node/pnpm/FTS5/Chromium, builds, lint, focales, MCP por identidad, Stdio y dos módulos, autorización, persistencia, recibos, crash/replay, GO/NO-GO justificado. Auditor solo modifica informes. |
+| VNEXT-MVP-INT-03/04 | **18–19/11/2026** | **Conserva sus compuertas originales** | Reutilizar el plan de ensayo/integración ya registrado; fusionar a develop **solo con GO** y PR revisado. |
+| VNEXT-MVP-INT-05 | **20/11/2026** | **Conserva su compuerta original** | Entrega MVP sin alterar fecha. |
+
+**Resultado actual:** implementación A/B publicada y C ampliada con fixtures de integración; **ninguna prueba física de esta implementación ejecutada todavía**. D/E continúan abiertas. El reporte distingue HEAD auditado y documental. [Implementación](implementaciones/VNEXT-014-RESCATE/INFORME.md) · [Contrato de host](implementaciones/VNEXT-014-RESCATE/HOST_STDIO.md).
+
