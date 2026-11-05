@@ -472,6 +472,73 @@ export class CanonicalClosureService {
       if (evalRes.status !== 'evaluated') return evalRes;
       const selected = new Set(typedCmd.accepted_gaps.map(g => g.gap_id));
       const gapInventory = new Map(evalRes.assessment.gaps.map(g => [g.id, g]));
+
+      // A lost response must not consume another decision. Only a byte-for-byte
+      // equivalent selection backed by the exact durable approval may replay.
+      // No review gateway call is made on this read-only recovery path.
+      const isExactAcceptedReplay = selected.size === typedCmd.accepted_gaps.length &&
+        typedCmd.accepted_gaps.length > 0 &&
+        typedCmd.accepted_gaps.every(g => {
+          const prior = gapInventory.get(g.gap_id);
+          return prior?.status === 'accepted' && prior.reason === g.reason;
+        });
+      if (isExactAcceptedReplay) {
+        if (!this.store.withWriteFence) {
+          return { status: 'blocked', code: 'closure_consistency_fence_required' };
+        }
+        try {
+          const lifecycle = new FileSystemStorage({ rootDir: this.context.projectRoot });
+          const recovered = await lifecycle.withLifecycleFence(() =>
+            this.store.withWriteFence!(this.context.applicationId, async () => {
+              const snapshot = this.closureStore.read(scope);
+              const allStored = Object.values(snapshot.acceptedGaps).flat();
+              const stored = snapshot.acceptedGaps[plannedName] ?? [];
+              const pairs = typedCmd.accepted_gaps.map(g =>
+                stored.filter(a => a.id === g.gap_id && a.status === 'accepted' &&
+                  a.reason === g.reason && typeof a.acceptance_receipt === 'string'));
+              if (!pairs.every(p => p.length === 1)) return undefined;
+              const approvalId = pairs[0]?.[0]?.acceptance_receipt;
+              if (!approvalId || !pairs.every(p => p[0].acceptance_receipt === approvalId) ||
+                allStored.filter(g => g.acceptance_receipt === approvalId).length !== pairs.length ||
+                Object.values(snapshot.closures).some(c => c.decisionId === approvalId)) return undefined;
+              const approvals = snapshot.approvals.filter(a => a[0] === approvalId);
+              if (approvals.length !== 1) return undefined;
+
+              // Reconstruct the original review's base coverage. Any changed
+              // requirement, context, applicability, or other gap changes the
+              // hash and prevents replay of obsolete authority.
+              const baseline = await this.coverageService.evaluate(plannedName, {
+                excludeStoredAcceptedGapIds: [...selected],
+              });
+              if (baseline.status !== 'evaluated' ||
+                !typedCmd.accepted_gaps.every(g => baseline.assessment.gaps.some(a =>
+                  a.id === g.gap_id && a.status === 'unaddressed'))) return undefined;
+              const requestDigest = digest([
+                this.context.projectRoot, this.context.applicationId,
+                this.context.environmentId, link.moduleId, link.moduleKey,
+                link.moduleRevision, plannedName, 'accept_gaps',
+                baseline.assessment.coverage_digest, typedCmd.accepted_gaps,
+              ]);
+              if (approvals[0][1] !== requestDigest) return undefined;
+              const current = await this.coverageService.evaluate(plannedName);
+              if (current.status !== 'evaluated' ||
+                !typedCmd.accepted_gaps.every(g => current.assessment.gaps.some(a =>
+                  a.id === g.gap_id && a.reason === g.reason &&
+                  a.status === 'accepted' && a.acceptance_receipt === approvalId))) return undefined;
+              return {
+                status: 'gaps_accepted', idempotent: true,
+                accepted_gaps: typedCmd.accepted_gaps,
+                decision_id: approvalId, assessment: current.assessment,
+              };
+            }));
+          if (recovered) return recovered;
+        } catch {
+          return {
+            status: 'blocked', code: 'closure_consistency_conflict',
+            razon: 'No fue posible verificar la autoridad histórica de las brechas.',
+          };
+        }
+      }
       if (selected.size === 0 || selected.size !== typedCmd.accepted_gaps.length ||
         typedCmd.accepted_gaps.some(g => !gapInventory.get(g.gap_id) ||
           gapInventory.get(g.gap_id)?.status !== 'unaddressed')) {
