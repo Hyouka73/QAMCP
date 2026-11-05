@@ -80,6 +80,7 @@ import {
 } from '@qap/reporter';
 
 import { getPhaseGuidance, buildInterviewNextAction, type SiguienteAccion } from './guidance.js';
+import { loadHostComposition } from './host-composition.js';
 import { ToolDispatcher, type IMcpToolHandler } from './dispatcher.js';
 import { TOOLS } from './tool-catalog.js';
 import { StatusHandler } from './handlers/status.handler.js';
@@ -3347,8 +3348,24 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
             };
           }
 
-          // Bloquear prioritariamente si existen módulos canónicos vinculados sin cierre seguro
-          const closureService = closures.get(rootDir);
+          // Canonical bindings cannot fall back to legacy closure, even if their
+          // privileged closure store was not composed or targetPath is an alias.
+          const canonicalRoot = realpathSync(rootDir);
+          const boundCanonical = (dependencies.knowledgeBindings ?? []).some(bound => {
+            try {
+              return realpathSync(bound.projectRoot) === canonicalRoot &&
+                Boolean(bound.moduleBindings?.length);
+            } catch { return false; }
+          });
+          const closureService = closures.get(canonicalRoot);
+          if (boundCanonical && !closureService) {
+            return canonicalResult({
+              status: 'blocked',
+              code: 'canonical_closure_store_required',
+              razon: 'El host vinculó módulos canónicos pero no configuró un almacén durable de cierre.',
+              desbloquear_con: { tool: 'qap_status', descripcion: 'Revisar la composición del host MCP.' },
+            }, true);
+          }
           if (closureService) {
             const check = await closureService.allModulesClosed();
             if (!check.allClosed) {
@@ -3563,11 +3580,22 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
   return server;
 }
 
-export async function startMcpServer(): Promise<void> {
-  const server = createMcpServer();
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  console.error('[QAP MCP Server] Servidor iniciado correctamente en transporte Stdio.');
+export async function startMcpServer(options?: McpServerOptions): Promise<void> {
+  // Programmatic hosts can inject independently owned review gateways. The
+  // standard Stdio entrypoint uses an explicit, host-owned manifest if present.
+  const composition = options
+    ? { options, close: () => undefined }
+    : await loadHostComposition();
+  try {
+    const server = createMcpServer(composition.options);
+    server.onclose = () => composition.close();
+    const transport = new StdioServerTransport();
+    await server.connect(transport);
+    console.error('[QAP MCP Server] Servidor iniciado correctamente en transporte Stdio.');
+  } catch (error) {
+    composition.close();
+    throw error;
+  }
 }
 
 const isMainModule =
