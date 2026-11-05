@@ -1,7 +1,8 @@
-import { randomBytes } from 'node:crypto';
-import { existsSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash, randomBytes } from 'node:crypto';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
@@ -96,6 +97,28 @@ describe('VNEXT-014 host-owned Stdio composition', () => {
       expect(binding?.moduleClosureReviewGateway).toBeUndefined();
       expect(existsSync(fixture.manifestPath)).toBe(true);
     } finally { composed.close(); }
+  });
+
+  it('RES-CODEX-A03 rejects empty existing Knowledge without provisioning or migration', async () => {
+    const fixture = await provision();
+    const path = fixture.manifest.knowledgeDbPath;
+    // Provision() closes its SQLite handle. Replace the existing DB with a
+    // zero-byte file; the host may inspect but must not initialize it.
+    writeFileSync(path, '');
+    const before = readFileSync(path);
+    const hash = createHash('sha256').update(before).digest('hex');
+    const size = statSync(path).size;
+    await expect(loadHostComposition(fixture.env))
+      .rejects.toThrow(/provisioned|schema v2/);
+    const after = readFileSync(path);
+    expect(statSync(path).size).toBe(size);
+    expect(after).toEqual(before);
+    expect(createHash('sha256').update(after).digest('hex')).toBe(hash);
+    const readOnly = new DatabaseSync(path, { readOnly: true });
+    try {
+      expect(readOnly.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all())
+        .toHaveLength(0);
+    } finally { readOnly.close(); }
   });
 
   it('rejects missing keys and stale pinned revisions without silently adopting a store', async () => {
