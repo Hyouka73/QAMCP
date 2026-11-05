@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -14,16 +14,18 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createMcpServer } from '../server.js';
 import { CanonicalInterviewService, type HumanReviewRequest, type HumanReviewDecision, type IHumanReviewGateway } from '../handlers/canonical-interview-service.js';
 import { ModuleObservationBridge, type BridgeContext } from '../handlers/module-observation-bridge.js';
+import { SqliteModuleClosureStore, type IModuleClosureStore } from '../handlers/module-closure-store.js';
 
 const time = '2026-10-30T12:00:00.000Z';
 const canary = 'PRIVATE_R3_UNTRUSTED_7b91';
 const trace = { source: 'synthetic', recorded_by: 'fixture', recorded_at: time, reason: 'Authorized synthetic fixture', review: 'unreviewed' as const, evidence_refs: [] };
-const roots: string[] = [], stores: SqliteKnowledgeAdapter[] = [];
+const roots: string[] = [], stores: SqliteKnowledgeAdapter[] = [], closureStores: SqliteModuleClosureStore[] = [];
 const connections: Array<{ client: Client; server: ReturnType<typeof createMcpServer> }> = [];
 afterEach(async () => {
   vi.restoreAllMocks();
   for (const c of connections.splice(0)) { await c.client.close(); await c.server.close(); }
   stores.splice(0).forEach(s => s.close());
+  closureStores.splice(0).forEach(s => s.close());
   roots.splice(0).forEach(root => rmSync(root, { recursive: true, force: true }));
 });
 
@@ -87,8 +89,9 @@ async function fixture(gateway?: IHumanReviewGateway) {
     await bridge.associate('catalog', receipt!);
     return { evidence, observations, receipt: receipt! };
   }
-  async function connect() {
-    const server = createMcpServer({ projectRoots: [root], knowledgeBindings: [{ ...context, store, humanReviewGateway: gateway }] });
+  async function connect(moduleClosureStore?: IModuleClosureStore) {
+    const server = createMcpServer({ projectRoots: [root], knowledgeBindings: [{ ...context, store, humanReviewGateway: gateway,
+      ...(moduleClosureStore ? { moduleClosureStore } : {}) }] });
     const client = new Client({ name: 'canonical-interview-test', version: '1' });
     const [a, b] = InMemoryTransport.createLinkedPair(); connections.push({ client, server });
     await server.connect(b); await client.connect(a);
@@ -168,6 +171,140 @@ describe('R3 canonical interview and independent host authorization', () => {
     expect((await f.store.query('a', 'requirement')).items).toHaveLength(0);
     expect(inbox.requests).toHaveLength(0);
     expect(existsSync(join(f.root, '.qa', 'modules', 'catalog', 'rules.yaml'))).toBe(false);
+  });
+
+  it('R4-R7-I01: proposal correction, independent host review and real canonical coverage', async () => {
+    const inbox = new ReviewInbox(), f = await fixture(inbox);
+    await f.associate();
+    const closureStore = new SqliteModuleClosureStore({
+      projectRoot: f.root, applicationId: 'a', environmentId: 'local',
+      path: join(f.root, 'closure.sqlite'), key: randomBytes(32),
+      protection: 'host_private_directory_and_managed_key', initialize: true,
+    });
+    closureStores.push(closureStore);
+    const mcp = await f.connect(closureStore);
+    const lifecycleBefore = readFileSync(f.lifecyclePath, 'utf8');
+    const rulesPath = join(f.root, '.qa', 'modules', 'catalog', 'rules.yaml');
+    const evaluate = () => mcp.invoke('qap_module_close', {
+      module: 'catalog', canonical_closure: { action: 'evaluate' },
+    });
+
+    const before = await evaluate();
+    expect(before).toMatchObject({
+      status: 'evaluated',
+      assessment: {
+        specification_coverage: { confirmed_requirements_count: 0, status: 'incomplete' },
+        execution_coverage: { status: 'not_executed', passed_count: 0 },
+      },
+    });
+    const question = (await mcp.call({ action: 'next' })).question as {
+      id: string; version: number; category: string;
+    };
+    expect(question).toMatchObject({ category: 'proposito', version: 0 });
+
+    const original = {
+      title: 'Consultar productos de catálogo',
+      description: 'Los usuarios autorizados deben consultar la lista de productos disponibles.',
+      category: 'functional' as const,
+    };
+    expect(await mcp.call({
+      action: 'propose', question_id: question.id, version: 0,
+      expected_revision: 0, proposal: original,
+    })).toMatchObject({ status: 'pending_review', question: { version: 1 } });
+
+    const firstReview = { action: 'review', question_id: question.id, version: 1 };
+    expect(await mcp.call(firstReview)).toMatchObject({
+      status: 'blocked', code: 'human_review_not_authorized',
+    });
+    expect(inbox.requests).toHaveLength(1);
+    const staleRequest = inbox.requests[0];
+    const pendingStatus = await mcp.invoke('qap_status');
+    expect(pendingStatus).toMatchObject({
+      siguiente_accion: { tool: 'qap_rules_set', canonical_interview: { action: 'next' } },
+      canonical_modules: [{ interview: { pending_proposals: 1, confirmed_requirements: 0 } }],
+    });
+    expect((await f.store.query('a', 'requirement')).items).toHaveLength(0);
+
+    const corrected = {
+      ...original,
+      description: 'Los usuarios autorizados deben consultar productos disponibles sin revelar información sensible.',
+      acceptance_criteria: [
+        'La consulta devuelve la lista de productos disponibles al usuario autorizado.',
+        'Los datos sensibles no aparecen en los resultados públicos.',
+      ],
+    };
+    expect(await mcp.call({
+      action: 'correct', question_id: question.id, version: 1,
+      expected_revision: 0, proposal: corrected,
+    })).toMatchObject({ status: 'corrected', question: { version: 2 } });
+
+    // A host approval for the old statement is not authorization for the correction.
+    inbox.decide(staleRequest);
+    const correctedReview = { action: 'review', question_id: question.id, version: 2 };
+    expect(await mcp.call(correctedReview)).toMatchObject({
+      status: 'blocked', code: 'human_review_not_authorized',
+    });
+    expect(inbox.requests).toHaveLength(2);
+    const revisedRequest = inbox.requests[1];
+    expect(revisedRequest.requestDigest).not.toBe(staleRequest.requestDigest);
+    expect(revisedRequest.proposal).toEqual(corrected);
+    expect((await f.store.query('a', 'requirement')).items).toHaveLength(0);
+
+    // Only the independent host's decision over the exact corrected digest may confirm.
+    inbox.decide(revisedRequest);
+    const confirmed = await mcp.call(correctedReview);
+    expect(confirmed).toMatchObject({ status: 'confirmed', revision: 1, coverage: 'not_certified' });
+    expect(await mcp.call(correctedReview)).toMatchObject({ status: 'confirmed', idempotent: true });
+    const requirementId = confirmed.requirement_id as string;
+    const saved = await f.store.get('a', 'requirement', requirementId);
+    expect(saved?.entity).toMatchObject({
+      module_key: 'catalog-key', validation_status: 'confirmed',
+      title: corrected.title, description: corrected.description,
+      category: corrected.category, acceptance_criteria: corrected.acceptance_criteria,
+      provenance: 'developer_interview',
+      verification_evidence: { mechanism: 'human_review', statement: revisedRequest.requestDigest },
+    });
+    expect(validateExpectedRequirement(saved!.entity).valid).toBe(true);
+    expect((await f.store.history('a', 'requirement', requirementId)).items).toHaveLength(1);
+    const approvalRelations = (await f.store.query('a', 'relation')).items.filter(r =>
+      r.trace.source === 'human_review_authorization_v1');
+    expect(approvalRelations).toHaveLength(1);
+    expect(approvalRelations[0].trace.reason).toBe(revisedRequest.requestDigest);
+    expect(approvalRelations[0].entity.target).toEqual({
+      kind: 'requirement', id: requirementId, revision: 1,
+    });
+    const reopened = new SqliteKnowledgeAdapter(f.path);
+    stores.push(reopened);
+    expect((await reopened.get('a', 'requirement', requirementId))?.entity).toEqual(saved!.entity);
+
+    const after = await evaluate();
+    expect(after).toMatchObject({
+      status: 'evaluated',
+      assessment: {
+        specification_coverage: {
+          confirmed_requirements_count: 1,
+          status: 'incomplete',
+        },
+        execution_coverage: { status: 'not_executed', passed_count: 0 },
+        closure_verdict: 'blocked_by_unknown_applicability',
+      },
+    });
+    expect(after.assessment.coverage_digest).not.toBe(before.assessment.coverage_digest);
+    expect(after.assessment.specification_coverage.category_statuses).toContainEqual(
+      expect.objectContaining({ category: 'functional', applicability: 'applicable', status: 'satisfied', confirmed_count: 1 }),
+    );
+    expect(after.assessment.gaps).toContainEqual(
+      expect.objectContaining({ category: 'security', absence_type: 'unknown_applicability', status: 'unaddressed' }),
+    );
+    const guided = await mcp.invoke('qap_status');
+    expect(guided.canonical_modules[0].interview).toMatchObject({
+      confirmed_requirements: 1, coverage: 'not_certified',
+    });
+    expect(guided.canonical_modules[0].closure).toMatchObject({
+      state: 'working', ready_for_closure: false,
+    });
+    expect(readFileSync(f.lifecyclePath, 'utf8')).toBe(lifecycleBefore);
+    expect(existsSync(rulesPath)).toBe(false);
   });
 
   it('real MCP + host inbox + physical SQLite: present, propose, approve, persist, read status, retry, reopen', async () => {
