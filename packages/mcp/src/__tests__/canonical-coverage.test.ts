@@ -726,6 +726,7 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
           modules: { catalog: { state: string; waived_reason?: string } };
         };
         prior.modules.catalog = {
+          ...prior.modules.catalog,
           state: 'waived', waived_reason: 'Renuncia autorizada con motivo sustantivo',
         };
         writeFileSync(f.lifecyclePath, JSON.stringify(prior), 'utf8');
