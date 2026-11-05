@@ -2,10 +2,12 @@
 
 **Estado:** preparación únicamente. **No se implementó ImpactAnalyzer.** GO técnico para desarrollo aislado ≠ GO para merge a develop.
 
-## Base y rama
+## Política de rama única (vigente desde 2026-11-05)
 
-- **SHA base:** `541c925a6c1194bc2c85ab5a42b2b54e66f4d82c` (HEAD de `feat/qap-vnext-architecture` auditado por Codex: Engine 168/168, Knowledge 258/258, build de 10 paquetes). Se elige un SHA auditado y no los commits de convergencia (`3434e45`, `299ad61`, `ca9b7ea`) para que 015 no herede ni mezcle commits correctivos de 014. Esos tres commits no son prerrequisito: no cambian `@qap/engine` y el cambio de `@qap/knowledge` (`FileSystemStorage`) es ortogonal al cálculo de impacto.
-- **Rama:** `feat/vnext-015-impact-analyzer` creada con `git switch -c feat/vnext-015-impact-analyzer 541c925a6c1194bc2c85ab5a42b2b54e66f4d82c`. Destino de PR: la rama vNext, nunca `develop`/`main`/`staging`.
+- **Rama operativa única de vNext:** `feat/qap-vnext-architecture`. Toda documentación, implementación y auditoría se publica directamente aquí, desde el HEAD remoto real. No crear ramas adicionales ni efectuar checkout de un SHA antiguo; no hacer reset/rebase para excluir correcciones previas de VNEXT-014.
+- **Antecedente auditado, NO base de implementación actual:** `541c925a6c1194bc2c85ab5a42b2b54e66f4d82c` (Engine 168/168, Knowledge 258/258, build 10 paquetes). El nombre `feat/vnext-015-impact-analyzer` y el comando de `git switch -c` propuestos inicialmente quedan **sustituidos** por esta decisión. No usar esos comandos.
+- **WBS obligatorio:** `docs/vnext/08_WBS_MICROTAREAS_Y_COMPUERTAS.md` en esta misma rama. Las microtareas 015-01/02 tienen alcance limitado a contrato y motor puro. No iniciar implementación sin autorización específica del bloque y de la política de inactivos propuesta.
+- **Aislamiento por archivos/commits, no por ramas:** no pisar cambios simultáneos de VNEXT-014; verificar HEAD y diff antes de cada commit; commits pequeños y evidencia física de Codex. No tocar `develop`/`main`/`staging`; sin merge hasta GO correspondiente.
 
 ## Alcance WBS (literal)
 
@@ -20,6 +22,14 @@ Paquetes `@qap/engine`, `@qap/knowledge`. Dependencias `VNEXT-003`, `VNEXT-009` 
 ## Prohibido
 
 No importar ni modificar `@qap/mcp` (`TestHandler`, `ReportHandler`, `qap_session_close`, compuertas de cierre, `CanonicalClosureService`), `@qap/playwright-runner`, ni cambiar contratos de VNEXT-014. No añadir dependencias nuevas (solo `@qap/engine`, `@qap/knowledge`, `@qap/shared`). No tocar `FileSystemStorage`.
+
+## Contratos y decisiones adicionales
+
+- `DomainModule.dependencies` puede contener IDs o keys únicos; `detectCycles(Map)` es reusable, no `validateDependencyGraph(CapabilityDefinition[])` directamente con `DomainModule`.
+- `FlowScenario.module_id` identifica el módulo; `prerequisites[].depends_on_flow_id` identifica dependencias entre flujos, reservadas a 015-04.
+- Un cursor de `IKnowledgeStore` se invalida ante commits intermedios; lectura multi-kind consistente no está garantizada, reservada a 015-03.
+- **Propuesta de inactivos pendiente de aprobación:** conservarlos para validación/traversal, diagnosticar y excluir de afectados, rechazar semillas inactivas, no seguir `superseded_by` automáticamente.
+- Las pruebas de SQLite/flow pertenecen a 015-03/04/05; para 015-01/02 solo algoritmo puro, tipos y suites focales.
 
 ## Pruebas mínimas
 
