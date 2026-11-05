@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 
-import type { IKnowledgeStore } from '@qap/engine';
+import { transitionModule, type IKnowledgeStore } from '@qap/engine';
 import { FileSystemStorage } from '@qap/knowledge';
 import {
   validateCanonicalClosureCommand,
@@ -139,22 +139,62 @@ export class CanonicalClosureService {
       // Ignorar si ya existía en caso de carrera legítima
     }
 
-    // 2. Verificar estado en FileSystemStorage lifecycle.json
+    // 2. Reconstruct only lifecycle fields proven by the durable host decision.
+    // A terminal module may already be waived but still lack its required reason
+    // after an interrupted write. That partial state must also be repaired.
     try {
-      const fsStorage = new FileSystemStorage({ rootDir: this.context.projectRoot });
-      const lifecycle = await fsStorage.getLifecycleState();
-      if (lifecycle.modules && lifecycle.modules[plannedName]) {
-        if (lifecycle.modules[plannedName].state !== closure.status) {
-          lifecycle.modules[plannedName].state = closure.status;
-          await fsStorage.saveLifecycleState(lifecycle);
-          reconciled = true;
-        }
-      }
+      if (await this.projectLifecycleClosure(plannedName, closure)) reconciled = true;
     } catch {
-      // Error no fatal durante reconciliación
+      // The durable decision remains authoritative; a later reconcile can retry
+      // without asking for another human approval.
     }
 
     return reconciled;
+  }
+
+  /**
+   * Materialize an already authorized durable closure into the legacy lifecycle.
+   * Never synthesize a waiver reason, approval or transition from crawler evidence.
+   * Replaying the same record is side-effect free once the projection is complete.
+   */
+  private async projectLifecycleClosure(plannedName: string, closure: ModuleClosureRecord): Promise<boolean> {
+    const waivedReason = closure.status === 'waived' && typeof closure.waiverReason === 'string'
+      ? closure.waiverReason.trim() : undefined;
+    if (closure.status === 'waived' && !waivedReason) return false;
+
+    const fsStorage = new FileSystemStorage({ rootDir: this.context.projectRoot });
+    const lifecycle = await fsStorage.getLifecycleState();
+    const current = lifecycle.modules?.[plannedName];
+    if (!current) return false;
+
+    if (current.state === closure.status) {
+      if (closure.status !== 'waived' || current.waived_reason === waivedReason) return false;
+      // Recovery of metadata only: do not fabricate a second terminal
+      // transition or retroactively invent a historical approval event.
+      current.waived_reason = waivedReason;
+      await fsStorage.saveLifecycleState(lifecycle);
+      return true;
+    }
+
+    // No terminal-to-terminal rewrite, even if a caller supplied a valid
+    // approval for another terminal state.
+    if (current.state === 'waived' || current.state === 'closed') return false;
+
+    if (closure.status === 'waived') {
+      const transition = transitionModule(lifecycle, plannedName, 'waived', {
+        waived_reason: waivedReason,
+        reason: waivedReason,
+      });
+      if (!transition.success) return false;
+      await fsStorage.saveLifecycleState(transition.state);
+      return true;
+    }
+
+    // Closed is decided by canonical coverage + host review; legacy lifecycle
+    // may still be in planned/observed rather than legacy consolidated.
+    current.state = 'closed';
+    await fsStorage.saveLifecycleState(lifecycle);
+    return true;
   }
 
   /**
@@ -734,16 +774,13 @@ export class CanonicalClosureService {
     }
 
 
-    // 3. Actualizar FileSystemStorage lifecycle.json
+    // 3. Project the exact durable host decision (including waiver reason).
+    // A failed FS write is recoverable via reconcile(), and does not turn a
+    // recorded waiver into an invented success at the session-close gate.
     try {
-      const fsStorage = new FileSystemStorage({ rootDir: this.context.projectRoot });
-      const lifecycle = await fsStorage.getLifecycleState();
-      if (lifecycle.modules && lifecycle.modules[plannedName]) {
-        lifecycle.modules[plannedName].state = status;
-        await fsStorage.saveLifecycleState(lifecycle);
-      }
+      await this.projectLifecycleClosure(plannedName, record);
     } catch {
-      // Ignorar error de FS si se está ejecutando en fixture puramente en memoria
+      // A later reconciliation will retry the projection.
     }
 
     return {
