@@ -1403,6 +1403,15 @@ describe('Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2)', () => {
         action: 'waive',
         reason: 'Renuncia formal para verificar rechazo de procedencia corrupta.',
       })).rejects.toThrow(/closure_receipt_provenance_invalid|provenance/);
+
+      // The forged receipt remains visibly invalid after reopening Knowledge,
+      // and the legacy lifecycle cannot be advanced by a rejected receipt.
+      const stored = await f.store.get('app-adv', 'relation', `waiver:${decisionId}`);
+      expect(stored?.entity.source.id).toBe('module-forged-attacker');
+      expect(stored?.trace.recorded_by).toBe('attacker');
+      const physical = JSON.parse(readFileSync(join(f.root, '.qa', 'project', 'lifecycle.json'), 'utf8'));
+      expect(physical.phase).toBe('WORKING');
+      expect(physical.modules.catalog.state).toBe('planned');
     });
   });
 
