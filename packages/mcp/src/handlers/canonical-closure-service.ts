@@ -8,6 +8,8 @@ import {
   type CanonicalCoverageAssessment,
   type CategoryApplicabilityDecision,
   type CanonicalGap,
+  type ExpectedRequirement,
+  validateExpectedRequirement,
 } from '@qap/shared';
 
 
@@ -34,6 +36,27 @@ export interface CanonicalClosureStatus {
   readonly accepted_gaps_count?: number;
   readonly ready_for_closure: boolean;
   readonly decision_id?: string;
+}
+
+export interface CanonicalSessionModuleReport {
+  readonly module: string;
+  readonly state: 'closed' | 'waived';
+  readonly decision_id: string;
+  readonly reviewer: string;
+  readonly decided_at: string;
+  readonly request_digest: string;
+  readonly coverage_digest: string;
+  readonly waiver_reason?: string;
+  readonly current_confirmed_requirements: ReadonlyArray<{
+    id: string; revision: number; title: string; category: string;
+  }>;
+  readonly current_pending_requirements_count: number;
+  readonly accepted_gaps: ReadonlyArray<{
+    id: string; category: string; reason: string; acceptance_receipt?: string;
+  }>;
+  readonly closure_accepted_gaps: ModuleClosureRecord['acceptedGaps'];
+  readonly applicability_decisions: readonly CategoryApplicabilityDecision[];
+  readonly closure_non_applicable_categories: ModuleClosureRecord['nonApplicableCategories'];
 }
 
 /**
@@ -282,6 +305,75 @@ export class CanonicalClosureService {
       accepted_gaps_count: a.specification_coverage.accepted_gaps_count,
       ready_for_closure: a.closure_verdict === 'ready_for_closure',
     };
+  }
+
+  /**
+   * Read a report projection from HOST-AUTHORIZED durable closure records. It
+   * deliberately does not re-evaluate a closed module (the discovery bridge
+   * forbids that) or claim that a requirement was tested at closure time.
+   * Current requirement inventory is labeled as such in the report.
+   */
+  async sessionReport(): Promise<readonly CanonicalSessionModuleReport[]> {
+    const scope = {
+      projectRoot: this.context.projectRoot,
+      applicationId: this.context.applicationId,
+      environmentId: this.context.environmentId,
+    };
+    const snapshot = this.closureStore.read(scope);
+    const reports: CanonicalSessionModuleReport[] = [];
+    const bindings = this.context.moduleBindings ?? [];
+    for (const binding of bindings) {
+      const closure = snapshot.closures[binding.plannedName];
+      if (!closure || !this.isAuthorizedDurableClosure(binding.plannedName, closure, snapshot) ||
+          closure.moduleId !== binding.moduleId || closure.moduleKey !== binding.moduleKey ||
+          closure.moduleRevision !== binding.moduleRevision) {
+        throw new Error('canonical_report_authorization_or_binding_invalid');
+      }
+      const requirements: CanonicalSessionModuleReport['current_confirmed_requirements'][number][] = [];
+      let pending = 0;
+      let cursor: string | undefined;
+      let scanned = 0;
+      do {
+        const page = await this.store.query(this.context.applicationId, 'requirement',
+          { limit: 100, ...(cursor ? { cursor } : {}) });
+        for (const record of page.items) {
+          const entity = record.entity as ExpectedRequirement;
+          if (entity.module_key !== binding.moduleKey || !entity.is_active || entity.superseded_by) continue;
+          const provenance = entity.provenance ?? entity.source;
+          if ((entity.validation_status ?? entity.status) === 'confirmed' &&
+              validateExpectedRequirement(entity).valid &&
+              !['observed_telemetry', 'crawler', 'active_probe'].includes(String(provenance))) {
+            requirements.push({ id: record.id, revision: record.revision,
+              title: entity.title, category: entity.category });
+          } else {
+            pending++;
+          }
+        }
+        scanned += page.items.length;
+        cursor = page.next_cursor;
+        if (cursor && scanned >= 1000) throw new Error('canonical_report_inventory_limit');
+      } while (cursor);
+      reports.push({
+        module: binding.plannedName,
+        state: closure.status,
+        decision_id: closure.decisionId,
+        reviewer: closure.reviewer,
+        decided_at: closure.decidedAt,
+        request_digest: closure.requestDigest,
+        coverage_digest: closure.coverageDigest,
+        waiver_reason: closure.waiverReason,
+        current_confirmed_requirements: requirements,
+        current_pending_requirements_count: pending,
+        accepted_gaps: (snapshot.acceptedGaps[binding.plannedName] ?? [])
+          .filter(gap => gap.status === 'accepted')
+          .map(gap => ({ id: gap.id, category: gap.category, reason: gap.reason,
+            acceptance_receipt: gap.acceptance_receipt })),
+        closure_accepted_gaps: closure.acceptedGaps ?? [],
+        applicability_decisions: snapshot.applicabilityDecisions[binding.plannedName] ?? [],
+        closure_non_applicable_categories: closure.nonApplicableCategories ?? [],
+      });
+    }
+    return reports;
   }
 
   /**
