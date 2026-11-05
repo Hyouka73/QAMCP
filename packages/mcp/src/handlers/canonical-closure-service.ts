@@ -522,21 +522,23 @@ export class CanonicalClosureService {
       // Revalidate the BASELINE digest under both fences. Only now may the
       // real approvalId create an accepted_gap with mandatory receipt.
       const persisted = await this.persistWithKnowledgeFence(plannedName, reviewReq, decision,
-        {}, (expectedSnapshot, contextFingerprint) =>
-          this.closureStore.transaction(scope, async snapshot => {
+        {}, async (expectedSnapshot, contextFingerprint) => {
+          // Derive the authoritative accepted_gap shape BEFORE opening ClosureStore
+          // transaction: CoverageService reads that store and cannot run while busy.
+          const validAccepted = await this.coverageService.evaluate(plannedName, {
+            acceptedGaps: typedCmd.accepted_gaps, decisionId: decision.approvalId,
+          });
+          if (validAccepted.status !== 'evaluated' ||
+            !typedCmd.accepted_gaps.every(g => validAccepted.assessment.gaps.some(a =>
+              a.id === g.gap_id && a.status === 'accepted' &&
+              a.acceptance_receipt === decision.approvalId))) {
+            throw new Error('closure_accepted_gaps_invalid');
+          }
+          return this.closureStore.transaction(scope, async snapshot => {
             if (digest(snapshot) !== expectedSnapshot) throw new Error('closure_context_changed');
             const currentIdentity = await this.bridge.resolve(plannedName);
             if (currentIdentity.status !== 'resolved' ||
               currentIdentity.fingerprint !== contextFingerprint) throw new Error('closure_context_changed');
-            const validAccepted = await this.coverageService.evaluate(plannedName, {
-              acceptedGaps: typedCmd.accepted_gaps, decisionId: decision.approvalId,
-            });
-            if (validAccepted.status !== 'evaluated' ||
-              !typedCmd.accepted_gaps.every(g => validAccepted.assessment.gaps.some(a =>
-                a.id === g.gap_id && a.status === 'accepted' &&
-                a.acceptance_receipt === decision.approvalId))) {
-              throw new Error('closure_accepted_gaps_invalid');
-            }
             if (snapshot.approvals.some(a => a[0] === decision.approvalId)) {
               throw new Error('closure_decision_reused');
             }
@@ -544,8 +546,9 @@ export class CanonicalClosureService {
             const existingGaps = snapshot.acceptedGaps[plannedName] ?? [];
             snapshot.acceptedGaps[plannedName] = [...existingGaps, ...acceptedGapsList];
             snapshot.approvals.push([decision.approvalId, reviewReq.requestDigest]);
-            return Promise.resolve(true);
-          }));
+            return true;
+          });
+        });
       if (typeof persisted !== 'boolean') return persisted;
 
       const freshEval = await this.coverageService.evaluate(plannedName);
