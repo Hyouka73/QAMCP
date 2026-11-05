@@ -1605,9 +1605,11 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
           title: 'Módulo B', certainty: 'confirmed', criticality: 'medium',
           dependencies: [], created_at: time, updated_at: time, is_active: true },
       }]);
-      const lifecycle = JSON.parse(readFileSync(f.lifecyclePath, 'utf8')) as typeof f.lifecycle;
-      lifecycle.modules = { ...lifecycle.modules,
-        'module-b': { state: 'planned', updated_at: time } };
+      const lifecycle = JSON.parse(readFileSync(f.lifecyclePath, 'utf8')) as {
+        modules: Record<string, { state: string; updated_at: string }>;
+        session: { plan: Array<{ module: string; path: string }> };
+      };
+      lifecycle.modules['module-b'] = { state: 'planned', updated_at: time };
       lifecycle.session.plan.push({ module: 'module-b', path: '/b' });
       writeFileSync(f.lifecyclePath, JSON.stringify(lifecycle));
       const moduleBindings: NonNullable<BridgeContext['moduleBindings']> = [
