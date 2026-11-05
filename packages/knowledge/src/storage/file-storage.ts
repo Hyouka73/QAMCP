@@ -213,6 +213,18 @@ export class FileSystemStorage implements IStorage {
    * - Sin módulos registrados -> phase ONBOARDING.
    * - Con módulos registrados -> phase WORKING y cada módulo en estado 'observed'.
    */
+  /**
+   * Coordinate canonical consent with every FileSystemStorage lifecycle writer.
+   * Lock order: lifecycle file -> Knowledge SQLite -> ClosureStore SQLite.
+   * No locks are held during independent human review. External raw filesystem
+   * writers that bypass FileSystemStorage are outside this host contract.
+   */
+  async withLifecycleFence<T>(operation: () => Promise<T>): Promise<T> {
+    const path = this.resolvePath('.qa/project/lifecycle.json');
+    if (!existsSync(path)) throw new Error('lifecycle_context_missing');
+    return this.withLock(path, operation);
+  }
+
   async getLifecycleState(): Promise<LifecycleState> {
     const lifecyclePath = '.qa/project/lifecycle.json';
     if (await this.exists(lifecyclePath)) {

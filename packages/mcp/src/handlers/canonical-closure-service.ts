@@ -437,9 +437,12 @@ export class CanonicalClosureService {
       // Persist only under a durable Knowledge fence; preserve host timestamp.
       const approvedDecisions = decisions.map(d => ({ ...d, decided_at: decision.decidedAt }));
       const persisted = await this.persistWithKnowledgeFence(plannedName, reviewReq, decision,
-        { applicabilityDecisions: decisions }, expectedSnapshot =>
-          this.closureStore.transaction(scope, snapshot => {
+        { applicabilityDecisions: decisions }, (expectedSnapshot, contextFingerprint) =>
+          this.closureStore.transaction(scope, async snapshot => {
             if (digest(snapshot) !== expectedSnapshot) throw new Error('closure_context_changed');
+            const currentIdentity = await this.bridge.resolve(plannedName);
+            if (currentIdentity.status !== 'resolved' ||
+              currentIdentity.fingerprint !== contextFingerprint) throw new Error('closure_context_changed');
             if (snapshot.approvals.some(a => a[0] === decision.approvalId)) {
               throw new Error('closure_decision_reused');
             }
@@ -462,8 +465,20 @@ export class CanonicalClosureService {
 
     // 6. Acción: accept_gaps
     if (typedCmd.action === 'accept_gaps') {
-      const evalRes = await this.coverageService.evaluate(plannedName, { acceptedGaps: typedCmd.accepted_gaps });
+      // Propose only, without a synthetic approval receipt. Existing gaps and
+      // their exact reasons become the request; authority is applied afterward.
+      const evalRes = await this.coverageService.evaluate(plannedName);
       if (evalRes.status !== 'evaluated') return evalRes;
+      const selected = new Set(typedCmd.accepted_gaps.map(g => g.gap_id));
+      const gapInventory = new Map(evalRes.assessment.gaps.map(g => [g.id, g]));
+      if (selected.size === 0 || selected.size !== typedCmd.accepted_gaps.length ||
+        typedCmd.accepted_gaps.some(g => !gapInventory.get(g.gap_id) ||
+          gapInventory.get(g.gap_id)?.status !== 'unaddressed')) {
+        return {
+          status: 'blocked', code: 'closure_gap_selection_invalid',
+          razon: 'Cada brecha debe existir, estar pendiente y aparecer una sola vez en la solicitud.',
+        };
+      }
 
       const reviewReq: ModuleClosureReviewRequest = {
         projectRoot: this.context.projectRoot,
@@ -496,20 +511,32 @@ export class CanonicalClosureService {
       const decision = await this.requestGatewayDecision(reviewReq);
       if ('status' in decision) return decision;
 
-      // Commit atómico rápido
-      const acceptedGapsList: CanonicalGap[] = evalRes.assessment.gaps
-        .filter(g => typedCmd.accepted_gaps.some(ag => ag.gap_id === g.id))
-        .map(g => ({
-          ...g,
-          absence_type: 'accepted_gap',
-          status: 'accepted',
-          acceptance_receipt: decision.approvalId,
-        }));
+      const acceptedGapsList: CanonicalGap[] = typedCmd.accepted_gaps.map(ag => ({
+        ...gapInventory.get(ag.gap_id)!,
+        reason: ag.reason,
+        absence_type: 'accepted_gap',
+        status: 'accepted',
+        acceptance_receipt: decision.approvalId,
+      }));
 
+      // Revalidate the BASELINE digest under both fences. Only now may the
+      // real approvalId create an accepted_gap with mandatory receipt.
       const persisted = await this.persistWithKnowledgeFence(plannedName, reviewReq, decision,
-        { acceptedGaps: typedCmd.accepted_gaps }, expectedSnapshot =>
-          this.closureStore.transaction(scope, snapshot => {
+        {}, (expectedSnapshot, contextFingerprint) =>
+          this.closureStore.transaction(scope, async snapshot => {
             if (digest(snapshot) !== expectedSnapshot) throw new Error('closure_context_changed');
+            const currentIdentity = await this.bridge.resolve(plannedName);
+            if (currentIdentity.status !== 'resolved' ||
+              currentIdentity.fingerprint !== contextFingerprint) throw new Error('closure_context_changed');
+            const validAccepted = await this.coverageService.evaluate(plannedName, {
+              acceptedGaps: typedCmd.accepted_gaps, decisionId: decision.approvalId,
+            });
+            if (validAccepted.status !== 'evaluated' ||
+              !typedCmd.accepted_gaps.every(g => validAccepted.assessment.gaps.some(a =>
+                a.id === g.gap_id && a.status === 'accepted' &&
+                a.acceptance_receipt === decision.approvalId))) {
+              throw new Error('closure_accepted_gaps_invalid');
+            }
             if (snapshot.approvals.some(a => a[0] === decision.approvalId)) {
               throw new Error('closure_decision_reused');
             }
@@ -640,7 +667,7 @@ export class CanonicalClosureService {
     request: ModuleClosureReviewRequest,
     decision: ModuleClosureReviewDecision,
     options: CoverageEvaluationOptions,
-    write: (closureSnapshotDigest: string) => Promise<T>,
+    write: (closureSnapshotDigest: string, contextFingerprint: string) => Promise<T>,
     requireReady = false
   ): Promise<T | { status: 'blocked'; code: string; razon: string }> {
     const blocked = (code: string, razon: string) => ({ status: 'blocked' as const, code, razon });
@@ -654,7 +681,13 @@ export class CanonicalClosureService {
       environmentId: this.context.environmentId,
     };
     try {
-      return await this.store.withWriteFence(this.context.applicationId, async () => {
+      const lifecycle = new FileSystemStorage({ rootDir: this.context.projectRoot });
+      return await lifecycle.withLifecycleFence(async () =>
+        this.store.withWriteFence!(this.context.applicationId, async () => {
+        const identity = await this.bridge.resolve(plannedName);
+        if (identity.status !== 'resolved') {
+          return blocked('closure_context_changed', 'La sesión o el módulo cambiaron antes del consentimiento.');
+        }
         const before = digest(this.closureStore.read(scope));
         const current = await this.coverageService.evaluate(plannedName, options);
         const after = digest(this.closureStore.read(scope));
@@ -668,8 +701,8 @@ export class CanonicalClosureService {
         if (!Number.isFinite(expiresAt) || Date.now() >= expiresAt) {
           return blocked('closure_review_expired', 'La autorización expiró antes de consumirse.');
         }
-        return await write(after);
-      });
+        return await write(after, identity.fingerprint);
+      }));
     } catch {
       return blocked('closure_consistency_conflict',
         'No fue posible garantizar el snapshot autorizado hasta el commit durable.');
@@ -769,7 +802,7 @@ export class CanonicalClosureService {
       try {
         const fenced = await this.persistWithKnowledgeFence(plannedName, request, decision,
           status === 'waived' ? { isWaived: true, waiverReason } : {},
-          expectedSnapshot => this.closureStore.transaction(scope, async snapshot => {
+          (expectedSnapshot, contextFingerprint) => this.closureStore.transaction(scope, async snapshot => {
           if (digest(snapshot) !== expectedSnapshot) throw new Error('closure_context_changed');
           if (Date.now() >= Date.parse(decision.expiresAt)) throw new Error('closure_review_expired');
           const existing = snapshot.closures[plannedName];
@@ -788,7 +821,8 @@ export class CanonicalClosureService {
           if (reCheck.status !== 'resolved') {
             throw new Error('closure_context_changed');
           }
-          if (reCheck.link.moduleRevision !== link.moduleRevision) {
+          if (reCheck.fingerprint !== contextFingerprint ||
+            reCheck.link.moduleRevision !== link.moduleRevision) {
             throw new Error('closure_revision_conflict');
           }
 
