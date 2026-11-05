@@ -434,13 +434,27 @@ export class CanonicalClosureService {
       const decision = await this.requestGatewayDecision(reviewReq);
       if ('status' in decision) return decision;
 
-      // Commit atómico rápido
+      // A delayed host decision is valid only for the exact canonical
+      // specification that produced the reviewed request.
+      const current = await this.coverageService.evaluate(plannedName, { applicabilityDecisions: decisions });
+      if (current.status !== 'evaluated' ||
+        current.assessment.coverage_digest !== reviewReq.coverageDigest) {
+        return {
+          status: 'blocked',
+          code: 'closure_context_changed',
+          razon: 'La cobertura o el contexto cambió mientras se esperaba la aprobación.',
+        };
+      }
+
+      // The audit timestamp must be the independent host's decision time,
+      // never the time of a previously pending review request.
+      const approvedDecisions = decisions.map(d => ({ ...d, decided_at: decision.decidedAt }));
       await this.closureStore.transaction(scope, snapshot => {
         if (snapshot.approvals.some(a => a[0] === decision.approvalId)) {
           throw new Error('closure_decision_reused');
         }
         const existingDecs = snapshot.applicabilityDecisions[plannedName] ?? [];
-        snapshot.applicabilityDecisions[plannedName] = [...existingDecs, ...decisions];
+        snapshot.applicabilityDecisions[plannedName] = [...existingDecs, ...approvedDecisions];
         snapshot.approvals.push([decision.approvalId, reviewReq.requestDigest]);
         return Promise.resolve();
       });
@@ -647,8 +661,11 @@ export class CanonicalClosureService {
       };
     }
 
+    const decidedAt = Date.parse(decision.decidedAt);
     const parsedExp = Date.parse(decision.expiresAt);
-    if (!Number.isFinite(parsedExp) || Date.now() > parsedExp) {
+    if (!Number.isFinite(decidedAt) || decidedAt > Date.now() ||
+      !Number.isFinite(parsedExp) || parsedExp <= decidedAt ||
+      Date.now() > parsedExp) {
       return {
         status: 'blocked',
         code: 'closure_review_expired',
