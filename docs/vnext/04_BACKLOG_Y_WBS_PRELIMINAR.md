@@ -473,3 +473,12 @@ Cero ejecución de pruebas ni ConformityAssessment en R5. **No inicia ni declara
 - **Dictamen: VNEXT-014 NO-GO; VNEXT-015 no iniciado.** No se certifican POSIX/otros volúmenes ni identidad universal SQLite por realpath/dev/ino. Rename/unlink abiertos siguen EBUSY en Windows. A closed+B waived+reporte fiel+WRAP_UP+replanificación con revisión humana auténtica permanece pendiente; gateways y requisitos de fixtures no certifican ese integrado.
 
 [Informe](auditorias/VNEXT-014-R4-R11/INFORME.md) · [Evidencia](auditorias/VNEXT-014-R4-R11/EVIDENCIA_CONCURRENCIA.md) · [Diferencial](auditorias/VNEXT-014-R4-R11/DIFERENCIAL_MCP.md) · [Siguiente bloque](auditorias/VNEXT-014-R4-R11/SIGUIENTE_BLOQUE_P0.md).
+
+
+### Continuidad VNEXT-014-D-R4-R12 (2026-11-05)
+
+- `014-R4-R12-01` P2: **implementado/QA pendiente** — A04 expiración de autorización al commit SQLite, validación tras último await y final síncrono, rollback sin falsa aprobación.
+- `014-R4-R12-02` P2: **implementado/QA pendiente** — A06 replay exacto de accept_gaps con aprobación almacenada y digest base reconstruido; no reutilizar recibos para motivo/ID/contexto diferente.
+- `014-R4-R12-03` P1/P2 verificación: dos nuevas pruebas focales, matriz completa Codex 478 MCP esperadas (baseline476), build10/coverage53/runner71/Interview44/Discovery59/stdio18/lint; comparar identidades exactas y reproducir demoras físicas.
+- `014-R4-R12-04` P0: **pendiente** — migrar 8 fixtures Memory a garantías SQLite, reconciliar 55 fallos históricos y cadena integrada real init→plan→Discovery→interview/review→A closed→B waived→reporte→WRAP_UP→replanificación, sin autoridad ficticia.
+- `014-R4-R12-05` Limitaciones: sustituir/renombrar SQLite bajo otros SO, writer raw fuera de fence y crash/energía entre Closure+Knowledge+FS no certificados. [Detalle](014H_R4_R12_EXPIRY_GAP_REPLAY.md).

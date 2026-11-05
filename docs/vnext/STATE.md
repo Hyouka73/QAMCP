@@ -1152,3 +1152,12 @@ Modo de integridad: `development` (Reemplazo genuino de `qap_test` por `TestHand
 - **Dictamen: VNEXT-014 NO-GO; VNEXT-015 no iniciado.** No se certifican POSIX/otros volúmenes ni identidad universal SQLite por realpath/dev/ino. Rename/unlink abiertos siguen EBUSY en Windows. A closed+B waived+reporte fiel+WRAP_UP+replanificación con revisión humana auténtica permanece pendiente; gateways y requisitos de fixtures no certifican ese integrado.
 
 [Informe](auditorias/VNEXT-014-R4-R11/INFORME.md) · [Evidencia](auditorias/VNEXT-014-R4-R11/EVIDENCIA_CONCURRENCIA.md) · [Diferencial](auditorias/VNEXT-014-R4-R11/DIFERENCIAL_MCP.md) · [Siguiente bloque](auditorias/VNEXT-014-R4-R11/SIGUIENTE_BLOQUE_P0.md).
+
+
+## VNEXT-014-D-R4-R12 — Guard de expiración al COMMIT y replay de gaps (2026-11-05)
+
+- Entrada: [auditoría R4-R11](auditorias/VNEXT-014-R4-R11/INFORME.md); código auditado `4bb22547349a407b1eeb2383e6981af5dd1db07a`. Baseline: build10 PASS, Coverage51/51, MCP413 PASS/63 FAIL de476, Interview44/44, Discovery59/59, Runner71/71 y lint histórico34/28.
+- R4-R11-A04: **implementado, pendiente de pruebas físicas**. Política de expiración al COMMIT durable; `AsyncLocalStorage` propagado por servicio, guard síncrono en ClosureStore tras último await y antes del COMMIT, rollback y respuesta `closure_review_expired`.
+- R4-R11-A06: **implementado, pendiente de pruebas físicas**. Reintento de brecha exacta acepta solo aprobación durable correlacionada con digest base reconstruido, misma razón e IDs, bajo fences; no solicita otro consentimiento, no duplica historia/recibos. Distinto motivo/digest/ID bloquea.
+- Dos pruebas focales nuevas agregadas, SIN ejecución certificada. Se mantienen 55 fallos históricos y ocho Memory sin fence; E0a/E1/E2/E3/Criterio9 y recorrido integrado real siguen pendientes.
+- **VNEXT-014 NO-GO; VNEXT-015 no iniciado.** [Nota R4-R12](014H_R4_R12_EXPIRY_GAP_REPLAY.md).
