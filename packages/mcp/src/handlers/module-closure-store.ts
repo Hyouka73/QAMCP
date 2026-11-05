@@ -48,7 +48,7 @@ export class ClosureStoreError extends Error {
 
 const commitDeadline = new AsyncLocalStorage<number>();
 
-export async function withClosureCommitDeadline<T>(deadlineMs: number, action: () => Promise<T>): Promise<T> {
+export function withClosureCommitDeadline<T>(deadlineMs: number, action: () => Promise<T>): Promise<T> {
   if (!Number.isFinite(deadlineMs)) throw new ClosureStoreError('authorization_expired');
   return commitDeadline.run(deadlineMs, action);
 }

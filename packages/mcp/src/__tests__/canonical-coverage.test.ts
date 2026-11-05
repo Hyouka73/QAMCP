@@ -837,8 +837,9 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
       expect(approvals).toBe(1);
       expect(f.closureStore.read(f.context)).toEqual(before);
 
-      await f.closureStore.transaction(f.context, async snapshot => {
+      await f.closureStore.transaction(f.context, snapshot => {
         snapshot.approvals[0][1] = 'digest-corrupto';
+        return Promise.resolve();
       });
       const tampered = f.closureStore.read(f.context);
       const denied = await f.closureService.execute('catalog', { action: 'accept_gaps', accepted_gaps: selected });
