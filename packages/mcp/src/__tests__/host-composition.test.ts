@@ -108,6 +108,37 @@ describe('VNEXT-014 host-owned Stdio composition', () => {
     await expect(loadHostComposition(fixture.env)).rejects.toThrow();
   });
 
+  it('only wires explicitly host-approved pinned Discovery consent; rejects missing acknowledgement', async () => {
+    const fixture = await provision();
+    const policy = {
+      read_only_acknowledged: true,
+      environmentRevision: 1,
+      navigation_urls: ['https://example.invalid/'],
+      allowed_ips: [],
+      allow_public_network: false,
+      limits: { max_pages: 1 },
+    };
+    writeFileSync(fixture.manifestPath,
+      JSON.stringify({ ...fixture.manifest, discoveryAuthorization: policy }));
+    const composed = await loadHostComposition(fixture.env);
+    try {
+      expect(composed.options.discoveryAuthorizations).toHaveLength(1);
+      expect(composed.options.discoveryAuthorizations?.[0].authorization.navigation_urls)
+        .toEqual(['https://example.invalid/']);
+      expect(composed.options.discoveryAuthorizations?.[0].authorization.allow_public_network)
+        .toBe(false);
+      expect(composed.options.discoveryAuthorizations?.[0].authorization.allowed_ips).toEqual([]);
+    } finally { composed.close(); }
+    writeFileSync(fixture.manifestPath,
+      JSON.stringify({ ...fixture.manifest,
+        discoveryAuthorization: { ...policy, read_only_acknowledged: false } }));
+    await expect(loadHostComposition(fixture.env)).rejects.toThrow();
+    writeFileSync(fixture.manifestPath,
+      JSON.stringify({ ...fixture.manifest,
+        discoveryAuthorization: { ...policy, environmentRevision: 2 } }));
+    await expect(loadHostComposition(fixture.env)).rejects.toThrow();
+  });
+
   it('fails closed when canonical modules have no durable closure store', async () => {
     const fixture = await provision();
     const composed = await loadHostComposition(fixture.env);
