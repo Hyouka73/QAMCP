@@ -1,31 +1,29 @@
-Eres el ingeniero responsable de implementar VNEXT-015 (ImpactAnalyzer) de QAMCP de forma aislada y autónoma.
+# QAMCP — VNEXT-015, prompt operativo VIGENTE (rama única)
 
-## Repositorio y rama
-- Repositorio: `Hyouka73/QAMCP`.
-- SHA base obligatorio: `541c925a6c1194bc2c85ab5a42b2b54e66f4d82c` (HEAD auditado de `feat/qap-vnext-architecture`). Verifica con `git ls-remote` que existe; no uses un HEAD posterior.
-- Crea y trabaja en la rama `feat/vnext-015-impact-analyzer` (`git switch -c feat/vnext-015-impact-analyzer 541c925a6c1194bc2c85ab5a42b2b54e66f4d82c`) en un worktree/clon limpio. No modifiques `main`, `develop`, `staging` ni `feat/qap-vnext-architecture`. Sin merges, sin force-push, sin publicar npm. No toques archivos personales, bases reales, sesiones protegidas (`packages/playwright-runner/.qa/cache/sessions/admin-user.json`) ni credenciales.
+**Política ratificada 2026-11-05:** trabajar exclusivamente en `feat/qap-vnext-architecture` desde su HEAD remoto vigente. NO crear `feat/vnext-015-impact-analyzer`, ramas de documentación, auditoría ni implementación. El SHA `541c925a6c1194bc2c85ab5a42b2b54e66f4d82c` es solo una referencia auditada histórica, NO una base de checkout. NO descartar los commits correctivos de VNEXT-014. No tocar `main`, `develop`, `staging` ni publicar npm o hacer force-push.
 
-## Alcance (WBS VNEXT-015)
-Paquetes `@qap/engine` y `@qap/knowledge`. Dependencias VNEXT-003 y VNEXT-009 (completas). Construir `ImpactAnalyzer` que calcule los módulos y flujos dependientes afectados en el DAG ante cambios (blast radius). Lee antes `docs/vnext/04_BACKLOG_Y_WBS_PRELIMINAR.md` (entrada VNEXT-015), `AGENTS.md` y `docs/vnext/implementaciones/VNEXT-014-CONVERGENCIA/PREPARACION_VNEXT-015.md`.
+**Leer ANTES de empezar:** `docs/vnext/08_WBS_MICROTAREAS_Y_COMPUERTAS.md`, `docs/vnext/implementaciones/VNEXT-014-CONVERGENCIA/PREPARACION_VNEXT-015.md`, `AGENTS.md`, contratos reales `IKnowledgeStore`, `DomainModule`, `FlowScenario` y `cycle-detector.ts`. Si `git ls-remote` falla, consultar HEAD en GitHub y documentar el límite sin inventar estado local.
 
-## Aislamiento (innegociable)
-- NO importes ni modifiques `@qap/mcp` (`TestHandler`, `ReportHandler`, `qap_session_close`, compuertas de cierre, servicios canónicos de closure), ni `@qap/playwright-runner`.
-- Solo dependencias de `@qap/engine`, `@qap/knowledge` y `@qap/shared`; no añadas paquetes nuevos.
-- No modifiques `FileSystemStorage` ni los commits correctivos de VNEXT-014 (`3434e45`, `299ad61`, `ca9b7ea`). No dependas de la certificación de 014: sus 63 pruebas MCP históricas fallidas, la revisión humana y E01 son riesgos ajenos a este trabajo.
-- No implementes `qap_advisor` (VNEXT-016) ni integración MCP.
+**Permiso de implementación:** este prompt solo instruye `VNEXT-015-01` y `VNEXT-015-02`, sujetos a autorización del responsable. No ejecutar 015-03/04/05 ni 016.
 
-## Diseño
-1. Inspecciona `packages/engine/src/knowledge-store.port.ts` (`IKnowledgeStore`, módulos, flows, relations, `KnowledgeStoreError`) y `packages/knowledge/src/graph/dependency-graph.ts` y `cycle-detector.ts`. Reutiliza `detectCycles`/`validateDependencyGraph` en vez de duplicar lógica.
-2. Define en `@qap/engine` un puerto/tipos puros (`ImpactAnalyzer`, `ImpactRequest { changedModules, includeFlows?, maxDepth? }`, `ImpactResult { affectedModules[{id, distance, via}], affectedFlows[], unknown[], cycles[] }`) y la implementación de cálculo puro sobre un grafo de entrada (sin I/O). Resultado determinista (orden estable, sin duplicados), entradas sin mutar.
-3. En `@qap/knowledge`, un adaptador que construya el grafo desde `IKnowledgeStore` en modo solo lectura (módulos activos, `dependencies`, flows que referencian módulos) y delegue al analizador. Sin escrituras ni cambios de revisión.
-4. Semántica: impacto = cierre transitivo INVERSO de dependencias (quién depende, directa o indirectamente, de lo que cambió). Ciclos → error tipado determinista con el ciclo; dependencias a nodos inexistentes se reportan en `unknown`, no se ignoran; módulos inactivos se excluyen del resultado pero se reportan; cambios en módulo desconocido → error tipado.
+## 015-01 — Contratos puros en Engine
 
-## Pruebas obligatorias (reales, sin mocks del analizador)
-DAG vacío, nodo aislado, cadena, diamante, múltiples raíces; dependencias directas/transitivas inversas; ciclo (rechazo + ciclo identificado, sin bucle infinito); módulo cambiado / conjunto / inactivo / desconocido; blast radius por módulo y por flujo con distancia y orden estable; ejecución contra `SqliteKnowledgeAdapter` real (archivo temporal) verificando que no hay escrituras; determinismo y no mutación.
+Crear `packages/engine/src/impact-contract.ts`, export mínimo desde `packages/engine/src/index.ts`. Tipos para application_id, semillas ID/key, afectados, distancia, rutas explicables, referencias desconocidas, ciclos, ambiguos, inactivos y completitud. No I/O ni dependencia inversa Engine→Knowledge.
 
-## Verificación y publicación
-- `pnpm install --frozen-lockfile`, `pnpm run build` (10 paquetes), `pnpm --filter @qap/engine test` (≥168 y sin eliminar pruebas), `pnpm --filter @qap/knowledge test` (≥258+), y ESLint global: cero identidades nuevas frente a la línea base 34 errores / 28 advertencias (sin `eslint-disable`, sin cambiar la configuración).
-- Confirma que `git diff 541c925..HEAD --stat` no contiene archivos de `packages/mcp` ni `packages/playwright-runner`.
-- Commits pequeños y coherentes; antes de cada uno revisa el diff y que no haya secretos o archivos personales. Publica la rama `feat/vnext-015-impact-analyzer`.
-- Documenta en `docs/vnext/implementaciones/VNEXT-015/INFORME.md` (SHAs, comandos, resultados reales, límites). Actualiza `docs/vnext/STATE.md` y el WBS solo de forma aditiva, sin cambiar estados de tareas terminadas. No declares PASS de verificaciones que no ejecutaste.
-- Veredicto final: GO/NO-GO técnico de VNEXT-015. Indica explícitamente que NO es GO de merge a develop.
+## 015-02 — Analizador puro en Knowledge
+
+Crear `packages/knowledge/src/impact/impact-analyzer.ts` y `packages/knowledge/test/impact-analyzer.test.ts`; export controlado desde `packages/knowledge/src/index.ts`, conservando los existentes.
+
+Entrada: arreglo de módulos YA leídos; no `IKnowledgeStore.query`, no SQLite, no escrituras. Normalizar ID/key con unicidad, detectar ambigüedad, construir arco módulo→dependencia y calcular impacto INVERSO (quién depende de lo cambiado), con rutas, profundidad, dedup y orden determinista. Reutilizar `detectCycles(Map)`; `validateDependencyGraph` recibe `CapabilityDefinition[]`, NO `DomainModule[]`. No inventar nodos ni mutar entradas.
+
+**Política propuesta de inactivos, pendiente de aprobación junto con el bloque:** conservarlos para validar y recorrer, diagnosticarlos y excluirlos de módulos afectados; rechazar semillas inactivas; no seguir automáticamente `superseded_by`.
+
+## Exclusiones
+
+Prohibido modificar `@qap/mcp`, TestHandler, ReportHandler, qap_session_close, `@qap/playwright-runner`, `FileSystemStorage`, SQLite y servicios de VNEXT-014. No crear otro motor Knowledge, ejecución, inferencia o cobertura. VNEXT-014 conserva NO-GO y sus 63 identidades históricas.
+
+## Pruebas y publicación
+
+Casos: vacío, aislado, cadena, diamante, cambios múltiples, IDs/keys, ambiguos, faltantes, inactivos, ciclos, no mutación y determinismo. Ejecutar `pnpm run build`, `pnpm --filter @qap/engine test`, `pnpm --filter @qap/knowledge test` y lint diferencial cuando el entorno lo permita. Codex valida físicamente, ChatGPT/Gemini revisa contratos/diff. Commits pequeños directamente sobre `feat/qap-vnext-architecture` después de confirmar HEAD/diff, sin pisar cambios ajenos. Documentar SHAs y pruebas en `docs/vnext/implementaciones/VNEXT-015/INFORME.md`. No declarar PASS sin evidencia ni declarar VNEXT-015 terminado tras solo 015-01/02.
+
+**Se sustituye la versión anterior de este prompt que exigía crear una rama y trabajar desde un SHA antiguo.**
