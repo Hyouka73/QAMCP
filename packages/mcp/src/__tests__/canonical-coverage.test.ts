@@ -1532,6 +1532,56 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
       expect(report).toContain(approvedReason.trim());
     });
 
+    it('VNEXT-014 rescue: session report prefers durable canonical authorization, not legacy rules or synthetic execution', async () => {
+      // Controlled gateway and synthetic requirements test the integration ONLY;
+      // they are not evidence of genuine human approval.
+      const gateway: IModuleClosureReviewGateway = {
+        reviewClosure: async request => makeDecision(request, 'approve'),
+      };
+      const f = await fixture({
+        gateway,
+        confirmedReqs: [{
+          category: 'functional',
+          title: 'Consultar expediente validado',
+          criteria: ['La consulta requiere autorización previa'],
+        }],
+        observationalReqs: [{
+          category: 'functional',
+          title: 'Hipótesis no confirmada por crawler',
+        }],
+      });
+      const reason = 'Renuncia documentada por gateway controlado para integración reproducible';
+      const waived = await f.closureService.execute('catalog', { action: 'waive', reason });
+      expect(waived.status).toBe('waived');
+      const before = f.closureStore.read(f.context);
+      const client = await mcpClient(f, {
+        reviewClosure: async () => { throw new Error('No second approval should be needed.'); },
+      });
+      const result = await client.callTool({
+        name: 'qap_session_close', arguments: { targetPath: f.root },
+      });
+      const payload = JSON.parse((result.content[0] as { text: string }).text) as {
+        status: string; fase: string; report_path: string;
+        brechas_detectadas: number | null;
+        cierre_canonico: { modulos_waived: number; requisitos_confirmados_actuales: number; cobertura_ejecucion: string };
+      };
+      expect(payload).toMatchObject({
+        status: 'success', fase: 'WRAP_UP', brechas_detectadas: null,
+        cierre_canonico: {
+          modulos_waived: 1, requisitos_confirmados_actuales: 1,
+          cobertura_ejecucion: 'not_certified_by_session_report',
+        },
+      });
+      const report = readFileSync(payload.report_path, 'utf8');
+      expect(report).toContain('Reporte de cierre canónico de sesión');
+      expect(report).toContain(reason);
+      expect(report).toContain('Consultar expediente validado');
+      expect(report).not.toContain('Hipótesis no confirmada por crawler');
+      expect(report).toContain('Cobertura de ejecución');
+      expect(report).toContain('no certificada');
+      expect(f.closureStore.read(f.context)).toEqual(before);
+    });
+
     it('qap_status reports honest canonical coverage and closure indicators without false 100%', async () => {
       const f = await fixture();
       const client = await mcpClient(f);
