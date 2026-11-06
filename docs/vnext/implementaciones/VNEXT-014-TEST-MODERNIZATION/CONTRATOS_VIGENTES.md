@@ -1,5 +1,26 @@
 # Contratos vigentes y equivalencia del Lote 1
 
+## Reconciliación R3 — diferencias contractuales explícitas
+
+**Verificación:** R3 es implementación y diseño de aserciones, no evidencia física nueva. El único resultado independiente posterior a R1 es R2 (24/24 en `92579eb`). No se transfieren PASS a R3.
+
+| Identidad | Contrato antiguo | Contrato canónico y comprobación R3 | Resto / equivalencia |
+| --- | --- | --- | --- |
+| TM-34 | Bloqueo por diferencia literal de categoría pregunta/requisito | `canonical_interview` permite categoría formal explícita distinta de la categoría didáctica, pero no escribe sin host; rechaza ID/módulo/categoría inválida. | B: autoridad preservada, literal antiguo incompatible. Sin PASS R3. |
+| TM-35/38 | Borrador `user_text`, regla `user_confirmed` y cobertura | Snapshot de propuesta `pending_review` y restore SQLite; Knowledge guarda requisito `developer_interview` confirmado, recibo independiente y categorías no aplicables revisadas; `specification_coverage=complete` no implica `execution_coverage` ejecutada. | B: no se crea `rules.yaml`; R3 no físico. |
+| TM-41..43 | Campo `extraccion_vacia` para página sin controles | `DiscoveryHandler` presenta `counts.controls/forms/views`, `limitations`, `next_safe_action` y observaciones; HTML pasivo válido puede tener cero controles pero extracción `completed` y evidencia útil. | B parcial: aviso literal no contractual, si se exigiera requiere decisión explícita. |
+| TM-44 | Nombre acentuado → slug y archivos `pending_questions` | `normalizeSlug` y bloqueo fuera del plan son reales; preguntas persisten en drafts canónicos asociados por binding, no por directorios legacy. | Equivalencia parcial: falta positivo plan/binding con acento. |
+| TM-48 | `module-view.schema.json` rechaza contexto inválido | Se valida identidad y autorización por separado: binding/revisión canónicos, allowlist de URL exacta, fase/módulo y prohibición de argumentos de credenciales; R3 prueba negativos y cero escrituras. | B parcial: faltan negativos de revisión Environment obsoleta y otros contextos host incompatibles. |
+| TM-46 | `qap_plan`/`qap_test` devuelven `en_desarrollo` | Implementaciones existentes: generación DAG de casos, fingerprint y `plan.json`, preflight de integridad, ejecución Playwright autorizada, evidencia persistida. Test R3 incluye éxito y plan obsoleto. | B: positivo ejecutable, NO PASS físico ni E2E completo del host. |
+| TM-52 | Discovery promueve `planned→observed` | Discovery conserva lifecycle y agrega observaciones/relaciones revisables; compuertas de fase, módulo y URL no se degradan. | B: transición automática retirada por seguridad. |
+| TM-53 | Legacy sin contexto de negocio deriva WORKING y permite Discovery | Lectura `qap_status` derivada se conserva sin modificar legado; una identidad legacy no da por sí misma autorización de adquisición o binding canónico. | A+B parcial; validar readback y bloqueo R3. |
+| TM-54 | Onboarding → SCOPING → WORKING → Discovery con `entrevista_vista` | `qap_init`, `qap_context_ingest`, `qap_context_set`, `qap_session_plan`, `qap_discover` real; la entrevista canónica es separada. | B: fases reales sin aprobación implícita. |
+| TM-55 | `qap_rules_set` guarda reglas YAML y transiciona observed/interviewing | `canonical_interview` + gateway host + requisito SQLite + cobertura/aplicabilidad + cierre aprobado. Lifecycle cambia solo por acciones explícitas de cierre. | B: revisión independiente, no reglas inferidas. |
+| TM-50 | `session_saved` con login autenticado | Modo `fresh_anonymous_static` nunca carga `storageState` del cliente; `authentication_not_supported` es rechazo, no login exitoso. | C: positivo ausente; no se elimina el test legacy. |
+
+Las once identidades de autenticación están clasificadas individualmente en `PENDIENTES.md` (TM-13..19, TM-27, TM-30..32). A/B son garantías o sustituciones parciales, no certificados de login. C requiere decisión de producto y contrato host; no se construye navegador autenticado indirectamente por tests. TM-23 conserva negativo seguro sin fingir sus campos `auth_required/session_invalid/razon/directorio_objetivo` retirados. Las cuatro acciones visibles de la pregunta canónica son `propose`, `correct`, `defer` y `review`; `next`/`resume` son comandos, no opciones de la pregunta.
+
+
 Intervención autorizada por el responsable el 2026-11-06. Base remota y local comprobada: `794dc0d2fe1fb85dd1f9fb0c211b9b35346ac747`, rama única `feat/qap-vnext-architecture`. Esta autorización permite sustituir representaciones legacy demostrablemente reemplazadas; no autoriza suprimir garantías ni certificar VNEXT-014 con gateways sintéticos.
 
 ## Fuentes contrastadas
