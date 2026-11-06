@@ -200,7 +200,7 @@ describe('TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4
     const barrier = new Promise<void>(resolve => { resume = resolve; });
     pendingInvocations.push(barrier.then(release));
     const draining = drainTestFixtures();
-    let second = '';
+    let second: string;
     try {
       expect(existsSync(join(first, '.qa/cache/locks/orders.lock'))).toBe(true);
       second = initProject(localServerUrl);
