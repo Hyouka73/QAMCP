@@ -9,3 +9,7 @@ La verificación técnica del Lote 1 se limita a sus tests reales y al diferenci
 **Estabilidad paralela del propio Lote 1: NO-GO.** En una suite MCP con paralelismo predeterminado pasan 4/10 casos lifecycle; seis exceden 5000 ms. La modernización semántica queda comprobada en serie y la aceptación paralela permanece abierta dentro de E01. No se cambia configuración para certificarla artificialmente.
 
 Próxima unidad autorizada: Lote 2 Discovery P3. La publicación de esta familia no cambia estados históricos terminados, fechas objetivo ni compuertas de integración.
+
+## Actualización 2026-11-06
+
+**Sigue NO-GO.** P3 (cinco) y P4.2 (dos) están implementadas en `df781fd`/`95b3314` pero sin ejecución física. Restan 43 identidades sin modernizar, además de ejecutar físicamente las siete nuevas y resolver E01. El total oficial 456/50/506 corresponde al HEAD histórico `6062dcb`, **no** a los commits nuevos. No enviar todavía prompt de certificación independiente ni proponer merge; ninguna compuerta oficial se considera aprobada.

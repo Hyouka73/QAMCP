@@ -71,3 +71,7 @@ Las corridas completas MCP devuelven exit 1 por los fallos activos; los JSON con
 - Garantías no certificadas: los 50 históricos restantes, estabilidad paralela (incluido lifecycle), drenaje E01 bajo carga, revisión humana auténtica y compuertas oficiales.
 
 Los logs originales contienen CRLF y Git aplica su filtro al publicarlos. [evidence-index.json](evidencia/evidence-index.json) distingue SHA256 del archivo bruto local y SHA256 de los bytes realmente staged/publicados. Los hashes de verification-manifest son de logs brutos. Las fuentes de scripts y los intentos fallidos permanecen disponibles para reproducir la comparación.
+
+## Actualización aditiva posterior — P3/P4.2 (sin mediciones nuevas)
+
+A partir de HEAD `6062dcb2939135a772f20852bc8a7c978de73ca5`, se publicaron implementaciones P3 `df781fdb2bf8b54c279b3faac2dfd6edec785970` y P4.2 `95b33146b0228578ff48291fce646c2dc947c9c9`. Se trasladaron siete fullNames históricos a suites sin mocks. No se ejecutaron focales, MCP integral, TypeScript, ESLint ni navegador sobre esos SHAs. Todas las cifras anteriores corresponden a las ejecuciones históricas expresamente descritas; **no son resultados de estos commits**. Mantener NO-GO hasta pruebas físicas, contraste por identidad y certificación independiente. No se modificó E01 ni se ajustaron límites de tiempo.

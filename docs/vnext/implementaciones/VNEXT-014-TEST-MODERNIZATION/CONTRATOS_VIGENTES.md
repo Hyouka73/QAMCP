@@ -33,3 +33,19 @@ Estas sustituciones se apoyan en contratos productivos ya existentes y en la ins
 ## Límites de esta entrega
 
 Los inboxes solo ejercitan la frontera del gateway: no representan aprobación de una persona real. La atestación `host_private_directory_and_managed_key` pertenece al fixture temporal; no certifica la administración de claves del host desplegado. PRAGMA y reapertura prueban los archivos de la ejecución; no hay transacción ACID común entre Knowledge, drafts, closure y filesystem. La estabilidad global/E01 y los lotes 2–7 permanecen separados.
+
+## Acta aditiva — P3 y P4.2 (código publicado, NO certificado)
+
+| ID | Representación retirada | Garantía vigente conservada | Prueba canónica |
+| --- | --- | --- | --- |
+| TM-06 | status/entrevista_vista legacy | Discovery produce adquisición/identidad/asociación, cuentas sanitizadas y fresh_anonymous_static; la pregunta se solicita separadamente a canonical_interview.next. | `p3-canonical-discovery.test.ts T6` |
+| TM-07 | rules.yaml como fuente de verdad | Cada adquisición conserva observaciones de ejecución únicas; el re-discovery no reescribe requisito confirmado, historial ni crea rules.yaml. | `p3-canonical-discovery.test.ts T7` |
+| TM-08 | mock PlaywrightAdapter y decision ficticia | Error de lanzamiento de Chromium debe terminar sin adquirir/guardar hechos ni inventar reglas; estado no completado. | `p3-canonical-discovery.test.ts T9` |
+| TM-09 | status/entrevista_vista legacy | Status sugiere Discovery para planned; canonical_interview.next durante especificación abierta; luego siguiente módulo tras cierre durable. | `p3-canonical-discovery.test.ts T14` |
+| TM-10 | status/entrevista_vista legacy | Onboarding y plan → Discovery → entrevista canónica → revisión → cobertura → cierre aprobado → siguiente módulo. | `p3-canonical-discovery.test.ts T15` |
+| TM-11 | entrevista_vista embebida en Discovery | Preguntas de onboarding/decisión estructuradas, entrevista canónica en question, sin campos top-level aplanados. | `p4-2-canonical-contract.test.ts Criterio 4.4` |
+| TM-12 | entrevista_vista embebida en Discovery | Validador Pregunta para onboarding/WRAP_UP; canonical_interview.next ofrece Question con opciones y revisión; cierre host. | `p4-2-canonical-contract.test.ts Criterio 6` |
+
+Estas pruebas están segregadas en módulos nuevos porque los archivos P3/P4.2 históricos **hoistan** mocks del adapter y handlers privados; mezclarlos con un crawler real falsearía la comprobación. El nuevo arnés usa `createLifecycleFixture`, MCP SDK, SQLite y un gateway sintético independiente. El fixture acepta exclusivamente un executable_path explícito para verificar falla real de lanzamiento de navegador sin cambiar configuración productiva. La adquisición repetida no se declara idempotente como operación completa: cada ejecución puede agregar evidencias/observaciones nuevas; las invariantes son no duplicación de identidad dentro de una lectura, inmutabilidad de requisitos y ausencia de promoción automática.
+
+**No extrapolar:** hasta ejecutar Vitest estas garantías son objetivos ejecutables escritos, no resultados físicos; no acreditan consentimiento humano auténtico. Las pruebas históricas que ya aprobaban permanecen intactas en sus módulos originales.

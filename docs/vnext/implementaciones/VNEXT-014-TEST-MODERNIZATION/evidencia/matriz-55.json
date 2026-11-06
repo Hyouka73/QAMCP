@@ -213,7 +213,14 @@
         "first_error": "TypeError: Cannot read properties of undefined (reading 'tipo')\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/p3-verification.test.ts:330:36\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "modernization": {
+      "status": "code_published_unverified",
+      "contract": "Discovery produce adquisición/identidad/asociación, cuentas sanitizadas y fresh_anonymous_static; la pregunta se solicita separadamente a canonical_interview.next.",
+      "replacement": "p3-canonical-discovery.test.ts T6",
+      "guarantees": "Sin promoción DOM; respuesta sin preguntas legacy; host propone revisión independiente.",
+      "code_commit": "df781fdb2bf8b54c279b3faac2dfd6edec785970"
+    }
   },
   {
     "id": "TM-07",
@@ -249,7 +256,14 @@
         "first_error": "AssertionError: expected false to be true // Object.is equality\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/p3-verification.test.ts:351:35\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "modernization": {
+      "status": "code_published_unverified",
+      "contract": "Cada adquisición conserva observaciones de ejecución únicas; el re-discovery no reescribe requisito confirmado, historial ni crea rules.yaml.",
+      "replacement": "p3-canonical-discovery.test.ts T7",
+      "guarantees": "SQLite físico; IDs únicos, historial/revisión intactos. No se afirma idempotencia de adquisición entre ejecuciones.",
+      "code_commit": "df781fdb2bf8b54c279b3faac2dfd6edec785970"
+    }
   },
   {
     "id": "TM-08",
@@ -285,7 +299,14 @@
         "first_error": "TypeError: Cannot read properties of undefined (reading 'tipo')\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/p3-verification.test.ts:434:36\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "modernization": {
+      "status": "code_published_unverified",
+      "contract": "Error de lanzamiento de Chromium debe terminar sin adquirir/guardar hechos ni inventar reglas; estado no completado.",
+      "replacement": "p3-canonical-discovery.test.ts T9",
+      "guarantees": "Binario inexistente real, cero observaciones/requisitos, lifecycle estable y ningún YAML.",
+      "code_commit": "df781fdb2bf8b54c279b3faac2dfd6edec785970"
+    }
   },
   {
     "id": "TM-09",
@@ -321,7 +342,14 @@
         "first_error": "AssertionError: expected 'trabajo' to be 'entrevista_vista' // Object.is equality\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/p3-verification.test.ts:633:50\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "modernization": {
+      "status": "code_published_unverified",
+      "contract": "Status sugiere Discovery para planned; canonical_interview.next durante especificación abierta; luego siguiente módulo tras cierre durable.",
+      "replacement": "p3-canonical-discovery.test.ts T14",
+      "guarantees": "Orden de módulos planificados y ausencia de transición automática por DOM; cierre con host.",
+      "code_commit": "df781fdb2bf8b54c279b3faac2dfd6edec785970"
+    }
   },
   {
     "id": "TM-10",
@@ -357,7 +385,14 @@
         "first_error": "AssertionError: expected 'trabajo' to be 'entrevista_vista' // Object.is equality\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/p3-verification.test.ts:755:45\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "modernization": {
+      "status": "code_published_unverified",
+      "contract": "Onboarding y plan → Discovery → entrevista canónica → revisión → cobertura → cierre aprobado → siguiente módulo.",
+      "replacement": "p3-canonical-discovery.test.ts T15",
+      "guarantees": "Continuidad sin bucles; requisitos solo tras review, no ejecución inventada.",
+      "code_commit": "df781fdb2bf8b54c279b3faac2dfd6edec785970"
+    }
   },
   {
     "id": "TM-11",
@@ -393,7 +428,14 @@
         "first_error": "Error: Tool qap_discover failed: {\n  \"status\": \"blocked\",\n  \"code\": \"knowledge_unbound\",\n  \"persistence\": \"not_attempted\",\n  \"next_safe_action\": \"Revisar la configuración explícita del host.\",\n  \"acquisition_status\": \"blocked\",\n  \"acquisition_persistence\": \"not_attempted\",\n  \"association_status\": \"not_attempted\",\n  \"module_identity_status\": \"not_resolved\",\n  \"coverage\": \"partial\"\n}\n    at callTool (C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/p4-2-pregunta-contract.test.ts:95:13)\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/p4-2-pregunta-contract.test.ts:202:20\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "modernization": {
+      "status": "code_published_unverified",
+      "contract": "Preguntas de onboarding/decisión estructuradas, entrevista canónica en question, sin campos top-level aplanados.",
+      "replacement": "p4-2-canonical-contract.test.ts Criterio 4.4",
+      "guarantees": "Opciones/IDs válidos y cero requisito no revisado; no exige pregunta embebida en Discovery.",
+      "code_commit": "95b33146b0228578ff48291fce646c2dc947c9c9"
+    }
   },
   {
     "id": "TM-12",
@@ -429,7 +471,14 @@
         "first_error": "Error: Tool qap_discover failed: {\n  \"status\": \"blocked\",\n  \"code\": \"knowledge_unbound\",\n  \"persistence\": \"not_attempted\",\n  \"next_safe_action\": \"Revisar la configuración explícita del host.\",\n  \"acquisition_status\": \"blocked\",\n  \"acquisition_persistence\": \"not_attempted\",\n  \"association_status\": \"not_attempted\",\n  \"module_identity_status\": \"not_resolved\",\n  \"coverage\": \"partial\"\n}\n    at callTool (C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/p4-2-pregunta-contract.test.ts:95:13)\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/p4-2-pregunta-contract.test.ts:292:23\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "modernization": {
+      "status": "code_published_unverified",
+      "contract": "Validador Pregunta para onboarding/WRAP_UP; canonical_interview.next ofrece Question con opciones y revisión; cierre host.",
+      "replacement": "p4-2-canonical-contract.test.ts Criterio 6",
+      "guarantees": "Pregunta reproducible, revisión y persistencia, cierre/waiver y WRAP_UP sin entrevista_vista legacy.",
+      "code_commit": "95b33146b0228578ff48291fce646c2dc947c9c9"
+    }
   },
   {
     "id": "TM-13",

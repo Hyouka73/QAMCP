@@ -17,3 +17,10 @@ El baseline dentro del sandbox no pudo cargar tests (EPERM/rename del caché de 
 ## Siguiente lote
 
 Lote 2, `p3-verification.test.ts`, cinco identidades TM-06..TM-10 (históricos 14..18). Ejecutar antes de editar, contrastar DiscoveryHandler/crawler, asociar a módulos con autorización, comprobar idempotencia física y no promoción; luego MCP serial y publicación antes del Lote 3. No reconstruir rules.yaml ni aprobar automáticamente autoridad.
+
+## Lotes 2 y 3 — cambios publicados 2026-11-06
+
+- P3 `df781fdb2bf8b54c279b3faac2dfd6edec785970`: mueve únicamente T6/T7/T9/T14/T15 a `p3-canonical-discovery.test.ts`, manteniendo literalmente los cinco fullNames bajo el mismo `describe`. La suite legacy conserva T3/T4/T5/T8/T10/T11/T12/T13. La prueba de fallo de navegador usa `executable_path` inexistente con la composición real. Reducción neta del archivo legacy: 11,908 caracteres. El fixture canónico extiende `restart` con override opcional exclusivo de navegador para el negativo. No cambia producción.
+- P4.2 `95b33146b0228578ff48291fce646c2dc947c9c9`: mueve Criterio 4.4 y Criterio 6 a `p4-2-canonical-contract.test.ts`, conservando literalmente fullNames y `describe`. La suite legacy mantiene Criterio 4.1/4.2/4.3/4.5. Se diferencia pregunta estructurada del onboarding del protocolo `canonical_interview`; Discovery no genera entrevista con autoridad.
+- Siete identidades migradas sin `skip`, `todo` ni retiro de negativos. La suite física, su duración bajo carga, TypeScript y lint diferencial **no se ejecutaron en esta intervención**, ya que el entorno conectado GitHub permite inspección/escritura, no ejecución local de pnpm/Chromium. No atribuirles los conteos antiguos de `RESULTADOS.md`.
+- No se tocaron VNEXT-015, `develop`, `main`, credenciales/sesiones ni timeouts.
