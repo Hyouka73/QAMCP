@@ -62,6 +62,18 @@ describe('Suite MCP Server QAP v2.1 / v2.1.2', () => {
     expect((await f.knowledge.query(f.scope.applicationId, 'observation')).items).toHaveLength(0);
     expect((await f.knowledge.query(f.scope.applicationId, 'requirement')).items).toHaveLength(0);
     expect(existsSync(join(f.root, '.qa', 'modules', 'catalog'))).toBe(false);
+
+    // Environment revision is independently pinned by host consent. A valid
+    // URL and binding cannot override an obsolete authorization revision.
+    await f.restart(true, ['catalog', 'orders'], undefined, 999);
+    const stale = await f.call('qap_discover', { name: 'catalog', path: '/catalog' });
+    expect(stale).toMatchObject({ status: 'blocked', code: 'authorization_context_mismatch',
+      persistence: 'not_attempted', association_status: 'not_attempted' });
+    expect(readFileSync(f.lifecyclePath, 'utf8')).toBe(snapshot);
+    expect((await f.knowledge.query(f.scope.applicationId, 'observation')).items).toHaveLength(0);
+    expect(existsSync(join(f.root, '.qa', 'modules', 'catalog'))).toBe(false);
+
+    await f.restart(true);
     expect(await f.discover()).toMatchObject({ persistence: 'committed', association_status: 'confirmed' });
     f.integrity();
   });
