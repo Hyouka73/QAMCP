@@ -60,7 +60,27 @@ describe('P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, 
     });
 
     it('C4-d: resolver con "Es correcto" guarda regla confirmed user_confirmed con enunciado exacto y cubre', async () => {
-      const f=await fixture();await f.working();const q=(await f.interview('catalog',{action:'next'})).question;const approved=await f.confirm('catalog',q,f.proposal);expect(approved.result).toMatchObject({status:'confirmed',revision:1});const req=(await f.knowledge.query(f.scope.applicationId,'requirement')).items;expect(req).toHaveLength(1);expect(req[0].entity).toMatchObject({title:f.proposal.title,description:f.proposal.description,validation_status:'confirmed'});expect((await f.close('catalog',{action:'evaluate'})).assessment.execution_coverage.status).toBe('not_executed');f.integrity();
+      const f = await fixture();
+      await f.working();
+      const q = (await f.interview('catalog', { action: 'next' })).question;
+      const approved = await f.confirm('catalog', q, f.proposal);
+      expect(approved.result).toMatchObject({ status: 'confirmed', revision: 1 });
+      const req = (await f.knowledge.query(f.scope.applicationId, 'requirement')).items;
+      expect(req).toHaveLength(1);
+      expect(req[0].entity).toMatchObject({ title: f.proposal.title, description: f.proposal.description,
+        category: 'functional', validation_status: 'confirmed', provenance: 'developer_interview' });
+      const saved = await f.knowledge.get(f.scope.applicationId, 'requirement', req[0].entity.id);
+      expect(saved?.trace).toMatchObject({ source: 'canonical_interview_v1', review: 'reviewed',
+        reason: expect.any(String) });
+      const receipts = (await f.knowledge.query(f.scope.applicationId, 'relation')).items
+        .filter(item => item.trace.source === 'human_review_authorization_v1');
+      expect(receipts).toHaveLength(1);
+      expect(receipts[0].trace).toMatchObject({ reason: saved?.trace.reason, review: 'reviewed' });
+      expect(receipts[0].entity).toMatchObject({ predicate: 'related_to',
+        target: { kind: 'requirement', id: req[0].entity.id, revision: 1 } });
+      expect((await f.close('catalog', { action: 'evaluate' })).assessment.execution_coverage.status)
+        .toBe('not_executed');
+      f.integrity();
     });
 
     it('C4-e: resolver con "Lo defino después" guarda regla deferred y no cubre', async () => {
