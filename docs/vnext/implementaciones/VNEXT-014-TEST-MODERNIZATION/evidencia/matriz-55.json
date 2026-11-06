@@ -349,6 +349,11 @@
       "replacement": "p3-canonical-discovery.test.ts T14",
       "guarantees": "Orden de módulos planificados y ausencia de transición automática por DOM; cierre con host.",
       "code_commit": "df781fdb2bf8b54c279b3faac2dfd6edec785970"
+    },
+    "r3": {
+      "code_status": "semantic_review_or_assertions_updated",
+      "physical_result": "not_run",
+      "note": "Consulte CONTRATOS_VIGENTES.md, PENDIENTES.md y campañas R1/R2; no extrapolar resultados al SHA R3."
     }
   },
   {
@@ -514,7 +519,14 @@
         "first_error": "AssertionError: expected undefined to be 'auth_required' // Object.is equality\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/p4-4-auth-lifecycle.test.ts:175:26\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "r3": {
+      "code_status": "pending_legacy_active",
+      "physical_result": "not_run",
+      "class": "A+C",
+      "acceptance_task": "PENDIENTES.md — clasificación R3 y criterios por identidad",
+      "reason": "Authentication roles, login or auth_wall positive semantics not certified"
+    }
   },
   {
     "id": "TM-14",
@@ -550,7 +562,14 @@
         "first_error": "AssertionError: expected undefined to be 'auth_required' // Object.is equality\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/p4-4-auth-lifecycle.test.ts:206:26\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "r3": {
+      "code_status": "pending_legacy_active",
+      "physical_result": "not_run",
+      "class": "C",
+      "acceptance_task": "PENDIENTES.md — clasificación R3 y criterios por identidad",
+      "reason": "Authentication roles, login or auth_wall positive semantics not certified"
+    }
   },
   {
     "id": "TM-15",
@@ -586,7 +605,14 @@
         "first_error": "AssertionError: expected undefined to be 'auth_required' // Object.is equality\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/p4-4-auth-lifecycle.test.ts:228:26\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "r3": {
+      "code_status": "pending_legacy_active",
+      "physical_result": "not_run",
+      "class": "C",
+      "acceptance_task": "PENDIENTES.md — clasificación R3 y criterios por identidad",
+      "reason": "Authentication roles, login or auth_wall positive semantics not certified"
+    }
   },
   {
     "id": "TM-16",
@@ -622,7 +648,14 @@
         "first_error": "AssertionError: expected undefined to be 'session_invalid' // Object.is equality\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/p4-4-auth-lifecycle.test.ts:294:26\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "r3": {
+      "code_status": "pending_legacy_active",
+      "physical_result": "not_run",
+      "class": "C",
+      "acceptance_task": "PENDIENTES.md — clasificación R3 y criterios por identidad",
+      "reason": "Authentication roles, login or auth_wall positive semantics not certified"
+    }
   },
   {
     "id": "TM-17",
@@ -658,7 +691,14 @@
         "first_error": "AssertionError: expected 'blocked' to be 'success' // Object.is equality\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/p4-4-auth-lifecycle.test.ts:366:27\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "r3": {
+      "code_status": "pending_legacy_active",
+      "physical_result": "not_run",
+      "class": "C",
+      "acceptance_task": "PENDIENTES.md — clasificación R3 y criterios por identidad",
+      "reason": "Authentication roles, login or auth_wall positive semantics not certified"
+    }
   },
   {
     "id": "TM-18",
@@ -694,7 +734,14 @@
         "first_error": "AssertionError: expected 'blocked' to be 'success' // Object.is equality\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/p4-4-auth-lifecycle.test.ts:392:27\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "r3": {
+      "code_status": "pending_legacy_active",
+      "physical_result": "not_run",
+      "class": "A+C",
+      "acceptance_task": "PENDIENTES.md — clasificación R3 y criterios por identidad",
+      "reason": "Authentication roles, login or auth_wall positive semantics not certified"
+    }
   },
   {
     "id": "TM-19",
@@ -730,7 +777,14 @@
         "first_error": "AssertionError: expected undefined to be 'auth_required' // Object.is equality\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/p4-4-auth-lifecycle.test.ts:854:26\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "r3": {
+      "code_status": "pending_legacy_active",
+      "physical_result": "not_run",
+      "class": "C",
+      "acceptance_task": "PENDIENTES.md — clasificación R3 y criterios por identidad",
+      "reason": "Authentication roles, login or auth_wall positive semantics not certified"
+    }
   },
   {
     "id": "TM-20",
@@ -902,6 +956,11 @@
       "replacement": "p4-5a-canonical-integrity.test.ts",
       "guarantees": "No promoción de agent/DOM, texto sustantivo, referencias de pregunta, límites de brecha, errores previos honestos.",
       "code_commit": "3d30973715fa8b9092ab55395f4e37685de6fb7b"
+    },
+    "r3": {
+      "code_status": "semantic_review_or_assertions_updated",
+      "physical_result": "not_run",
+      "note": "Consulte CONTRATOS_VIGENTES.md, PENDIENTES.md y campañas R1/R2; no extrapolar resultados al SHA R3."
     }
   },
   {
@@ -1067,7 +1126,14 @@
         "first_error": "TypeError: .toMatch() expects to receive a string, but got undefined\n    at Proxy.<anonymous> (file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+expect@4.1.11/node_modules/@vitest/expect/dist/index.js:1293:10)\n    at Proxy.<anonymous> (file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+expect@4.1.11/node_modules/@vitest/expect/dist/index.js:1156:15)\n    at Proxy.methodWrapper (file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/chai@6.2.2/node_modules/chai/index.js:1700:25)\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/p4-5a-integrity.test.ts:640:43\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "r3": {
+      "code_status": "pending_legacy_active",
+      "physical_result": "not_run",
+      "class": "A+C",
+      "acceptance_task": "PENDIENTES.md — clasificación R3 y criterios por identidad",
+      "reason": "Authentication roles, login or auth_wall positive semantics not certified"
+    }
   },
   {
     "id": "TM-28",
@@ -1189,7 +1255,14 @@
         "first_error": "AssertionError: expected 'blocked' to be 'success' // Object.is equality\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/p4-5a2-integrity.test.ts:127:31\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "r3": {
+      "code_status": "pending_legacy_active",
+      "physical_result": "not_run",
+      "class": "C",
+      "acceptance_task": "PENDIENTES.md — clasificación R3 y criterios por identidad",
+      "reason": "Authentication roles, login or auth_wall positive semantics not certified"
+    }
   },
   {
     "id": "TM-31",
@@ -1225,7 +1298,14 @@
         "first_error": "AssertionError: expected undefined to be 'auth_required' // Object.is equality\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/p4-5a2-integrity.test.ts:144:30\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "r3": {
+      "code_status": "pending_legacy_active",
+      "physical_result": "not_run",
+      "class": "C",
+      "acceptance_task": "PENDIENTES.md — clasificación R3 y criterios por identidad",
+      "reason": "Authentication roles, login or auth_wall positive semantics not certified"
+    }
   },
   {
     "id": "TM-32",
@@ -1261,7 +1341,14 @@
         "first_error": "AssertionError: expected undefined to be 'auth_required' // Object.is equality\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/p4-5a2-integrity.test.ts:161:30\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "r3": {
+      "code_status": "pending_legacy_active",
+      "physical_result": "not_run",
+      "class": "C",
+      "acceptance_task": "PENDIENTES.md — clasificación R3 y criterios por identidad",
+      "reason": "Authentication roles, login or auth_wall positive semantics not certified"
+    }
   },
   {
     "id": "TM-33",
@@ -1304,6 +1391,11 @@
       "replacement": "p4-5a2-canonical-integrity.test.ts",
       "guarantees": "SQLite físico, versiones/digest, no autoridad espuria, límites de opción, normalización NFD, salidas honestas de crawler.",
       "code_commit": "a721a88f45294c61c8c8ddeef577a36bdfcfd8cd"
+    },
+    "r3": {
+      "code_status": "semantic_review_or_assertions_updated",
+      "physical_result": "not_run",
+      "note": "Consulte CONTRATOS_VIGENTES.md, PENDIENTES.md y campañas R1/R2; no extrapolar resultados al SHA R3."
     }
   },
   {
@@ -1347,6 +1439,11 @@
       "replacement": "p4-5a2-canonical-integrity.test.ts",
       "guarantees": "SQLite físico, versiones/digest, no autoridad espuria, límites de opción, normalización NFD, salidas honestas de crawler.",
       "code_commit": "a721a88f45294c61c8c8ddeef577a36bdfcfd8cd"
+    },
+    "r3": {
+      "code_status": "semantic_review_or_assertions_updated",
+      "physical_result": "not_run",
+      "note": "Consulte CONTRATOS_VIGENTES.md, PENDIENTES.md y campañas R1/R2; no extrapolar resultados al SHA R3."
     }
   },
   {
@@ -1390,6 +1487,11 @@
       "replacement": "p4-5a2-canonical-integrity.test.ts",
       "guarantees": "SQLite físico, versiones/digest, no autoridad espuria, límites de opción, normalización NFD, salidas honestas de crawler.",
       "code_commit": "a721a88f45294c61c8c8ddeef577a36bdfcfd8cd"
+    },
+    "r3": {
+      "code_status": "semantic_review_or_assertions_updated",
+      "physical_result": "not_run",
+      "note": "Consulte CONTRATOS_VIGENTES.md, PENDIENTES.md y campañas R1/R2; no extrapolar resultados al SHA R3."
     }
   },
   {
@@ -1433,6 +1535,11 @@
       "replacement": "p4-5a2-canonical-integrity.test.ts",
       "guarantees": "SQLite físico, versiones/digest, no autoridad espuria, límites de opción, normalización NFD, salidas honestas de crawler.",
       "code_commit": "a721a88f45294c61c8c8ddeef577a36bdfcfd8cd"
+    },
+    "r3": {
+      "code_status": "semantic_review_or_assertions_updated",
+      "physical_result": "not_run",
+      "note": "Consulte CONTRATOS_VIGENTES.md, PENDIENTES.md y campañas R1/R2; no extrapolar resultados al SHA R3."
     }
   },
   {
@@ -1476,6 +1583,11 @@
       "replacement": "p4-5a2-canonical-integrity.test.ts",
       "guarantees": "SQLite físico, versiones/digest, no autoridad espuria, límites de opción, normalización NFD, salidas honestas de crawler.",
       "code_commit": "a721a88f45294c61c8c8ddeef577a36bdfcfd8cd"
+    },
+    "r3": {
+      "code_status": "semantic_review_or_assertions_updated",
+      "physical_result": "not_run",
+      "note": "Consulte CONTRATOS_VIGENTES.md, PENDIENTES.md y campañas R1/R2; no extrapolar resultados al SHA R3."
     }
   },
   {
@@ -1519,6 +1631,11 @@
       "replacement": "p4-5a2-canonical-integrity.test.ts",
       "guarantees": "SQLite físico, versiones/digest, no autoridad espuria, límites de opción, normalización NFD, salidas honestas de crawler.",
       "code_commit": "a721a88f45294c61c8c8ddeef577a36bdfcfd8cd"
+    },
+    "r3": {
+      "code_status": "semantic_review_or_assertions_updated",
+      "physical_result": "not_run",
+      "note": "Consulte CONTRATOS_VIGENTES.md, PENDIENTES.md y campañas R1/R2; no extrapolar resultados al SHA R3."
     }
   },
   {
@@ -1648,6 +1765,11 @@
       "replacement": "p4-5a2-canonical-integrity.test.ts",
       "guarantees": "SQLite físico, versiones/digest, no autoridad espuria, límites de opción, normalización NFD, salidas honestas de crawler.",
       "code_commit": "a721a88f45294c61c8c8ddeef577a36bdfcfd8cd"
+    },
+    "r3": {
+      "code_status": "semantic_review_or_assertions_updated",
+      "physical_result": "not_run",
+      "note": "Consulte CONTRATOS_VIGENTES.md, PENDIENTES.md y campañas R1/R2; no extrapolar resultados al SHA R3."
     }
   },
   {
@@ -1691,6 +1813,11 @@
       "replacement": "p4-5a2-canonical-integrity.test.ts",
       "guarantees": "SQLite físico, versiones/digest, no autoridad espuria, límites de opción, normalización NFD, salidas honestas de crawler.",
       "code_commit": "a721a88f45294c61c8c8ddeef577a36bdfcfd8cd"
+    },
+    "r3": {
+      "code_status": "semantic_review_or_assertions_updated",
+      "physical_result": "not_run",
+      "note": "Consulte CONTRATOS_VIGENTES.md, PENDIENTES.md y campañas R1/R2; no extrapolar resultados al SHA R3."
     }
   },
   {
@@ -1734,6 +1861,11 @@
       "replacement": "p4-5a2-canonical-integrity.test.ts",
       "guarantees": "SQLite físico, versiones/digest, no autoridad espuria, límites de opción, normalización NFD, salidas honestas de crawler.",
       "code_commit": "a721a88f45294c61c8c8ddeef577a36bdfcfd8cd"
+    },
+    "r3": {
+      "code_status": "semantic_review_or_assertions_updated",
+      "physical_result": "not_run",
+      "note": "Consulte CONTRATOS_VIGENTES.md, PENDIENTES.md y campañas R1/R2; no extrapolar resultados al SHA R3."
     }
   },
   {
@@ -1777,6 +1909,11 @@
       "replacement": "p4-5a2-canonical-integrity.test.ts",
       "guarantees": "SQLite físico, versiones/digest, no autoridad espuria, límites de opción, normalización NFD, salidas honestas de crawler.",
       "code_commit": "a721a88f45294c61c8c8ddeef577a36bdfcfd8cd"
+    },
+    "r3": {
+      "code_status": "semantic_review_or_assertions_updated",
+      "physical_result": "not_run",
+      "note": "Consulte CONTRATOS_VIGENTES.md, PENDIENTES.md y campañas R1/R2; no extrapolar resultados al SHA R3."
     }
   },
   {
@@ -1833,11 +1970,11 @@
     "first_error": "AssertionError: expected true to be falsy",
     "baseline_status": "failed",
     "baseline_first_error": "AssertionError: expected true to be falsy\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/server.test.ts:267:36\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20",
-    "classification": "Pendiente de contraste en su lote; ninguna retirada autorizada por esta fila",
+    "classification": "A+C / B (código canónico R3, NO certificado)",
     "old_contract": "Contrato histórico expresado por el fullName y sus aserciones; fuente intacta en HEAD base",
-    "current_contract": "Pendiente de auditoría focal; aplicar contratos de Discovery/entrevista/cierre sin presumir equivalencia",
-    "replacement": "No sustituida; test original permanece activo",
-    "preserved_guarantees": "Garantía original todavía no certificada; no se altera ni elimina el test",
+    "current_contract": "qap_plan DAG/test cases reales; qap_test navegador autorizado con evidencia persistida, bloqueos sin plan y por huella obsoleta",
+    "replacement": "packages/mcp/src/__tests__/server-canonical-operations.test.ts (fullName histórico conservado)",
+    "preserved_guarantees": "qap_plan DAG/test cases reales; qap_test navegador autorizado con evidencia persistida, bloqueos sin plan y por huella obsoleta; Sin ejecución física independiente R3 ni certificación E2E host.",
     "physical_result": "failed",
     "parallel_results": {
       "final-parallel": {
@@ -1856,7 +1993,15 @@
         "first_error": "AssertionError: expected true to be falsy\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/server.test.ts:267:36\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "r3": {
+      "code_status": "implemented_pending_physical_verification",
+      "code_sha": "1ebdc0b20120ed32300fd674d7571a30754b0555",
+      "path": "packages/mcp/src/__tests__/server-canonical-operations.test.ts",
+      "physical_result": "not_run",
+      "equivalence": "partially_reconciled",
+      "remaining_guarantee": "Sin ejecución física independiente R3 ni certificación E2E host."
+    }
   },
   {
     "id": "TM-47",
@@ -1942,6 +2087,11 @@
       "replacement": "packages/mcp/src/__tests__/server-canonical-discovery.test.ts",
       "contract": "Autorización ausente bloquea antes de adquisición y no escribe observaciones; autorización posterior habilita adquisición real.",
       "guarantees": "Bloqueo honesto, lifecycle/requirements intactos y recuperación autorizada."
+    },
+    "r3": {
+      "code_status": "semantic_review_or_assertions_updated",
+      "physical_result": "not_run",
+      "note": "Consulte CONTRATOS_VIGENTES.md, PENDIENTES.md y campañas R1/R2; no extrapolar resultados al SHA R3."
     }
   },
   {
@@ -2021,7 +2171,14 @@
         "first_error": "AssertionError: expected true to be falsy\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/server.test.ts:848:25\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "r3": {
+      "code_status": "pending_legacy_active",
+      "physical_result": "not_run",
+      "class": "C",
+      "acceptance_task": "PENDIENTES.md — clasificación R3 y criterios por identidad",
+      "reason": "Authenticated session_saved positive capability absent in fresh_anonymous_static"
+    }
   },
   {
     "id": "TM-51",
@@ -2077,11 +2234,11 @@
     "first_error": "AssertionError: expected undefined to be 'ONBOARDING' // Object.is equality",
     "baseline_status": "failed",
     "baseline_first_error": "AssertionError: expected undefined to be 'ONBOARDING' // Object.is equality\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/server.test.ts:1261:58\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20",
-    "classification": "Pendiente de contraste en su lote; ninguna retirada autorizada por esta fila",
+    "classification": "A+C / B (código canónico R3, NO certificado)",
     "old_contract": "Contrato histórico expresado por el fullName y sus aserciones; fuente intacta en HEAD base",
-    "current_contract": "Pendiente de auditoría focal; aplicar contratos de Discovery/entrevista/cierre sin presumir equivalencia",
-    "replacement": "No sustituida; test original permanece activo",
-    "preserved_guarantees": "Garantía original todavía no certificada; no se altera ni elimina el test",
+    "current_contract": "Gating por fase y módulo; Discovery agrega observaciones, no muta estado planned a observed por sí solo",
+    "replacement": "packages/mcp/src/__tests__/server-canonical-operations.test.ts (fullName histórico conservado)",
+    "preserved_guarantees": "Gating por fase y módulo; Discovery agrega observaciones, no muta estado planned a observed por sí solo; Transición automática legacy retirada; prueba R3 pendiente.",
     "physical_result": "failed",
     "parallel_results": {
       "final-parallel": {
@@ -2100,7 +2257,15 @@
         "first_error": "AssertionError: expected undefined to be 'ONBOARDING' // Object.is equality\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/server.test.ts:1261:58\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "r3": {
+      "code_status": "implemented_pending_physical_verification",
+      "code_sha": "1ebdc0b20120ed32300fd674d7571a30754b0555",
+      "path": "packages/mcp/src/__tests__/server-canonical-operations.test.ts",
+      "physical_result": "not_run",
+      "equivalence": "partially_reconciled",
+      "remaining_guarantee": "Transición automática legacy retirada; prueba R3 pendiente."
+    }
   },
   {
     "id": "TM-53",
@@ -2113,11 +2278,11 @@
     "first_error": "AssertionError: expected 'blocked' to be 'success' // Object.is equality",
     "baseline_status": "failed",
     "baseline_first_error": "AssertionError: expected 'blocked' to be 'success' // Object.is equality\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/server.test.ts:1411:56\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20",
-    "classification": "Pendiente de contraste en su lote; ninguna retirada autorizada por esta fila",
+    "classification": "A+C / B (código canónico R3, NO certificado)",
     "old_contract": "Contrato histórico expresado por el fullName y sus aserciones; fuente intacta en HEAD base",
-    "current_contract": "Pendiente de auditoría focal; aplicar contratos de Discovery/entrevista/cierre sin presumir equivalencia",
-    "replacement": "No sustituida; test original permanece activo",
-    "preserved_guarantees": "Garantía original todavía no certificada; no se altera ni elimina el test",
+    "current_contract": "qap_status mantiene lectura positiva de proyecto legacy sin datos de negocio; Discovery requiere binding y autorización",
+    "replacement": "packages/mcp/src/__tests__/server-canonical-operations.test.ts (fullName histórico conservado)",
+    "preserved_guarantees": "qap_status mantiene lectura positiva de proyecto legacy sin datos de negocio; Discovery requiere binding y autorización; No inferir permisos Discovery desde index/summary legacy; prueba R3 pendiente.",
     "physical_result": "failed",
     "parallel_results": {
       "final-parallel": {
@@ -2136,7 +2301,15 @@
         "first_error": "AssertionError: expected 'blocked' to be 'success' // Object.is equality\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/server.test.ts:1411:56\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "r3": {
+      "code_status": "implemented_pending_physical_verification",
+      "code_sha": "ab8d0238b51f44ee0a32977e04c66389ec8225a9",
+      "path": "packages/mcp/src/__tests__/server-canonical-operations.test.ts",
+      "physical_result": "not_run",
+      "equivalence": "partially_reconciled",
+      "remaining_guarantee": "No inferir permisos Discovery desde index/summary legacy; prueba R3 pendiente."
+    }
   },
   {
     "id": "TM-54",
@@ -2149,11 +2322,11 @@
     "first_error": "AssertionError: expected undefined to be 'ONBOARDING' // Object.is equality",
     "baseline_status": "failed",
     "baseline_first_error": "AssertionError: expected undefined to be 'ONBOARDING' // Object.is equality\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/server.test.ts:1445:33\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20",
-    "classification": "Pendiente de contraste en su lote; ninguna retirada autorizada por esta fila",
+    "classification": "A+C / B (código canónico R3, NO certificado)",
     "old_contract": "Contrato histórico expresado por el fullName y sus aserciones; fuente intacta en HEAD base",
-    "current_contract": "Pendiente de auditoría focal; aplicar contratos de Discovery/entrevista/cierre sin presumir equivalencia",
-    "replacement": "No sustituida; test original permanece activo",
-    "preserved_guarantees": "Garantía original todavía no certificada; no se altera ni elimina el test",
+    "current_contract": "MCP init/ingest/context_set/session_plan/Discovery con compuertas de fases; observación no es requisito",
+    "replacement": "packages/mcp/src/__tests__/server-canonical-operations.test.ts (fullName histórico conservado)",
+    "preserved_guarantees": "MCP init/ingest/context_set/session_plan/Discovery con compuertas de fases; observación no es requisito; No equivale a entrevista_vista ni revisión humana; prueba R3 pendiente.",
     "physical_result": "failed",
     "parallel_results": {
       "final-parallel": {
@@ -2172,7 +2345,15 @@
         "first_error": "AssertionError: expected undefined to be 'ONBOARDING' // Object.is equality\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/server.test.ts:1445:33\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "r3": {
+      "code_status": "implemented_pending_physical_verification",
+      "code_sha": "1ebdc0b20120ed32300fd674d7571a30754b0555",
+      "path": "packages/mcp/src/__tests__/server-canonical-operations.test.ts",
+      "physical_result": "not_run",
+      "equivalence": "partially_reconciled",
+      "remaining_guarantee": "No equivale a entrevista_vista ni revisión humana; prueba R3 pendiente."
+    }
   },
   {
     "id": "TM-55",
@@ -2185,11 +2366,11 @@
     "first_error": "AssertionError: expected 'planned' to be 'observed' // Object.is equality",
     "baseline_status": "failed",
     "baseline_first_error": "AssertionError: expected 'planned' to be 'observed' // Object.is equality\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/server.test.ts:1604:46\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20",
-    "classification": "Pendiente de contraste en su lote; ninguna retirada autorizada por esta fila",
+    "classification": "A+C / B (código canónico R3, NO certificado)",
     "old_contract": "Contrato histórico expresado por el fullName y sus aserciones; fuente intacta en HEAD base",
-    "current_contract": "Pendiente de auditoría focal; aplicar contratos de Discovery/entrevista/cierre sin presumir equivalencia",
-    "replacement": "No sustituida; test original permanece activo",
-    "preserved_guarantees": "Garantía original todavía no certificada; no se altera ni elimina el test",
+    "current_contract": "canonical_interview/Knowledge SQLite/revisión host/cobertura/aplicabilidad/cierre sin rules.yaml ni transición implícita",
+    "replacement": "packages/mcp/src/__tests__/server-canonical-operations.test.ts (fullName histórico conservado)",
+    "preserved_guarantees": "canonical_interview/Knowledge SQLite/revisión host/cobertura/aplicabilidad/cierre sin rules.yaml ni transición implícita; Aprobación sintética y ejecución física R3 pendiente.",
     "physical_result": "failed",
     "parallel_results": {
       "final-parallel": {
@@ -2208,6 +2389,14 @@
         "first_error": "AssertionError: expected 'planned' to be 'observed' // Object.is equality\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/server.test.ts:1604:46\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "r3": {
+      "code_status": "implemented_pending_physical_verification",
+      "code_sha": "1ebdc0b20120ed32300fd674d7571a30754b0555",
+      "path": "packages/mcp/src/__tests__/server-canonical-operations.test.ts",
+      "physical_result": "not_run",
+      "equivalence": "partially_reconciled",
+      "remaining_guarantee": "Aprobación sintética y ejecución física R3 pendiente."
+    }
   }
 ]
