@@ -46,3 +46,8 @@ pnpm exec eslint . -f json
 ```
 
 Para matrices y reproducciones extendidas, seguir [PROMPT_CODEX](PROMPT_CODEX.md). Nunca etiquetar la rama como verde por estas instrucciones no ejecutadas.
+
+
+## Seguimiento del rescate integrado
+
+Seguimiento aditivo 2026-11-06: resultados físicos integrados publicados en [RESULTADOS_RESCATE.md](RESULTADOS_RESCATE.md). Referencia Knowledge de vNext341→342; serial MCP447/55/502; controles predeterminados445/57 y443/59, sin unhandled; estabilidad E01 pendiente. El texto anterior conserva su snapshot histórico, no sustituye esta medición.

@@ -23,3 +23,8 @@ D. Integración: **NO-GO** hasta aprobar A+B+C y los criterios del WBS vigente.
 Fechas históricas preservadas: 16/11 certificación objetivo; 19/11 posible integración solo con GO; 20/11 MVP. Ninguna fecha convierte NO-GO en GO.
 
 Consultar [matriz](MATRIZ_HALLAZGOS.md), [correcciones](CORRECCIONES.md), [resultados](RESULTADOS.md), [auditoría Codex](PROMPT_CODEX.md) y [dictamen](GO_NO_GO.md).
+
+
+## Seguimiento del rescate integrado
+
+Seguimiento 2026-11-06: merge interno `6ce7472` publicado en la rama original; auxiliar absorbida/eliminada. R1/R2/R3 corregidos y probados; cleanup reforzado, E01/55 históricos/aceptación pendientes. El estado vigente del lote está en [RESCATE_20261105.md](RESCATE_20261105.md) y [RESULTADOS_RESCATE.md](RESULTADOS_RESCATE.md). A/B/C/D permanecen NO-GO.

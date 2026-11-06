@@ -1,0 +1,66 @@
+
+ RUN  v4.1.11 C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp
+
+stderr | src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) > RES-CODEX-A02 refuses changed canonical receipt source
+[QAP MCP] tool_execution_failed {
+  error_id: 'ce7171d9-07a8-4bd8-a2ed-3e130c622c31',
+  category: 'unexpected_error'
+}
+
+stderr | src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) > RES-CODEX-A02 refuses changed canonical receipt source-process
+[QAP MCP] tool_execution_failed {
+  error_id: '38babed2-d626-43f8-b6cb-63e4efd98a90',
+  category: 'unexpected_error'
+}
+
+stderr | src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) > RES-CODEX-A02 refuses changed canonical receipt target
+[QAP MCP] tool_execution_failed {
+  error_id: '27a12815-41f9-401b-b20f-10590bbc24a2',
+  category: 'unexpected_error'
+}
+
+stderr | src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) > RES-CODEX-A02 refuses changed canonical receipt revision
+[QAP MCP] tool_execution_failed {
+  error_id: '616363d7-7824-4b5d-a7f1-da5c962adb86',
+  category: 'unexpected_error'
+}
+
+stderr | src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) > VNEXT-014-C01 Knowledge fence contention > does not turn unknown acquisition failures or in-fence CONFLICTs into normal blocks
+[QAP MCP] tool_execution_failed {
+  error_id: 'b943b9fc-9e61-4853-85fd-9eee4b8bcd00',
+  category: 'unexpected_error'
+}
+
+stderr | src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) > VNEXT-014-C01 Knowledge fence contention > does not turn unknown acquisition failures or in-fence CONFLICTs into normal blocks
+[QAP MCP] tool_execution_failed {
+  error_id: 'cb4bca06-5fde-4098-9b5c-f38f33854857',
+  category: 'unexpected_error'
+}
+
+ ✓ src/__tests__/canonical-coverage.test.ts (69 tests) 13338ms
+       ✓ R4-R9-A02: delayed fence acquisition does not consume an expired decision  511ms
+       ✓ R4-R12-A04: authorization expiring after callback rolls back all four SQLite commits  1837ms
+       ✓ R4-R11-A01: case-aliased official writers wait through durable authorization in all four actions  988ms
+       ✓ R4-R5-A02: 16 bound modules, last invalid=false, preview stays capped but guidance checks all  323ms
+       ✓ R4-R5-A02: 17 bound modules, last invalid=false, preview stays capped but guidance checks all  310ms
+       ✓ R4-R5-A02: 17 bound modules, last invalid=true, preview stays capped but guidance checks all  309ms
+       ✓ RES-CODEX-A01 serializes concurrent planned-process writer before close  652ms
+       ✓ RES-CODEX-A02 refuses changed canonical receipt source-process  628ms
+         ✓ returns a specific blocked result while another process holds the fence, then retries with the same durable authority  1883ms
+ ✓ src/__tests__/test-handler.test.ts (20 tests) 7794ms
+     ✓ Scenario 1: executes valid and authorized plan, persisting authentic result (R4.1)  1020ms
+     ✓ Scenario 4: in-memory snapshot prevents TOCTOU tampering of YAML files after verification (R4.4)  641ms
+     ✓ Scenario 5: blocks unauthorized URLs, unconfigured host policy, and redirects (R4.5)  843ms
+     ✓ Scenario 7: rejects unauthorized profiles and disables implicit session recovery (R4.7)  641ms
+     ✓ Scenario 8: distinguishes real functional failure from infrastructure failure (R4.8)  721ms
+     ✓ Scenario 11: persists execution results adhering to schema without automatic SQLite ConformityAssessment (R4.11)  698ms
+     ✓ Scenario 12: integrates cleanly via createMcpServer preserving exact 18 tools (R4.12)  748ms
+     ✓ Scenario 13: physical Playwright Chromium execution against isolated local HTTP fixture (Real PASS & FAIL)  824ms
+ ✓ src/__tests__/adversarial-r5-guarantees.test.ts (34 tests) 1932ms
+
+ Test Files  3 passed (3)
+      Tests  123 passed (123)
+   Start at  17:53:44
+   Duration  29.63s (transform 1.11s, setup 0ms, import 5.49s, tests 23.06s, environment 0ms)
+
+JSON report written to C:/Users/Judirico/Documents/QAMCP/rescate-evidence/20261105-integracion/final-focal.json

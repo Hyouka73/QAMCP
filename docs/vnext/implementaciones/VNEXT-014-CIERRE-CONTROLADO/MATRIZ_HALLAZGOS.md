@@ -80,3 +80,8 @@ El cambio aplicado en las identidades 1–8 consiste en ofrecer un almacén Know
 4. Si alguna identidad requiere reinterpretar un contrato aprobado, documentar decisión explícita; no marcar PASS solo porque el nuevo sistema bloquee una operación legacy.
 
 **Estado:** reconciliación de las 63 identidades **ABIERTA** hasta auditoría física independiente. No autoriza cierre VNEXT-014 ni integración.
+
+
+## Seguimiento del rescate integrado
+
+Seguimiento aditivo 2026-11-06: [MATRIZ_63_RESCATE.md](MATRIZ_63_RESCATE.md) conserva las 63 identidades exactas: ocho PASS y55 FAIL en serial. Las tres regresiones fuera de ese universo se recuperaron sin cambiar sus expectativas. [Clasificación pendiente de las55](RECONCILIACION_HISTORICA.md).

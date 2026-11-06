@@ -214,3 +214,18 @@ Las correcciones publicadas y la migración de ocho fixtures permanecen **sin ce
 ## 11. Rescate e integración interna autorizada (2026-11-05)
 
 Por instrucción posterior del responsable se integra mediante merge normal la reparación `3fe4fec` en vNext `46b1177`, conservando ambos historiales y los bloques 015-01/02/03. Esta autorización sustituye exclusivamente la restricción histórica del merge interno; no certifica VNEXT-014 ni autoriza develop/main/staging/npm. Se retoma rama única `feat/qap-vnext-architecture`. A/B/C/D permanecen NO-GO; se exige reparar y verificar los hallazgos 014-CODEX-001..004 y reconciliar las identidades históricas. 015-03 ya está implementada según su informe físico, posterior a la anotación histórica anterior.
+
+## 12. Primer lote de rescate probado — seguimiento 2026-11-06 (aditivo)
+
+No se reabren ni reescriben tareas históricamente terminadas. Merge interno `6ce7472` publicado; auxiliar remota absorbida/eliminada. VNEXT-015-01/02/03 conservados íntegros; no se implementan 015-04/05 ni otros hitos en este lote.
+
+| Ítem de reparación | Implementación del lote | Evidencia / siguiente compuerta |
+| --- | --- | --- |
+| 014-CODEX-001 | Sanitización MCP y códigos de dominio tipados; canary SDK y reopen PASS | Certificación independiente pendiente; servicio sigue propagando errores reales. |
+| 014-CODEX-002 | Tres identidades originales PASS; reentrancia explícita, drift/rollback tipados | CAS/fences/A01/A02/C01 PASS serial; estabilidad bajo carga continúa en E01, sin catch-all UNAVAILABLE/write_failed. |
+| 014-CODEX-003 | Ocho identidades migradas PASS; 7.5 con fixture observed y recibo adversario intacto | Reopen, conteos y PRAGMA comprobados; no ACID entre stores ni gateway sintético como persona. |
+| 014-CODEX-004 / E01 | Cancelación/drain y propiedad de cleanup al vencer hook corregidos | Sin unhandled final, pero timeouts/fallos extras persisten incluso en controles de una sola suite. Causa por etapa y estabilidad pendientes, sin subir 5000 ms. |
+| Primera familia histórica | Cinco lifecycle clasificadas; ninguna identidad/expectativa borrada o debilitada | Migración canónica sustantiva y decisiones de compatibilidad pendientes; total55 abiertas. |
+| Deuda de validación | Build10/Engine168/Knowledge342/Runner73/CLI78 PASS; lint34/28 y MCP tsc124 FAIL sin altas | Tramitar deuda restante en correcciones formales; no confundir diferencial con global aprobado. |
+
+MCP serial447/55/502; simultáneas431/71 y429/73; controles predeterminados consecutivos445/57 y443/59. **A/B/C/D y VNEXT-014 NO-GO**. No merge a develop/main/staging/npm; objetivos16/19/20 conservados sujetos a sus compuertas. [Resultados, SHAs y JSON por identidad](implementaciones/VNEXT-014-CIERRE-CONTROLADO/RESULTADOS_RESCATE.md) · [Matriz63](implementaciones/VNEXT-014-CIERRE-CONTROLADO/MATRIZ_63_RESCATE.md) · [Pendientes verificables](implementaciones/VNEXT-014-CIERRE-CONTROLADO/RECONCILIACION_HISTORICA.md).

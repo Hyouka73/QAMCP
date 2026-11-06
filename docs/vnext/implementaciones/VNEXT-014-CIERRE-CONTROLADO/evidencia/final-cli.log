@@ -1,0 +1,163 @@
+
+ RUN  v4.1.11 C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/cli
+
+warning: in the working copy of '.qa/modules/auth/context.yaml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '.qa/modules/checkout/context.yaml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/auth/login.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/checkout/cart.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/checkout/cart.ts', LF will be replaced by CRLF the next time Git touches it
+stderr | src/__tests__/test-from-diff.test.ts > qap test --from-diff (S75-002) > acota la ejecución solo al módulo afectado por el cambio de Git
+No se encontraron casos que coincidan con --tags.
+
+warning: in the working copy of '.qa/modules/auth/context.yaml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '.qa/modules/checkout/context.yaml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/auth/login.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/checkout/cart.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '.qa/modules/auth/context.yaml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '.qa/modules/checkout/context.yaml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/auth/login.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/checkout/cart.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/checkout/cart.ts', LF will be replaced by CRLF the next time Git touches it
+ ✓ src/__tests__/test-from-diff.test.ts (3 tests) 2468ms
+     ✓ acota la ejecución solo al módulo afectado por el cambio de Git  858ms
+     ✓ termina limpio con exit code 0 si ningún módulo fue afectado  874ms
+     ✓ con un módulo explícito, solo corre si está entre los afectados (intersección)  734ms
+ ✓ src/__tests__/init.test.ts (10 tests) 483ms
+Validando definiciones estáticas en: C:\Users\Judirico\Documents\QAMCP\rescate-evidence\20261105-integracion\tmp-auxiliary\qap-cli-validate-jmMXTP...
+✔ Definiciones válidas: 1 módulo(s), 1 capacidad(es), 0 flujo(s), 0 guardrail(s). Grafo de dependencias acíclico.
+Validando definiciones estáticas en: C:\Users\Judirico\Documents\QAMCP\rescate-evidence\20261105-integracion\tmp-auxiliary\qap-cli-validate-Ip23m5...
+Validando definiciones estáticas en: C:\Users\Judirico\Documents\QAMCP\rescate-evidence\20261105-integracion\tmp-auxiliary\qap-cli-validate-HsZIEU...
+Validando definiciones estáticas en: C:\Users\Judirico\Documents\QAMCP\rescate-evidence\20261105-integracion\tmp-auxiliary\qap-cli-validate-dONkrz...
+ ✓ src/__tests__/validate-command.test.ts (6 tests) 445ms
+ ✓ src/__tests__/update-command.test.ts (13 tests) 356ms
+stdout | src/__tests__/rollback-command.test.ts > qap rollback (S7-008 & S75-016) > restaura el context.yaml más reciente desde el backup por módulo
+Respaldos de 'checkout' (del más reciente al más antiguo):
+  - 2026-01-01T00-00-00-000Z  (seleccionado)
+
+✔ Rollback completado para el módulo "checkout" utilizando el respaldo 2026-01-01T00-00-00-000Z.
+stdout | src/__tests__/rollback-command.test.ts > qap rollback (S7-008 & S75-016) > restaura limpiamente usando --to <id> con validación de integridad SHA-256 correcta
+Respaldos de 'checkout' (del más reciente al más antiguo):
+  - backup-v1  (seleccionado)
+
+✔ Rollback completado para el módulo "checkout" utilizando el respaldo backup-v1.
+stdout | src/__tests__/rollback-command.test.ts > qap rollback (S7-008 & S75-016) > aborta con DataError y no aplica cambios si el hash SHA-256 no coincide (corrupto)
+Respaldos de 'checkout' (del más reciente al más antiguo):
+  - backup-corrupto  (seleccionado)
+
+stdout | src/__tests__/rollback-command.test.ts > qap rollback (S7-008 & S75-016) > ciclo real: ModuleBackupManager genera manifest.json y rollback lo valida correctamente
+Respaldos de 'checkout' (del más reciente al más antiguo):
+  - 2026-11-05T23-55-51-049Z  (seleccionado)
+
+✔ Rollback completado para el módulo "checkout" utilizando el respaldo 2026-11-05T23-55-51-049Z.
+stdout | src/__tests__/rollback-command.test.ts > qap rollback (S7-008 & S75-016) > valida integridad también en el flujo sin --to (solo nombre de módulo)
+Respaldos de 'checkout' (del más reciente al más antiguo):
+  - 2026-11-05T23-55-51-095Z  (seleccionado)
+
+ ✓ src/__tests__/rollback-command.test.ts (7 tests) 161ms
+stdout | src/__tests__/plan-command.test.ts > qap plan (S6-001) > debe generar tests/plan.json con un checksum SHA-256 valido
+Plan de pruebas generado exitosamente en: .qa/modules/checkout/tests/plan.json
+Checksum de configuración (SHA-256): c1af66283e4ac53bcb43071899903e31eaa8c890fb3e3221a057ec079c884b85
+
+stdout | src/__tests__/plan-command.test.ts > qap plan (S6-001) > debe producir el mismo checksum si la configuracion no cambia (deteccion de obsolescencia)
+Plan de pruebas generado exitosamente en: .qa/modules/checkout/tests/plan.json
+Checksum de configuración (SHA-256): c1af66283e4ac53bcb43071899903e31eaa8c890fb3e3221a057ec079c884b85
+
+stdout | src/__tests__/plan-command.test.ts > qap plan (S6-001) > debe producir el mismo checksum si la configuracion no cambia (deteccion de obsolescencia)
+Plan de pruebas generado exitosamente en: .qa/modules/checkout/tests/plan.json
+Checksum de configuración (SHA-256): c1af66283e4ac53bcb43071899903e31eaa8c890fb3e3221a057ec079c884b85
+
+stdout | src/__tests__/plan-command.test.ts > qap plan (S6-001) > debe producir un checksum distinto si cambian las rutas del modulo
+Plan de pruebas generado exitosamente en: .qa/modules/checkout/tests/plan.json
+Checksum de configuración (SHA-256): c1af66283e4ac53bcb43071899903e31eaa8c890fb3e3221a057ec079c884b85
+
+stdout | src/__tests__/plan-command.test.ts > qap plan (S6-001) > debe producir un checksum distinto si cambian las rutas del modulo
+Plan de pruebas generado exitosamente en: .qa/modules/checkout/tests/plan.json
+Checksum de configuración (SHA-256): 9b52ac2930c91fd7918071e283ddabc2ee226c0e1a5f8a6e4f49a86efb9427ce
+
+ ✓ src/__tests__/plan-command.test.ts (4 tests) 114ms
+[DRY RUN] Espacio liberable estimado: 458 bytes (1 corrida(s) candidata(s), 0 artefacto(s) multimedia). Ningún archivo fue eliminado.
+✔ Poda completada: 460 bytes liberados. 1 corrida(s) eliminada(s), 0 artefacto(s) multimedia purgados.
+ ✓ src/__tests__/prune-command.test.ts (2 tests) 90ms
+stdout | src/__tests__/discover.test.ts > qap discover (S4-003) > fase interview debe persistir el ModuleSpec en .qa/cache/discover/<name>.spec.json
+Especificacion de 'checkout' persistida en .qa/cache/discover/checkout.spec.json
+
+stdout | src/__tests__/discover.test.ts > qap discover (S4-003) > fase navigate debe leer el spec persistido y guardar el modulo descubierto
+Especificacion de 'checkout' persistida en .qa/cache/discover/checkout.spec.json
+
+stdout | src/__tests__/discover.test.ts > qap discover (S4-003) > fase navigate debe leer el spec persistido y guardar el modulo descubierto
+Modulo 'checkout' navegado y persistido en .qa/cache/discover/checkout.module.json
+
+stdout | src/__tests__/discover.test.ts > qap discover (S4-003) > fase repo-map debe persistir repo-map.json con rutas POSIX
+Especificacion de 'checkout' persistida en .qa/cache/discover/checkout.spec.json
+
+stdout | src/__tests__/discover.test.ts > qap discover (S4-003) > fase repo-map debe persistir repo-map.json con rutas POSIX
+Modulo 'checkout' navegado y persistido en .qa/cache/discover/checkout.module.json
+
+stdout | src/__tests__/discover.test.ts > qap discover (S4-003) > fase repo-map debe persistir repo-map.json con rutas POSIX
+Repo-map de 'checkout' persistido con rutas POSIX en .qa/cache/discover/checkout.repo-map.json
+
+stdout | src/__tests__/discover.test.ts > qap discover (S4-003) > amend debe corregir campos de un modulo ya documentado sin re-escanear
+Especificacion de 'checkout' persistida en .qa/cache/discover/checkout.spec.json
+
+stdout | src/__tests__/discover.test.ts > qap discover (S4-003) > amend debe corregir campos de un modulo ya documentado sin re-escanear
+Modulo 'checkout' navegado y persistido en .qa/cache/discover/checkout.module.json
+
+stdout | src/__tests__/discover.test.ts > qap discover (S4-003) > amend debe corregir campos de un modulo ya documentado sin re-escanear
+Modulo 'checkout' corregido (amend) sin re-escaneo. Cambios persistidos en .qa/cache/discover/checkout.module.json
+
+ ✓ src/__tests__/discover.test.ts (8 tests) 61ms
+Iniciando reindexación de telemetría desde: C:\Users\Judirico\Documents\QAMCP\rescate-evidence\20261105-integracion\tmp-auxiliary\qap-cli-reindex-WjrSg3...
+✔ Reindexación completada: 2 corrida(s) restaurada(s) íntegramente en qap.sqlite desde run.json.
+ ✓ src/__tests__/reindex-command.test.ts (1 test) 63ms
+stdout | src/__tests__/auth-commands.test.ts > Suite de Comandos CLI Auth (S2-003) > debe registrar un perfil mediante handleAuthAdd
+✔ Perfil 'test-profile' registrado con éxito en .qa/project/auth/profiles.json.
+
+stdout | src/__tests__/auth-commands.test.ts > Suite de Comandos CLI Auth (S2-003) > debe guardar secreto con handleAuthSetSecret
+✔ Secreto guardado correctamente para el perfil 'test-profile'.
+
+stdout | src/__tests__/auth-commands.test.ts > Suite de Comandos CLI Auth (S2-003) > debe listar perfiles con handleAuthList
+✔ Perfil 'test-profile' registrado con éxito en .qa/project/auth/profiles.json.
+
+stdout | src/__tests__/auth-commands.test.ts > Suite de Comandos CLI Auth (S2-003) > debe listar perfiles con handleAuthList
+
+--- Perfiles de Autenticación ---
+ID		ENV		MODO		ESTADO CREDENCIAL
+-------------------------------------------------------------------
+
+stdout | src/__tests__/auth-commands.test.ts > Suite de Comandos CLI Auth (S2-003) > debe listar perfiles con handleAuthList
+test-profile		dev		auto		available (keychain)
+
+
+stdout | src/__tests__/auth-commands.test.ts > Suite de Comandos CLI Auth (S2-003) > debe eliminar perfil con handleAuthRemove
+✔ Perfil 'test-profile' registrado con éxito en .qa/project/auth/profiles.json.
+
+stdout | src/__tests__/auth-commands.test.ts > Suite de Comandos CLI Auth (S2-003) > debe eliminar perfil con handleAuthRemove
+✔ Credenciales y perfil 'test-profile' eliminados del registro.
+
+stdout | src/__tests__/auth-commands.test.ts > Suite de Comandos CLI Auth (S2-003) > debe eliminar perfil con handleAuthRemove
+
+--- Perfiles de Autenticación ---
+(No se encontraron perfiles almacenados en .qa/project/auth/profiles.json)
+
+
+stdout | src/__tests__/auth-commands.test.ts > Suite de Comandos CLI Auth (S2-003) > revoca el secreto antes de eliminar su referencia
+✔ Perfil 'test-profile' registrado con éxito en .qa/project/auth/profiles.json.
+
+stdout | src/__tests__/auth-commands.test.ts > Suite de Comandos CLI Auth (S2-003) > revoca el secreto antes de eliminar su referencia
+✔ Credenciales y perfil 'test-profile' eliminados del registro.
+
+stdout | src/__tests__/auth-commands.test.ts > Suite de Comandos CLI Auth (S2-003) > conserva el perfil si el proveedor no permite revocar
+✔ Perfil 'test-profile' registrado con éxito en .qa/project/auth/profiles.json.
+
+ ✓ src/__tests__/auth-commands.test.ts (6 tests) 47ms
+ ✓ src/__tests__/runner-config.test.ts (4 tests) 33ms
+ ✓ src/__tests__/report-command.test.ts (6 tests) 37ms
+ ✓ src/__tests__/clean-command.test.ts (3 tests) 19ms
+ ✓ src/__tests__/playwright-detector.spec.ts (5 tests) 8ms
+
+ Test Files  14 passed (14)
+      Tests  78 passed (78)
+   Start at  17:55:42
+   Duration  17.36s (transform 1.07s, setup 0ms, import 8.29s, tests 4.39s, environment 1ms)
+
+JSON report written to C:/Users/Judirico/Documents/QAMCP/rescate-evidence/20261105-integracion/final-cli.json

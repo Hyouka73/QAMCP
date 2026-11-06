@@ -33,3 +33,8 @@
 ## Excluido intencionalmente
 
 No se alteraron A01/A02/C01 previamente reparados, E01 sin nueva reproducción física, los 55 tests legacy, `PlanHandler`, `TestHandler`, reporter, WBS completados, ni módulos VNEXT-015–023. No merges, force-push, cambios de credenciales ni bases reales.
+
+
+## Seguimiento del rescate integrado
+
+Seguimiento aditivo 2026-11-06: el nuevo lote implementa sanitización MCP, reentrancia/drift tipados, reparación 7.5 con reopen y dos causas de cleanup. Detalles, SHAs y límites en [RESCATE_20261105.md](RESCATE_20261105.md). E01 no se declara resuelto por ausencia de unhandled.

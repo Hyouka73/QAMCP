@@ -1,0 +1,5 @@
+test/runner-safety-honesty.test.ts(316,19): error TS2341: Property 'writeYaml' is private and only accessible within class 'FileSystemStorage'.
+Error: ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL
+
+  × "pnpm recursive exec" failed in C:
+  │ \Users\Judirico\Documents\QAMCP\QAMCP\packages\playwright-runner

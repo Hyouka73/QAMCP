@@ -20,3 +20,8 @@ No se reabre trabajo histórico terminado ni se da por resuelta una identidad so
 4. Un GO técnico parcial no habilita merge, ni se reescribe el historial para cumplir artificialmente el calendario.
 
 Objetivos sin cambio: 16/11 certificación, 19/11 posible merge condicionado, 20/11 MVP funcional.
+
+
+## Seguimiento del rescate integrado
+
+Seguimiento aditivo 2026-11-06: **A/B/C/D siguen NO-GO**. R1/R2/R3 probados por el implementador, sin certificación independiente. E01 conserva timeouts incluso con una sola suite predeterminada;55 garantías, compatibilidad, deuda y revisión humana auténtica pendientes. El merge interno autorizado/publicado no fue merge a develop. [Dictamen y evidencia](RESULTADOS_RESCATE.md).

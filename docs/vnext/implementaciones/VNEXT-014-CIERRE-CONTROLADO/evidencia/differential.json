@@ -1,0 +1,21 @@
+{
+  "baseline": "6ce7472bc1cef8d252434a3d71a0a614ed06a390",
+  "tsc": {
+    "baseline": 125,
+    "current": 124,
+    "added": [],
+    "removed": [
+      {
+        "file": "packages/mcp/src/__tests__/adversarial-r5-guarantees.test.ts",
+        "code": 2820,
+        "message": "Type '\"unconfirmed\"' is not assignable to type 'CertaintyState'. Did you mean '\"confirmed\"'?"
+      }
+    ]
+  },
+  "eslint": {
+    "baseline": 62,
+    "current": 62,
+    "added": [],
+    "removed": []
+  }
+}

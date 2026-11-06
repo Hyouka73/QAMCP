@@ -45,3 +45,8 @@ Si alguna expectativa cambiada del test 3.1/3.2 no describe el comportamiento re
 - Entrega SHA, sistema, comandos, logs/salidas, tabla exacta por identidad, causas nuevas, readback físico, diferencias de paralelismo, lint, riesgos, y GO/NO-GO con motivos.
 
 **Codex prueba e informa; ChatGPT implementa las correcciones posteriores.** Si hay defectos, detalla archivo, ruta, reproducción y mínima corrección propuesta, sin modificar código.
+
+
+## Seguimiento del rescate integrado
+
+Seguimiento aditivo 2026-11-06: para la siguiente certificación usar [PROMPT_RECERTIFICACION.md](PROMPT_RECERTIFICACION.md), desde HEAD remoto de `feat/qap-vnext-architecture`. La auxiliar ya fue absorbida/eliminada; el prompt histórico anterior no autoriza recrearla ni publicar allí. Preservar los snapshots y decisiones NO-GO.
