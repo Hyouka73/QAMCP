@@ -28,11 +28,11 @@ A = garantía vigente comprobable; B = semántica legacy sustituida explícitame
 
 ### Brechas semánticas y estáticas abiertas de R3
 
-- **TM-09:** pendiente subescenario legacy `observed` con hipótesis, `interviewing` incompleto, todos completos en WORKING y desempate MCP E2E. La apertura explícita de entrevista y prioridad MCP se probaron en R2, no la equivalencia total.
+- **TM-09:** pendiente subescenario legacy `observed` con hipótesis, `interviewing` incompleto y todos completos en WORKING. R3 agrega desempate por orden de plan vía MCP real (`37df993`), sin PASS físico; R2 había comprobado prioridades high/medium/low y desempate unitario.
 - **TM-23:** `authentication_not_supported` protege contra argumentos inseguros; ni `auth_required`, ni `session_invalid`, ni los campos históricos `razon`/`directorio_objetivo` son contractuales. No hay positivo auth.
 - **TM-33/34/35/38:** clasificación formal independiente de la categoría de pregunta; R3 amplía negativos, borrador y cobertura de especificación, pero su resultado físico está pendiente. TM-36/37 usan las cuatro acciones `propose/correct/defer/review`.
 - **TM-41/42/43:** cero controles no equivale a fallo de adquisición. R3 comprueba conteos, observaciones y ausencia de promoción; una advertencia literal `extraccion_vacia` no forma parte de `DiscoveryHandler` vigente. Decidir MVP vs posterior antes de implementarla; no inventar nuevo campo para Vitest.
-- **TM-44:** sin recorrido positivo de módulo acentuado con binding autorizado; NFD unitaria + rechazo externo siguen siendo parciales. Tarea P1 si la identidad humana acentuada es parte del contrato actual: prueba positiva con plan, path consentido, binding, readback y no directorios incorrectos.
+- **TM-44:** R3 incorpora positivo con módulo humano `Operación`, clave NFD `operacion`, plan y ruta autorizados, binding y persistencia de entrevista/requisito tras reinicio, más negativo de módulo ajeno. Commits `dff49f9` y `4869f00`; prueba pendiente de certificación física. No resucita directorio legacy `pending_questions`.
 - **TM-48:** R3 añade negativos por URL/módulo/credenciales, pero no reintroduce `module-view.schema.json` ni cubre todavía revisiones de Environment incompatibles; ampliar fixture host para revisión obsoleta si es exigible.
 - **E01:** investigación aislada pendiente. No tocar límites 5000/10000 ms, workers ni configuración Vitest. Los 128 diagnósticos TS y dos warnings históricos en A2 siguen siendo baseline de R2; validar diferencial real después de R3.
 - **Autoridad:** inboxes sintéticos no certifican revisión humana real. No presentar ejecución de Chromium R3 como PASS antes de Codex.
