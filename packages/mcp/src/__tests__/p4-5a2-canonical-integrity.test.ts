@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { SqliteKnowledgeAdapter } from '@qap/knowledge';
 import { isSubstantiveRuleText, normalizeSlug } from '@qap/shared';
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -131,15 +132,53 @@ describe('P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, 
 
   describe('C10: Detección y advertencia de extracción vacía', () => {
     it('C10-a: página app/login sin elementos interactivos genera advertencia extraccion_vacia y trabajo', async () => {
-      const f=await fixture('<html><body><h1>Vista vacía</h1></body></html>');await f.working();const data=await f.call('qap_discover',{name:'catalog',path:'/catalog'});expect(data).toMatchObject({acquisition_status:'completed',persistence:'committed',counts:{controls:0,forms:0,views:expect.any(Number)}});expect(data.limitations).toEqual(expect.any(Array));expect(data.next_safe_action).toEqual(expect.any(String));expect((await f.knowledge.query(f.scope.applicationId,'requirement')).items).toHaveLength(0);expect((await f.close('catalog',{action:'evaluate'})).assessment.specification_coverage.status).toBe('incomplete');
+      const f = await fixture('<html><body><h1>Vista vacía</h1></body></html>');
+      await f.working();
+      const data = await f.call('qap_discover', { name: 'catalog', path: '/catalog' });
+      expect(data).toMatchObject({
+        acquisition_status: 'completed',
+        persistence: 'committed',
+        counts: { controls: 0, forms: 0, views: expect.any(Number) },
+      });
+      expect(data.limitations).toEqual(expect.any(Array));
+      expect(data.next_safe_action).toEqual(expect.any(String));
+      expect((await f.knowledge.query(f.scope.applicationId, 'requirement')).items).toHaveLength(0);
+      expect((await f.close('catalog', { action: 'evaluate' })).assessment.specification_coverage.status)
+        .toBe('incomplete');
     });
 
     it('C10-b: página con al menos un elemento interactivo no genera advertencia extraccion_vacia', async () => {
-      const f=await fixture();await f.working();const data=await f.discover();expect(data).toMatchObject({persistence:'committed',counts:{controls:expect.any(Number),forms:expect.any(Number)}});expect(data.counts.controls).toBeGreaterThan(0);expect(data.limitations).toEqual(expect.any(Array));expect((await f.knowledge.query(f.scope.applicationId,'observation')).items.length).toBeGreaterThan(0);expect((await f.knowledge.query(f.scope.applicationId,'requirement')).items).toHaveLength(0);
+      const f = await fixture();
+      await f.working();
+      const data = await f.discover();
+      expect(data).toMatchObject({
+        persistence: 'committed',
+        counts: { controls: expect.any(Number), forms: expect.any(Number) },
+      });
+      // A passing shape assertion alone does not narrow an optional MCP field in TypeScript.
+      if (!data.counts) throw new Error('Discovery must report counts on successful acquisition');
+      expect(data.counts.controls).toBeGreaterThan(0);
+      expect(data.limitations).toEqual(expect.any(Array));
+      expect(data).not.toHaveProperty('extraccion_vacia');
+      expect((await f.knowledge.query(f.scope.applicationId, 'observation')).items.length)
+        .toBeGreaterThan(0);
+      expect((await f.knowledge.query(f.scope.applicationId, 'requirement')).items).toHaveLength(0);
     });
 
     it('C10-c: la advertencia extraccion_vacia es agnóstica de la aplicación', async () => {
-      const f=await fixture('<html><body><section>Sin acciones</section></body></html>');await f.working(['catalog','orders']);for(const module of ['catalog','orders']){const data=await f.call('qap_discover',{name:module,path:'/'+module});expect(data).toMatchObject({acquisition_status:'completed',persistence:'committed',counts:{controls:0,forms:0}});expect(data.limitations).toEqual(expect.any(Array));expect(data).not.toHaveProperty('extraccion_vacia');}expect((await f.knowledge.query(f.scope.applicationId,'requirement')).items).toHaveLength(0);
+      const f = await fixture('<html><body><section>Sin acciones</section></body></html>');
+      await f.working(['catalog', 'orders']);
+      for (const module of ['catalog', 'orders']) {
+        const data = await f.call('qap_discover', { name: module, path: '/' + module });
+        expect(data).toMatchObject({
+          acquisition_status: 'completed',
+          persistence: 'committed',
+          counts: { controls: 0, forms: 0 },
+        });
+        expect(data.limitations).toEqual(expect.any(Array));
+        expect(data).not.toHaveProperty('extraccion_vacia');
+      }
+      expect((await f.knowledge.query(f.scope.applicationId, 'requirement')).items).toHaveLength(0);
     });
   });
 
@@ -177,12 +216,29 @@ describe('P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, 
         item.entity.title === 'Synthetic Operación')).toBe(true);
       expect(accented.lifecycle().modules).toHaveProperty('Operación');
       expect(accented.lifecycle().modules).not.toHaveProperty('operacion');
+      // Capture the next persisted interview question before reconnecting:
+      // restoring only the requirement is insufficient to certify interview durability.
+      const nextBeforeRestart = (await accented.interview('Operación', { action: 'next' })).question;
+      expect(nextBeforeRestart).toMatchObject({ module: 'Operación' });
+      const draftBeforeRestart = accented.drafts();
+      expect(draftBeforeRestart.questions.some(item => item.id === nextBeforeRestart.id &&
+        item.module === 'Operación')).toBe(true);
+
       await accented.restart(true, ['Operación']);
-      const persisted = (await accented.knowledge.query(accented.scope.applicationId, 'requirement')).items;
-      expect(persisted).toHaveLength(1);
-      expect(persisted[0].entity).toMatchObject({
-        module_key: 'operacion', validation_status: 'confirmed', provenance: 'developer_interview',
-      });
+      expect(accented.drafts()).toEqual(draftBeforeRestart);
+      const nextAfterRestart = (await accented.interview('Operación', { action: 'next' })).question;
+      expect(nextAfterRestart).toEqual(nextBeforeRestart);
+      // Validate the confirmed requirement through a NEW SQLite adapter/connection.
+      const reopenedKnowledge = new SqliteKnowledgeAdapter(accented.path);
+      try {
+        const persisted = (await reopenedKnowledge.query(accented.scope.applicationId, 'requirement')).items;
+        expect(persisted).toHaveLength(1);
+        expect(persisted[0].entity).toMatchObject({
+          module_key: 'operacion', validation_status: 'confirmed', provenance: 'developer_interview',
+        });
+      } finally {
+        reopenedKnowledge.close();
+      }
       expect(existsSync(join(accented.root, '.qa', 'modules', 'operacion', 'pending_questions')))
         .toBe(false);
       accented.integrity();
