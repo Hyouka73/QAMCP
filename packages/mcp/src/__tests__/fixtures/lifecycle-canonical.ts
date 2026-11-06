@@ -71,7 +71,7 @@ function stage(name: string) {
   stages.publish({ ...span, event: 'begin' });
   return () => { stages.publish({ ...span, event: 'end' }); };
 }
-export async function createLifecycleFixture(registerCleanup: (close: () => Promise<void>) => void, htmlOverride?: string) {
+export async function createLifecycleFixture(registerCleanup: (close: () => Promise<void>) => void, htmlOverride?: string, allowTestNavigation = false) {
   const prepared = stage('fixture.prepare');
   const root = mkdtempSync(join(tmpdir(), 'qap-lifecycle-canonical-'));
   const http = createServer((req, res) => {
@@ -144,6 +144,7 @@ export async function createLifecycleFixture(registerCleanup: (close: () => Prom
     server = createMcpServer({ projectRoots: [root], knowledgeBindings: [{ ...scope, store: knowledge,
       moduleBindings: moduleBindings.filter(b => boundNames.includes(b.plannedName)), humanReviewGateway: inbox, interviewDraftStore: drafts,
       moduleClosureStore: closure, moduleClosureReviewGateway: inbox }],
+    testAuthorizations: allowTestNavigation ? [{ projectRoot: root, allowedOrigins: ['http://127.0.0.1:*'] }] : [],
     discoveryAuthorizations: authorized ? [{ ...scope, environmentRevision: 1,
       authorization: { read_only_acknowledged: true, navigation_urls: names.map(n => `${origin}/${n}`), allowed_ips: ['127.0.0.1'] },
       dependencies: { browser: browserOverride ?? { channel: 'chrome' as const } } }] : [],
@@ -256,7 +257,7 @@ export async function createLifecycleFixture(registerCleanup: (close: () => Prom
   }
   await connect();
   prepared();
-  return { root, scope, path, knowledge, inbox, call, interview, close, approvedClosure, confirm, proposal,
+  return { root, origin, scope, path, knowledge, inbox, call, interview, close, approvedClosure, confirm, proposal,
     ready, working, discover, restart, lifecycle, lifecyclePath, integrity,
     durable: () => closure!.read(scope), drafts: () => drafts!.read(scope) };
 }
