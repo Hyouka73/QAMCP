@@ -1252,3 +1252,8 @@ Por instrucción posterior del usuario, P3 y los lotes 2–7 quedan detenidos. S
 ## Anexo 2026-11-06 — modernización canónica P3 y P4.2 (no certificada)
 
 Autorización posterior del responsable permite reanudar modernización pese a la pausa E01 anterior, sin resolver ni alterar sus presupuestos. HEAD inicial `6062dcb2939135a772f20852bc8a7c978de73ca5`. Código P3 `df781fdb2bf8b54c279b3faac2dfd6edec785970` (TM-06..TM-10) y P4.2 `95b33146b0228578ff48291fce646c2dc947c9c9` (TM-11..TM-12) publicados directamente en rama original. Siete tests históricos conservan fullNames en archivos de composición canónica; 43 pruebas restantes sin modernizar. Sin verificación física de estos SHAs, no asignar PASS ni disminuir los 50 FAIL del baseline previo. VNEXT-014, E01 e integración develop continúan NO-GO; no se tocó VNEXT-015, fechas oficiales, DONE ni archivo personal. [Matriz y cambios](implementaciones/VNEXT-014-TEST-MODERNIZATION/MATRIZ_55.md).
+
+
+## Anexo 2026-11-06 — integridad P4.5-A/A2, código sin QA físico
+
+Nueve modernizadas de P4.5-A en `3d30973715fa8b9092ab55395f4e37685de6fb7b`; trece de P4.5-A2 en `a721a88f45294c61c8c8ddeef577a36bdfcfd8cd`. Junto con P3/P4.2 suman 29 identidades históricas modernizadas sin ejecución física posterior. Permanecen 21 por modernizar: TM-13..19, 27, 30..32 y 46..55. La matriz conserva todos los 55 IDs y resultados físicos anteriores sin reescribir el baseline. VNEXT-014/E01/merge desarrollador NO-GO; VNEXT-015 y tareas DONE intactas.

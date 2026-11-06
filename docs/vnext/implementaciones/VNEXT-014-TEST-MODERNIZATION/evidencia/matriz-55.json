@@ -766,7 +766,14 @@
         "first_error": "Error: STACK_TRACE_ERROR\n    at task (file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1784:27)\n    at Object.<anonymous> (file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1817:16)\n    at Object.<anonymous> (file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1563:28)\n    at chain (file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:599:14)\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/p4-5a-integrity.test.ts:158:3\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1889:40\n    at runWithSuite (file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2258:8)\n    at Object.collect (file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1889:10)\n    at Object.collect (file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1893:54)\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "modernization": {
+      "status": "code_published_unverified",
+      "contract": "La integridad depende de propuesta/autoridad canónica, cobertura SQLite, rechazo de legacy, revisión externa y cierre durable; no se escriben reglas YAML.",
+      "replacement": "p4-5a-canonical-integrity.test.ts",
+      "guarantees": "No promoción de agent/DOM, texto sustantivo, referencias de pregunta, límites de brecha, errores previos honestos.",
+      "code_commit": "3d30973715fa8b9092ab55395f4e37685de6fb7b"
+    }
   },
   {
     "id": "TM-21",
@@ -802,7 +809,14 @@
         "first_error": "Error: STACK_TRACE_ERROR\n    at task (file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1784:27)\n    at Object.<anonymous> (file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1817:16)\n    at Object.<anonymous> (file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1563:28)\n    at chain (file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:599:14)\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/p4-5a-integrity.test.ts:194:3\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1889:40\n    at runWithSuite (file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2258:8)\n    at Object.collect (file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1889:10)\n    at Object.collect (file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1893:54)\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "modernization": {
+      "status": "code_published_unverified",
+      "contract": "La integridad depende de propuesta/autoridad canónica, cobertura SQLite, rechazo de legacy, revisión externa y cierre durable; no se escriben reglas YAML.",
+      "replacement": "p4-5a-canonical-integrity.test.ts",
+      "guarantees": "No promoción de agent/DOM, texto sustantivo, referencias de pregunta, límites de brecha, errores previos honestos.",
+      "code_commit": "3d30973715fa8b9092ab55395f4e37685de6fb7b"
+    }
   },
   {
     "id": "TM-22",
@@ -838,7 +852,14 @@
         "first_error": "AssertionError: expected 'Falta el contexto de vista requerido …' to be 'cobertura_insuficiente' // Object.is equality\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/p4-5a-integrity.test.ts:245:35\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "modernization": {
+      "status": "code_published_unverified",
+      "contract": "La integridad depende de propuesta/autoridad canónica, cobertura SQLite, rechazo de legacy, revisión externa y cierre durable; no se escriben reglas YAML.",
+      "replacement": "p4-5a-canonical-integrity.test.ts",
+      "guarantees": "No promoción de agent/DOM, texto sustantivo, referencias de pregunta, límites de brecha, errores previos honestos.",
+      "code_commit": "3d30973715fa8b9092ab55395f4e37685de6fb7b"
+    }
   },
   {
     "id": "TM-23",
@@ -874,7 +895,14 @@
         "first_error": "AssertionError: expected undefined to be 'auth_required' // Object.is equality\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/p4-5a-integrity.test.ts:295:37\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "modernization": {
+      "status": "code_published_unverified",
+      "contract": "La integridad depende de propuesta/autoridad canónica, cobertura SQLite, rechazo de legacy, revisión externa y cierre durable; no se escriben reglas YAML.",
+      "replacement": "p4-5a-canonical-integrity.test.ts",
+      "guarantees": "No promoción de agent/DOM, texto sustantivo, referencias de pregunta, límites de brecha, errores previos honestos.",
+      "code_commit": "3d30973715fa8b9092ab55395f4e37685de6fb7b"
+    }
   },
   {
     "id": "TM-24",
@@ -910,7 +938,14 @@
         "first_error": "AssertionError: expected 'blocked' to be 'error' // Object.is equality\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/p4-5a-integrity.test.ts:451:41\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "modernization": {
+      "status": "code_published_unverified",
+      "contract": "La integridad depende de propuesta/autoridad canónica, cobertura SQLite, rechazo de legacy, revisión externa y cierre durable; no se escriben reglas YAML.",
+      "replacement": "p4-5a-canonical-integrity.test.ts",
+      "guarantees": "No promoción de agent/DOM, texto sustantivo, referencias de pregunta, límites de brecha, errores previos honestos.",
+      "code_commit": "3d30973715fa8b9092ab55395f4e37685de6fb7b"
+    }
   },
   {
     "id": "TM-25",
@@ -946,7 +981,14 @@
         "first_error": "Error: ENOENT: no such file or directory, open 'C:\\Users\\Judirico\\AppData\\Local\\Temp\\qap-p45a-n3UCXs\\.qa\\modules\\catalogo\\rules.yaml'\n    at Proxy.readFileSync (node:fs:441:20)\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/p4-5a-integrity.test.ts:535:28\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "modernization": {
+      "status": "code_published_unverified",
+      "contract": "La integridad depende de propuesta/autoridad canónica, cobertura SQLite, rechazo de legacy, revisión externa y cierre durable; no se escriben reglas YAML.",
+      "replacement": "p4-5a-canonical-integrity.test.ts",
+      "guarantees": "No promoción de agent/DOM, texto sustantivo, referencias de pregunta, límites de brecha, errores previos honestos.",
+      "code_commit": "3d30973715fa8b9092ab55395f4e37685de6fb7b"
+    }
   },
   {
     "id": "TM-26",
@@ -982,7 +1024,14 @@
         "first_error": "AssertionError: expected 'Falta el contexto de vista requerido …' to be 'cobertura_insuficiente' // Object.is equality\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/p4-5a-integrity.test.ts:597:30\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "modernization": {
+      "status": "code_published_unverified",
+      "contract": "La integridad depende de propuesta/autoridad canónica, cobertura SQLite, rechazo de legacy, revisión externa y cierre durable; no se escriben reglas YAML.",
+      "replacement": "p4-5a-canonical-integrity.test.ts",
+      "guarantees": "No promoción de agent/DOM, texto sustantivo, referencias de pregunta, límites de brecha, errores previos honestos.",
+      "code_commit": "3d30973715fa8b9092ab55395f4e37685de6fb7b"
+    }
   },
   {
     "id": "TM-27",
@@ -1054,7 +1103,14 @@
         "first_error": "AssertionError: expected undefined to be 'auth_required' // Object.is equality\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/p4-5a-integrity.test.ts:670:22\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "modernization": {
+      "status": "code_published_unverified",
+      "contract": "La integridad depende de propuesta/autoridad canónica, cobertura SQLite, rechazo de legacy, revisión externa y cierre durable; no se escriben reglas YAML.",
+      "replacement": "p4-5a-canonical-integrity.test.ts",
+      "guarantees": "No promoción de agent/DOM, texto sustantivo, referencias de pregunta, límites de brecha, errores previos honestos.",
+      "code_commit": "3d30973715fa8b9092ab55395f4e37685de6fb7b"
+    }
   },
   {
     "id": "TM-29",
@@ -1090,7 +1146,14 @@
         "first_error": "AssertionError: expected 'blocked' to be 'success' // Object.is equality\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/p4-5a-integrity.test.ts:716:33\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "modernization": {
+      "status": "code_published_unverified",
+      "contract": "La integridad depende de propuesta/autoridad canónica, cobertura SQLite, rechazo de legacy, revisión externa y cierre durable; no se escriben reglas YAML.",
+      "replacement": "p4-5a-canonical-integrity.test.ts",
+      "guarantees": "No promoción de agent/DOM, texto sustantivo, referencias de pregunta, límites de brecha, errores previos honestos.",
+      "code_commit": "3d30973715fa8b9092ab55395f4e37685de6fb7b"
+    }
   },
   {
     "id": "TM-30",
@@ -1234,7 +1297,14 @@
         "first_error": "AssertionError: expected 'blocked' to be 'success' // Object.is equality\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/p4-5a2-integrity.test.ts:289:31\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "modernization": {
+      "status": "code_published_unverified",
+      "contract": "Entrevista canónica y gateway separado; borradores cifrados, defer/resume, preguntas vinculadas al módulo, observaciones sin requisitos ni falso estado de autenticación.",
+      "replacement": "p4-5a2-canonical-integrity.test.ts",
+      "guarantees": "SQLite físico, versiones/digest, no autoridad espuria, límites de opción, normalización NFD, salidas honestas de crawler.",
+      "code_commit": "a721a88f45294c61c8c8ddeef577a36bdfcfd8cd"
+    }
   },
   {
     "id": "TM-34",
@@ -1270,7 +1340,14 @@
         "first_error": "AssertionError: the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string\n    at Proxy.<anonymous> (file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+expect@4.1.11/node_modules/@vitest/expect/dist/index.js:1319:15)\n    at Proxy.<anonymous> (file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+expect@4.1.11/node_modules/@vitest/expect/dist/index.js:1156:15)\n    at Proxy.methodWrapper (file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/chai@6.2.2/node_modules/chai/index.js:1700:25)\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/p4-5a2-integrity.test.ts:334:30\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "modernization": {
+      "status": "code_published_unverified",
+      "contract": "Entrevista canónica y gateway separado; borradores cifrados, defer/resume, preguntas vinculadas al módulo, observaciones sin requisitos ni falso estado de autenticación.",
+      "replacement": "p4-5a2-canonical-integrity.test.ts",
+      "guarantees": "SQLite físico, versiones/digest, no autoridad espuria, límites de opción, normalización NFD, salidas honestas de crawler.",
+      "code_commit": "a721a88f45294c61c8c8ddeef577a36bdfcfd8cd"
+    }
   },
   {
     "id": "TM-35",
@@ -1306,7 +1383,14 @@
         "first_error": "AssertionError: expected 'blocked' to be 'success' // Object.is equality\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/p4-5a2-integrity.test.ts:385:31\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "modernization": {
+      "status": "code_published_unverified",
+      "contract": "Entrevista canónica y gateway separado; borradores cifrados, defer/resume, preguntas vinculadas al módulo, observaciones sin requisitos ni falso estado de autenticación.",
+      "replacement": "p4-5a2-canonical-integrity.test.ts",
+      "guarantees": "SQLite físico, versiones/digest, no autoridad espuria, límites de opción, normalización NFD, salidas honestas de crawler.",
+      "code_commit": "a721a88f45294c61c8c8ddeef577a36bdfcfd8cd"
+    }
   },
   {
     "id": "TM-36",
@@ -1342,7 +1426,14 @@
         "first_error": "AssertionError: expected 'blocked' to be 'success' // Object.is equality\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/p4-5a2-integrity.test.ts:416:31\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "modernization": {
+      "status": "code_published_unverified",
+      "contract": "Entrevista canónica y gateway separado; borradores cifrados, defer/resume, preguntas vinculadas al módulo, observaciones sin requisitos ni falso estado de autenticación.",
+      "replacement": "p4-5a2-canonical-integrity.test.ts",
+      "guarantees": "SQLite físico, versiones/digest, no autoridad espuria, límites de opción, normalización NFD, salidas honestas de crawler.",
+      "code_commit": "a721a88f45294c61c8c8ddeef577a36bdfcfd8cd"
+    }
   },
   {
     "id": "TM-37",
@@ -1378,7 +1469,14 @@
         "first_error": "AssertionError: expected 'blocked' to be 'success' // Object.is equality\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/p4-5a2-integrity.test.ts:450:40\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "modernization": {
+      "status": "code_published_unverified",
+      "contract": "Entrevista canónica y gateway separado; borradores cifrados, defer/resume, preguntas vinculadas al módulo, observaciones sin requisitos ni falso estado de autenticación.",
+      "replacement": "p4-5a2-canonical-integrity.test.ts",
+      "guarantees": "SQLite físico, versiones/digest, no autoridad espuria, límites de opción, normalización NFD, salidas honestas de crawler.",
+      "code_commit": "a721a88f45294c61c8c8ddeef577a36bdfcfd8cd"
+    }
   },
   {
     "id": "TM-38",
@@ -1414,7 +1512,14 @@
         "first_error": "TypeError: Cannot read properties of undefined (reading 'id')\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/p4-5a2-integrity.test.ts:482:58\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "modernization": {
+      "status": "code_published_unverified",
+      "contract": "Entrevista canónica y gateway separado; borradores cifrados, defer/resume, preguntas vinculadas al módulo, observaciones sin requisitos ni falso estado de autenticación.",
+      "replacement": "p4-5a2-canonical-integrity.test.ts",
+      "guarantees": "SQLite físico, versiones/digest, no autoridad espuria, límites de opción, normalización NFD, salidas honestas de crawler.",
+      "code_commit": "a721a88f45294c61c8c8ddeef577a36bdfcfd8cd"
+    }
   },
   {
     "id": "TM-39",
@@ -1450,7 +1555,14 @@
         "first_error": "TypeError: Cannot read properties of undefined (reading 'id')\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/p4-5a2-integrity.test.ts:526:58\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "modernization": {
+      "status": "code_published_unverified",
+      "contract": "Entrevista canónica y gateway separado; borradores cifrados, defer/resume, preguntas vinculadas al módulo, observaciones sin requisitos ni falso estado de autenticación.",
+      "replacement": "p4-5a2-canonical-integrity.test.ts",
+      "guarantees": "SQLite físico, versiones/digest, no autoridad espuria, límites de opción, normalización NFD, salidas honestas de crawler.",
+      "code_commit": "a721a88f45294c61c8c8ddeef577a36bdfcfd8cd"
+    }
   },
   {
     "id": "TM-40",
@@ -1486,7 +1598,14 @@
         "first_error": "AssertionError: expected 'blocked' to be 'error' // Object.is equality\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/p4-5a2-integrity.test.ts:562:36\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "modernization": {
+      "status": "code_published_unverified",
+      "contract": "Entrevista canónica y gateway separado; borradores cifrados, defer/resume, preguntas vinculadas al módulo, observaciones sin requisitos ni falso estado de autenticación.",
+      "replacement": "p4-5a2-canonical-integrity.test.ts",
+      "guarantees": "SQLite físico, versiones/digest, no autoridad espuria, límites de opción, normalización NFD, salidas honestas de crawler.",
+      "code_commit": "a721a88f45294c61c8c8ddeef577a36bdfcfd8cd"
+    }
   },
   {
     "id": "TM-41",
@@ -1522,7 +1641,14 @@
         "first_error": "AssertionError: expected 'blocked' to be 'success' // Object.is equality\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/p4-5a2-integrity.test.ts:732:31\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "modernization": {
+      "status": "code_published_unverified",
+      "contract": "Entrevista canónica y gateway separado; borradores cifrados, defer/resume, preguntas vinculadas al módulo, observaciones sin requisitos ni falso estado de autenticación.",
+      "replacement": "p4-5a2-canonical-integrity.test.ts",
+      "guarantees": "SQLite físico, versiones/digest, no autoridad espuria, límites de opción, normalización NFD, salidas honestas de crawler.",
+      "code_commit": "a721a88f45294c61c8c8ddeef577a36bdfcfd8cd"
+    }
   },
   {
     "id": "TM-42",
@@ -1558,7 +1684,14 @@
         "first_error": "AssertionError: expected 'blocked' to be 'success' // Object.is equality\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/p4-5a2-integrity.test.ts:754:31\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "modernization": {
+      "status": "code_published_unverified",
+      "contract": "Entrevista canónica y gateway separado; borradores cifrados, defer/resume, preguntas vinculadas al módulo, observaciones sin requisitos ni falso estado de autenticación.",
+      "replacement": "p4-5a2-canonical-integrity.test.ts",
+      "guarantees": "SQLite físico, versiones/digest, no autoridad espuria, límites de opción, normalización NFD, salidas honestas de crawler.",
+      "code_commit": "a721a88f45294c61c8c8ddeef577a36bdfcfd8cd"
+    }
   },
   {
     "id": "TM-43",
@@ -1594,7 +1727,14 @@
         "first_error": "AssertionError: expected 'blocked' to be 'success' // Object.is equality\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/p4-5a2-integrity.test.ts:770:31\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "modernization": {
+      "status": "code_published_unverified",
+      "contract": "Entrevista canónica y gateway separado; borradores cifrados, defer/resume, preguntas vinculadas al módulo, observaciones sin requisitos ni falso estado de autenticación.",
+      "replacement": "p4-5a2-canonical-integrity.test.ts",
+      "guarantees": "SQLite físico, versiones/digest, no autoridad espuria, límites de opción, normalización NFD, salidas honestas de crawler.",
+      "code_commit": "a721a88f45294c61c8c8ddeef577a36bdfcfd8cd"
+    }
   },
   {
     "id": "TM-44",
@@ -1630,7 +1770,14 @@
         "first_error": "AssertionError: expected false to be true // Object.is equality\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/p4-5a2-integrity.test.ts:837:34\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "modernization": {
+      "status": "code_published_unverified",
+      "contract": "Entrevista canónica y gateway separado; borradores cifrados, defer/resume, preguntas vinculadas al módulo, observaciones sin requisitos ni falso estado de autenticación.",
+      "replacement": "p4-5a2-canonical-integrity.test.ts",
+      "guarantees": "SQLite físico, versiones/digest, no autoridad espuria, límites de opción, normalización NFD, salidas honestas de crawler.",
+      "code_commit": "a721a88f45294c61c8c8ddeef577a36bdfcfd8cd"
+    }
   },
   {
     "id": "TM-45",
@@ -1666,7 +1813,14 @@
         "first_error": "AssertionError: expected undefined to be defined\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/p4-5a2-integrity.test.ts:877:17\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "modernization": {
+      "status": "code_published_unverified",
+      "contract": "Entrevista canónica y gateway separado; borradores cifrados, defer/resume, preguntas vinculadas al módulo, observaciones sin requisitos ni falso estado de autenticación.",
+      "replacement": "p4-5a2-canonical-integrity.test.ts",
+      "guarantees": "SQLite físico, versiones/digest, no autoridad espuria, límites de opción, normalización NFD, salidas honestas de crawler.",
+      "code_commit": "a721a88f45294c61c8c8ddeef577a36bdfcfd8cd"
+    }
   },
   {
     "id": "TM-46",

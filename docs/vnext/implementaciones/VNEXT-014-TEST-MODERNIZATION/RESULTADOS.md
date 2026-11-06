@@ -75,3 +75,7 @@ Los logs originales contienen CRLF y Git aplica su filtro al publicarlos. [evide
 ## Actualización aditiva posterior — P3/P4.2 (sin mediciones nuevas)
 
 A partir de HEAD `6062dcb2939135a772f20852bc8a7c978de73ca5`, se publicaron implementaciones P3 `df781fdb2bf8b54c279b3faac2dfd6edec785970` y P4.2 `95b33146b0228578ff48291fce646c2dc947c9c9`. Se trasladaron siete fullNames históricos a suites sin mocks. No se ejecutaron focales, MCP integral, TypeScript, ESLint ni navegador sobre esos SHAs. Todas las cifras anteriores corresponden a las ejecuciones históricas expresamente descritas; **no son resultados de estos commits**. Mantener NO-GO hasta pruebas físicas, contraste por identidad y certificación independiente. No se modificó E01 ni se ajustaron límites de tiempo.
+
+## Anexo P4.5-A y P4.5-A2 — sin ejecución física
+
+Commits `3d30973715fa8b9092ab55395f4e37685de6fb7b` (9 pruebas) y `a721a88f45294c61c8c8ddeef577a36bdfcfd8cd` (13 pruebas). No hay JSON ni métricas de tests correspondientes a estos SHAs. Un escenario de extracción vacía o de texto de opción no acredita cobertura de ejecución ni revisión auténtica. La fuente histórica 456 PASS/50 FAIL/506 está fijada en el commit anterior 6062dcb; no se extrapola. Trece pruebas antiguas de P4.5-A2 se conservaron; tres de ellas mantienen fallos de autenticación legacy por analizar.

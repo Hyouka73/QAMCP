@@ -13,3 +13,7 @@ Próxima unidad autorizada: Lote 2 Discovery P3. La publicación de esta familia
 ## Actualización 2026-11-06
 
 **Sigue NO-GO.** P3 (cinco) y P4.2 (dos) están implementadas en `df781fd`/`95b3314` pero sin ejecución física. Restan 43 identidades sin modernizar, además de ejecutar físicamente las siete nuevas y resolver E01. El total oficial 456/50/506 corresponde al HEAD histórico `6062dcb`, **no** a los commits nuevos. No enviar todavía prompt de certificación independiente ni proponer merge; ninguna compuerta oficial se considera aprobada.
+
+## Anexo P4.5 — 2026-11-06
+
+**NO-GO conservado:** 29 pruebas históricas migradas y sin corrida física; quedan 21 de las 50 pendientes originales sin sustitución. Las 5 ya probadas del Lote 1 no son autorización de cierre integral. Los problemas E01, auth-wall, auténtica revisión humana y de lint/typecheck no se declaran reparados. No merge hacia develop/main ni publicar npm.
