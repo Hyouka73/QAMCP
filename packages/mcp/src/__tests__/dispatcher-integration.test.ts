@@ -1,10 +1,11 @@
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { CallToolResultSchema, type CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+import { LockManager } from '@qap/knowledge';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { type IMcpToolHandler } from '../dispatcher.js';
@@ -41,6 +42,44 @@ afterEach(async () => {
 });
 
 describe('real MCP client/server via linked transports', () => {
+  it('E01: close aborts and drains in-flight work before the host can remove its locked root', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'qap-close-drain-'));
+    let entered!: () => void, cancelled!: () => void, finish!: () => void;
+    const started = new Promise<void>(resolve => { entered = resolve; });
+    const aborted = new Promise<void>(resolve => { cancelled = resolve; });
+    const barrier = new Promise<void>(resolve => { finish = resolve; });
+    const handler: IMcpToolHandler = { ...synthetic(), execute: async (_args, context) => {
+      const release = await new LockManager({ rootDir: root }).acquireModuleLock('catalog');
+      try {
+        context.signal.addEventListener('abort', cancelled, { once: true });
+        entered();
+        await barrier;
+        // Represents a runner's final persistence while it still owns the lock.
+        writeFileSync(join(root, 'drained.txt'), 'complete');
+        return { content: [{ type: 'text', text: 'drained' }] };
+      } finally { await release(); }
+    } };
+    const client = await connect({ handlers: [handler] });
+    const server = connections.at(-1)!.server;
+    const invocation = client.callTool({ name: 'test_synthetic' }).then(() => undefined, () => undefined);
+    try {
+      await started;
+      let closed = false;
+      const closing = server.close().then(() => { closed = true; });
+      expect(server.close()).toBe(server.close()); // Concurrent callers share ownership.
+      await aborted;
+      expect(closed).toBe(false);
+      expect(existsSync(join(root, '.qa/cache/locks/catalog.lock'))).toBe(true);
+      expect((await client.callTool({ name: 'test_synthetic' })).isError).toBe(true);
+      finish(); await closing; await invocation;
+      expect(readFileSync(join(root, 'drained.txt'), 'utf8')).toBe('complete');
+      expect(existsSync(join(root, '.qa/cache/locks/catalog.lock'))).toBe(false);
+    } finally {
+      finish(); await server.close(); await invocation;
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it('lists and invokes an injected declarative tool exactly once', async () => {
     const handler = synthetic();
     const client = await connect({ handlers: [handler] });

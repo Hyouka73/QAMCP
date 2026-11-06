@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 
-import { chromium, type Browser, type BrowserContext, type BrowserContextOptions, type Page } from 'playwright-core';
+import type { Browser, BrowserContext, BrowserContextOptions, Page } from 'playwright-core';
 import type { IDiscoverer } from '@qap/engine';
 import { isAuthPath } from '@qap/shared';
 import type { ModuleSpec, Module } from '@qap/shared';
@@ -206,6 +206,7 @@ export interface DiscoveredForm {
  *    y lanza una excepción clara indicando que no se encontró un navegador compatible en el sistema.
  */
 export async function launchBrowser(options: LaunchBrowserOptions = {}): Promise<Browser> {
+  const { chromium } = await import('playwright-core');
   const isHeadless = !options.headed;
 
   // 1. Intentar Chrome del sistema

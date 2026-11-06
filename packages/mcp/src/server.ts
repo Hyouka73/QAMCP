@@ -20,6 +20,7 @@ import {
   ListPromptsRequestSchema,
   GetPromptRequestSchema,
   type Prompt,
+  type CallToolResult,
 } from '@modelcontextprotocol/sdk/types.js';
 import YAML from 'yaml';
 import {
@@ -319,7 +320,24 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
   });
 
   // Manejador de llamadas a tools
-  server.setRequestHandler(CallToolRequestSchema, async (request, context) => {
+  const activeCalls = new Map<AbortController, Promise<CallToolResult>>();
+  let closing = false;
+  let closeOperation: Promise<void> | undefined;
+  const closeTransport = server.close.bind(server);
+  server.close = () => {
+    if (closeOperation) return closeOperation;
+    closing = true;
+    for (const controller of activeCalls.keys()) controller.abort();
+    // Transport closure alone rejects client promises, but does not await the
+    // server handlers. Keep stores/roots alive until browser work and locks drain.
+    closeOperation = Promise.allSettled([...activeCalls.values()]).then(() => closeTransport());
+    return closeOperation;
+  };
+  server.setRequestHandler(CallToolRequestSchema, async (request, sdkContext) => {
+    if (closing) return { isError: true, content: [{ type: 'text', text: JSON.stringify({ code: 'cancelled' }) }] };
+    const controller = new AbortController();
+    const context = { ...sdkContext, signal: AbortSignal.any([controller.signal, ...(sdkContext.signal ? [sdkContext.signal] : [])]) };
+    const operation = (async (): Promise<CallToolResult> => {
     const { name, arguments: rawArgs } = request.params;
     if (dispatcher.has(name)) return dispatcher.dispatch(request.params, { requestId: context.requestId, signal: context.signal ?? new AbortController().signal });
     // Legacy invocation boundary; removed incrementally when handlers migrate.
@@ -3524,7 +3542,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
 
           const reportFilePath = join(sessionsDir, `${sessionId}.report.md`);
 
-          return await storage.commitLifecycleStateWithFence(async (current, commit) => {
+          return await storage.commitLifecycleStateWithFence<CallToolResult>(async (current, commit) => {
             if (current.phase !== 'WORKING' ||
                 JSON.stringify(current) !== approvedLifecycle) {
               return canonicalResult({
@@ -3543,7 +3561,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
                 desbloquear_con: { tool: 'qap_module_close' },
               }, true);
             }
-            const finalize = async () => {
+            const finalize = async (): Promise<CallToolResult> => {
               // Reproject under lifecycle -> Knowledge write fences. Receipts,
               // durable approvals, bindings and the requirement inventory
               // must still match the report prepared without locks.
@@ -3692,6 +3710,10 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         ],
       };
     }
+    })();
+    activeCalls.set(controller, operation);
+    try { return await operation; }
+    finally { activeCalls.delete(controller); }
   });
 
   /* eslint-enable */
@@ -3706,7 +3728,11 @@ export async function startMcpServer(options?: McpServerOptions): Promise<void> 
     : await loadHostComposition();
   try {
     const server = createMcpServer(composition.options);
-    server.onclose = () => composition.close();
+    server.onclose = () => {
+      // SDK disconnect notification is synchronous; host stores must outlive
+      // asynchronous cancellation/cleanup just as they do on explicit close.
+      void server.close().then(() => composition.close(), () => composition.close());
+    };
     const transport = new StdioServerTransport();
     await server.connect(transport);
     console.error('[QAP MCP Server] Servidor iniciado correctamente en transporte Stdio.');

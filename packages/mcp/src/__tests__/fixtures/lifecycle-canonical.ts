@@ -1,4 +1,5 @@
 import { randomBytes, randomUUID } from 'node:crypto';
+import { channel } from 'node:diagnostics_channel';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
@@ -61,7 +62,15 @@ export class LifecycleReviewInbox implements IHumanReviewGateway, IModuleClosure
 }
 
 export type LifecycleFixture = Awaited<ReturnType<typeof createLifecycleFixture>>;
+const stages = channel('qap.e01.fixture');
+function stage(name: string) {
+  if (!stages.hasSubscribers) return () => undefined;
+  const span = { stage: name, id: randomUUID() };
+  stages.publish({ ...span, event: 'begin' });
+  return () => { stages.publish({ ...span, event: 'end' }); };
+}
 export async function createLifecycleFixture(registerCleanup: (close: () => Promise<void>) => void) {
+  const prepared = stage('fixture.prepare');
   const root = mkdtempSync(join(tmpdir(), 'qap-lifecycle-canonical-'));
   const http = createServer((req, res) => {
     expect(req.headers.cookie).toBeUndefined();
@@ -80,6 +89,7 @@ export async function createLifecycleFixture(registerCleanup: (close: () => Prom
     rmSync(root, { recursive: true, force: true });
   }
   registerCleanup(async () => {
+    const cleaned = stage('fixture.cleanup');
     // Close every owned resource even when the test/setup failed. Never delete a
     // shared parent or a path computed outside this unique temporary root.
     try { await client?.close(); } finally {
@@ -92,6 +102,7 @@ export async function createLifecycleFixture(registerCleanup: (close: () => Prom
             try { closure?.close(); } finally {
               store?.close();
               removeTemporaryRoot();
+              cleaned();
             }
           }
         }
@@ -146,12 +157,15 @@ export async function createLifecycleFixture(registerCleanup: (close: () => Prom
     return state;
   }
   async function call(name: string, args: Record<string, unknown> = {}) {
-    if (!client) throw new Error('Fixture disconnected');
-    const response = await client.request({ method: 'tools/call', params: { name, arguments: { targetPath: root, ...args } } }, CallToolResultSchema);
-    const item = response.content[0];
-    if (item.type !== 'text') throw new Error('Expected MCP text response');
-    if (existsSync(lifecyclePath)) lifecycle(); // Validate after every call, including rejected writes.
-    return JSON.parse(item.text) as Payload;
+    const called = stage(`mcp.${name}`);
+    try {
+      if (!client) throw new Error('Fixture disconnected');
+      const response = await client.request({ method: 'tools/call', params: { name, arguments: { targetPath: root, ...args } } }, CallToolResultSchema);
+      const item = response.content[0];
+      if (item.type !== 'text') throw new Error('Expected MCP text response');
+      if (existsSync(lifecyclePath)) lifecycle(); // Validate after every call, including rejected writes.
+      return JSON.parse(item.text) as Payload;
+    } finally { called(); }
   }
   const interview = (module: string, command: InterviewCommand) => call('qap_rules_set', { module, canonical_interview: command });
   const close = (module: string, command: CanonicalClosureCommand) => call('qap_module_close', { module, canonical_closure: command });
@@ -239,6 +253,7 @@ export async function createLifecycleFixture(registerCleanup: (close: () => Prom
     }
   }
   await connect();
+  prepared();
   return { root, scope, path, knowledge, inbox, call, interview, close, approvedClosure, confirm, proposal,
     ready, working, discover, restart, lifecycle, lifecyclePath, integrity,
     durable: () => closure!.read(scope), drafts: () => drafts!.read(scope) };

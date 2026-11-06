@@ -1,4 +1,4 @@
-import { chromium, type BrowserContext } from 'playwright-core';
+import type { BrowserContext } from 'playwright-core';
 import { AuthManager, SessionStore, executeAutoLogin, executeHandoffLogin, readProfile } from '@qap/auth';
 import { FileSystemStorage } from '@qap/knowledge';
 import type { StorageState } from '@qap/auth';
@@ -44,6 +44,7 @@ export async function resolveModuleSession(
   let browserContext: BrowserContext | null = null;
   try {
     const isHandoff = profile.login_mode === 'handoff';
+    const { chromium } = await import('playwright-core');
     const browser = await chromium.launch({ headless: !isHandoff });
     browserContext = await browser.newContext();
 

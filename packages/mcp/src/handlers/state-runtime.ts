@@ -7,14 +7,8 @@ import { generarRenderTexto, guardPregunta, type Pregunta } from '@qap/engine';
 export const PLAYWRIGHT_INSTALL_COMMAND = 'npx playwright install chromium';
 
 export async function checkPlaywrightBrowser(): Promise<{ disponible: boolean; error?: string; comando_instalacion: string }> {
-  try {
-    const { chromium } = await import('playwright-core');
-    const execPath = chromium.executablePath();
-    if (execPath && existsSync(execPath)) {
-      return { disponible: true, comando_instalacion: PLAYWRIGHT_INSTALL_COMMAND };
-    }
-  } catch { /* empty */ }
-
+  // A system-browser existence check does not need Playwright's driver. Loading
+  // that runtime on every status/init worker amplifies CPU and memory pressure.
   if (process.platform === 'win32') {
     const prefixes = [
       process.env.LOCALAPPDATA,
@@ -43,6 +37,14 @@ export async function checkPlaywrightBrowser(): Promise<{ disponible: boolean; e
       return { disponible: true, comando_instalacion: PLAYWRIGHT_INSTALL_COMMAND };
     }
   }
+
+  try {
+    const { chromium } = await import('playwright-core');
+    const execPath = chromium.executablePath();
+    if (execPath && existsSync(execPath)) {
+      return { disponible: true, comando_instalacion: PLAYWRIGHT_INSTALL_COMMAND };
+    }
+  } catch { /* empty */ }
 
   return {
     disponible: false,

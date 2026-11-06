@@ -1,6 +1,6 @@
 import { createServer } from 'node:net';
 
-import { chromium, type Browser } from 'playwright-core';
+import type { Browser } from 'playwright-core';
 
 import type { CrawlerDependencies } from './types.js';
 
@@ -18,6 +18,7 @@ export async function startDenyProxy(onConnection: () => void) {
 }
 
 export async function launchIsolated(proxy: string, choice: CrawlerDependencies['browser'], timeout: number): Promise<Browser> {
+  const { chromium } = await import('playwright-core');
   const choices = choice ? [choice] : [{ channel: 'chrome' as const }, { channel: 'msedge' as const }, {}];
   const deadline = Date.now() + timeout;
   for (const selected of choices) {

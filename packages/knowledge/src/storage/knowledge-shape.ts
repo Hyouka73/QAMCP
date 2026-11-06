@@ -1,4 +1,4 @@
-import Ajv from 'ajv';
+import Ajv, { type ValidateFunction } from 'ajv';
 
 // Runtime boundary complements (does not replace) shared epistemic validators.
 const text = { type: 'string', minLength: 1, pattern: '\\S' };
@@ -76,7 +76,12 @@ const entities: Record<string, unknown> = {
 const trace = object({ source: text, recorded_by: text, recorded_at: text, reason: text,
   review: one('unreviewed', 'reviewed', 'pending_review'), environment_id: text, role_id: text,
   auth_profile_id: text, evidence_refs: array(ref) }, ['source', 'recorded_by', 'recorded_at', 'reason', 'review', 'evidence_refs']);
-const ajv = new Ajv({ strict: true });
-export const validateWriteShape = ajv.compile({ oneOf: knowledgeKinds.map(kind => object({
-  kind: { const: kind }, entity: entities[kind], expected_revision: integer, trace,
-})) });
+let compiled: ValidateFunction | undefined;
+/** Read-only/legacy consumers do not need a canonical write compiler. Compile
+ * once on the first write, before the adapter acquires its SQL transaction. */
+export function validateWriteShape(value: unknown): boolean {
+  compiled ??= new Ajv({ strict: true }).compile({ oneOf: knowledgeKinds.map(kind => object({
+    kind: { const: kind }, entity: entities[kind], expected_revision: integer, trace,
+  })) });
+  return Boolean(compiled(value));
+}

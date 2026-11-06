@@ -178,39 +178,49 @@ function translateErrors(
 }
 
 export class SchemaValidator {
-  private ajv: Ajv;
-  private validators: Map<string, ValidateFunction>;
+  // Only compiled code is shared, never data or ValidationResult objects. All
+  // validation and error translation below is synchronous: AJV's mutable
+  // `errors` slot is copied before another call can use the same function.
+  private static compiled: ReadonlyMap<string, ValidateFunction> | undefined;
+  private readonly validators: ReadonlyMap<string, ValidateFunction>;
 
   constructor() {
-    this.ajv = new Ajv({ allErrors: true, strict: false });
-    addFormats(this.ajv);
+    if (SchemaValidator.compiled) {
+      this.validators = SchemaValidator.compiled;
+      return;
+    }
+    const ajv = new Ajv({ allErrors: true, strict: false });
+    addFormats(ajv);
 
-    const envValidator = this.ajv.compile(environmentsSchema);
-    const profileValidator = this.ajv.compile(authProfilesSchema);
-    const repoMapValidator = this.ajv.compile(moduleRepoMapSchema);
-    const executionResultValidator = this.ajv.compile(executionResultSchema);
+    const envValidator = ajv.compile(environmentsSchema);
+    const profileValidator = ajv.compile(authProfilesSchema);
+    const repoMapValidator = ajv.compile(moduleRepoMapSchema);
+    const executionResultValidator = ajv.compile(executionResultSchema);
 
     // Precompilación en memoria de los schemas fundamentales y aliases
     this.validators = new Map([
-      ['project-init', this.ajv.compile(projectInitSchema)],
+      ['project-init', ajv.compile(projectInitSchema)],
       ['environments', envValidator],
       ['project-environments', envValidator],
       ['profiles', profileValidator],
       ['auth-profiles', profileValidator],
       ['execution-result', executionResultValidator],
-      ['system-prompt', this.ajv.compile(systemPromptSchema)],
+      ['system-prompt', ajv.compile(systemPromptSchema)],
       ['module-repo-map', repoMapValidator],
       ['repo-map', repoMapValidator],
-      ['guardrail-definition', this.ajv.compile(guardrailDefinitionSchema)],
-      ['lifecycle-state', this.ajv.compile(lifecycleStateSchema)],
-      ['module-view', this.ajv.compile(moduleViewSchema)],
-      ['project-context', this.ajv.compile(projectContextSchema)],
-      ['rules', this.ajv.compile(rulesSchema)],
-      ['scan', this.ajv.compile(scanSchema)],
-      ['ingest-proposal', this.ajv.compile(ingestProposalSchema)],
-      ['project-repo-map', this.ajv.compile(repoMapSchema)],
-      ['module-candidates', this.ajv.compile(moduleCandidatesSchema)],
+      ['guardrail-definition', ajv.compile(guardrailDefinitionSchema)],
+      ['lifecycle-state', ajv.compile(lifecycleStateSchema)],
+      ['module-view', ajv.compile(moduleViewSchema)],
+      ['project-context', ajv.compile(projectContextSchema)],
+      ['rules', ajv.compile(rulesSchema)],
+      ['scan', ajv.compile(scanSchema)],
+      ['ingest-proposal', ajv.compile(ingestProposalSchema)],
+      ['project-repo-map', ajv.compile(repoMapSchema)],
+      ['module-candidates', ajv.compile(moduleCandidatesSchema)],
     ]);
+    // Publish only after every schema compiled successfully, preserving the
+    // constructor's fail-closed behavior if a canonical schema is invalid.
+    SchemaValidator.compiled = this.validators;
   }
 
   private runValidation<T = unknown>(schemaKey: string, data: unknown): ValidationResult<T> {

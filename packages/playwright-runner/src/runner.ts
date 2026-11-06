@@ -14,7 +14,7 @@ import type {
   CaseResult,
   FailureType,
 } from '@qap/shared';
-import { chromium, type Browser, type BrowserContext, type Page } from 'playwright-core';
+import type { Browser, BrowserContext, Page } from 'playwright-core';
 
 import {
   executeNavigate,
@@ -243,6 +243,8 @@ export class PlaywrightRunner implements IRunner {
       let infrastructureErrorMessage: string | undefined;
 
       try {
+        const { chromium } = await import('playwright-core');
+        checkCancellation();
         browser = await chromium.launch({
           headless: isHeadless,
           slowMo: options.slow_mo ?? 0,
