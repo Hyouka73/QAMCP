@@ -8,7 +8,7 @@ import YAML from 'yaml';
 import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vitest';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import { FileSystemStorage, SemanticHasher } from '@qap/knowledge';
+import { FileSystemStorage, LockManager, SemanticHasher } from '@qap/knowledge';
 import { SchemaValidator, type TCCase } from '@qap/shared';
 import { PlaywrightRunner } from '@qap/playwright-runner';
 
@@ -164,18 +164,24 @@ beforeEach(async () => {
   }
 });
 
-afterEach(async () => {
+async function drainTestFixtures(): Promise<void> {
+  // A hook may itself time out while draining. Capture ownership BEFORE any
+  // await: a late hook must never delete a subsequent test's roots or mocks.
+  const ownedDirs = tempDirs.splice(0);
+  const ownedInvocations = pendingInvocations.splice(0);
   invocationControllers.splice(0).forEach(controller => controller.abort());
-  await Promise.all(pendingInvocations.splice(0));
   vi.restoreAllMocks();
-  for (const dir of tempDirs.splice(0)) {
+  await Promise.all(ownedInvocations);
+  for (const dir of ownedDirs) {
     try {
       rmSync(dir, { recursive: true, force: true });
     } catch {
       // ignore
     }
   }
-});
+}
+
+afterEach(drainTestFixtures);
 
 afterAll(async () => {
   if (localHttpServer) {
@@ -187,6 +193,25 @@ afterAll(async () => {
 });
 
 describe('TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4)', () => {
+  it('014-CODEX-004: an overlapping cleanup owns only its original roots until locks drain', async () => {
+    const first = initProject(localServerUrl);
+    const release = await new LockManager({ rootDir: first }).acquireModuleLock('orders');
+    let resume!: () => void;
+    const barrier = new Promise<void>(resolve => { resume = resolve; });
+    pendingInvocations.push(barrier.then(release));
+    const draining = drainTestFixtures();
+    let second = '';
+    try {
+      expect(existsSync(join(first, '.qa/cache/locks/orders.lock'))).toBe(true);
+      second = initProject(localServerUrl);
+    } finally {
+      resume();
+      await draining;
+    }
+    expect(existsSync(first)).toBe(false);
+    expect(existsSync(second)).toBe(true);
+  });
+
   // Scenario 1: Plan vigente y autorizado (execution passes, persistence authentic)
   it('Scenario 1: executes valid and authorized plan, persisting authentic result (R4.1)', async () => {
     const root = initProject(localServerUrl);
