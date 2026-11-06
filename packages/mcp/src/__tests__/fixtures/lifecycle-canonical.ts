@@ -27,7 +27,21 @@ export interface Payload {
   status: string; code?: string; fase: string; question: Question; requirement_id: string;
   revision: number; assessment: CanonicalCoverageAssessment; report_path: string;
   // Discovery-only properties are optional: other tools do not return these fields.
-  observations?: number; evidence?: number; acquisition_status?: string;
+  observations?: number;
+  evidence?: number;
+  acquisition_status?: string;
+  persistence?: 'committed' | 'not_attempted' | 'failed';
+  counts?: {
+    candidate_routes: number;
+    visited_routes: number;
+    blocked_routes: number;
+    views: number;
+    controls: number;
+    forms: number;
+    relations: number;
+  };
+  limitations?: string[];
+  next_safe_action?: string;
   siguiente_accion: { tool: string; tipo: string; module?: string; canonical_interview?: InterviewCommand;
     pregunta?: { opciones: unknown[] }; descripcion: string };
 }
@@ -142,7 +156,10 @@ export async function createLifecycleFixture(registerCleanup: (close: () => Prom
     moduleRevision: 1, applicationRevision: 1, environmentRevision: 1, provenance: 'host_declared' as const }));
   async function connect(authorized = true, boundNames = ['catalog', 'orders', ...extraModuleNames], browserOverride?: { executable_path: string }, authorizedEnvironmentRevision = 1) {
     server = createMcpServer({ projectRoots: [root], knowledgeBindings: [{ ...scope, store: knowledge,
-      moduleBindings: moduleBindings.filter(b => boundNames.includes(b.plannedName)), humanReviewGateway: inbox, interviewDraftStore: drafts,
+      // Bind the current host-authorized Environment revision on reconnect.
+      moduleBindings: moduleBindings.filter(b => boundNames.includes(b.plannedName))
+        .map(b => ({ ...b, environmentRevision: authorizedEnvironmentRevision })),
+      humanReviewGateway: inbox, interviewDraftStore: drafts,
       moduleClosureStore: closure, moduleClosureReviewGateway: inbox }],
     testAuthorizations: allowTestNavigation ? [{ projectRoot: root, allowedOrigins: ['http://127.0.0.1:*'] }] : [],
     discoveryAuthorizations: authorized ? [{ ...scope, environmentRevision: authorizedEnvironmentRevision,
