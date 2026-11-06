@@ -1,5 +1,22 @@
 # Matriz de las 55 identidades históricas
 
+## Estado aditivo R3 — código no certificado (2026-11-06)
+
+**43/55 identidades modernizadas en código, 12 pendientes; NO-GO.** El cuerpo base de esta matriz registra el lote inicial y sus baselines históricos: sus descripciones de “50 pendientes” o “sin ejecución” no son el estado actual. La prueba física independiente de R2 permanece **24/24 sobre `92579eb`**; ninguna aserción R3 tiene PASS nuevo. No se altera `physical_result` histórico de la matriz JSON.
+
+| ID | Garantía histórica | Garantía canónica ejercitada en R3 | Resultado físico conocido | Restante / compatibilidad | Evidencia de código |
+| --- | --- | --- | --- | --- | --- |
+| TM-46 | `qap_plan` y `qap_test` declaraban stub | `plan.json` real con caso TC-001, fingerprint, ejecución MCP Playwright autorizada, readback de resultado; sin plan y con plan obsoleto se bloquea | R1 FAIL; R3 **NO EJECUTADA** | B; no asumir PASS de navegador ni E2E host | `server-canonical-operations.test.ts`, commit `1ebdc0b` |
+| TM-52 | Gating y planned→observed automático | Fase ONBOARDING restringida, módulo no planificado restringido, Discovery real sin mutar lifecycle; observaciones ≠ requisito | R1 FAIL; R3 **NO EJECUTADA** | B; transición automática retirada | `server-canonical-operations.test.ts`, `1ebdc0b` |
+| TM-53 | Proyecto legacy / `qap_status` WORKING derivada | Status legacy positivo desde `context.yaml`/index sin datos de negocio, sin autorización Discovery implícita | R1 FAIL; R3 **NO EJECUTADA** | A+B parcial; validar derivación en Codex | `server-canonical-operations.test.ts`, `ab8d023` |
+| TM-54 | Recorrido init→ingest→SCOPING→WORKING→discover | MCP real por fases, negativas prematuras, observaciones sin confirmación | R1 FAIL; R3 **NO EJECUTADA** | B; entrevista legacy separada | `server-canonical-operations.test.ts`, `1ebdc0b` |
+| TM-55 | Rules YAML y cambio de estado implícito | `canonical_interview` con propuesta, host, requisito, cobertura, aplicabilidad, cierre y sin YAML | R1 FAIL; R3 **NO EJECUTADA** | B; autoridad explícita | `server-canonical-operations.test.ts`, `1ebdc0b` |
+| TM-50 | Sesión autenticada guardada | Sin sustitución positiva: `fresh_anonymous_static` rechaza auth del cliente | R1 FAIL; **PENDIENTE** | C; no retirar test ni convertir bloqueo en PASS | `server.test.ts`, backlog R3 |
+| TM-13..19, 27, 30..32 | Login, perfiles, guards, roles | A/B parcial para negativos de seguridad y compuerta SCOPING; positivos de auth no implementados | Baseline FAIL; **PENDIENTE** | Once identidades; clasificaciones individuales A/B/C y tareas en `PENDIENTES.md` | `p4-4-auth-lifecycle.test.ts`, `p4-5a-integrity.test.ts`, `p4-5a2-integrity.test.ts` |
+
+**Equivalencia semántica transversal:** TM-09 no prueba todos los estados legacy; TM-23 bloquea auth insegura pero no produce `session_invalid`; TM-33/34 diferencian categoría de pregunta vs clasificación formal; TM-35 prueba borrador durable; TM-38 comprueba cobertura de especificación sin ejecución; TM-41..43 no prometen el campo `extraccion_vacia`; TM-44 carece de positivo NFD autorizado; TM-48 ahora prueba URL/módulo/credenciales además de falta de autorización, pero no revisión obsoleta de Environment. Todos los nuevos refuerzos esperan corrida física R3. Los escenarios con semántica sustituida permanecen trazables aunque conservan `fullName` antiguo.
+
+
 Base local/remota verificada: `794dc0d2fe1fb85dd1f9fb0c211b9b35346ac747`. Baseline físico: 447 PASS / 55 FAIL / 502. IDs históricos enlazan con MATRIZ_63_RESCATE; TM es un índice nuevo y estable.
 
 Esta entrega completa únicamente Lote 1. Las otras 50 identidades permanecen activas y pendientes de contraste por lote; no se presentan hipótesis como decisiones de retiro. A=fixture vigente; C=representación legacy sustituida por garantía canónica. Cero tests eliminados o deshabilitados. Los siete fullNames lifecycle se conservan, aunque sus cuerpos se modernizan.
