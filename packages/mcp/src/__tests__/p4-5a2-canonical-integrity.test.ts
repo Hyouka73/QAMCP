@@ -42,13 +42,38 @@ describe('P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, 
     });
 
     it('C3-b: si la petición declara una categoría distinta a la de la pregunta pendiente se rechaza con blocked', async () => {
-      const f=await fixture();await f.working();const q=(await f.interview('catalog',{action:'next'})).question;expect(await f.interview('catalog',{action:'review',question_id:'invented-actor',version:q.version})).toMatchObject({status:'blocked',code:'unknown_question'});expect(await f.interview('orders',{action:'propose',question_id:q.id,version:q.version,expected_revision:0,proposal:f.proposal})).toMatchObject({status:'blocked'});expect((await f.knowledge.query(f.scope.applicationId,'requirement')).items).toHaveLength(0);
+      const f = await fixture();
+      await f.working();
+      const q = (await f.interview('catalog', { action: 'next' })).question;
+      const before = await f.knowledge.query(f.scope.applicationId, 'requirement');
+      expect(await f.interview('catalog', { action: 'review', question_id: 'invented-actor',
+        version: q.version })).toMatchObject({ status: 'blocked', code: 'unknown_question' });
+      expect(await f.interview('orders', { action: 'propose', question_id: q.id, version: q.version,
+        expected_revision: 0, proposal: f.proposal })).toMatchObject({ status: 'blocked' });
+      // An unrecognized formal category cannot be smuggled through a canonical command.
+      const invalid = await f.call('qap_rules_set', { module: 'catalog', canonical_interview: {
+        action: 'propose', question_id: q.id, version: q.version, expected_revision: 0,
+        proposal: { ...f.proposal, category: 'categoria_inventada' },
+      } });
+      expect(invalid.status).not.toBe('pending_review');
+      expect(invalid.status).not.toBe('confirmed');
+      // A valid category DIFFERENT from the prompt is allowed to be proposed,
+      // but must never persist without a separate host review (TM-33 positive).
+      const proposed = await f.interview('catalog', { action: 'propose', question_id: q.id,
+        version: q.version, expected_revision: 0, proposal: { ...f.proposal, category: 'security' } });
+      expect(proposed).toMatchObject({ status: 'pending_review' });
+      expect(await f.interview('catalog', { action: 'review', question_id: q.id,
+        version: proposed.question.version })).toMatchObject({
+        status: 'blocked', code: 'human_review_not_authorized',
+      });
+      expect(await f.knowledge.query(f.scope.applicationId, 'requirement')).toEqual(before);
+      f.integrity();
     });
   });
 
   describe('C4: Flujo de respuestas cortas como borrador y propuesta de enunciado', () => {
     it('C4-a: respuesta corta se guarda como borrador (status inferred, source user_text, borrador true) y no cubre', async () => {
-      const f=await fixture();await f.working();const q=(await f.interview('catalog',{action:'next'})).question;expect(await f.interview('catalog',{action:'propose',question_id:q.id,version:q.version,expected_revision:0,proposal:{...f.proposal,title:'Gestión compras'}})).toMatchObject({status:'pending_review'});const draft=f.drafts();expect((await f.knowledge.query(f.scope.applicationId,'requirement')).items).toHaveLength(0);await f.restart();expect(f.drafts()).toEqual(draft);const next=(await f.interview('catalog',{action:'next'})).question;expect(next.id).toBe(q.id);expect(await f.interview('catalog',{action:'review',question_id:q.id,version:next.version})).toMatchObject({status:'blocked',code:'substantive_statement_required'});
+      const f=await fixture();await f.working();const q=(await f.interview('catalog',{action:'next'})).question;expect(await f.interview('catalog',{action:'propose',question_id:q.id,version:q.version,expected_revision:0,proposal:{...f.proposal,title:'Gestión compras'}})).toMatchObject({status:'pending_review'});const draft=f.drafts();expect(draft.questions.find(item=>item.id===q.id)).toMatchObject({state:'pending_review',proposal:{title:'Gestión compras'}});expect((await f.knowledge.query(f.scope.applicationId,'requirement')).items).toHaveLength(0);await f.restart();expect(f.drafts()).toEqual(draft);const next=(await f.interview('catalog',{action:'next'})).question;expect(next.id).toBe(q.id);expect(await f.interview('catalog',{action:'review',question_id:q.id,version:next.version})).toMatchObject({status:'blocked',code:'substantive_statement_required'});
     });
 
     it('C4-b: derivación determinista en categoría actor que nombra roles emite Pregunta una_opcion directamente', async () => {
@@ -78,8 +103,17 @@ describe('P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, 
       expect(receipts[0].trace).toMatchObject({ reason: saved?.trace.reason, review: 'reviewed' });
       expect(receipts[0].entity).toMatchObject({ predicate: 'related_to',
         target: { kind: 'requirement', id: req[0].entity.id, revision: 1 } });
-      expect((await f.close('catalog', { action: 'evaluate' })).assessment.execution_coverage.status)
-        .toBe('not_executed');
+      const incomplete = await f.close('catalog', { action: 'evaluate' });
+      expect(incomplete.assessment.specification_coverage.status).toBe('incomplete');
+      expect(await f.approvedClosure('catalog', { action: 'declare_non_applicable', decisions:
+        (['business_rule', 'security', 'ui', 'ux', 'regression', 'performance'] as const).map(category => ({
+          category, reason: `Fuera del alcance sintético del catálogo: ${category}.`,
+        })) })).toMatchObject({ status: 'declared_non_applicable' });
+      const coverage = await f.close('catalog', { action: 'evaluate' });
+      expect(coverage.assessment.specification_coverage).toMatchObject({
+        status: 'complete', confirmed_requirements_count: 1,
+      });
+      expect(coverage.assessment.execution_coverage.status).toBe('not_executed');
       f.integrity();
     });
 
@@ -94,15 +128,15 @@ describe('P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, 
 
   describe('C10: Detección y advertencia de extracción vacía', () => {
     it('C10-a: página app/login sin elementos interactivos genera advertencia extraccion_vacia y trabajo', async () => {
-      const f=await fixture('<html><body><h1>Vista vacía</h1></body></html>');await f.working();const data=await f.call('qap_discover',{name:'catalog',path:'/catalog'});expect(data).toMatchObject({persistence:'committed',counts:{controls:0,forms:0}});expect((await f.knowledge.query(f.scope.applicationId,'requirement')).items).toHaveLength(0);expect((await f.close('catalog',{action:'evaluate'})).assessment.specification_coverage.status).toBe('incomplete');
+      const f=await fixture('<html><body><h1>Vista vacía</h1></body></html>');await f.working();const data=await f.call('qap_discover',{name:'catalog',path:'/catalog'});expect(data).toMatchObject({acquisition_status:'completed',persistence:'committed',counts:{controls:0,forms:0,views:expect.any(Number)}});expect(data.limitations).toEqual(expect.any(Array));expect(data.next_safe_action).toEqual(expect.any(String));expect((await f.knowledge.query(f.scope.applicationId,'requirement')).items).toHaveLength(0);expect((await f.close('catalog',{action:'evaluate'})).assessment.specification_coverage.status).toBe('incomplete');
     });
 
     it('C10-b: página con al menos un elemento interactivo no genera advertencia extraccion_vacia', async () => {
-      const f=await fixture();await f.working();const data=await f.discover();expect(data).toMatchObject({persistence:'committed',counts:{controls:expect.any(Number),forms:expect.any(Number)}});expect((await f.knowledge.query(f.scope.applicationId,'observation')).items.length).toBeGreaterThan(0);expect((await f.knowledge.query(f.scope.applicationId,'requirement')).items).toHaveLength(0);
+      const f=await fixture();await f.working();const data=await f.discover();expect(data).toMatchObject({persistence:'committed',counts:{controls:expect.any(Number),forms:expect.any(Number)}});expect(data.counts.controls).toBeGreaterThan(0);expect(data.limitations).toEqual(expect.any(Array));expect((await f.knowledge.query(f.scope.applicationId,'observation')).items.length).toBeGreaterThan(0);expect((await f.knowledge.query(f.scope.applicationId,'requirement')).items).toHaveLength(0);
     });
 
     it('C10-c: la advertencia extraccion_vacia es agnóstica de la aplicación', async () => {
-      const f=await fixture('<html><body><section>Sin acciones</section></body></html>');await f.working(['catalog','orders']);for(const module of ['catalog','orders']){const data=await f.call('qap_discover',{name:module,path:'/'+module});expect(data).toMatchObject({persistence:'committed',counts:{controls:0,forms:0}});expect(data).not.toHaveProperty('extraccion_vacia');}expect((await f.knowledge.query(f.scope.applicationId,'requirement')).items).toHaveLength(0);
+      const f=await fixture('<html><body><section>Sin acciones</section></body></html>');await f.working(['catalog','orders']);for(const module of ['catalog','orders']){const data=await f.call('qap_discover',{name:module,path:'/'+module});expect(data).toMatchObject({acquisition_status:'completed',persistence:'committed',counts:{controls:0,forms:0}});expect(data.limitations).toEqual(expect.any(Array));expect(data).not.toHaveProperty('extraccion_vacia');}expect((await f.knowledge.query(f.scope.applicationId,'requirement')).items).toHaveLength(0);
     });
   });
 
