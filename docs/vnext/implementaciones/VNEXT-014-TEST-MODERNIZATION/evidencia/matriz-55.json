@@ -351,9 +351,12 @@
       "code_commit": "df781fdb2bf8b54c279b3faac2dfd6edec785970"
     },
     "r3": {
-      "code_status": "semantic_review_or_assertions_updated",
+      "code_status": "semantic_reinforced_pending_physical_verification",
       "physical_result": "not_run",
-      "note": "Consulte CONTRATOS_VIGENTES.md, PENDIENTES.md y campañas R1/R2; no extrapolar resultados al SHA R3."
+      "note": "Consulte CONTRATOS_VIGENTES.md, PENDIENTES.md y campañas R1/R2; no extrapolar resultados al SHA R3.",
+      "path": "packages/mcp/src/__tests__/p3-canonical-discovery.test.ts",
+      "code_sha": "37df9936f6f45bd79ed3cf5c8eeb67b79241e046",
+      "guarantee": "Plan tie-break medium/medium via MCP status; all-complete and observed/interviewing historical scenarios still not reconciled"
     }
   },
   {
@@ -1911,9 +1914,12 @@
       "code_commit": "a721a88f45294c61c8c8ddeef577a36bdfcfd8cd"
     },
     "r3": {
-      "code_status": "semantic_review_or_assertions_updated",
+      "code_status": "semantic_reinforced_pending_physical_verification",
       "physical_result": "not_run",
-      "note": "Consulte CONTRATOS_VIGENTES.md, PENDIENTES.md y campañas R1/R2; no extrapolar resultados al SHA R3."
+      "note": "Consulte CONTRATOS_VIGENTES.md, PENDIENTES.md y campañas R1/R2; no extrapolar resultados al SHA R3.",
+      "path": "packages/mcp/src/__tests__/p4-5a2-canonical-integrity.test.ts",
+      "code_sha": "5c64881b23d3ee0ef024b15a6d07f79c86e330c9",
+      "guarantee": "Authorized accented Operación display name, normalized module key operacion, canonical binding, review and durable readback after restart; legacy pending_questions replaced"
     }
   },
   {
