@@ -1,3 +1,21 @@
+## Dictamen de orquestación 2026-11-06 — posterior a c8b0cd1
+
+**Estado vigente: NO-GO.** GitHub verificó HEAD `c8b0cd1` al comenzar esta revisión (8 commits posteriores a `6062dcb`). Existen **38/55 identidades modernizadas en código**: cinco con PASS físico previo del Lote 1; **33 modernizadas adicionales sin corrida física**, y **17 aún sin sustitución**. El conteo antiguo de 50 pendientes en secciones inferiores corresponde al Lote 1 y **no representa el estado actual**. La matriz JSON aún conserva `physical_result: failed` del baseline para los casos no ejecutados; no sobrescribir evidencias antiguas ni interpretarlas como resultados sobre el nuevo HEAD.
+
+**Hallazgos de revisión semántica (no son fallos físicos demostrados):**
+1. **P1 — presupuesto E01:** `p4-5a2-canonical-integrity.test.ts` declaró `describe(..., { timeout: 45000 })`, ampliando de hecho el presupuesto por caso frente a 5000 ms. Se retiró en el commit de tests posterior a `c8b0cd1`. Ese cambio **no está ejecutado** y no repara E01.
+2. **P1 — TM-41/42/43:** los nuevos C10-a/b/c comprueban ausencia de controles y no promoción normativa, pero **no verifican la advertencia de extracción vacía**, su ausencia en superficies interactivas ni un estado de trabajo equivalente. Determinar si la advertencia sigue siendo requisito MVP o extensión posterior; no dar equivalencia por el solo nombre de la prueba.
+3. **P1 — TM-44:** C1-c verifica normalización NFD aislada y bloqueo de módulo ajeno al plan; **no verifica** la creación de directorio, preservación de nombre ni normalización de preguntas persistidas que afirma su título histórico. Reconciliar garantía con el contrato vigente o reforzar positivos.
+4. **P1 — TM-09/TM-23:** T14 no compara prioridad high/medium/low ni orden de plan; C9a verifica un código de bloqueo auth, pero no los campos `razon`/`directorio_objetivo` prometidos. Comprobar contrato vigente y cubrir la parte aún exigible.
+5. **P1 — TM-33/35/38:** comprobar categoría vinculada al origen persistido, atributos de borrador y procedencia de confirmación; hoy predominan aserciones de `pending_review`, ausencia de requisito o datos de otro escenario. Algunos nombres conservados son históricos y no representan exactamente el contrato nuevo; las sustituciones requieren acta semántica explícita.
+6. **P1 — TM-48:** un rechazo por falta de autorización no demuestra validación semántica de contexto de vista inválido; separar ambas garantías si la validación vieja sigue siendo exigible.
+7. **P2 — TM-22/37:** Criterio 4 dice dos reglas pero ejercita una; C4-c menciona tres opciones, aunque la aserción exige cuatro del protocolo actual. Documentar el cambio de contrato y probar la cardinalidad real.
+
+**Trabajo pendiente de código (17):** TM-13..TM-19 (7 auth P4.4), TM-27 (1 SCOPING/auth), TM-30..TM-32 (3 login/auth-wall), TM-46 y TM-50/TM-52..55 (6 Server). Total 11 identidades ligadas a autenticación y 6 Server; **no equiparar** `fresh_anonymous_static` con navegador autenticado ni `blocked` con prueba positiva. Distinguir pruebas positivas de `qap_plan`/`qap_test` y negativos de autorización.
+
+**Orden de cierre:** A) corregir aserciones incompletas y reconciliar decisiones de contrato; B) modernizar 6 Server preservando el positivo plan/test; C) decidir alcance de 11 auth (mantener garantías y clasificar capacidad no implementada si aplica); D) una corrida focal seguida de serial, paralelo, build, tsc/lint diferenciales, Stdio y E01 separado; E) revisión humana real, verificación integrada e informe independiente Codex, antes de cualquier GO. Las fechas 16/18/19/20-nov permanecen; ninguna tarea históricamente cerrada se reabre. No cambiar timeouts, workers ni skips para mejorar resultados.
+
+---
 # Pendientes verificables
 
 Esta entrega es el Lote 1 autorizado como unidad completa de implementación. La modernización total sigue abierta.
