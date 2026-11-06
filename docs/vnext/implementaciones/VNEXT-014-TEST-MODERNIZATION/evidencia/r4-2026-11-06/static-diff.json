@@ -1,0 +1,38 @@
+{
+  "typescript": {
+    "r3": 134,
+    "r4": 128,
+    "inherited_r2": 128,
+    "added_vs_r3": [],
+    "removed_vs_r3": [
+      "src/__tests__/p4-5a2-canonical-integrity.test.ts: error TS2339: Property 'limitations' does not exist on type 'Payload'.",
+      "src/__tests__/p4-5a2-canonical-integrity.test.ts: error TS2339: Property 'next_safe_action' does not exist on type 'Payload'.",
+      "src/__tests__/p4-5a2-canonical-integrity.test.ts: error TS2339: Property 'counts' does not exist on type 'Payload'.",
+      "src/__tests__/p4-5a2-canonical-integrity.test.ts: error TS2339: Property 'limitations' does not exist on type 'Payload'.",
+      "src/__tests__/p4-5a2-canonical-integrity.test.ts: error TS2339: Property 'limitations' does not exist on type 'Payload'.",
+      "src/__tests__/server-canonical-operations.test.ts: error TS2339: Property 'persistence' does not exist on type 'Payload'."
+    ],
+    "added_vs_r2": [],
+    "removed_vs_r2": []
+  },
+  "eslint": {
+    "errors": 0,
+    "warnings": 2,
+    "added": [],
+    "removed": [],
+    "messages": [
+      [
+        "mcp/src/__tests__/server.test.ts",
+        null,
+        1,
+        "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-unsafe-argument')."
+      ],
+      [
+        "mcp/src/__tests__/server.test.ts",
+        null,
+        1,
+        "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
+      ]
+    ]
+  }
+}

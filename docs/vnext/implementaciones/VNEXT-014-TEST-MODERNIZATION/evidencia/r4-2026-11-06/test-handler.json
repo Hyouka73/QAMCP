@@ -1,0 +1,292 @@
+{
+  "numTotalTestSuites": 3,
+  "numPassedTestSuites": 3,
+  "numFailedTestSuites": 0,
+  "numPendingTestSuites": 0,
+  "numTotalTests": 21,
+  "numPassedTests": 21,
+  "numFailedTests": 0,
+  "numPendingTests": 0,
+  "numTodoTests": 0,
+  "snapshot": {
+    "added": 0,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0,
+    "didUpdate": false
+  },
+  "startTime": 1794008867152,
+  "success": true,
+  "testResults": [
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4)"
+          ],
+          "fullName": "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) 014-CODEX-004: an overlapping cleanup owns only its original roots until locks drain",
+          "status": "passed",
+          "title": "014-CODEX-004: an overlapping cleanup owns only its original roots until locks drain",
+          "duration": 35.70360000000005,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4)"
+          ],
+          "fullName": "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) Scenario 1: executes valid and authorized plan, persisting authentic result (R4.1)",
+          "status": "passed",
+          "title": "Scenario 1: executes valid and authorized plan, persisting authentic result (R4.1)",
+          "duration": 991.3823999999997,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4)"
+          ],
+          "fullName": "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) Scenario 2: rejects missing, historical, corrupt, or obsolete plans without executing runner (R4.2)",
+          "status": "passed",
+          "title": "Scenario 2: rejects missing, historical, corrupt, or obsolete plans without executing runner (R4.2)",
+          "duration": 82.51760000000013,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4)"
+          ],
+          "fullName": "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) Scenario 3: rejects environment mismatch, module mismatch, and missing module (R4.3)",
+          "status": "passed",
+          "title": "Scenario 3: rejects environment mismatch, module mismatch, and missing module (R4.3)",
+          "duration": 80.80200000000013,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4)"
+          ],
+          "fullName": "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) Scenario 4: in-memory snapshot prevents TOCTOU tampering of YAML files after verification (R4.4)",
+          "status": "passed",
+          "title": "Scenario 4: in-memory snapshot prevents TOCTOU tampering of YAML files after verification (R4.4)",
+          "duration": 490.58100000000013,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4)"
+          ],
+          "fullName": "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) Scenario 5: blocks unauthorized URLs, unconfigured host policy, and redirects (R4.5)",
+          "status": "passed",
+          "title": "Scenario 5: blocks unauthorized URLs, unconfigured host policy, and redirects (R4.5)",
+          "duration": 750.364,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4)"
+          ],
+          "fullName": "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) Scenario 6: classifies missing browser launch failure as infrastructure block (R4.6)",
+          "status": "passed",
+          "title": "Scenario 6: classifies missing browser launch failure as infrastructure block (R4.6)",
+          "duration": 96.02970000000005,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4)"
+          ],
+          "fullName": "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) Scenario 7: rejects unauthorized profiles and disables implicit session recovery (R4.7)",
+          "status": "passed",
+          "title": "Scenario 7: rejects unauthorized profiles and disables implicit session recovery (R4.7)",
+          "duration": 596.3128999999999,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4)"
+          ],
+          "fullName": "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) Scenario 8: distinguishes real functional failure from infrastructure failure (R4.8)",
+          "status": "passed",
+          "title": "Scenario 8: distinguishes real functional failure from infrastructure failure (R4.8)",
+          "duration": 661.7457999999997,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4)"
+          ],
+          "fullName": "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) Scenario 9: zero cases executed never returns fake PASS verdict (R4.9)",
+          "status": "passed",
+          "title": "Scenario 9: zero cases executed never returns fake PASS verdict (R4.9)",
+          "duration": 76.8814999999995,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4)"
+          ],
+          "fullName": "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) Scenario 10: supports cancellation and resource cleanup under AbortSignal (R4.10)",
+          "status": "passed",
+          "title": "Scenario 10: supports cancellation and resource cleanup under AbortSignal (R4.10)",
+          "duration": 51.00640000000021,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4)"
+          ],
+          "fullName": "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) Scenario 11: persists execution results adhering to schema without automatic SQLite ConformityAssessment (R4.11)",
+          "status": "passed",
+          "title": "Scenario 11: persists execution results adhering to schema without automatic SQLite ConformityAssessment (R4.11)",
+          "duration": 493.3681000000006,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4)"
+          ],
+          "fullName": "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) Scenario 12: integrates cleanly via createMcpServer preserving exact 18 tools (R4.12)",
+          "status": "passed",
+          "title": "Scenario 12: integrates cleanly via createMcpServer preserving exact 18 tools (R4.12)",
+          "duration": 506.71090000000004,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4)"
+          ],
+          "fullName": "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) Scenario 13: physical Playwright Chromium execution against isolated local HTTP fixture (Real PASS & FAIL)",
+          "status": "passed",
+          "title": "Scenario 13: physical Playwright Chromium execution against isolated local HTTP fixture (Real PASS & FAIL)",
+          "duration": 601.1264000000001,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "VNEXT-014-D preflight — execution evidence integrity"
+          ],
+          "fullName": "VNEXT-014-D preflight — execution evidence integrity D-01: does not persist schema-invalid runner outputs",
+          "status": "passed",
+          "title": "D-01: does not persist schema-invalid runner outputs",
+          "duration": 85.66349999999966,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "VNEXT-014-D preflight — execution evidence integrity"
+          ],
+          "fullName": "VNEXT-014-D preflight — execution evidence integrity D-02: refuses traversal-capable execution IDs despite schema v1 accepting strings",
+          "status": "passed",
+          "title": "D-02: refuses traversal-capable execution IDs despite schema v1 accepting strings",
+          "duration": 78.5644999999995,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "VNEXT-014-D preflight — execution evidence integrity"
+          ],
+          "fullName": "VNEXT-014-D preflight — execution evidence integrity D-03: failed execution persistence cannot be reported as success or recorded in history",
+          "status": "passed",
+          "title": "D-03: failed execution persistence cannot be reported as success or recorded in history",
+          "duration": 73.04059999999936,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "VNEXT-014-D preflight — execution evidence integrity"
+          ],
+          "fullName": "VNEXT-014-D preflight — execution evidence integrity D-04: history failure preserves saved evidence but returns an explicit partial error",
+          "status": "passed",
+          "title": "D-04: history failure preserves saved evidence but returns an explicit partial error",
+          "duration": 85.79160000000047,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "VNEXT-014-D preflight — execution evidence integrity"
+          ],
+          "fullName": "VNEXT-014-D preflight — execution evidence integrity D-05: rejects a schema-valid execution associated with a different module",
+          "status": "passed",
+          "title": "D-05: rejects a schema-valid execution associated with a different module",
+          "duration": 93.34789999999975,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "VNEXT-014-D preflight — execution evidence integrity"
+          ],
+          "fullName": "VNEXT-014-D preflight — execution evidence integrity D-06: rejects summary totals that disagree with executed cases",
+          "status": "passed",
+          "title": "D-06: rejects summary totals that disagree with executed cases",
+          "duration": 82.07970000000023,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "VNEXT-014-D preflight — execution evidence integrity"
+          ],
+          "fullName": "VNEXT-014-D preflight — execution evidence integrity D-07: a critical runner error persists not_run evidence without reporting MCP success",
+          "status": "passed",
+          "title": "D-07: a critical runner error persists not_run evidence without reporting MCP success",
+          "duration": 93.01019999999971,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        }
+      ],
+      "startTime": 1794008869161,
+      "endTime": 1794008875269.0103,
+      "status": "passed",
+      "message": "",
+      "name": "<repo>/packages/mcp/src/__tests__/test-handler.test.ts"
+    }
+  ]
+}

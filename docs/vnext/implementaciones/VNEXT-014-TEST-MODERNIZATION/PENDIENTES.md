@@ -1,3 +1,13 @@
+## Certificación física R4 — 2026-11-06
+
+**R4 correctiva PASS; VNEXT-014 integral NO-GO.** SHA probado `2dc2f5800f64e2a08fd11c88608a4f6beddcf635`: nueve suites, 101 PASS/1 FAIL/0 SKIP/0 TODO, sin cambios de resultado frente a R3. TM-50 sigue FAIL heredado. TypeScript 128 heredados: desaparecen exactamente los seis TS2339 nuevos, sin retirar aserciones ni introducir errores. ESLint focal 0 errores/2 warnings heredados; build oficial PASS.
+
+Se cierran los tres P2 R3 en su alcance: TM-44 compara snapshot completo y next antes/después de reabrir stores/servidor y lee requisito por conexión SQLite independiente; TM-48 persiste Environment 1→2, rechaza consentimiento 1 sin adquisición/asociación/requisitos y recupera adquisición/asociación con consentimiento 2. Doce identidades auth, E01, deuda estática, equivalencias parciales restantes, revisión humana real y compuertas globales/Stdio permanecen abiertas. Sin ejecución global/E01 ni cambios productivos. MVP 20-11-2026 intacto. [Informe y evidencia R4](VERIFICACION_FISICA_R4_2026-11-06.md).
+
+Las secciones siguientes son históricas; la certificación anterior sustituye sus estados pendientes únicamente para las tres correcciones R4 y selección efectivamente ejecutada.
+
+---
+
 ## R4 correctiva — cambios en código publicados; verificación pendiente (2026-11-06)
 
 **NO-GO hasta certificación independiente.** Los hallazgos P2 de R3 se corrigieron en tests/fixture sin modificar código productivo, sin alterar timeouts ni eliminar identidades:

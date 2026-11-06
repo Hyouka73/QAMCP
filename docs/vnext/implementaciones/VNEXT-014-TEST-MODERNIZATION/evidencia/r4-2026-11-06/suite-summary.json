@@ -1,0 +1,74 @@
+[
+  {
+    "suite": "p3-canonical-discovery",
+    "pass": 5,
+    "fail": 0,
+    "skip_todo": 0,
+    "exit_code": 0,
+    "elapsed_ms": 12699.9699
+  },
+  {
+    "suite": "p4-2-canonical-contract",
+    "pass": 2,
+    "fail": 0,
+    "skip_todo": 0,
+    "exit_code": 0,
+    "elapsed_ms": 6759.1148
+  },
+  {
+    "suite": "p4-5a-canonical-integrity",
+    "pass": 9,
+    "fail": 0,
+    "skip_todo": 0,
+    "exit_code": 0,
+    "elapsed_ms": 8715.5513
+  },
+  {
+    "suite": "p4-5a2-canonical-integrity",
+    "pass": 13,
+    "fail": 0,
+    "skip_todo": 0,
+    "exit_code": 0,
+    "elapsed_ms": 12914.9658
+  },
+  {
+    "suite": "server-canonical-discovery",
+    "pass": 4,
+    "fail": 0,
+    "skip_todo": 0,
+    "exit_code": 0,
+    "elapsed_ms": 6752.0922
+  },
+  {
+    "suite": "server-canonical-operations",
+    "pass": 5,
+    "fail": 0,
+    "skip_todo": 0,
+    "exit_code": 0,
+    "elapsed_ms": 8645.4706
+  },
+  {
+    "suite": "server",
+    "pass": 11,
+    "fail": 1,
+    "skip_todo": 0,
+    "exit_code": 1,
+    "elapsed_ms": 4114.0566
+  },
+  {
+    "suite": "plan-handler",
+    "pass": 31,
+    "fail": 0,
+    "skip_todo": 0,
+    "exit_code": 0,
+    "elapsed_ms": 4129.5642
+  },
+  {
+    "suite": "test-handler",
+    "pass": 21,
+    "fail": 0,
+    "skip_todo": 0,
+    "exit_code": 0,
+    "elapsed_ms": 8924.5397
+  }
+]

@@ -1,5 +1,11 @@
 # Correcciones por familia
 
+## Certificación independiente R4 — 2026-11-06
+
+**Correctiva PASS / integral NO-GO**, SHA `2dc2f5800f64e2a08fd11c88608a4f6beddcf635`. Cierra R3-01: exactamente seis TS2339 eliminados, 128 diagnósticos heredados y cero nuevos, aserciones conservadas. Cierra R3-03: TM-44 PASS con snapshot/next iguales tras restart de stores/servidor y requisito desde nuevo adaptador/conexión SQLite. Cierra R3-02: TM-48 PASS con Environment persistido rev1→2, consentimiento rev1 rechazado sin escrituras de adquisición/asociación/requisitos y rev2 positivo. No se certifica crash de proceso ni consentimiento humano real.
+
+Nueve suites: 101 PASS/1 FAIL/0 SKIP/0 TODO, mismo conjunto y resultados R3; único FAIL TM-50 heredado. ESLint focal 0 errores/2 warnings heredados, build PASS. Sin defectos nuevos observados en la selección. Permanecen auth (12), E01, deuda y compuertas integrales. [Acta R4 y evidencia reproducible](VERIFICACION_FISICA_R4_2026-11-06.md). Se preservan actas históricas siguientes; sus afirmaciones de correcciones sin ejecutar quedan sustituidas en este alcance.
+
 ## R4 correctiva — 2026-11-06 (código pendiente de certificación)
 
 Origen: [auditoría R3](VERIFICACION_FISICA_R3_2026-11-06.md), SHA probado `bdafeeb834549fc13c5d952c1f341098c2592468`, 101 PASS/1 FAIL, seis nuevos TS2339 y oráculos insuficientes TM-44/TM-48.
