@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { createLifecycleFixture, type LifecycleFixture } from './fixtures/lifecycle-canonical.js';
 
 // Stable nested historical fullNames; canonical tests have no hoisted adapter mocks.
-describe('P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10)', { timeout: 45000 }, () => {
+describe('P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10)', () => {
   const cleanup: Array<() => Promise<void>> = [];
   const fixture = (html?: string): Promise<LifecycleFixture> => createLifecycleFixture(close => cleanup.push(close), html);
   afterEach(async () => {
