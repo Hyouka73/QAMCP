@@ -138,13 +138,13 @@ export async function createLifecycleFixture(registerCleanup: (close: () => Prom
   const validator = new SchemaValidator();
   const moduleBindings = names.map(name => ({ plannedName: name, moduleId: `module-${name}`, moduleKey: name,
     moduleRevision: 1, applicationRevision: 1, environmentRevision: 1, provenance: 'host_declared' as const }));
-  async function connect(authorized = true, boundNames = ['catalog', 'orders']) {
+  async function connect(authorized = true, boundNames = ['catalog', 'orders'], browserOverride?: { executable_path: string }) {
     server = createMcpServer({ projectRoots: [root], knowledgeBindings: [{ ...scope, store: knowledge,
       moduleBindings: moduleBindings.filter(b => boundNames.includes(b.plannedName)), humanReviewGateway: inbox, interviewDraftStore: drafts,
       moduleClosureStore: closure, moduleClosureReviewGateway: inbox }],
     discoveryAuthorizations: authorized ? [{ ...scope, environmentRevision: 1,
       authorization: { read_only_acknowledged: true, navigation_urls: names.map(n => `${origin}/${n}`), allowed_ips: ['127.0.0.1'] },
-      dependencies: { browser: { channel: 'chrome' } } }] : [],
+      dependencies: { browser: browserOverride ?? { channel: 'chrome' as const } } }] : [],
     });
     client = new Client({ name: 'canonical-lifecycle-test', version: '1' });
     const [a, b] = InMemoryTransport.createLinkedPair();
@@ -236,12 +236,12 @@ export async function createLifecycleFixture(registerCleanup: (close: () => Prom
     expect(existsSync(join(root, '.qa', 'modules', module, 'rules.yaml'))).toBe(false);
     return result;
   }
-  async function restart(authorized = true, boundNames = ['catalog', 'orders']) {
+  async function restart(authorized = true, boundNames = ['catalog', 'orders'], browserOverride?: { executable_path: string }) {
     await client?.close(); await server?.close();
     drafts?.close(); closure?.close();
     drafts = new SqliteInterviewDraftStore(draftOptions);
     closure = new SqliteModuleClosureStore(closureOptions);
-    await connect(authorized, boundNames);
+    await connect(authorized, boundNames, browserOverride);
   }
   function integrity() {
     for (const file of [path, draftPath, closurePath]) {
