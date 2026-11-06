@@ -1918,8 +1918,8 @@
       "physical_result": "not_run",
       "note": "Consulte CONTRATOS_VIGENTES.md, PENDIENTES.md y campañas R1/R2; no extrapolar resultados al SHA R3.",
       "path": "packages/mcp/src/__tests__/p4-5a2-canonical-integrity.test.ts",
-      "code_sha": "5c64881b23d3ee0ef024b15a6d07f79c86e330c9",
-      "guarantee": "Authorized accented Operación display name, normalized module key operacion, canonical binding, review and durable readback after restart; legacy pending_questions replaced"
+      "code_sha": "7c3a571e6dd601aa6ce4cc5f318cc776b6f1ac56",
+      "guarantee": "Authorized accented Operación display name, normalized canonical key operacion, retained binding, approved requirement readback after restart; never creates legacy pending_questions"
     }
   },
   {
@@ -2095,9 +2095,12 @@
       "guarantees": "Bloqueo honesto, lifecycle/requirements intactos y recuperación autorizada."
     },
     "r3": {
-      "code_status": "semantic_review_or_assertions_updated",
+      "code_status": "semantic_reinforced_pending_physical_verification",
       "physical_result": "not_run",
-      "note": "Consulte CONTRATOS_VIGENTES.md, PENDIENTES.md y campañas R1/R2; no extrapolar resultados al SHA R3."
+      "note": "Consulte CONTRATOS_VIGENTES.md, PENDIENTES.md y campañas R1/R2; no extrapolar resultados al SHA R3.",
+      "path": "packages/mcp/src/__tests__/server-canonical-discovery.test.ts",
+      "code_sha": "94e78e1ccde3c94811da8a52a10f1736d51cd503",
+      "guarantee": "Unbound authorization, disallowed URL, unsafe normalized path, unplanned module, credential argument, and stale host Environment revision all yield no writes"
     }
   },
   {
