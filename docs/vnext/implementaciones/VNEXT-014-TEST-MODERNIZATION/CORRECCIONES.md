@@ -1,5 +1,17 @@
 # Correcciones por familia
 
+## R4 correctiva — 2026-11-06 (código pendiente de certificación)
+
+Origen: [auditoría R3](VERIFICACION_FISICA_R3_2026-11-06.md), SHA probado `bdafeeb834549fc13c5d952c1f341098c2592468`, 101 PASS/1 FAIL, seis nuevos TS2339 y oráculos insuficientes TM-44/TM-48.
+
+- `c1d620b` — fixture tipa `persistence`, `counts`, `limitations` y `next_safe_action` reales como opcionales; el `knowledgeBindings` del host toma el Environment revision pin explícito en `restart`.
+- `d00d43b` — A2 corrige narrowing TS sin `any` ni suprimir checks; TM-44 certificará snapshot de draft y `next` tras restart, y requisito desde adaptador SQLite independiente; TM-42 reafirma ausencia de campo legacy `extraccion_vacia`.
+- `daf4038` — TM-48 deja de usar revisión sintética futura 999: se persiste Environment rev2, se intenta adquirir con consentimiento host rev1 y se comprueba no-escritura; renovación host a rev2 permite adquisición/association positiva.
+
+**Sin ejecución física sobre R4.** No cambiar GO/NO-GO de R3 por estos commits ni dar los seis TS como eliminados sin `tsc` real. Código productivo, contratos de auth, E01, workers, timeouts y evidencia histórica preservados.
+
+---
+
 ## Verificación independiente R3 — resultados publicados 2026-11-06
 
 Sobre `bdafeeb834549fc13c5d952c1f341098c2592468`: nueve suites ejecutadas, 101/102 PASS, único FAIL heredado TM-50. Se comprobaron físicamente desempate MCP TM-09, positivos categoría/recibo/cobertura y módulo acentuado, las negativas TM-48 y cinco sustituciones Server, incluyendo ejecución real TM-46. ESLint elimina cuatro warnings P3/A2 sin nuevas altas focales, build PASS. **Regresión detectada: seis TS2339 nuevos, 134 totales**; siguen parciales los objetivos de recuperación draft/next TM-44 y autorización realmente obsoleta TM-48. Esta campaña no los corrige. Focal e integral NO-GO. [Informe R3](VERIFICACION_FISICA_R3_2026-11-06.md). Las secciones siguientes conservan el estado de implementación previo a la certificación, sin reescribir históricos R1/R2.
