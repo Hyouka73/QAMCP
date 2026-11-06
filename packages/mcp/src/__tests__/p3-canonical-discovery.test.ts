@@ -124,6 +124,21 @@ describe('P3 Suite de Verificación MCP (T3 - T15)', () => {
       plan: commonPlan,
       modules: { orders: { state: 'planned' }, dashboard: { state: 'planned' }, catalog: { state: 'planned' } },
     }).siguiente_accion).toMatchObject({ tipo: 'trabajo', tool: 'qap_discover', module: 'orders' });
+
+    // The actual MCP status path must honor that same tie-breaker, not only the
+    // pure guidance helper. Keep a separate authorized ephemeral project.
+    const tied = await createLifecycleFixture(close => cleanup.push(close));
+    await tied.working(['orders', 'dashboard', 'catalog'], {
+      orders: 'medium', dashboard: 'medium', catalog: 'low',
+    });
+    const tiedStatus = await tied.call('qap_status');
+    expect(tiedStatus).toMatchObject({ siguiente_accion: {
+      tipo: 'trabajo', tool: 'qap_discover', module: 'orders',
+    } });
+    expect(tied.lifecycle().modules.orders.state).toBe('planned');
+    expect(tied.lifecycle().modules.dashboard.state).toBe('planned');
+    expect((await tied.knowledge.query(tied.scope.applicationId, 'requirement')).items).toHaveLength(0);
+    tied.integrity();
   });
 
   it('T15: E2E: flujo de P2 hasta WORKING -> discover A -> rules_set parcial -> status (reanuda A) -> rules_set completa cobertura -> status (propone B) -> discover B; ninguna respuesta del flujo contiene texto del bucle', async () => {
