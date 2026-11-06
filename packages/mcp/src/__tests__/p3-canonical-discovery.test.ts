@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { createLifecycleFixture, type LifecycleFixture } from './fixtures/lifecycle-canonical.js';
+import { getPhaseGuidance } from '../guidance.js';
 
 // Historical P3 identities are intentionally kept verbatim. The legacy P3 suite
 // hoists PlaywrightAdapter mocks, so these canonical MCP/SQLite/Chromium checks
@@ -79,11 +80,23 @@ describe('P3 Suite de Verificación MCP (T3 - T15)', () => {
   });
 
   it('T14: qap_status WORKING: (a) observed con hipótesis reanuda entrevista; (b) interviewing incompleto reanuda; (c) planned elige high > medium > low luego orden; (d) todos completos tipo decision', async () => {
-    await f.working(['catalog', 'orders']);
+    // Plan order is intentionally NOT priority order: high must win over medium and low.
+    await f.working(['orders', 'dashboard', 'catalog'], {
+      orders: 'low', dashboard: 'medium', catalog: 'high',
+    });
     expect(await f.call('qap_status')).toMatchObject({ siguiente_accion: {
-      tipo: 'trabajo', tool: 'qap_discover',
+      tipo: 'trabajo', tool: 'qap_discover', module: 'catalog',
     } });
     await f.discover();
+    // Canonical Discovery records observations but does not mutate legacy lifecycle.
+    expect(f.lifecycle().modules.catalog.state).toBe('planned');
+    expect(await f.call('qap_status')).toMatchObject({ siguiente_accion: {
+      tipo: 'trabajo', tool: 'qap_discover', module: 'catalog',
+    } });
+    const question = await f.interview('catalog', { action: 'next' });
+    expect(question).toMatchObject({ status: 'interviewing', question: {
+      module: 'catalog', human_review_required: true,
+    } });
     expect(await f.call('qap_status')).toMatchObject({ siguiente_accion: {
       tipo: 'trabajo', tool: 'qap_rules_set', module: 'catalog',
       canonical_interview: { action: 'next' },
@@ -92,10 +105,24 @@ describe('P3 Suite de Verificación MCP (T3 - T15)', () => {
     expect(await f.call('qap_status')).toMatchObject({ siguiente_accion: { tool: 'qap_rules_set', module: 'catalog' } });
     expect(await f.approvedClosure('catalog', { action: 'close' })).toMatchObject({ status: 'closed' });
     const next = await f.call('qap_status');
-    expect(next).toMatchObject({ siguiente_accion: { tipo: 'trabajo', tool: 'qap_discover' } });
-    expect(next.siguiente_accion.descripcion).toContain('orders');
+    expect(next).toMatchObject({ siguiente_accion: {
+      tipo: 'trabajo', tool: 'qap_discover', module: 'dashboard',
+    } });
+    expect(next.siguiente_accion.descripcion).toContain('dashboard');
     expect(f.lifecycle().modules.catalog.state).toBe('closed');
+    expect(f.lifecycle().modules.dashboard.state).toBe('planned');
     expect(f.lifecycle().modules.orders.state).toBe('planned');
+
+    // Pure guidance verifies stable plan order when two planned modules share priority.
+    const commonPlan = [
+      { module: 'orders', path: '/orders', priority: 'medium', status: 'pending' },
+      { module: 'dashboard', path: '/dashboard', priority: 'medium', status: 'pending' },
+      { module: 'catalog', path: '/catalog', priority: 'low', status: 'pending' },
+    ];
+    expect(getPhaseGuidance('WORKING', {
+      plan: commonPlan,
+      modules: { orders: { state: 'planned' }, dashboard: { state: 'planned' }, catalog: { state: 'planned' } },
+    }).siguiente_accion).toMatchObject({ tipo: 'trabajo', tool: 'qap_discover', module: 'orders' });
   });
 
   it('T15: E2E: flujo de P2 hasta WORKING -> discover A -> rules_set parcial -> status (reanuda A) -> rules_set completa cobertura -> status (propone B) -> discover B; ninguna respuesta del flujo contiene texto del bucle', async () => {
