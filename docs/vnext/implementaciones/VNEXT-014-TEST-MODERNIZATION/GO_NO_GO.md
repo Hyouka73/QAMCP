@@ -1,5 +1,8 @@
 # Dictamen
 
+> **Actualización R1 (06/11/2026): NO-GO.** El SHA 8de5a22 obtuvo **31/33** focales, **10/10** lifecycle aislado, **487/506** MCP serial y **473/506** paralelo; build PASS, TypeScript/ESLint global FAIL. Dos FAIL focales fueron aserciones desactualizadas. Las correcciones posteriores de pruebas/fixtures **no se han ejecutado físicamente**. Siguen 17 identidades sin modernizar, E01, brechas semánticas y revisión humana/host. Ver [R1](VERIFICACION_FISICA_R1_2026-11-06.md) y [pendientes](PENDIENTES.md). Los conteos inferiores son registros históricos; ningún GO o merge autorizado.
+
+
 > **Dictamen vigente del orquestador (06/11/2026): NO-GO.** Modernización de código 38/55; cinco PASS históricos, 33 nuevas sin verificación física, 17 sin migrar. La advertencia de extracción vacía, pruebas positivas/orden, cobertura de autenticación y equivalencia de algunos oráculos están pendientes de comprobación semántica. Se corrigió el timeout de 45 s introducido en P4.5-A2 sin ejecutar pruebas. E01, Stdio/recorrido integral y la certificación independiente siguen abiertos. **Los párrafos inferiores con “50 garantías por modernizar” y otros conteos son actas de hitos previos, no el total actual.** Ver [PENDIENTES](PENDIENTES.md) para evaluación detallada. Ningún merge a develop/main ni GO por inspección.
 
 
