@@ -1,3 +1,48 @@
+## Estado operativo R3 — 2026-11-06 (sin certificación física)
+
+**VNEXT-014 NO-GO. Implementación 43/55 identidades, 12/55 pendientes de sustitución** tras los commits R3. No cambiar el hito MVP del **20-11-2026** ni reabrir tareas históricamente cerradas. La cifra describe código y NO implica 43 PASS físicos: R2 certificó 24/24 solamente en `92579eb`; R1 sigue siendo la única corrida global (487/506 serial, 473/506 paralelo).
+
+**R3-A:** `c5d37b0` reordena imports de P3 para resolver dos warnings detectados; `0dcb85f` añade negativos de categorías, borradores recuperables, especificación vs ejecución y superficies pasivas; `413af9f` amplía TM-48 con URL, identidad y argumento de credenciales rechazados. Pendiente ejecutar tests, lint y typecheck tras R3. Ningún warning se declara eliminado físicamente.
+
+**R3-B:** `ea9dcbd` habilita exclusivamente autorización opt-in de navegación loopback en el fixture; `1ebdc0b`, `b40d997`, `ab8d023` y `4d794fe` reemplazan cinco cuerpos Server manteniendo `fullName`. TM-46 ahora prueba `qap_plan` positivo, `plan.json`/caso real y `qap_test` con Chromium, prueba previa sin plan y plan obsoleto; ejecución real todavía no certificada. TM-52 comprueba compuertas de fase/módulo sin promover lifecycle. TM-53 conserva lectura positiva legacy de `qap_status`, no autorización implícita de Discovery. TM-54 cubre onboarding/ingesta/SCOPING/WORKING/Discovery. TM-55 prueba entrevista, revisión, cobertura/cierre y no reescritura YAML. **TM-50 permanece activo en `server.test.ts`** porque exige `session_saved` autenticado: no sustituirlo por navegación anónima.
+
+### Clasificación de las once identidades de autenticación
+
+A = garantía vigente comprobable; B = semántica legacy sustituida explícitamente; C = positivo todavía ausente. Clases mixtas son parciales, no cierre de identidad.
+
+| ID | Clase | Garantía demostrable / brecha real | Tarea verificable, dependencia y prioridad |
+| --- | --- | --- | --- |
+| TM-13 | A+C | Se rechazan argumentos de autenticación inseguros sin persistencia; no se produce `auth_required` desde perfil gestionado. | P1: test negativo MCP/SQLite; para positivo, contrato de perfil y host autenticado, con aceptación de bloqueo previo sin perfil y sin escrituras. |
+| TM-14 | C | No hay clasificador contractual `auth_wall` para HTTP 302. | P1: definir clasificación sanitizada de redirecciones, fixture HTTP 302 y no persistencia; requiere diseño de crawler. |
+| TM-15 | C | Login embebido sin redirección no se clasifica contractualmente. | P2: política de login HTML y aserciones negativas de falsos positivos; requiere decisión de alcance. |
+| TM-16 | C | No existe uso/revocación Discovery de sesión autenticada expirada. | P1 condicionado a auth real: expiración, desverificación y cero escritura. |
+| TM-17 | C | No existe flujo positivo Discovery con storageState y perfil verificado. | P1 si se autoriza auth en MVP: host seguro, readback de la vista autorizada y prohibición de acceso sin aprobación. |
+| TM-18 | A+C | `fresh_anonymous_static` no recibe credenciales ni material de sesión; no genera `auth_selectors` ni prueba su filtrado. | P1: negativas de no filtración; positivo de selectors solo cuando exista auth explícita. |
+| TM-19 | C | Guard SPA asíncrono no se etiqueta `auth_wall` canónico. | P2: prueba con guard real bajo límite 5000/10000, oráculo sanitizado y sin escritura. |
+| TM-27 | A+C | Compuerta SCOPING con roles y perfiles legacy existe; no valida identidad/capacidad autenticada canónica de extremo a extremo. | P1: prueba MCP persistente del gate sin roles/perfiles, perfiles gestionados sin fabricar verificación; depende de política de auth. |
+| TM-30 | C | Falta respuesta canónica `page_kind=login` positiva. | P2: decidir si la clasificación de login entra en MVP, con fixture de /login y sin falsos datos personales. |
+| TM-31 | C | Falta detección contractual auth_wall en 302. | P1: compartir contrato y fixtures con TM-14, preservar identidad/negativos separados. |
+| TM-32 | C | Falta detección contractual auth_wall de redirección SPA. | P2: prueba de guard local y resultado sanitizado; requiere diseño de crawler. |
+
+**TM-50 (C, Server):** sesión autenticada guardada y `is_auth_view` no existen como garantía de Discovery canónico. Tarea P1 condicionada a decisión de alcance de autenticación: fixture con host seguro y sesión independiente, expiración/revocación, sin exponer cookies ni credenciales. Dejar su test original activo y sin falsa certificación. **Quedan 12 identidades sin reemplazo: TM-13..19, TM-27, TM-30..32 y TM-50.**
+
+### Brechas semánticas y estáticas abiertas de R3
+
+- **TM-09:** pendiente subescenario legacy `observed` con hipótesis, `interviewing` incompleto, todos completos en WORKING y desempate MCP E2E. La apertura explícita de entrevista y prioridad MCP se probaron en R2, no la equivalencia total.
+- **TM-23:** `authentication_not_supported` protege contra argumentos inseguros; ni `auth_required`, ni `session_invalid`, ni los campos históricos `razon`/`directorio_objetivo` son contractuales. No hay positivo auth.
+- **TM-33/34/35/38:** clasificación formal independiente de la categoría de pregunta; R3 amplía negativos, borrador y cobertura de especificación, pero su resultado físico está pendiente. TM-36/37 usan las cuatro acciones `propose/correct/defer/review`.
+- **TM-41/42/43:** cero controles no equivale a fallo de adquisición. R3 comprueba conteos, observaciones y ausencia de promoción; una advertencia literal `extraccion_vacia` no forma parte de `DiscoveryHandler` vigente. Decidir MVP vs posterior antes de implementarla; no inventar nuevo campo para Vitest.
+- **TM-44:** sin recorrido positivo de módulo acentuado con binding autorizado; NFD unitaria + rechazo externo siguen siendo parciales. Tarea P1 si la identidad humana acentuada es parte del contrato actual: prueba positiva con plan, path consentido, binding, readback y no directorios incorrectos.
+- **TM-48:** R3 añade negativos por URL/módulo/credenciales, pero no reintroduce `module-view.schema.json` ni cubre todavía revisiones de Environment incompatibles; ampliar fixture host para revisión obsoleta si es exigible.
+- **E01:** investigación aislada pendiente. No tocar límites 5000/10000 ms, workers ni configuración Vitest. Los 128 diagnósticos TS y dos warnings históricos en A2 siguen siendo baseline de R2; validar diferencial real después de R3.
+- **Autoridad:** inboxes sintéticos no certifican revisión humana real. No presentar ejecución de Chromium R3 como PASS antes de Codex.
+
+### Una sola campaña física focal independiente R3
+
+Codex debe fijar HEAD exacto y correr **sin skips, filtros de casos ni nuevos presupuestos**: `p3-canonical-discovery.test.ts`; `p4-2-canonical-contract.test.ts`; `p4-5a-canonical-integrity.test.ts`; `p4-5a2-canonical-integrity.test.ts`; `server-canonical-discovery.test.ts`; **`server-canonical-operations.test.ts`**; y los tests dependientes `plan-handler.test.ts` / `test-handler.test.ts`. Después TypeScript MCP `pnpm --filter @qap/mcp exec tsc --noEmit`, ESLint focal sobre archivos R3, build y diferencial por `fullName` del baseline. Separar bloqueos legítimos de FAIL de aserciones y de falta de navegador. Sólo si el foco está estable planificar luego 506 serial/paralelo, Stdio y E01. Preservar R1/R2 y escribir evidencia nueva aditiva, sin sobrescribir `physical_result` histórico.
+
+---
+
 ## Verificación física R1 y correcciones posteriores — 2026-11-06
 
 **R1 sobre SHA 8de5a22 (Codex, Windows/Node 24.15.0):** 33 canónicas focalizadas = **31 PASS / 2 FAIL**; lifecycle **10/10 PASS**; MCP serial **487/506 PASS (19 FAIL)**; MCP paralelo **473/506 PASS (33 FAIL)**. Build PASS, typecheck/lint global FAIL. Diferencial serial frente a 456/50: 31 FAIL→PASS, cero PASS→FAIL. Fuente inalterada: [VERIFICACION_FISICA_R1_2026-11-06.md](VERIFICACION_FISICA_R1_2026-11-06.md). Este resultado **no se extrapola a commits posteriores**.
