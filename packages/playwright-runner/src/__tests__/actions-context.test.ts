@@ -90,9 +90,9 @@ describe('Acciones S7-005 (capture, evaluate, switch_auth)', () => {
     ).rejects.toThrow(/auth_profile/i);
   });
 
-  it('switch_auth lanza un error claro si no existe sesión válida para el perfil', async () => {
+   it('switch_auth lanza un error claro si no existe sesión válida para el perfil', async () => {
     await expect(
-      executeSwitchAuth(page, { type: 'switch_auth', auth_profile: 'perfil-inexistente-xyz' }, '.qa/cache/sessions')
+      executeSwitchAuth(page, { type: 'switch_auth', auth_profile: 'perfil-inexistente-xyz' })
     ).rejects.toThrow(/No existe una sesión válida/);
   });
 });
