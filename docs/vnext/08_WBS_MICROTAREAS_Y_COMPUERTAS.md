@@ -245,3 +245,7 @@ Matriz55 inicial y contratos de sustitución en [VNEXT-014-TEST-MODERNIZATION](i
 Contraste de carga del mismo lote: MCP paralelo predeterminado442/63/505;13 fallos adicionales frente a serie, incluidos seis lifecycle. La certificación paralela del Lote1 también permanece NO-GO dentro de E01. No altera la recuperación serial ni autoriza cierre integral.
 
 E01 bajo dos suites simultáneas:425/80 y433/72 de505; hooks de drenaje vencidos en test-handler. No se certifica estabilidad ni se amplían presupuestos. Evidencia completa publicada con el lote; no se reabre ninguna actividad terminada.
+
+## Anexo aditivo 2026-11-06 — E01 antes de continuar modernización
+
+Por instrucción posterior del usuario, P3 y los lotes 2–7 quedan detenidos. Se investigó E01 con focales, etapas y recursos físicos; se corrigieron recompilación de schemas, carga innecesaria del driver/compilador y cierre MCP sin drenaje. MCP serial final456/50/506; dos paralelos normales consecutivos453/53 y452/54: TestHandler21/21, pero persisten3–4 timeouts lifecycle (E0a/E0b/E1 y Criterio9). No se modificaron workers/timeouts ni las50 expectativas legacy. E01 sigue abierto y VNEXT-014 sigue NO-GO; el próximo trabajo es el tramo nativo de salida de Chromium y su presupuesto demostrado, no P3. [Correcciones, evidencia y límites](implementaciones/VNEXT-014-E01/RESULTADOS.md) · [Decisión temporal separada](implementaciones/VNEXT-014-E01/DECISION_PRESUPUESTO.md). No modifica VNEXT-015, trabajos históricos terminados ni compuertas de integración.

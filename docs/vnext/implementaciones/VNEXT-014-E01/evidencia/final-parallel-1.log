@@ -1,0 +1,1220 @@
+
+ RUN  v4.1.11 C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp
+
+stderr | src/__tests__/server.test.ts > Suite MCP Server QAP v2.1 / v2.1.2 > debe operar sobre targetPath independiente de cwd y validar qap_server
+[QAP Knowledge Graph] Servidor interactivo iniciado en: http://localhost:9555
+[QAP Knowledge Graph] Base de conocimiento servida desde: C:\Users\Judirico\AppData\Local\Temp\qap-custom-target-veo7ND\.qa
+
+ ✓ src/__tests__/p4-5s1-browser-candidates.test.ts (11 tests) 7942ms
+     ✓ C1: qap_status y qap_init incluyen navegador_qap en proyecto inicializado  1173ms
+     ✓ C4/C6: qap_context_ingest persiste module-candidates.json y qap_session_plan lo usa  897ms
+     ✓ C5: qap_session_plan responde blocked (no error) si un id de candidato no existe  500ms
+     ✓ C4: qap_session_plan bloquea si candidato tiene ruta null con ejemplo generico fijo (/catalog) nunca derivado del nombre  726ms
+     ✓ C6: qap_context_ingest sin candidatos cuando hay flujos criticos genera paso trabajo  447ms
+     ✓ C7: pregunta de alcance sin candidatos o sin front es byte a byte identica a la original  667ms
+     ✓ D5: comando de instalacion consistente en preflight, qap_init, qap_status y checkPlaywrightBrowser  310ms
+     ✓ C5: scoping con 3 y con 9 candidatos (máximo 7 por tarjeta + Otro módulo), sin recomendada en opciones y pasa guardia de emisión  1313ms
+     ✓ C6: qap_session_plan asigna high a los 3 primeros y medium al resto, con soporte retrocompatible para modules  1861ms
+ ❯ src/__tests__/p4-2-pregunta-contract.test.ts (6 tests | 2 failed) 8709ms
+     ✓ Criterio 4.1: qap_init en workspace con README devuelve pregunta fuente_de_verdad con ese README como opcion  422ms
+     ✓ Criterio 4.2: qap_status a mitad de ONBOARDING devuelve la misma pregunta que ya estaba pendiente (reanudación)  1811ms
+     ✓ Criterio 4.3: Progresión canónica fuente_de_verdad -> objetivo -> roles -> flujos_criticos -> SCOPING  3623ms
+     × Criterio 4.4: Ninguna respuesta con siguiente_accion trae preguntas como cadenas ni pregunta aplanada 1431ms
+     ✓ Criterio 4.5: Test de inyección: package.json description y nombre de archivo con instrucciones aparecen sanitizados 256ms
+     × Criterio 6: E2E Completo donde TODA siguiente_accion de tipo entrevista, entrevista_vista o decision trae Pregunta válida 1160ms
+ ✓ src/__tests__/plan-handler.test.ts (31 tests) 9831ms
+     ✓ resolves correct topological DAG order respecting dependencies and persists plan.json  531ms
+     ✓ identifies and preserves manually edited cases with UpdateGuard  316ms
+     ✓ integrates completely with createMcpServer, exposes exactly 18 tools and dispatches qap_plan cleanly  645ms
+     ✓ detects modifications in YAML steps and dependencies post-plan generation (FAIL BEFORE / PASS AFTER)  765ms
+     ✓ R1.1: rejects truncated or altered matrix.cases even when test cases on disk are intact (FAIL BEFORE / PASS AFTER)  1094ms
+     ✓ R1.2: rejects inverted DAG dependencies in matrix.cases (FAIL BEFORE / PASS AFTER)  891ms
+     ✓ R1.3: accepts valid alternate topological orders without arbitrary positional rejection (FAIL BEFORE / PASS AFTER)  938ms
+     ✓ R1.4: rejects environment mismatch between plan and requested environment (FAIL BEFORE / PASS AFTER)  479ms
+     ✓ R1.5: rejects module mismatch when plan belongs to another module (FAIL BEFORE / PASS AFTER)  354ms
+     ✓ R1.9: rejects plan with missing checksum (FAIL BEFORE / PASS AFTER)  338ms
+     ✓ R1.10: rejects plan with missing schema version (FAIL BEFORE / PASS AFTER)  314ms
+ ✓ src/__tests__/state-handlers.test.ts (21 tests) 10173ms
+     ✓ registers all three declarative owners exactly once and never falls back after failure  721ms
+     ✓ status reports actual isolated SQLite inventory and leaves revisions unchanged  958ms
+     ✓ reports unavailable/ambiguous bindings without reopening or adopting a database  316ms
+     ✓ reports incomplete inventory without turning an unavailable query into zero modules  334ms
+     ✓ isolates two projects explicitly bound to different applications in the same physical store  593ms
+     ✓ clean blocks force=undefined and physically preserves every protected resource  635ms
+     ✓ clean blocks force=true and physically preserves every protected resource  660ms
+     ✓ clean blocks force=false and physically preserves every protected resource  450ms
+     ✓ preserves incremental context, provenance, corrections and explicit confirmation without promoting canonical entities  2502ms
+     ✓ rejects environment discrepancies before YAML writes and never copies legacy secrets to SQLite  451ms
+     ✓ reports a real multi-file publication failure and blocks replay while its recovery journal is unresolved  355ms
+     ✓ reports lifecycle failure after YAML publication instead of claiming global success  417ms
+     ✓ does not grow context history for an identical update and preserves it after reopening the server  467ms
+ ❯ src/__tests__/p4-5a-integrity.test.ts (12 tests | 10 failed) 12294ms
+     × Criterio 2: regla redactada por agente sin user_text ni from_option se guarda como inferred/agent y no cuenta en cobertura 1535ms
+     × Criterio 3: una etiqueta de opción predefinida del motor NO cubre una categoría 755ms
+     × Criterio 4: un módulo con 2 reglas de 7 categorías no cierra sin accept_gaps, y cierra con él dejando registro 997ms
+     × C9a: blocked de qap_discover con auth_required incluye razon auth_required y directorio_objetivo, con claves alineadas a session_invalid 704ms
+     ✓ C7: compuerta de roles exige auth.roles no vacío y perfil verificado por cada rol para salir de SCOPING  1318ms
+     ✓ C8: tras "corregir", emite primero campos_a_corregir y luego pregunta abierta secuencial por campo  3103ms
+     × C4-a: from_option con pregunta_id inexistente, opcion_id inexistente o sin texto sustantivo (rechazo o degradación a agent/inferred) 641ms
+     × C4-b: límites de sustantividad (2 palabras o 19 caracteres no cubren; 3 palabras y 20 caracteres sí) 624ms
+     × C4-c: accept_gaps con razón de 14 caracteres bloquea y con 15 cierra y deja el registro 585ms
+     × C4-d: plan con auth.required true sin roles queda bloqueado con pregunta de roles y bloquea discover (V4) 698ms
+     × C1: campos honestos en bloqueos previos a navegar y navegación real 680ms
+     × C3: flujo real de preguntas de categoría, formato una_opcion, persistencia y respuestas user_text y deferred 648ms
+ ❯ src/__tests__/server.test.ts (21 tests | 10 failed) 12999ms
+     ✓ debe registrar y exponer la suite completa de 15 tools y prompts 61ms
+     ✓ debe ejecutar qap_init y crear el arbol .qa/  319ms
+     ✓ debe validar y mostrar estado con directivas UX en qap_status  711ms
+     × debe descubrir modulos y responder en desarrollo para qap_plan y qap_test 727ms
+     ✓ debe registrar un perfil de autenticacion con qap_auth_add y listar con qap_auth_list 173ms
+     ✓ debe generar reportes con qap_report y limpiar con qap_clean  971ms
+     ✓ debe operar sobre targetPath independiente de cwd y validar qap_server  433ms
+     ✓ debe ser idempotente en qap_init sin alterar context.yaml ni environments.yaml en segunda ejecución (Criterio 3) 221ms
+     × el contexto de vista generado por qap_discover debe validar contra module-view.schema.json (Criterio 4) 841ms
+     × qap_discover con contexto de vista inválido no debe escribir archivos y debe retornar error (Criterio 4) 988ms
+     × E0a: qap_discover valida contra module-view.schema.json en camino de fallo de Playwright 925ms
+     × E0b: qap_discover valida contra module-view.schema.json en vista de autenticacion con session_saved true 1067ms
+     × E0c: qap_discover valida contra module-view.schema.json en vista con routes_found vacio 679ms
+     ✓ qap_context_set: merge parcial, no-downgrade de user, faltantes, transicion automatica con session.id y history  1351ms
+     ✓ qap_context_set: dos llamadas concurrentes no pierden actualizaciones  740ms
+     ✓ qap_context_ingest: ingesta desde docPath y docContent, persistencia inferred, nunca avanza fase, rechazo de seguridad  319ms
+     ✓ qap_session_plan: SCOPING define plan y auth, transiciona a WORKING, rechazo atomico, ampliacion en WORKING, bloqueada en ONBOARDING  1026ms
+     × qap_discover: gating por fase y estado de modulo, actualizacion planned -> observed 187ms
+     × Criterio 7: Proyecto legacy sin campos de negocio valida contra el schema y qap_status responde con fase WORKING derivada 326ms
+     × Criterio 8 (E2E): init -> status (entrevista) -> ingest -> context_set compuerta -> auto-SCOPING -> session_plan -> auto-WORKING -> discover 319ms
+     × qap_rules_set: actualiza reglas, transiciona observed -> interviewing, recalcula cobertura y actualiza guidance 603ms
+ ❯ src/__tests__/p3-verification.test.ts (13 tests | 5 failed) 13158ms
+     ✓ T3: Toda respuesta con siguiente_accion NO contiene "botones interactivos en modal" ni prohibición de listas  2235ms
+     ✓ T4: qap_status WORKING con módulo planned: sin pregunta de confirmación, sin "Ver otros módulos", sin botón de una sola opción, stats.modules refleja estado  798ms
+     ✓ T5: lifecycle.json valida contra lifecycle-state.schema.json tras CADA mutación del flujo e2e  971ms
+     × T6: qap_discover éxito: no contiene "Descubrir otro módulo", "pregunta_doc" ni "opciones_doc"; siguiente_accion tipo entrevista_vista (<= 5 preguntas) con tool qap_rules_set, categorias_aplicables y rutas_detectadas_fuera_del_plan 789ms
+     × T7: rules.yaml tras discover: reglas inferred/dom con ids deterministas; re-discover idempotente (sin duplicados, reglas confirmadas intactas) 1201ms
+     ✓ T8: rules.yaml con manually_edited: true: discover no inserta reglas y declara el bloqueo canónico  980ms
+     × T9: Fallo de Playwright: no inserta reglas; siguiente_accion tipo decision 685ms
+     ✓ T10: qap_rules_set bloqueado (contrato blocked) en: fase distinta de WORKING, módulo no registrado, módulo planned, módulo waived  449ms
+     ✓ T11: Primera llamada exitosa: observed -> interviewing; ids R-001, R-002... secuenciales por módulo  863ms
+     ✓ T12: No-downgrade: regla source user confirmed no se sobrescribe con source dom/prd; waivers solo source user y reason no vacío; lote con regla inválida se rechaza completo  972ms
+     ✓ T13: Dos llamadas concurrentes a qap_rules_set sin pérdida de actualización  1281ms
+     × T14: qap_status WORKING: (a) observed con hipótesis reanuda entrevista; (b) interviewing incompleto reanuda; (c) planned elige high > medium > low luego orden; (d) todos completos tipo decision 817ms
+     × T15: E2E: flujo de P2 hasta WORKING -> discover A -> rules_set parcial -> status (reanuda A) -> rules_set completa cobertura -> status (propone B) -> discover B; ninguna respuesta del flujo contiene texto del bucle 1109ms
+ ✓ src/__tests__/report-handler.test.ts (12 tests) 2967ms
+     ✓ D-R01: blocks reporting when no physical execution record exists  503ms
+     ✓ D-R02: creates JSON from a persisted schema-valid execution unchanged  326ms
+     ✓ D-R04: latest selection respects module filter and real finished timestamps  402ms
+     ✓ D-R11: exposes exactly 18 tools and invokes the migrated report via MCP transport  616ms
+ ✓ src/__tests__/p4-3-1-b-block.test.ts (7 tests) 5791ms
+     ✓ Criterio 2 & B1: con el fixture de A1, ninguna pregunta de objetivo, roles o flujos es abierta si hay propuesta; critical_flows nunca contiene rutas; tarjeta no ofrece Confirmo todo con URL sin definir  1438ms
+     ✓ Criterio 3 & B4: la ingesta no modifica notes de source_of_truth y escribe ingest.analyzed_by  571ms
+     ✓ B6: ninguna siguiente_accion tipo trabajo apunta a herramientas que exigen confirmación (qap_module_close, qap_session_close); constante <= 600 caracteres  724ms
+     ✓ B7: flujo corregir resumen realiza preguntas abiertas una por una citando propuesta, asigna source user, y permite confirmación final  2477ms
+stdout | src/__tests__/p4-4-auth-lifecycle.test.ts > P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) > 10. qap_auth_add con handoff: probado con doble de prueba que sustituye SOLO la ventana humana (resto real)
+Completa el login manualmente en la ventana abierta. Esperando hasta 15000ms...
+
+ ✓ src/__tests__/canonical-interview.test.ts (44 tests) 19806ms
+     ✓ R4-R6-I01: qap_status resumes a real pending canonical question without YAML, approval or state mutation  3017ms
+     ✓ R4-R7-I01: proposal correction, independent host review and real canonical coverage  2037ms
+     ✓ real MCP + host inbox + physical SQLite: present, propose, approve, persist, read status, retry, reopen  1807ms
+     ✓ blocks confirmation with gateway none and never reflects unsafe error text  463ms
+     ✓ blocks confirmation with gateway throw and never reflects unsafe error text  310ms
+     ✓ blocks confirmation with gateway null and never reflects unsafe error text  308ms
+     ✓ rejects invalid host decision: long-expiry  388ms
+     ✓ host decision defer does not create a canonical requirement  365ms
+     ✓ correction invalidates exact-text approval, renews review, uses CAS and preserves physical history  425ms
+     ✓ associated aggregate evidence, partial=false, never invents fields or trusts DOM instructions  2386ms
+     ✓ associated aggregate evidence, partial=true, never invents fields or trusts DOM instructions  1054ms
+     ✓ separate SQLite connections CAS, rollback trigger, safe errors, no duplicate/orphan requirement  335ms
+     ✓ untrusted proposal is never reflected in questions, logs or SQLite without human authority  309ms
+     ✓ restart recovers confirmed records without duplicating them; pending drafts require fresh review  578ms
+     ✓ HTML required, HTTP 200, AgentInference and reviewed traces confer no requirement authority  521ms
+     ✓ physical approval receipt prevents reuse for another question after restarting the host  447ms
+ ✓ src/__tests__/p4-3-investigate-before-ask.test.ts (8 tests) 6693ms
+       ✓ 3.1: qap_context_set con "PRD_diff.md" escrito libre ingiere en la misma llamada y la siguiente acción NO es abierta  1161ms
+       ✓ 3.2: con documento sin objetivo extraíble la siguiente_accion es trabajo  452ms
+       ✓ 3.3: propuesta del agente se guarda como inferred con evidence y no avanza la fase  529ms
+       ✓ 3.4: la ingesta no degrada source user  529ms
+       ✓ 3.5: confirmación única (confirmo todo / corregir con seguimiento) y render_texto presente y consistente  1381ms
+       ✓ flujo completo ONBOARDING sin ingest por iniciativa propia; falla si se emite pregunta abierta con dato existente  1324ms
+       ✓ valida respuestas y payloads de regresión P4.3  1295ms
+ ✓ src/__tests__/host-composition.test.ts (7 tests) 2547ms
+     ✓ opens existing canonical stores, resolves host-declared revisions and does not forge gateways  1263ms
+     ✓ only wires explicitly host-approved pinned Discovery consent; rejects missing acknowledgement  435ms
+     ✓ fails closed when canonical modules have no durable closure store  466ms
+ ✓ src/__tests__/dispatcher-integration.test.ts (9 tests) 958ms
+     ✓ runs informative legacy status on an empty disposable fixture  589ms
+ ✓ src/__tests__/guidance.test.ts (7 tests) 38ms
+ ✓ src/__tests__/e0-investigation.test.ts (4 tests) 1911ms
+     ✓ E0a: escaneo respeta targetPath y emite advertencia de subcarpeta si no hay docs  404ms
+     ✓ E0b: qap_context_ingest no degrada source_of_truth ni contamina notes, registra ingest.analyzed_by  640ms
+     ✓ E0d / B10: objetivo largo se trunca a máx 280 con elipsis sin cortar palabras en preguntas, pero se guarda completo en context  666ms
+ ✓ src/__tests__/dispatcher.test.ts (38 tests) 417ms
+ ✓ src/__tests__/adversarial-r5-guarantees.test.ts (34 tests) 6366ms
+       ✓ 3.1: Aborts and rolls back if module revision mutates during human review window  1317ms
+       ✓ 3.2: Aborts if module is deactivated during review  350ms
+       ✓ 3.3: Prevents approvalId reuse across closure attempts  375ms
+       ✓ 5.4: Canonical closure unlocks qap_session_close  389ms
+       ✓ 7.3: Concurrent closure of distinct modules succeeds via bounded retry loop under SQLite CAS lock  388ms
+       ✓ 7.4: Simultaneous closure requests for same module with divergent gateway decisions persist exactly one closure and canonical receipt  747ms
+       ✓ 7.5: Rejects write error recovery if existing receipt has tampered provenance or mismatched entity  807ms
+stderr | src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) > RES-CODEX-A02 refuses changed canonical receipt source
+[QAP MCP] tool_execution_failed {
+  error_id: 'db94be9b-1609-4202-a992-f564106b92ce',
+  category: 'unexpected_error'
+}
+
+stderr | src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) > RES-CODEX-A02 refuses changed canonical receipt source-process
+[QAP MCP] tool_execution_failed {
+  error_id: 'ac27fc36-2aa5-4313-beda-250e01eea8f7',
+  category: 'unexpected_error'
+}
+
+stderr | src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) > RES-CODEX-A02 refuses changed canonical receipt target
+[QAP MCP] tool_execution_failed {
+  error_id: 'f46d2c13-46df-45b7-8c4f-d551d35d72ca',
+  category: 'unexpected_error'
+}
+
+stderr | src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) > RES-CODEX-A02 refuses changed canonical receipt revision
+[QAP MCP] tool_execution_failed {
+  error_id: '2be7eba5-f344-4670-bd90-ec1d1b74eb37',
+  category: 'unexpected_error'
+}
+
+ ✓ src/__tests__/test-handler.test.ts (21 tests) 28229ms
+     ✓ Scenario 1: executes valid and authorized plan, persisting authentic result (R4.1)  4558ms
+     ✓ Scenario 2: rejects missing, historical, corrupt, or obsolete plans without executing runner (R4.2)  672ms
+     ✓ Scenario 3: rejects environment mismatch, module mismatch, and missing module (R4.3)  560ms
+     ✓ Scenario 4: in-memory snapshot prevents TOCTOU tampering of YAML files after verification (R4.4)  2976ms
+     ✓ Scenario 5: blocks unauthorized URLs, unconfigured host policy, and redirects (R4.5)  4247ms
+     ✓ Scenario 6: classifies missing browser launch failure as infrastructure block (R4.6)  820ms
+     ✓ Scenario 7: rejects unauthorized profiles and disables implicit session recovery (R4.7)  3261ms
+     ✓ Scenario 8: distinguishes real functional failure from infrastructure failure (R4.8)  3112ms
+     ✓ Scenario 9: zero cases executed never returns fake PASS verdict (R4.9)  350ms
+     ✓ Scenario 11: persists execution results adhering to schema without automatic SQLite ConformityAssessment (R4.11)  2255ms
+     ✓ Scenario 12: integrates cleanly via createMcpServer preserving exact 18 tools (R4.12)  1292ms
+     ✓ Scenario 13: physical Playwright Chromium execution against isolated local HTTP fixture (Real PASS & FAIL)  1318ms
+     ✓ D-01: does not persist schema-invalid runner outputs  331ms
+     ✓ D-04: history failure preserves saved evidence but returns an explicit partial error  337ms
+     ✓ D-05: rejects a schema-valid execution associated with a different module  462ms
+     ✓ D-06: rejects summary totals that disagree with executed cases  323ms
+     ✓ D-07: a critical runner error persists not_run evidence without reporting MCP success  410ms
+ ❯ src/__tests__/p4-5a2-integrity.test.ts (26 tests | 16 failed) 28980ms
+       × C1-a: módulo de acceso pedido en login sin redirección NO se bloquea (page_kind login, success) 1531ms
+       × C1-b: ruta protegida con redirección HTTP 302 a /login detecta auth_wall determinista y bloquea 819ms
+       × C1-c: ruta protegida con guard del lado del cliente detecta auth_wall con redirección al login 940ms
+       ✓ C2-a: con 0 roles declarados genera formato abierta con ejemplo en el texto 165ms
+       ✓ C2-b: con 1 rol declarado genera formato una_opcion con 2 opciones y seguimiento abierto 114ms
+       ✓ C2-c: con 3 roles declarados genera formato multiple sin ninguna opción recomendada 224ms
+       × C3-a: la categoría de from_option se toma siempre de la pregunta pendiente persistida 821ms
+       × C3-b: si la petición declara una categoría distinta a la de la pregunta pendiente se rechaza con blocked 1616ms
+       ✓ C3-c: cobertura completa nunca es true mientras exista una categoría diferida (deferred no cubre)  442ms
+       × C4-a: respuesta corta se guarda como borrador (status inferred, source user_text, borrador true) y no cubre 1144ms
+       × C4-b: derivación determinista en categoría actor que nombra roles emite Pregunta una_opcion directamente 803ms
+       × C4-c: envío de propuesta_enunciado válida para un borrador emite Pregunta una_opcion con las 3 opciones 632ms
+       × C4-d: resolver con "Es correcto" guarda regla confirmed user_confirmed con enunciado exacto y cubre 612ms
+       × C4-e: resolver con "Lo defino después" guarda regla deferred y no cubre 775ms
+       × C4-f: propuesta_enunciado corta o genérica es rechazada con status error 754ms
+       ✓ C6-a: plan bloqueado por perfil no verificado persiste, auth_add verifica y compuerta avanza a WORKING  14342ms
+       ✓ C9-a: qap_init y qap_context_ingest descartan entradas de tabla Markdown y reportan roles_descartados 158ms
+       ✓ C9-b: los 4 lectores ignoran roles inválidos presentes en un context.yaml contaminado 86ms
+       ✓ C9-c: roles legítimos con espacios, tildes, guiones y números son aceptados siempre 77ms
+       × C10-a: página app/login sin elementos interactivos genera advertencia extraccion_vacia y trabajo 434ms
+       × C10-b: página con al menos un elemento interactivo no genera advertencia extraccion_vacia 357ms
+       × C10-c: la advertencia extraccion_vacia es agnóstica de la aplicación 731ms
+       ✓ C3-a: opciones de módulos en guidance usan normalizeSlug sin sustituir tildes por guiones bajos 116ms
+       ✓ C3-b: qap_session_plan limpia módulos planned huérfanos que ya no pertenezcan al plan  521ms
+       × C1-c: módulo con tilde preserva nombre en lifecycle, crea directorio y normaliza pending_questions con transliteración NFD 408ms
+       × C2-seguimiento: selección de "Corregir" emite pregunta de seguimiento y no persiste regla espuria en rules.yaml 313ms
+stderr | src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) > VNEXT-014-C01 Knowledge fence contention > does not turn unknown acquisition failures or in-fence CONFLICTs into normal blocks
+[QAP MCP] tool_execution_failed {
+  error_id: '3b383167-66be-47f0-827e-2b915e0be203',
+  category: 'unexpected_error'
+}
+
+stderr | src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) > VNEXT-014-C01 Knowledge fence contention > does not turn unknown acquisition failures or in-fence CONFLICTs into normal blocks
+[QAP MCP] tool_execution_failed {
+  error_id: 'e2afdb62-96fb-4a4b-aa5f-76d7afe386da',
+  category: 'unexpected_error'
+}
+
+ ✓ src/__tests__/durable-interview.test.ts (21 tests) 32046ms
+     ✓ recovers exact drafts, corrections, defer/resume and history across closed connections  1501ms
+     ✓ persists host reject and prevents old decision replay  483ms
+     ✓ reconciles canonical commit followed by failed draft commit without a second approval  343ms
+     ✓ retains consumed reject IDs across restart and requires fresh review for reactivation  435ms
+     ✓ SQLite rolls back a writer process that exits before COMMIT  981ms
+     ✓ terminates Node processes between real MCP SDK operations and reopens both physical stores  25301ms
+ ✓ src/__tests__/canonical-coverage.test.ts (69 tests) 31923ms
+       ✓ blocks evaluation when module is unbound or lifecycle context has drifted  1075ms
+       ✓ R4-R8-A01: deferred non-applicability review retains request identity and persists actual host decision time  345ms
+       ✓ R4-R9-A02: both close and waive reject concurrent Knowledge writes before durable commit  490ms
+       ✓ R4-R9-A02: delayed fence acquisition does not consume an expired decision  640ms
+       ✓ R4-R12-A04: authorization expiring after callback rolls back all four SQLite commits  2449ms
+       ✓ R4-R12-A06: exact accepted gap replay returns prior receipt without a new decision  543ms
+       ✓ R4-R11-A01: case-aliased official writers wait through durable authorization in all four actions  1611ms
+       ✓ SqliteModuleClosureStore encrypts all data with AES-256-GCM without plaintext leaks  327ms
+       ✓ Amendment 3: Persists relation receipt in IKnowledgeStore with ZERO module.revision mutation  434ms
+       ✓ zero SQLite locks held during asynchronous host review gateway evaluation  471ms
+       ✓ 014-CODEX-001: MCP sanitizes unexpected closure errors without false durable effects  468ms
+       ✓ R4-R3: inconsistent durable closure 'short reason' cannot create receipt or reach WRAP_UP  727ms
+       ✓ R4-R3: inconsistent durable closure 'blank reason' cannot create receipt or reach WRAP_UP  352ms
+       ✓ R4-R3: inconsistent durable closure 'missing approval' cannot create receipt or reach WRAP_UP  379ms
+       ✓ R4-R3: inconsistent durable closure 'mismatched approval digest' cannot create receipt or reach WRAP_UP  352ms
+       ✓ R4-R3: inconsistent durable closure 'duplicated approval' cannot create receipt or reach WRAP_UP  365ms
+       ✓ R4-R3: inconsistent durable closure 'closed without approval' cannot create receipt or reach WRAP_UP  363ms
+       ✓ R4-R3: inconsistent durable closure 'already waived without approval' cannot create receipt or reach WRAP_UP  376ms
+       ✓ R4-R5-A02: 16 bound modules, last invalid=false, preview stays capped but guidance checks all  1589ms
+       ✓ R4-R5-A02: 17 bound modules, last invalid=false, preview stays capped but guidance checks all  1654ms
+       ✓ R4-R5-A02: 17 bound modules, last invalid=true, preview stays capped but guidance checks all  1092ms
+       ✓ R4-R4-A01 positive: a legitimately authorized durable waiver still recommends session close  444ms
+       ✓ R4-R2-A01: first session close uses recovered waiver metadata for the gate and physical report  563ms
+       ✓ VNEXT-014 rescue: session report prefers durable canonical authorization, not legacy rules or synthetic execution  395ms
+       ✓ RES-CODEX-A01 serializes concurrent planned writer before close  359ms
+       ✓ RES-CODEX-A01 serializes concurrent planned-process writer before close  1513ms
+       ✓ RES-CODEX-A01 serializes concurrent session writer before close  420ms
+       ✓ RES-CODEX-A02 refuses changed canonical receipt source-process  1939ms
+       ✓ RES-CODEX-A02 refuses changed canonical receipt target  335ms
+       ✓ RES-CODEX-A02 refuses changed canonical receipt revision  398ms
+         ✓ returns a specific blocked result while another process holds the fence, then retries with the same durable authority  2388ms
+         ✓ does not turn unknown acquisition failures or in-fence CONFLICTs into normal blocks  324ms
+ ❯ src/__tests__/lifecycle-v3-e2e.test.ts (10 tests | 3 failed) 37975ms
+     × E0a: qap_status en WORKING para módulo con cobertura incompleta devuelve module, view y preguntas no vacías idénticas a qap_rules_set 8735ms
+     × E0b: contrato estricto de opciones y preguntas en todo el flujo 6728ms
+     ✓ E0c: qap_report sin ejecuciones responde blocked y no escribe archivos; ninguna siguiente_accion recomienda qap_report sin ejecuciones  839ms
+     × E1: regresión consolidated -> interviewing tras re-discover y política de waivers 5483ms
+     ✓ E1 canonical: applicability rejects legacy categories and short reasons; wire waivers cannot replace host review  1362ms
+     ✓ E1 canonical: a reviewed specification revision invalidates an earlier pending closure authorization  2159ms
+     ✓ E2: qap_module_close validaciones, compuertas y transiciones  4247ms
+     ✓ E3: canExitWorking, qap_session_close, reporte de brechas y nueva sesión desde WRAP_UP  3453ms
+     ✓ Criterio 9: E2E completo: init -> onboarding -> scoping -> working -> discover A -> rules_set parcial -> status (reanuda) -> rules_set completa -> module_close A -> discover B -> module_close waive B -> session_close -> status WRAP_UP -> session_plan nueva sesión  4562ms
+     ✓ E0 authorization: removing host consent blocks navigation and leaves Knowledge, drafts and lifecycle intact  399ms
+stdout | src/__tests__/p4-4-auth-lifecycle.test.ts > P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) > 14. Timeout de handoff (C4): qap_auth_add devuelve blocked con razon handoff_timeout y reintento idempotente
+Completa el login manualmente en la ventana abierta. Esperando hasta 100ms...
+
+ ❯ src/__tests__/p4-4-auth-lifecycle.test.ts (15 tests | 7 failed) 43715ms
+     × 1. qap_discover protegido sin perfil: blocked auth_required y cero escrituras en disco 537ms
+     × 2. qap_discover con redirección HTTP 302 a login: detecta auth_wall determinista y bloquea sin escribir 283ms
+     × 3. qap_discover con login embebido en ruta no-acceso: bloquea como auth_required sin persistir 178ms
+     × 4. qap_discover con sesión expirada: blocked session_invalid y desverifica el perfil 283ms
+     × 5. qap_discover con perfil verificado y storageState válido: devuelve app y transiciona a observed 306ms
+     × 6. qap_discover en módulo de acceso: selectors.json incluye auth_selectors y omite valores y atributos sensibles de password 264ms
+     ✓ 7. Secuencia de preguntas de SCOPING: 5 preguntas separadas y válidas sin mezclar módulos con auth 172ms
+     ✓ 8. canExitScoping: compuerta falsa sin sesión verificada y verdadera con ella 132ms
+     ✓ 9. qap_auth_add con verificación automática real contra el fixture HTTP local  15940ms
+     ✓ 10. qap_auth_add con handoff: probado con doble de prueba que sustituye SOLO la ventana humana (resto real)  8179ms
+     ✓ 11. Test de no filtración: contraseña centinela NO aparece en respuestas, archivos .qa/, SQLite ni logs  16081ms
+     ✓ 12. qap_session_plan: reordena módulos de acceso al inicio del plan de forma determinista y persiste acceso: true 73ms
+     ✓ 13. Validación integral de preguntas (C1 & C2): todas las preguntas de SCOPING y blocked son válidas, sin formato decision, sin "Deseas" y sin opciones únicas 61ms
+     ✓ 14. Timeout de handoff (C4): qap_auth_add devuelve blocked con razon handoff_timeout y reintento idempotente  1059ms
+     × 15. Guard de cliente asíncrono lento (~1200ms) en qap_discover: responde blocked auth_required y cero escrituras en .qa/modules (C3c) 123ms
+ ✓ src/__tests__/discovery-handler.test.ts (59 tests) 46018ms
+     ✓ R1: onboarding to anonymous discovery preserves planned state and explicitly blocks the legacy interview  10522ms
+     ✓ R1: stale observed state cannot manufacture rules or close a module without view context  340ms
+     ✓ R1: stale consolidated state cannot manufacture rules or close a module without view context  323ms
+     ✓ R1: existing reviewed legacy context still accepts rules without promoting agent text or canonical observations  400ms
+     ✓ navigates a real MPA, returns actual counts, commits once and reopens physical SQLite  4291ms
+     ✓ keeps project bindings and physical stores isolated between server instances  7074ms
+     ✓ distinguishes static completion from a script dependent shell (false)  1774ms
+     ✓ distinguishes static completion from a script dependent shell (true)  1570ms
+     ✓ keeps host configuration isolated from later caller mutations  1085ms
+     ✓ propagates in-flight dispatcher cancellation to transport and waits for cleanup  1325ms
+     ✓ delegates page denial and budgets to the real crawler  1295ms
+     ✓ delegates bytes denial and budgets to the real crawler  949ms
+     ✓ delegates redirect denial and budgets to the real crawler  1224ms
+     ✓ delegates private denial and budgets to the real crawler  1061ms
+     ✓ delegates dns denial and budgets to the real crawler  1096ms
+     ✓ reports atomic persistence failure without fabricated persisted findings  1072ms
+     ✓ R4: real crawler to canonical interview, independent review, secure waiver and WRAP_UP through MCP  1773ms
+     ✓ persists real MCP/Chrome/MPA associations, reopens SQLite, projects status, and preserves epistemic planes  1110ms
+     ✓ recovers after physical association rollback without reacquisition or history changes; rejects shortened and mixed receipts  2292ms
+     ✓ two physical connections race with CAS; retry is idempotent and context changes block recovery  1044ms
+     ✓ detects context changed at the edge commit boundary without deleting already acquired facts  1078ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 53 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/lifecycle-v3-e2e.test.ts > Lifecycle V3 E2E & Verification Suite (E0 - E3) > E0a: qap_status en WORKING para módulo con cobertura incompleta devuelve module, view y preguntas no vacías idénticas a qap_rules_set
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/__tests__/lifecycle-v3-e2e.test.ts:20:3
+     18|
+     19|   // Historical identities remain stable; equivalence is recorded in M…
+     20|   it('E0a: qap_status en WORKING para módulo con cobertura incompleta …
+       |   ^
+     21|     await f.working(); await f.discover();
+     22|     expect((await f.knowledge.query(f.scope.applicationId, 'observatio…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/53]⎯
+
+ FAIL  src/__tests__/lifecycle-v3-e2e.test.ts > Lifecycle V3 E2E & Verification Suite (E0 - E3) > E0b: contrato estricto de opciones y preguntas en todo el flujo
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/__tests__/lifecycle-v3-e2e.test.ts:52:3
+     50|   });
+     51|
+     52|   it('E0b: contrato estricto de opciones y preguntas en todo el flujo'…
+       |   ^
+     53|     const init = await f.working();
+     54|     expect(init).toMatchObject({ status: 'success', siguiente_accion: …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/53]⎯
+
+ FAIL  src/__tests__/lifecycle-v3-e2e.test.ts > Lifecycle V3 E2E & Verification Suite (E0 - E3) > E1: regresión consolidated -> interviewing tras re-discover y política de waivers
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/__tests__/lifecycle-v3-e2e.test.ts:92:3
+     90|   });
+     91|
+     92|   it('E1: regresión consolidated -> interviewing tras re-discover y po…
+       |   ^
+     93|     await f.working(); await f.discover();
+     94|     const confirmed = await f.ready();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/53]⎯
+
+ FAIL  src/__tests__/p3-verification.test.ts > P3 Suite de Verificación MCP (T3 - T15) > T6: qap_discover éxito: no contiene "Descubrir otro módulo", "pregunta_doc" ni "opciones_doc"; siguiente_accion tipo entrevista_vista (<= 5 preguntas) con tool qap_rules_set, categorias_aplicables y rutas_detectadas_fuera_del_plan
+TypeError: Cannot read properties of undefined (reading 'tipo')
+ ❯ src/__tests__/p3-verification.test.ts:330:36
+    328|
+    329|     // Siguiente acción estructurada para entrevista de vista
+    330|     expect(parsed.siguiente_accion.tipo).toBe('entrevista_vista');
+       |                                    ^
+    331|     expect(parsed.siguiente_accion.tool).toBe('qap_rules_set');
+    332|     expect(parsed.siguiente_accion.modulo).toBe('auth');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/53]⎯
+
+ FAIL  src/__tests__/p3-verification.test.ts > P3 Suite de Verificación MCP (T3 - T15) > T7: rules.yaml tras discover: reglas inferred/dom con ids deterministas; re-discover idempotente (sin duplicados, reglas confirmadas intactas)
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/__tests__/p3-verification.test.ts:351:35
+    349|     await callTool('qap_discover', { name: 'auth', path: '/login' });
+    350|     const rulesPath = join(tempDir, '.qa', 'modules', 'auth', 'rules.y…
+    351|     expect(existsSync(rulesPath)).toBe(true);
+       |                                   ^
+    352|
+    353|     const rulesDoc1 = YAML.parse(readFileSync(rulesPath, 'utf-8'));
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/53]⎯
+
+ FAIL  src/__tests__/p3-verification.test.ts > P3 Suite de Verificación MCP (T3 - T15) > T9: Fallo de Playwright: no inserta reglas; siguiente_accion tipo decision
+TypeError: Cannot read properties of undefined (reading 'tipo')
+ ❯ src/__tests__/p3-verification.test.ts:434:36
+    432|
+    433|     // siguiente_accion tipo decision
+    434|     expect(parsed.siguiente_accion.tipo).toBe('decision');
+       |                                    ^
+    435|     expect(parsed.siguiente_accion.tool).toBe('qap_discover');
+    436|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/53]⎯
+
+ FAIL  src/__tests__/p3-verification.test.ts > P3 Suite de Verificación MCP (T3 - T15) > T14: qap_status WORKING: (a) observed con hipótesis reanuda entrevista; (b) interviewing incompleto reanuda; (c) planned elige high > medium > low luego orden; (d) todos completos tipo decision
+AssertionError: expected 'trabajo' to be 'entrevista_vista' // Object.is equality
+
+Expected: "entrevista_vista"
+Received: "trabajo"
+
+ ❯ src/__tests__/p3-verification.test.ts:633:50
+    631|
+    632|     const statusA = await callTool('qap_status', {});
+    633|     expect(statusA.parsed.siguiente_accion.tipo).toBe('entrevista_vist…
+       |                                                  ^
+    634|     expect(statusA.parsed.siguiente_accion.tool).toBe('qap_rules_set');
+    635|     expect(statusA.parsed.siguiente_accion.descripcion).toContain('aut…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/53]⎯
+
+ FAIL  src/__tests__/p3-verification.test.ts > P3 Suite de Verificación MCP (T3 - T15) > T15: E2E: flujo de P2 hasta WORKING -> discover A -> rules_set parcial -> status (reanuda A) -> rules_set completa cobertura -> status (propone B) -> discover B; ninguna respuesta del flujo contiene texto del bucle
+AssertionError: expected 'trabajo' to be 'entrevista_vista' // Object.is equality
+
+Expected: "entrevista_vista"
+Received: "trabajo"
+
+ ❯ src/__tests__/p3-verification.test.ts:755:45
+    753|     const r6 = await callTool('qap_status', {});
+    754|     verifyNoLoopText(r6.text);
+    755|     expect(r6.parsed.siguiente_accion.tipo).toBe('entrevista_vista');
+       |                                             ^
+    756|     expect(r6.parsed.siguiente_accion.tool).toBe('qap_rules_set');
+    757|     expect(r6.parsed.siguiente_accion.descripcion).toContain('moduloA'…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/53]⎯
+
+ FAIL  src/__tests__/p4-2-pregunta-contract.test.ts > P4.2 Suite: Contrato Canónico de Pregunta y Verificación E2E (Criterio 4 y Criterio 6) > Criterio 4.4: Ninguna respuesta con siguiente_accion trae preguntas como cadenas ni pregunta aplanada
+Error: Tool qap_discover failed: {
+  "status": "blocked",
+  "code": "knowledge_unbound",
+  "persistence": "not_attempted",
+  "next_safe_action": "Revisar la configuración explícita del host.",
+  "acquisition_status": "blocked",
+  "acquisition_persistence": "not_attempted",
+  "association_status": "not_attempted",
+  "module_identity_status": "not_resolved",
+  "coverage": "partial"
+}
+ ❯ callTool src/__tests__/p4-2-pregunta-contract.test.ts:95:13
+     93|     );
+     94|     if (res.isError) {
+     95|       throw new Error(`Tool ${name} failed: ${res.content?.[0]?.text}`…
+       |             ^
+     96|     }
+     97|     expect(res.isError).toBeFalsy();
+ ❯ src/__tests__/p4-2-pregunta-contract.test.ts:202:20
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/53]⎯
+
+ FAIL  src/__tests__/p4-2-pregunta-contract.test.ts > P4.2 Suite: Contrato Canónico de Pregunta y Verificación E2E (Criterio 4 y Criterio 6) > Criterio 6: E2E Completo donde TODA siguiente_accion de tipo entrevista, entrevista_vista o decision trae Pregunta válida
+Error: Tool qap_discover failed: {
+  "status": "blocked",
+  "code": "knowledge_unbound",
+  "persistence": "not_attempted",
+  "next_safe_action": "Revisar la configuración explícita del host.",
+  "acquisition_status": "blocked",
+  "acquisition_persistence": "not_attempted",
+  "association_status": "not_attempted",
+  "module_identity_status": "not_resolved",
+  "coverage": "partial"
+}
+ ❯ callTool src/__tests__/p4-2-pregunta-contract.test.ts:95:13
+     93|     );
+     94|     if (res.isError) {
+     95|       throw new Error(`Tool ${name} failed: ${res.content?.[0]?.text}`…
+       |             ^
+     96|     }
+     97|     expect(res.isError).toBeFalsy();
+ ❯ src/__tests__/p4-2-pregunta-contract.test.ts:292:23
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/53]⎯
+
+ FAIL  src/__tests__/p4-4-auth-lifecycle.test.ts > P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) > 1. qap_discover protegido sin perfil: blocked auth_required y cero escrituras en disco
+AssertionError: expected undefined to be 'auth_required' // Object.is equality
+
+- Expected:
+"auth_required"
+
++ Received:
+undefined
+
+ ❯ src/__tests__/p4-4-auth-lifecycle.test.ts:175:26
+    173|
+    174|     expect(parsed.status).toBe('blocked');
+    175|     expect(parsed.razon).toBe('auth_required');
+       |                          ^
+    176|     expect(parsed.page_kind).toBeNull();
+    177|     expect(parsed.observed).toBe(false);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/53]⎯
+
+ FAIL  src/__tests__/p4-4-auth-lifecycle.test.ts > P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) > 2. qap_discover con redirección HTTP 302 a login: detecta auth_wall determinista y bloquea sin escribir
+AssertionError: expected undefined to be 'auth_required' // Object.is equality
+
+- Expected:
+"auth_required"
+
++ Received:
+undefined
+
+ ❯ src/__tests__/p4-4-auth-lifecycle.test.ts:206:26
+    204|
+    205|     expect(parsed.status).toBe('blocked');
+    206|     expect(parsed.razon).toBe('auth_required');
+       |                          ^
+    207|     expect(parsed.page_kind).toBe('auth_wall');
+    208|     expect(parsed.redirected).toBe(true);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/53]⎯
+
+ FAIL  src/__tests__/p4-4-auth-lifecycle.test.ts > P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) > 3. qap_discover con login embebido en ruta no-acceso: bloquea como auth_required sin persistir
+AssertionError: expected undefined to be 'auth_required' // Object.is equality
+
+- Expected:
+"auth_required"
+
++ Received:
+undefined
+
+ ❯ src/__tests__/p4-4-auth-lifecycle.test.ts:228:26
+    226|
+    227|     expect(parsed.status).toBe('blocked');
+    228|     expect(parsed.razon).toBe('auth_required');
+       |                          ^
+    229|     expect(parsed.page_kind).toBe('login');
+    230|     expect(existsSync(join(tempDir, '.qa', 'modules', 'login_embebido'…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/53]⎯
+
+ FAIL  src/__tests__/p4-4-auth-lifecycle.test.ts > P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) > 4. qap_discover con sesión expirada: blocked session_invalid y desverifica el perfil
+AssertionError: expected undefined to be 'session_invalid' // Object.is equality
+
+- Expected:
+"session_invalid"
+
++ Received:
+undefined
+
+ ❯ src/__tests__/p4-4-auth-lifecycle.test.ts:294:26
+    292|
+    293|     expect(parsed.status).toBe('blocked');
+    294|     expect(parsed.razon).toBe('session_invalid');
+       |                          ^
+    295|     expect(parsed.desbloquear_con.tool).toBe('qap_auth_add');
+    296|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/53]⎯
+
+ FAIL  src/__tests__/p4-4-auth-lifecycle.test.ts > P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) > 5. qap_discover con perfil verificado y storageState válido: devuelve app y transiciona a observed
+AssertionError: expected 'blocked' to be 'success' // Object.is equality
+
+Expected: "success"
+Received: "blocked"
+
+ ❯ src/__tests__/p4-4-auth-lifecycle.test.ts:366:27
+    364|     });
+    365|
+    366|     expect(parsed.status).toBe('success');
+       |                           ^
+    367|     expect(parsed.view.page_kind).toBe('app');
+    368|     expect(parsed.storage_state_used).toBe(true);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/53]⎯
+
+ FAIL  src/__tests__/p4-4-auth-lifecycle.test.ts > P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) > 6. qap_discover en módulo de acceso: selectors.json incluye auth_selectors y omite valores y atributos sensibles de password
+AssertionError: expected 'blocked' to be 'success' // Object.is equality
+
+Expected: "success"
+Received: "blocked"
+
+ ❯ src/__tests__/p4-4-auth-lifecycle.test.ts:392:27
+    390|     });
+    391|
+    392|     expect(parsed.status).toBe('success');
+       |                           ^
+    393|     expect(parsed.view.page_kind).toBe('login');
+    394|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/53]⎯
+
+ FAIL  src/__tests__/p4-4-auth-lifecycle.test.ts > P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) > 15. Guard de cliente asíncrono lento (~1200ms) en qap_discover: responde blocked auth_required y cero escrituras en .qa/modules (C3c)
+AssertionError: expected undefined to be 'auth_required' // Object.is equality
+
+- Expected:
+"auth_required"
+
++ Received:
+undefined
+
+ ❯ src/__tests__/p4-4-auth-lifecycle.test.ts:854:26
+    852|
+    853|     expect(parsed.status).toBe('blocked');
+    854|     expect(parsed.razon).toBe('auth_required');
+       |                          ^
+    855|     expect(parsed.desbloquear_con?.tool).toBe('qap_auth_add');
+    856|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/53]⎯
+
+ FAIL  src/__tests__/p4-5a-integrity.test.ts > P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) > Criterio 2: regla redactada por agente sin user_text ni from_option se guarda como inferred/agent y no cuenta en cobertura
+AssertionError: expected 'blocked' to be 'success' // Object.is equality
+
+Expected: "success"
+Received: "blocked"
+
+ ❯ src/__tests__/p4-5a-integrity.test.ts:175:31
+    173|     });
+    174|
+    175|     expect(res.parsed.status).toBe('success');
+       |                               ^
+    176|     expect(res.parsed.desbloquear_con).toBeDefined();
+    177|     expect(res.parsed.desbloquear_con.tool).toBe('qap_rules_set');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[18/53]⎯
+
+ FAIL  src/__tests__/p4-5a-integrity.test.ts > P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) > Criterio 3: una etiqueta de opción predefinida del motor NO cubre una categoría
+AssertionError: expected 'blocked' to be 'success' // Object.is equality
+
+Expected: "success"
+Received: "blocked"
+
+ ❯ src/__tests__/p4-5a-integrity.test.ts:210:31
+    208|     });
+    209|
+    210|     expect(res.parsed.status).toBe('success');
+       |                               ^
+    211|     // La regla tautológica es degradada a agent/inferred
+    212|     expect(res.parsed.cobertura.categorias.proposito.cubierta).toBe(fa…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[19/53]⎯
+
+ FAIL  src/__tests__/p4-5a-integrity.test.ts > P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) > Criterio 4: un módulo con 2 reglas de 7 categorías no cierra sin accept_gaps, y cierra con él dejando registro
+AssertionError: expected 'Falta el contexto de vista requerido …' to be 'cobertura_insuficiente' // Object.is equality
+
+Expected: "cobertura_insuficiente"
+Received: "Falta el contexto de vista requerido por la entrevista legacy. Las observaciones canónicas no lo sustituyen ni acreditan cobertura."
+
+ ❯ src/__tests__/p4-5a-integrity.test.ts:245:35
+    243|
+    244|     expect(rBlocked.parsed.status).toBe('blocked');
+    245|     expect(rBlocked.parsed.razon).toBe('cobertura_insuficiente');
+       |                                   ^
+    246|     expect(rBlocked.parsed.cobertura.sustantivas).toBe(2);
+    247|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[20/53]⎯
+
+ FAIL  src/__tests__/p4-5a-integrity.test.ts > P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) > C9a: blocked de qap_discover con auth_required incluye razon auth_required y directorio_objetivo, con claves alineadas a session_invalid
+AssertionError: expected undefined to be 'auth_required' // Object.is equality
+
+- Expected:
+"auth_required"
+
++ Received:
+undefined
+
+ ❯ src/__tests__/p4-5a-integrity.test.ts:295:37
+    293|     const resAuthReq = await callTool('qap_discover', { name: 'protegi…
+    294|     expect(resAuthReq.parsed.status).toBe('blocked');
+    295|     expect(resAuthReq.parsed.razon).toBe('auth_required');
+       |                                     ^
+    296|     expect(resAuthReq.parsed.directorio_objetivo).toBeDefined();
+    297|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[21/53]⎯
+
+ FAIL  src/__tests__/p4-5a-integrity.test.ts > P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) > C4-a: from_option con pregunta_id inexistente, opcion_id inexistente o sin texto sustantivo (rechazo o degradación a agent/inferred)
+AssertionError: expected 'blocked' to be 'error' // Object.is equality
+
+Expected: "error"
+Received: "blocked"
+
+ ❯ src/__tests__/p4-5a-integrity.test.ts:451:41
+    449|       ],
+    450|     });
+    451|     expect(rInexistenteQ.parsed.status).toBe('error');
+       |                                         ^
+    452|
+    453|     // 2. from_option con pregunta_id inexistente pero con description…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[22/53]⎯
+
+ FAIL  src/__tests__/p4-5a-integrity.test.ts > P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) > C4-b: límites de sustantividad (2 palabras o 19 caracteres no cubren; 3 palabras y 20 caracteres sí)
+Error: ENOENT: no such file or directory, open 'C:\Users\Judirico\AppData\Local\Temp\qap-p45a-9ofaeT\.qa\modules\catalogo\rules.yaml'
+ ❯ src/__tests__/p4-5a-integrity.test.ts:535:28
+    533|       rules: [{ category: 'proposito', user_text: 'PalabraUnica Palabr…
+    534|     });
+    535|     const rf1 = YAML.parse(readFileSync(join(tempDir, '.qa', 'modules'…
+       |                            ^
+    536|     const pRule = rf1.rules.find((r: { category: string }) => r.catego…
+    537|     expect(pRule.source).toBe('user_text');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[23/53]⎯
+
+ FAIL  src/__tests__/p4-5a-integrity.test.ts > P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) > C4-c: accept_gaps con razón de 14 caracteres bloquea y con 15 cierra y deja el registro
+AssertionError: expected 'Falta el contexto de vista requerido …' to be 'cobertura_insuficiente' // Object.is equality
+
+Expected: "cobertura_insuficiente"
+Received: "Falta el contexto de vista requerido por la entrevista legacy. Las observaciones canónicas no lo sustituyen ni acreditan cobertura."
+
+ ❯ src/__tests__/p4-5a-integrity.test.ts:597:30
+    595|     });
+    596|     expect(r14.parsed.status).toBe('blocked');
+    597|     expect(r14.parsed.razon).toBe('cobertura_insuficiente');
+       |                              ^
+    598|
+    599|     // Intento con razón de exactamente 15 caracteres -> debe cerrar f…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[24/53]⎯
+
+ FAIL  src/__tests__/p4-5a-integrity.test.ts > P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) > C4-d: plan con auth.required true sin roles queda bloqueado con pregunta de roles y bloquea discover (V4)
+TypeError: .toMatch() expects to receive a string, but got undefined
+ ❯ src/__tests__/p4-5a-integrity.test.ts:640:43
+    638|     const rDiscoverBlocked = await callTool('qap_discover', { name: 'p…
+    639|     expect(rDiscoverBlocked.parsed.status).toBe('blocked');
+    640|     expect(rDiscoverBlocked.parsed.razon).toMatch(/No se puede ejecuta…
+       |                                           ^
+    641|   });
+    642|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[25/53]⎯
+
+ FAIL  src/__tests__/p4-5a-integrity.test.ts > P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) > C1: campos honestos en bloqueos previos a navegar y navegación real
+AssertionError: expected undefined to be 'auth_required' // Object.is equality
+
+- Expected:
+"auth_required"
+
++ Received:
+undefined
+
+ ❯ src/__tests__/p4-5a-integrity.test.ts:670:22
+    668|     const p1 = rBlockedPreNav.parsed;
+    669|     expect(p1.status).toBe('blocked');
+    670|     expect(p1.razon).toBe('auth_required');
+       |                      ^
+    671|     expect(p1.requested_url).toBe('/seguro');
+    672|     expect(p1.final_url).toBeNull();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[26/53]⎯
+
+ FAIL  src/__tests__/p4-5a-integrity.test.ts > P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) > C3: flujo real de preguntas de categoría, formato una_opcion, persistencia y respuestas user_text y deferred
+AssertionError: expected 'blocked' to be 'success' // Object.is equality
+
+Expected: "success"
+Received: "blocked"
+
+ ❯ src/__tests__/p4-5a-integrity.test.ts:716:33
+    714|     // 1. qap_discover emite pregunta de categoría con formato una_opc…
+    715|     const rDisc = await callTool('qap_discover', { name: 'items', path…
+    716|     expect(rDisc.parsed.status).toBe('success');
+       |                                 ^
+    717|     const pEmitted = rDisc.parsed.siguiente_accion?.pregunta;
+    718|     expect(pEmitted).toBeDefined();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[27/53]⎯
+
+ FAIL  src/__tests__/p4-5a2-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C1: Clasificación honesta con adaptador real > C1-a: módulo de acceso pedido en login sin redirección NO se bloquea (page_kind login, success)
+AssertionError: expected 'blocked' to be 'success' // Object.is equality
+
+Expected: "success"
+Received: "blocked"
+
+ ❯ src/__tests__/p4-5a2-integrity.test.ts:127:31
+    125|
+    126|       const r = await callTool('qap_discover', { name: 'modulo_acceso'…
+    127|       expect(r.parsed.status).toBe('success');
+       |                               ^
+    128|       expect(r.parsed.page_kind).toBe('login');
+    129|       expect(r.parsed.observed).toBe(true);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[28/53]⎯
+
+ FAIL  src/__tests__/p4-5a2-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C1: Clasificación honesta con adaptador real > C1-b: ruta protegida con redirección HTTP 302 a /login detecta auth_wall determinista y bloquea
+AssertionError: expected undefined to be 'auth_required' // Object.is equality
+
+- Expected:
+"auth_required"
+
++ Received:
+undefined
+
+ ❯ src/__tests__/p4-5a2-integrity.test.ts:144:30
+    142|       const r = await callTool('qap_discover', { name: 'panel_admin', …
+    143|       expect(r.parsed.status).toBe('blocked');
+    144|       expect(r.parsed.razon).toBe('auth_required');
+       |                              ^
+    145|       expect(r.parsed.page_kind).toBe('auth_wall');
+    146|       expect(r.parsed.observed).toBe(true);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[29/53]⎯
+
+ FAIL  src/__tests__/p4-5a2-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C1: Clasificación honesta con adaptador real > C1-c: ruta protegida con guard del lado del cliente detecta auth_wall con redirección al login
+AssertionError: expected undefined to be 'auth_required' // Object.is equality
+
+- Expected:
+"auth_required"
+
++ Received:
+undefined
+
+ ❯ src/__tests__/p4-5a2-integrity.test.ts:161:30
+    159|       const r = await callTool('qap_discover', { name: 'modulo_cliente…
+    160|       expect(r.parsed.status).toBe('blocked');
+    161|       expect(r.parsed.razon).toBe('auth_required');
+       |                              ^
+    162|       expect(r.parsed.page_kind).toBe('auth_wall');
+    163|       expect(r.parsed.observed).toBe(true);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[30/53]⎯
+
+ FAIL  src/__tests__/p4-5a2-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C3: Integridad de categoría en from_option y regla de cobertura completa > C3-a: la categoría de from_option se toma siempre de la pregunta pendiente persistida
+AssertionError: expected 'blocked' to be 'success' // Object.is equality
+
+Expected: "success"
+Received: "blocked"
+
+ ❯ src/__tests__/p4-5a2-integrity.test.ts:289:31
+    287|       });
+    288|
+    289|       expect(r.parsed.status).toBe('success');
+       |                               ^
+    290|       const rf = YAML.parse(readFileSync(join(tempDir, '.qa', 'modules…
+    291|       const saved = rf.rules.find((rule: { id: string }) => rule.id.in…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[31/53]⎯
+
+ FAIL  src/__tests__/p4-5a2-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C3: Integridad de categoría en from_option y regla de cobertura completa > C3-b: si la petición declara una categoría distinta a la de la pregunta pendiente se rechaza con blocked
+AssertionError: the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string
+ ❯ src/__tests__/p4-5a2-integrity.test.ts:334:30
+    332|
+    333|       expect(r.parsed.status).toBe('blocked');
+    334|       expect(r.parsed.error).toContain("Categoría discordante al resol…
+       |                              ^
+    335|     });
+    336|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[32/53]⎯
+
+ FAIL  src/__tests__/p4-5a2-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C4: Flujo de respuestas cortas como borrador y propuesta de enunciado > C4-a: respuesta corta se guarda como borrador (status inferred, source user_text, borrador true) y no cubre
+AssertionError: expected 'blocked' to be 'success' // Object.is equality
+
+Expected: "success"
+Received: "blocked"
+
+ ❯ src/__tests__/p4-5a2-integrity.test.ts:385:31
+    383|       });
+    384|
+    385|       expect(r.parsed.status).toBe('success');
+       |                               ^
+    386|       expect(r.parsed.cobertura.categorias.proposito?.cubierta).toBe(f…
+    387|       expect(r.parsed.siguiente_accion?.tipo).toBe('trabajo');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[33/53]⎯
+
+ FAIL  src/__tests__/p4-5a2-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C4: Flujo de respuestas cortas como borrador y propuesta de enunciado > C4-b: derivación determinista en categoría actor que nombra roles emite Pregunta una_opcion directamente
+AssertionError: expected 'blocked' to be 'success' // Object.is equality
+
+Expected: "success"
+Received: "blocked"
+
+ ❯ src/__tests__/p4-5a2-integrity.test.ts:416:31
+    414|       });
+    415|
+    416|       expect(r.parsed.status).toBe('success');
+       |                               ^
+    417|       expect(r.parsed.siguiente_accion?.tipo).toBe('decision');
+    418|       const q = r.parsed.siguiente_accion?.pregunta;
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[34/53]⎯
+
+ FAIL  src/__tests__/p4-5a2-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C4: Flujo de respuestas cortas como borrador y propuesta de enunciado > C4-c: envío de propuesta_enunciado válida para un borrador emite Pregunta una_opcion con las 3 opciones
+AssertionError: expected 'blocked' to be 'success' // Object.is equality
+
+Expected: "success"
+Received: "blocked"
+
+ ❯ src/__tests__/p4-5a2-integrity.test.ts:450:40
+    448|       });
+    449|
+    450|       expect(rPropuesta.parsed.status).toBe('success');
+       |                                        ^
+    451|       expect(rPropuesta.parsed.siguiente_accion?.tipo).toBe('decision'…
+    452|       const q = rPropuesta.parsed.siguiente_accion?.pregunta;
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[35/53]⎯
+
+ FAIL  src/__tests__/p4-5a2-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C4: Flujo de respuestas cortas como borrador y propuesta de enunciado > C4-d: resolver con "Es correcto" guarda regla confirmed user_confirmed con enunciado exacto y cubre
+TypeError: Cannot read properties of undefined (reading 'id')
+ ❯ src/__tests__/p4-5a2-integrity.test.ts:482:58
+    480|         propuesta_enunciado: enunciado,
+    481|       });
+    482|       const qId = rProp.parsed.siguiente_accion.pregunta.id;
+       |                                                          ^
+    483|
+    484|       // 3. Confirmar con "Es correcto"
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[36/53]⎯
+
+ FAIL  src/__tests__/p4-5a2-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C4: Flujo de respuestas cortas como borrador y propuesta de enunciado > C4-e: resolver con "Lo defino después" guarda regla deferred y no cubre
+TypeError: Cannot read properties of undefined (reading 'id')
+ ❯ src/__tests__/p4-5a2-integrity.test.ts:526:58
+    524|         propuesta_enunciado: 'Este módulo gestiona la creación y aprob…
+    525|       });
+    526|       const qId = rProp.parsed.siguiente_accion.pregunta.id;
+       |                                                          ^
+    527|
+    528|       const rDef = await callTool('qap_rules_set', {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[37/53]⎯
+
+ FAIL  src/__tests__/p4-5a2-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C4: Flujo de respuestas cortas como borrador y propuesta de enunciado > C4-f: propuesta_enunciado corta o genérica es rechazada con status error
+AssertionError: expected 'blocked' to be 'error' // Object.is equality
+
+Expected: "error"
+Received: "blocked"
+
+ ❯ src/__tests__/p4-5a2-integrity.test.ts:562:36
+    560|         propuesta_enunciado: 'texto muy corto',
+    561|       });
+    562|       expect(rShort.parsed.status).toBe('error');
+       |                                    ^
+    563|       expect(rShort.parsed.error).toContain('umbral sustantivo');
+    564|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[38/53]⎯
+
+ FAIL  src/__tests__/p4-5a2-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C10: Detección y advertencia de extracción vacía > C10-a: página app/login sin elementos interactivos genera advertencia extraccion_vacia y trabajo
+AssertionError: expected 'blocked' to be 'success' // Object.is equality
+
+Expected: "success"
+Received: "blocked"
+
+ ❯ src/__tests__/p4-5a2-integrity.test.ts:732:31
+    730|
+    731|       const r = await callTool('qap_discover', { name: 'modulo_vacio',…
+    732|       expect(r.parsed.status).toBe('success');
+       |                               ^
+    733|       expect(r.parsed.advertencias).toBeDefined();
+    734|       expect(r.parsed.advertencias).toContain('extraccion_vacia');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[39/53]⎯
+
+ FAIL  src/__tests__/p4-5a2-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C10: Detección y advertencia de extracción vacía > C10-b: página con al menos un elemento interactivo no genera advertencia extraccion_vacia
+AssertionError: expected 'blocked' to be 'success' // Object.is equality
+
+Expected: "success"
+Received: "blocked"
+
+ ❯ src/__tests__/p4-5a2-integrity.test.ts:754:31
+    752|
+    753|       const r = await callTool('qap_discover', { name: 'modulo_login',…
+    754|       expect(r.parsed.status).toBe('success');
+       |                               ^
+    755|       expect(r.parsed.advertencias).toBeUndefined();
+    756|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[40/53]⎯
+
+ FAIL  src/__tests__/p4-5a2-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C10: Detección y advertencia de extracción vacía > C10-c: la advertencia extraccion_vacia es agnóstica de la aplicación
+AssertionError: expected 'blocked' to be 'success' // Object.is equality
+
+Expected: "success"
+Received: "blocked"
+
+ ❯ src/__tests__/p4-5a2-integrity.test.ts:770:31
+    768|
+    769|       const r = await callTool('qap_discover', { name: 'modulo_agnosti…
+    770|       expect(r.parsed.status).toBe('success');
+       |                               ^
+    771|       expect(r.parsed.advertencias).toContain('extraccion_vacia');
+    772|     });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[41/53]⎯
+
+ FAIL  src/__tests__/p4-5a2-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C3: Transliteración NFD de slugs y prevención de módulos fuera del plan > C1-c: módulo con tilde preserva nombre en lifecycle, crea directorio y normaliza pending_questions con transliteración NFD
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/__tests__/p4-5a2-integrity.test.ts:837:34
+    835|       await callTool('qap_discover', { name: modName, path: '/asignaci…
+    836|       const modDir = join(tempDir, '.qa', 'modules', modName);
+    837|       expect(existsSync(modDir)).toBe(true);
+       |                                  ^
+    838|
+    839|       await callTool('qap_rules_set', {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[42/53]⎯
+
+ FAIL  src/__tests__/p4-5a2-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C3: Transliteración NFD de slugs y prevención de módulos fuera del plan > C2-seguimiento: selección de "Corregir" emite pregunta de seguimiento y no persiste regla espuria en rules.yaml
+AssertionError: expected undefined to be defined
+ ❯ src/__tests__/p4-5a2-integrity.test.ts:877:17
+    875|       });
+    876|       const q = rProp.parsed.siguiente_accion?.pregunta;
+    877|       expect(q).toBeDefined();
+       |                 ^
+    878|
+    879|       // 3. Responder Corregir
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[43/53]⎯
+
+ FAIL  src/__tests__/server.test.ts > Suite MCP Server QAP v2.1 / v2.1.2 > debe descubrir modulos y responder en desarrollo para qap_plan y qap_test
+AssertionError: expected true to be falsy
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ src/__tests__/server.test.ts:267:36
+    265|       {}
+    266|     );
+    267|     expect(discoverResult.isError).toBeFalsy();
+       |                                    ^
+    268|     const parsedDiscover = JSON.parse(discoverResult.content[0].text);
+    269|     expect(parsedDiscover.status).toBe('success');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[44/53]⎯
+
+ FAIL  src/__tests__/server.test.ts > Suite MCP Server QAP v2.1 / v2.1.2 > el contexto de vista generado por qap_discover debe validar contra module-view.schema.json (Criterio 4)
+AssertionError: expected true to be falsy
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ src/__tests__/server.test.ts:637:36
+    635|       {}
+    636|     );
+    637|     expect(discoverResult.isError).toBeFalsy();
+       |                                    ^
+    638|     const discoverText = String(discoverResult.content[0]?.text);
+    639|     const parsedDiscover = JSON.parse(discoverText) as { status: strin…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[45/53]⎯
+
+ FAIL  src/__tests__/server.test.ts > Suite MCP Server QAP v2.1 / v2.1.2 > qap_discover con contexto de vista inválido no debe escribir archivos y debe retornar error (Criterio 4)
+AssertionError: expected 'blocked' to be 'error' // Object.is equality
+
+Expected: "error"
+Received: "blocked"
+
+ ❯ src/__tests__/server.test.ts:724:27
+    722|       errors?: Array<{ message: string }>;
+    723|     };
+    724|     expect(parsed.status).toBe('error');
+       |                           ^
+    725|     expect(parsed.message).toContain('module-view.schema.json');
+    726|     expect(parsed.errors).toBeDefined();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[46/53]⎯
+
+ FAIL  src/__tests__/server.test.ts > Suite MCP Server QAP v2.1 / v2.1.2 > E0a: qap_discover valida contra module-view.schema.json en camino de fallo de Playwright
+AssertionError: expected true to be falsy
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ src/__tests__/server.test.ts:784:25
+    782|       {}
+    783|     );
+    784|     expect(res.isError).toBeFalsy();
+       |                         ^
+    785|     const parsed = JSON.parse(res.content[0].text);
+    786|     expect(parsed.status).toBe('success');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[47/53]⎯
+
+ FAIL  src/__tests__/server.test.ts > Suite MCP Server QAP v2.1 / v2.1.2 > E0b: qap_discover valida contra module-view.schema.json en vista de autenticacion con session_saved true
+AssertionError: expected true to be falsy
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ src/__tests__/server.test.ts:848:25
+    846|       {}
+    847|     );
+    848|     expect(res.isError).toBeFalsy();
+       |                         ^
+    849|     const parsed = JSON.parse(res.content[0].text);
+    850|     expect(parsed.status).toBe('success');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[48/53]⎯
+
+ FAIL  src/__tests__/server.test.ts > Suite MCP Server QAP v2.1 / v2.1.2 > E0c: qap_discover valida contra module-view.schema.json en vista con routes_found vacio
+AssertionError: expected true to be falsy
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ src/__tests__/server.test.ts:912:25
+    910|       {}
+    911|     );
+    912|     expect(res.isError).toBeFalsy();
+       |                         ^
+    913|     const parsed = JSON.parse(res.content[0].text);
+    914|     expect(parsed.status).toBe('success');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[49/53]⎯
+
+ FAIL  src/__tests__/server.test.ts > Suite MCP Server QAP v2.1 / v2.1.2 > qap_discover: gating por fase y estado de modulo, actualizacion planned -> observed
+AssertionError: expected undefined to be 'ONBOARDING' // Object.is equality
+
+- Expected:
+"ONBOARDING"
+
++ Received:
+undefined
+
+ ❯ src/__tests__/server.test.ts:1261:58
+    1259|     );
+    1260|     expect(JSON.parse(bOnboarding.content[0].text).status).toBe('block…
+    1261|     expect(JSON.parse(bOnboarding.content[0].text).fase).toBe('ONBOARD…
+       |                                                          ^
+    1262|
+    1263|     // Pasar a SCOPING
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[50/53]⎯
+
+ FAIL  src/__tests__/server.test.ts > Suite MCP Server QAP v2.1 / v2.1.2 > Criterio 7: Proyecto legacy sin campos de negocio valida contra el schema y qap_status responde con fase WORKING derivada
+AssertionError: expected 'blocked' to be 'success' // Object.is equality
+
+Expected: "success"
+Received: "blocked"
+
+ ❯ src/__tests__/server.test.ts:1411:56
+    1409|       {}
+    1410|     );
+    1411|     expect(JSON.parse(discRes.content[0].text).status).toBe('success');
+       |                                                        ^
+    1412|   });
+    1413|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[51/53]⎯
+
+ FAIL  src/__tests__/server.test.ts > Suite MCP Server QAP v2.1 / v2.1.2 > Criterio 8 (E2E): init -> status (entrevista) -> ingest -> context_set compuerta -> auto-SCOPING -> session_plan -> auto-WORKING -> discover
+AssertionError: expected undefined to be 'ONBOARDING' // Object.is equality
+
+- Expected:
+"ONBOARDING"
+
++ Received:
+undefined
+
+ ❯ src/__tests__/server.test.ts:1445:33
+    1443|     const pDiscPremature = JSON.parse(discPremature.content[0].text);
+    1444|     expect(pDiscPremature.status).toBe('blocked');
+    1445|     expect(pDiscPremature.fase).toBe('ONBOARDING');
+       |                                 ^
+    1446|     expect(pDiscPremature.desbloquear_con.tool).toBe('qap_context_set'…
+    1447|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[52/53]⎯
+
+ FAIL  src/__tests__/server.test.ts > Suite MCP Server QAP v2.1 / v2.1.2 > qap_rules_set: actualiza reglas, transiciona observed -> interviewing, recalcula cobertura y actualiza guidance
+AssertionError: expected 'planned' to be 'observed' // Object.is equality
+
+Expected: "observed"
+Received: "planned"
+
+ ❯ src/__tests__/server.test.ts:1604:46
+    1602|       readFileSync(join(tempDir, '.qa', 'project', 'lifecycle.json'), …
+    1603|     );
+    1604|     expect(statePostDisc.modules.auth.state).toBe('observed');
+       |                                              ^
+    1605|
+    1606|     // 2. Invocar qap_rules_set para confirmar una regla y establecer …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[53/53]⎯
+
+
+ Test Files  7 failed | 17 passed (24)
+      Tests  53 failed | 453 passed (506)
+   Start at  12:11:23
+   Duration  51.87s (transform 14.16s, setup 0ms, import 95.39s, tests 371.49s, environment 12ms)
+
+JSON report written to C:/Users/Judirico/Documents/QAMCP/QAMCP/docs/vnext/implementaciones/VNEXT-014-E01/evidencia/final-parallel-1.json
+Error: ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL
+
+  × "pnpm recursive exec" failed in C:
+  │ \Users\Judirico\Documents\QAMCP\QAMCP\packages\mcp
+

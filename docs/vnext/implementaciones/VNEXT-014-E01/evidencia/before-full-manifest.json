@@ -1,0 +1,18 @@
+{
+  "finished_at": "2026-11-06T17:59:09.2488949Z",
+  "exit_code": 1,
+  "arguments": [
+    "--filter",
+    "@qap/mcp",
+    "exec",
+    "vitest",
+    "run",
+    "--config",
+    "../../docs/vnext/implementaciones/VNEXT-014-E01/evidencia/diagnostic.config.ts",
+    "--reporter=default",
+    "--reporter=json",
+    "--outputFile=../../docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-full.json"
+  ],
+  "started_at": "2026-11-06T17:57:59.5632190Z",
+  "name": "before-full"
+}

@@ -1,0 +1,26 @@
+packages/playwright-adapter build$ tsup src/index.ts --format esm --dts
+packages/playwright-runner build$ tsup src/index.ts --format esm --dts
+packages/playwright-runner build: CLI Building entry: src/index.ts
+packages/playwright-runner build: CLI Using tsconfig: tsconfig.json
+packages/playwright-runner build: CLI tsup v8.5.1
+packages/playwright-runner build: CLI Using tsup config: C:\Users\Judirico\Documents\QAMCP\QAMCP\packages\playwright-runner\tsup.config.ts
+packages/playwright-adapter build: CLI Building entry: src/index.ts
+packages/playwright-adapter build: CLI Using tsconfig: tsconfig.json
+packages/playwright-adapter build: CLI tsup v8.5.1
+packages/playwright-adapter build: CLI Using tsup config: C:\Users\Judirico\Documents\QAMCP\QAMCP\packages\playwright-adapter\tsup.config.ts
+packages/playwright-runner build: CLI Target: es2022
+packages/playwright-runner build: ESM Build start
+packages/playwright-adapter build: CLI Target: es2022
+packages/playwright-adapter build: ESM Build start
+packages/playwright-runner build: ESM dist\index.js 28.73 KB
+packages/playwright-runner build: ESM ⚡️ Build success in 53ms
+packages/playwright-adapter build: ESM dist\index.js 121.40 KB
+packages/playwright-adapter build: ESM ⚡️ Build success in 69ms
+packages/playwright-adapter build: DTS Build start
+packages/playwright-runner build: DTS Build start
+packages/playwright-runner build: DTS ⚡️ Build success in 3365ms
+packages/playwright-runner build: DTS dist\index.d.ts 4.34 KB
+packages/playwright-runner build: Done
+packages/playwright-adapter build: DTS ⚡️ Build success in 4173ms
+packages/playwright-adapter build: DTS dist\index.d.ts 23.82 KB
+packages/playwright-adapter build: Done

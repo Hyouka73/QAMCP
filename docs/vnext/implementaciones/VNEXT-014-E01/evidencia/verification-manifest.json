@@ -1,0 +1,100 @@
+[
+  {
+    "exit_code": 1,
+    "started_at": "2026-11-06T18:17:30.4036610Z",
+    "arguments": [
+      "run",
+      "build"
+    ],
+    "name": "build",
+    "finished_at": "2026-11-06T18:17:55.2078059Z"
+  },
+  {
+    "exit_code": 0,
+    "started_at": "2026-11-06T18:17:55.2515304Z",
+    "arguments": [
+      "--fail-if-no-match",
+      "--filter",
+      "@qap/engine",
+      "test"
+    ],
+    "name": "engine",
+    "finished_at": "2026-11-06T18:17:58.2150302Z"
+  },
+  {
+    "exit_code": 0,
+    "started_at": "2026-11-06T18:17:58.2208764Z",
+    "arguments": [
+      "--fail-if-no-match",
+      "--filter",
+      "@qap/knowledge",
+      "test"
+    ],
+    "name": "knowledge",
+    "finished_at": "2026-11-06T18:18:07.7530772Z"
+  },
+  {
+    "exit_code": 0,
+    "started_at": "2026-11-06T18:18:07.7589563Z",
+    "arguments": [
+      "--fail-if-no-match",
+      "--filter",
+      "@qap/playwright-runner",
+      "test"
+    ],
+    "name": "runner",
+    "finished_at": "2026-11-06T18:18:15.1465702Z"
+  },
+  {
+    "exit_code": 0,
+    "started_at": "2026-11-06T18:18:15.1510345Z",
+    "arguments": [
+      "--fail-if-no-match",
+      "--filter",
+      "@hyouka73/qap-cli",
+      "test"
+    ],
+    "name": "cli",
+    "finished_at": "2026-11-06T18:18:31.7601647Z"
+  },
+  {
+    "exit_code": 0,
+    "started_at": "2026-11-06T18:18:31.7640840Z",
+    "arguments": [
+      "--fail-if-no-match",
+      "--filter",
+      "@qap/shared",
+      "test"
+    ],
+    "name": "shared",
+    "finished_at": "2026-11-06T18:18:35.1940622Z"
+  },
+  {
+    "exit_code": 1,
+    "started_at": "2026-11-06T18:18:35.1982793Z",
+    "arguments": [
+      "--fail-if-no-match",
+      "--filter",
+      "@qap/playwright-adapter",
+      "test"
+    ],
+    "name": "adapter",
+    "finished_at": "2026-11-06T18:20:39.2749860Z"
+  },
+  {
+    "exit_code": 0,
+    "started_at": "2026-11-06T18:20:39.2810644Z",
+    "arguments": [
+      "--filter",
+      "@qap/mcp",
+      "exec",
+      "vitest",
+      "run",
+      "host-composition",
+      "dispatcher-integration",
+      "dispatcher.test"
+    ],
+    "name": "host-drain",
+    "finished_at": "2026-11-06T18:20:43.0082224Z"
+  }
+]
