@@ -1,3 +1,20 @@
+## Verificación física R1 y correcciones posteriores — 2026-11-06
+
+**R1 sobre SHA 8de5a22 (Codex, Windows/Node 24.15.0):** 33 canónicas focalizadas = **31 PASS / 2 FAIL**; lifecycle **10/10 PASS**; MCP serial **487/506 PASS (19 FAIL)**; MCP paralelo **473/506 PASS (33 FAIL)**. Build PASS, typecheck/lint global FAIL. Diferencial serial frente a 456/50: 31 FAIL→PASS, cero PASS→FAIL. Fuente inalterada: [VERIFICACION_FISICA_R1_2026-11-06.md](VERIFICACION_FISICA_R1_2026-11-06.md). Este resultado **no se extrapola a commits posteriores**.
+
+**Correcciones posteriores de pruebas, todavía sin validación física:**
+- TM-09/T14: Discovery no muta lifecycle automáticamente; entrevista explícita y prueba de high/medium/low más desempate estable. Commits 1c8164e y 9aa9499.
+- TM-12/Criterio 6: versión inicial de pregunta = 0 y aumento tras propuesta/revisión. Commit a409601.
+- Server: el tipo Payload modela propiedades opcionales reales de Discovery, no fuerza campos en otras herramientas. Commit 8980bbc.
+- TM-33: categoría formal explícita confirmada con host y readback Knowledge. Commit 7ed60e0.
+- TM-38: procedencia y recibo durable de revisión confirmados en el test. Commit 3c4cf0a.
+
+**Próxima prueba focal:** P3, P4.2, P4.5-A2 y Server canónicos; typecheck MCP y lint editado, con SHA exacto. Guardar evidencia aditiva; no repetir MCP completo aún. Nada de lo publicado después de R1 se declara PASS por inspección.
+
+**Pendientes:** TM-23, TM-41..43, TM-44 y TM-48 siguen con equivalencia semántica incompleta; hay 17 identidades sin modernizar (11 auth, 6 Server), E01, aprobación humana auténtica, estáticos globales y compuertas de integración. No confundir bloqueos anónimos seguros con autenticación/SPA. **VNEXT-014 sigue NO-GO.**
+
+---
+
 ## Dictamen de orquestación 2026-11-06 — posterior a c8b0cd1
 
 **Estado vigente: NO-GO.** GitHub verificó HEAD `c8b0cd1` al comenzar esta revisión (8 commits posteriores a `6062dcb`). Existen **38/55 identidades modernizadas en código**: cinco con PASS físico previo del Lote 1; **33 modernizadas adicionales sin corrida física**, y **17 aún sin sustitución**. El conteo antiguo de 50 pendientes en secciones inferiores corresponde al Lote 1 y **no representa el estado actual**. La matriz JSON aún conserva `physical_result: failed` del baseline para los casos no ejecutados; no sobrescribir evidencias antiguas ni interpretarlas como resultados sobre el nuevo HEAD.
