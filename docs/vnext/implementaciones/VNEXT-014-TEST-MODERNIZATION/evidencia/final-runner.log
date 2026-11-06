@@ -1,0 +1,10 @@
+$ vitest run
+
+ RUN  v4.1.11 C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/playwright-runner
+
+
+ Test Files  11 passed (11)
+      Tests  73 passed (73)
+   Start at  11:31:11
+   Duration  6.86s (transform 3.39s, setup 0ms, import 25.51s, tests 17.10s, environment 3ms)
+

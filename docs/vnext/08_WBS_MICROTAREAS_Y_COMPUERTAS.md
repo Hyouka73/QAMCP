@@ -229,3 +229,19 @@ No se reabren ni reescriben tareas históricamente terminadas. Merge interno `6c
 | Deuda de validación | Build10/Engine168/Knowledge342/Runner73/CLI78 PASS; lint34/28 y MCP tsc124 FAIL sin altas | Tramitar deuda restante en correcciones formales; no confundir diferencial con global aprobado. |
 
 MCP serial447/55/502; simultáneas431/71 y429/73; controles predeterminados consecutivos445/57 y443/59. **A/B/C/D y VNEXT-014 NO-GO**. No merge a develop/main/staging/npm; objetivos16/19/20 conservados sujetos a sus compuertas. [Resultados, SHAs y JSON por identidad](implementaciones/VNEXT-014-CIERRE-CONTROLADO/RESULTADOS_RESCATE.md) · [Matriz63](implementaciones/VNEXT-014-CIERRE-CONTROLADO/MATRIZ_63_RESCATE.md) · [Pendientes verificables](implementaciones/VNEXT-014-CIERRE-CONTROLADO/RECONCILIACION_HISTORICA.md).
+
+## 13. Modernización de tests MCP — Lote 1 (2026-11-06, aditivo)
+
+| Unidad | Resultado acotado | Siguiente compuerta |
+| --- | --- | --- |
+| Lifecycle E0a/E1/E2/E3/Criterio9 | Implementación `9a7ce20`, cinco FAIL→PASS; dos PASS modernizadas; tres negativos nuevos, focal10/10 | Revisión independiente; no consentimiento humano auténtico certificado por fixtures. |
+| MCP completo serial | 455 PASS / 50 FAIL / 505; cero bajas y cero PASS→FAIL | Modernizar50 restantes por lotes2–7; ninguna identidad deshabilitada. |
+| Build y auxiliares | Build10/Engine168/Knowledge342/Runner73/CLI78 PASS | Conservar negativos/fences/CAS en las familias siguientes. |
+| Diferencial técnico | TS MCP124→121; ESLint34 errores/28→25 advertencias, cero altas | Deuda global no resuelta; no confundir diferencial con PASS global. |
+| E01 | Mejora del arnés: reutilizar validador sin quitar checks ni subir5000ms | Estabilidad bajo carga e instrumentación por etapa pendientes. |
+
+Matriz55 inicial y contratos de sustitución en [VNEXT-014-TEST-MODERNIZATION](implementaciones/VNEXT-014-TEST-MODERNIZATION/RESULTADOS.md). Próximo lote exacto: `p3-verification.test.ts`, TM-06..TM-10/históricos14..18. **VNEXT-014 y develop NO-GO**. Se preservan tareas históricamente terminadas, fechas/compuertas y VNEXT-015 íntegro.
+
+Contraste de carga del mismo lote: MCP paralelo predeterminado442/63/505;13 fallos adicionales frente a serie, incluidos seis lifecycle. La certificación paralela del Lote1 también permanece NO-GO dentro de E01. No altera la recuperación serial ni autoriza cierre integral.
+
+E01 bajo dos suites simultáneas:425/80 y433/72 de505; hooks de drenaje vencidos en test-handler. No se certifica estabilidad ni se amplían presupuestos. Evidencia completa publicada con el lote; no se reabre ninguna actividad terminada.
