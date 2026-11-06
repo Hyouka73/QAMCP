@@ -5,6 +5,8 @@
 - `c5d37b0`: corrige orden y separación de importaciones P3, dos warnings nuevos detectados por R2; requiere lint físico para acreditarlo.
 - `0dcb85f`: TM-34 rechaza pregunta/módulo incorrecto y categoría formal inválida, distingue clasificación explícita security de falta de aprobación; TM-35 comprueba borrador durable; TM-38 especificación completa tras `declare_non_applicable`, sin ejecución ficticia; TM-41..43 distinguen controles de observaciones válidas y no inventan `extraccion_vacia`.
 - `413af9f`: TM-48 añade pruebas de autorización, URL no consentida, ruta normalizada insegura, identidad no planificada y credenciales en argumentos, con invariantes de cero escritura.
+- `37df993`: TM-09 añade desempate medium/medium verificable a través de MCP status (además del desempate unitario y prioridades R2).
+- `dff49f9`/`4869f00`/`5c64881`: TM-44 añade módulo `Operación` autorizado, binding canónico `operacion`, readback de requisito y drafts tras restart, sin directorio legacy.
 - `ea9dcbd`: fixture admite `allowTestNavigation` explícito (por defecto false), limitado al HTTP loopback del test. No incorpora cookies ni acceso externo.
 - `1ebdc0b`/`b40d997`: TM-46/52/54/55 migran a `server-canonical-operations.test.ts`; sus cuatro cuerpos anteriores se retiran únicamente tras crear sustitución con `fullName` idéntico. TM-46 usa prueba positiva `qap_plan` → `plan.json` → `qap_test` → ejecución persistida y negativa de plan modificado; no son stubs.
 - `ab8d023`/`4d794fe`: TM-53 preserva lectura positiva de status legacy y bloquea Discovery sin contexto autorizado; se retira su cuerpo legacy duplicado. TM-50 continúa activo como capacidad de sesión autenticada ausente.
