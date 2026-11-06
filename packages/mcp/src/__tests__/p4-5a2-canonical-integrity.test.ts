@@ -1,4 +1,5 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { isSubstantiveRuleText, normalizeSlug } from '@qap/shared';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createLifecycleFixture, type LifecycleFixture } from './fixtures/lifecycle-canonical.js';
@@ -142,7 +143,47 @@ describe('P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, 
 
   describe('C3: Transliteración NFD de slugs y prevención de módulos fuera del plan', () => {
     it('C1-c: módulo con tilde preserva nombre en lifecycle, crea directorio y normaliza pending_questions con transliteración NFD', async () => {
-      expect(normalizeSlug('Asignación de ejecutivo de campo por carga')).toBe('asignacion_de_ejecutivo_de_campo_por_carga');expect(normalizeSlug('Operación básica')).toBe('operacion_basica');const f=await fixture();await f.working(['catalog']);const before=readFileSync(f.lifecyclePath,'utf8');expect(await f.call('qap_discover',{name:'Operación básica',path:'/catalog'})).toMatchObject({status:'blocked',code:'module_restricted',persistence:'not_attempted'});expect(readFileSync(f.lifecyclePath,'utf8')).toBe(before);expect(f.lifecycle().modules).not.toHaveProperty('operacion_basica');
+      expect(normalizeSlug('Asignación de ejecutivo de campo por carga'))
+        .toBe('asignacion_de_ejecutivo_de_campo_por_carga');
+      expect(normalizeSlug('Operación básica')).toBe('operacion_basica');
+      // Negative: an attractive name does not authorize an unplanned module.
+      const f = await fixture();
+      await f.working(['catalog']);
+      const before = readFileSync(f.lifecyclePath, 'utf8');
+      expect(await f.call('qap_discover', { name: 'Operación básica', path: '/catalog' }))
+        .toMatchObject({ status: 'blocked', code: 'module_restricted', persistence: 'not_attempted' });
+      expect(readFileSync(f.lifecyclePath, 'utf8')).toBe(before);
+      expect(f.lifecycle().modules).not.toHaveProperty('operacion_basica');
+
+      // Positive: host-planned display identity retains its accent while the
+      // canonical module key is deterministic NFD. No legacy filesystem model
+      // or automatic business assertion is introduced.
+      const accented = await createLifecycleFixture(close => cleanup.push(close),
+        undefined, false, ['Operación']);
+      await accented.working(['Operación']);
+      expect(accented.lifecycle().session?.plan[0].module).toBe('Operación');
+      const acquired = await accented.discover('Operación');
+      expect(acquired).toMatchObject({ mode: 'fresh_anonymous_static', association_status: 'confirmed' });
+      const q = (await accented.interview('Operación', { action: 'next' })).question;
+      expect(q).toMatchObject({ module: 'Operación', category: 'proposito', human_review_required: true });
+      const prepared = accented.drafts().questions.find(item => item.id === q.id);
+      expect(prepared).toMatchObject({ module: 'Operación', state: 'proposal' });
+      const confirmed = await accented.confirm('Operación', q, accented.proposal);
+      expect(confirmed.result).toMatchObject({ status: 'confirmed', revision: 1 });
+      const modules = (await accented.knowledge.query(accented.scope.applicationId, 'module')).items;
+      expect(modules.some(item => item.entity.key === 'operacion' &&
+        item.entity.title === 'Synthetic Operación')).toBe(true);
+      expect(accented.lifecycle().modules).toHaveProperty('Operación');
+      expect(accented.lifecycle().modules).not.toHaveProperty('operacion');
+      await accented.restart(true, ['Operación']);
+      const persisted = (await accented.knowledge.query(accented.scope.applicationId, 'requirement')).items;
+      expect(persisted).toHaveLength(1);
+      expect(persisted[0].entity).toMatchObject({
+        module_key: 'operacion', validation_status: 'confirmed', provenance: 'developer_interview',
+      });
+      expect(existsSync(join(accented.root, '.qa', 'modules', 'operacion', 'pending_questions')))
+        .toBe(false);
+      accented.integrity();
     });
 
     it('C2-seguimiento: selección de "Corregir" emite pregunta de seguimiento y no persiste regla espuria en rules.yaml', async () => {
