@@ -1,0 +1,83 @@
+[
+  {
+    "suite": "p3-canonical-discovery",
+    "exit_code": 0,
+    "pass": 5,
+    "fail": 0,
+    "skip": 0,
+    "elapsed_ms": 18593.1876,
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468"
+  },
+  {
+    "suite": "p4-2-canonical-contract",
+    "exit_code": 0,
+    "pass": 2,
+    "fail": 0,
+    "skip": 0,
+    "elapsed_ms": 7757.3578,
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468"
+  },
+  {
+    "suite": "p4-5a-canonical-integrity",
+    "exit_code": 0,
+    "pass": 9,
+    "fail": 0,
+    "skip": 0,
+    "elapsed_ms": 9572.4595,
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468"
+  },
+  {
+    "suite": "p4-5a2-canonical-integrity",
+    "exit_code": 0,
+    "pass": 13,
+    "fail": 0,
+    "skip": 0,
+    "elapsed_ms": 13354.1628,
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468"
+  },
+  {
+    "suite": "server-canonical-discovery",
+    "exit_code": 0,
+    "pass": 4,
+    "fail": 0,
+    "skip": 0,
+    "elapsed_ms": 8171.1154,
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468"
+  },
+  {
+    "suite": "server-canonical-operations",
+    "exit_code": 0,
+    "pass": 5,
+    "fail": 0,
+    "skip": 0,
+    "elapsed_ms": 10481.8254,
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468"
+  },
+  {
+    "suite": "server",
+    "exit_code": 1,
+    "pass": 11,
+    "fail": 1,
+    "skip": 0,
+    "elapsed_ms": 5127.8603,
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468"
+  },
+  {
+    "suite": "plan-handler",
+    "exit_code": 0,
+    "pass": 31,
+    "fail": 0,
+    "skip": 0,
+    "elapsed_ms": 4902.1648,
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468"
+  },
+  {
+    "suite": "test-handler",
+    "exit_code": 0,
+    "pass": 21,
+    "fail": 0,
+    "skip": 0,
+    "elapsed_ms": 10284.9172,
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468"
+  }
+]

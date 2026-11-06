@@ -1,5 +1,9 @@
 # Matriz de las 55 identidades históricas
 
+## Acta física R3 — 2026-11-06
+
+SHA `bdafeeb834549fc13c5d952c1f341098c2592468`: de estas 55 identidades se ejecutaron **39: 38 PASS, 1 FAIL (TM-50), 16 NO EJECUTADAS**. Los 38 PASS se clasifican conservadoramente en 27 suficientes para el contrato canónico explícitamente sustituido y 11 con equivalencia parcial; no son 38 equivalencias literales de representaciones legacy. El inventario AST conserva las 55 declaraciones exactamente una vez. [Matriz física R3 completa](evidencia/r3-2026-11-06/matrix-55-r3.md) y [JSON](evidencia/r3-2026-11-06/matrix-55-r3.json) incluyen baseline, R1/R2, R3, semántica, regresión y evidencia por identidad. No se modifican valores históricos physical_result. Las secciones inferiores son actas previas; [dictamen actual](VERIFICACION_FISICA_R3_2026-11-06.md): focal/integral NO-GO por regresión TypeScript y pendientes documentados.
+
 ## Estado aditivo R3 — código no certificado (2026-11-06)
 
 **43/55 identidades modernizadas en código, 12 pendientes; NO-GO.** El cuerpo base de esta matriz registra el lote inicial y sus baselines históricos: sus descripciones de “50 pendientes” o “sin ejecución” no son el estado actual. La prueba física independiente de R2 permanece **24/24 sobre `92579eb`**; ninguna aserción R3 tiene PASS nuevo. No se altera `physical_result` histórico de la matriz JSON.

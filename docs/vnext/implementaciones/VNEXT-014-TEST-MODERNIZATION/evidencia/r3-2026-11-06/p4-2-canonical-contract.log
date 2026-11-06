@@ -1,0 +1,12 @@
+
+ RUN  v4.1.11 <repo>/packages/mcp
+
+ ✓ src/__tests__/p4-2-canonical-contract.test.ts > P4.2 Suite: Contrato Canónico de Pregunta y Verificación E2E (Criterio 4 y Criterio 6) > Criterio 4.4: Ninguna respuesta con siguiente_accion trae preguntas como cadenas ni pregunta aplanada 2258ms
+ ✓ src/__tests__/p4-2-canonical-contract.test.ts > P4.2 Suite: Contrato Canónico de Pregunta y Verificación E2E (Criterio 4 y Criterio 6) > Criterio 6: E2E Completo donde TODA siguiente_accion de tipo entrevista, entrevista_vista o decision trae Pregunta válida 2101ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  17:10:58
+   Duration  6.75s (transform 958ms, setup 0ms, import 2.01s, tests 4.36s, environment 0ms)
+
+JSON report written to <repo>/docs/vnext/implementaciones/VNEXT-014-TEST-MODERNIZATION/evidencia/r3-2026-11-06/p4-2-canonical-contract.json

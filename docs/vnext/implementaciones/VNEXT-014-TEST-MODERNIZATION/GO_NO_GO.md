@@ -1,5 +1,7 @@
 # Dictamen
 
+> **Dictamen físico independiente R3 — 2026-11-06: focal NO-GO e integral VNEXT-014 NO-GO.** SHA `bdafeeb834549fc13c5d952c1f341098c2592468`: 101 PASS/1 FAIL/0 SKIP, nueve suites; 38 identidades modernizadas seleccionadas PASS, TM-50 FAIL heredado. Cero regresiones funcionales observadas en selección, pero seis diagnósticos TypeScript nuevos (134 totales), brechas de aserciones TM-44/TM-48 y equivalencias parciales. Build PASS; ESLint focal 0 errores/2 warnings heredados, cuatro warnings P3/A2 eliminados. Doce auth pendientes, E01, estáticos globales, revisión humana real e integral/Stdio siguen abiertos. [Informe y evidencia R3](VERIFICACION_FISICA_R3_2026-11-06.md). Las actas inferiores son históricas; no autorizan merge ni publicación. MVP 20-11-2026 conservado.
+
 > **Estado vigente R3 — 2026-11-06: VNEXT-014 NO-GO.** Código modernizado **43/55**, doce identidades pendientes: once de autenticación y TM-50. R3 incluye cinco sustituciones Server y refuerzos semánticos, **sin una ejecución física independiente sobre estos commits**. El único PASS focal confirmado reciente corresponde a R2 (24/24 en SHA `92579eb`); la corrida global R1 permanece 487/506 serial y 473/506 paralelo. Persisten equivalencias parciales, positivos R3 aún sin certificar (incluido TM-44), E01, autorización humana auténtica y 128 diagnósticos TS históricos (baseline R2). No hay GO, cierre, npm ni merge hacia `develop`, `main` o `staging`. El MVP conserva fecha **20-11-2026**. Los informes inferiores son actas históricas, no cifras vigentes.
 
 

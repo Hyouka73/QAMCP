@@ -1,5 +1,9 @@
 # Correcciones por familia
 
+## Verificación independiente R3 — resultados publicados 2026-11-06
+
+Sobre `bdafeeb834549fc13c5d952c1f341098c2592468`: nueve suites ejecutadas, 101/102 PASS, único FAIL heredado TM-50. Se comprobaron físicamente desempate MCP TM-09, positivos categoría/recibo/cobertura y módulo acentuado, las negativas TM-48 y cinco sustituciones Server, incluyendo ejecución real TM-46. ESLint elimina cuatro warnings P3/A2 sin nuevas altas focales, build PASS. **Regresión detectada: seis TS2339 nuevos, 134 totales**; siguen parciales los objetivos de recuperación draft/next TM-44 y autorización realmente obsoleta TM-48. Esta campaña no los corrige. Focal e integral NO-GO. [Informe R3](VERIFICACION_FISICA_R3_2026-11-06.md). Las secciones siguientes conservan el estado de implementación previo a la certificación, sin reescribir históricos R1/R2.
+
 ## R3 — Semántica y Server MCP (2026-11-06; NO certificado)
 
 - `c5d37b0`: corrige orden y separación de importaciones P3, dos warnings nuevos detectados por R2; requiere lint físico para acreditarlo.

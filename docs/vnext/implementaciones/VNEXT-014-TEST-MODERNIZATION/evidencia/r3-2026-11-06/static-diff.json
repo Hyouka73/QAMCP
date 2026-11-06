@@ -1,0 +1,67 @@
+{
+  "typescript": {
+    "r2": 128,
+    "r3": 134,
+    "added": [
+      "src/__tests__/p4-5a2-canonical-integrity.test.ts: error TS2339: Property 'limitations' does not exist on type 'Payload'.",
+      "src/__tests__/p4-5a2-canonical-integrity.test.ts: error TS2339: Property 'next_safe_action' does not exist on type 'Payload'.",
+      "src/__tests__/p4-5a2-canonical-integrity.test.ts: error TS2339: Property 'counts' does not exist on type 'Payload'.",
+      "src/__tests__/p4-5a2-canonical-integrity.test.ts: error TS2339: Property 'limitations' does not exist on type 'Payload'.",
+      "src/__tests__/p4-5a2-canonical-integrity.test.ts: error TS2339: Property 'limitations' does not exist on type 'Payload'.",
+      "src/__tests__/server-canonical-operations.test.ts: error TS2339: Property 'persistence' does not exist on type 'Payload'."
+    ],
+    "removed": [],
+    "retained": 128,
+    "exit_code": 1
+  },
+  "eslint": {
+    "scope": "Six files changed by R3. R2 focal baseline plus R1 Server baseline (Server source unchanged R1→R2); operations is new.",
+    "baseline_errors": 0,
+    "baseline_warnings": 6,
+    "r3_errors": 0,
+    "r3_warnings": 2,
+    "added": [],
+    "removed": [
+      [
+        "mcp/src/__tests__/p3-canonical-discovery.test.ts",
+        "import/order",
+        1,
+        "There should be at least one empty line between import groups"
+      ],
+      [
+        "mcp/src/__tests__/p3-canonical-discovery.test.ts",
+        "import/order",
+        1,
+        "`../guidance.js` import should occur before import of `./fixtures/lifecycle-canonical.js`"
+      ],
+      [
+        "mcp/src/__tests__/p4-5a2-canonical-integrity.test.ts",
+        "import/order",
+        1,
+        "There should be at least one empty line between import groups"
+      ],
+      [
+        "mcp/src/__tests__/p4-5a2-canonical-integrity.test.ts",
+        "import/order",
+        1,
+        "There should be at least one empty line between import groups"
+      ]
+    ],
+    "current_messages": [
+      {
+        "file": "mcp/src/__tests__/server.test.ts",
+        "rule": null,
+        "severity": 1,
+        "message": "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-unsafe-argument').",
+        "line": 1
+      },
+      {
+        "file": "mcp/src/__tests__/server.test.ts",
+        "rule": null,
+        "severity": 1,
+        "message": "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any').",
+        "line": 1
+      }
+    ]
+  }
+}

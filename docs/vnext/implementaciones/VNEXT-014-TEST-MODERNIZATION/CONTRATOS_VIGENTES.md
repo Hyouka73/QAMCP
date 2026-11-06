@@ -1,5 +1,9 @@
 # Contratos vigentes y equivalencia del Lote 1
 
+## Acta de contraste físico R3 — 2026-11-06
+
+La campaña independiente sobre `bdafeeb834549fc13c5d952c1f341098c2592468` ejecutó los candidatos descritos abajo: 101 PASS/1 FAIL en nueve suites. Los positivos canónicos seleccionados aprobaron; las representaciones legacy retiradas no se declaran equivalentes literalmente. La [auditoría semántica R3](evidencia/r3-2026-11-06/semantic-audit.md) delimita por identidad qué se ejecutó y qué queda parcial, especialmente TM-44 (draft tras restart no asertado) y TM-48 (999 frente a 1 no prueba actualización real de Environment). Focal/integral NO-GO: seis nuevos errores TypeScript y pendientes. El texto inferior conserva las decisiones contractuales y su estado histórico anterior a la ejecución; no es nueva aprobación de auth, revisión humana ni integración. [Informe R3](VERIFICACION_FISICA_R3_2026-11-06.md).
+
 ## Reconciliación R3 — diferencias contractuales explícitas
 
 **Verificación:** R3 es implementación y diseño de aserciones, no evidencia física nueva. El único resultado independiente posterior a R1 es R2 (24/24 en `92579eb`). No se transfieren PASS a R3.

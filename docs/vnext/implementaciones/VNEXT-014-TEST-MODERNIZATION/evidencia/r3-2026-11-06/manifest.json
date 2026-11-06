@@ -1,0 +1,98 @@
+[
+  {
+    "exit_code": 0,
+    "started_at": "2026-11-06T23:10:38.8182887Z",
+    "name": "p3-canonical-discovery",
+    "elapsed_ms": 18593.1876,
+    "command": "pnpm --filter @qap/mcp exec vitest run src/__tests__/p3-canonical-discovery.test.ts --reporter=verbose --reporter=json --outputFile.json=<repo>\\docs\\vnext\\implementaciones\\VNEXT-014-TEST-MODERNIZATION\\evidencia\\r3-2026-11-06/p3-canonical-discovery.json",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468"
+  },
+  {
+    "exit_code": 0,
+    "started_at": "2026-11-06T23:10:57.4630580Z",
+    "name": "p4-2-canonical-contract",
+    "elapsed_ms": 7757.3578,
+    "command": "pnpm --filter @qap/mcp exec vitest run src/__tests__/p4-2-canonical-contract.test.ts --reporter=verbose --reporter=json --outputFile.json=<repo>\\docs\\vnext\\implementaciones\\VNEXT-014-TEST-MODERNIZATION\\evidencia\\r3-2026-11-06/p4-2-canonical-contract.json",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468"
+  },
+  {
+    "exit_code": 0,
+    "started_at": "2026-11-06T23:11:05.2265759Z",
+    "name": "p4-5a-canonical-integrity",
+    "elapsed_ms": 9572.4595,
+    "command": "pnpm --filter @qap/mcp exec vitest run src/__tests__/p4-5a-canonical-integrity.test.ts --reporter=verbose --reporter=json --outputFile.json=<repo>\\docs\\vnext\\implementaciones\\VNEXT-014-TEST-MODERNIZATION\\evidencia\\r3-2026-11-06/p4-5a-canonical-integrity.json",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468"
+  },
+  {
+    "exit_code": 0,
+    "started_at": "2026-11-06T23:11:14.8023856Z",
+    "name": "p4-5a2-canonical-integrity",
+    "elapsed_ms": 13354.1628,
+    "command": "pnpm --filter @qap/mcp exec vitest run src/__tests__/p4-5a2-canonical-integrity.test.ts --reporter=verbose --reporter=json --outputFile.json=<repo>\\docs\\vnext\\implementaciones\\VNEXT-014-TEST-MODERNIZATION\\evidencia\\r3-2026-11-06/p4-5a2-canonical-integrity.json",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468"
+  },
+  {
+    "exit_code": 0,
+    "started_at": "2026-11-06T23:11:28.1605512Z",
+    "name": "server-canonical-discovery",
+    "elapsed_ms": 8171.1154,
+    "command": "pnpm --filter @qap/mcp exec vitest run src/__tests__/server-canonical-discovery.test.ts --reporter=verbose --reporter=json --outputFile.json=<repo>\\docs\\vnext\\implementaciones\\VNEXT-014-TEST-MODERNIZATION\\evidencia\\r3-2026-11-06/server-canonical-discovery.json",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468"
+  },
+  {
+    "exit_code": 0,
+    "started_at": "2026-11-06T23:11:36.3349638Z",
+    "name": "server-canonical-operations",
+    "elapsed_ms": 10481.8254,
+    "command": "pnpm --filter @qap/mcp exec vitest run src/__tests__/server-canonical-operations.test.ts --reporter=verbose --reporter=json --outputFile.json=<repo>\\docs\\vnext\\implementaciones\\VNEXT-014-TEST-MODERNIZATION\\evidencia\\r3-2026-11-06/server-canonical-operations.json",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468"
+  },
+  {
+    "exit_code": 1,
+    "started_at": "2026-11-06T23:11:46.8297081Z",
+    "name": "server",
+    "elapsed_ms": 5127.8603,
+    "command": "pnpm --filter @qap/mcp exec vitest run src/__tests__/server.test.ts --reporter=verbose --reporter=json --outputFile.json=<repo>\\docs\\vnext\\implementaciones\\VNEXT-014-TEST-MODERNIZATION\\evidencia\\r3-2026-11-06/server.json",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468"
+  },
+  {
+    "exit_code": 0,
+    "started_at": "2026-11-06T23:11:51.9612743Z",
+    "name": "plan-handler",
+    "elapsed_ms": 4902.1648,
+    "command": "pnpm --filter @qap/mcp exec vitest run src/__tests__/plan-handler.test.ts --reporter=verbose --reporter=json --outputFile.json=<repo>\\docs\\vnext\\implementaciones\\VNEXT-014-TEST-MODERNIZATION\\evidencia\\r3-2026-11-06/plan-handler.json",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468"
+  },
+  {
+    "exit_code": 0,
+    "started_at": "2026-11-06T23:11:56.8675599Z",
+    "name": "test-handler",
+    "elapsed_ms": 10284.9172,
+    "command": "pnpm --filter @qap/mcp exec vitest run src/__tests__/test-handler.test.ts --reporter=verbose --reporter=json --outputFile.json=<repo>\\docs\\vnext\\implementaciones\\VNEXT-014-TEST-MODERNIZATION\\evidencia\\r3-2026-11-06/test-handler.json",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468"
+  },
+  {
+    "exit_code": 1,
+    "started_at": "2026-11-06T23:12:07.1559471Z",
+    "name": "typecheck",
+    "elapsed_ms": 6920.2541,
+    "command": "pnpm --filter @qap/mcp exec tsc --noEmit",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468"
+  },
+  {
+    "exit_code": 0,
+    "started_at": "2026-11-06T23:12:14.0808394Z",
+    "name": "eslint-focal",
+    "elapsed_ms": 17132.3998,
+    "command": "pnpm exec eslint packages/mcp/src/__tests__/fixtures/lifecycle-canonical.ts packages/mcp/src/__tests__/p3-canonical-discovery.test.ts packages/mcp/src/__tests__/p4-5a2-canonical-integrity.test.ts packages/mcp/src/__tests__/server-canonical-discovery.test.ts packages/mcp/src/__tests__/server-canonical-operations.test.ts packages/mcp/src/__tests__/server.test.ts --format json --output-file <repo>\\docs\\vnext\\implementaciones\\VNEXT-014-TEST-MODERNIZATION\\evidencia\\r3-2026-11-06/eslint-focal.json",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468"
+  },
+  {
+    "exit_code": 0,
+    "started_at": "2026-11-06T23:12:31.2188109Z",
+    "name": "build",
+    "elapsed_ms": 26727.6566,
+    "command": "pnpm build",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468"
+  }
+]

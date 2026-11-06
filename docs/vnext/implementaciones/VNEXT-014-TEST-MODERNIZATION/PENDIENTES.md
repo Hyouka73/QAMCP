@@ -1,3 +1,13 @@
+## Resultado físico R3 — 2026-11-06
+
+**Focal NO-GO; integral NO-GO.** SHA probado `bdafeeb834549fc13c5d952c1f341098c2592468`: nueve suites, **101 PASS / 1 FAIL / 0 SKIP** en 102 casos. Las 38 modernizadas seleccionadas pasan; TM-50 conserva FAIL legacy. De las 55 históricas se ejecutaron 39; las otras 16 no se recertificaron. Las cinco sustituciones Server aprobaron, incluido qap_plan/qap_test físico y plan obsoleto. Inventario AST: 55 fullNames, una declaración por identidad, sin duplicaciones/desapariciones.
+
+Prioridad siguiente: **P2 seis TS2339 nuevos** (Payload en A2/operations), **P2 TM-48** probar autorización realmente anterior a actualización Environment (999 frente a 1 solo prueba mismatch), **P2 TM-44** asertar recuperación de draft/next tras restart. Los cuatro warnings P3/A2 desaparecieron; quedan dos warnings heredados Server, cero errores ESLint focal. Typecheck **134 = 128 heredados + 6 nuevos**, build PASS. Doce identidades auth pendientes y E01 permanecen; no se ejecutaron integral, paralelo ni Stdio. MVP 20-11-2026 intacto.
+
+Fuente: [informe R3](VERIFICACION_FISICA_R3_2026-11-06.md), [matriz física de 55](evidencia/r3-2026-11-06/matrix-55-r3.md), [auditoría semántica](evidencia/r3-2026-11-06/semantic-audit.md). Las secciones inferiores conservan sus fechas y estados históricos; sus afirmaciones de R3 sin ejecutar quedan sustituidas exclusivamente en el alcance demostrado por esta acta.
+
+---
+
 ## Estado operativo R3 — 2026-11-06 (sin certificación física)
 
 **VNEXT-014 NO-GO. Implementación 43/55 identidades, 12/55 pendientes de sustitución** tras los commits R3. No cambiar el hito MVP del **20-11-2026** ni reabrir tareas históricamente cerradas. La cifra describe código y NO implica 43 PASS físicos: R2 certificó 24/24 solamente en `92579eb`; R1 sigue siendo la única corrida global (487/506 serial, 473/506 paralelo).
