@@ -35,3 +35,17 @@ Lote 2, `p3-verification.test.ts`, cinco identidades TM-06..TM-10 (históricos 1
 ## Lote 7 parcial — server MCP (commit 7303351)
 
 Movidos cuatro casos TM-47/TM-48/TM-49/TM-51 desde `server.test.ts` a `server-canonical-discovery.test.ts`. Las pruebas mantienen `describe` y nombres completos originales; se retiran de esos cuerpos los mocks/archivos `module-view` antiguos sin tocar implementación productiva. Se ejercen MCP real, SQLite, host autorizado/no autorizado, fallo Chromium y HTML pasivo. No se alteran las seis pruebas legacy restantes del archivo, configuración E01, timeout ni VNEXT-015. **No ejecutado físicamente**; reparar cualquier fallo real antes de certificar.
+
+## Correcciones posteriores a verificación física R1 — 2026-11-06
+
+R1 en 8de5a22: 31/33 focales, MCP 487/506 serial y 473/506 paralelo; ver VERIFICACION_FISICA_R1_2026-11-06.md.
+
+**Cambios de tests, no ejecutados físicamente:**
+- 1c8164e: prioridades high/medium/low en fixture, defaults intactos.
+- 9aa9499: T14 reconcilia estado posterior a Discovery, entrevista explícita, prioridad y desempate de plan.
+- a409601: pregunta inicial versión 0; incremento tras propuesta.
+- 8980bbc: Payload incluye campos opcionales reales de Discovery para corregir diagnósticos de tipo.
+- 7ed60e0: C3-a valida clasificación formal autorizada y readback de requisito.
+- 3c4cf0a: C4-d exige procedencia y recibo durable de revisión humana sintética.
+Sin cambios productivos, navegador, políticas, timeouts, workers, credenciales, VNEXT-015 ni merges. Requiere campaña focal independiente antes de atribuir PASS.
+
