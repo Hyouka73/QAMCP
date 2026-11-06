@@ -63,18 +63,53 @@ describe('Suite MCP Server QAP v2.1 / v2.1.2', () => {
     expect((await f.knowledge.query(f.scope.applicationId, 'requirement')).items).toHaveLength(0);
     expect(existsSync(join(f.root, '.qa', 'modules', 'catalog'))).toBe(false);
 
-    // Environment revision is independently pinned by host consent. A valid
-    // URL and binding cannot override an obsolete authorization revision.
-    await f.restart(true, ['catalog', 'orders'], undefined, 999);
+    // TM-48: begin with genuine host consent for Environment revision 1,
+    // then update the persisted policy to revision 2 WITHOUT renewing consent.
+    // An arbitrary future revision such as 999 cannot prove stale consent.
+    const originalEnvironment = await f.knowledge.get(
+      f.scope.applicationId, 'environment', f.scope.environmentId,
+    );
+    if (!originalEnvironment) throw new Error('Synthetic Environment must exist');
+    expect(originalEnvironment.revision).toBe(1);
+    await f.knowledge.commit(f.scope.applicationId, [{
+      kind: 'environment',
+      expected_revision: originalEnvironment.revision,
+      trace: {
+        source: 'synthetic',
+        recorded_by: 'tm-48',
+        recorded_at: new Date().toISOString(),
+        reason: 'Update Environment policy after the host granted revision 1 consent',
+        review: 'unreviewed',
+        evidence_refs: [],
+      },
+      entity: { ...originalEnvironment.entity, name: 'local-policy-revised' },
+    }]);
+    const currentEnvironment = await f.knowledge.get(
+      f.scope.applicationId, 'environment', f.scope.environmentId,
+    );
+    expect(currentEnvironment?.revision).toBe(2);
+    expect(currentEnvironment?.entity.name).toBe('local-policy-revised');
+
+    // The bound host still presents revision 1: all acquisition/association
+    // writes are forbidden until the updated Environment is acknowledged.
+    await f.restart(true, ['catalog', 'orders'], undefined, 1);
     const stale = await f.call('qap_discover', { name: 'catalog', path: '/catalog' });
-    expect(stale).toMatchObject({ status: 'blocked', code: 'authorization_context_mismatch',
-      persistence: 'not_attempted', association_status: 'not_attempted' });
+    expect(stale).toMatchObject({
+      status: 'blocked',
+      code: 'authorization_context_mismatch',
+      persistence: 'not_attempted',
+      association_status: 'not_attempted',
+    });
     expect(readFileSync(f.lifecyclePath, 'utf8')).toBe(snapshot);
     expect((await f.knowledge.query(f.scope.applicationId, 'observation')).items).toHaveLength(0);
+    expect((await f.knowledge.query(f.scope.applicationId, 'requirement')).items).toHaveLength(0);
     expect(existsSync(join(f.root, '.qa', 'modules', 'catalog'))).toBe(false);
 
-    await f.restart(true);
-    expect(await f.discover()).toMatchObject({ persistence: 'committed', association_status: 'confirmed' });
+    // Host explicitly renews consent and binding pins to the current revision.
+    await f.restart(true, ['catalog', 'orders'], undefined, 2);
+    expect(await f.discover()).toMatchObject({
+      persistence: 'committed', association_status: 'confirmed',
+    });
     f.integrity();
   });
 
