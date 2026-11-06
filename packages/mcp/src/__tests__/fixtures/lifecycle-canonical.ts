@@ -214,7 +214,7 @@ export async function createLifecycleFixture(registerCleanup: (close: () => Prom
     } });
     return confirmed;
   }
-  async function working(namesToPlan = ['catalog']) {
+  async function working(namesToPlan = ['catalog'], priorities: Record<string, 'high' | 'medium' | 'low'> = {}) {
     const initialized = await call('qap_init', { baseUrl: origin });
     expect(initialized).toMatchObject({ status: 'success', fase: 'ONBOARDING' });
     expect(await call('qap_context_set', { framework: 'react', app_type: 'spa',
@@ -222,7 +222,7 @@ export async function createLifecycleFixture(registerCleanup: (close: () => Prom
       critical_flows: [{ name: 'Consultar catálogo' }], source_of_truth: { type: 'none', declared: true },
     })).toMatchObject({ status: 'success', fase: 'SCOPING' });
     expect(await call('qap_session_plan', { plan: namesToPlan.map((module, i) => ({ module, path: `/${module}`,
-      priority: i === 0 ? 'high' : 'medium' })), auth: { required: false },
+      priority: priorities[module] ?? (i === 0 ? 'high' : 'medium') })), auth: { required: false },
     })).toMatchObject({ status: 'success', fase: 'WORKING' });
     return initialized;
   }
