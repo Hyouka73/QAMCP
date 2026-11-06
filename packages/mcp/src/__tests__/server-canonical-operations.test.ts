@@ -89,6 +89,45 @@ describe('Suite MCP Server QAP v2.1 / v2.1.2', () => {
     f.integrity();
   });
 
+  it('Criterio 7: Proyecto legacy sin campos de negocio valida contra el schema y qap_status responde con fase WORKING derivada', async () => {
+    // TM-53: keep the positive read-only legacy status compatibility; do not
+    // infer an implicit canonical binding or permission to navigate.
+    const f = await fixture();
+    const projectDir = join(f.root, '.qa', 'project');
+    const modulesDir = join(f.root, '.qa', 'modules');
+    const legacyDir = join(modulesDir, 'legacy_screen');
+    mkdirSync(projectDir, { recursive: true });
+    mkdirSync(legacyDir, { recursive: true });
+    writeFileSync(join(projectDir, 'context.yaml'), YAML.stringify({
+      _version: '1', project_name: 'legacy-system',
+      description: 'Sistema heredado existente', tech_stack: ['react'],
+      base_url: f.origin, manually_edited: false,
+    }), 'utf8');
+    writeFileSync(join(projectDir, 'environments.yaml'), YAML.stringify({
+      _version: '1', default: 'local',
+      environments: { local: { url: f.origin, browser_mode: 'auto' } },
+    }), 'utf8');
+    writeFileSync(join(legacyDir, 'summary.json'), JSON.stringify({
+      _version: '1', name: 'legacy_screen', path: '/legacy', views: ['default'],
+    }), 'utf8');
+    writeFileSync(join(modulesDir, 'index.json'), JSON.stringify([
+      { name: 'legacy_screen', path: '/legacy', views: ['default'] },
+    ]), 'utf8');
+
+    const before = readFileSync(join(projectDir, 'context.yaml'), 'utf8');
+    const legacy = await f.call('qap_status');
+    expect(legacy).toMatchObject({ initialized: true, projectName: 'legacy-system',
+      fase: 'WORKING', estados_modulos: { legacy_screen: 'observed' } });
+    expect(readFileSync(join(projectDir, 'context.yaml'), 'utf8')).toBe(before);
+    // The old "discovery on registered legacy module succeeds" is NOT
+    // equivalent to host-authorized canonical Discovery with identity pins.
+    const denied = await f.call('qap_discover', { name: 'legacy_screen', path: '/legacy' });
+    expect(denied.status).toBe('blocked');
+    expect(denied.persistence).toBe('not_attempted');
+    expect((await f.knowledge.query(f.scope.applicationId, 'requirement')).items).toHaveLength(0);
+    f.integrity();
+  });
+
   it('Criterio 8 (E2E): init -> status (entrevista) -> ingest -> context_set compuerta -> auto-SCOPING -> session_plan -> auto-WORKING -> discover', async () => {
     // TM-54: no legacy interview_vista; canonical Discovery never confers approval.
     const f = await fixture();
