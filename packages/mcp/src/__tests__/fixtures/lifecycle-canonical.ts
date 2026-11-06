@@ -140,12 +140,12 @@ export async function createLifecycleFixture(registerCleanup: (close: () => Prom
   const validator = new SchemaValidator();
   const moduleBindings = names.map(name => ({ plannedName: name, moduleId: `module-${normalizeSlug(name)}`, moduleKey: normalizeSlug(name),
     moduleRevision: 1, applicationRevision: 1, environmentRevision: 1, provenance: 'host_declared' as const }));
-  async function connect(authorized = true, boundNames = ['catalog', 'orders'], browserOverride?: { executable_path: string }) {
+  async function connect(authorized = true, boundNames = ['catalog', 'orders'], browserOverride?: { executable_path: string }, authorizedEnvironmentRevision = 1) {
     server = createMcpServer({ projectRoots: [root], knowledgeBindings: [{ ...scope, store: knowledge,
       moduleBindings: moduleBindings.filter(b => boundNames.includes(b.plannedName)), humanReviewGateway: inbox, interviewDraftStore: drafts,
       moduleClosureStore: closure, moduleClosureReviewGateway: inbox }],
     testAuthorizations: allowTestNavigation ? [{ projectRoot: root, allowedOrigins: ['http://127.0.0.1:*'] }] : [],
-    discoveryAuthorizations: authorized ? [{ ...scope, environmentRevision: 1,
+    discoveryAuthorizations: authorized ? [{ ...scope, environmentRevision: authorizedEnvironmentRevision,
       authorization: { read_only_acknowledged: true, navigation_urls: names.map(n => new URL(`/${n}`, origin).href), allowed_ips: ['127.0.0.1'] },
       dependencies: { browser: browserOverride ?? { channel: 'chrome' as const } } }] : [],
     });
@@ -239,12 +239,12 @@ export async function createLifecycleFixture(registerCleanup: (close: () => Prom
     expect(existsSync(join(root, '.qa', 'modules', module, 'rules.yaml'))).toBe(false);
     return result;
   }
-  async function restart(authorized = true, boundNames = ['catalog', 'orders'], browserOverride?: { executable_path: string }) {
+  async function restart(authorized = true, boundNames = ['catalog', 'orders'], browserOverride?: { executable_path: string }, authorizedEnvironmentRevision = 1) {
     await client?.close(); await server?.close();
     drafts?.close(); closure?.close();
     drafts = new SqliteInterviewDraftStore(draftOptions);
     closure = new SqliteModuleClosureStore(closureOptions);
-    await connect(authorized, boundNames, browserOverride);
+    await connect(authorized, boundNames, browserOverride, authorizedEnvironmentRevision);
   }
   function integrity() {
     for (const file of [path, draftPath, closurePath]) {
