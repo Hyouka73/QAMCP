@@ -47,6 +47,21 @@ describe('Suite MCP Server QAP v2.1 / v2.1.2', () => {
     expect((await f.knowledge.query(f.scope.applicationId, 'requirement')).items).toHaveLength(0);
     expect(existsSync(join(f.root, '.qa', 'modules', 'catalog'))).toBe(false);
     await f.restart(true);
+    // TM-48: missing host authorization is different from a malformed or
+    // incompatible semantic context. Exercise the canonical URL and module gates.
+    const snapshot = readFileSync(f.lifecyclePath, 'utf8');
+    expect(await f.call('qap_discover', { name: 'catalog', path: '/not-allowed' }))
+      .toMatchObject({ status: 'blocked', code: 'url_not_authorized', persistence: 'not_attempted' });
+    expect(await f.call('qap_discover', { name: 'catalog', path: '/catalog/../orders' }))
+      .toMatchObject({ status: 'blocked', code: 'url_not_authorized', persistence: 'not_attempted' });
+    expect(await f.call('qap_discover', { name: 'not-in-plan', path: '/catalog' }))
+      .toMatchObject({ status: 'blocked', code: 'module_restricted', persistence: 'not_attempted' });
+    expect(await f.call('qap_discover', { name: 'catalog', path: '/catalog', credentials: 'never-use-arguments' }))
+      .toMatchObject({ status: 'blocked', code: 'authentication_not_supported', persistence: 'not_attempted' });
+    expect(readFileSync(f.lifecyclePath, 'utf8')).toBe(snapshot);
+    expect((await f.knowledge.query(f.scope.applicationId, 'observation')).items).toHaveLength(0);
+    expect((await f.knowledge.query(f.scope.applicationId, 'requirement')).items).toHaveLength(0);
+    expect(existsSync(join(f.root, '.qa', 'modules', 'catalog'))).toBe(false);
     expect(await f.discover()).toMatchObject({ persistence: 'committed', association_status: 'confirmed' });
     f.integrity();
   });
