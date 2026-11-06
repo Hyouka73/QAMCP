@@ -17,3 +17,5 @@ Próxima unidad autorizada: Lote 2 Discovery P3. La publicación de esta familia
 ## Anexo P4.5 — 2026-11-06
 
 **NO-GO conservado:** 29 pruebas históricas migradas y sin corrida física; quedan 21 de las 50 pendientes originales sin sustitución. Las 5 ya probadas del Lote 1 no son autorización de cierre integral. Los problemas E01, auth-wall, auténtica revisión humana y de lint/typecheck no se declaran reparados. No merge hacia develop/main ni publicar npm.
+
+Actualización server MCP: cuatro tests de TM-47/48/49/51 publicados en `7303351`, sin corrida física. Siguen pendientes 17 identidades de código y la verificación de las 38 modernizadas. **NO-GO inalterado**; baseline físico anterior no corresponde al HEAD nuevo.

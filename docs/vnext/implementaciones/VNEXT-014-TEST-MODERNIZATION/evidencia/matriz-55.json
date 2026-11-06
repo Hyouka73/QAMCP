@@ -1869,11 +1869,11 @@
     "first_error": "AssertionError: expected true to be falsy",
     "baseline_status": "failed",
     "baseline_first_error": "AssertionError: expected true to be falsy\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/server.test.ts:637:36\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20",
-    "classification": "Pendiente de contraste en su lote; ninguna retirada autorizada por esta fila",
+    "classification": "A+C provisional (código sin verificación física)",
     "old_contract": "Contrato histórico expresado por el fullName y sus aserciones; fuente intacta en HEAD base",
-    "current_contract": "Pendiente de auditoría focal; aplicar contratos de Discovery/entrevista/cierre sin presumir equivalencia",
-    "replacement": "No sustituida; test original permanece activo",
-    "preserved_guarantees": "Garantía original todavía no certificada; no se altera ni elimina el test",
+    "current_contract": "Discovery canónico devuelve ejecución, asociación y observaciones persistidas en SQLite, no module-view YAML.",
+    "replacement": "packages/mcp/src/__tests__/server-canonical-discovery.test.ts",
+    "preserved_guarantees": "Observaciones sin autoridad normativa y ejecución fresh_anonymous_static.",
     "physical_result": "failed",
     "parallel_results": {
       "final-parallel": {
@@ -1892,7 +1892,14 @@
         "first_error": "AssertionError: expected true to be falsy\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/server.test.ts:637:36\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "modernization": {
+      "status": "code_published_unverified",
+      "code_commit": "7303351c8c9cd1d8233a9bf7adaed708f0eb566c",
+      "replacement": "packages/mcp/src/__tests__/server-canonical-discovery.test.ts",
+      "contract": "Discovery canónico devuelve ejecución, asociación y observaciones persistidas en SQLite, no module-view YAML.",
+      "guarantees": "Observaciones sin autoridad normativa y ejecución fresh_anonymous_static."
+    }
   },
   {
     "id": "TM-48",
@@ -1905,11 +1912,11 @@
     "first_error": "AssertionError: expected 'blocked' to be 'error' // Object.is equality",
     "baseline_status": "failed",
     "baseline_first_error": "AssertionError: expected 'blocked' to be 'error' // Object.is equality\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/server.test.ts:724:27\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20",
-    "classification": "Pendiente de contraste en su lote; ninguna retirada autorizada por esta fila",
+    "classification": "A+C provisional (código sin verificación física)",
     "old_contract": "Contrato histórico expresado por el fullName y sus aserciones; fuente intacta en HEAD base",
-    "current_contract": "Pendiente de auditoría focal; aplicar contratos de Discovery/entrevista/cierre sin presumir equivalencia",
-    "replacement": "No sustituida; test original permanece activo",
-    "preserved_guarantees": "Garantía original todavía no certificada; no se altera ni elimina el test",
+    "current_contract": "Autorización ausente bloquea antes de adquisición y no escribe observaciones; autorización posterior habilita adquisición real.",
+    "replacement": "packages/mcp/src/__tests__/server-canonical-discovery.test.ts",
+    "preserved_guarantees": "Bloqueo honesto, lifecycle/requirements intactos y recuperación autorizada.",
     "physical_result": "failed",
     "parallel_results": {
       "final-parallel": {
@@ -1928,7 +1935,14 @@
         "first_error": "AssertionError: expected 'blocked' to be 'error' // Object.is equality\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/server.test.ts:724:27\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "modernization": {
+      "status": "code_published_unverified",
+      "code_commit": "7303351c8c9cd1d8233a9bf7adaed708f0eb566c",
+      "replacement": "packages/mcp/src/__tests__/server-canonical-discovery.test.ts",
+      "contract": "Autorización ausente bloquea antes de adquisición y no escribe observaciones; autorización posterior habilita adquisición real.",
+      "guarantees": "Bloqueo honesto, lifecycle/requirements intactos y recuperación autorizada."
+    }
   },
   {
     "id": "TM-49",
@@ -1941,11 +1955,11 @@
     "first_error": "AssertionError: expected true to be falsy",
     "baseline_status": "failed",
     "baseline_first_error": "AssertionError: expected true to be falsy\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/server.test.ts:784:25\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20",
-    "classification": "Pendiente de contraste en su lote; ninguna retirada autorizada por esta fila",
+    "classification": "A+C provisional (código sin verificación física)",
     "old_contract": "Contrato histórico expresado por el fullName y sus aserciones; fuente intacta en HEAD base",
-    "current_contract": "Pendiente de auditoría focal; aplicar contratos de Discovery/entrevista/cierre sin presumir equivalencia",
-    "replacement": "No sustituida; test original permanece activo",
-    "preserved_guarantees": "Garantía original todavía no certificada; no se altera ni elimina el test",
+    "current_contract": "Fallo de lanzamiento de Chromium real no se transforma en adquisición completada ni persiste requisitos.",
+    "replacement": "packages/mcp/src/__tests__/server-canonical-discovery.test.ts",
+    "preserved_guarantees": "No inventar éxito, evidencia o context.yaml; cleanup comprobable.",
     "physical_result": "failed",
     "parallel_results": {
       "final-parallel": {
@@ -1964,7 +1978,14 @@
         "first_error": "AssertionError: expected true to be falsy\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/server.test.ts:784:25\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "modernization": {
+      "status": "code_published_unverified",
+      "code_commit": "7303351c8c9cd1d8233a9bf7adaed708f0eb566c",
+      "replacement": "packages/mcp/src/__tests__/server-canonical-discovery.test.ts",
+      "contract": "Fallo de lanzamiento de Chromium real no se transforma en adquisición completada ni persiste requisitos.",
+      "guarantees": "No inventar éxito, evidencia o context.yaml; cleanup comprobable."
+    }
   },
   {
     "id": "TM-50",
@@ -2013,11 +2034,11 @@
     "first_error": "AssertionError: expected true to be falsy",
     "baseline_status": "failed",
     "baseline_first_error": "AssertionError: expected true to be falsy\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/server.test.ts:912:25\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20",
-    "classification": "Pendiente de contraste en su lote; ninguna retirada autorizada por esta fila",
+    "classification": "A+C provisional (código sin verificación física)",
     "old_contract": "Contrato histórico expresado por el fullName y sus aserciones; fuente intacta en HEAD base",
-    "current_contract": "Pendiente de auditoría focal; aplicar contratos de Discovery/entrevista/cierre sin presumir equivalencia",
-    "replacement": "No sustituida; test original permanece activo",
-    "preserved_guarantees": "Garantía original todavía no certificada; no se altera ni elimina el test",
+    "current_contract": "Vista HTML sin controles conserva adquisición real, cuentas cero y sin inferir requisitos.",
+    "replacement": "packages/mcp/src/__tests__/server-canonical-discovery.test.ts",
+    "preserved_guarantees": "No se declara ausencia de vista por falta de botones; registros epistémicos separados.",
     "physical_result": "failed",
     "parallel_results": {
       "final-parallel": {
@@ -2036,7 +2057,14 @@
         "first_error": "AssertionError: expected true to be falsy\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/server.test.ts:912:25\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
       }
     },
-    "evidence": "baseline-serial.json; final-serial.json (si existe)"
+    "evidence": "baseline-serial.json; final-serial.json (si existe)",
+    "modernization": {
+      "status": "code_published_unverified",
+      "code_commit": "7303351c8c9cd1d8233a9bf7adaed708f0eb566c",
+      "replacement": "packages/mcp/src/__tests__/server-canonical-discovery.test.ts",
+      "contract": "Vista HTML sin controles conserva adquisición real, cuentas cero y sin inferir requisitos.",
+      "guarantees": "No se declara ausencia de vista por falta de botones; registros epistémicos separados."
+    }
   },
   {
     "id": "TM-52",

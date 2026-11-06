@@ -79,3 +79,7 @@ A partir de HEAD `6062dcb2939135a772f20852bc8a7c978de73ca5`, se publicaron imple
 ## Anexo P4.5-A y P4.5-A2 — sin ejecución física
 
 Commits `3d30973715fa8b9092ab55395f4e37685de6fb7b` (9 pruebas) y `a721a88f45294c61c8c8ddeef577a36bdfcfd8cd` (13 pruebas). No hay JSON ni métricas de tests correspondientes a estos SHAs. Un escenario de extracción vacía o de texto de opción no acredita cobertura de ejecución ni revisión auténtica. La fuente histórica 456 PASS/50 FAIL/506 está fijada en el commit anterior 6062dcb; no se extrapola. Trece pruebas antiguas de P4.5-A2 se conservaron; tres de ellas mantienen fallos de autenticación legacy por analizar.
+
+## Código server MCP publicado (sin corrida)
+
+Commit `7303351c8c9cd1d8233a9bf7adaed708f0eb566c`: cuatro casos históricos de Discovery del archivo `server.test.ts` migrados al arnés canónico. No hay resultados de test, lint o build para ese SHA; las tablas físicas anteriores permanecen históricas y no son evaluación del commit nuevo.

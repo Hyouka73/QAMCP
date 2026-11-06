@@ -1257,3 +1257,8 @@ Autorización posterior del responsable permite reanudar modernización pese a l
 ## Anexo 2026-11-06 — integridad P4.5-A/A2, código sin QA físico
 
 Nueve modernizadas de P4.5-A en `3d30973715fa8b9092ab55395f4e37685de6fb7b`; trece de P4.5-A2 en `a721a88f45294c61c8c8ddeef577a36bdfcfd8cd`. Junto con P3/P4.2 suman 29 identidades históricas modernizadas sin ejecución física posterior. Permanecen 21 por modernizar: TM-13..19, 27, 30..32 y 46..55. La matriz conserva todos los 55 IDs y resultados físicos anteriores sin reescribir el baseline. VNEXT-014/E01/merge desarrollador NO-GO; VNEXT-015 y tareas DONE intactas.
+
+
+## Anexo aditivo 2026-11-06 — server MCP (parcial)
+
+Cuatro identidades TM-47, TM-48, TM-49, TM-51 migradas a `server-canonical-discovery.test.ts` mediante `7303351`. Se preservaron seis identidades originales sin reemplazo en `server.test.ts`, incluida TM-50 (sesión autenticada no sustentada por crawler anónimo). 38/55 modernizadas a nivel código acumulado; 17 pendientes de cambio, **ninguna nueva ejecución física ni GO**. Se respetó rama única y no se tocó VNEXT-015 ni fechas y compuertas.
