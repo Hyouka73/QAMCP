@@ -1,3 +1,15 @@
+## R4 correctiva — cambios en código publicados; verificación pendiente (2026-11-06)
+
+**NO-GO hasta certificación independiente.** Los hallazgos P2 de R3 se corrigieron en tests/fixture sin modificar código productivo, sin alterar timeouts ni eliminar identidades:
+
+- **R3-01 / seis TS2339:** `c1d620b` añade al `Payload` del fixture los campos opcionales reales de Discovery, más pins de Environment ajustados al reiniciar el host; `d00d43b` usa narrowing explícito para `counts`, mantiene aserciones de `limitations/next_safe_action` y conserva el contrato sin `extraccion_vacia`.
+- **R3-03 / TM-44:** `d00d43b` exige igualdad del snapshot de draft y de la pregunta `next` antes/después de restart, más lectura del requisito mediante una **nueva conexión SQLite**.
+- **R3-02 / TM-48:** `daf4038` hace commit físico de Environment 1→2 en Knowledge, comprueba consentimiento host todavía fijado en 1, rechazo sin observaciones/requisitos/escrituras del módulo, y reautorización positiva en rev2 con binding actualizado.
+- **Campaña requerida a Codex:** comprobar HEAD, ejecutar suites afectadas por fixture y `tsc --noEmit`, lint focal y build; tomar R3 (101 PASS/1 FAIL, 134 diagnósticos) como línea base exacta; distinguir 128 heredados de posibles nuevos; conservar TM-50 como FAIL auth sin fabricar PASS; informar GO/NO-GO focal por criterios objetivos. Ejecutar los nueve suites focales si se busca regresión completa frente a R3, sin serie global ni E01 todavía.
+- **No ejecutado en esta intervención:** Vitest, Chromium/Playwright, ESLint, TypeScript y build; todo lo anterior es implementación pendiente de prueba, no evidencia de PASS. El informe R3, sus JSON y sus cifras permanecen históricos e inalterados. Se mantienen 43/55 modernizadas, 12 auth pendientes y MVP 20-11-2026.
+
+---
+
 ## Resultado físico R3 — 2026-11-06
 
 **Focal NO-GO; integral NO-GO.** SHA probado `bdafeeb834549fc13c5d952c1f341098c2592468`: nueve suites, **101 PASS / 1 FAIL / 0 SKIP** en 102 casos. Las 38 modernizadas seleccionadas pasan; TM-50 conserva FAIL legacy. De las 55 históricas se ejecutaron 39; las otras 16 no se recertificaron. Las cinco sustituciones Server aprobaron, incluido qap_plan/qap_test físico y plan obsoleto. Inventario AST: 55 fullNames, una declaración por identidad, sin duplicaciones/desapariciones.
