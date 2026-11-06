@@ -1,0 +1,71 @@
+{
+  "typescript": {
+    "r1": 132,
+    "r2": 128,
+    "exit_code": 1,
+    "added": [],
+    "removed": [
+      "src/__tests__/server-canonical-discovery.test.ts: error TS2339: Property 'observations' does not exist on type 'Payload'.",
+      "src/__tests__/server-canonical-discovery.test.ts: error TS2339: Property 'evidence' does not exist on type 'Payload'.",
+      "src/__tests__/server-canonical-discovery.test.ts: error TS2339: Property 'observations' does not exist on type 'Payload'.",
+      "src/__tests__/server-canonical-discovery.test.ts: error TS2339: Property 'acquisition_status' does not exist on type 'Payload'."
+    ],
+    "server_remaining": []
+  },
+  "eslint": {
+    "scope": "five focal files, R1 global JSON filtered to same paths",
+    "r1_errors": 0,
+    "r1_warnings": 2,
+    "r2_errors": 0,
+    "r2_warnings": 4,
+    "added": [
+      [
+        "mcp/src/__tests__/p3-canonical-discovery.test.ts",
+        "import/order",
+        1,
+        "There should be at least one empty line between import groups"
+      ],
+      [
+        "mcp/src/__tests__/p3-canonical-discovery.test.ts",
+        "import/order",
+        1,
+        "`../guidance.js` import should occur before import of `./fixtures/lifecycle-canonical.js`"
+      ]
+    ],
+    "removed": [],
+    "current_messages": [
+      {
+        "file": "mcp/src/__tests__/p3-canonical-discovery.test.ts",
+        "rule": "import/order",
+        "severity": 1,
+        "message": "There should be at least one empty line between import groups",
+        "line": 6,
+        "column": 1
+      },
+      {
+        "file": "mcp/src/__tests__/p3-canonical-discovery.test.ts",
+        "rule": "import/order",
+        "severity": 1,
+        "message": "`../guidance.js` import should occur before import of `./fixtures/lifecycle-canonical.js`",
+        "line": 7,
+        "column": 1
+      },
+      {
+        "file": "mcp/src/__tests__/p4-5a2-canonical-integrity.test.ts",
+        "rule": "import/order",
+        "severity": 1,
+        "message": "There should be at least one empty line between import groups",
+        "line": 1,
+        "column": 1
+      },
+      {
+        "file": "mcp/src/__tests__/p4-5a2-canonical-integrity.test.ts",
+        "rule": "import/order",
+        "severity": 1,
+        "message": "There should be at least one empty line between import groups",
+        "line": 3,
+        "column": 1
+      }
+    ]
+  }
+}
