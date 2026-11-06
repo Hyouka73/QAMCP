@@ -26,6 +26,8 @@ export interface Question {
 export interface Payload {
   status: string; code?: string; fase: string; question: Question; requirement_id: string;
   revision: number; assessment: CanonicalCoverageAssessment; report_path: string;
+  // Discovery-only properties are optional: other tools do not return these fields.
+  observations?: number; evidence?: number; acquisition_status?: string;
   siguiente_accion: { tool: string; tipo: string; module?: string; canonical_interview?: InterviewCommand;
     pregunta?: { opciones: unknown[] }; descripcion: string };
 }
