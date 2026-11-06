@@ -1,5 +1,17 @@
 # Correcciones por familia
 
+## R3 — Semántica y Server MCP (2026-11-06; NO certificado)
+
+- `c5d37b0`: corrige orden y separación de importaciones P3, dos warnings nuevos detectados por R2; requiere lint físico para acreditarlo.
+- `0dcb85f`: TM-34 rechaza pregunta/módulo incorrecto y categoría formal inválida, distingue clasificación explícita security de falta de aprobación; TM-35 comprueba borrador durable; TM-38 especificación completa tras `declare_non_applicable`, sin ejecución ficticia; TM-41..43 distinguen controles de observaciones válidas y no inventan `extraccion_vacia`.
+- `413af9f`: TM-48 añade pruebas de autorización, URL no consentida, ruta normalizada insegura, identidad no planificada y credenciales en argumentos, con invariantes de cero escritura.
+- `ea9dcbd`: fixture admite `allowTestNavigation` explícito (por defecto false), limitado al HTTP loopback del test. No incorpora cookies ni acceso externo.
+- `1ebdc0b`/`b40d997`: TM-46/52/54/55 migran a `server-canonical-operations.test.ts`; sus cuatro cuerpos anteriores se retiran únicamente tras crear sustitución con `fullName` idéntico. TM-46 usa prueba positiva `qap_plan` → `plan.json` → `qap_test` → ejecución persistida y negativa de plan modificado; no son stubs.
+- `ab8d023`/`4d794fe`: TM-53 preserva lectura positiva de status legacy y bloquea Discovery sin contexto autorizado; se retira su cuerpo legacy duplicado. TM-50 continúa activo como capacidad de sesión autenticada ausente.
+- Resultado de código **43/55** modernizadas (38 anteriores + 5 Server); **12** aún no sustituidas. Cambios sin ejecución Vitest/Chromium, TypeScript o ESLint en este entorno. Codex certificará el SHA final en una única campaña focal antes del MCP integral.
+- Sin alteraciones en código productivo, config, workers, timeouts, dependencias, VNEXT-015, archivo protegido ni ramas ajenas. No se alteran datos de R1/R2.
+
+
 ## Lote 1 — lifecycle
 
 - `packages/mcp/src/__tests__/lifecycle-v3-e2e.test.ts`: siete identidades existentes modernizadas, conservando fullName y garantía canónica; cinco eran FAIL y dos PASS en el baseline. Se retiran mocks del adapter sustituido, acceso privado a `_requestHandlers`, modificación global de `process.cwd`, escritura de YAML a mano y supresión global de reglas ESLint.
