@@ -3,8 +3,9 @@ import { join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { createLifecycleFixture, type LifecycleFixture } from './fixtures/lifecycle-canonical.js';
 import { getPhaseGuidance } from '../guidance.js';
+
+import { createLifecycleFixture, type LifecycleFixture } from './fixtures/lifecycle-canonical.js';
 
 // Historical P3 identities are intentionally kept verbatim. The legacy P3 suite
 // hoists PlaywrightAdapter mocks, so these canonical MCP/SQLite/Chromium checks
