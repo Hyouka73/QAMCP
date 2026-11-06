@@ -69,14 +69,14 @@ function stage(name: string) {
   stages.publish({ ...span, event: 'begin' });
   return () => { stages.publish({ ...span, event: 'end' }); };
 }
-export async function createLifecycleFixture(registerCleanup: (close: () => Promise<void>) => void) {
+export async function createLifecycleFixture(registerCleanup: (close: () => Promise<void>) => void, htmlOverride?: string) {
   const prepared = stage('fixture.prepare');
   const root = mkdtempSync(join(tmpdir(), 'qap-lifecycle-canonical-'));
   const http = createServer((req, res) => {
     expect(req.headers.cookie).toBeUndefined();
     expect(req.headers.authorization).toBeUndefined();
     res.setHeader('Content-Type', 'text/html');
-    res.end('<html><body><h1>Synthetic catalog</h1><form><input required><button>Consultar</button></form></body></html>');
+    res.end(htmlOverride ?? '<html><body><h1>Synthetic catalog</h1><form><input required><button>Consultar</button></form></body></html>');
   });
   let client: Client | undefined, server: ReturnType<typeof createMcpServer> | undefined;
   let store: SqliteKnowledgeAdapter | undefined;
