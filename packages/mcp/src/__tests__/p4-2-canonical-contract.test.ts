@@ -49,7 +49,7 @@ describe('P4.2 Suite: Contrato Canónico de Pregunta y Verificación E2E (Criter
     expect(discovery).not.toHaveProperty('siguiente_accion');
     const question = (await f.interview('catalog', { action: 'next' })).question;
     expect(question.id).toMatch(/^interview:[a-f0-9]{64}$/);
-    expect(question.version).toBeGreaterThan(0);
+    expect(question.version).toBe(0); // Canonical initial question starts at version 0.
     expect(question.text.length).toBeGreaterThan(15);
     expect(question.human_review_required).toBe(true);
     expect(question.options.map(option => option.id)).toEqual(['propose', 'correct', 'defer', 'review']);
@@ -59,7 +59,8 @@ describe('P4.2 Suite: Contrato Canónico de Pregunta y Verificación E2E (Criter
       tipo: 'trabajo', tool: 'qap_rules_set', module: 'catalog', canonical_interview: { action: 'next' },
     });
     expect((await f.knowledge.query(f.scope.applicationId, 'requirement')).items).toHaveLength(0);
-    await f.ready(); // Propose -> blocked review -> independent synthetic host approval.
+    const reviewed = await f.ready(); // Propose -> blocked review -> independent synthetic host approval.
+    expect(reviewed.question.version).toBeGreaterThan(question.version);
     expect((await f.knowledge.query(f.scope.applicationId, 'requirement')).items).toHaveLength(1);
     expect(await f.approvedClosure('catalog', { action: 'close' })).toMatchObject({ status: 'closed' });
     expect(await f.approvedClosure('orders', { action: 'waive',
