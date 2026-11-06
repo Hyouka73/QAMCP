@@ -10,7 +10,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { CallToolResultSchema } from '@modelcontextprotocol/sdk/types.js';
 import { SqliteKnowledgeAdapter } from '@qap/knowledge';
-import { SchemaValidator, type CanonicalClosureCommand, type CanonicalCoverageAssessment, type LifecycleState } from '@qap/shared';
+import { SchemaValidator, normalizeSlug, type CanonicalClosureCommand, type CanonicalCoverageAssessment, type LifecycleState } from '@qap/shared';
 import { expect } from 'vitest';
 
 import { createMcpServer } from '../../server.js';
@@ -71,7 +71,7 @@ function stage(name: string) {
   stages.publish({ ...span, event: 'begin' });
   return () => { stages.publish({ ...span, event: 'end' }); };
 }
-export async function createLifecycleFixture(registerCleanup: (close: () => Promise<void>) => void, htmlOverride?: string, allowTestNavigation = false) {
+export async function createLifecycleFixture(registerCleanup: (close: () => Promise<void>) => void, htmlOverride?: string, allowTestNavigation = false, extraModuleNames: string[] = []) {
   const prepared = stage('fixture.prepare');
   const root = mkdtempSync(join(tmpdir(), 'qap-lifecycle-canonical-'));
   const http = createServer((req, res) => {
@@ -117,7 +117,7 @@ export async function createLifecycleFixture(registerCleanup: (close: () => Prom
   const time = new Date().toISOString();
   const trace = { source: 'synthetic', recorded_by: 'fixture', recorded_at: time,
     reason: 'Explicit synthetic host composition', review: 'unreviewed' as const, evidence_refs: [] };
-  const names = ['catalog', 'orders', 'dashboard'];
+  const names = ['catalog', 'orders', 'dashboard', ...extraModuleNames];
   await knowledge.commit(scope.applicationId, [
     { kind: 'application', expected_revision: 0, trace, entity: { application_id: scope.applicationId, name: 'Synthetic lifecycle', base_url: origin, created_at: time } },
     { kind: 'environment', expected_revision: 0, trace, entity: {
@@ -125,7 +125,7 @@ export async function createLifecycleFixture(registerCleanup: (close: () => Prom
       safe_domains: ['127.0.0.1'], is_production: false, destructive_actions_allowed: false,
     } },
     ...names.map(name => ({ kind: 'module' as const, expected_revision: 0, trace, entity: {
-      id: `module-${name}`, key: name, application_id: scope.applicationId, title: `Synthetic ${name}`,
+      id: `module-${normalizeSlug(name)}`, key: normalizeSlug(name), application_id: scope.applicationId, title: `Synthetic ${name}`,
       certainty: 'pending_review' as const, criticality: 'medium' as const, dependencies: [],
       created_at: time, updated_at: time, is_active: true,
     } })),
@@ -138,7 +138,7 @@ export async function createLifecycleFixture(registerCleanup: (close: () => Prom
   closure = new SqliteModuleClosureStore({ ...closureOptions, initialize: true });
   const inbox = new LifecycleReviewInbox();
   const validator = new SchemaValidator();
-  const moduleBindings = names.map(name => ({ plannedName: name, moduleId: `module-${name}`, moduleKey: name,
+  const moduleBindings = names.map(name => ({ plannedName: name, moduleId: `module-${normalizeSlug(name)}`, moduleKey: normalizeSlug(name),
     moduleRevision: 1, applicationRevision: 1, environmentRevision: 1, provenance: 'host_declared' as const }));
   async function connect(authorized = true, boundNames = ['catalog', 'orders'], browserOverride?: { executable_path: string }) {
     server = createMcpServer({ projectRoots: [root], knowledgeBindings: [{ ...scope, store: knowledge,
@@ -146,7 +146,7 @@ export async function createLifecycleFixture(registerCleanup: (close: () => Prom
       moduleClosureStore: closure, moduleClosureReviewGateway: inbox }],
     testAuthorizations: allowTestNavigation ? [{ projectRoot: root, allowedOrigins: ['http://127.0.0.1:*'] }] : [],
     discoveryAuthorizations: authorized ? [{ ...scope, environmentRevision: 1,
-      authorization: { read_only_acknowledged: true, navigation_urls: names.map(n => `${origin}/${n}`), allowed_ips: ['127.0.0.1'] },
+      authorization: { read_only_acknowledged: true, navigation_urls: names.map(n => new URL(`/${n}`, origin).href), allowed_ips: ['127.0.0.1'] },
       dependencies: { browser: browserOverride ?? { channel: 'chrome' as const } } }] : [],
     });
     client = new Client({ name: 'canonical-lifecycle-test', version: '1' });
