@@ -13,7 +13,32 @@ describe('P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, 
   });
   describe('C3: Integridad de categoría en from_option y regla de cobertura completa', () => {
     it('C3-a: la categoría de from_option se toma siempre de la pregunta pendiente persistida', async () => {
-      const f=await fixture();await f.working();const q=(await f.interview('catalog',{action:'next'})).question;expect(q.category).toBe('proposito');const p=await f.interview('catalog',{action:'propose',question_id:q.id,version:q.version,expected_revision:0,proposal:{...f.proposal,category:'security'}});expect(p).toMatchObject({status:'pending_review',question:{id:q.id,category:'proposito'}});expect((await f.knowledge.query(f.scope.applicationId,'requirement')).items).toHaveLength(0);
+      const f = await fixture();
+      await f.working();
+      const q = (await f.interview('catalog', { action: 'next' })).question;
+      expect(q.category).toBe('proposito');
+      // Interview category is a question prompt; formal requirement classification is explicit.
+      const proposal = { ...f.proposal, category: 'security' as const };
+      const p = await f.interview('catalog', { action: 'propose', question_id: q.id,
+        version: q.version, expected_revision: 0, proposal });
+      expect(p).toMatchObject({ status: 'pending_review', question: { id: q.id, category: 'proposito' } });
+      expect((await f.knowledge.query(f.scope.applicationId, 'requirement')).items).toHaveLength(0);
+      const review = { action: 'review' as const, question_id: q.id, version: p.question.version };
+      expect(await f.interview('catalog', review)).toMatchObject({
+        status: 'blocked', code: 'human_review_not_authorized',
+      });
+      const request = f.inbox.interviews.at(-1)!;
+      expect(request.proposal.category).toBe('security');
+      f.inbox.approveInterview(request);
+      const accepted = await f.interview('catalog', review);
+      expect(accepted).toMatchObject({ status: 'confirmed', revision: 1 });
+      const saved = await f.knowledge.get(f.scope.applicationId, 'requirement', accepted.requirement_id);
+      expect(saved?.entity).toMatchObject({
+        category: 'security', validation_status: 'confirmed', provenance: 'developer_interview',
+      });
+      expect(saved?.trace).toMatchObject({ source: 'canonical_interview_v1',
+        reason: request.requestDigest, review: 'reviewed' });
+      f.integrity();
     });
 
     it('C3-b: si la petición declara una categoría distinta a la de la pregunta pendiente se rechaza con blocked', async () => {
