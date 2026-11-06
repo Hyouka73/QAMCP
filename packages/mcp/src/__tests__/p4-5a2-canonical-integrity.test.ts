@@ -1,7 +1,9 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+
 import { isSubstantiveRuleText, normalizeSlug } from '@qap/shared';
 import { afterEach, describe, expect, it } from 'vitest';
+
 import { createLifecycleFixture, type LifecycleFixture } from './fixtures/lifecycle-canonical.js';
 
 // Stable nested historical fullNames; canonical tests have no hoisted adapter mocks.
