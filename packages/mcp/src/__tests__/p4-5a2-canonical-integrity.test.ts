@@ -161,7 +161,7 @@ describe('P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, 
       const accented = await createLifecycleFixture(close => cleanup.push(close),
         undefined, false, ['Operación']);
       await accented.working(['Operación']);
-      expect(accented.lifecycle().session?.plan[0].module).toBe('Operación');
+      expect(accented.lifecycle().session?.plan?.[0]?.module).toBe('Operación');
       const acquired = await accented.discover('Operación');
       expect(acquired).toMatchObject({ mode: 'fresh_anonymous_static', association_status: 'confirmed' });
       const q = (await accented.interview('Operación', { action: 'next' })).question;
