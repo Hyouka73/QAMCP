@@ -140,7 +140,7 @@ export async function createLifecycleFixture(registerCleanup: (close: () => Prom
   const validator = new SchemaValidator();
   const moduleBindings = names.map(name => ({ plannedName: name, moduleId: `module-${normalizeSlug(name)}`, moduleKey: normalizeSlug(name),
     moduleRevision: 1, applicationRevision: 1, environmentRevision: 1, provenance: 'host_declared' as const }));
-  async function connect(authorized = true, boundNames = ['catalog', 'orders'], browserOverride?: { executable_path: string }, authorizedEnvironmentRevision = 1) {
+  async function connect(authorized = true, boundNames = ['catalog', 'orders', ...extraModuleNames], browserOverride?: { executable_path: string }, authorizedEnvironmentRevision = 1) {
     server = createMcpServer({ projectRoots: [root], knowledgeBindings: [{ ...scope, store: knowledge,
       moduleBindings: moduleBindings.filter(b => boundNames.includes(b.plannedName)), humanReviewGateway: inbox, interviewDraftStore: drafts,
       moduleClosureStore: closure, moduleClosureReviewGateway: inbox }],
@@ -239,7 +239,7 @@ export async function createLifecycleFixture(registerCleanup: (close: () => Prom
     expect(existsSync(join(root, '.qa', 'modules', module, 'rules.yaml'))).toBe(false);
     return result;
   }
-  async function restart(authorized = true, boundNames = ['catalog', 'orders'], browserOverride?: { executable_path: string }, authorizedEnvironmentRevision = 1) {
+  async function restart(authorized = true, boundNames = ['catalog', 'orders', ...extraModuleNames], browserOverride?: { executable_path: string }, authorizedEnvironmentRevision = 1) {
     await client?.close(); await server?.close();
     drafts?.close(); closure?.close();
     drafts = new SqliteInterviewDraftStore(draftOptions);
