@@ -1,5 +1,8 @@
 # E01 — decisión técnica sobre presupuesto temporal
 
+> **Actualización E01-R5 — 2026-11-06:** El diagnóstico posterior sobre `9e9d2c8` obtuvo MCP 494/12 en serie y 468/38 en cada una de dos paralelas normales, con 26 timeouts adicionales por corrida; CPU 100 %, RAM libre hasta 107 MB y salida nativa Chromium hasta 8356 ms. La causa es multifactorial o aún incompleta: E0b agotó 5000 ms con cierre de navegador corto. **Se mantiene la decisión de NO modificar 5000/10000 ms ni workers.** Consultar [informe R5](INFORME_E01_R5_2026-11-06.md) y [plan R6](PLAN_R6_2026-11-06.md) antes de cualquier presupuesto nuevo. Este anexo actualiza los hechos, no reescribe las decisiones históricas.
+
+
 **Decisión aplicada: conservar 5000 ms de test y 10000 ms de hook; E01 abierto, sin GO.** No se cambian workers, configuración Vitest, límites del crawler o cancelación. Esta decisión no autoriza reanudar modernización ni merge.
 
 La caché de schemas y la carga diferida redujeron trabajo evitable, y el close ahora drena antes de liberar recursos. Aun así, las dos finales predeterminadas producen tres y cuatro altas lifecycle sobre las 50 identidades pendientes. En la traza final: discovery lifecycle p95/máximo4,094 ms; init máximo501 ms; context_set máximo477 ms; status máximo698 ms; más las llamadas de entrevista/cierre y verificaciones físicas. Son spans distintos y no deben sumarse como si sus máximos pertenecieran al mismo test. La evidencia por caso muestra que cadenas reales cruzan5000 ms. En serial, Criterio9 ~2712 ms; en paralelo normal2 vence y el JSON registra5104 ms.
