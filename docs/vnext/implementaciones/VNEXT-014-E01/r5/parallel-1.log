@@ -1,0 +1,1266 @@
+
+ RUN  v4.1.11 <repo>/packages/mcp
+
+ ✓ src/__tests__/durable-interview.test.ts > R4 encrypted durable interview state > recovers exact drafts, corrections, defer/resume and history across closed connections 1141ms
+ ✓ src/__tests__/durable-interview.test.ts > R4 encrypted durable interview state > persists host reject and prevents old decision replay 258ms
+ ✓ src/__tests__/server.test.ts > Suite MCP Server QAP v2.1 / v2.1.2 > debe registrar y exponer la suite completa de 15 tools y prompts 92ms
+ ✓ src/__tests__/durable-interview.test.ts > R4 encrypted durable interview state > persists host defer and prevents old decision replay 442ms
+ ✓ src/__tests__/test-handler.test.ts > TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) > 014-CODEX-004: an overlapping cleanup owns only its original roots until locks drain 231ms
+ ✓ src/__tests__/durable-interview.test.ts > R4 encrypted durable interview state > two independent connections serialize writers, detect stale versions and preserve the winner 590ms
+ ✓ src/__tests__/server.test.ts > Suite MCP Server QAP v2.1 / v2.1.2 > debe ejecutar qap_init y crear el arbol .qa/ 389ms
+ × src/__tests__/p4-4-auth-lifecycle.test.ts > P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) > 1. qap_discover protegido sin perfil: blocked auth_required y cero escrituras en disco 891ms
+   → expected undefined to be 'auth_required' // Object.is equality
+ ✓ src/__tests__/durable-interview.test.ts > R4 encrypted durable interview state > rolls back failed physical writes and reports unknown status when storage closes 197ms
+ × src/__tests__/p4-4-auth-lifecycle.test.ts > P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) > 2. qap_discover con redirección HTTP 302 a login: detecta auth_wall determinista y bloquea sin escribir 324ms
+   → expected undefined to be 'auth_required' // Object.is equality
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 1: Canonical Coverage & Epistemic Boundaries (R1) > blocks evaluation when module is unbound or lifecycle context has drifted 1240ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 1: Canonical Coverage & Epistemic Boundaries (R1) > zero coverage from crawler observations or DOM elements alone 129ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013 real MCP black-box acquisition > R3: unauthorized disposable root is a scoped block, not a fabricated browser outage 177ms
+ ✓ src/__tests__/server.test.ts > Suite MCP Server QAP v2.1 / v2.1.2 > debe validar y mostrar estado con directivas UX en qap_status 900ms
+ ✓ src/__tests__/durable-interview.test.ts > R4 encrypted durable interview state > reconciles canonical commit followed by failed draft commit without a second approval 433ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 1: Canonical Coverage & Epistemic Boundaries (R1) > strictly enforces Invariant D-011 and R1: excludes observational requirements from confirmed coverage 153ms
+ × src/__tests__/p4-4-auth-lifecycle.test.ts > P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) > 3. qap_discover con login embebido en ruta no-acceso: bloquea como auth_required sin persistir 257ms
+   → expected undefined to be 'auth_required' // Object.is equality
+ ✓ src/__tests__/durable-interview.test.ts > R4 encrypted durable interview state > blocks restored draft in changed project 189ms
+ ✓ src/__tests__/server.test.ts > Suite MCP Server QAP v2.1 / v2.1.2 > debe registrar un perfil de autenticacion con qap_auth_add y listar con qap_auth_list 225ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 1: Canonical Coverage & Epistemic Boundaries (R1) > tripartite coverage separation: execution coverage is strictly not_executed with 0 passed 144ms
+ ✓ src/__tests__/durable-interview.test.ts > R4 encrypted durable interview state > blocks restored draft in changed application 133ms
+ × src/__tests__/p4-4-auth-lifecycle.test.ts > P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) > 4. qap_discover con sesión expirada: blocked session_invalid y desverifica el perfil 303ms
+   → expected undefined to be 'session_invalid' // Object.is equality
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 2: Reproducible Gap Inventory & Non-Applicability (R2) > identifies reproducible gaps with stable IDs and formal absence types 102ms
+ ✓ src/__tests__/durable-interview.test.ts > R4 encrypted durable interview state > blocks restored draft in changed environment 131ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 2: Reproducible Gap Inventory & Non-Applicability (R2) > declares categories non-applicable and satisfies category status without category waivers (Amendment 6) 98ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 2: Reproducible Gap Inventory & Non-Applicability (R2) > enforces Amendment 5: accepted gaps bind receipt and transition to status accepted 105ms
+ × src/__tests__/p4-5a2-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C1: Clasificación honesta con adaptador real > C1-a: módulo de acceso pedido en login sin redirección NO se bloquea (page_kind login, success) 1997ms
+   → expected 'blocked' to be 'success' // Object.is equality
+ ✓ src/__tests__/durable-interview.test.ts > R4 encrypted durable interview state > blocks restored draft in changed session 153ms
+ ✓ src/__tests__/durable-interview.test.ts > R4 encrypted durable interview state > blocks restored draft in changed inactive 152ms
+ × src/__tests__/p4-4-auth-lifecycle.test.ts > P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) > 5. qap_discover con perfil verificado y storageState válido: devuelve app y transiciona a observed 435ms
+   → expected 'blocked' to be 'success' // Object.is equality
+ ✓ src/__tests__/durable-interview.test.ts > R4 encrypted durable interview state > blocks restored draft in changed revision 184ms
+ ✓ src/__tests__/p4-5a-integrity.test.ts > P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) > C7: compuerta de roles exige auth.roles no vacío y perfil verificado por cada rol para salir de SCOPING 1973ms
+ × src/__tests__/p4-4-auth-lifecycle.test.ts > P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) > 6. qap_discover en módulo de acceso: selectors.json incluye auth_selectors y omite valores y atributos sensibles de password 271ms
+   → expected 'blocked' to be 'success' // Object.is equality
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 3: Host Review Gateway & Trust Boundary (R3) > R4-R8-A01: deferred non-applicability review retains request identity and persists actual host decision time 518ms
+ ✓ src/__tests__/p4-4-auth-lifecycle.test.ts > P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) > 7. Secuencia de preguntas de SCOPING: 5 preguntas separadas y válidas sin mezclar módulos con auth 176ms
+ ✓ src/__tests__/canonical-interview.test.ts > R3 canonical interview and independent host authorization > R4-R6-I01: qap_status resumes a real pending canonical question without YAML, approval or state mutation 2775ms
+ ✓ src/__tests__/durable-interview.test.ts > R4 encrypted durable interview state > does not create on read, adopt foreign schemas, accept wrong keys or destroy damaged state 385ms
+ ✓ src/__tests__/p4-4-auth-lifecycle.test.ts > P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) > 8. canExitScoping: compuerta falsa sin sesión verificada y verdadera con ella 91ms
+ ✓ src/__tests__/server.test.ts > Suite MCP Server QAP v2.1 / v2.1.2 > debe generar reportes con qap_report y limpiar con qap_clean 1043ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 3: Host Review Gateway & Trust Boundary (R3) > R4-R8-A01: stale approval cannot authorize changed reason or canonical requirement revision 301ms
+stderr | src/__tests__/server.test.ts > Suite MCP Server QAP v2.1 / v2.1.2 > debe operar sobre targetPath independiente de cwd y validar qap_server
+[QAP Knowledge Graph] Servidor interactivo iniciado en: http://localhost:9555
+[QAP Knowledge Graph] Base de conocimiento servida desde: <temp>/qap-custom-target-65QME4\.qa
+
+ ✓ src/__tests__/durable-interview.test.ts > R4 encrypted durable interview state > reopened proposal has no authority with expired gateway decision 210ms
+ × src/__tests__/p4-5a2-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C1: Clasificación honesta con adaptador real > C1-b: ruta protegida con redirección HTTP 302 a /login detecta auth_wall determinista y bloquea 931ms
+   → expected undefined to be 'auth_required' // Object.is equality
+ ✓ src/__tests__/server.test.ts > Suite MCP Server QAP v2.1 / v2.1.2 > debe operar sobre targetPath independiente de cwd y validar qap_server 451ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 3: Host Review Gateway & Trust Boundary (R3) > R4-R8-A01: host approval is rejected if knowledge mutates while awaiting the gateway 404ms
+ ✓ src/__tests__/server.test.ts > Suite MCP Server QAP v2.1 / v2.1.2 > debe ser idempotente en qap_init sin alterar context.yaml ni environments.yaml en segunda ejecución (Criterio 3) 264ms
+ ✓ src/__tests__/durable-interview.test.ts > R4 encrypted durable interview state > reopened proposal has no authority with revoked gateway decision 383ms
+ ✓ src/__tests__/durable-interview.test.ts > R4 encrypted durable interview state > reopened proposal has no authority with altered gateway decision 250ms
+ ✓ src/__tests__/p4-5a-canonical-integrity.test.ts > P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) > Criterio 2: regla redactada por agente sin user_text ni from_option se guarda como inferred/agent y no cuenta en cobertura 3645ms
+ ✓ src/__tests__/durable-interview.test.ts > R4 encrypted durable interview state > reopened proposal has no authority with absent gateway decision 293ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 3: Host Review Gateway & Trust Boundary (R3) > R4-R9-A02: writing a requirement after final validation cannot persist an obsolete approval 558ms
+ ✓ src/__tests__/p4-5a2-canonical-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C3: Integridad de categoría en from_option y regla de cobertura completa > C3-a: la categoría de from_option se toma siempre de la pregunta pendiente persistida 4108ms
+ ✓ src/__tests__/durable-interview.test.ts > R4 encrypted durable interview state > reopened proposal has no authority with unavailable gateway decision 262ms
+ × src/__tests__/p4-5a2-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C1: Clasificación honesta con adaptador real > C1-c: ruta protegida con guard del lado del cliente detecta auth_wall con redirección al login 1237ms
+   → expected undefined to be 'auth_required' // Object.is equality
+ ✓ src/__tests__/p4-5a2-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C2: Formatos de pregunta de roles según roles declarados > C2-a: con 0 roles declarados genera formato abierta con ejemplo en el texto 199ms
+ ✓ src/__tests__/p4-5a2-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C2: Formatos de pregunta de roles según roles declarados > C2-b: con 1 rol declarado genera formato una_opcion con 2 opciones y seguimiento abierto 168ms
+ ✓ src/__tests__/p4-5a2-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C2: Formatos de pregunta de roles según roles declarados > C2-c: con 3 roles declarados genera formato multiple sin ninguna opción recomendada 131ms
+ ✓ src/__tests__/p4-5a-integrity.test.ts > P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) > C8: tras "corregir", emite primero campos_a_corregir y luego pregunta abierta secuencial por campo 2468ms
+ ✓ src/__tests__/durable-interview.test.ts > R4 encrypted durable interview state > retains consumed reject IDs across restart and requires fresh review for reactivation 528ms
+ ✓ src/__tests__/canonical-interview.test.ts > R3 canonical interview and independent host authorization > R4-R7-I01: proposal correction, independent host review and real canonical coverage 1988ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 3: Host Review Gateway & Trust Boundary (R3) > R4-R9-A02: both close and waive reject concurrent Knowledge writes before durable commit 1006ms
+ ✓ src/__tests__/p4-5a2-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C3: Integridad de categoría en from_option y regla de cobertura completa > C3-c: cobertura completa nunca es true mientras exista una categoría diferida (deferred no cubre) 119ms
+ × src/__tests__/p4-5a-integrity.test.ts > P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) > C4-d: plan con auth.required true sin roles queda bloqueado con pregunta de roles y bloquea discover (V4) 767ms
+   → .toMatch() expects to receive a string, but got undefined
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 3: Host Review Gateway & Trust Boundary (R3) > VNEXT-014-CF01: unexpected closure persistence errors propagate without a false consistency block 471ms
+ × src/__tests__/server.test.ts > Suite MCP Server QAP v2.1 / v2.1.2 > E0b: qap_discover valida contra module-view.schema.json en vista de autenticacion con session_saved true 2073ms
+   → expected true to be falsy
+ × src/__tests__/test-handler.test.ts > TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) > Scenario 1: executes valid and authorized plan, persisting authentic result (R4.1) 5716ms
+   → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 3: Host Review Gateway & Trust Boundary (R3) > 014-CODEX-002: UNAVAILABLE remains a real error rather than a consistency block 599ms
+ ✓ src/__tests__/canonical-interview.test.ts > R3 canonical interview and independent host authorization > real MCP + host inbox + physical SQLite: present, propose, approve, persist, read status, retry, reopen 1313ms
+ ✓ src/__tests__/test-handler.test.ts > TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) > Scenario 2: rejects missing, historical, corrupt, or obsolete plans without executing runner (R4.2) 550ms
+ ✓ src/__tests__/canonical-interview.test.ts > R3 canonical interview and independent host authorization > blocks confirmation with gateway none and never reflects unsafe error text 665ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 3: Host Review Gateway & Trust Boundary (R3) > 014-CODEX-002: write_failed remains a real error rather than a consistency block 700ms
+ ✓ src/__tests__/p4-5a2-canonical-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C3: Integridad de categoría en from_option y regla de cobertura completa > C3-b: si la petición declara una categoría distinta a la de la pregunta pendiente se rechaza con blocked 2807ms
+ ✓ src/__tests__/p4-5a-canonical-integrity.test.ts > P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) > Criterio 3: una etiqueta de opción predefinida del motor NO cubre una categoría 3213ms
+ ✓ src/__tests__/canonical-interview.test.ts > R3 canonical interview and independent host authorization > blocks confirmation with gateway throw and never reflects unsafe error text 523ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 3: Host Review Gateway & Trust Boundary (R3) > R4-R9-A02: missing fencing capability blocks even valid host decisions 717ms
+ ✓ src/__tests__/test-handler.test.ts > TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) > Scenario 3: rejects environment mismatch, module mismatch, and missing module (R4.3) 1465ms
+stderr | src/__tests__/server-canonical-operations.test.ts > Suite MCP Server QAP v2.1 / v2.1.2 > debe descubrir modulos y responder en desarrollo para qap_plan y qap_test
+[PlaywrightRunner] Error crítico durante la ejecución: Error: Ejecución cancelada por AbortSignal.
+    at checkCancellation (<repo>/packages/playwright-runner/dist/index.js:421:42)
+    at PlaywrightRunner.execute (<repo>/packages/playwright-runner/dist/index.js:485:7)
+    at TestHandler.execute (<repo>/packages/mcp/src/handlers/test.handler.ts:372:25)
+    at ToolDispatcher.dispatch (<repo>/packages/mcp/src/dispatcher.ts:108:53)
+
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 3: Host Review Gateway & Trust Boundary (R3) > R4-R9-A02: delayed fence acquisition does not consume an expired decision 974ms
+ ✓ src/__tests__/canonical-interview.test.ts > R3 canonical interview and independent host authorization > blocks confirmation with gateway null and never reflects unsafe error text 953ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 3: Host Review Gateway & Trust Boundary (R3) > R4-R9-A02: an updated pending requirement changes the coverage digest 173ms
+ ✓ src/__tests__/canonical-interview.test.ts > R3 canonical interview and independent host authorization > MCP cannot forge authority with source 417ms
+ ✓ src/__tests__/server.test.ts > Suite MCP Server QAP v2.1 / v2.1.2 > qap_context_set: merge parcial, no-downgrade de user, faltantes, transicion automatica con session.id y history 3379ms
+ ✓ src/__tests__/canonical-interview.test.ts > R3 canonical interview and independent host authorization > MCP cannot forge authority with status 330ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 3: Host Review Gateway & Trust Boundary (R3) > R4-R10-A05: approves an existing gap with the real host approval receipt 713ms
+ ✓ src/__tests__/canonical-interview.test.ts > R3 canonical interview and independent host authorization > MCP cannot forge authority with from_option 278ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 3: Host Review Gateway & Trust Boundary (R3) > R4-R10-A05: never requests approval for missing or duplicate gap IDs 555ms
+ ✓ src/__tests__/server.test.ts > Suite MCP Server QAP v2.1 / v2.1.2 > qap_context_set: dos llamadas concurrentes no pierden actualizaciones 916ms
+ ✓ src/__tests__/p4-5a2-canonical-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C4: Flujo de respuestas cortas como borrador y propuesta de enunciado > C4-a: respuesta corta se guarda como borrador (status inferred, source user_text, borrador true) y no cubre 2198ms
+ ✓ src/__tests__/canonical-interview.test.ts > R3 canonical interview and independent host authorization > MCP cannot forge authority with verified_by 721ms
+ ✓ src/__tests__/server.test.ts > Suite MCP Server QAP v2.1 / v2.1.2 > qap_context_ingest: ingesta desde docPath y docContent, persistencia inferred, nunca avanza fase, rechazo de seguridad 448ms
+ ✓ src/__tests__/canonical-interview.test.ts > R3 canonical interview and independent host authorization > MCP cannot forge authority with trace 225ms
+ ✓ src/__tests__/canonical-interview.test.ts > R3 canonical interview and independent host authorization > MCP cannot forge authority with gateway 360ms
+ ✓ src/__tests__/server.test.ts > Suite MCP Server QAP v2.1 / v2.1.2 > qap_session_plan: SCOPING define plan y auth, transiciona a WORKING, rechazo atomico, ampliacion en WORKING, bloqueada en ONBOARDING 625ms
+ ✓ src/__tests__/canonical-interview.test.ts > R3 canonical interview and independent host authorization > rejects invalid host decision: expired 198ms
+ ✓ src/__tests__/p4-5a-canonical-integrity.test.ts > P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) > Criterio 4: un módulo con 2 reglas de 7 categorías no cierra sin accept_gaps, y cierra con él dejando registro 4052ms
+ ✓ src/__tests__/canonical-interview.test.ts > R3 canonical interview and independent host authorization > rejects invalid host decision: future 492ms
+ ✓ src/__tests__/canonical-interview.test.ts > R3 canonical interview and independent host authorization > rejects invalid host decision: revoked 188ms
+ ✓ src/__tests__/canonical-interview.test.ts > R3 canonical interview and independent host authorization > rejects invalid host decision: digest 192ms
+ ✓ src/__tests__/p4-5a-canonical-integrity.test.ts > P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) > C9a: blocked de qap_discover con auth_required incluye razon auth_required y directorio_objetivo, con claves alineadas a session_invalid 692ms
+ ✓ src/__tests__/canonical-interview.test.ts > R3 canonical interview and independent host authorization > rejects invalid host decision: statement 181ms
+ ✓ src/__tests__/test-handler.test.ts > TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) > Scenario 4: in-memory snapshot prevents TOCTOU tampering of YAML files after verification (R4.4) 3831ms
+ ✓ src/__tests__/canonical-interview.test.ts > R3 canonical interview and independent host authorization > rejects invalid host decision: reviewer 229ms
+ × src/__tests__/server-canonical-operations.test.ts > Suite MCP Server QAP v2.1 / v2.1.2 > debe descubrir modulos y responder en desarrollo para qap_plan y qap_test 12078ms
+   → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ✓ src/__tests__/canonical-interview.test.ts > R3 canonical interview and independent host authorization > rejects invalid host decision: approval 194ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 3: Host Review Gateway & Trust Boundary (R3) > R4-R12-A04: authorization expiring after callback rolls back all four SQLite commits 2522ms
+ ✓ src/__tests__/canonical-interview.test.ts > R3 canonical interview and independent host authorization > rejects invalid host decision: decision 242ms
+ ✓ src/__tests__/p4-5a2-canonical-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C4: Flujo de respuestas cortas como borrador y propuesta de enunciado > C4-b: derivación determinista en categoría actor que nombra roles emite Pregunta una_opcion directamente 3347ms
+ ✓ src/__tests__/canonical-interview.test.ts > R3 canonical interview and independent host authorization > rejects invalid host decision: long-expiry 184ms
+ ✓ src/__tests__/p4-5a-canonical-integrity.test.ts > P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) > C4-a: from_option con pregunta_id inexistente, opcion_id inexistente o sin texto sustantivo (rechazo o degradación a agent/inferred) 1124ms
+ ✓ src/__tests__/canonical-interview.test.ts > R3 canonical interview and independent host authorization > host decision reject does not create a canonical requirement 142ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 3: Host Review Gateway & Trust Boundary (R3) > R4-R12-A06: exact accepted gap replay returns prior receipt without a new decision 634ms
+ ✓ src/__tests__/canonical-interview.test.ts > R3 canonical interview and independent host authorization > host decision defer does not create a canonical requirement 133ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 3: Host Review Gateway & Trust Boundary (R3) > R4-R10-A01: a direct filesystem mutation before closure transaction fails the fingerprint guard 196ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013 real MCP black-box acquisition > R1: onboarding to anonymous discovery preserves planned state and explicitly blocks the legacy interview 12893ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 3: Host Review Gateway & Trust Boundary (R3) > R4-R10-A01: the official lifecycle writer waits until authorization persistence releases the lock 293ms
+ ✓ src/__tests__/canonical-interview.test.ts > R3 canonical interview and independent host authorization > correction invalidates exact-text approval, renews review, uses CAS and preserves physical history 451ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013 real MCP black-box acquisition > R1: stale observed state cannot manufacture rules or close a module without view context 244ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013 real MCP black-box acquisition > R1: stale consolidated state cannot manufacture rules or close a module without view context 280ms
+ ✓ src/__tests__/canonical-interview.test.ts > R3 canonical interview and independent host authorization > pending version, idempotent draft retries, defer/resume, unknown questions and cross-module replies 290ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013 real MCP black-box acquisition > R1: existing reviewed legacy context still accepts rules without promoting agent text or canonical observations 271ms
+ ✓ src/__tests__/canonical-interview.test.ts > R3 canonical interview and independent host authorization > blocks unsafe context missing 235ms
+ ✓ src/__tests__/p4-5a2-canonical-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C4: Flujo de respuestas cortas como borrador y propuesta de enunciado > C4-c: envío de propuesta_enunciado válida para un borrador emite Pregunta una_opcion con las 3 opciones 1381ms
+ ✓ src/__tests__/canonical-interview.test.ts > R3 canonical interview and independent host authorization > blocks unsafe context ambiguous 98ms
+ ✓ src/__tests__/canonical-interview.test.ts > R3 canonical interview and independent host authorization > blocks unsafe context inactive 126ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013 real MCP black-box acquisition > R1: explicit waiver remains an honest exit without claiming discovery or test coverage 170ms
+ ✓ src/__tests__/canonical-interview.test.ts > R3 canonical interview and independent host authorization > blocks unsafe context revision 147ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013 real MCP black-box acquisition > owns exactly one route, preserves order, rejects collisions, and never falls back 259ms
+ ✓ src/__tests__/canonical-interview.test.ts > R3 canonical interview and independent host authorization > blocks unsafe context session 203ms
+ ✓ src/__tests__/canonical-interview.test.ts > R3 canonical interview and independent host authorization > blocks unsafe context foreign-project 142ms
+ ✓ src/__tests__/canonical-interview.test.ts > R3 canonical interview and independent host authorization > context changes while host review runs: cannot commit approved old context 264ms
+ ✓ src/__tests__/p4-5a-canonical-integrity.test.ts > P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) > C4-b: límites de sustantividad (2 palabras o 19 caracteres no cubren; 3 palabras y 20 caracteres sí) 2066ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 3: Host Review Gateway & Trust Boundary (R3) > R4-R11-A01: case-aliased official writers wait through durable authorization in all four actions 2565ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 3: Host Review Gateway & Trust Boundary (R3) > R4-R10-A02: changing cwd never moves the active SQLite writer fence 60ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 3: Host Review Gateway & Trust Boundary (R3) > blocks closure when host gateway is absent or returns null (pending) 339ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 3: Host Review Gateway & Trust Boundary (R3) > rejects decisions with invalid request digest or expired authorization 248ms
+ × src/__tests__/p3-canonical-discovery.test.ts > P3 Suite de Verificación MCP (T3 - T15) > T6: qap_discover éxito: no contiene "Descubrir otro módulo", "pregunta_doc" ni "opciones_doc"; siguiente_accion tipo entrevista_vista (<= 5 preguntas) con tool qap_rules_set, categorias_aplicables y rutas_detectadas_fuera_del_plan 16523ms
+   → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   → Hook timed out in 10000ms.
+If this is a long-running hook, pass a timeout value as the last argument or configure it globally with "hookTimeout".
+ × src/__tests__/lifecycle-v3-e2e.test.ts > Lifecycle V3 E2E & Verification Suite (E0 - E3) > E0a: qap_status en WORKING para módulo con cobertura incompleta devuelve module, view y preguntas no vacías idénticas a qap_rules_set 16582ms
+   → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   → Hook timed out in 10000ms.
+If this is a long-running hook, pass a timeout value as the last argument or configure it globally with "hookTimeout".
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 3: Host Review Gateway & Trust Boundary (R3) > blocks client injection of authorization fields (approvalId / signature) on MCP wire 138ms
+ ✓ src/__tests__/p4-5a-canonical-integrity.test.ts > P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) > C4-c: accept_gaps con razón de 14 caracteres bloquea y con 15 cierra y deja el registro 2046ms
+ × src/__tests__/server-canonical-discovery.test.ts > Suite MCP Server QAP v2.1 / v2.1.2 > el contexto de vista generado por qap_discover debe validar contra module-view.schema.json (Criterio 4) 16631ms
+   → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   → Hook timed out in 10000ms.
+If this is a long-running hook, pass a timeout value as the last argument or configure it globally with "hookTimeout".
+ ✓ src/__tests__/p4-5a2-canonical-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C4: Flujo de respuestas cortas como borrador y propuesta de enunciado > C4-d: resolver con "Es correcto" guarda regla confirmed user_confirmed con enunciado exacto y cubre 3171ms
+ × src/__tests__/test-handler.test.ts > TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) > Scenario 5: blocks unauthorized URLs, unconfigured host policy, and redirects (R4.5) 5250ms
+   → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ✓ src/__tests__/canonical-interview.test.ts > R3 canonical interview and independent host authorization > associated aggregate evidence, partial=false, never invents fields or trusts DOM instructions 2322ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 4: Durable Persistence & Concurrency (R4) > SqliteModuleClosureStore encrypts all data with AES-256-GCM without plaintext leaks 370ms
+ ✓ src/__tests__/state-handlers.test.ts > VNEXT-012 real MCP and physical persistence > registers all three declarative owners exactly once and never falls back after failure 628ms
+ × src/__tests__/server-canonical-operations.test.ts > Suite MCP Server QAP v2.1 / v2.1.2 > qap_discover: gating por fase y estado de modulo, actualizacion planned -> observed 5434ms
+   → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013 real MCP black-box acquisition > navigates a real MPA, returns actual counts, commits once and reopens physical SQLite 3238ms
+ ✓ src/__tests__/test-handler.test.ts > TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) > Scenario 6: classifies missing browser launch failure as infrastructure block (R4.6) 411ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 4: Durable Persistence & Concurrency (R4) > Amendment 3: Persists relation receipt in IKnowledgeStore with ZERO module.revision mutation 333ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 4: Durable Persistence & Concurrency (R4) > zero SQLite locks held during asynchronous host review gateway evaluation 502ms
+ ✓ src/__tests__/p4-5a2-canonical-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C4: Flujo de respuestas cortas como borrador y propuesta de enunciado > C4-e: resolver con "Lo defino después" guarda regla deferred y no cubre 1216ms
+ ✓ src/__tests__/server-canonical-operations.test.ts > Suite MCP Server QAP v2.1 / v2.1.2 > Criterio 7: Proyecto legacy sin campos de negocio valida contra el schema y qap_status responde con fase WORKING derivada 1083ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) > 014-CODEX-001: MCP sanitizes unexpected closure errors without false durable effects 734ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) > qap_module_close routes canonical_closure cleanly through MCP SDK client 224ms
+ ✓ src/__tests__/state-handlers.test.ts > VNEXT-012 real MCP and physical persistence > status inspects uninitialized and legacy projects without creating memory or scan files 325ms
+ ✓ src/__tests__/state-handlers.test.ts > VNEXT-012 real MCP and physical persistence > preserves the browser installation directive without launching a browser 73ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) > enforces Amendment 4: blocks canonical module called without canonical_closure 184ms
+ ✓ src/__tests__/canonical-interview.test.ts > R3 canonical interview and independent host authorization > associated aggregate evidence, partial=true, never invents fields or trusts DOM instructions 2124ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) > qap_session_close blocks transition to WRAP_UP when canonical modules remain unclosed 247ms
+ ✓ src/__tests__/state-handlers.test.ts > VNEXT-012 real MCP and physical persistence > status reports actual isolated SQLite inventory and leaves revisions unchanged 1318ms
+ ✓ src/__tests__/canonical-interview.test.ts > R3 canonical interview and independent host authorization > absence allows general business questions; unspecified formal category stays pending 276ms
+ ✓ src/__tests__/state-handlers.test.ts > VNEXT-012 real MCP and physical persistence > reports unavailable/ambiguous bindings without reopening or adopting a database 720ms
+ ✓ src/__tests__/state-handlers.test.ts > VNEXT-012 real MCP and physical persistence > reports incomplete inventory without turning an unavailable query into zero modules 320ms
+ ✓ src/__tests__/canonical-interview.test.ts > R3 canonical interview and independent host authorization > separate SQLite connections CAS, rollback trigger, safe errors, no duplicate/orphan requirement 704ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) > R4-R3: inconsistent durable closure 'short reason' cannot create receipt or reach WRAP_UP 971ms
+ ✓ src/__tests__/p4-5a2-canonical-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C4: Flujo de respuestas cortas como borrador y propuesta de enunciado > C4-f: propuesta_enunciado corta o genérica es rechazada con status error 2146ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) > R4-R3: inconsistent durable closure 'blank reason' cannot create receipt or reach WRAP_UP 681ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) > R4-R3: inconsistent durable closure 'missing approval' cannot create receipt or reach WRAP_UP 394ms
+ ✓ src/__tests__/canonical-interview.test.ts > R3 canonical interview and independent host authorization > untrusted proposal is never reflected in questions, logs or SQLite without human authority 773ms
+ ✓ src/__tests__/state-handlers.test.ts > VNEXT-012 real MCP and physical persistence > isolates two projects explicitly bound to different applications in the same physical store 593ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) > R4-R3: inconsistent durable closure 'mismatched approval digest' cannot create receipt or reach WRAP_UP 453ms
+ × src/__tests__/p3-canonical-discovery.test.ts > P3 Suite de Verificación MCP (T3 - T15) > T7: rules.yaml tras discover: reglas inferred/dom con ids deterministas; re-discover idempotente (sin duplicados, reglas confirmadas intactas) 5433ms
+   → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ × src/__tests__/lifecycle-v3-e2e.test.ts > Lifecycle V3 E2E & Verification Suite (E0 - E3) > E0b: contrato estricto de opciones y preguntas en todo el flujo 5369ms
+   → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ✓ src/__tests__/canonical-interview.test.ts > R3 canonical interview and independent host authorization > one approval cannot authorize another question, even when the host mistakenly reuses its ID 1079ms
+ ✓ src/__tests__/state-handlers.test.ts > VNEXT-012 real MCP and physical persistence > clean blocks force=undefined and physically preserves every protected resource 967ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) > R4-R3: inconsistent durable closure 'duplicated approval' cannot create receipt or reach WRAP_UP 454ms
+ ✓ src/__tests__/canonical-interview.test.ts > R3 canonical interview and independent host authorization > a second connection changing a requirement while the host reviews causes a CAS conflict 515ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) > R4-R3: inconsistent durable closure 'closed without approval' cannot create receipt or reach WRAP_UP 501ms
+ ✓ src/__tests__/lifecycle-v3-e2e.test.ts > Lifecycle V3 E2E & Verification Suite (E0 - E3) > E0c: qap_report sin ejecuciones responde blocked y no escribe archivos; ninguna siguiente_accion recomienda qap_report sin ejecuciones 962ms
+ ✓ src/__tests__/canonical-interview.test.ts > R3 canonical interview and independent host authorization > restart recovers confirmed records without duplicating them; pending drafts require fresh review 271ms
+ ✓ src/__tests__/state-handlers.test.ts > VNEXT-012 real MCP and physical persistence > clean blocks force=true and physically preserves every protected resource 532ms
+ ✓ src/__tests__/canonical-interview.test.ts > R3 canonical interview and independent host authorization > approval for another project cannot confirm even with the same module, question category and statement 252ms
+ ✓ src/__tests__/state-handlers.test.ts > VNEXT-012 real MCP and physical persistence > clean blocks force=false and physically preserves every protected resource 800ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) > R4-R3: inconsistent durable closure 'already waived without approval' cannot create receipt or reach WRAP_UP 411ms
+ ✓ src/__tests__/p3-canonical-discovery.test.ts > P3 Suite de Verificación MCP (T3 - T15) > T9: Fallo de Playwright: no inserta reglas; siguiente_accion tipo decision 1331ms
+ ✓ src/__tests__/state-handlers.test.ts > VNEXT-012 real MCP and physical persistence > blocks cleanup of uninitialized, external and junction projects without touching targets 279ms
+ ✓ src/__tests__/canonical-interview.test.ts > R3 canonical interview and independent host authorization > HTML required, HTTP 200, AgentInference and reviewed traces confer no requirement authority 546ms
+ × src/__tests__/test-handler.test.ts > TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) > Scenario 7: rejects unauthorized profiles and disables implicit session recovery (R4.7) 6419ms
+   → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ × src/__tests__/server-canonical-discovery.test.ts > Suite MCP Server QAP v2.1 / v2.1.2 > qap_discover con contexto de vista inválido no debe escribir archivos y debe retornar error (Criterio 4) 7005ms
+   → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ✓ src/__tests__/canonical-interview.test.ts > R3 canonical interview and independent host authorization > physical approval receipt prevents reuse for another question after restarting the host 347ms
+ ✓ src/__tests__/canonical-interview.test.ts > R3 canonical interview and independent host authorization > short free answers remain non-authoritative drafts and need a substantive corrected statement 157ms
+ ✓ src/__tests__/p4-4-auth-lifecycle.test.ts > P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) > 9. qap_auth_add con verificación automática real contra el fixture HTTP local 21428ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) > R4-R5-A02: 16 bound modules, last invalid=false, preview stays capped but guidance checks all 2467ms
+ ✓ src/__tests__/server-canonical-discovery.test.ts > Suite MCP Server QAP v2.1 / v2.1.2 > E0a: qap_discover valida contra module-view.schema.json en camino de fallo de Playwright 1973ms
+stdout | src/__tests__/p4-4-auth-lifecycle.test.ts > P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) > 10. qap_auth_add con handoff: probado con doble de prueba que sustituye SOLO la ventana humana (resto real)
+Completa el login manualmente en la ventana abierta. Esperando hasta 15000ms...
+
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013 real MCP black-box acquisition > keeps project bindings and physical stores isolated between server instances 8744ms
+ ✓ src/__tests__/state-handlers.test.ts > VNEXT-012 real MCP and physical persistence > preserves incremental context, provenance, corrections and explicit confirmation without promoting canonical entities 2701ms
+ × src/__tests__/server-canonical-operations.test.ts > Suite MCP Server QAP v2.1 / v2.1.2 > Criterio 8 (E2E): init -> status (entrevista) -> ingest -> context_set compuerta -> auto-SCOPING -> session_plan -> auto-WORKING -> discover 7754ms
+   → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ✓ src/__tests__/state-handlers.test.ts > VNEXT-012 real MCP and physical persistence > rejects environment discrepancies before YAML writes and never copies legacy secrets to SQLite 383ms
+ ✓ src/__tests__/p4-5a2-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C6: Ciclo completo plan -> auth -> compuerta de SCOPING con adaptador real > C6-a: plan bloqueado por perfil no verificado persiste, auth_add verifica y compuerta avanza a WORKING 21910ms
+ ✓ src/__tests__/state-handlers.test.ts > VNEXT-012 real MCP and physical persistence > validates nested inputs and sanitizes errors without logging canaries 280ms
+ ✓ src/__tests__/p4-5a2-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C9: Validación y filtrado riguroso de roles limpios > C9-a: qap_init y qap_context_ingest descartan entradas de tabla Markdown y reportan roles_descartados 169ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) > R4-R5-A02: 17 bound modules, last invalid=false, preview stays capped but guidance checks all 1232ms
+ ✓ src/__tests__/p4-5a2-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C9: Validación y filtrado riguroso de roles limpios > C9-b: los 4 lectores ignoran roles inválidos presentes en un context.yaml contaminado 142ms
+ ✓ src/__tests__/p4-5a2-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C9: Validación y filtrado riguroso de roles limpios > C9-c: roles legítimos con espacios, tildes, guiones y números son aceptados siempre 135ms
+ ✓ src/__tests__/p4-5a2-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C3: Transliteración NFD de slugs y prevención de módulos fuera del plan > C3-a: opciones de módulos en guidance usan normalizeSlug sin sustituir tildes por guiones bajos 123ms
+ ✓ src/__tests__/state-handlers.test.ts > VNEXT-012 real MCP and physical persistence > keeps corrupt YAML intact and reports sanitized errors 184ms
+ ✓ src/__tests__/test-handler.test.ts > TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) > Scenario 8: distinguishes real functional failure from infrastructure failure (R4.8) 3538ms
+ ✓ src/__tests__/state-handlers.test.ts > VNEXT-012 real MCP and physical persistence > reports a real multi-file publication failure and blocks replay while its recovery journal is unresolved 467ms
+ ✓ src/__tests__/test-handler.test.ts > TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) > Scenario 9: zero cases executed never returns fake PASS verdict (R4.9) 266ms
+ ✓ src/__tests__/p4-5a2-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C3: Transliteración NFD de slugs y prevención de módulos fuera del plan > C3-b: qap_session_plan limpia módulos planned huérfanos que ya no pertenezcan al plan 709ms
+ ✓ src/__tests__/state-handlers.test.ts > VNEXT-012 real MCP and physical persistence > reports lifecycle failure after YAML publication instead of claiming global success 451ms
+ ✓ src/__tests__/test-handler.test.ts > TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) > Scenario 10: supports cancellation and resource cleanup under AbortSignal (R4.10) 558ms
+ × src/__tests__/lifecycle-v3-e2e.test.ts > Lifecycle V3 E2E & Verification Suite (E0 - E3) > E1: regresión consolidated -> interviewing tras re-discover y política de waivers 5412ms
+   → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) > R4-R5-A02: 17 bound modules, last invalid=true, preview stays capped but guidance checks all 1558ms
+ ✓ src/__tests__/state-handlers.test.ts > VNEXT-012 real MCP and physical persistence > does not grow context history for an identical update and preserves it after reopening the server 714ms
+ × src/__tests__/p3-canonical-discovery.test.ts > P3 Suite de Verificación MCP (T3 - T15) > T14: qap_status WORKING: (a) observed con hipótesis reanuda entrevista; (b) interviewing incompleto reanuda; (c) planned elige high > medium > low luego orden; (d) todos completos tipo decision 5503ms
+   → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ✓ src/__tests__/state-handlers.test.ts > VNEXT-012 real MCP and physical persistence > detects concurrent legacy changes, active locks, aborts and unresolved journals 307ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) > R4-R4-A01 positive: a legitimately authorized durable waiver still recommends session close 579ms
+ ✓ src/__tests__/state-handlers.test.ts > VNEXT-012 real MCP and physical persistence > rejects cancellation before execution and preserves the fixture 93ms
+ ✓ src/__tests__/state-handlers.test.ts > VNEXT-012 real MCP and physical persistence > preserves physical CAS, history, reference pins, rollback and integrity across two connections and reopen 233ms
+ ✓ src/__tests__/lifecycle-v3-e2e.test.ts > Lifecycle V3 E2E & Verification Suite (E0 - E3) > E1 canonical: applicability rejects legacy categories and short reasons; wire waivers cannot replace host review 1126ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) > R4-R2-A01: first session close uses recovered waiver metadata for the gate and physical report 567ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) > VNEXT-014 rescue: session report prefers durable canonical authorization, not legacy rules or synthetic execution 338ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013 real MCP black-box acquisition > distinguishes static completion from a script dependent shell (false) 3606ms
+ ✓ src/__tests__/server-canonical-discovery.test.ts > Suite MCP Server QAP v2.1 / v2.1.2 > E0c: qap_discover valida contra module-view.schema.json en vista con routes_found vacio 4425ms
+ ✓ src/__tests__/test-handler.test.ts > TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) > Scenario 11: persists execution results adhering to schema without automatic SQLite ConformityAssessment (R4.11) 1986ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) > RES-CODEX-A01 serializes concurrent planned writer before close 563ms
+ × src/__tests__/p4-2-canonical-contract.test.ts > P4.2 Suite: Contrato Canónico de Pregunta y Verificación E2E (Criterio 4 y Criterio 6) > Criterio 4.4: Ninguna respuesta con siguiente_accion trae preguntas como cadenas ni pregunta aplanada 17040ms
+   → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   → Hook timed out in 10000ms.
+If this is a long-running hook, pass a timeout value as the last argument or configure it globally with "hookTimeout".
+ × src/__tests__/server-canonical-operations.test.ts > Suite MCP Server QAP v2.1 / v2.1.2 > qap_rules_set: actualiza reglas, transiciona observed -> interviewing, recalcula cobertura y actualiza guidance 5173ms
+   → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ × src/__tests__/p4-5a-canonical-integrity.test.ts > P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) > C1: campos honestos en bloqueos previos a navegar y navegación real 15196ms
+   → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   → Hook timed out in 10000ms.
+If this is a long-running hook, pass a timeout value as the last argument or configure it globally with "hookTimeout".
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) > RES-CODEX-A01 serializes concurrent planned-process writer before close 1833ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013 real MCP black-box acquisition > distinguishes static completion from a script dependent shell (true) 2768ms
+ ✓ src/__tests__/lifecycle-v3-e2e.test.ts > Lifecycle V3 E2E & Verification Suite (E0 - E3) > E1 canonical: a reviewed specification revision invalidates an earlier pending closure authorization 3245ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013 real MCP black-box acquisition > blocks credentials without navigation or credential reflection 94ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013 real MCP black-box acquisition > blocks profile without navigation or credential reflection 73ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) > RES-CODEX-A01 serializes concurrent session writer before close 529ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013 real MCP black-box acquisition > blocks profileId without navigation or credential reflection 67ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013 real MCP black-box acquisition > blocks storageState without navigation or credential reflection 62ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013 real MCP black-box acquisition > blocks cookies without navigation or credential reflection 67ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013 real MCP black-box acquisition > blocks session without navigation or credential reflection 61ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013 real MCP black-box acquisition > blocks auth without navigation or credential reflection 70ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) > RES-CODEX-A01 serializes concurrent phase writer before close 468ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013 real MCP black-box acquisition > rejects ambiguous or unauthorized target /unknown 184ms
+stderr | src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) > RES-CODEX-A02 refuses changed canonical receipt source
+[QAP MCP] tool_execution_failed {
+  error_id: 'cff4e3e1-b622-4b6d-ad22-c3cb16816bbd',
+  category: 'unexpected_error'
+}
+
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013 real MCP black-box acquisition > rejects ambiguous or unauthorized target //127.0.0.1/ 101ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) > RES-CODEX-A02 refuses changed canonical receipt source 282ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013 real MCP black-box acquisition > rejects ambiguous or unauthorized target /a/../ 168ms
+ ✓ src/__tests__/p4-4-auth-lifecycle.test.ts > P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) > 10. qap_auth_add con handoff: probado con doble de prueba que sustituye SOLO la ventana humana (resto real) 9463ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013 real MCP black-box acquisition > rejects ambiguous or unauthorized target /%2e/ 143ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013 real MCP black-box acquisition > rejects ambiguous or unauthorized target /?token=secret 166ms
+ ✓ src/__tests__/test-handler.test.ts > TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) > Scenario 12: integrates cleanly via createMcpServer preserving exact 18 tools (R4.12) 3625ms
+ ✓ src/__tests__/p3-verification.test.ts > P3 Suite de Verificación MCP (T3 - T15) > T3: Toda respuesta con siguiente_accion NO contiene "botones interactivos en modal" ni prohibición de listas 2119ms
+ ✓ src/__tests__/adversarial-r5-guarantees.test.ts > Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) > Guarantee 1: Epistemic Bypass Stress-Testing > 1.1: Rejects status confirmed when provenance is active_probe 6ms
+ ✓ src/__tests__/adversarial-r5-guarantees.test.ts > Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) > Guarantee 1: Epistemic Bypass Stress-Testing > 1.2: Rejects status confirmed when provenance is crawler 1ms
+ ✓ src/__tests__/adversarial-r5-guarantees.test.ts > Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) > Guarantee 1: Epistemic Bypass Stress-Testing > 1.3: Rejects status confirmed when provenance is network_intercept or observed_telemetry 1ms
+ ✓ src/__tests__/adversarial-r5-guarantees.test.ts > Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) > Guarantee 1: Epistemic Bypass Stress-Testing > 1.4: Epistemic spoofing via source instead of provenance is caught 1ms
+ ✓ src/__tests__/adversarial-r5-guarantees.test.ts > Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) > Guarantee 1: Epistemic Bypass Stress-Testing > 1.5: Invariant R1: legacy_manual_edit without verification_evidence cannot confirm 1ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013 real MCP black-box acquisition > rejects ambiguous or unauthorized target /#fragment 97ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013 real MCP black-box acquisition > rejects ambiguous or unauthorized target http://user:secret@127.0.0.1/ 99ms
+ ✓ src/__tests__/adversarial-r5-guarantees.test.ts > Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) > Guarantee 1: Epistemic Bypass Stress-Testing > 1.6: Knowledge store and coverage engine strictly prevent observational requirements from confirming 112ms
+ ✓ src/__tests__/adversarial-r5-guarantees.test.ts > Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) > Guarantee 2: Wire Authorization Injection Stress-Testing > 2.1: Rejects all forbidden authorization keys in wire command arguments 5ms
+ ✓ src/__tests__/adversarial-r5-guarantees.test.ts > Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) > Guarantee 2: Wire Authorization Injection Stress-Testing > 2.2: Rejects forbidden keys even when combined with waive or accept_gaps 3ms
+ ✓ src/__tests__/adversarial-r5-guarantees.test.ts > Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) > Guarantee 2: Wire Authorization Injection Stress-Testing > 2.3: Rejects unexpected fields in canonical closure commands 1ms
+ ✓ src/__tests__/adversarial-r5-guarantees.test.ts > Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) > Guarantee 2: Wire Authorization Injection Stress-Testing > 2.4: Substantive reason enforcement rejects non-substantive explanations (< 15 chars) 1ms
+ × src/__tests__/p3-canonical-discovery.test.ts > P3 Suite de Verificación MCP (T3 - T15) > T15: E2E: flujo de P2 hasta WORKING -> discover A -> rules_set parcial -> status (reanuda A) -> rules_set completa cobertura -> status (propone B) -> discover B; ninguna respuesta del flujo contiene texto del bucle 5522ms
+   → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013 real MCP black-box acquisition > rejects ambiguous or unauthorized target /a\b 117ms
+ ✓ src/__tests__/adversarial-r5-guarantees.test.ts > Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) > Guarantee 2: Wire Authorization Injection Stress-Testing > 2.5: Host gateway bypass rejection: closes block if gateway is missing 99ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013 real MCP black-box acquisition > rejects ambiguous or unauthorized target  / 137ms
+ ✓ src/__tests__/adversarial-r5-guarantees.test.ts > Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) > Guarantee 2: Wire Authorization Injection Stress-Testing > 2.6: Host gateway tampered digest rejection: blocks if decision digest does not match request digest 104ms
+ ✓ src/__tests__/adversarial-r5-guarantees.test.ts > Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) > Guarantee 2: Wire Authorization Injection Stress-Testing > 2.7: Host gateway expired decision rejection: blocks if review decision timestamp expired 69ms
+ ✓ src/__tests__/adversarial-r5-guarantees.test.ts > Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) > Guarantee 2: Wire Authorization Injection Stress-Testing > 2.7b: Host gateway malformed date parsing: blocks on NaN/invalid timestamp avoiding fail-open 134ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013 real MCP black-box acquisition > retains phase gate ONBOARDING without lifecycle writes 150ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013 real MCP black-box acquisition > retains phase gate SCOPING without lifecycle writes 186ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013 real MCP black-box acquisition > retains phase gate WRAP_UP without lifecycle writes 231ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013 real MCP black-box acquisition > blocks missing binding, stale authorization and incompatible environment 176ms
+ ✓ src/__tests__/p3-verification.test.ts > P3 Suite de Verificación MCP (T3 - T15) > T4: qap_status WORKING con módulo planned: sin pregunta de confirmación, sin "Ver otros módulos", sin botón de una sola opción, stats.modules refleja estado 897ms
+ × src/__tests__/p4-5a2-canonical-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C10: Detección y advertencia de extracción vacía > C10-a: página app/login sin elementos interactivos genera advertencia extraccion_vacia y trabajo 15054ms
+   → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   → Hook timed out in 10000ms.
+If this is a long-running hook, pass a timeout value as the last argument or configure it globally with "hookTimeout".
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013 real MCP black-box acquisition > requires explicit read-only host acknowledgement and rejects authenticated plans/terminal modules 544ms
+ ✓ src/__tests__/adversarial-r5-guarantees.test.ts > Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) > Guarantee 2: Wire Authorization Injection Stress-Testing > 2.8: Host gateway rejected decision: blocks if reviewer rejects 75ms
+ ✓ src/__tests__/adversarial-r5-guarantees.test.ts > Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) > Guarantee 3: Obsolete Revision Invalidation Stress-Testing > 3.1: Aborts and rolls back if module revision mutates during human review window 1610ms
+ × src/__tests__/p4-2-canonical-contract.test.ts > P4.2 Suite: Contrato Canónico de Pregunta y Verificación E2E (Criterio 4 y Criterio 6) > Criterio 6: E2E Completo donde TODA siguiente_accion de tipo entrevista, entrevista_vista o decision trae Pregunta válida 5300ms
+   → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ✓ src/__tests__/p4-3-1-b-block.test.ts > P4.3.1 Bloque B - Verificación y Cobertura de Correcciones > Criterio 2 & B1: con el fixture de A1, ninguna pregunta de objetivo, roles o flujos es abierta si hay propuesta; critical_flows nunca contiene rutas; tarjeta no ofrece Confirmo todo con URL sin definir 1763ms
+ ✓ src/__tests__/adversarial-r5-guarantees.test.ts > Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) > Guarantee 3: Obsolete Revision Invalidation Stress-Testing > 3.2: Aborts if module is deactivated during review 194ms
+ ✓ src/__tests__/adversarial-r5-guarantees.test.ts > Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) > Guarantee 3: Obsolete Revision Invalidation Stress-Testing > 3.3: Prevents approvalId reuse across closure attempts 370ms
+ ✓ src/__tests__/adversarial-r5-guarantees.test.ts > Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) > Guarantee 4: Dual-Store Crash Recovery Stress-Testing > 4.1: Recovers automatically without second human approval when process crashed after SQLite commit 133ms
+ ✓ src/__tests__/p3-verification.test.ts > P3 Suite de Verificación MCP (T3 - T15) > T5: lifecycle.json valida contra lifecycle-state.schema.json tras CADA mutación del flujo e2e 1328ms
+ ✓ src/__tests__/adversarial-r5-guarantees.test.ts > Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) > Guarantee 4: Dual-Store Crash Recovery Stress-Testing > 4.2: Recovers waived module crash state accurately 113ms
+stderr | src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) > RES-CODEX-A02 refuses changed canonical receipt source-process
+[QAP MCP] tool_execution_failed {
+  error_id: 'b1e8d9f8-9824-4476-a4a7-85f600522b6d',
+  category: 'unexpected_error'
+}
+
+ ✓ src/__tests__/p4-3-1-b-block.test.ts > P4.3.1 Bloque B - Verificación y Cobertura de Correcciones > Criterio 3 & B4: la ingesta no modifica notes de source_of_truth y escribe ingest.analyzed_by 900ms
+ ✓ src/__tests__/adversarial-r5-guarantees.test.ts > Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) > Guarantee 4: Dual-Store Crash Recovery Stress-Testing > 4.3: Corrupt database or wrong AES key strictly rejects without RAM fallback 121ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) > RES-CODEX-A02 refuses changed canonical receipt source-process 3804ms
+ ✓ src/__tests__/adversarial-r5-guarantees.test.ts > Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) > Guarantee 5: Legacy Closure Bypass Stress-Testing > 5.1: Legacy qap_module_close rejects canonical module with canonical_closure_required 247ms
+ ✓ src/__tests__/test-handler.test.ts > TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) > Scenario 13: physical Playwright Chromium execution against isolated local HTTP fixture (Real PASS & FAIL) 3544ms
+stderr | src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) > RES-CODEX-A02 refuses changed canonical receipt target
+[QAP MCP] tool_execution_failed {
+  error_id: '3ae7d9e6-81e7-4b92-b4c6-60ddd099c3e5',
+  category: 'unexpected_error'
+}
+
+ ✓ src/__tests__/adversarial-r5-guarantees.test.ts > Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) > Guarantee 5: Legacy Closure Bypass Stress-Testing > 5.2: Legacy qap_module_close waive also blocked for canonical modules 96ms
+ ✓ src/__tests__/p3-verification.test.ts > P3 Suite de Verificación MCP (T3 - T15) > T8: rules.yaml con manually_edited: true: discover no inserta reglas y declara el bloqueo canónico 1291ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) > RES-CODEX-A02 refuses changed canonical receipt target 285ms
+ ✓ src/__tests__/adversarial-r5-guarantees.test.ts > Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) > Guarantee 5: Legacy Closure Bypass Stress-Testing > 5.3: qap_session_close blocks advance to WRAP_UP when canonical module is unclosed 110ms
+stderr | src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) > RES-CODEX-A02 refuses changed canonical receipt revision
+[QAP MCP] tool_execution_failed {
+  error_id: 'a699cda1-d525-45a6-b1d3-3525b3e98fc0',
+  category: 'unexpected_error'
+}
+
+ ✓ src/__tests__/p4-3-1-b-block.test.ts > P4.3.1 Bloque B - Verificación y Cobertura de Correcciones > B5: el detector nunca lee .env ni .env.local; SECRET_KEY=abc123 y credenciales nunca aparecen en scan ni salidas 370ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) > RES-CODEX-A02 refuses changed canonical receipt revision 312ms
+ ✓ src/__tests__/test-handler.test.ts > VNEXT-014-D preflight — execution evidence integrity > D-01: does not persist schema-invalid runner outputs 783ms
+ ✓ src/__tests__/adversarial-r5-guarantees.test.ts > Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) > Guarantee 5: Legacy Closure Bypass Stress-Testing > 5.4: Canonical closure unlocks qap_session_close 706ms
+ ✓ src/__tests__/adversarial-r5-guarantees.test.ts > Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) > Guarantee 6: False Execution Attestation Stress-Testing > 6.1: Invariant validator rejects execution_coverage status !== not_executed 2ms
+ ✓ src/__tests__/adversarial-r5-guarantees.test.ts > Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) > Guarantee 6: False Execution Attestation Stress-Testing > 6.2: Rejects non-zero passed counts even if status is not_executed 2ms
+ ✓ src/__tests__/adversarial-r5-guarantees.test.ts > Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) > Guarantee 6: False Execution Attestation Stress-Testing > 6.3: Invariant validator rejects individual category waiver (Amendment 6) 1ms
+ ✓ src/__tests__/adversarial-r5-guarantees.test.ts > Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) > Guarantee 6: False Execution Attestation Stress-Testing > 6.4: CanonicalCoverageService evaluate strictly emits not_executed and 0 counts 67ms
+ ✓ src/__tests__/p4-3-1-b-block.test.ts > P4.3.1 Bloque B - Verificación y Cobertura de Correcciones > B6: ninguna siguiente_accion tipo trabajo apunta a herramientas que exigen confirmación (qap_module_close, qap_session_close); constante <= 600 caracteres 800ms
+ ✓ src/__tests__/adversarial-r5-guarantees.test.ts > Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) > Guarantee 7: CAS Concurrency Stress-Testing > 7.1: Physical SQLite concurrent transactions handle race conditions without history corruption 188ms
+ ✓ src/__tests__/p4-5s1-browser-candidates.test.ts > P4.5-S1: Preflight browser, Module Candidates, and Session Plan > C1: qap_status y qap_init incluyen navegador_qap en proyecto inicializado 1149ms
+ ✓ src/__tests__/p4-5s1-browser-candidates.test.ts > P4.5-S1: Preflight browser, Module Candidates, and Session Plan > C1: directivas contienen la indicación de preflight, exploracion y longitud <= 600 19ms
+ ✓ src/__tests__/p4-5s1-browser-candidates.test.ts > P4.5-S1: Preflight browser, Module Candidates, and Session Plan > C1: status/init conservan la frase histórica y discover declara persistencia canónica estática 52ms
+ ✓ src/__tests__/p3-verification.test.ts > P3 Suite de Verificación MCP (T3 - T15) > T10: qap_rules_set bloqueado (contrato blocked) en: fase distinta de WORKING, módulo no registrado, módulo planned, módulo waived 1004ms
+ ✓ src/__tests__/test-handler.test.ts > VNEXT-014-D preflight — execution evidence integrity > D-02: refuses traversal-capable execution IDs despite schema v1 accepting strings 602ms
+ ✓ src/__tests__/adversarial-r5-guarantees.test.ts > Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) > Guarantee 7: CAS Concurrency Stress-Testing > 7.2: CanonicalClosureService serializes closure and second attempt is idempotent: true 306ms
+ ✓ src/__tests__/adversarial-r5-guarantees.test.ts > Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) > Guarantee 7: CAS Concurrency Stress-Testing > 7.3: Concurrent closure of distinct modules succeeds via bounded retry loop under SQLite CAS lock 333ms
+ ✓ src/__tests__/test-handler.test.ts > VNEXT-014-D preflight — execution evidence integrity > D-03: failed execution persistence cannot be reported as success or recorded in history 546ms
+ ✓ src/__tests__/p3-verification.test.ts > P3 Suite de Verificación MCP (T3 - T15) > T11: Primera llamada exitosa: observed -> interviewing; ids R-001, R-002... secuenciales por módulo 932ms
+ ✓ src/__tests__/adversarial-r5-guarantees.test.ts > Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) > Guarantee 7: CAS Concurrency Stress-Testing > 7.4: Simultaneous closure requests for same module with divergent gateway decisions persist exactly one closure and canonical receipt 506ms
+ ✓ src/__tests__/p4-5s1-browser-candidates.test.ts > P4.5-S1: Preflight browser, Module Candidates, and Session Plan > C4/C6: qap_context_ingest persiste module-candidates.json y qap_session_plan lo usa 800ms
+ × src/__tests__/lifecycle-v3-e2e.test.ts > Lifecycle V3 E2E & Verification Suite (E0 - E3) > E2: qap_module_close validaciones, compuertas y transiciones 7151ms
+   → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ × src/__tests__/p4-5a-canonical-integrity.test.ts > P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) > C3: flujo real de preguntas de categoría, formato una_opcion, persistencia y respuestas user_text y deferred 7925ms
+   → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ✓ src/__tests__/test-handler.test.ts > VNEXT-014-D preflight — execution evidence integrity > D-04: history failure preserves saved evidence but returns an explicit partial error 543ms
+ ✓ src/__tests__/plan-handler.test.ts > PlanHandler Real Declarative Implementation (VNEXT-014-B) > resolves correct topological DAG order respecting dependencies and persists plan.json 548ms
+ ✓ src/__tests__/adversarial-r5-guarantees.test.ts > Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) > Guarantee 7: CAS Concurrency Stress-Testing > 7.5: Rejects write error recovery if existing receipt has tampered provenance or mismatched entity 236ms
+ ✓ src/__tests__/plan-handler.test.ts > PlanHandler Real Declarative Implementation (VNEXT-014-B) > detects missing dependencies and returns structured error without crashing 120ms
+ ✓ src/__tests__/p4-5s1-browser-candidates.test.ts > P4.5-S1: Preflight browser, Module Candidates, and Session Plan > C5: qap_session_plan responde blocked (no error) si un id de candidato no existe 426ms
+ ✓ src/__tests__/test-handler.test.ts > VNEXT-014-D preflight — execution evidence integrity > D-05: rejects a schema-valid execution associated with a different module 387ms
+ ✓ src/__tests__/plan-handler.test.ts > PlanHandler Real Declarative Implementation (VNEXT-014-B) > detects duplicate case IDs across files and reports error before graph resolution 146ms
+ ✓ src/__tests__/plan-handler.test.ts > PlanHandler Real Declarative Implementation (VNEXT-014-B) > detects cyclic dependencies safely returning cycle information without unhandled crashes 163ms
+ ✓ src/__tests__/p4-3-1-b-block.test.ts > P4.3.1 Bloque B - Verificación y Cobertura de Correcciones > B7: flujo corregir resumen realiza preguntas abiertas una por una citando propuesta, asigna source user, y permite confirmación final 2009ms
+ ✓ src/__tests__/plan-handler.test.ts > PlanHandler Real Declarative Implementation (VNEXT-014-B) > returns explicit cases: [] when module directory has no test cases 97ms
+ ✓ src/__tests__/p4-3-1-b-block.test.ts > P4.3.1 Bloque B - Verificación y Cobertura de Correcciones > B8: advierte si targetPath parece una subcarpeta de un repo con .git sin escanear fuera 217ms
+ ✓ src/__tests__/p4-3-1-b-block.test.ts > P4.3.1 Bloque B - Verificación y Cobertura de Correcciones > B9: sanitizeDomString preserva "/", "_" y vocales acentuadas pero sanitiza caracteres de control e inyecciones HTML 7ms
+ ✓ src/__tests__/p3-verification.test.ts > P3 Suite de Verificación MCP (T3 - T15) > T12: No-downgrade: regla source user confirmed no se sobrescribe con source dom/prd; waivers solo source user y reason no vacío; lote con regla inválida se rechaza completo 967ms
+ ✓ src/__tests__/plan-handler.test.ts > PlanHandler Real Declarative Implementation (VNEXT-014-B) > returns explicit cases: [] when cases exist but lack executable steps 181ms
+ ✓ src/__tests__/plan-handler.test.ts > PlanHandler Real Declarative Implementation (VNEXT-014-B) > rejects invalid arguments (missing or malformed module) 2ms
+ ✓ src/__tests__/p4-5s1-browser-candidates.test.ts > P4.5-S1: Preflight browser, Module Candidates, and Session Plan > C4: qap_session_plan bloquea si candidato tiene ruta null con ejemplo generico fijo (/catalog) nunca derivado del nombre 478ms
+ ✓ src/__tests__/test-handler.test.ts > VNEXT-014-D preflight — execution evidence integrity > D-06: rejects summary totals that disagree with executed cases 474ms
+ ✓ src/__tests__/plan-handler.test.ts > PlanHandler Real Declarative Implementation (VNEXT-014-B) > rejects unauthorized external targetPath outside authorized projectRoots 53ms
+ ✓ src/__tests__/plan-handler.test.ts > PlanHandler Real Declarative Implementation (VNEXT-014-B) > rejects targetPath containing directory traversal escapes 15ms
+ ✓ src/__tests__/plan-handler.test.ts > PlanHandler Real Declarative Implementation (VNEXT-014-B) > rejects symlinks and junctions inside project directory 49ms
+ ✓ src/__tests__/p4-5s1-browser-candidates.test.ts > P4.5-S1: Preflight browser, Module Candidates, and Session Plan > C6: qap_context_ingest sin candidatos cuando hay flujos criticos genera paso trabajo 424ms
+ ✓ src/__tests__/plan-handler.test.ts > PlanHandler Real Declarative Implementation (VNEXT-014-B) > returns blocked status if target module is not registered in .qa/modules/ 45ms
+ ✓ src/__tests__/test-handler.test.ts > VNEXT-014-D preflight — execution evidence integrity > D-07: a critical runner error persists not_run evidence without reporting MCP success 484ms
+ ✓ src/__tests__/plan-handler.test.ts > PlanHandler Real Declarative Implementation (VNEXT-014-B) > identifies and preserves manually edited cases with UpdateGuard 187ms
+ ✓ src/__tests__/p3-verification.test.ts > P3 Suite de Verificación MCP (T3 - T15) > T13: Dos llamadas concurrentes a qap_rules_set sin pérdida de actualización 998ms
+ ✓ src/__tests__/plan-handler.test.ts > PlanHandler Real Declarative Implementation (VNEXT-014-B) > integrates completely with createMcpServer, exposes exactly 18 tools and dispatches qap_plan cleanly 510ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) > VNEXT-014-C01 Knowledge fence contention > returns a specific blocked result while another process holds the fence, then retries with the same durable authority 3655ms
+ ✓ src/__tests__/plan-handler.test.ts > PlanHandler Real Declarative Implementation (VNEXT-014-B) > never synthesizes fake test cases or relies on fallback defaultPlan 135ms
+ ✓ src/__tests__/p4-5s1-browser-candidates.test.ts > P4.5-S1: Preflight browser, Module Candidates, and Session Plan > C7: pregunta de alcance sin candidatos o sin front es byte a byte identica a la original 774ms
+stderr | src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) > VNEXT-014-C01 Knowledge fence contention > does not turn unknown acquisition failures or in-fence CONFLICTs into normal blocks
+[QAP MCP] tool_execution_failed {
+  error_id: 'b58c7b36-f7b1-4fcb-9336-c2a5c7b232b7',
+  category: 'unexpected_error'
+}
+
+ ✓ src/__tests__/p4-5s1-browser-candidates.test.ts > P4.5-S1: Preflight browser, Module Candidates, and Session Plan > D5: comando de instalacion consistente en preflight, qap_init, qap_status y checkPlaywrightBrowser 268ms
+ ✓ src/__tests__/durable-interview.test.ts > R4 encrypted durable interview state > SQLite rolls back a writer process that exits before COMMIT 1549ms
+ ✓ src/__tests__/durable-interview.test.ts > R4 encrypted durable interview state > terminates Node processes between real MCP SDK operations and reopens both physical stores 36000ms
+ ✓ src/__tests__/plan-handler.test.ts > PlanHandler Real Declarative Implementation (VNEXT-014-B) > detects modifications in YAML steps and dependencies post-plan generation (FAIL BEFORE / PASS AFTER) 464ms
+ × src/__tests__/p4-5a2-canonical-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C10: Detección y advertencia de extracción vacía > C10-b: página con al menos un elemento interactivo no genera advertencia extraccion_vacia 6795ms
+   → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ✓ src/__tests__/plan-handler.test.ts > PlanHandler Real Declarative Implementation (VNEXT-014-B) > enforces authorized write mode and rejects directories with hardlinks in .qa (FAIL BEFORE / PASS AFTER) 182ms
+stderr | src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) > VNEXT-014-C01 Knowledge fence contention > does not turn unknown acquisition failures or in-fence CONFLICTs into normal blocks
+[QAP MCP] tool_execution_failed {
+  error_id: '033b6847-5980-4f65-9960-50bca5450cc6',
+  category: 'unexpected_error'
+}
+
+ ✓ src/__tests__/p4-3-investigate-before-ask.test.ts > P4.3 Suite: Investigar antes de preguntar, Auto-ingesta, Confirmación única y Payload autosuficiente > Criterio 3: Contrato MCP P4.3 > 3.1: qap_context_set con "PRD_diff.md" escrito libre ingiere en la misma llamada y la siguiente acción NO es abierta 1031ms
+ ✓ src/__tests__/p4-2-pregunta-contract.test.ts > P4.2 Suite: Contrato Canónico de Pregunta y Verificación E2E (Criterio 4 y Criterio 6) > Criterio 4.1: qap_init en workspace con README devuelve pregunta fuente_de_verdad con ese README como opcion 283ms
+ ✓ src/__tests__/plan-handler.test.ts > PlanHandler Real Declarative Implementation (VNEXT-014-B) > handles persistence write failure with sanitized error and no partial files (FAIL BEFORE / PASS AFTER) 153ms
+ ✓ src/__tests__/plan-handler.test.ts > PlanHandler Real Declarative Implementation (VNEXT-014-B) > classifies historical plans without cases_fingerprint as unverifiable without deleting them (FAIL BEFORE / PASS AFTER) 65ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) > VNEXT-014-C01 Knowledge fence contention > does not turn unknown acquisition failures or in-fence CONFLICTs into normal blocks 956ms
+ ✓ src/__tests__/plan-handler.test.ts > PlanHandler Real Declarative Implementation (VNEXT-014-B) > preserves manually edited test cases bit-for-bit on disk without modifying custom content (FAIL BEFORE / PASS AFTER) 203ms
+ ✓ src/__tests__/p4-3-investigate-before-ask.test.ts > P4.3 Suite: Investigar antes de preguntar, Auto-ingesta, Confirmación única y Payload autosuficiente > Criterio 3: Contrato MCP P4.3 > 3.2: con documento sin objetivo extraíble la siguiente_accion es trabajo 503ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013 real MCP black-box acquisition > keeps host configuration isolated from later caller mutations 7276ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013 real MCP black-box acquisition > rejects an already cancelled dispatcher invocation before crawler start 88ms
+ ✓ src/__tests__/p4-5s1-browser-candidates.test.ts > P4.5-S1: Preflight browser, Module Candidates, and Session Plan > C5: scoping con 3 y con 9 candidatos (máximo 7 por tarjeta + Otro módulo), sin recomendada en opciones y pasa guardia de emisión 855ms
+ ✓ src/__tests__/plan-handler.test.ts > R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1) > R1.1: rejects truncated or altered matrix.cases even when test cases on disk are intact (FAIL BEFORE / PASS AFTER) 316ms
+ ✓ src/__tests__/plan-handler.test.ts > R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1) > R1.2: rejects inverted DAG dependencies in matrix.cases (FAIL BEFORE / PASS AFTER) 316ms
+ ✓ src/__tests__/p4-3-investigate-before-ask.test.ts > P4.3 Suite: Investigar antes de preguntar, Auto-ingesta, Confirmación única y Payload autosuficiente > Criterio 3: Contrato MCP P4.3 > 3.3: propuesta del agente se guarda como inferred con evidence y no avanza la fase 540ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) > VNEXT-014 rescue: controlled A closed + B waived produces distinct canonical report sections 883ms
+ ✓ src/__tests__/p4-2-pregunta-contract.test.ts > P4.2 Suite: Contrato Canónico de Pregunta y Verificación E2E (Criterio 4 y Criterio 6) > Criterio 4.2: qap_status a mitad de ONBOARDING devuelve la misma pregunta que ya estaba pendiente (reanudación) 1393ms
+ ✓ src/__tests__/p4-5s1-browser-candidates.test.ts > P4.5-S1: Preflight browser, Module Candidates, and Session Plan > C6: qap_session_plan asigna high a los 3 primeros y medium al resto, con soporte retrocompatible para modules 1452ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) > qap_status reports honest canonical coverage and closure indicators without false 100% 592ms
+ ✓ src/__tests__/plan-handler.test.ts > R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1) > R1.3: accepts valid alternate topological orders without arbitrary positional rejection (FAIL BEFORE / PASS AFTER) 694ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 6: Historical Regressions & Defensive Invariants (R01–R60) > R02 / R60: Re-evaluating coverage is strictly read-only and never implicitly advances lifecycle 238ms
+ ✓ src/__tests__/p4-3-investigate-before-ask.test.ts > P4.3 Suite: Investigar antes de preguntar, Auto-ingesta, Confirmación única y Payload autosuficiente > Criterio 3: Contrato MCP P4.3 > 3.4: la ingesta no degrada source user 540ms
+ ✓ src/__tests__/guidance.test.ts > Módulo de Guía Conversacional por Fase (E6 - P4.2) > ONBOARDING: debe generar tipo "entrevista" con UNA pregunta estructurada pendiente y sin opciones top-level 14ms
+ ✓ src/__tests__/guidance.test.ts > Módulo de Guía Conversacional por Fase (E6 - P4.2) > ONBOARDING: debe entregar la siguiente pregunta pendiente en orden canónico 4ms
+ ✓ src/__tests__/guidance.test.ts > Módulo de Guía Conversacional por Fase (E6 - P4.2) > SCOPING: debe generar tipo "decision" requiriendo qap_session_plan y proponiendo sugerencias en pregunta.opciones 3ms
+ ✓ src/__tests__/guidance.test.ts > Módulo de Guía Conversacional por Fase (E6 - P4.2) > WORKING: debe indicar el siguiente módulo en estado planned con tool qap_discover 2ms
+ ✓ src/__tests__/guidance.test.ts > Módulo de Guía Conversacional por Fase (E6 - P4.2) > WORKING: debe priorizar módulo en interviewing con tipo entrevista_vista y tool qap_rules_set 2ms
+ ✓ src/__tests__/guidance.test.ts > Módulo de Guía Conversacional por Fase (E6 - P4.2) > WORKING: debe dirigir a qap_session_close con tipo decision si todos los módulos están listos 2ms
+ ✓ src/__tests__/guidance.test.ts > Módulo de Guía Conversacional por Fase (E6 - P4.2) > WRAP_UP: debe ofrecer decisión con opciones de Knowledge Graph y nueva sesión 2ms
+ ✓ src/__tests__/plan-handler.test.ts > R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1) > R1.4: rejects environment mismatch between plan and requested environment (FAIL BEFORE / PASS AFTER) 303ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 6: Historical Regressions & Defensive Invariants (R01–R60) > R03: Canonical closure route catches errors cleanly and operates on SQLite/host gateway without ENOENT 187ms
+ ✓ src/__tests__/dispatcher.test.ts > ToolDispatcher registration > preserves explicit insertion order and isolates instances 18ms
+ ✓ src/__tests__/dispatcher.test.ts > ToolDispatcher registration > rejects invalid name "" 5ms
+ ✓ src/__tests__/dispatcher.test.ts > ToolDispatcher registration > rejects invalid name " " 2ms
+ ✓ src/__tests__/dispatcher.test.ts > ToolDispatcher registration > rejects invalid name "a b" 1ms
+ ✓ src/__tests__/dispatcher.test.ts > ToolDispatcher registration > rejects invalid name "../path" 1ms
+ ✓ src/__tests__/dispatcher.test.ts > ToolDispatcher registration > rejects invalid name "a/b" 1ms
+ ✓ src/__tests__/dispatcher.test.ts > ToolDispatcher registration > rejects invalid name "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" 1ms
+ ✓ src/__tests__/dispatcher.test.ts > ToolDispatcher registration > accepts valid name qap.status 2ms
+ ✓ src/__tests__/dispatcher.test.ts > ToolDispatcher registration > accepts valid name qap-status 2ms
+ ✓ src/__tests__/dispatcher.test.ts > ToolDispatcher registration > accepts valid name qap_status 2ms
+ ✓ src/__tests__/dispatcher.test.ts > ToolDispatcher registration > accepts valid name A1 1ms
+ ✓ src/__tests__/dispatcher.test.ts > ToolDispatcher registration > rejects duplicates and legacy collisions without executing handlers 8ms
+ ✓ src/__tests__/dispatcher.test.ts > ToolDispatcher registration > rejects malformed contracts 2ms
+ ✓ src/__tests__/dispatcher.test.ts > ToolDispatcher registration > rejects malformed contracts 3ms
+ ✓ src/__tests__/dispatcher.test.ts > ToolDispatcher registration > rejects malformed contracts 1ms
+ ✓ src/__tests__/dispatcher.test.ts > ToolDispatcher registration > rejects malformed contracts 1ms
+ ✓ src/__tests__/dispatcher.test.ts > ToolDispatcher registration > rejects malformed contracts 1ms
+ ✓ src/__tests__/dispatcher.test.ts > ToolDispatcher registration > rejects malformed contracts 1ms
+ ✓ src/__tests__/dispatcher.test.ts > ToolDispatcher registration > requires sealing and rejects registration during execution 31ms
+ ✓ src/__tests__/dispatcher.test.ts > ToolDispatcher registration > captures metadata and callbacks independently of caller mutation 2ms
+ ✓ src/__tests__/dispatcher.test.ts > ToolDispatcher execution > awaits async execution, passes context and isolates input mutation 18ms
+ ✓ src/__tests__/plan-handler.test.ts > R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1) > R1.5: rejects module mismatch when plan belongs to another module (FAIL BEFORE / PASS AFTER) 352ms
+ ✓ src/__tests__/dispatcher.test.ts > ToolDispatcher execution > rejects malformed invocations without execution 2ms
+ ✓ src/__tests__/dispatcher.test.ts > ToolDispatcher execution > rejects malformed invocations without execution 2ms
+ ✓ src/__tests__/dispatcher.test.ts > ToolDispatcher execution > rejects malformed invocations without execution 3ms
+ ✓ src/__tests__/dispatcher.test.ts > ToolDispatcher execution > rejects malformed invocations without execution 3ms
+ ✓ src/__tests__/dispatcher.test.ts > ToolDispatcher execution > rejects malformed invocations without execution 1ms
+ ✓ src/__tests__/dispatcher.test.ts > ToolDispatcher execution > rejects malformed invocations without execution 2ms
+ ✓ src/__tests__/dispatcher.test.ts > ToolDispatcher execution > does exact lookup, including prototype-looking names 6ms
+ ✓ src/__tests__/dispatcher.test.ts > ToolDispatcher execution > allows omitted arguments without inventing domain defaults 5ms
+ ✓ src/__tests__/dispatcher.test.ts > ToolDispatcher execution > supports specific validators before execution 2ms
+ ✓ src/__tests__/dispatcher.test.ts > ToolDispatcher execution > preserves intentional MCP error results 2ms
+ ✓ src/__tests__/dispatcher.test.ts > ToolDispatcher execution > sanitizes thrown exceptions 6ms
+ ✓ src/__tests__/dispatcher.test.ts > ToolDispatcher execution > sanitizes thrown exceptions 2ms
+ ✓ src/__tests__/dispatcher.test.ts > ToolDispatcher execution > sanitizes thrown exceptions 1ms
+ ✓ src/__tests__/dispatcher.test.ts > ToolDispatcher execution > returns fixed structured errors even if exception message is modified 1ms
+ ✓ src/__tests__/dispatcher.test.ts > ToolDispatcher execution > sanitizes invalid results and validator exceptions 4ms
+ ✓ src/__tests__/dispatcher.test.ts > ToolDispatcher execution > does not invoke handlers with an already cancelled context 7ms
+ ✓ src/__tests__/dispatcher.test.ts > ToolDispatcher execution > prevents registry mutation from inside an executing handler 1ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 6: Historical Regressions & Defensive Invariants (R01–R60) > R11 / R27 / R31: Closing with gaps requires substantive justifications and formal host decisions 105ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > Suite 6: Historical Regressions & Defensive Invariants (R01–R60) > Security Invariant: Protected file packages/playwright-runner/.qa/cache/sessions/admin-user.json is never inspected or touched 1ms
+ ✓ src/__tests__/plan-handler.test.ts > R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1) > R1.6: distinguishes corrupt JSON from missing plan and rejects missing matrix (FAIL BEFORE / PASS AFTER) 163ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > The 4 Crash Recovery Scenarios (spawnSync Hard Exits) > Scenario 1: Crash before persisting decision leaves storage completely clean and recoverable 393ms
+ × src/__tests__/lifecycle-v3-e2e.test.ts > Lifecycle V3 E2E & Verification Suite (E0 - E3) > E3: canExitWorking, qap_session_close, reporte de brechas y nueva sesión desde WRAP_UP 5284ms
+   → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > The 4 Crash Recovery Scenarios (spawnSync Hard Exits) > Scenario 2: Crash after closureStore commits decision but before IKnowledgeStore or lifecycle.json updates recovers via self-healing reconciler 163ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013 real MCP black-box acquisition > propagates in-flight dispatcher cancellation to transport and waits for cleanup 2295ms
+ ✓ src/__tests__/plan-handler.test.ts > R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1) > R1.7: rejects unknown or incompatible fingerprint and schema versions (FAIL BEFORE / PASS AFTER) 415ms
+ ✓ src/__tests__/p4-3-investigate-before-ask.test.ts > P4.3 Suite: Investigar antes de preguntar, Auto-ingesta, Confirmación única y Payload autosuficiente > Criterio 3: Contrato MCP P4.3 > 3.5: confirmación única (confirmo todo / corregir con seguimiento) y render_texto presente y consistente 1473ms
+ ✓ src/__tests__/p4-3-investigate-before-ask.test.ts > P4.3 Suite: Investigar antes de preguntar, Auto-ingesta, Confirmación única y Payload autosuficiente > Criterio 4: Extracción determinista sobre PRD en español con pipeline de etapas > reporta literal el resultado de la extracción heurística parsePrdContent 21ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013 real MCP black-box acquisition > sanitizes host failures and emits no secret-bearing console logs 121ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > The 4 Crash Recovery Scenarios (spawnSync Hard Exits) > Scenario 3: Crash after IKnowledgeStore receipt commit returns idempotent response on retry 336ms
+ ✓ src/__tests__/plan-handler.test.ts > R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1) > R1.8: rejects plan with missing cases_fingerprint_version (FAIL BEFORE / PASS AFTER) 269ms
+ ✓ src/__tests__/canonical-coverage.test.ts > VNEXT-013-R5 Comprehensive Physical Test Matrix > The 4 Crash Recovery Scenarios (spawnSync Hard Exits) > Scenario 4: Two concurrent closures cleanly serialize and prevent double consumption of decision 428ms
+ ✓ src/__tests__/plan-handler.test.ts > R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1) > R1.9: rejects plan with missing checksum (FAIL BEFORE / PASS AFTER) 304ms
+ ✓ src/__tests__/p4-2-pregunta-contract.test.ts > P4.2 Suite: Contrato Canónico de Pregunta y Verificación E2E (Criterio 4 y Criterio 6) > Criterio 4.3: Progresión canónica fuente_de_verdad -> objetivo -> roles -> flujos_criticos -> SCOPING 2531ms
+ ✓ src/__tests__/p4-2-pregunta-contract.test.ts > P4.2 Suite: Contrato Canónico de Pregunta y Verificación E2E (Criterio 4 y Criterio 6) > Criterio 4.5: Test de inyección: package.json description y nombre de archivo con instrucciones aparecen sanitizados 121ms
+ ✓ src/__tests__/plan-handler.test.ts > R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1) > R1.10: rejects plan with missing schema version (FAIL BEFORE / PASS AFTER) 154ms
+ ✓ src/__tests__/report-handler.test.ts > VNEXT-014-D declarative ReportHandler — persisted evidence only > D-R01: blocks reporting when no physical execution record exists 503ms
+ ✓ src/__tests__/plan-handler.test.ts > R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1) > R1.11: handles listTestCases failure as unverifiable and never as success (FAIL BEFORE / PASS AFTER) 70ms
+ ✓ src/__tests__/report-handler.test.ts > VNEXT-014-D declarative ReportHandler — persisted evidence only > D-R02: creates JSON from a persisted schema-valid execution unchanged 185ms
+ ✓ src/__tests__/report-handler.test.ts > VNEXT-014-D declarative ReportHandler — persisted evidence only > D-R03: refuses inconsistent totals and does not create a report 222ms
+ ✓ src/__tests__/p4-3-investigate-before-ask.test.ts > P4.3 Suite: Investigar antes de preguntar, Auto-ingesta, Confirmación única y Payload autosuficiente > Criterio 5: Flujo E2E ONBOARDING determinista > flujo completo ONBOARDING sin ingest por iniciativa propia; falla si se emite pregunta abierta con dato existente 721ms
+ ✓ src/__tests__/plan-handler.test.ts > R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1) > R1.12: returns verified plan and cases snapshot for TOCTOU prevention (FAIL BEFORE / PASS AFTER) 777ms
+ ✓ src/__tests__/host-composition.test.ts > VNEXT-014 host-owned Stdio composition > keeps legacy-only startup when no manifest is configured 9ms
+ ✓ src/__tests__/host-composition.test.ts > VNEXT-014 host-owned Stdio composition > rejects an explicitly configured nonexistent manifest rather than falling back 10ms
+ ✓ src/__tests__/report-handler.test.ts > VNEXT-014-D declarative ReportHandler — persisted evidence only > D-R04: latest selection respects module filter and real finished timestamps 571ms
+ ✓ src/__tests__/host-composition.test.ts > VNEXT-014 host-owned Stdio composition > opens existing canonical stores, resolves host-declared revisions and does not forge gateways 1753ms
+ ✓ src/__tests__/report-handler.test.ts > VNEXT-014-D declarative ReportHandler — persisted evidence only > D-R05: blocks cross-module requests and path traversal identifiers 136ms
+ ✓ src/__tests__/dispatcher-integration.test.ts > real MCP client/server via linked transports > E01: close aborts and drains in-flight work before the host can remove its locked root 402ms
+ ✓ src/__tests__/dispatcher-integration.test.ts > real MCP client/server via linked transports > lists and invokes an injected declarative tool exactly once 55ms
+ ✓ src/__tests__/e0-investigation.test.ts > E0 / B10 Pruebas de regresión sin impresión > E0a: escaneo respeta targetPath y emite advertencia de subcarpeta si no hay docs 749ms
+ ✓ src/__tests__/report-handler.test.ts > VNEXT-014-D declarative ReportHandler — persisted evidence only > D-R06: blocks screenshots pointing outside the approved evidence directory 230ms
+ ✓ src/__tests__/host-composition.test.ts > VNEXT-014 host-owned Stdio composition > RES-CODEX-A03 rejects empty existing Knowledge without provisioning or migration 304ms
+ ✓ src/__tests__/report-handler.test.ts > VNEXT-014-D declarative ReportHandler — persisted evidence only > D-R07: renders all four formats from one persisted partial execution 292ms
+ ✓ src/__tests__/p4-3-investigate-before-ask.test.ts > P4.3 Suite: Investigar antes de preguntar, Auto-ingesta, Confirmación única y Payload autosuficiente > Criterio 5: Flujo E2E ONBOARDING determinista > valida respuestas y payloads de regresión P4.3 1819ms
+ ✓ src/__tests__/report-handler.test.ts > VNEXT-014-D declarative ReportHandler — persisted evidence only > D-R08: rejects false PASS from a zero-case execution 94ms
+ ✓ src/__tests__/report-handler.test.ts > VNEXT-014-D declarative ReportHandler — persisted evidence only > D-R09: rejects a contradictory partial status with no failed, skipped or blocked cases 69ms
+ ✓ src/__tests__/host-composition.test.ts > VNEXT-014 host-owned Stdio composition > rejects missing keys and stale pinned revisions without silently adopting a store 249ms
+ ✓ src/__tests__/dispatcher-integration.test.ts > real MCP client/server via linked transports > isolates registries and preserves unknown-tool legacy errors 43ms
+ ✓ src/__tests__/dispatcher-integration.test.ts > real MCP client/server via linked transports > rejects legacy collisions and duplicate injected names at startup 12ms
+ ✓ src/__tests__/dispatcher-integration.test.ts > real MCP client/server via linked transports > preserves 16 definitions, order, prompts and legacy rules schema; adds explicit canonical interview operations 47ms
+ ✓ src/__tests__/dispatcher-integration.test.ts > real MCP client/server via linked transports > runs informative legacy status on an empty disposable fixture 450ms
+ ✓ src/__tests__/dispatcher-integration.test.ts > real MCP client/server via linked transports > sanitizes declarative exceptions through the real SDK 10ms
+ ✓ src/__tests__/dispatcher-integration.test.ts > real MCP client/server via linked transports > demonstrates that low-level SDK does not validate inputSchema 10ms
+ ✓ src/__tests__/dispatcher-integration.test.ts > real MCP client/server via linked transports > applies a handler validator through MCP before execution 14ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013 real MCP black-box acquisition > delegates page denial and budgets to the real crawler 2472ms
+ ✓ src/__tests__/report-handler.test.ts > VNEXT-014-D declarative ReportHandler — persisted evidence only > D-R10: rejects duplicate test identifiers without promoting ambiguous coverage 76ms
+ ✓ src/__tests__/e0-investigation.test.ts > E0 / B10 Pruebas de regresión sin impresión > E0b: qap_context_ingest no degrada source_of_truth ni contamina notes, registra ingest.analyzed_by 554ms
+ ✓ src/__tests__/e0-investigation.test.ts > E0 / B10 Pruebas de regresión sin impresión > E0c: sin evidencia detectedService es undefined y baseUrl no se inventa 121ms
+ ✓ src/__tests__/report-handler.test.ts > VNEXT-014-D declarative ReportHandler — persisted evidence only > D-R11: exposes exactly 18 tools and invokes the migrated report via MCP transport 192ms
+ ✓ src/__tests__/report-handler.test.ts > VNEXT-014-D declarative ReportHandler — persisted evidence only > D-R12: an initialized but empty executions directory returns a compatible blocked reason 19ms
+ ✓ src/__tests__/host-composition.test.ts > VNEXT-014 host-owned Stdio composition > only wires explicitly host-approved pinned Discovery consent; rejects missing acknowledgement 351ms
+ ✓ src/__tests__/host-composition.test.ts > VNEXT-014 host-owned Stdio composition > fails closed when canonical modules have no durable closure store 271ms
+ ✓ src/__tests__/e0-investigation.test.ts > E0 / B10 Pruebas de regresión sin impresión > E0d / B10: objetivo largo se trunca a máx 280 con elipsis sin cortar palabras en preguntas, pero se guarda completo en context 267ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013 real MCP black-box acquisition > delegates bytes denial and budgets to the real crawler 1289ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013 real MCP black-box acquisition > delegates browser denial and budgets to the real crawler 72ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013 real MCP black-box acquisition > delegates redirect denial and budgets to the real crawler 993ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013 real MCP black-box acquisition > delegates private denial and budgets to the real crawler 871ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013 real MCP black-box acquisition > delegates dns denial and budgets to the real crawler 765ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013 real MCP black-box acquisition > reports atomic persistence failure without fabricated persisted findings 1014ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013-R2 canonical execution scope bridge > R4: real crawler to canonical interview, independent review, secure waiver and WRAP_UP through MCP 1753ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013-R2 canonical execution scope bridge > rejects unsafe identity: missing 50ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013-R2 canonical execution scope bridge > rejects unsafe identity: wrong-id 43ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013-R2 canonical execution scope bridge > rejects unsafe identity: wrong-key 33ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013-R2 canonical execution scope bridge > rejects unsafe identity: inactive 33ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013-R2 canonical execution scope bridge > rejects unsafe identity: ambiguous 36ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013-R2 canonical execution scope bridge > rejects unsafe identity: application 34ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013-R2 canonical execution scope bridge > rejects unsafe identity: environment 35ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013-R2 canonical execution scope bridge > rejects unsafe identity: revision 46ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013-R2 canonical execution scope bridge > rejects unsafe identity: unplanned 34ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013-R2 canonical execution scope bridge > rejects unsafe identity: id-key-conflict 62ms
+ ✓ src/__tests__/p4-4-auth-lifecycle.test.ts > P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) > 11. Test de no filtración: contraseña centinela NO aparece en respuestas, archivos .qa/, SQLite ni logs 22308ms
+ ✓ src/__tests__/p4-4-auth-lifecycle.test.ts > P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) > 12. qap_session_plan: reordena módulos de acceso al inicio del plan de forma determinista y persiste acceso: true 71ms
+ ✓ src/__tests__/p4-4-auth-lifecycle.test.ts > P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) > 13. Validación integral de preguntas (C1 & C2): todas las preguntas de SCOPING y blocked son válidas, sin formato decision, sin "Deseas" y sin opciones únicas 51ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013-R2 canonical execution scope bridge > persists real MCP/Chrome/MPA associations, reopens SQLite, projects status, and preserves epistemic planes 1156ms
+stdout | src/__tests__/p4-4-auth-lifecycle.test.ts > P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) > 14. Timeout de handoff (C4): qap_auth_add devuelve blocked con razon handoff_timeout y reintento idempotente
+Completa el login manualmente en la ventana abierta. Esperando hasta 100ms...
+
+ ✓ src/__tests__/p4-4-auth-lifecycle.test.ts > P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) > 14. Timeout de handoff (C4): qap_auth_add devuelve blocked con razon handoff_timeout y reintento idempotente 960ms
+ × src/__tests__/p4-4-auth-lifecycle.test.ts > P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) > 15. Guard de cliente asíncrono lento (~1200ms) en qap_discover: responde blocked auth_required y cero escrituras en .qa/modules (C3c) 78ms
+   → expected undefined to be 'auth_required' // Object.is equality
+ × src/__tests__/p4-5a2-canonical-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C10: Detección y advertencia de extracción vacía > C10-c: la advertencia extraccion_vacia es agnóstica de la aplicación 15013ms
+   → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   → Hook timed out in 10000ms.
+If this is a long-running hook, pass a timeout value as the last argument or configure it globally with "hookTimeout".
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013-R2 canonical execution scope bridge > recovers after physical association rollback without reacquisition or history changes; rejects shortened and mixed receipts 2154ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013-R2 canonical execution scope bridge > two physical connections race with CAS; retry is idempotent and context changes block recovery 1114ms
+ ✓ src/__tests__/p4-5a2-canonical-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C3: Transliteración NFD de slugs y prevención de módulos fuera del plan > C1-c: módulo con tilde preserva nombre en lifecycle, crea directorio y normaliza pending_questions con transliteración NFD 2184ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013-R2 canonical execution scope bridge > isolates same planned names across physical projects and rejects another project receipt 93ms
+ ✓ src/__tests__/p4-5a2-canonical-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C3: Transliteración NFD de slugs y prevención de módulos fuera del plan > C2-seguimiento: selección de "Corregir" emite pregunta de seguimiento y no persiste regla espuria en rules.yaml 445ms
+ × src/__tests__/lifecycle-v3-e2e.test.ts > Lifecycle V3 E2E & Verification Suite (E0 - E3) > Criterio 9: E2E completo: init -> onboarding -> scoping -> working -> discover A -> rules_set parcial -> status (reanuda) -> rules_set completa -> module_close A -> discover B -> module_close waive B -> session_close -> status WRAP_UP -> session_plan nueva sesión 15105ms
+   → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   → Hook timed out in 10000ms.
+If this is a long-running hook, pass a timeout value as the last argument or configure it globally with "hookTimeout".
+ ✓ src/__tests__/lifecycle-v3-e2e.test.ts > Lifecycle V3 E2E & Verification Suite (E0 - E3) > E0 authorization: removing host consent blocks navigation and leaves Knowledge, drafts and lifecycle intact 371ms
+ ✓ src/__tests__/discovery-handler.test.ts > VNEXT-013-R2 canonical execution scope bridge > detects context changed at the edge commit boundary without deleting already acquired facts 1088ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 38 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/lifecycle-v3-e2e.test.ts > Lifecycle V3 E2E & Verification Suite (E0 - E3) > E0a: qap_status en WORKING para módulo con cobertura incompleta devuelve module, view y preguntas no vacías idénticas a qap_rules_set
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/__tests__/lifecycle-v3-e2e.test.ts:20:3
+     18|
+     19|   // Historical identities remain stable; equivalence is recorded in M…
+     20|   it('E0a: qap_status en WORKING para módulo con cobertura incompleta …
+       |   ^
+     21|     await f.working(); await f.discover();
+     22|     expect((await f.knowledge.query(f.scope.applicationId, 'observatio…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/46]⎯
+
+ FAIL  src/__tests__/lifecycle-v3-e2e.test.ts > Lifecycle V3 E2E & Verification Suite (E0 - E3) > E0a: qap_status en WORKING para módulo con cobertura incompleta devuelve module, view y preguntas no vacías idénticas a qap_rules_set
+ FAIL  src/__tests__/lifecycle-v3-e2e.test.ts > Lifecycle V3 E2E & Verification Suite (E0 - E3) > Criterio 9: E2E completo: init -> onboarding -> scoping -> working -> discover A -> rules_set parcial -> status (reanuda) -> rules_set completa -> module_close A -> discover B -> module_close waive B -> session_close -> status WRAP_UP -> session_plan nueva sesión
+Error: Hook timed out in 10000ms.
+If this is a long-running hook, pass a timeout value as the last argument or configure it globally with "hookTimeout".
+ ❯ src/__tests__/lifecycle-v3-e2e.test.ts:14:3
+     12|   const cleanup: Array<() => Promise<void>> = [];
+     13|   beforeEach(async () => { f = await createLifecycleFixture(close => c…
+     14|   afterEach(async () => {
+       |   ^
+     15|     const results = await Promise.allSettled(cleanup.splice(0).map(clo…
+     16|     for (const result of results) if (result.status === 'rejected') th…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/46]⎯
+
+ FAIL  src/__tests__/lifecycle-v3-e2e.test.ts > Lifecycle V3 E2E & Verification Suite (E0 - E3) > E0b: contrato estricto de opciones y preguntas en todo el flujo
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/__tests__/lifecycle-v3-e2e.test.ts:52:3
+     50|   });
+     51|
+     52|   it('E0b: contrato estricto de opciones y preguntas en todo el flujo'…
+       |   ^
+     53|     const init = await f.working();
+     54|     expect(init).toMatchObject({ status: 'success', siguiente_accion: …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/46]⎯
+
+ FAIL  src/__tests__/lifecycle-v3-e2e.test.ts > Lifecycle V3 E2E & Verification Suite (E0 - E3) > E1: regresión consolidated -> interviewing tras re-discover y política de waivers
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/__tests__/lifecycle-v3-e2e.test.ts:92:3
+     90|   });
+     91|
+     92|   it('E1: regresión consolidated -> interviewing tras re-discover y po…
+       |   ^
+     93|     await f.working(); await f.discover();
+     94|     const confirmed = await f.ready();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/46]⎯
+
+ FAIL  src/__tests__/lifecycle-v3-e2e.test.ts > Lifecycle V3 E2E & Verification Suite (E0 - E3) > E2: qap_module_close validaciones, compuertas y transiciones
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/__tests__/lifecycle-v3-e2e.test.ts:152:3
+    150|   });
+    151|
+    152|   it('E2: qap_module_close validaciones, compuertas y transiciones', a…
+       |   ^
+    153|     await f.working(['catalog', 'orders']);
+    154|     const initial = f.durable();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/46]⎯
+
+ FAIL  src/__tests__/lifecycle-v3-e2e.test.ts > Lifecycle V3 E2E & Verification Suite (E0 - E3) > E3: canExitWorking, qap_session_close, reporte de brechas y nueva sesión desde WRAP_UP
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/__tests__/lifecycle-v3-e2e.test.ts:178:3
+    176|   });
+    177|
+    178|   it('E3: canExitWorking, qap_session_close, reporte de brechas y nuev…
+       |   ^
+    179|     await f.working(['catalog', 'orders']);
+    180|     expect(await f.call('qap_session_close')).toMatchObject({ status: …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/46]⎯
+
+ FAIL  src/__tests__/lifecycle-v3-e2e.test.ts > Lifecycle V3 E2E & Verification Suite (E0 - E3) > Criterio 9: E2E completo: init -> onboarding -> scoping -> working -> discover A -> rules_set parcial -> status (reanuda) -> rules_set completa -> module_close A -> discover B -> module_close waive B -> session_close -> status WRAP_UP -> session_plan nueva sesión
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/__tests__/lifecycle-v3-e2e.test.ts:217:3
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/46]⎯
+
+ FAIL  src/__tests__/p3-canonical-discovery.test.ts > P3 Suite de Verificación MCP (T3 - T15) > T6: qap_discover éxito: no contiene "Descubrir otro módulo", "pregunta_doc" ni "opciones_doc"; siguiente_accion tipo entrevista_vista (<= 5 preguntas) con tool qap_rules_set, categorias_aplicables y rutas_detectadas_fuera_del_plan
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/__tests__/p3-canonical-discovery.test.ts:22:3
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/46]⎯
+
+ FAIL  src/__tests__/p3-canonical-discovery.test.ts > P3 Suite de Verificación MCP (T3 - T15) > T6: qap_discover éxito: no contiene "Descubrir otro módulo", "pregunta_doc" ni "opciones_doc"; siguiente_accion tipo entrevista_vista (<= 5 preguntas) con tool qap_rules_set, categorias_aplicables y rutas_detectadas_fuera_del_plan
+Error: Hook timed out in 10000ms.
+If this is a long-running hook, pass a timeout value as the last argument or configure it globally with "hookTimeout".
+ ❯ src/__tests__/p3-canonical-discovery.test.ts:17:3
+     15|   const cleanup: Array<() => Promise<void>> = [];
+     16|   beforeEach(async () => { f = await createLifecycleFixture(close => c…
+     17|   afterEach(async () => {
+       |   ^
+     18|     const results = await Promise.allSettled(cleanup.splice(0).map(clo…
+     19|     for (const item of results) if (item.status === 'rejected') throw …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/46]⎯
+
+ FAIL  src/__tests__/p3-canonical-discovery.test.ts > P3 Suite de Verificación MCP (T3 - T15) > T7: rules.yaml tras discover: reglas inferred/dom con ids deterministas; re-discover idempotente (sin duplicados, reglas confirmadas intactas)
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/__tests__/p3-canonical-discovery.test.ts:45:3
+     43|   });
+     44|
+     45|   it('T7: rules.yaml tras discover: reglas inferred/dom con ids determ…
+       |   ^
+     46|     await f.working();
+     47|     await f.discover();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/46]⎯
+
+ FAIL  src/__tests__/p3-canonical-discovery.test.ts > P3 Suite de Verificación MCP (T3 - T15) > T14: qap_status WORKING: (a) observed con hipótesis reanuda entrevista; (b) interviewing incompleto reanuda; (c) planned elige high > medium > low luego orden; (d) todos completos tipo decision
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/__tests__/p3-canonical-discovery.test.ts:83:3
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/46]⎯
+
+ FAIL  src/__tests__/p3-canonical-discovery.test.ts > P3 Suite de Verificación MCP (T3 - T15) > T15: E2E: flujo de P2 hasta WORKING -> discover A -> rules_set parcial -> status (reanuda A) -> rules_set completa cobertura -> status (propone B) -> discover B; ninguna respuesta del flujo contiene texto del bucle
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/__tests__/p3-canonical-discovery.test.ts:144:3
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/46]⎯
+
+ FAIL  src/__tests__/p4-2-canonical-contract.test.ts > P4.2 Suite: Contrato Canónico de Pregunta y Verificación E2E (Criterio 4 y Criterio 6) > Criterio 4.4: Ninguna respuesta con siguiente_accion trae preguntas como cadenas ni pregunta aplanada
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/__tests__/p4-2-canonical-contract.test.ts:17:3
+     15|   });
+     16|
+     17|   it('Criterio 4.4: Ninguna respuesta con siguiente_accion trae pregun…
+       |   ^
+     18|     const responses = [];
+     19|     responses.push(await f.working());
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/46]⎯
+
+ FAIL  src/__tests__/p4-2-canonical-contract.test.ts > P4.2 Suite: Contrato Canónico de Pregunta y Verificación E2E (Criterio 4 y Criterio 6) > Criterio 4.4: Ninguna respuesta con siguiente_accion trae preguntas como cadenas ni pregunta aplanada
+Error: Hook timed out in 10000ms.
+If this is a long-running hook, pass a timeout value as the last argument or configure it globally with "hookTimeout".
+ ❯ src/__tests__/p4-2-canonical-contract.test.ts:12:3
+     10|   const cleanup: Array<() => Promise<void>> = [];
+     11|   beforeEach(async () => { f = await createLifecycleFixture(close => c…
+     12|   afterEach(async () => {
+       |   ^
+     13|     const closed = await Promise.allSettled(cleanup.splice(0).map(clos…
+     14|     for (const item of closed) if (item.status === 'rejected') throw i…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/46]⎯
+
+ FAIL  src/__tests__/p4-2-canonical-contract.test.ts > P4.2 Suite: Contrato Canónico de Pregunta y Verificación E2E (Criterio 4 y Criterio 6) > Criterio 6: E2E Completo donde TODA siguiente_accion de tipo entrevista, entrevista_vista o decision trae Pregunta válida
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/__tests__/p4-2-canonical-contract.test.ts:42:3
+     40|   });
+     41|
+     42|   it('Criterio 6: E2E Completo donde TODA siguiente_accion de tipo ent…
+       |   ^
+     43|     const init = await f.working(['catalog', 'orders']);
+     44|     expect(init.siguiente_accion.tipo).toBe('entrevista');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/46]⎯
+
+ FAIL  src/__tests__/p4-4-auth-lifecycle.test.ts > P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) > 1. qap_discover protegido sin perfil: blocked auth_required y cero escrituras en disco
+AssertionError: expected undefined to be 'auth_required' // Object.is equality
+
+- Expected:
+"auth_required"
+
++ Received:
+undefined
+
+ ❯ src/__tests__/p4-4-auth-lifecycle.test.ts:175:26
+    173|
+    174|     expect(parsed.status).toBe('blocked');
+    175|     expect(parsed.razon).toBe('auth_required');
+       |                          ^
+    176|     expect(parsed.page_kind).toBeNull();
+    177|     expect(parsed.observed).toBe(false);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/46]⎯
+
+ FAIL  src/__tests__/p4-4-auth-lifecycle.test.ts > P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) > 2. qap_discover con redirección HTTP 302 a login: detecta auth_wall determinista y bloquea sin escribir
+AssertionError: expected undefined to be 'auth_required' // Object.is equality
+
+- Expected:
+"auth_required"
+
++ Received:
+undefined
+
+ ❯ src/__tests__/p4-4-auth-lifecycle.test.ts:206:26
+    204|
+    205|     expect(parsed.status).toBe('blocked');
+    206|     expect(parsed.razon).toBe('auth_required');
+       |                          ^
+    207|     expect(parsed.page_kind).toBe('auth_wall');
+    208|     expect(parsed.redirected).toBe(true);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/46]⎯
+
+ FAIL  src/__tests__/p4-4-auth-lifecycle.test.ts > P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) > 3. qap_discover con login embebido en ruta no-acceso: bloquea como auth_required sin persistir
+AssertionError: expected undefined to be 'auth_required' // Object.is equality
+
+- Expected:
+"auth_required"
+
++ Received:
+undefined
+
+ ❯ src/__tests__/p4-4-auth-lifecycle.test.ts:228:26
+    226|
+    227|     expect(parsed.status).toBe('blocked');
+    228|     expect(parsed.razon).toBe('auth_required');
+       |                          ^
+    229|     expect(parsed.page_kind).toBe('login');
+    230|     expect(existsSync(join(tempDir, '.qa', 'modules', 'login_embebido'…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[18/46]⎯
+
+ FAIL  src/__tests__/p4-4-auth-lifecycle.test.ts > P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) > 4. qap_discover con sesión expirada: blocked session_invalid y desverifica el perfil
+AssertionError: expected undefined to be 'session_invalid' // Object.is equality
+
+- Expected:
+"session_invalid"
+
++ Received:
+undefined
+
+ ❯ src/__tests__/p4-4-auth-lifecycle.test.ts:294:26
+    292|
+    293|     expect(parsed.status).toBe('blocked');
+    294|     expect(parsed.razon).toBe('session_invalid');
+       |                          ^
+    295|     expect(parsed.desbloquear_con.tool).toBe('qap_auth_add');
+    296|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[19/46]⎯
+
+ FAIL  src/__tests__/p4-4-auth-lifecycle.test.ts > P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) > 5. qap_discover con perfil verificado y storageState válido: devuelve app y transiciona a observed
+AssertionError: expected 'blocked' to be 'success' // Object.is equality
+
+Expected: "success"
+Received: "blocked"
+
+ ❯ src/__tests__/p4-4-auth-lifecycle.test.ts:366:27
+    364|     });
+    365|
+    366|     expect(parsed.status).toBe('success');
+       |                           ^
+    367|     expect(parsed.view.page_kind).toBe('app');
+    368|     expect(parsed.storage_state_used).toBe(true);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[20/46]⎯
+
+ FAIL  src/__tests__/p4-4-auth-lifecycle.test.ts > P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) > 6. qap_discover en módulo de acceso: selectors.json incluye auth_selectors y omite valores y atributos sensibles de password
+AssertionError: expected 'blocked' to be 'success' // Object.is equality
+
+Expected: "success"
+Received: "blocked"
+
+ ❯ src/__tests__/p4-4-auth-lifecycle.test.ts:392:27
+    390|     });
+    391|
+    392|     expect(parsed.status).toBe('success');
+       |                           ^
+    393|     expect(parsed.view.page_kind).toBe('login');
+    394|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[21/46]⎯
+
+ FAIL  src/__tests__/p4-4-auth-lifecycle.test.ts > P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) > 15. Guard de cliente asíncrono lento (~1200ms) en qap_discover: responde blocked auth_required y cero escrituras en .qa/modules (C3c)
+AssertionError: expected undefined to be 'auth_required' // Object.is equality
+
+- Expected:
+"auth_required"
+
++ Received:
+undefined
+
+ ❯ src/__tests__/p4-4-auth-lifecycle.test.ts:854:26
+    852|
+    853|     expect(parsed.status).toBe('blocked');
+    854|     expect(parsed.razon).toBe('auth_required');
+       |                          ^
+    855|     expect(parsed.desbloquear_con?.tool).toBe('qap_auth_add');
+    856|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[22/46]⎯
+
+ FAIL  src/__tests__/p4-5a-canonical-integrity.test.ts > P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) > C1: campos honestos en bloqueos previos a navegar y navegación real
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/__tests__/p4-5a-canonical-integrity.test.ts:137:3
+    135|   });
+    136|
+    137|   it('C1: campos honestos en bloqueos previos a navegar y navegación r…
+       |   ^
+    138|     await f.working();
+    139|     const before = readFileSync(f.lifecyclePath, 'utf8');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[23/46]⎯
+
+ FAIL  src/__tests__/p4-5a-canonical-integrity.test.ts > P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) > C1: campos honestos en bloqueos previos a navegar y navegación real
+Error: Hook timed out in 10000ms.
+If this is a long-running hook, pass a timeout value as the last argument or configure it globally with "hookTimeout".
+ ❯ src/__tests__/p4-5a-canonical-integrity.test.ts:14:3
+     12|   const cleanup: Array<() => Promise<void>> = [];
+     13|   beforeEach(async () => { f = await createLifecycleFixture(close => c…
+     14|   afterEach(async () => {
+       |   ^
+     15|     const outcomes = await Promise.allSettled(cleanup.splice(0).map(cl…
+     16|     for (const outcome of outcomes) if (outcome.status === 'rejected')…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[24/46]⎯
+
+ FAIL  src/__tests__/p4-5a-canonical-integrity.test.ts > P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) > C3: flujo real de preguntas de categoría, formato una_opcion, persistencia y respuestas user_text y deferred
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/__tests__/p4-5a-canonical-integrity.test.ts:155:3
+    153|   });
+    154|
+    155|   it('C3: flujo real de preguntas de categoría, formato una_opcion, pe…
+       |   ^
+    156|     await f.working();
+    157|     await f.discover();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[25/46]⎯
+
+ FAIL  src/__tests__/p4-5a-integrity.test.ts > P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) > C4-d: plan con auth.required true sin roles queda bloqueado con pregunta de roles y bloquea discover (V4)
+TypeError: .toMatch() expects to receive a string, but got undefined
+ ❯ src/__tests__/p4-5a-integrity.test.ts:272:43
+    270|     const rDiscoverBlocked = await callTool('qap_discover', { name: 'p…
+    271|     expect(rDiscoverBlocked.parsed.status).toBe('blocked');
+    272|     expect(rDiscoverBlocked.parsed.razon).toMatch(/No se puede ejecuta…
+       |                                           ^
+    273|   });
+    274|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[26/46]⎯
+
+ FAIL  src/__tests__/p4-5a2-canonical-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C10: Detección y advertencia de extracción vacía > C10-a: página app/login sin elementos interactivos genera advertencia extraccion_vacia y trabajo
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/__tests__/p4-5a2-canonical-integrity.test.ts:134:5
+    132|
+    133|   describe('C10: Detección y advertencia de extracción vacía', () => {
+    134|     it('C10-a: página app/login sin elementos interactivos genera adve…
+       |     ^
+    135|       const f = await fixture('<html><body><h1>Vista vacía</h1></body>…
+    136|       await f.working();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[27/46]⎯
+
+ FAIL  src/__tests__/p4-5a2-canonical-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C10: Detección y advertencia de extracción vacía > C10-a: página app/login sin elementos interactivos genera advertencia extraccion_vacia y trabajo
+ FAIL  src/__tests__/p4-5a2-canonical-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C10: Detección y advertencia de extracción vacía > C10-c: la advertencia extraccion_vacia es agnóstica de la aplicación
+Error: Hook timed out in 10000ms.
+If this is a long-running hook, pass a timeout value as the last argument or configure it globally with "hookTimeout".
+ ❯ src/__tests__/p4-5a2-canonical-integrity.test.ts:14:3
+     12|   const cleanup: Array<() => Promise<void>> = [];
+     13|   const fixture = (html?: string): Promise<LifecycleFixture> => create…
+     14|   afterEach(async () => {
+       |   ^
+     15|     const settled = await Promise.allSettled(cleanup.splice(0).map(clo…
+     16|     for (const v of settled) if (v.status === 'rejected') throw v.reas…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[28/46]⎯
+
+ FAIL  src/__tests__/p4-5a2-canonical-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C10: Detección y advertencia de extracción vacía > C10-b: página con al menos un elemento interactivo no genera advertencia extraccion_vacia
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/__tests__/p4-5a2-canonical-integrity.test.ts:150:5
+    148|     });
+    149|
+    150|     it('C10-b: página con al menos un elemento interactivo no genera a…
+       |     ^
+    151|       const f = await fixture();
+    152|       await f.working();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[29/46]⎯
+
+ FAIL  src/__tests__/p4-5a2-canonical-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C10: Detección y advertencia de extracción vacía > C10-c: la advertencia extraccion_vacia es agnóstica de la aplicación
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/__tests__/p4-5a2-canonical-integrity.test.ts:168:5
+    166|     });
+    167|
+    168|     it('C10-c: la advertencia extraccion_vacia es agnóstica de la apli…
+       |     ^
+    169|       const f = await fixture('<html><body><section>Sin acciones</sect…
+    170|       await f.working(['catalog', 'orders']);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[30/46]⎯
+
+ FAIL  src/__tests__/p4-5a2-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C1: Clasificación honesta con adaptador real > C1-a: módulo de acceso pedido en login sin redirección NO se bloquea (page_kind login, success)
+AssertionError: expected 'blocked' to be 'success' // Object.is equality
+
+Expected: "success"
+Received: "blocked"
+
+ ❯ src/__tests__/p4-5a2-integrity.test.ts:127:31
+    125|
+    126|       const r = await callTool('qap_discover', { name: 'modulo_acceso'…
+    127|       expect(r.parsed.status).toBe('success');
+       |                               ^
+    128|       expect(r.parsed.page_kind).toBe('login');
+    129|       expect(r.parsed.observed).toBe(true);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[31/46]⎯
+
+ FAIL  src/__tests__/p4-5a2-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C1: Clasificación honesta con adaptador real > C1-b: ruta protegida con redirección HTTP 302 a /login detecta auth_wall determinista y bloquea
+AssertionError: expected undefined to be 'auth_required' // Object.is equality
+
+- Expected:
+"auth_required"
+
++ Received:
+undefined
+
+ ❯ src/__tests__/p4-5a2-integrity.test.ts:144:30
+    142|       const r = await callTool('qap_discover', { name: 'panel_admin', …
+    143|       expect(r.parsed.status).toBe('blocked');
+    144|       expect(r.parsed.razon).toBe('auth_required');
+       |                              ^
+    145|       expect(r.parsed.page_kind).toBe('auth_wall');
+    146|       expect(r.parsed.observed).toBe(true);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[32/46]⎯
+
+ FAIL  src/__tests__/p4-5a2-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C1: Clasificación honesta con adaptador real > C1-c: ruta protegida con guard del lado del cliente detecta auth_wall con redirección al login
+AssertionError: expected undefined to be 'auth_required' // Object.is equality
+
+- Expected:
+"auth_required"
+
++ Received:
+undefined
+
+ ❯ src/__tests__/p4-5a2-integrity.test.ts:161:30
+    159|       const r = await callTool('qap_discover', { name: 'modulo_cliente…
+    160|       expect(r.parsed.status).toBe('blocked');
+    161|       expect(r.parsed.razon).toBe('auth_required');
+       |                              ^
+    162|       expect(r.parsed.page_kind).toBe('auth_wall');
+    163|       expect(r.parsed.observed).toBe(true);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[33/46]⎯
+
+ FAIL  src/__tests__/server-canonical-discovery.test.ts > Suite MCP Server QAP v2.1 / v2.1.2 > el contexto de vista generado por qap_discover debe validar contra module-view.schema.json (Criterio 4)
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/__tests__/server-canonical-discovery.test.ts:20:3
+     18|   });
+     19|
+     20|   it('el contexto de vista generado por qap_discover debe validar cont…
+       |   ^
+     21|     await f.working();
+     22|     const observed = await f.discover();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[34/46]⎯
+
+ FAIL  src/__tests__/server-canonical-discovery.test.ts > Suite MCP Server QAP v2.1 / v2.1.2 > el contexto de vista generado por qap_discover debe validar contra module-view.schema.json (Criterio 4)
+Error: Hook timed out in 10000ms.
+If this is a long-running hook, pass a timeout value as the last argument or configure it globally with "hookTimeout".
+ ❯ src/__tests__/server-canonical-discovery.test.ts:15:3
+     13|   const cleanup: Array<() => Promise<void>> = [];
+     14|   beforeEach(async () => { f = await createLifecycleFixture(close => c…
+     15|   afterEach(async () => {
+       |   ^
+     16|     const results = await Promise.allSettled(cleanup.splice(0).map(clo…
+     17|     for (const item of results) if (item.status === 'rejected') throw …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[35/46]⎯
+
+ FAIL  src/__tests__/server-canonical-discovery.test.ts > Suite MCP Server QAP v2.1 / v2.1.2 > qap_discover con contexto de vista inválido no debe escribir archivos y debe retornar error (Criterio 4)
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/__tests__/server-canonical-discovery.test.ts:38:3
+     36|   });
+     37|
+     38|   it('qap_discover con contexto de vista inválido no debe escribir arc…
+       |   ^
+     39|     await f.working();
+     40|     const lifecycle = readFileSync(f.lifecyclePath, 'utf8');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[36/46]⎯
+
+ FAIL  src/__tests__/server-canonical-operations.test.ts > Suite MCP Server QAP v2.1 / v2.1.2 > debe descubrir modulos y responder en desarrollo para qap_plan y qap_test
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/__tests__/server-canonical-operations.test.ts:21:3
+     19|   });
+     20|
+     21|   it('debe descubrir modulos y responder en desarrollo para qap_plan y…
+       |   ^
+     22|     // TM-46: the historical "en_desarrollo" stub was replaced by real…
+     23|     // planning and a host-authorized, physical browser execution.
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[37/46]⎯
+
+ FAIL  src/__tests__/server-canonical-operations.test.ts > Suite MCP Server QAP v2.1 / v2.1.2 > qap_discover: gating por fase y estado de modulo, actualizacion planned -> observed
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/__tests__/server-canonical-operations.test.ts:72:3
+     70|   });
+     71|
+     72|   it('qap_discover: gating por fase y estado de modulo, actualizacion …
+       |   ^
+     73|     // TM-52: phase/module security is preserved; automatic planned ->…
+     74|     // was deliberately removed from canonical read-only Discovery.
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[38/46]⎯
+
+ FAIL  src/__tests__/server-canonical-operations.test.ts > Suite MCP Server QAP v2.1 / v2.1.2 > Criterio 8 (E2E): init -> status (entrevista) -> ingest -> context_set compuerta -> auto-SCOPING -> session_plan -> auto-WORKING -> discover
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/__tests__/server-canonical-operations.test.ts:131:3
+    129|   });
+    130|
+    131|   it('Criterio 8 (E2E): init -> status (entrevista) -> ingest -> conte…
+       |   ^
+    132|     // TM-54: no legacy interview_vista; canonical Discovery never con…
+    133|     const f = await fixture();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[39/46]⎯
+
+ FAIL  src/__tests__/server-canonical-operations.test.ts > Suite MCP Server QAP v2.1 / v2.1.2 > qap_rules_set: actualiza reglas, transiciona observed -> interviewing, recalcula cobertura y actualiza guidance
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/__tests__/server-canonical-operations.test.ts:162:3
+    160|   });
+    161|
+    162|   it('qap_rules_set: actualiza reglas, transiciona observed -> intervi…
+       |   ^
+    163|     // TM-55: separate host-reviewed requirements from unsupported leg…
+    164|     // and measure specification independently from execution coverage.
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[40/46]⎯
+
+ FAIL  src/__tests__/server.test.ts > Suite MCP Server QAP v2.1 / v2.1.2 > E0b: qap_discover valida contra module-view.schema.json en vista de autenticacion con session_saved true
+AssertionError: expected true to be falsy
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ src/__tests__/server.test.ts:527:25
+    525|       {}
+    526|     );
+    527|     expect(res.isError).toBeFalsy();
+       |                         ^
+    528|     const parsed = JSON.parse(res.content[0].text);
+    529|     expect(parsed.status).toBe('success');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[41/46]⎯
+
+ FAIL  src/__tests__/test-handler.test.ts > TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) > Scenario 1: executes valid and authorized plan, persisting authentic result (R4.1)
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/__tests__/test-handler.test.ts:216:3
+    214|
+    215|   // Scenario 1: Plan vigente y autorizado (execution passes, persiste…
+    216|   it('Scenario 1: executes valid and authorized plan, persisting authe…
+       |   ^
+    217|     const root = initProject(localServerUrl);
+    218|     seedModule(root, 'checkout');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[42/46]⎯
+
+ FAIL  src/__tests__/test-handler.test.ts > TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) > Scenario 5: blocks unauthorized URLs, unconfigured host policy, and redirects (R4.5)
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/__tests__/test-handler.test.ts:396:3
+    394|
+    395|   // Scenario 5: URL o proyecto no autorizado, incluyendo redirecciones
+    396|   it('Scenario 5: blocks unauthorized URLs, unconfigured host policy, …
+       |   ^
+    397|     const root = initProject('http://unauthorized.external.target');
+    398|     seedModule(root, 'orders');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[43/46]⎯
+
+ FAIL  src/__tests__/test-handler.test.ts > TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) > Scenario 7: rejects unauthorized profiles and disables implicit session recovery (R4.7)
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/__tests__/test-handler.test.ts:503:3
+    501|
+    502|   // Scenario 7: Autenticación no autorizada y desactivación de recupe…
+    503|   it('Scenario 7: rejects unauthorized profiles and disables implicit …
+       |   ^
+    504|     const root = initProject(localServerUrl);
+    505|     seedModule(root, 'secure-mod');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[44/46]⎯
+
+
+ Test Files  12 failed | 18 passed (30)
+      Tests  38 failed | 468 passed (506)
+   Start at  17:59:48
+   Duration  65.35s (transform 14.43s, setup 0ms, import 114.60s, tests 663.39s, environment 12ms)
+
+JSON report written to <repo>/docs/vnext/implementaciones/VNEXT-014-E01/r5/parallel-1.json
+Error: ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL
+
+  × "pnpm recursive exec" failed in C:
+  │ <user-home>\Documents\QAMCP\QAMCP\packages\mcp

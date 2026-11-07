@@ -1,0 +1,74 @@
+{
+  "parallel-1": {
+    "samples": 29,
+    "first": "2026-11-06T23:59:54.3025483Z",
+    "last": "2026-11-07T00:00:54.5188683Z",
+    "min_available_mb": 107,
+    "max_cpu_percent": 100,
+    "max_pages_input_per_sec": 275938,
+    "max_disk_queue": 173,
+    "max_sample_gap_ms": 2608,
+    "groups": {
+      "node": {
+        "max_count": 42,
+        "max_working_set_bytes": 3397832704
+      },
+      "chrome": {
+        "max_count": 77,
+        "max_working_set_bytes": 3722166272
+      },
+      "headless_shell": {
+        "max_count": 0,
+        "max_working_set_bytes": 0
+      }
+    }
+  },
+  "parallel-2": {
+    "samples": 31,
+    "first": "2026-11-07T00:00:57.1615829Z",
+    "last": "2026-11-07T00:02:00.8561165Z",
+    "min_available_mb": 364,
+    "max_cpu_percent": 100,
+    "max_pages_input_per_sec": 59398,
+    "max_disk_queue": 3,
+    "max_sample_gap_ms": 2541,
+    "groups": {
+      "node": {
+        "max_count": 43,
+        "max_working_set_bytes": 3510575104
+      },
+      "chrome": {
+        "max_count": 66,
+        "max_working_set_bytes": 3047694336
+      },
+      "headless_shell": {
+        "max_count": 0,
+        "max_working_set_bytes": 0
+      }
+    }
+  },
+  "affected-stages": {
+    "samples": 31,
+    "first": "2026-11-07T00:03:20.5055597Z",
+    "last": "2026-11-07T00:04:24.2343389Z",
+    "min_available_mb": 768,
+    "max_cpu_percent": 100,
+    "max_pages_input_per_sec": 143729,
+    "max_disk_queue": 3,
+    "max_sample_gap_ms": 2404,
+    "groups": {
+      "node": {
+        "max_count": 43,
+        "max_working_set_bytes": 3615666176
+      },
+      "chrome": {
+        "max_count": 69,
+        "max_working_set_bytes": 3287277568
+      },
+      "headless_shell": {
+        "max_count": 0,
+        "max_working_set_bytes": 0
+      }
+    }
+  }
+}
