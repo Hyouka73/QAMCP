@@ -1,3 +1,11 @@
+## E01-R5 independiente y siguiente compuerta R6 — 2026-11-06
+
+**E01 NO-GO, VNEXT-014 integral NO-GO; R4 correctiva PASS.** SHA físico `9e9d2c8`: **494 PASS/12 FAIL** serial, **468 PASS/38 FAIL** en cada una de dos paralelas normales consecutivas. Las 12 faltantes son identidades históricas de auth aún no modernizadas; las dos paralelas suman 26 **timeouts** adicionales cada una (22 comunes, cuatro exclusivos de cada corrida). No hay defectos funcionales nuevos medidos en serial. Un host con CPU al 100 %, RAM libre mínima 107 MB y cierres nativos de navegador hasta 8356 ms contribuye a la inestabilidad, **sin demostrar causa única**; una cola global de navegador podría trasladar los timeouts a la espera.
+
+**Prioridad activa:** seguir [PLAN_R6](../VNEXT-014-E01/PLAN_R6_2026-11-06.md): R6-A diagnóstico controlado y breve del host/etapas; R6-B **una** corrección causal si existe una operación corregible demostrada; R6-C certificación independiente por Codex. No repetir R4 por defecto, no usar los PASS R4 para SHA posteriores, no cambiar 5000/10000 ms ni workers sin decisión independiente. **Pendientes separados:** decisión de contrato/alcance de 12 auth, revisión humana real, estáticos globales, Stdio y merge; fecha MVP 20-11-2026 intacta. [Informe original E01-R5](../VNEXT-014-E01/INFORME_E01_R5_2026-11-06.md). Las secciones inferiores son actas históricas.
+
+---
+
 ## Certificación física R4 — 2026-11-06
 
 **R4 correctiva PASS; VNEXT-014 integral NO-GO.** SHA probado `2dc2f5800f64e2a08fd11c88608a4f6beddcf635`: nueve suites, 101 PASS/1 FAIL/0 SKIP/0 TODO, sin cambios de resultado frente a R3. TM-50 sigue FAIL heredado. TypeScript 128 heredados: desaparecen exactamente los seis TS2339 nuevos, sin retirar aserciones ni introducir errores. ESLint focal 0 errores/2 warnings heredados; build oficial PASS.
