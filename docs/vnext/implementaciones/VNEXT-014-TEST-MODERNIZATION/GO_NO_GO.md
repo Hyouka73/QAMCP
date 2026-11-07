@@ -1,5 +1,8 @@
 # Dictamen
 
+> **Estado posterior a E01-R6-A — 2026-11-07: BLOCKED ambiental / causalidad C.** Sin suites ejecutadas, no existen cifras R6 de PASS/FAIL; en dos ventanas de capacidad no se acreditó reserva, con una ventana continua de 297–1513 MB disponibles y pages input hasta 115 997/s. Mantener resultados físicos de E01-R5 (494/12 serial y 468/38 dos paralelas) y R4 correctiva PASS. **E01 y VNEXT-014 integral NO-GO**. No inferir reparación ni fallo nuevo de producto. Reanudar pruebas E01 sólo con capacidad medible reservada; en paralelo, resolver [alcance de autenticación MVP](DECISION_AUTH_MVP_2026-11-07.md). [Informe R6-A](../VNEXT-014-E01/INFORME_E01_R6_A_2026-11-07.md). Ningún merge, modificación de presupuestos ni cierre por falta de evidencia.
+
+
 > **E01-R5 independiente — 2026-11-06: E01 NO-GO y VNEXT-014 integral NO-GO; R4 correctiva PASS preservado.** SHA físico `9e9d2c8062b908d936ae090bbe9cb5c4ca2b0772`: MCP serial **494/506 PASS, 12 FAIL históricos de autenticación**; paralelas predeterminadas consecutivas **468/506 PASS, 38 FAIL** cada una, con **26 timeouts adicionales** cada vez y ocho identidades que alternan resultado entre corridas. CPU 100 %, RAM libre mínima 107 MB y cierre nativo Chromium hasta 8356 ms observado, sin causa única demostrada. Documentado en [E01-R5](../VNEXT-014-E01/INFORME_E01_R5_2026-11-06.md). Próxima intervención acotada [plan R6](../VNEXT-014-E01/PLAN_R6_2026-11-06.md): experimento de capacidad/causalidad antes de editar código, sin alterar timeouts/workers ni autorizar merge. La documentación y métricas históricas inferiores permanecen intactas.
 
 
