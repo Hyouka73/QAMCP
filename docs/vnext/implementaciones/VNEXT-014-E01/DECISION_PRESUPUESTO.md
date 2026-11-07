@@ -1,5 +1,8 @@
 # E01 — decisión técnica sobre presupuesto temporal
 
+> **E01-R6-A — 2026-11-07:** experimento de reserva **BLOCKED ambiental**, clasificación C sin causalidad demostrada ni suites ejecutadas. La segunda ventana sin tests midió 297–1513 MB de RAM disponible y 115 997 páginas de entrada/s como máximo. Se conserva sin cambios el presupuesto 5000 ms test / 10000 ms hook y la decisión NO-GO E01; un cambio de host posterior exige comparación atribuible, no se cuenta como reparación. [Informe R6-A](INFORME_E01_R6_A_2026-11-07.md).
+
+
 > **Actualización E01-R5 — 2026-11-06:** El diagnóstico posterior sobre `9e9d2c8` obtuvo MCP 494/12 en serie y 468/38 en cada una de dos paralelas normales, con 26 timeouts adicionales por corrida; CPU 100 %, RAM libre hasta 107 MB y salida nativa Chromium hasta 8356 ms. La causa es multifactorial o aún incompleta: E0b agotó 5000 ms con cierre de navegador corto. **Se mantiene la decisión de NO modificar 5000/10000 ms ni workers.** Consultar [informe R5](INFORME_E01_R5_2026-11-06.md) y [plan R6](PLAN_R6_2026-11-06.md) antes de cualquier presupuesto nuevo. Este anexo actualiza los hechos, no reescribe las decisiones históricas.
 
 
