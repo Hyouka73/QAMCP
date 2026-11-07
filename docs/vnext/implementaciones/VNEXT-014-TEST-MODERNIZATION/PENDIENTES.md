@@ -1,3 +1,11 @@
+## E01-R6-A bloqueado y desbloqueo independiente — 2026-11-07
+
+**R6-A: BLOCKED ambiental, causalidad C. E01 NO-GO y VNEXT-014 integral NO-GO; R4 correctiva PASS.** La medición sin suites no acreditó reserva CPU/RAM: segunda ventana de 20 muestras (47,59 s), 297–1513 MB libres y pages input máximo 115 997/s. **No se ejecutaron tests R6** ni hay nueva causalidad/reparación. Mantener R5 como último baseline físico: MCP serial **494/12**, dos paralelas **468/38**, cero SKIP, las doce auth históricas persistentes.
+
+**Decisión operativa:** no repetir E01 en un host sin reserva; preparar un ejecutor con capacidad atribuible, conforme a [R6-A](../VNEXT-014-E01/INFORME_E01_R6_A_2026-11-07.md) y [plan R6](../VNEXT-014-E01/PLAN_R6_2026-11-06.md). **Trabajo independiente ahora:** [decisión de autenticación MVP](DECISION_AUTH_MVP_2026-11-07.md) para las doce identidades. No implementar todavía auth por suposición ni mover DONE, fecha 20-11-2026, worker/timeout, ni hacer merge. Revisar estáticos y Stdio en tareas separadas.
+
+---
+
 ## E01-R5 independiente y siguiente compuerta R6 — 2026-11-06
 
 **E01 NO-GO, VNEXT-014 integral NO-GO; R4 correctiva PASS.** SHA físico `9e9d2c8`: **494 PASS/12 FAIL** serial, **468 PASS/38 FAIL** en cada una de dos paralelas normales consecutivas. Las 12 faltantes son identidades históricas de auth aún no modernizadas; las dos paralelas suman 26 **timeouts** adicionales cada una (22 comunes, cuatro exclusivos de cada corrida). No hay defectos funcionales nuevos medidos en serial. Un host con CPU al 100 %, RAM libre mínima 107 MB y cierres nativos de navegador hasta 8356 ms contribuye a la inestabilidad, **sin demostrar causa única**; una cola global de navegador podría trasladar los timeouts a la espera.
