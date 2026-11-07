@@ -402,3 +402,99 @@ Desde la raíz del repositorio (`QAMCP`):
    El archivo sensible `packages/playwright-runner/.qa/cache/sessions/admin-user.json` no fue leído ni incluido en stage.
 5. **Rama y Publicación:**  
    La entrega se publica de forma trazable en `feat/qap-vnext-architecture`.
+
+---
+
+## 8. Auditoría Técnica de `c34e1e5`, Plan Completo de Corrección R7-R2 y Prompt de Ejecución
+
+Tras la revisión independiente de Codex (`REAUDITORIA_CODEX_2026-11-07.md`) sobre el commit `c34e1e51b153cb7006104cd0e698ad2a3e905083`, se verificó que las 62 pruebas pasan y el hallazgo `R7-A06` quedó cerrado para la comparación canónica predeterminada, pero persisten **seis brechas (`R7-R01` a `R7-R06`)** que impiden aceptar la entrega como compuerta de autorización.
+
+### 8.1. Auditoría Técnica Detallada de las 6 Brechas (`R7-R01` a `R7-R06`)
+
+| ID | Severidad | Ubicación Exacta en `c34e1e5` | Diagnóstico Forense de la Brecha |
+| :--- | :---: | :--- | :--- |
+| **`R7-R01`** | **P1** | `check-preflight.mjs:415-483, 775-788, 866-867` | **Compuerta de aprobación reducible a bandera booleana sin decisión verificable:**<br>• Pasar `{ auditorApproval: true }` o `--auditor-approval` promueve a `EJECUTOR_APTO` sin verificar quién aprobó ni qué aprobó.<br>• Si `evidence_doc` es `https://no-evidence.invalid/reserva`, solo ejecuta `new URL()` sin verificar existencia ni contenido.<br>• Si `evidence_doc` es ruta local, solo comprueba `fs.existsSync` y `stat.size > 0` (no comprueba `stat.isFile()`, ni lee/parsea el JSON, ni verifica hash SHA-256, `executor_id`, alcance CPU/RAM, vigencia ni `expectedCommitSha`). |
+| **`R7-R02`** | **P1** | `check-preflight.mjs:499-623, 709-733` | **PASS por omisión y validación incompleta del esquema Draft-07:**<br>• No valida `additionalProperties: false` en raíz ni en objetos anidados (`unapproved = true` pasa).<br>• En `resource_reservation.swap_policy`, no valida tipo/enum (`swap_policy = null` pasa).<br>• En `telemetry_window`, acepta `cpu_stats = {}`, `mem_stats = {}`, `page_faults = {}` vacíos y no contrasta sus agregados contra `samples`.<br>• Acepta `sample_count = 'sesenta'`, `interval_ms = -1`, `start_time = 'INVALID'`, `end_time = 'INVALID'`, `duration_ms = 999999` sin contrastar contra `samples`.<br>• En `samples[i]`, acepta `cpu_percent = 999` (debe ser `<= 100`) y `groups[0].count = 0.5` (debe ser entero `>= 0`). |
+| **`R7-R03`** | **P1** | `preflight.ps1:425-433`<br>`check-preflight.mjs:693-700` | **Atribución de CPU externa omite procesos Node/Chromium ajenos:**<br>• `preflight.ps1` clasifica todos los procesos `node` y `chrome`/`headless_shell` por nombre.<br>• `check-preflight.mjs` aplica el presupuesto `<= 10.0%` únicamente al grupo `other`.<br>• Un proceso Node ajeno consumiendo 90% de CPU (`cpu_percent = 90`, `node = 90`, `other = 0`) pasa con `valid: true`. Además, no se valida coherencia entre la suma de CPU de los grupos y `sample.cpu_percent`. |
+| **`R7-R04`** | **P1** | `preflight.ps1:318-337, 404-479` | **Fallo de `git status` interpretado como árbol limpio y contadores nulos convertidos a `0`:**<br>• `Get-HostGitState` ejecuta `git status --porcelain 2>$null` sin verificar `$LASTEXITCODE -eq 0`. Si `git status` falla (`LASTEXITCODE = 128` sin salida), `$dirtyFiles` queda vacío y devuelve `clean_working_tree: true`.<br>• `Measure-HostTelemetryWindow` solo verifica `$null -eq $mem.AvailableMBytes`; convierte `CommittedBytes`, `CommitLimit`, `PagesInputPersec` y `PagesOutputPersec` a `[double]` sin verificar `$null` (en PowerShell `[double]$null` produce `0.0`).<br>• En `Win32_PerfFormattedData_PerfProc_Process`, las sumas de métricas ausentes siguen convirtiéndose en `0.0` sin distinguir grupo vacío (`count == 0`) de consulta/propiedad fallida. |
+| **`R7-R05`** | **P1** | `check-preflight.mjs:293-328, 814-880` | **Contradicción Git ignorada, SHA esperado opcional en APTO y CLI permisiva:**<br>• Si `clean_working_tree === true`, `check-preflight.mjs` ignora `dirty_files` (`clean_working_tree: true` con `dirty_files: ['packages/mcp/src/server.ts']` devuelve `VALIDADOR_PASS`).<br>• `expectedCommitSha` es opcional incluso al autorizar `EJECUTOR_APTO`.<br>• `parseCliArgs` acepta `--expected-sha` sin valor (`undefined`) y `--max-gap=abc` (`NaN` reemplazado por default `5000`), saliendo con código `0`. |
+| **`R7-R06`** | **P2** | `preflight.ps1:174-187` | **Confinamiento léxico sin resolución de enlaces simbólicos, junctions o reparse points:**<br>• `Assert-PathConfinement` solo aplica `[System.IO.Path]::GetFullPath($Path)` y comparación de prefijo.<br>• Una ruta `r7/enlace/salida.json` donde `r7/enlace` sea un junction o symlink que apunte fuera de `r7/` pasa la validación léxica y permite escribir o borrar fuera de `r7/`. |
+
+---
+
+### 8.2. Plan de Corrección Quirúrgico (R7-R2)
+
+#### Fase 1 — Contratos y Esquema (`CONTRATO_EJECUTOR.md` y `manifest-ejemplo.json`)
+1. **Formalizar la Decisión Externa Auditable (`R7-R01`):**
+   - Prohibir que un booleano (`auditorApproval: true` / `--auditor-approval`) o una URL HTTP(S) no verificable acrediten la reserva.
+   - Exigir que `resource_reservation.evidence_doc` (cuando `accredited === true`) apunte a un archivo regular local legible dentro del alcance permitido, cuyo contenido JSON declare explícitamente `executor_id`, `provenance`, `type`, `allocated_cores`, `allocated_ram_mb` y `exclusive_reservation: true` coincidentes con el manifiesto.
+   - Exigir un objeto/archivo de decisión externa verificable (`options.auditorDecision` o `--auditor-decision <path>`) que contenga y valide:
+     - `decision === "APPROVED"`
+     - `auditor_id` (string no vacío)
+     - `executor_id === manifest.executor_id`
+     - `approved_commit_sha` (40 hex) `=== manifest.git.commit_sha === options.expectedCommitSha`
+     - `evidence_doc_sha256` (64 hex) `=== SHA-256 real del archivo evidence_doc en disco`
+     - `allocated_cores >= manifest.resource_reservation.allocated_cores` y `allocated_ram_mb >= manifest.resource_reservation.allocated_ram_mb`
+     - `issued_at_utc` y `expires_at_utc` válidos con `issued_at_utc <= telemetry_window.start_time` y `telemetry_window.end_time <= expires_at_utc`.
+2. **Formalizar Validación Completa de Esquema y Consistencia (`R7-R02`, `R7-R03`, `R7-R05`):**
+   - Hacer cumplir `additionalProperties: false` en todos los niveles del manifiesto.
+   - Exigir consistencia matemática entre `samples` y los agregados `cpu_stats`, `mem_stats` y `page_faults`, así como entre `start_time`, `end_time`, `duration_ms`, `interval_ms`, `sample_count` y el arreglo `samples`.
+   - Establecer que en preflight Baseline (o sin PIDs explícitamente autorizados para la fase), toda carga de CPU en `node`, `chromium` y `other` se contabiliza dentro del presupuesto de interferencia externa (`<= 10.0%`), y que la suma de CPU de los 4 grupos debe ser coherente con `sample.cpu_percent`.
+
+#### Fase 2 — Reproducción Previa Obligatoria contra `c34e1e5`
+1. Antes de modificar la lógica de `check-preflight.mjs` o `preflight.ps1`, ejecutar y registrar en `README.md` la salida de los 7 casos del bloque de reproducción de `REAUDITORIA_CODEX_2026-11-07.md` (`aggregates`, `metadata`, `ranges`, `additional`, `gitContradiction`, `externalNode`, `unverifiedApproval`), las invocaciones CLI (`--expected-sha` sin valor, `--max-gap=abc`) y la prueba de `Get-HostGitState` con `LASTEXITCODE = 128`.
+
+#### Fase 3 — Reparación de `preflight.ps1` (`R7-R03`, `R7-R04`, `R7-R06`)
+1. **`Assert-PathConfinement` con detección de Reparse Points y resolución física (`R7-R06`):**
+   - Además de validar el prefijo léxico con `GetFullPath`, inspeccionar el archivo destino (si existe) y todos sus directorios ancestros existentes hasta `$scriptDir`.
+   - Si cualquier elemento existente posee `($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0` o `$null -ne $item.LinkTarget`, abortar inmediatamente con `Security/Isolation Violation: Reparse point or symbolic link detected`.
+   - Comprobar que la ruta física resuelta del ancestro existente más profundo permanezca estrictamente bajo `$scriptDir`.
+2. **`Get-HostGitState` y contadores CIM fail-closed (`R7-R04`):**
+   - Comprobar `$LASTEXITCODE -eq 0` después de `git status --porcelain=v1`. Si `$LASTEXITCODE -ne 0` (o si fallan `git rev-parse HEAD` / `--abbrev-ref HEAD`), fallar de forma cerrada (`throw "Host Git Failure..."` o devolver `clean_working_tree = $false` y marcador de error; jamás emitir `clean_working_tree = $true`).
+   - Comprobar que `$mem.AvailableMBytes`, `$mem.CommittedBytes`, `$mem.CommitLimit`, `$mem.PagesInputPersec` y `$mem.PagesOutputPersec` sean todos no nulos antes de convertirlos a `[double]`.
+   - Comprobar que la consulta `Win32_PerfFormattedData_PerfProc_Process` devuelva procesos válidos y que cada proceso seleccionado tenga `PercentProcessorTime`, `WorkingSetPrivate` y `PageFaultsPersec` no nulos antes de sumar; distinguir grupo vacío (`$selected.Count -eq 0`) de métrica nula.
+3. **Identificación de procesos autorizados (`R7-R03`):**
+   - Soportar `-AuthorizedPids <int[]>` (vacío por defecto en Baseline) para que solo los PIDs explícitamente autorizados se eximan del presupuesto de interferencia externa; cualquier proceso Node/Chromium ajeno se atribuye a interferencia.
+
+#### Fase 4 — Reparación de `check-preflight.mjs` y `check-preflight.test.mjs` (`R7-R01` a `R7-R06`)
+1. **`R7-R01`:** Requerir `options.expectedCommitSha` y `options.auditorDecision` válido + verificación física, hash SHA-256 y contenido JSON de `evidence_doc` local regular (`stat.isFile()`) para acreditar reserva y emitir `EJECUTOR_APTO`. Rechazar URLs HTTP(S) no verificables o `{ auditorApproval: true }` sin decisión auditable.
+2. **`R7-R02`:** Validar `additionalProperties: false` en todos los niveles; validar tipos, rangos (`cpu_percent <= 100`, `group.count` entero `>= 0`, `swap_policy` enum válido) y consistencia matemática de `cpu_stats`, `mem_stats`, `page_faults` y metadatos de `telemetry_window` frente a `samples`.
+3. **`R7-R03`:** Evaluar el límite `max_external_cpu_percent <= 10.0%` contra la suma de CPU no autorizada (`other + node + chromium` en preflight baseline, salvo autorización explícita verificada) y comprobar que la suma de `cpu_percent_logical_capacity` de los 4 grupos sea coherente con `sample.cpu_percent`.
+4. **`R7-R05`:** Evaluar `dirty_files` y `modified_files` siempre (rechazando la contradicción `clean_working_tree: true` con archivos sucios). Endurecer `parseCliArgs` para rechazar cualquier opción con valor faltante (`--expected-sha` sin argumento) o valor numérico inválido (`--max-gap=abc`), saliendo con código `1`.
+5. **Pruebas (`check-preflight.test.mjs`):** Conservar las 62 pruebas actuales y añadir regresiones para todos los casos de `REAUDITORIA_CODEX_2026-11-07.md`, incluyendo pruebas reales en PowerShell para `Get-HostGitState` (con `LASTEXITCODE=128`) y `Assert-PathConfinement` (con junction/reparse point en directorio temporal aislado).
+
+---
+
+### 8.3. Prompt Listo para Ejecutar la Corrección (R7-R2)
+
+```markdown
+/teamwork [skip-interview] # QAMCP — R7-R2: Cierre integral de los 6 hallazgos de la Reauditoría de Codex (REAUDITORIA_CODEX_2026-11-07.md)
+
+Actúa como líder de implementación con Gemini Teamwork.
+
+**Repositorio:** `Hyouka73/QAMCP`
+**Rama exclusiva:** `feat/qap-vnext-architecture`
+**Directorio:** `C:\Users\Judirico\Documents\QAMCP\QAMCP`
+
+## Misión
+Cerrar de forma definitiva los seis defectos pendientes (`R7-R01` a `R7-R06`) documentados en `docs/vnext/implementaciones/VNEXT-014-E01/r7/REAUDITORIA_CODEX_2026-11-07.md` y en la Sección 8 de `docs/vnext/implementaciones/VNEXT-014-E01/r7/README.md`, manteniendo cerrado `R7-A06` y preservando las 62 pruebas actuales.
+
+NO iniciar una nueva arquitectura, NO ejecutar E01 y NO modificar ningún archivo fuera de `docs/vnext/implementaciones/VNEXT-014-E01/r7/`.
+
+## Lectura Obligatoria
+1. `docs/vnext/implementaciones/VNEXT-014-E01/r7/REAUDITORIA_CODEX_2026-11-07.md`
+2. `docs/vnext/implementaciones/VNEXT-014-E01/r7/AUDITORIA_CODEX_2026-11-07.md`
+3. `docs/vnext/implementaciones/VNEXT-014-E01/r7/README.md` (Sección 8: Plan R7-R2)
+4. Todos los archivos en `docs/vnext/implementaciones/VNEXT-014-E01/r7/` (`CONTRATO_EJECUTOR.md`, `manifest-ejemplo.json`, `preflight.ps1`, `check-preflight.mjs`, `check-preflight.test.mjs`).
+
+No modificar ni sobrescribir `AUDITORIA_CODEX_2026-11-07.md` ni `REAUDITORIA_CODEX_2026-11-07.md`. No leer ni tocar `packages/playwright-runner/.qa/cache/sessions/admin-user.json`.
+
+## Secuencia y Distribución de Trabajo
+
+1. **Agente 3 (Reproducción Previa Obligatoria):** Antes de editar `check-preflight.mjs` o `preflight.ps1`, ejecutar los 7 casos del bloque de reproducción de `REAUDITORIA_CODEX_2026-11-07.md`, las invocaciones CLI (`--expected-sha` sin valor, `--max-gap=abc`) y la prueba AST de `Get-HostGitState` con `LASTEXITCODE=128`, registrando la salida literal para documentarla en `README.md`.
+2. **Agente 1 (`CONTRATO_EJECUTOR.md` y `manifest-ejemplo.json`):** Actualizar el contrato con las reglas exactas de la Sección 8.2 Fase 1 de `README.md` (`R7-R01`, `R7-R02`, `R7-R03`, `R7-R05`).
+3. **Agente 2 (`preflight.ps1`):** Implementar las correcciones de la Sección 8.2 Fase 3 de `README.md` (`R7-R03` atribución por PIDs autorizados, `R7-R04` verificación de `$LASTEXITCODE` en `git status` y prohibición de coerción de `$null` a `0` en contadores CIM/procesos, y `R7-R06` detección de `ReparsePoint`/enlaces simbólicos/junctions y resolución física en `Assert-PathConfinement`).
+4. **Agente 3 (`check-preflight.mjs` y `check-preflight.test.mjs`):** Implementar las correcciones de la Sección 8.2 Fase 4 de `README.md` (`R7-R01`, `R7-R02`, `R7-R03`, `R7-R05`) y ampliar la suite `check-preflight.test.mjs` manteniendo las 62 pruebas existentes más las nuevas regresiones (incluyendo pruebas de ejecución PowerShell para `R7-R04` y `R7-R06`).
+5. **Coordinador Gemini (`README.md` y Git):** Actualizar `README.md` con la matriz de correspondencia y evidencia cuádruple de `R7-R01` a `R7-R06`, hacer commit exclusivamente de los archivos autorizados en `r7/` (sin incluir `AUDITORIA_CODEX_2026-11-07.md` ni `REAUDITORIA_CODEX_2026-11-07.md`), hacer push a `origin/feat/qap-vnext-architecture` y entregar el reporte final manteniendo `EJECUTOR_NO_APTO`.
+```
+
