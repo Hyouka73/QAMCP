@@ -171,6 +171,29 @@ if (-not $isR7Dir) {
     throw "Security/Isolation Violation: preflight.ps1 must be placed inside 'docs/vnext/implementaciones/VNEXT-014-E01/r7'. Current: '$scriptDir'"
 }
 
+function Assert-PathConfinement {
+    param(
+        [string]$Path,
+        [string]$ParamName
+    )
+    if ([string]::IsNullOrWhiteSpace($Path)) { return }
+    $fullPath = [System.IO.Path]::GetFullPath($Path)
+    $sep = [System.IO.Path]::DirectorySeparatorChar
+    $requiredPrefix = $scriptDir.TrimEnd($sep, [System.IO.Path]::AltDirectorySeparatorChar) + $sep
+    if (-not ($fullPath.Equals($scriptDir, [System.StringComparison]::OrdinalIgnoreCase) -or `
+              $fullPath.StartsWith($requiredPrefix, [System.StringComparison]::OrdinalIgnoreCase))) {
+        throw "Security/Isolation Violation: $ParamName ('$fullPath') must be strictly confined inside '$scriptDir'"
+    }
+}
+
+# Confinement assertions on internal parameters
+if ($SentinelFile) {
+    Assert-PathConfinement -Path $SentinelFile -ParamName 'SentinelFile'
+}
+if ($PidFile) {
+    Assert-PathConfinement -Path $PidFile -ParamName 'PidFile'
+}
+
 # Resolve and strictly validate output path
 if ([string]::IsNullOrWhiteSpace($OutputPath)) {
     $resolvedOutput = Join-Path $scriptDir ($WindowName + '-manifest.json')
@@ -182,9 +205,7 @@ if ([string]::IsNullOrWhiteSpace($OutputPath)) {
     }
 }
 
-if (-not $resolvedOutput.StartsWith($scriptDir, [System.StringComparison]::OrdinalIgnoreCase)) {
-    throw "Security/Isolation Violation: OutputPath ('$resolvedOutput') must be strictly confined to '$scriptDir'"
-}
+Assert-PathConfinement -Path $resolvedOutput -ParamName 'OutputPath'
 
 # Find repository root by traversing upward for .git
 function Find-RepoRoot {
@@ -222,15 +243,29 @@ function Get-HostToolchain {
     param([string]$Root)
 
     # Node.js version
-    $nodeVer = (node -v 2>$null)
-    if (-not $nodeVer) { $nodeVer = 'v24.15.0' } else { $nodeVer = $nodeVer.Trim() }
+    $nodeVer = $null
+    try {
+        $rawNode = & node -v 2>$null
+        if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($rawNode)) {
+            $nodeVer = $rawNode.Trim()
+        }
+    } catch {
+        $nodeVer = $null
+    }
 
     # pnpm version
-    $pnpmVer = (pnpm -v 2>$null)
-    if (-not $pnpmVer) { $pnpmVer = '12.3.4' } else { $pnpmVer = $pnpmVer.Trim() }
+    $pnpmVer = $null
+    try {
+        $rawPnpm = & pnpm -v 2>$null
+        if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($rawPnpm)) {
+            $pnpmVer = $rawPnpm.Trim()
+        }
+    } catch {
+        $pnpmVer = $null
+    }
 
-    # Chromium version from browsers.json (fallback to canonical)
-    $chromiumVer = '151.0.7922.34'
+    # Chromium version from browsers.json (no canonical fallback)
+    $chromiumVer = $null
     $browsersJsonPath = Join-Path $Root 'packages/playwright-runner/node_modules/playwright-core/browsers.json'
     if (Test-Path -LiteralPath $browsersJsonPath) {
         try {
@@ -240,14 +275,14 @@ function Get-HostToolchain {
                 $chromiumVer = [string]$chromeEntry.browserVersion
             }
         } catch {
-            $chromiumVer = '151.0.7922.34'
+            $chromiumVer = $null
         }
     }
 
     return [ordered]@{
-        node_version     = [string]$nodeVer
-        pnpm_version     = [string]$pnpmVer
-        chromium_version = [string]$chromiumVer
+        node_version     = $nodeVer
+        pnpm_version     = $pnpmVer
+        chromium_version = $chromiumVer
     }
 }
 
@@ -259,12 +294,26 @@ function Get-HostGitState {
         Set-Location -LiteralPath $Root
 
         # Commit SHA (40 chars)
-        $commitSha = (git rev-parse HEAD 2>$null)
-        if ($commitSha) { $commitSha = $commitSha.Trim() } else { $commitSha = '8dc020e3e2a7d1ab701b94ae2473b0cd49ba69b0' }
+        $commitSha = $null
+        try {
+            $rawSha = & git rev-parse HEAD 2>$null
+            if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($rawSha)) {
+                $commitSha = $rawSha.Trim()
+            }
+        } catch {
+            $commitSha = $null
+        }
 
         # Branch name
-        $branchName = (git rev-parse --abbrev-ref HEAD 2>$null)
-        if ($branchName) { $branchName = $branchName.Trim() } else { $branchName = 'feat/qap-vnext-architecture' }
+        $branchName = $null
+        try {
+            $rawBranch = & git rev-parse --abbrev-ref HEAD 2>$null
+            if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($rawBranch)) {
+                $branchName = $rawBranch.Trim()
+            }
+        } catch {
+            $branchName = $null
+        }
 
         # Working tree status inspection
         $porcelain = @(git status --porcelain 2>$null)
@@ -275,19 +324,16 @@ function Get-HostGitState {
             if ($filePath -eq 'packages/playwright-runner/.qa/cache/sessions/admin-user.json') {
                 continue
             }
-            if ($filePath.StartsWith('docs/vnext/implementaciones/VNEXT-014-E01/r7/')) {
-                continue
-            }
             $dirtyFiles += $filePath
         }
 
         $isClean = ($dirtyFiles.Count -eq 0)
 
         return [ordered]@{
-            commit_sha                   = [string]$commitSha
-            branch_name                  = [string]$branchName
-            clean_working_tree           = [bool]$isClean
-            allowed_untracked_or_modified = @('packages/playwright-runner/.qa/cache/sessions/admin-user.json')
+            commit_sha         = $commitSha
+            branch_name        = $branchName
+            clean_working_tree = [bool]$isClean
+            dirty_files        = @($dirtyFiles)
         }
     } finally {
         Set-Location -LiteralPath $currentLocation
@@ -296,13 +342,6 @@ function Get-HostGitState {
 
 function Get-DistHashes {
     param([string]$Root)
-
-    $canonicalHashes = @{
-        'packages/mcp/dist/server.js'               = '3457541827D1F601591BD090CD8A929440B310ED223CFDDCE37BCEF0CA68AAA4'
-        'packages/playwright-adapter/dist/index.js' = '7992F3711E30DB7938389C8BC6ADA306D628DB881FE1E93E0B9C2B172209A640'
-        'packages/knowledge/dist/index.js'          = 'F5F53A04CEDE07E0A078A19EEB2CEE7D13D64FA7093593AFA037B256DAE3DCE2'
-        'packages/shared/dist/index.js'             = '0AC145490635870C3D52AFB9B738608148EEEA35DFD9695E941A6662EDAEBDD7'
-    }
 
     $distFiles = @(
         'packages/mcp/dist/server.js',
@@ -318,7 +357,7 @@ function Get-DistHashes {
             $hashObj = Get-FileHash -LiteralPath $fullPath -Algorithm SHA256
             $hashes[$relPath] = [string]$hashObj.Hash
         } else {
-            $hashes[$relPath] = $canonicalHashes[$relPath]
+            $hashes[$relPath] = $null
         }
     }
 
@@ -336,6 +375,10 @@ function Measure-HostTelemetryWindow {
         [int]$TargetIntervalMs,
         [string]$SentinelFilePath = $null
     )
+
+    # Enforce minimums per contract (>= 60s continuous, >= 30 samples)
+    if ($TargetDurationSeconds -lt 60) { $TargetDurationSeconds = 60 }
+    if ($TargetSamples -lt 30) { $TargetSamples = 30 }
 
     # Static machine capabilities
     $machine = Get-CimInstance Win32_ComputerSystem
@@ -359,12 +402,21 @@ function Measure-HostTelemetryWindow {
 
         # 1. Query CIM memory metrics
         $mem = Get-CimInstance Win32_PerfFormattedData_PerfOS_Memory
+        if ($null -eq $mem -or $null -eq $mem.AvailableMBytes) {
+            throw "Host Telemetry Failure: Win32_PerfFormattedData_PerfOS_Memory is missing or unavailable."
+        }
 
         # 2. Query CIM CPU total utilization
         $cpu = Get-CimInstance Win32_PerfFormattedData_PerfOS_Processor | Where-Object { $_.Name -eq '_Total' } | Select-Object -First 1
+        if ($null -eq $cpu -or $null -eq $cpu.PercentProcessorTime) {
+            throw "Host Telemetry Failure: Win32_PerfFormattedData_PerfOS_Processor (_Total) is missing or unavailable."
+        }
 
         # 3. Query CIM physical disk queue length
         $disk = Get-CimInstance Win32_PerfFormattedData_PerfDisk_PhysicalDisk | Where-Object { $_.Name -eq '_Total' } | Select-Object -First 1
+        if ($null -eq $disk -or $null -eq $disk.CurrentDiskQueueLength) {
+            throw "Host Telemetry Failure: Win32_PerfFormattedData_PerfDisk_PhysicalDisk (_Total) is missing or unavailable."
+        }
 
         # 4. Query process metrics and aggregate into 4 canonical groups
         $proc = @(Get-CimInstance Win32_PerfFormattedData_PerfProc_Process | Where-Object { $_.IDProcess -gt 0 -and $_.Name -ne '_Total' })
@@ -410,8 +462,8 @@ function Measure-HostTelemetryWindow {
         }
         $prevFinishedUtc = $sampleFinished
 
-        $cpuPercent = if ($cpu) { [double]$cpu.PercentProcessorTime } else { 0.0 }
-        $diskQueue = if ($disk) { [double]$disk.CurrentDiskQueueLength } else { 0.0 }
+        $cpuPercent = [double]$cpu.PercentProcessorTime
+        $diskQueue = [double]$disk.CurrentDiskQueueLength
 
         $sampleObj = [ordered]@{
             started_at           = $sampleStart.ToString('yyyy-MM-ddTHH:mm:ss.fffZ')
@@ -533,29 +585,27 @@ function Build-PreflightManifest {
     $timeouts = $TelemetryData.query_timeouts
 
     # Contract Evaluation Rules:
-    # 1. Without accredited reservation -> EJECUTOR_NO_APTO (PREPARADO / RESERVA NO ACREDITADA)
+    # 1. Default status in local host runs MUST be EJECUTOR_NO_APTO (PREPARADO / RESERVA NO ACREDITADA)
     # 2. Telemetry duration < 60s -> EJECUTOR_NO_APTO
-    # 3. Sampling gap > 5000ms -> EJECUTOR_NO_APTO
-    # 4. Git dirty outside whitelist -> EJECUTOR_NO_APTO
+    # 3. Telemetry samples < 30 -> EJECUTOR_NO_APTO
+    # 4. Sampling gap > 5000ms -> EJECUTOR_NO_APTO
+    # 5. Git dirty outside whitelist -> EJECUTOR_NO_APTO
 
     $status = 'EJECUTOR_NO_APTO'
     $statusReason = 'PREPARADO / RESERVA NO ACREDITADA'
 
     if ($durationMs -lt 60000.0) {
         $statusReason = "Telemetry duration (${durationMs}ms) does not meet continuous 60s requirement"
+    } elseif ($windowObj.sample_count -lt 30) {
+        $statusReason = "Telemetry sample count ($($windowObj.sample_count)) is less than required minimum of 30 samples"
     } elseif ($maxObservedGap -gt 5000.0) {
         $statusReason = "Telemetry discontinuity detected: gap of ${maxObservedGap}ms exceeds 5000ms limit"
     } elseif ($timeouts -gt 0) {
         $statusReason = "Sampler degradation detected: $timeouts CIM queries exceeded 5000ms limit"
     } elseif (-not $GitInfo.clean_working_tree) {
         $statusReason = 'Working tree is dirty with unapproved file modifications'
-    } elseif ($IsAccredited) {
-        if (-not [string]::IsNullOrWhiteSpace($EvidencePath) -and $Prov -ne 'none' -and $Prov -ne 'synthetic') {
-            $status = 'EJECUTOR_APTO'
-            $statusReason = 'Host formalmente acreditado con reserva demostrada y telemetría conforme'
-        } else {
-            $statusReason = 'Acreditación incompleta: evidence_doc ausente o procedencia sintética'
-        }
+    } else {
+        $statusReason = 'PREPARADO / RESERVA NO ACREDITADA'
     }
 
     $evidenceField = if ([string]::IsNullOrWhiteSpace($EvidencePath)) { $null } else { [string]$EvidencePath }
@@ -599,6 +649,9 @@ function Build-PreflightManifest {
 # Background mode file paths (strictly confined to r7/)
 $sentinelPath = Join-Path $scriptDir ($WindowName + '.stop')
 $pidFilePath  = Join-Path $scriptDir ($WindowName + '.pid')
+
+Assert-PathConfinement -Path $sentinelPath -ParamName 'SentinelPath'
+Assert-PathConfinement -Path $pidFilePath -ParamName 'PidFilePath'
 
 if ($Mode -eq 'Background') {
     switch ($Action) {
@@ -752,8 +805,11 @@ if ($Mode -eq 'Background') {
 # ==============================================================================
 
 # If running as worker process via Background Start, write PID file
-if ($PidFile -and -not (Test-Path -LiteralPath $PidFile)) {
-    Set-Content -LiteralPath $PidFile -Value $PID -Encoding utf8
+if ($PidFile) {
+    Assert-PathConfinement -Path $PidFile -ParamName 'PidFile'
+    if (-not (Test-Path -LiteralPath $PidFile)) {
+        Set-Content -LiteralPath $PidFile -Value $PID -Encoding utf8
+    }
 }
 
 Write-Host "======================================================================"
@@ -795,11 +851,17 @@ $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 [System.IO.File]::WriteAllText($resolvedOutput, $jsonOutput, $utf8NoBom)
 
 # Clean up PID and Sentinel files if passed as internal parameters
-if ($PidFile -and (Test-Path -LiteralPath $PidFile)) {
-    Remove-Item -LiteralPath $PidFile -Force -ErrorAction SilentlyContinue
+if ($PidFile) {
+    Assert-PathConfinement -Path $PidFile -ParamName 'PidFile'
+    if (Test-Path -LiteralPath $PidFile) {
+        Remove-Item -LiteralPath $PidFile -Force -ErrorAction SilentlyContinue
+    }
 }
-if ($SentinelFile -and (Test-Path -LiteralPath $SentinelFile)) {
-    Remove-Item -LiteralPath $SentinelFile -Force -ErrorAction SilentlyContinue
+if ($SentinelFile) {
+    Assert-PathConfinement -Path $SentinelFile -ParamName 'SentinelFile'
+    if (Test-Path -LiteralPath $SentinelFile) {
+        Remove-Item -LiteralPath $SentinelFile -Force -ErrorAction SilentlyContinue
+    }
 }
 
 Write-Host "----------------------------------------------------------------------"

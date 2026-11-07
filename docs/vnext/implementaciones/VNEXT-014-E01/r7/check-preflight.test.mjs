@@ -13,10 +13,15 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
+import process from 'node:process';
 
 import {
   validatePreflightManifest,
+  parseCliArgs,
   CANONICAL_DIST_HASHES,
+  CANONICAL_TOOLCHAIN,
+  NORMATIVE_INTERFERENCE_LIMITS,
   AUTHORIZED_BRANCH,
   ALLOWED_GIT_EXCEPTIONS
 } from './check-preflight.mjs';
@@ -159,7 +164,7 @@ test('TC-02: Invariante de No Conversion: VALIDADOR_PASS jamas promueve a EJECUT
 
 test('TC-03: Aprobacion de ejecutor real con reserva debidamente acreditada', () => {
   const manifest = getAccreditedExecutorFixture();
-  const result = validatePreflightManifest(manifest);
+  const result = validatePreflightManifest(manifest, { auditorApproval: true });
 
   assert.equal(result.valid, true, 'Debe ser valido');
   assert.equal(result.validador_status, 'VALIDADOR_PASS', 'Debe otorgar VALIDADOR_PASS');
@@ -584,4 +589,353 @@ test('TC-35: Rechazo por contradiccion fatal: declara EJECUTOR_APTO con telemetr
   assert.equal(result.valid, false);
   assert.equal(result.executor_status, 'EJECUTOR_NO_APTO');
   assert.ok(result.errors.some(e => e.includes('Contradiction') || e.includes('duration')));
+});
+
+// ============================================================================
+// Group 8: Regresiones Post-Auditoría Codex (VNEXT-014-E01 / R7-A01..R7-A07)
+// ============================================================================
+
+// --- R7-A01: Acreditación de Reserva y Verificación Documental ---
+test('TC-R7-A01-REPRO: Rechazo estructurado de autodeclaracion con ruta de evidencia inexistente', () => {
+  const manifest = getCanonicalFixture();
+  Object.assign(manifest.resource_reservation, {
+    accredited: true,
+    provenance: 'cloud_dedicated_host',
+    type: 'dedicated_host',
+    evidence_doc: 'file:///NO-EXISTE/recibo.json'
+  });
+
+  const result = validatePreflightManifest(manifest);
+  assert.equal(result.valid, false, 'Ruta de archivo inexistente DEBE fallar validacion');
+  assert.equal(result.validador_status, 'VALIDADOR_FAIL');
+  assert.equal(result.executor_status, 'EJECUTOR_NO_APTO');
+  assert.equal(result.details.reservation_accredited, false);
+  assert.ok(result.errors.some(e => e.includes('Evidence document does not exist') && e.includes('recibo.json')));
+});
+
+test('TC-R7-A01-NO-SELF-CERT: Manifest no puede autocertificarse sin compuerta de auditoria externa', () => {
+  const manifest = getAccreditedExecutorFixture();
+  manifest.status = 'VALIDADOR_PASS';
+  const result = validatePreflightManifest(manifest);
+
+  assert.equal(result.valid, true, 'Sintacticamente valido');
+  assert.equal(result.validador_status, 'VALIDADOR_PASS');
+  assert.equal(result.executor_status, 'EJECUTOR_NO_APTO', 'Sin auditorApproval, jamas emite EJECUTOR_APTO');
+  assert.equal(result.details.reservation_accredited, false);
+  assert.ok(result.reasons.some(r => r.includes('RESERVA NO ACREDITADA')));
+});
+
+test('TC-R7-A01-FRAUD-APTO: Rechazo por contradiccion si declara status EJECUTOR_APTO sin auditorApproval', () => {
+  const manifest = getAccreditedExecutorFixture();
+  manifest.status = 'EJECUTOR_APTO';
+  const result = validatePreflightManifest(manifest);
+
+  assert.equal(result.valid, false, 'Autodeclarar EJECUTOR_APTO sin auditorApproval es fraude contractual');
+  assert.equal(result.validador_status, 'VALIDADOR_FAIL');
+  assert.equal(result.executor_status, 'EJECUTOR_NO_APTO');
+  assert.ok(result.errors.some(e => e.includes('Contradiction') && e.includes('EJECUTOR_APTO')));
+});
+
+test('TC-R7-A01-LOCAL-DOC-VERIFIED: Acepta archivo documental local existente y no vacio con auditorApproval', () => {
+  const manifest = getAccreditedExecutorFixture();
+  manifest.resource_reservation.evidence_doc = 'docs/vnext/implementaciones/VNEXT-014-E01/r7/CONTRATO_EJECUTOR.md';
+
+  const result = validatePreflightManifest(manifest, { auditorApproval: true });
+  assert.equal(result.valid, true);
+  assert.equal(result.validador_status, 'VALIDADOR_PASS');
+  assert.equal(result.executor_status, 'EJECUTOR_APTO');
+  assert.equal(result.details.reservation_accredited, true);
+});
+
+// --- R7-A02: PASS por Omisión en Telemetría y Esquema ---
+test('TC-R7-A02-REPRO-EMPTY: Rechazo estructurado de arreglo samples vacio y duration_ms reiniciado', () => {
+  const manifest = getCanonicalFixture();
+  manifest.telemetry_window.samples = [];
+  manifest.telemetry_window.sample_count = 0;
+
+  const result = validatePreflightManifest(manifest);
+  assert.equal(result.valid, false, 'Samples vacio debe ser rechazado');
+  assert.equal(result.validador_status, 'VALIDADOR_FAIL');
+  assert.equal(result.details.telemetry_valid, false);
+  assert.equal(result.details.telemetry_duration_ms, 0, 'La duracion no debe heredarse del campo declarado');
+  assert.ok(result.errors.some(e => e.includes('at least 30 samples')));
+});
+
+test('TC-R7-A02-REPRO-NO-METRICS: Rechazo de muestras reducidas solo a timestamps sin metricas ni grupos', () => {
+  const manifest = getCanonicalFixture();
+  manifest.telemetry_window.samples = manifest.telemetry_window.samples.map(({ started_at, finished_at }) => ({
+    started_at,
+    finished_at
+  }));
+
+  const result = validatePreflightManifest(manifest);
+  assert.equal(result.valid, false, 'Muestras sin metricas deben ser rechazadas');
+  assert.equal(result.validador_status, 'VALIDADOR_FAIL');
+  assert.equal(result.details.telemetry_valid, false);
+  assert.ok(result.errors.some(e => e.includes('missing required metric field')));
+});
+
+test('TC-R7-A02-NULL-SAMPLE: Manejo seguro y estructurado de muestra null sin lanzar TypeError', () => {
+  const manifest = getCanonicalFixture();
+  manifest.telemetry_window.samples[0] = null;
+
+  assert.doesNotThrow(() => {
+    const result = validatePreflightManifest(manifest);
+    assert.equal(result.valid, false);
+    assert.equal(result.validador_status, 'VALIDADOR_FAIL');
+    assert.ok(result.errors.some(e => e.includes('null, undefined, or not a valid object')));
+  }, 'No debe arrojar TypeError');
+});
+
+test('TC-R7-A02-MIN-SAMPLES: Rechazo si ventana tiene menos de 30 muestras (e.g. 29)', () => {
+  const manifest = getCanonicalFixture();
+  manifest.telemetry_window.samples = manifest.telemetry_window.samples.slice(0, 29);
+  manifest.telemetry_window.sample_count = 29;
+
+  const result = validatePreflightManifest(manifest);
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.some(e => e.includes('at least 30 samples')));
+});
+
+test('TC-R7-A02-INCOMPLETE-GROUPS: Rechazo de muestra con menos de 4 grupos de procesos', () => {
+  const manifest = getCanonicalFixture();
+  manifest.telemetry_window.samples[0].groups = manifest.telemetry_window.samples[0].groups.slice(0, 3);
+
+  const result = validatePreflightManifest(manifest);
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.some(e => e.includes('must contain exactly 4 process groups')));
+});
+
+test('TC-R7-A02-OVERLAPPING-SAMPLES: Rechazo de traslape cronologico entre muestras consecutivas', () => {
+  const manifest = getCanonicalFixture();
+  const s1Finish = Date.parse(manifest.telemetry_window.samples[1].finished_at);
+  manifest.telemetry_window.samples[2].started_at = new Date(s1Finish - 200).toISOString();
+
+  const result = validatePreflightManifest(manifest);
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.some(e => e.includes('Sample overlap')));
+});
+
+test('TC-R7-A02-FUTURE-TIMESTAMPS: Rechazo de muestras con timestamp en el futuro', () => {
+  const manifest = getCanonicalFixture();
+  const futureDate = new Date(Date.now() + 3600000).toISOString();
+  manifest.telemetry_window.samples[5].finished_at = futureDate;
+
+  const result = validatePreflightManifest(manifest);
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.some(e => e.includes('timestamp in the future')));
+});
+
+// --- R7-A03: Presupuestos de Interferencia ---
+test('TC-R7-A03-REPRO-SATURATED: Rechazo determinista por host saturado (CPU 100%, RAM 1MB, cola 173, paginacion)', () => {
+  const manifest = getCanonicalFixture();
+  for (const s of manifest.telemetry_window.samples) {
+    s.cpu_percent = 100;
+    s.available_mb = 1;
+    s.disk_queue = 173;
+    s.pages_input_per_sec = 275938;
+    for (const g of s.groups) {
+      g.cpu_percent_logical_capacity = 25;
+    }
+  }
+
+  const result = validatePreflightManifest(manifest);
+  assert.equal(result.valid, false, 'Host saturado DEBE ser rechazado');
+  assert.equal(result.validador_status, 'VALIDADOR_FAIL');
+  assert.equal(result.details.telemetry_valid, false);
+  assert.ok(result.errors.some(e => e.includes('disk_queue limit')));
+  assert.ok(result.errors.some(e => e.includes('pages_input_per_sec limit')));
+  assert.ok(result.errors.some(e => e.includes('available_ram_mb limit')));
+  assert.ok(result.errors.some(e => e.includes('max_external_cpu_percent limit')));
+});
+
+test('TC-R7-A03-DISK-QUEUE-SPIKE: Rechazo por pico aislado en cola de disco (> 2.0)', () => {
+  const manifest = getCanonicalFixture();
+  manifest.telemetry_window.samples[10].disk_queue = 3.5;
+
+  const result = validatePreflightManifest(manifest);
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.some(e => e.includes('Sample 10 violates disk_queue limit')));
+});
+
+test('TC-R7-A03-RAM-DEPLETED: Rechazo por memoria RAM disponible por debajo del minimo normativo (< 2048 MB)', () => {
+  const manifest = getCanonicalFixture();
+  manifest.telemetry_window.samples[5].available_mb = 1500;
+  manifest.telemetry_window.mem_stats.min_available_mb = 1500;
+
+  const result = validatePreflightManifest(manifest);
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.some(e => e.includes('available_ram_mb limit')));
+  assert.ok(result.errors.some(e => e.includes('mem_stats.min_available_mb')));
+});
+
+test('TC-R7-A03-PAGING-SPIKE: Rechazo por tasa de paginacion de disco superior al limite (> 500 pags/seg)', () => {
+  const manifest = getCanonicalFixture();
+  manifest.telemetry_window.samples[8].pages_input_per_sec = 850;
+  manifest.telemetry_window.page_faults.max_pages_input_per_sec = 850;
+
+  const result = validatePreflightManifest(manifest);
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.some(e => e.includes('pages_input_per_sec limit')));
+  assert.ok(result.errors.some(e => e.includes('page_faults.max_pages_input_per_sec')));
+});
+
+test('TC-R7-A03-EXTERNAL-CPU-SPIKE: Rechazo por consumo excesivo de CPU externa en grupo other (> 10%)', () => {
+  const manifest = getCanonicalFixture();
+  const otherG = manifest.telemetry_window.samples[12].groups.find(g => g.category === 'other');
+  otherG.cpu_percent_logical_capacity = 14.5;
+
+  const result = validatePreflightManifest(manifest);
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.some(e => e.includes('max_external_cpu_percent limit')));
+});
+
+// --- R7-A04: Prohibición de Sustitución Canónica y Observaciones Faltantes ---
+test('TC-R7-A04-NULL-OBSERVATIONS: Rechazo estricto si faltan observaciones requeridas en dist_hashes o toolchain', () => {
+  const m1 = getCanonicalFixture();
+  m1.dist_hashes['packages/mcp/dist/server.js'] = null;
+  assert.equal(validatePreflightManifest(m1).valid, false);
+
+  const m2 = getCanonicalFixture();
+  m2.toolchain.node_version = null;
+  assert.equal(validatePreflightManifest(m2).valid, false);
+
+  const m3 = getCanonicalFixture();
+  m3.git.commit_sha = null;
+  assert.equal(validatePreflightManifest(m3).valid, false);
+});
+
+test('TC-R7-A04-NULL-SAMPLE-METRIC: Rechazo estructurado si una metrica individual en muestra es null o NaN', () => {
+  const manifest = getCanonicalFixture();
+  manifest.telemetry_window.samples[0].disk_queue = null;
+
+  const result = validatePreflightManifest(manifest);
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.some(e => e.includes("missing required metric field: 'disk_queue'")));
+});
+
+// --- R7-A05: Integridad Git y Opciones CLI ---
+test('TC-R7-A05-REPRO-WHITELIST: Rechazo de arbol sucio aun si el manifiesto intenta autoincluirlo en allowed_untracked_or_modified', () => {
+  const manifest = getCanonicalFixture();
+  Object.assign(manifest.git, {
+    clean_working_tree: false,
+    dirty_files: ['packages/mcp/src/server.ts'],
+    allowed_untracked_or_modified: ['packages/mcp/src/server.ts']
+  });
+
+  const result = validatePreflightManifest(manifest);
+  assert.equal(result.valid, false, 'El ejecutor NO puede suministrar su propia whitelist');
+  assert.equal(result.validador_status, 'VALIDADOR_FAIL');
+  assert.equal(result.details.git_valid, false);
+  assert.ok(result.errors.some(e => e.includes('Working tree is dirty with unapproved')));
+});
+
+test('TC-R7-A05-CLI-PARSER-OPTIONS: parseCliArgs parsea fielmente todas las opciones canónicas', () => {
+  const args = [
+    '--manifest', 'r7/manifest.json',
+    '--expected-sha', 'c161c0f995a8f9844f2ec09c041354d77a08fea0',
+    '--expected-branch', 'feat/qap-vnext-architecture',
+    '--expected-chromium', '151.0.7922.34',
+    '--require-chromium',
+    '--min-duration', '65000',
+    '--max-gap', '4000',
+    '--auditor-approval'
+  ];
+
+  const parsed = parseCliArgs(args);
+  assert.equal(parsed.manifestPath, 'r7/manifest.json');
+  assert.equal(parsed.options.expectedCommitSha, 'c161c0f995a8f9844f2ec09c041354d77a08fea0');
+  assert.equal(parsed.options.expectedBranch, 'feat/qap-vnext-architecture');
+  assert.equal(parsed.options.expectedChromiumVersion, '151.0.7922.34');
+  assert.equal(parsed.options.requireChromium, true);
+  assert.equal(parsed.options.minDurationMs, 65000);
+  assert.equal(parsed.options.maxGapMs, 4000);
+  assert.equal(parsed.options.auditorApproval, true);
+  assert.equal(parsed.unknownOptions.length, 0);
+});
+
+test('TC-R7-A05-CLI-UNKNOWN-FLAG: parseCliArgs detecta banderas desconocidas', () => {
+  const parsed = parseCliArgs(['--unknown-flag', '--foo=bar']);
+  assert.equal(parsed.unknownOptions.length, 2);
+  assert.ok(parsed.unknownOptions.includes('--unknown-flag'));
+  assert.ok(parsed.unknownOptions.includes('--foo=bar'));
+});
+
+test('TC-R7-A05-CLI-EXEC-SHA-MISMATCH: CLI invocado con SHA discrepante sale con codigo de error 1', () => {
+  const scriptPath = path.resolve(__dirname, 'check-preflight.mjs');
+  const manifestPath = path.resolve(__dirname, 'manifest-ejemplo.json');
+
+  const res = spawnSync(process.execPath, [
+    scriptPath,
+    manifestPath,
+    '--expected-sha', '0000000000000000000000000000000000000000'
+  ], { encoding: 'utf-8' });
+
+  assert.equal(res.status, 1, 'Debe salir con codigo 1');
+  assert.ok(res.stdout.includes('VALIDADOR_FAIL') || res.stdout.includes('does not match expected'));
+});
+
+test('TC-R7-A05-CLI-EXEC-UNKNOWN-FLAG: CLI invocado con opcion desconocida sale con codigo de error 1', () => {
+  const scriptPath = path.resolve(__dirname, 'check-preflight.mjs');
+  const manifestPath = path.resolve(__dirname, 'manifest-ejemplo.json');
+
+  const res = spawnSync(process.execPath, [
+    scriptPath,
+    manifestPath,
+    '--opcion-inexistente'
+  ], { encoding: 'utf-8' });
+
+  assert.equal(res.status, 1, 'Debe salir con codigo 1');
+  assert.ok(res.stderr.includes('Unknown CLI option'));
+});
+
+// --- R7-A06: Coherencia de Toolchain ---
+test('TC-R7-A06-REPRO-TOOLCHAIN: Rechazo de versiones divergentes de Node (v24.0.1), pnpm (12.0.1) y Chromium (0.0.0.0)', () => {
+  const manifest = getCanonicalFixture();
+  Object.assign(manifest.toolchain, {
+    node_version: 'v24.0.1',
+    pnpm_version: '12.0.1',
+    chromium_version: '0.0.0.0'
+  });
+
+  const result = validatePreflightManifest(manifest);
+  assert.equal(result.valid, false, 'Versiones divergentes DEBEN ser rechazadas');
+  assert.equal(result.validador_status, 'VALIDADOR_FAIL');
+  assert.equal(result.details.toolchain_valid, false);
+  assert.ok(result.errors.some(e => e.includes('v24.0.1')));
+  assert.ok(result.errors.some(e => e.includes('12.0.1')));
+  assert.ok(result.errors.some(e => e.includes('0.0.0.0')));
+});
+
+test('TC-R7-A06-CHROMIUM-BASELINE: Comprobacion obligatoria por defecto de Chromium frente a linea base canónica', () => {
+  const manifest = getCanonicalFixture();
+  manifest.toolchain.chromium_version = '150.0.0.0';
+
+  const result = validatePreflightManifest(manifest);
+  assert.equal(result.valid, false);
+  assert.equal(result.details.toolchain_valid, false);
+  assert.ok(result.errors.some(e => e.includes('150.0.0.0') && e.includes('151.0.7922.34')));
+});
+
+// --- R7-A07: Confinamiento de Rutas y Fallo Conservador ---
+test('TC-R7-A07-PATH-CONFINEMENT-EVIDENCE: Rechazo conservador de rutas con traversal o archivos ilegibles', () => {
+  const manifest = getCanonicalFixture();
+  manifest.resource_reservation.accredited = true;
+  manifest.resource_reservation.evidence_doc = '../../../../Windows/System32/drivers/etc/hosts_ficticio.json';
+
+  const result = validatePreflightManifest(manifest);
+  assert.equal(result.valid, false);
+  assert.equal(result.details.reservation_accredited, false);
+  assert.ok(result.errors.some(e => e.includes('Evidence document does not exist') || e.includes('inaccessible')));
+});
+
+test('TC-R7-FAIL-CLOSED-INVARIANT: Principio Fail-Closed: VALIDADOR_PASS nunca equivale a EJECUTOR_APTO', () => {
+  const manifest = getCanonicalFixture();
+  const result = validatePreflightManifest(manifest);
+
+  assert.equal(result.valid, true);
+  assert.equal(result.validador_status, 'VALIDADOR_PASS');
+  assert.equal(result.executor_status, 'EJECUTOR_NO_APTO', 'Fail-closed: fixture conforme sin acreditacion externa permanece en NO APTO');
+  assert.notEqual(result.validador_status, result.executor_status);
+  assert.ok(result.reasons.some(r => r.includes('PREPARADO / RESERVA NO ACREDITADA')));
 });

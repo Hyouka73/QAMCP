@@ -1,9 +1,9 @@
 # CONTRATO DE INFRAESTRUCTURA, CAPACIDAD Y PREFLIGHT DEL EJECUTOR (R7)
 **Identificador:** `VNEXT-014-E01-R7-CONTRACT`  
-**Fase:** VNEXT-014-E01 / R7-01  
+**Fase:** VNEXT-014-E01 / R7-01 (Revisión Post-Auditoría Codex 2026-11-07)  
 **Fecha:** 2026-11-07  
 **Rama autorizada:** `feat/qap-vnext-architecture`  
-**Estado:** VIGENTE / CONGELADO  
+**Estado:** VIGENTE / CONGELADO / AUDITADO (R7-01b: Endurecimiento contra Falsos Positivos)  
 **Destinatarios:** Agente 1 (Arquitecto de Contratos), Agente 2 (Implementador de Preflight), Agente 3 (Validador Automatizado), Coordinador Gemini, Auditor Codex.
 
 ---
@@ -33,23 +33,43 @@ Queda estrictamente prohibida la creación o modificación de archivos fuera de 
 
 ## 2. Principios Invariantes y Epistemología de la Capacidad
 
-### 2.1. Invariante 1: Falacia de CPU/RAM Ociosa y Rechazo de Autodeclaraciones
+### 2.1. Invariante 1: Falacia de CPU/RAM Ociosa, Prohibición de Autocertificación y Rechazo de Reserva Autodeclarada (Resolución R7-A01)
 Una muestra puntual o agregada que indique baja utilización de CPU (e.g. CPU al 0%) o memoria física disponible circunstancial (e.g. 4 GB libres) **NO constituye demostración de reserva de recursos**.
-- En un sistema operativo de propósito general (e.g. Windows Desktop), las cargas de fondo (indexadores, telemetría, antivirus, procesos de usuario) son estocásticas y pueden activarse en cualquier instante.
-- Un host sin cuotas rígidas ni hipervisor dedicado no puede garantizar la disponibilidad de sus recursos durante la ejecución de pruebas concurrentes.
-- **Regla Contractual:** Toda autodeclaración de idoneidad fundamentada exclusivamente en que el host "se encuentra libre" o "tiene baja carga" será clasificada de inmediato como **NO APTO**. La reserva debe ser demostrada mediante evidencia operacional independiente verificable.
+- En un sistema operativo de propósito general (e.g. Windows Desktop), las cargas de fondo (indexadores, telemetría del SO, antivirus, procesos de usuario) son estocásticas y pueden activarse en cualquier instante durante la prueba.
+- Un host sin cuotas rígidas ni hipervisor dedicado no puede garantizar la disponibilidad ni exclusividad de sus recursos durante la ejecución de pruebas concurrentes.
+- **Prohibición Absoluta de Autocertificación:** El manifiesto de preflight es una sumisión unilateral no autenticada del ejecutor; **ningún manifiesto puede autocertificar su propia reserva o idoneidad**.
+- **Insuficiencia de la Mera Existencia Sintáctica o Documental:** La mera existencia de un archivo documental, un URI formal o un manifiesto sintácticamente válido NO convalida la reserva. Se exige acreditar procedencia independiente y verificable de la asignación de recursos, emitida por una autoridad externa formal con alcance específico de CPU/RAM dedicada sin overcommit y vigencia temporal coincidente con el preflight.
+- **Rechazo Estricto de Fuentes no Verificables:** Datos autodeclarados, archivos sin autoridad verificable, referencias circulares (e.g. autorreferencias a logs o scripts del propio ejecutor) o evidencias cuyo origen no pueda comprobarse NUNCA permiten emitir `EJECUTOR_APTO`.
+- **Verificación Física y de Contenido de `evidence_doc`:** Si el manifiesto invoca una referencia documental (`evidence_doc`), el validador DEBE verificar su existencia física real en disco y comprobar que su contenido sea genuino y acredite la asignación exclusiva. Rutas inexistentes (e.g. `file:///NO-EXISTE/recibo.json`), archivos vacíos o referencias espurias provocan el fallo estructurado inmediato de la validación (`VALIDADOR_FAIL`) y forzan indefectiblemente `EJECUTOR_NO_APTO`.
+- **Compuerta Externa de Emisión:** La calificación `EJECUTOR_APTO` está condicionada de forma sine qua non a una decisión auditable externa al manifiesto, reservada exclusivamente al auditor independiente Codex.
 
-### 2.2. Invariante 2: Prohibición de Inventar Mínimos de RAM
-Ningún agente ni evaluador está autorizado a fijar de forma arbitraria un umbral ad-hoc de RAM mínima (e.g. "con 8 GB basta") para declarar un host idóneo. La capacidad exigida debe responder a una asignación física o virtual formalmente delimitada, con política de swap controlada y límites de contención operacional previamente aprobados por la auditoría.
+### 2.2. Invariante 2: Prohibición de Inventar Mínimos de RAM y Armonización Normativa (Resolución R7-A06)
+Ningún agente ni evaluador está autorizado a fijar de forma arbitraria un umbral ad-hoc de RAM mínima (e.g. "con 8 GB basta") para declarar un host idóneo.
+- **Armonización de Capacidad:** Se establece una distinción normativa rígida entre el piso sintáctico del esquema JSON (`allocated_ram_mb >= 1024` MB), necesario para admitir fixtures y entornos de validación controlados, y la dimensión operacional de la carga E01.
+- La idoneidad de capacidad no se deriva de ningún número arbitrario autodeclarado, sino de la asignación física o virtual formalmente delimitada en el documento de provisión auditado y del cumplimiento irrestricto de los presupuestos de interferencia (`min_available_ram_mb >= 2048` MB) en cada muestra temporal.
 
 ### 2.3. Invariante 3: Evidencia Operacional Independiente Obligatoria
-Para que un entorno sea calificado como `EJECUTOR_APTO`, el manifiesto debe proporcionar obligatoriamente:
-1. `resource_reservation.accredited === true`.
-2. `resource_reservation.provenance`: Identificador del mecanismo formal de aprovisionamiento (`hypervisor_vm_pinned`, `cloud_dedicated_host`, `bare_metal_offline`, `cgroups_v2_systemd`). Quedan prohibidos `"synthetic"` y `"none"`.
-3. `resource_reservation.evidence_doc`: Referencia documental no vacía (URI, ruta de atestación criptográfica, recibo de orquestador de CI o identificador de provisión formal) que acredite la exclusividad de los núcleos de CPU y de la memoria RAM asignados.
+Para que un entorno aspire a ser calificado como `EJECUTOR_APTO` por el auditor externo, el manifiesto debe proporcionar obligatoriamente:
+1. `resource_reservation.accredited === true` (avalado por compuerta de auditoría externa).
+2. `resource_reservation.provenance`: Identificador del mecanismo formal de aprovisionamiento (`hypervisor_vm_pinned`, `cloud_dedicated_host`, `bare_metal_offline`, `cgroups_v2_systemd`). Quedan terminantemente prohibidos `"synthetic"` y `"none"`.
+3. `resource_reservation.evidence_doc`: Referencia documental comprobada, físicamente existente y accesible, que acredite la exclusividad de los núcleos de CPU y de la memoria RAM garantizados.
 
-En ausencia de esta evidencia, el estado del ejecutor será indefectiblemente **`EJECUTOR_NO_APTO`**, reportando:
+En ausencia de esta verificación independiente externa, el estado del ejecutor será indefectiblemente **`EJECUTOR_NO_APTO`**, reportando:
 `PREPARADO / RESERVA NO ACREDITADA`
+
+### 2.4. Invariante 4: Whitelist de Integridad Git Inmutable y Rechazo de Whitelist Forjada (Resolución R7-A05)
+La integridad del árbol de trabajo de Git se evalúa frente a una whitelist normativa fija, estricta y externa al manifiesto.
+- La ÚNICA excepción autorizada en todo el repositorio es:
+  `packages/playwright-runner/.qa/cache/sessions/admin-user.json`
+- **Prohibición de Bypass:** Cualquier whitelist aportada por el propio ejecutor en el campo `allowed_untracked_or_modified` del manifiesto **NO puede convertir una condición fallida en válida ni ser aceptada como autoridad**.
+- Si el árbol de trabajo contiene modificaciones o archivos no rastreados ajenos a la excepción normativa fija, el preflight será rechazado de inmediato (`VALIDADOR_FAIL`, `EJECUTOR_NO_APTO`), aun cuando el manifiesto intente auto-concederse la excepción.
+
+### 2.5. Invariante 5: Prohibición Absoluta de Sustitución Canónica de Observaciones Ausentes (Resolución R7-A04)
+Queda terminantemente prohibido el uso de fallbacks sintéticos o la sustitución por valores canónicos ante lecturas fallidas o ausentes en el host.
+- Si un comando (`node -v`, `pnpm -v`, `git rev-parse`) falla o retorna vacío, el script debe registrar `null` o abortar de forma cerrada (fail-closed); NUNCA debe sustituir el valor por la versión canónica esperada (`v24.15.0`, `12.3.4`, o commit SHA de referencia).
+- Si un artefacto compilado (`dist/*.js`) o un archivo de navegador (`browsers.json`) no existe en el disco, se debe registrar la ausencia o `null`; NUNCA se debe escribir el hash canónico ni una versión supuesta.
+- Si un contador de rendimiento (CPU, disco, memoria) no puede leerse, NUNCA debe convertirse a `0.0`. Debe reportarse el fallo del contador.
+- Todo manifiesto que contenga observaciones ausentes, nulas o indeterminadas para campos obligatorios será rechazado deterministamente por el validador (`VALIDADOR_FAIL`).
 
 ---
 
@@ -83,11 +103,12 @@ El sistema de preflight y sus herramientas de validación operan bajo una máqui
 +-----------------------------------------------------------------------------------+
 ```
 
-### 3.2. Regla de Oro: Invariante de No Conversión Automática
+### 3.2. Regla de Oro: Invariante de No Conversión Automática y Rechazo de Contradicciones
 > **`VALIDADOR_PASS` BAJO NINGUNA CIRCUNSTANCIA SE CONVIERTE AUTOMÁTICAMENTE EN `EJECUTOR_APTO`.**
 
 - En las pruebas sintéticas (`check-preflight.test.mjs`), se utilizan fixtures donde el esquema y la telemetría son 100% conformes. La superación de estas pruebas otorga `VALIDADOR_PASS`, pero el estado del ejecutor evaluado debe mantenerse estrictamente en `EJECUTOR_NO_APTO` (con razón `PREPARADO / RESERVA NO ACREDITADA`).
 - Cualquier implementación de validador que asigne `EJECUTOR_APTO` simplemente porque el esquema JSON es válido o porque no se encontraron excepciones en el proceso será rechazada de inmediato como violación de integridad.
+- **Rechazo de Fraude y Contradicción Formal:** Si un manifiesto intenta auto-adjudicarse `status: "EJECUTOR_APTO"` sin contar con acreditación independiente debidamente verificada por la compuerta externa, el validador lo considerará una contradicción formal e intento espurio de autocertificación, emitiendo de inmediato `VALIDADOR_FAIL` y forzando `EJECUTOR_NO_APTO`.
 
 ### 3.3. Prohibición de Autocertificación por Gemini
 El coordinador y los agentes de Gemini Teamwork son constructores de la herramienta de verificación. **Gemini no tiene potestad para autocertificar la idoneidad del ejecutor**. El dictamen técnico de idoneidad corresponde única y exclusivamente a Codex antes de autorizar cualquier ejecución de E01.
@@ -101,13 +122,13 @@ Para que un manifiesto de preflight sea admitido y evaluado, debe documentar y s
 ### 4.1. Capacidad Asignada y Procedencia de Reserva
 | Parámetro | Tipo | Restricción Contractual | Verificación |
 |---|---|---|---|
-| `provenance` | `string` | Uno de: `hypervisor_vm_pinned`, `cloud_dedicated_host`, `bare_metal_offline`, `cgroups_v2_systemd`. (Para fixtures sintéticos: `synthetic`; para entornos sin reserva: `none`). | Solo los 4 tipos de infraestructura acreditada habilitan `EJECUTOR_APTO`. |
-| `evidence_doc` | `string \| null` | Cadena no vacía apuntando al documento de provisión o contrato de infraestructura. `null` si no existe. | Debe ser no nulo y no vacío para `EJECUTOR_APTO`. |
-| `type` | `string` | Uno de: `dedicated_host`, `dedicated_vm`, `exclusive_container`, `unreserved_shared`, `synthetic_fixture`. | `unreserved_shared` y `synthetic_fixture` fuerzan `EJECUTOR_NO_APTO`. |
+| `provenance` | `string` | Uno de: `hypervisor_vm_pinned`, `cloud_dedicated_host`, `bare_metal_offline`, `cgroups_v2_systemd`. (Para fixtures sintéticos: `synthetic`; para entornos sin reserva: `none`). | Solo los 4 tipos de infraestructura acreditada habilitan `EJECUTOR_APTO` si son convalidados externamente. |
+| `evidence_doc` | `string \| null` | Cadena no vacía apuntando al documento de provisión o contrato de infraestructura formal. `null` si no existe. | Debe existir físicamente en disco si es ruta local/`file://`, ser legible, no estar vacío y contener atestación genuina. Ruta inexistente falla la validación (`VALIDADOR_FAIL`). |
+| `type` | `string` | Uno de: `dedicated_host`, `dedicated_vm`, `exclusive_container`, `unreserved_shared`, `synthetic_fixture`. | `unreserved_shared` y `synthetic_fixture` fuerzan indefectiblemente `EJECUTOR_NO_APTO`. |
 | `allocated_cores` | `integer` | Cores lógicos dedicados exclusivamente al ejecutor ($\ge 4$, nominal 8-16). | Entero positivo verificado contra el sistema. |
-| `allocated_ram_mb` | `integer` | Memoria física garantizada en Megabytes ($\ge 8192$, nominal 14000-16384). | Entero positivo verificado sin overcommit. |
+| `allocated_ram_mb` | `integer` | Memoria física garantizada en Megabytes ($\ge 1024$ MB piso técnico de esquema; nominal 14000-16384 para E01). | Entero positivo $\ge 1024$ verificado contra provisión formal sin fijar mínimos arbitrarios de aptitud. |
 | `swap_policy` | `string` | Política de archivo de paginación (`disabled`, `fixed_managed`, `host_managed`). | Prohibido swap dinámico no acotado. |
-| `accredited` | `boolean` | `true` exclusivamente si existe evidencia documental verificada; `false` en cualquier otro caso. | Condición sine qua non para `EJECUTOR_APTO`. |
+| `accredited` | `boolean` | `true` exclusivamente si existe evidencia documental verificada y compuerta de auditoría externa; `false` en cualquier otro caso. | Condición necesaria pero no suficiente por sí sola: sin verificación externa no confiere `EJECUTOR_APTO`. |
 
 ### 4.2. Sistema Operativo y Plataforma Host
 | Parámetro | Tipo | Restricción Contractual | Verificación |
@@ -117,23 +138,28 @@ Para que un manifiesto de preflight sea admitido y evaluado, debe documentar y s
 | `build` | `string` | Número de compilación del SO (e.g. `"26200"`). | Cadena no vacía. |
 | `arch` | `string` | Arquitectura de CPU autorizada: `"x64"` o `"arm64"`. | Debe ser `"x64"` para paridad con la línea base R6-A. |
 
-### 4.3. Toolchain y Runtime
-El ejecutor debe contar con las versiones exactas estipuladas en la línea base de desarrollo y preparación:
+### 4.3. Toolchain y Runtime (Resolución R7-A06)
+El ejecutor debe contar obligatoriamente con las versiones exactas estipuladas en la línea base de desarrollo y preparación:
 | Herramienta | Versión Canónica Exigida | Método de Comprobación |
 |---|---|---|
 | Node.js | `v24.15.0` | `node -v` |
 | pnpm | `12.3.4` | `pnpm -v` |
 | Playwright Chromium | `151.0.7922.34` (revisión Playwright `1234`) | `packages/playwright-runner/node_modules/playwright-core/browsers.json` |
 
-Cualquier discrepancia de versión mayor o menor descalifica el entorno como no homogéneo.
+- **Unificación Normativa y Rechazo de Discrepancias:** Queda abolida cualquier discrepancia entre contrato, esquema y validador. El validador NO debe aceptar rangos genéricos (como `v24.x.x` o `12.x.x`) ni admitir versiones divergentes (e.g. Node `v24.0.1`, pnpm `12.0.1`).
+- **Verificación Obligatoria de Chromium por Defecto:** La comprobación de `chromium_version` frente a la línea base `151.0.7922.34` es obligatoria por defecto en el validador, rechazando categóricamente versiones ficticias como `0.0.0.0` o cadenas vacías.
+- **Fail-Closed:** Si un binario o archivo de versión no puede ser consultado, se debe registrar `null` o fallar de forma cerrada, prohibiéndose cualquier sustitución canónica (Resolución R7-A04).
 
-### 4.4. Control de Versiones Git e Inmutabilidad del Árbol
+### 4.4. Control de Versiones Git e Inmutabilidad del Árbol (Resolución R7-A05)
 | Parámetro | Restricción Contractual | Comportamiento ante Violación |
 |---|---|---|
-| `commit_sha` | Hash hexadecimal completo de exactamente 40 caracteres (e.g. `c161c0f995a8f9844f2ec09c041354d77a08fea0`, correspondiente a la línea base R6-A, o `8dc020e...` auditado). Expresión regular: `^[a-fA-F0-9]{40}$`. | Rechazo inmediato si es truncado (7 hex) o si no coincide con el HEAD auditado. |
+| `commit_sha` | Hash hexadecimal completo de exactamente 40 caracteres (e.g. `c161c0f995a8f9844f2ec09c041354d77a08fea0`, correspondiente a la línea base R6-A, o `8dc020e...` auditado). Expresión regular: `^[a-fA-F0-9]{40}$`. | Rechazo inmediato si es truncado (7 hex) o si no coincide con el HEAD auditado / opción `--expected-sha`. |
 | `branch_name` | Debe ser exactamente `"feat/qap-vnext-architecture"`. | Prohibido ejecutar en `main`, `develop` o ramas de prueba efímeras. |
-| `clean_working_tree` | Debe ser `true`, con una única excepción explícita. | Si es `false`, se inspecciona la lista de excepciones permitidas. |
-| `allowed_untracked_or_modified` | Único archivo admitido como excepción autorizada: `packages/playwright-runner/.qa/cache/sessions/admin-user.json` (archivo de sesión de autenticación local que no debe ser leído, modificado ni versionado). | Si existe cualquier otro archivo modificado o no rastreado (especialmente en `packages/`), el árbol se declara sucio y se invalida el preflight. |
+| `clean_working_tree` | Debe ser `true`, con una única excepción explícita. | Si es `false`, se inspeccionan los archivos modificados estrictamente contra la whitelist normativa fija. |
+| `allowed_untracked_or_modified` | Único archivo admitido como excepción autorizada por el contrato: `packages/playwright-runner/.qa/cache/sessions/admin-user.json` (archivo de sesión de autenticación local que no debe ser leído, modificado ni versionado). | Prohibición absoluta de ampliación por el ejecutor: ninguna ruta añadida por el manifiesto a este campo es aceptada como excepción. Cualquier archivo modificado fuera de la whitelist fija invalida el preflight. |
+
+- **Confinamiento de Inspección Git:** El script `preflight.ps1` no debe filtrar ni ocultar modificaciones en `r7/`. La limpieza del árbol de trabajo abarca la totalidad del repositorio.
+- **Opciones CLI Estrictas:** La CLI del validador debe soportar `--expected-sha` y verificarlo estrictamente. Cualquier opción no documentada o desconocida debe provocar la salida con código de error 1.
 
 ### 4.5. Hashes Criptográficos de Distribución (`dist_hashes`)
 Antes de ejecutar pruebas, se debe comprobar que los artefactos compilados en `dist/` son idénticos a los validados durante la auditoría. Los digests SHA-256 deben coincidir exactamente con los registrados en `docs/vnext/implementaciones/VNEXT-014-E01/r6-a/preparation.json`:
@@ -153,25 +179,38 @@ packages/shared/dist/index.js:
 - La comparación es case-insensitive (se normaliza a minúsculas).
 - Cualquier discrepancia de hash evidencia una modificación no autorizada de código compilado y descalifica el ejecutor.
 
-### 4.6. Presupuesto Predeclarado de Interferencia Externa
-Para asegurar que las pruebas E01 no compitan contra procesos parásitos, se establecen los siguientes umbrales máximos tolerables en el host:
-1. `max_external_cpu_percent`: $\le 10.0\%$ (la CPU consumida por procesos ajenos a la prueba no debe exceder el 10% de la capacidad total).
-2. `max_disk_queue`: $\le 2.0$ (la cola de peticiones pendientes de disco no debe indicar saturación de I/O).
-3. `max_pages_input_per_sec`: $\le 500.0$ páginas/segundo (tasa de lectura de disco por fallos de página duros; valores superiores indican contención de memoria física).
+### 4.6. Presupuesto Predeclarado de Interferencia Externa y Aplicación Muestra a Muestra (Resolución R7-A03)
+Para asegurar que las pruebas E01 no compitan contra procesos parásitos ni se ejecuten bajo saturación del host, se formalizan los siguientes presupuestos normativos inmutables:
+1. `max_external_cpu_percent`: $\le 10.0\%$ (la CPU consumida por procesos ajenos a la prueba no debe exceder el 10.0% de la capacidad total).
+2. `max_disk_queue`: $\le 2.0$ (la longitud de cola de peticiones pendientes de disco no debe indicar saturación de I/O).
+3. `max_pages_input_per_sec`: $\le 500.0$ páginas/segundo (tasa de lectura de disco por fallos de página duros; valores superiores indican contención crítica de memoria física).
 4. `min_available_ram_mb`: $\ge 2048\text{ MB}$ (mínimo de memoria física libre o en caché disponible en todo momento durante la ventana previa).
 
-### 4.7. Ventana de Telemetría Continua
-La ventana de telemetría previa a cualquier intento de ejecución debe satisfacer estrictamente las siguientes propiedades matemáticas y temporales:
-1. **Duración mínima continua:** $\text{duration\_ms} \ge 60000\text{ ms}$ (al menos 60.0 segundos cronometrados de forma ininterrumpida).
-2. **Intervalo nominal de muestreo:** $1000\text{ ms}$ ($\pm 500\text{ ms}$).
-3. **Umbral de salto máximo admisible (`max_gap_ms`):** $\le 5000\text{ ms}$. Si el lapso entre el final de una muestra $i-1$ y el inicio de la muestra $i$ excede $5000\text{ ms}$, la ventana se considerará **discontinua** y quedará descalificada.
-4. **Umbral de duración de consulta individual:** $\text{finished\_at} - \text{started\_at} \le 5000\text{ ms}$. Si una consulta WMI/CIM demora más de 5000 ms, se computa como degradación crítica del muestreador.
-5. **Consistencia temporal estricta:** Para toda muestra $i$, $\text{started\_at} \le \text{finished\_at}$, y $\text{started\_at}_i \ge \text{finished\_at}_{i-1}$. No se admiten inversiones cronológicas ni timestamps en el futuro.
-6. **Muestreo desagregado por grupos de procesos:** Cada muestra debe categorizar los procesos activos del host en cuatro grupos exclusivos:
-   - `node`: Procesos cuyo ejecutable coincide con `^node(?:#|$)`.
-   - `chromium`: Procesos de navegador (`chrome` o `headless_shell`).
-   - `observer`: El propio proceso de telemetría (PowerShell CIM / PID observador).
-   - `other`: Todos los demás procesos del sistema y de usuario.
+- **Aplicación Obligatoria contra Muestras y Agregados:** El validador NO debe limitarse a comprobar que los límites sean numéricos. **DEBE contrastar cada muestra individual y las estadísticas agregadas de la ventana contra estos presupuestos**:
+  - Para cada muestra $s \in \text{samples}$:
+    - $s.\text{disk\_queue} \le \text{limits}.\text{max\_disk\_queue}$
+    - $s.\text{pages\_input\_per\_sec} \le \text{limits}.\text{max\_pages\_input\_per\_sec}$
+    - $s.\text{available\_mb} \ge \text{limits}.\text{min\_available\_ram\_mb}$
+    - CPU Externa: $(s.\text{groups}.\text{find}(g \Rightarrow g.\text{category} === \text{'other'}).\text{cpu\_percent\_logical\_capacity} \le \text{limits}.\text{max\_external_cpu_percent})$
+  - Para las estadísticas agregadas:
+    - $\text{telemetry\_window}.\text{mem\_stats}.\text{min\_available\_mb} \ge \text{limits}.\text{min\_available\_ram\_mb}$
+    - $\text{telemetry\_window}.\text{page\_faults}.\text{max\_pages\_input\_per\_sec} \le \text{limits}.\text{max\_pages\_input\_per\_sec}$
+- **Rechazo por Saturación:** La violación de cualquiera de estos límites en cualquiera de las muestras o agregados causa el rechazo inmediato del preflight (`VALIDADOR_FAIL`, `EJECUTOR_NO_APTO`). Un manifiesto no puede relajar estos presupuestos.
+
+### 4.7. Ventana de Telemetría Continua y Esquema Estricto de Muestras (Resolución R7-A02)
+La ventana de telemetría previa a cualquier intento de ejecución debe satisfacer estrictamente las siguientes propiedades matemáticas, temporales y estructurales:
+1. **Duración mínima continua calculada desde muestras reales:** La duración NO se acepta por mera declaración en `duration_ms`. Debe computarse estrictamente como $\text{lastSample.finished\_at} - \text{firstSample.started\_at} \ge 60000\text{ ms}$. Una telemetría sin muestras o con span observado $< 60000$ ms es inválida.
+2. **Prohibición de Muestras Vacías y Mínimo de Muestras:** Queda terminantemente prohibido `samples: []` o `sample_count: 0`. Se exige un mínimo de $\text{sample\_count} \ge 30$ muestras (nominal 60 para línea base), y debe cumplirse estrictamente que $\text{sample\_count} === \text{samples.length}$.
+3. **Obligatoriedad de 10 Campos Métricos por Muestra:** Cada muestra en el arreglo `samples` debe ser un objeto no nulo que contenga obligatoriamente los siguientes 10 campos, sin valores nulos ni indefinidos:
+   `started_at`, `finished_at`, `cpu_percent`, `available_mb`, `committed_bytes`, `commit_limit_bytes`, `pages_input_per_sec`, `pages_output_per_sec`, `disk_queue`, `groups`.
+4. **Desagregación en 4 Grupos de Procesos Exclusivos:** Cada muestra debe contener exactamente cuatro grupos de procesos únicos (`node`, `chromium`, `observer`, `other`), cada uno con sus 5 propiedades numéricas requeridas (`category`, `count`, `cpu_percent_logical_capacity`, `working_set_private_bytes`, `page_faults_per_sec`).
+5. **Invariantes Temporales Estrictas:**
+   - Para toda muestra $i$: $\text{started\_at} \le \text{finished\_at}$.
+   - Continuidad cronológica sin traslape: $\text{started\_at}_i \ge \text{finished\_at}_{i-1}$.
+   - Sin marcas en el futuro: $\text{finished\_at}_i \le \text{Date.now()} + 60000\text{ ms}$.
+   - Umbral de salto máximo admisible entre muestras: $\text{max\_gap\_ms} \le 5000\text{ ms}$.
+   - Umbral de duración de consulta individual CIM: $\text{finished\_at} - \text{started\_at} \le 5000\text{ ms}$.
+6. **Manejo Seguro de Entradas:** Si una muestra es nula o malformada, el validador debe capturar el error de forma estructurada en `errors` y devolver `valid: false`, sin arrojar excepciones no controladas (`TypeError`).
 
 ---
 
@@ -246,9 +285,9 @@ El archivo `docs/vnext/implementaciones/VNEXT-014-E01/r7/manifest-ejemplo.json` 
       "required": ["node_version", "pnpm_version", "chromium_version"],
       "additionalProperties": false,
       "properties": {
-        "node_version": { "type": "string", "pattern": "^v24\\.[0-9]+\\.[0-9]+$" },
-        "pnpm_version": { "type": "string", "pattern": "^12\\.[0-9]+\\.[0-9]+$" },
-        "chromium_version": { "type": "string", "minLength": 1 }
+        "node_version": { "type": "string", "pattern": "^v24\\.15\\.0$" },
+        "pnpm_version": { "type": "string", "pattern": "^12\\.3\\.4$" },
+        "chromium_version": { "type": "string", "pattern": "^151\\.0\\.7922\\.34$" }
       }
     },
     "git": {
@@ -260,6 +299,14 @@ El archivo `docs/vnext/implementaciones/VNEXT-014-E01/r7/manifest-ejemplo.json` 
         "branch_name": { "type": "string", "enum": ["feat/qap-vnext-architecture"] },
         "clean_working_tree": { "type": "boolean" },
         "allowed_untracked_or_modified": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "dirty_files": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "modified_files": {
           "type": "array",
           "items": { "type": "string" }
         }
@@ -334,10 +381,10 @@ El archivo `docs/vnext/implementaciones/VNEXT-014-E01/r7/manifest-ejemplo.json` 
       ],
       "additionalProperties": false,
       "properties": {
-        "max_external_cpu_percent": { "type": "number", "minimum": 0.0, "maximum": 100.0 },
-        "max_disk_queue": { "type": "number", "minimum": 0.0 },
-        "max_pages_input_per_sec": { "type": "number", "minimum": 0.0 },
-        "min_available_ram_mb": { "type": "integer", "minimum": 0 }
+        "max_external_cpu_percent": { "type": "number", "minimum": 0.0, "maximum": 10.0 },
+        "max_disk_queue": { "type": "number", "minimum": 0.0, "maximum": 2.0 },
+        "max_pages_input_per_sec": { "type": "number", "minimum": 0.0, "maximum": 500.0 },
+        "min_available_ram_mb": { "type": "integer", "minimum": 2048 }
       }
     },
     "telemetry_window": {
@@ -406,6 +453,7 @@ El archivo `docs/vnext/implementaciones/VNEXT-014-E01/r7/manifest-ejemplo.json` 
         },
         "samples": {
           "type": "array",
+          "minItems": 30,
           "items": {
             "type": "object",
             "required": [
@@ -433,6 +481,8 @@ El archivo `docs/vnext/implementaciones/VNEXT-014-E01/r7/manifest-ejemplo.json` 
               "disk_queue": { "type": "number", "minimum": 0.0 },
               "groups": {
                 "type": "array",
+                "minItems": 4,
+                "maxItems": 4,
                 "items": {
                   "type": "object",
                   "required": [
@@ -476,42 +526,81 @@ El archivo `docs/vnext/implementaciones/VNEXT-014-E01/r7/manifest-ejemplo.json` 
 | `status` | Enum | Estado evaluado o declarado. Valores posibles: `VALIDADOR_PASS`, `EJECUTOR_APTO`, `EJECUTOR_NO_APTO`. |
 | `status_reason` | String | Explicación humana inequívoca del estado. No se permiten cadenas vacías o ambiguas. |
 | `os_info.arch` | Enum | Debe ser `"x64"` o `"arm64"`. Para paridad estricta con R6-A se requiere `"x64"`. |
-| `toolchain.node_version` | String | Debe comenzar con `v24.` (canónico: `v24.15.0`). |
-| `toolchain.pnpm_version` | String | Debe comenzar con `12.` (canónico: `12.3.4`). |
-| `toolchain.chromium_version` | String | Versión o revisión del binario de Chromium (canónico: `151.0.7922.34`). |
-| `git.commit_sha` | String (40 hex) | Hash hexadecimal de 40 caracteres. Debe coincidir con el commit autorizado en la rama. No se admiten hashes de 7 caracteres. |
+| `toolchain.node_version` | String | Debe coincidir exactamente con la versión canónica exigida: `"v24.15.0"`. |
+| `toolchain.pnpm_version` | String | Debe coincidir exactamente con la versión canónica exigida: `"12.3.4"`. |
+| `toolchain.chromium_version` | String | Debe coincidir exactamente con la versión canónica exigida: `"151.0.7922.34"`. |
+| `git.commit_sha` | String (40 hex) | Hash hexadecimal de 40 caracteres. Debe coincidir con el commit autorizado en la rama o con `--expected-sha`. |
 | `git.branch_name` | String | Debe ser estrictamente `"feat/qap-vnext-architecture"`. |
-| `git.clean_working_tree` | Boolean | `true` si `git status --porcelain` no reporta modificaciones (excepto rutas en `allowed_untracked_or_modified`). |
+| `git.clean_working_tree` | Boolean | `true` si el árbol de trabajo no presenta modificaciones fuera de la whitelist normativa fija. |
+| `git.allowed_untracked_or_modified` | Array de Strings | Informativo. El validador ignora rutas aportadas por el manifiesto que no pertenezcan a la excepción normativa fija (`admin-user.json`). |
+| `git.dirty_files` / `git.modified_files` | Array de Strings | Rutas detectadas con modificaciones en el host. Cualquier ruta fuera de `admin-user.json` invalida el preflight. |
 | `dist_hashes` | Object (4 hashes) | Mapa con las 4 rutas obligatorias a hashes SHA-256 de 64 caracteres hex. Cualquier paquete faltante causa rechazo total. |
-| `resource_reservation.accredited` | Boolean | Bandera central de idoneidad física. Si es `false`, el ejecutor no puede ser calificado como `EJECUTOR_APTO` bajo ninguna circunstancia. |
-| `resource_reservation.evidence_doc` | String o Null | Si `accredited` es `true`, `evidence_doc` debe ser una cadena no vacía con la ruta o URI a la evidencia auditable. Si es `null` o `""`, se rechaza como no acreditado. |
-| `telemetry_window.duration_ms` | Number | Duración total observada: debe ser $\ge 60000.0$ ms. Si el intervalo entre la primera y la última muestra es menor a 60s, la telemetría es inválida. |
+| `resource_reservation.accredited` | Boolean | Bandera central de idoneidad física. Un valor `true` sólo confiere `EJECUTOR_APTO` si existe verificación independiente externa; sin ella permanece en `EJECUTOR_NO_APTO`. |
+| `resource_reservation.evidence_doc` | String o Null | Si `accredited` es `true`, `evidence_doc` debe ser una cadena no vacía referenciando un documento físicamente existente y con atestación genuina. Archivo inexistente o no verificable falla la validación. |
+| `telemetry_window.duration_ms` | Number | Duración total observada derivada de muestras reales: debe ser $\ge 60000.0$ ms. Declaraciones sin respaldo en muestras son rechazadas. |
 | `telemetry_window.max_gap_ms` | Number | Máximo gap tolerable entre muestras consecutivas: $\le 5000.0$ ms. |
-| `telemetry_window.sample_count` | Integer | Conteo de muestras. Si `samples` contiene elementos, `sample_count` debe ser estrictamente igual a `samples.length`. |
-| `samples[i].groups` | Array (4 grupos) | Cada muestra debe contener exactamente los grupos `node`, `chromium`, `observer` y `other`. |
+| `telemetry_window.sample_count` | Integer | Conteo de muestras: $\ge 30$ (nominal 60). Debe ser estrictamente igual a `samples.length`. Arreglo vacío es ilegal. |
+| `samples[i]` | Object (10 campos) | Cada muestra debe contener de forma obligatoria y no nula los 10 campos métricos estipulados. |
+| `samples[i].groups` | Array (4 grupos) | Cada muestra debe contener exactamente los cuatro grupos `node`, `chromium`, `observer` y `other` con sus 5 métricas numéricas. |
 
 ---
 
 ## 7. Protocolo de Evaluación y Criterios Deterministas de Rechazo
 
-### 7.1. Prohibición Absoluta de PASS por Omisión
+### 7.1. Prohibición Absoluta de PASS por Omisión y Manejo Seguro de Entradas (Resolución R7-A02)
 El validador automatizado (`check-preflight.mjs`) debe evaluar afirmativamente la totalidad de los requisitos. **Queda terminantemente prohibido el PASS por omisión**:
 - Si un campo obligatorio no está presente en el JSON, la validación falla (`VALIDADOR_FAIL`).
-- Si un objeto vacío `{}` o una entrada `null` es evaluada, debe retornar `valid: false` y documentar exhaustivamente los campos faltantes en `errors`.
+- Si un objeto vacío `{}`, un arreglo de muestras vacío `samples: []`, o una entrada `null` es evaluada, el validador debe retornar `valid: false` de forma segura y documentar exhaustivamente los campos faltantes en `errors`, sin arrojar excepciones no controladas (`TypeError`).
 - Ninguna condición contractual se asumirá como verdadera por el mero hecho de que no haya fallado una excepción no capturada.
 
-### 7.2. Matriz de Casos de Evaluación y Estados Resultantes
+### 7.2. Prohibición de Sustitución Canónica de Observaciones Ausentes (Resolución R7-A04)
+Todo manifiesto que contenga valores nulos, indeterminados o no observados en campos obligatorios de telemetría, toolchain, git o dist hashes será rechazado de forma cerrada (`VALIDADOR_FAIL`).
+- Queda prohibido rellenar datos faltantes con valores canónicos para fingir conformidad sintética.
+
+### 7.3. Reglas de Verificación y Rechazo de Reserva Autodeclarada (Resolución R7-A01)
+1. **Desacoplamiento Estricto:** La validez sintáctica de la declaración de reserva dentro del manifiesto NO equivale a su acreditación independiente.
+2. **Comprobación de Existencia Documental:** Si `evidence_doc` apunta a una ruta local o URI `file://`, el validador debe comprobar que el archivo existe físicamente y es accesible. Rutas inexistentes (e.g. `file:///NO-EXISTE/...`) provocan el fallo inmediato de la validación.
+3. **Compuerta de Autorización Externa:** El validador NUNCA emitirá `EJECUTOR_APTO` salvo que se suministre una opción de acreditación externa independiente explícita (e.g. `options.auditorApproval === true`). En ausencia de dicha autorización externa, el estado del ejecutor se mantendrá indefectiblemente en `EJECUTOR_NO_APTO` (con razón `PREPARADO / RESERVA NO ACREDITADA`).
+4. **Rechazo de Fraude:** Cualquier manifiesto que declare `status: "EJECUTOR_APTO"` sin contar con acreditación independiente externa será rechazado como contradicción lógica y fraude.
+
+### 7.4. Reglas de Aplicación de Límites de Interferencia (Resolución R7-A03)
+1. **Aplicación Muestra a Muestra:** El validador debe iterar sobre la totalidad de las muestras en `telemetry_window.samples` y verificar:
+   - `sample.disk_queue <= predeclared_interference_limits.max_disk_queue` (máximo 2.0).
+   - `sample.pages_input_per_sec <= predeclared_interference_limits.max_pages_input_per_sec` (máximo 500.0).
+   - `sample.available_mb >= predeclared_interference_limits.min_available_ram_mb` (mínimo 2048 MB).
+   - CPU Externa: `(sample.groups.find(g => g.category === 'other')?.cpu_percent_logical_capacity || 0) <= predeclared_interference_limits.max_external_cpu_percent` (máximo 10.0%).
+2. **Verificación de Agregados:** Se contrastan `mem_stats.min_available_mb` y `page_faults.max_pages_input_per_sec` contra los mismos presupuestos.
+3. **Rechazo Determinista:** Si una sola muestra o estadística agregada rebasa estos presupuestos, el validador falla (`VALIDADOR_FAIL`, `EJECUTOR_NO_APTO`) con indicación precisa del índice de muestra y métrica vulnerada.
+
+### 7.5. Reglas de Integridad Git y Rechazo de Whitelist Forjada (Resolución R7-A05)
+1. **Whitelist Fija Normativa:** La única excepción admisible en todo el repositorio es `packages/playwright-runner/.qa/cache/sessions/admin-user.json`.
+2. **Rechazo de Whitelist del Manifiesto:** El validador ignora cualquier lista de excepciones provista por el manifiesto. Si existen archivos modificados o no rastreados fuera de la excepción normativa fija, el preflight falla deterministamente.
+3. **Enforzamiento de SHA por CLI:** Si la CLI del validador se invoca con `--expected-sha`, este se compara estrictamente contra `manifest.git.commit_sha`. Toda discrepancia o bandera desconocida provoca la salida con código 1.
+
+### 7.6. Reglas de Coherencia de Toolchain (Resolución R7-A06)
+1. **Versiones Canónicas Obligatorias:** El validador debe comprobar las versiones exactas de Node.js (`v24.15.0`), pnpm (`12.3.4`) y Chromium (`151.0.7922.34`).
+2. **Comprobación por Defecto:** Chromium debe verificarse por defecto sin requerir opciones adicionales. Versiones arbitrarias como `0.0.0.0` o discrepancias como Node `v24.0.1` deben causar el fallo de validación (`VALIDADOR_FAIL`).
+
+### 7.7. Confinamiento Hermético de Rutas (Resolución R7-A07)
+Toda ruta de archivo manipulada por las herramientas de preflight (incluyendo salidas, archivos centinela y archivos de PID) debe estar estrictamente confinada dentro de `docs/vnext/implementaciones/VNEXT-014-E01/r7/`. Se prohíbe el uso de comparaciones de prefijos sin separador de directorio que admitan carpetas hermanas como `r7-externo`.
+
+### 7.8. Matriz de Casos de Evaluación y Estados Resultantes
 
 | Escenario de Entrada | Validador (`validador_status`) | Ejecutor (`executor_status`) | Acción Contractual Obligatoria |
 |---|---|---|---|
 | **Manifiesto Sintético Válido** (`manifest-ejemplo.json` con `accredited: false` y `type: "synthetic_fixture"`) | **`VALIDADOR_PASS`** | **`EJECUTOR_NO_APTO`** | Aprueba validación sintética; mantiene ejecutor en NO APTO por falta de reserva física. Reporta: `PREPARADO / RESERVA NO ACREDITADA`. |
-| **Ejecutor Real Acreditado** (Evidencia documental verificable, telemetría continua $\ge 60\text{ s}$, toolchain y dist hashes conformes) | **`VALIDADOR_PASS`** | **`EJECUTOR_APTO`** | Certificación positiva habilitada para emisión por Codex. |
-| **Falacia de CPU Libre** (CPU = 0.5%, RAM libre = 8 GB, pero `accredited: false` o `evidence_doc: null`) | **`VALIDADOR_PASS`** (si sintaxis OK) | **`EJECUTOR_NO_APTO`** | Se rechaza la pretensión de reserva. Permanece como `EJECUTOR_NO_APTO`. |
+| **Ejecutor Real Acreditado** (Evidencia física verificada en disco, telemetría continua $\ge 60\text{ s}$, toolchain y dist hashes conformes, compuerta de auditoría externa habilitada) | **`VALIDADOR_PASS`** | **`EJECUTOR_APTO`** | Certificación positiva habilitada para emisión por Codex. |
+| **Autodeclaración sin Verificación / Documento Inexistente** (`accredited: true`, `evidence_doc: "file:///NO-EXISTE/..."`) | **`VALIDADOR_FAIL`** | **`EJECUTOR_NO_APTO`** | Rechazo estructurado por documento inexistente o falta de acreditación independiente. |
+| **Telemetría Vacía o Muestras sin Métricas** (`samples: []` o muestras sin CPU/RAM/grupos) | **`VALIDADOR_FAIL`** | **`EJECUTOR_NO_APTO`** | Rechazo por omisión de métricas y ventana no representativa. |
+| **Host Saturado / Violación de Presupuestos** (CPU 100%, cola disco > 2, paginación masiva o RAM < 2048 MB) | **`VALIDADOR_FAIL`** | **`EJECUTOR_NO_APTO`** | Descalificación por saturación e interferencia externa intolerable. |
+| **Sustitución por Valores Canónicos** (Observaciones ausentes o fallos de comando sustituidos por canónicos) | **`VALIDADOR_FAIL`** | **`EJECUTOR_NO_APTO`** | Detección de fallbacks sintéticos. Rechazo por falta de evidencia observada real. |
+| **Whitelist Git Forjada** (Árbol sucio en archivos de código con whitelist propia en el manifiesto) | **`VALIDADOR_FAIL`** | **`EJECUTOR_NO_APTO`** | Rechazo inmediato por integridad de código fuente; se desestima la whitelist del ejecutor. |
+| **Toolchain Incoherente** (Chromium `0.0.0.0`, Node `v24.0.1`, pnpm `12.0.1`) | **`VALIDADOR_FAIL`** | **`EJECUTOR_NO_APTO`** | Rechazo determinista por discrepancia de versión frente a línea base canónica. |
 | **Ruptura de Continuidad** (Muestras con salto > 5000 ms o consulta CIM > 5000 ms) | **`VALIDADOR_FAIL`** | **`EJECUTOR_NO_APTO`** | Descalificación inmediata de la telemetría por discontinuidad temporal. |
-| **Ventana Insuficiente** (Duración continua < 60,000 ms) | **`VALIDADOR_FAIL`** | **`EJECUTOR_NO_APTO`** | Descalificación por muestreo temporal incompleto. |
-| **Inconsistencia Git** (SHA truncado a 7 hex, SHA no coincidente, rama ajena a `feat/qap-vnext-architecture` o árbol sucio fuera de excepciones) | **`VALIDADOR_FAIL`** | **`EJECUTOR_NO_APTO`** | Rechazo por falta de integridad de código fuente. |
+| **Ventana Insuficiente** (Duración continua real entre muestras < 60,000 ms) | **`VALIDADOR_FAIL`** | **`EJECUTOR_NO_APTO`** | Descalificación por muestreo temporal incompleto. |
+| **Inconsistencia Git** (SHA truncado a 7 hex, SHA no coincidente con opción CLI o rama ajena) | **`VALIDADOR_FAIL`** | **`EJECUTOR_NO_APTO`** | Rechazo por falta de integridad de control de versiones. |
 | **Discrepancia de Compilación** (Cualquiera de los 4 hashes de `dist/` no coincide con la línea base) | **`VALIDADOR_FAIL`** | **`EJECUTOR_NO_APTO`** | Rechazo por modificación no autorizada de binarios de producto. |
-| **Contradicción Lógica** (Declara `status: "EJECUTOR_APTO"` pero contiene `accredited: false` o `evidence_doc: null`) | **`VALIDADOR_FAIL`** | **`EJECUTOR_NO_APTO`** | Detección de fraude o contradicción formal. Rechazo estricto. |
+| **Contradicción Lógica** (Declara `status: "EJECUTOR_APTO"` sin compuerta de auditoría externa) | **`VALIDADOR_FAIL`** | **`EJECUTOR_NO_APTO`** | Detección de fraude o contradicción formal. Rechazo estricto. |
 
 ---
 
@@ -519,19 +608,25 @@ El validador automatizado (`check-preflight.mjs`) debe evaluar afirmativamente l
 
 ### 8.1. Contrato para el Agente 2 (`preflight.ps1`)
 El implementador del script PowerShell de preflight debe acatar las siguientes condiciones de desarrollo:
-1. **Inspección de Solo Lectura:** Utilizar exclusivamente consultas CIM (`Get-CimInstance`) a las clases `Win32_ComputerSystem`, `Win32_OperatingSystem`, `Win32_PerfFormattedData_PerfOS_Memory`, `Win32_PerfFormattedData_PerfOS_Processor`, `Win32_PerfFormattedData_PerfDisk_PhysicalDisk` y `Win32_PerfFormattedData_PerfProc_Process`.
+1. **Inspección de Solo Lectura y Fail-Closed:** Utilizar exclusivamente consultas CIM (`Get-CimInstance`) a las clases `Win32_ComputerSystem`, `Win32_OperatingSystem`, `Win32_PerfFormattedData_PerfOS_Memory`, `Win32_PerfFormattedData_PerfOS_Processor`, `Win32_PerfFormattedData_PerfDisk_PhysicalDisk` y `Win32_PerfFormattedData_PerfProc_Process`. Comprobar `$LASTEXITCODE` en comandos nativos (`node`, `pnpm`, `git`). Si un comando o consulta falla, registrar `$null` o abortar de forma cerrada; **queda estrictamente prohibido sustituir lecturas fallidas por versiones canónicas, SHA canónicos o valores cero sintéticos** (Resolución R7-A04).
 2. **Protección de Privacidad:** No inspeccionar líneas de comandos completas (`Win32_Process.CommandLine`), argumentos, credenciales, tokens ni rutas de usuario privadas.
 3. **No Destrucción:** Queda prohibido terminar procesos (`Stop-Process`), modificar afinidades o alterar configuraciones de energía del sistema operativo.
-4. **Confinamiento de Salida:** El script debe escribir obligatoriamente en `docs/vnext/implementaciones/VNEXT-014-E01/r7/`. Si el destino de salida apunta a cualquier otra ruta, el script debe abortar de inmediato.
-5. **Garantía Temporal:** El muestreador debe capturar al menos 60 segundos continuos (nominalmente 60 muestras con intervalo de 1000 ms), midiendo el tiempo de cada consulta CIM (`query_ms`) y el salto entre muestras (`gap_ms`).
-6. **Comportamiento por Defecto en Entorno Host Local:** Al ejecutarse en una máquina local de desarrollo que no disponga de aprovisionamiento formal de CI/Cloud con cuotas reservadas, `preflight.ps1` debe generar un manifiesto con `accredited: false`, `provenance: "none"`, `type: "unreserved_shared"` y dictamen `status: "EJECUTOR_NO_APTO"`, con justificación `PREPARADO / RESERVA NO ACREDITADA`.
+4. **Confinamiento Hermético de Rutas:** El script debe implementar una función rigurosa de aserción de límites (`Assert-PathConfinement`) con separador de directorio (`[System.IO.Path]::DirectorySeparatorChar`), aplicándola obligatoriamente a `$OutputPath`, `$SentinelFile`, `$PidFile` y cualquier ruta manipulada. Cualquier ruta fuera del directorio exacto `r7/` (incluyendo carpetas hermanas como `r7-externo`) debe abortar de inmediato con excepción de seguridad (Resolución R7-A07).
+5. **Inspección Git Completa:** El script no debe filtrar ni excluir modificaciones en `r7/` al evaluar `git status`. La única excepción admitida es `admin-user.json` (Resolución R7-A05).
+6. **Garantía Temporal y de Muestreo:** El muestreador debe capturar al menos 60 segundos continuos y al menos 30 muestras (nominal 60), garantizando que cada muestra contenga todos los campos métricos y los 4 grupos de procesos sin valores nulos (Resolución R7-A02).
+7. **Prohibición de Emitir APTO vía Switches:** Queda prohibido que `preflight.ps1` asigne `EJECUTOR_APTO` mediante parámetros CLI (`-Accredited`, `-EvidenceDoc`). En entorno local debe emitir indefectiblemente `EJECUTOR_NO_APTO` con razón `PREPARADO / RESERVA NO ACREDITADA` (Resolución R7-A01).
 
 ### 8.2. Contrato para el Agente 3 (`check-preflight.mjs` y `check-preflight.test.mjs`)
 El implementador del validador automatizado debe satisfacer:
 1. **Runner Nativo de Node.js:** La suite debe ejecutarse exclusivamente con `node --test docs/vnext/implementaciones/VNEXT-014-E01/r7/check-preflight.test.mjs`. No debe requerir Vitest ni alterar dependencias de `package.json`.
 2. **API Exportada:** El módulo `check-preflight.mjs` debe exportar la función pura `validatePreflightManifest(manifest, options)`.
-3. **Matriz de Pruebas Obligatoria:** Debe implementar los 24 casos de prueba sintéticos especificados en la Sección 8 de `spec.md`, cubriendo fixtures positivos conformes, fixtures de ejecutor acreditado, y fixtures negativos de rechazo por omisión, discontinuidad, SHA inválido y falacia de CPU ociosa.
-4. **Verificación de la Regla de No Conversión:** La suite debe verificar explícitamente mediante aserciones estrictas que un fixture sintético que obtiene `validador_status === "VALIDADOR_PASS"` conserve indefectiblemente `executor_status === "EJECUTOR_NO_APTO"`.
+3. **Verificación Documental y Acreditación Independiente:** Comprobar la existencia física del archivo `evidence_doc` si es ruta local/URI; no admitir `EJECUTOR_APTO` sin compuerta externa de auditoría (`options.auditorApproval === true`); rechazar manifiestos que declaren fraudulentamente `EJECUTOR_APTO` (Resolución R7-A01).
+4. **Validación Exhaustiva de Telemetría:** Exigir $\ge 30$ muestras; calcular duración únicamente desde muestras reales; validar exhaustivamente los 10 campos métricos y los 4 grupos únicos; manejar de forma segura entradas nulas sin `TypeError`; verificar consistencia temporal (Resolución R7-A02).
+5. **Aplicación Muestra a Muestra de Presupuestos de Interferencia:** Comparar cada muestra contra los presupuestos normativos inmutables de CPU externa, cola de disco, paginación y memoria disponible (Resolución R7-A03).
+6. **Rechazo de Observaciones Faltantes:** Rechazar cualquier manifiesto donde herramientas, dist hashes o métricas sean nulas o no observadas (Resolución R7-A04).
+7. **Whitelist Inmutable y Parser CLI Completo:** Ignorar whitelists provistas en el manifiesto; implementar parser CLI para `--expected-sha`, `--expected-branch`, `--expected-chromium`, etc., y salir con código 1 ante banderas desconocidas o discrepancias (Resolución R7-A05).
+8. **Comprobación de Toolchain por Defecto:** Verificar Node `v24.15.0`, pnpm `12.3.4` y Chromium `151.0.7922.34` por defecto, rechazando versiones divergentes o ficticias (Resolución R7-A06).
+9. **Suite de Regresiones Obligatoria:** Retener las 35 pruebas originales intactas y añadir pruebas de regresión dedicadas para reproducir y rechazar los 7 falsos positivos identificados por Codex (TC-R7-A01 a TC-R7-A07).
 
 ---
 
