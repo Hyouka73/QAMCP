@@ -1,0 +1,562 @@
+{
+  "baseline-1.json": {
+    "sha": "9974555e8b2c64c5c187a7a21427d8f5b9c0c1b8",
+    "logical_processors": 16,
+    "physical_memory_bytes": 14870306816,
+    "raw_samples": 30,
+    "excluded_long_queries": 1,
+    "exclusive_reservation": false,
+    "segments": [
+      {
+        "start": "2026-11-07T00:20:27.4433738Z",
+        "end": "2026-11-07T00:21:26.4863772Z",
+        "n": 24,
+        "cpu_percent": {
+          "min": 0,
+          "max": 66,
+          "mean": 13.708333333333334
+        },
+        "available_mb": {
+          "min": 2028,
+          "max": 2469,
+          "mean": 2261.5833333333335
+        },
+        "committed_bytes": {
+          "min": 31647006720,
+          "max": 32121835520,
+          "mean": 31789743104
+        },
+        "commit_limit_bytes": {
+          "min": 49581215744,
+          "max": 49581215744,
+          "mean": 49581215744
+        },
+        "pages_input_per_sec": {
+          "min": 0,
+          "max": 20621,
+          "mean": 1141.9583333333333
+        },
+        "disk_queue": {
+          "min": 0,
+          "max": 0,
+          "mean": 0
+        },
+        "query_ms": {
+          "min": 1440,
+          "max": 1831,
+          "mean": 1494.0833333333333
+        },
+        "start_interval_ms": {
+          "min": 2448,
+          "max": 2714,
+          "mean": 2487.478260869565
+        },
+        "groups": {
+          "node": {
+            "count": {
+              "min": 24,
+              "max": 24,
+              "mean": 24
+            },
+            "cpu_percent_logical_capacity": {
+              "min": 0,
+              "max": 0,
+              "mean": 0
+            },
+            "working_set_private_bytes": {
+              "min": 26492928,
+              "max": 28188672,
+              "mean": 27489962.666666668
+            },
+            "page_faults_per_sec": {
+              "min": 0,
+              "max": 0,
+              "mean": 0
+            }
+          },
+          "chromium": {
+            "count": {
+              "min": 20,
+              "max": 20,
+              "mean": 20
+            },
+            "cpu_percent_logical_capacity": {
+              "min": 0,
+              "max": 2.375,
+              "mean": 0.16666666666666666
+            },
+            "working_set_private_bytes": {
+              "min": 851914752,
+              "max": 914231296,
+              "mean": 896877056
+            },
+            "page_faults_per_sec": {
+              "min": 0,
+              "max": 2946,
+              "mean": 735.25
+            }
+          },
+          "observer": {
+            "count": {
+              "min": 1,
+              "max": 1,
+              "mean": 1
+            },
+            "cpu_percent_logical_capacity": {
+              "min": 0,
+              "max": 1.75,
+              "mean": 0.07291666666666667
+            },
+            "working_set_private_bytes": {
+              "min": 23871488,
+              "max": 55930880,
+              "mean": 47561728
+            },
+            "page_faults_per_sec": {
+              "min": 0,
+              "max": 2362,
+              "mean": 104.83333333333333
+            }
+          },
+          "other": {
+            "count": {
+              "min": 371,
+              "max": 377,
+              "mean": 372.4166666666667
+            },
+            "cpu_percent_logical_capacity": {
+              "min": 1.75,
+              "max": 30.125,
+              "mean": 12.447916666666666
+            },
+            "working_set_private_bytes": {
+              "min": 6874304512,
+              "max": 7307788288,
+              "mean": 7036271786.666667
+            },
+            "page_faults_per_sec": {
+              "min": 583,
+              "max": 53351,
+              "mean": 9319.583333333334
+            }
+          }
+        }
+      },
+      {
+        "start": "2026-11-07T03:21:25.7679007Z",
+        "end": "2026-11-07T03:21:32.1128508Z",
+        "n": 2,
+        "cpu_percent": {
+          "min": 25,
+          "max": 36,
+          "mean": 30.5
+        },
+        "available_mb": {
+          "min": 1191,
+          "max": 1780,
+          "mean": 1485.5
+        },
+        "committed_bytes": {
+          "min": 32404905984,
+          "max": 33221713920,
+          "mean": 32813309952
+        },
+        "commit_limit_bytes": {
+          "min": 49581215744,
+          "max": 49581215744,
+          "mean": 49581215744
+        },
+        "pages_input_per_sec": {
+          "min": 4476,
+          "max": 29012,
+          "mean": 16744
+        },
+        "disk_queue": {
+          "min": 12,
+          "max": 65,
+          "mean": 38.5
+        },
+        "query_ms": {
+          "min": 1424,
+          "max": 3917,
+          "mean": 2670.5
+        },
+        "start_interval_ms": {
+          "min": 4921,
+          "max": 4921,
+          "mean": 4921
+        },
+        "groups": {
+          "node": {
+            "count": {
+              "min": 24,
+              "max": 24,
+              "mean": 24
+            },
+            "cpu_percent_logical_capacity": {
+              "min": 0,
+              "max": 0,
+              "mean": 0
+            },
+            "working_set_private_bytes": {
+              "min": 28155904,
+              "max": 28155904,
+              "mean": 28155904
+            },
+            "page_faults_per_sec": {
+              "min": 0,
+              "max": 0,
+              "mean": 0
+            }
+          },
+          "chromium": {
+            "count": {
+              "min": 20,
+              "max": 20,
+              "mean": 20
+            },
+            "cpu_percent_logical_capacity": {
+              "min": 0,
+              "max": 0.75,
+              "mean": 0.375
+            },
+            "working_set_private_bytes": {
+              "min": 860819456,
+              "max": 861245440,
+              "mean": 861032448
+            },
+            "page_faults_per_sec": {
+              "min": 0,
+              "max": 26,
+              "mean": 13
+            }
+          },
+          "observer": {
+            "count": {
+              "min": 1,
+              "max": 1,
+              "mean": 1
+            },
+            "cpu_percent_logical_capacity": {
+              "min": 0,
+              "max": 0.5,
+              "mean": 0.25
+            },
+            "working_set_private_bytes": {
+              "min": 40456192,
+              "max": 41512960,
+              "mean": 40984576
+            },
+            "page_faults_per_sec": {
+              "min": 0,
+              "max": 13,
+              "mean": 6.5
+            }
+          },
+          "other": {
+            "count": {
+              "min": 389,
+              "max": 393,
+              "mean": 391
+            },
+            "cpu_percent_logical_capacity": {
+              "min": 8.875,
+              "max": 93.875,
+              "mean": 51.375
+            },
+            "working_set_private_bytes": {
+              "min": 7757488128,
+              "max": 7891439616,
+              "mean": 7824463872
+            },
+            "page_faults_per_sec": {
+              "min": 61019,
+              "max": 152975,
+              "mean": 106997
+            }
+          }
+        }
+      },
+      {
+        "start": "2026-11-07T15:43:50.5511707Z",
+        "end": "2026-11-07T15:44:00.6421408Z",
+        "n": 3,
+        "cpu_percent": {
+          "min": 100,
+          "max": 100,
+          "mean": 100
+        },
+        "available_mb": {
+          "min": 486,
+          "max": 626,
+          "mean": 571
+        },
+        "committed_bytes": {
+          "min": 32950706176,
+          "max": 33132523520,
+          "mean": 33042740565.333332
+        },
+        "commit_limit_bytes": {
+          "min": 49581215744,
+          "max": 49581215744,
+          "mean": 49581215744
+        },
+        "pages_input_per_sec": {
+          "min": 0,
+          "max": 117775,
+          "mean": 73467.33333333333
+        },
+        "disk_queue": {
+          "min": 32,
+          "max": 44,
+          "mean": 37.666666666666664
+        },
+        "query_ms": {
+          "min": 1944,
+          "max": 3683,
+          "mean": 2688
+        },
+        "start_interval_ms": {
+          "min": 3450,
+          "max": 4697,
+          "mean": 4073.5
+        },
+        "groups": {
+          "node": {
+            "count": {
+              "min": 16,
+              "max": 16,
+              "mean": 16
+            },
+            "cpu_percent_logical_capacity": {
+              "min": 0,
+              "max": 0,
+              "mean": 0
+            },
+            "working_set_private_bytes": {
+              "min": 22716416,
+              "max": 26120192,
+              "mean": 24985600
+            },
+            "page_faults_per_sec": {
+              "min": 0,
+              "max": 0,
+              "mean": 0
+            }
+          },
+          "chromium": {
+            "count": {
+              "min": 20,
+              "max": 23,
+              "mean": 21.666666666666668
+            },
+            "cpu_percent_logical_capacity": {
+              "min": 0.5,
+              "max": 3.9375,
+              "mean": 2.3958333333333335
+            },
+            "working_set_private_bytes": {
+              "min": 872763392,
+              "max": 908795904,
+              "mean": 888668160
+            },
+            "page_faults_per_sec": {
+              "min": 15,
+              "max": 19984,
+              "mean": 7793.666666666667
+            }
+          },
+          "observer": {
+            "count": {
+              "min": 1,
+              "max": 1,
+              "mean": 1
+            },
+            "cpu_percent_logical_capacity": {
+              "min": 0,
+              "max": 0,
+              "mean": 0
+            },
+            "working_set_private_bytes": {
+              "min": 39256064,
+              "max": 40357888,
+              "mean": 39699797.333333336
+            },
+            "page_faults_per_sec": {
+              "min": 0,
+              "max": 0,
+              "mean": 0
+            }
+          },
+          "other": {
+            "count": {
+              "min": 392,
+              "max": 399,
+              "mean": 395.3333333333333
+            },
+            "cpu_percent_logical_capacity": {
+              "min": 87.4375,
+              "max": 95.75,
+              "mean": 90.25
+            },
+            "working_set_private_bytes": {
+              "min": 7918407680,
+              "max": 8202280960,
+              "mean": 8095913301.333333
+            },
+            "page_faults_per_sec": {
+              "min": 56214,
+              "max": 143736,
+              "mean": 107790
+            }
+          }
+        }
+      }
+    ]
+  },
+  "baseline-2.json": {
+    "sha": "9974555e8b2c64c5c187a7a21427d8f5b9c0c1b8",
+    "logical_processors": 16,
+    "physical_memory_bytes": 14870306816,
+    "raw_samples": 20,
+    "excluded_long_queries": 0,
+    "exclusive_reservation": false,
+    "segments": [
+      {
+        "start": "2026-11-07T15:44:34.4589579Z",
+        "end": "2026-11-07T15:45:22.0527033Z",
+        "n": 20,
+        "cpu_percent": {
+          "min": 0,
+          "max": 31,
+          "mean": 15.25
+        },
+        "available_mb": {
+          "min": 297,
+          "max": 1513,
+          "mean": 1017.6
+        },
+        "committed_bytes": {
+          "min": 31515123712,
+          "max": 32063008768,
+          "mean": 31866114662.4
+        },
+        "commit_limit_bytes": {
+          "min": 49581215744,
+          "max": 49581215744,
+          "mean": 49581215744
+        },
+        "pages_input_per_sec": {
+          "min": 76,
+          "max": 115997,
+          "mean": 18301.9
+        },
+        "disk_queue": {
+          "min": 0,
+          "max": 2,
+          "mean": 0.25
+        },
+        "query_ms": {
+          "min": 1352,
+          "max": 1569,
+          "mean": 1423.1
+        },
+        "start_interval_ms": {
+          "min": 2359,
+          "max": 2589,
+          "mean": 2429.0526315789475
+        },
+        "groups": {
+          "node": {
+            "count": {
+              "min": 16,
+              "max": 17,
+              "mean": 16.05
+            },
+            "cpu_percent_logical_capacity": {
+              "min": 0,
+              "max": 0,
+              "mean": 0
+            },
+            "working_set_private_bytes": {
+              "min": 25870336,
+              "max": 38150144,
+              "mean": 26560512
+            },
+            "page_faults_per_sec": {
+              "min": 0,
+              "max": 0,
+              "mean": 0
+            }
+          },
+          "chromium": {
+            "count": {
+              "min": 18,
+              "max": 22,
+              "mean": 21.2
+            },
+            "cpu_percent_logical_capacity": {
+              "min": 0,
+              "max": 22.875,
+              "mean": 1.74375
+            },
+            "working_set_private_bytes": {
+              "min": 621879296,
+              "max": 1170604032,
+              "mean": 981559296
+            },
+            "page_faults_per_sec": {
+              "min": 0,
+              "max": 20977,
+              "mean": 2167.85
+            }
+          },
+          "observer": {
+            "count": {
+              "min": 1,
+              "max": 1,
+              "mean": 1
+            },
+            "cpu_percent_logical_capacity": {
+              "min": 0,
+              "max": 2.25,
+              "mean": 0.14375
+            },
+            "working_set_private_bytes": {
+              "min": 23695360,
+              "max": 49561600,
+              "mean": 43422515.2
+            },
+            "page_faults_per_sec": {
+              "min": 0,
+              "max": 2480,
+              "mean": 133.85
+            }
+          },
+          "other": {
+            "count": {
+              "min": 361,
+              "max": 379,
+              "mean": 370.2
+            },
+            "cpu_percent_logical_capacity": {
+              "min": 2.5,
+              "max": 36.1875,
+              "mean": 16.75625
+            },
+            "working_set_private_bytes": {
+              "min": 7397306368,
+              "max": 7850246144,
+              "mean": 7706818150.4
+            },
+            "page_faults_per_sec": {
+              "min": 1286,
+              "max": 87566,
+              "mean": 27284.65
+            }
+          }
+        }
+      }
+    ]
+  }
+}

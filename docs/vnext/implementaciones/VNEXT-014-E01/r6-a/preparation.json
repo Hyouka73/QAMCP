@@ -1,0 +1,31 @@
+{
+  "repository": "Hyouka73/QAMCP",
+  "branch": "feat/qap-vnext-architecture",
+  "initial_head": "37c51e52ad81c5d3dd1a017ab461ec540c7ca630",
+  "remote_verified_head": "9974555e8b2c64c5c187a7a21427d8f5b9c0c1b8",
+  "measured_checkout": "9974555e8b2c64c5c187a7a21427d8f5b9c0c1b8",
+  "update": "git fetch origin feat/qap-vnext-architecture; git ls-remote origin refs/heads/feat/qap-vnext-architecture; git merge --ff-only origin/feat/qap-vnext-architecture",
+  "update_result": "fast-forward; four documentary files only; no merge commit",
+  "r5_physical_sha": "9e9d2c8062b908d936ae090bbe9cb5c4ca2b0772",
+  "runtime_commit_diff_command": "git diff --quiet 9e9d2c8062b908d936ae090bbe9cb5c4ca2b0772 HEAD -- packages pnpm-lock.yaml pnpm-workspace.yaml",
+  "runtime_commit_diff_exit": 0,
+  "node": "24.15.0",
+  "pnpm": "12.3.4",
+  "dist_sha256": {
+    "packages/mcp/dist/server.js": "3457541827D1F601591BD090CD8A929440B310ED223CFDDCE37BCEF0CA68AAA4",
+    "packages/playwright-adapter/dist/index.js": "7992F3711E30DB7938389C8BC6ADA306D628DB881FE1E93E0B9C2B172209A640",
+    "packages/knowledge/dist/index.js": "F5F53A04CEDE07E0A078A19EEB2CEE7D13D64FA7093593AFA037B256DAE3DCE2",
+    "packages/shared/dist/index.js": "0AC145490635870C3D52AFB9B738608148EEEA35DFD9695E941A6662EDAEBDD7"
+  },
+  "dist_match_r5": true,
+  "suites_executed": [],
+  "environmental_gate": "BLOCKED: no verified CPU/RAM reservation",
+  "classification": "C",
+  "e01": "NO-GO",
+  "vnext_014_integral": "NO-GO",
+  "r4_corrective": "PASS in its certified scope",
+  "tool_events": [
+    "Auxiliary elevated CIM query not executed: automatic approval review deadline expired; not a risk rejection. Subsequent capacity window executed successfully.",
+    "Later sandbox ls-remote failed with getaddrinfo() thread failed to start; initial elevated remote verification succeeded."
+  ]
+}
