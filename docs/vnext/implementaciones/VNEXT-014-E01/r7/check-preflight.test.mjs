@@ -15,6 +15,8 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import process from 'node:process';
+import crypto from 'node:crypto';
+import os from 'node:os';
 
 import {
   validatePreflightManifest,
@@ -95,16 +97,16 @@ function generateSyntheticTelemetry(count = 60, intervalMs = 1000, startIso = '2
     start_time: startIso,
     end_time: endTime,
     sample_count: count,
-    cpu_stats: { min: 1.0, max: 7.5, mean: 4.5 },
+    cpu_stats: { min: 4.5, max: 4.5, mean: 4.5, p95: 4.5 },
     mem_stats: {
-      min_available_mb: 2400,
-      max_available_mb: 2600,
+      min_available_mb: 2500,
+      max_available_mb: 2500,
       mean_available_mb: 2500,
       committed_bytes_mean: 31500000000,
       commit_limit_bytes: 49581215744
     },
     page_faults: {
-      max_pages_input_per_sec: 20,
+      max_pages_input_per_sec: 10,
       mean_pages_input_per_sec: 10,
       max_pages_output_per_sec: 0
     },
@@ -112,20 +114,63 @@ function generateSyntheticTelemetry(count = 60, intervalMs = 1000, startIso = '2
   };
 }
 
-// Helper to create an accredited executor fixture
+// Helper to create a genuine temporary evidence doc JSON
+function createTempEvidenceDoc(manifest, overrides = {}) {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'qap-r7-evidence-'));
+  const docPath = path.join(tmpDir, 'evidence-doc.json');
+  const payload = {
+    executor_id: manifest.executor_id || 'executor-synthetic-fixture-01',
+    provenance: manifest.resource_reservation?.provenance || 'cloud_dedicated_host',
+    type: manifest.resource_reservation?.type || 'dedicated_vm',
+    allocated_cores: manifest.resource_reservation?.allocated_cores || 16,
+    allocated_ram_mb: manifest.resource_reservation?.allocated_ram_mb || 16384,
+    exclusive_reservation: true,
+    provider_metadata: {
+      hypervisor: 'Hyper-V-Isolated',
+      reservation_id: 'res-20261109-001'
+    },
+    ...overrides
+  };
+  fs.writeFileSync(docPath, JSON.stringify(payload, null, 2), 'utf-8');
+  return docPath;
+}
+
+// Helper to construct a valid auditor decision matching manifest and evidence doc
+function getValidAuditorDecision(manifest, docPath, overrides = {}) {
+  const bytes = fs.readFileSync(docPath);
+  const hash = crypto.createHash('sha256').update(bytes).digest('hex').toLowerCase();
+  const commitSha = overrides.approved_commit_sha || manifest.git?.commit_sha || 'c161c0f995a8f9844f2ec09c041354d77a08fea0';
+
+  return {
+    decision: 'APPROVED',
+    auditor_id: 'codex-reauditor-2026-11-07',
+    executor_id: manifest.executor_id || 'executor-synthetic-fixture-01',
+    approved_commit_sha: commitSha,
+    evidence_doc_sha256: hash,
+    allocated_cores: manifest.resource_reservation?.allocated_cores ?? 16,
+    allocated_ram_mb: manifest.resource_reservation?.allocated_ram_mb ?? 16384,
+    issued_at_utc: '2026-11-07T17:00:00.000Z',
+    expires_at_utc: '2026-11-07T18:00:00.000Z',
+    ...overrides
+  };
+}
+
+// Helper to create an accredited executor fixture with valid local evidence doc
 function getAccreditedExecutorFixture() {
   const m = getCanonicalFixture();
   m.status = 'EJECUTOR_APTO';
   m.status_reason = 'Ejecutor debidamente acreditado con cuota reservada y telemetria continua';
   m.resource_reservation = {
     provenance: 'cloud_dedicated_host',
-    evidence_doc: 'https://ci.internal/infra/attestations/r7-host-pin-042.json',
+    evidence_doc: null,
     type: 'dedicated_vm',
     allocated_cores: 16,
     allocated_ram_mb: 16384,
     swap_policy: 'fixed_managed',
     accredited: true
   };
+  const docPath = createTempEvidenceDoc(m);
+  m.resource_reservation.evidence_doc = docPath;
   return m;
 }
 
@@ -164,7 +209,12 @@ test('TC-02: Invariante de No Conversion: VALIDADOR_PASS jamas promueve a EJECUT
 
 test('TC-03: Aprobacion de ejecutor real con reserva debidamente acreditada', () => {
   const manifest = getAccreditedExecutorFixture();
-  const result = validatePreflightManifest(manifest, { auditorApproval: true });
+  const docPath = manifest.resource_reservation.evidence_doc;
+  const decision = getValidAuditorDecision(manifest, docPath);
+  const result = validatePreflightManifest(manifest, {
+    expectedCommitSha: manifest.git.commit_sha,
+    auditorDecision: decision
+  });
 
   assert.equal(result.valid, true, 'Debe ser valido');
   assert.equal(result.validador_status, 'VALIDADOR_PASS', 'Debe otorgar VALIDADOR_PASS');
@@ -431,10 +481,20 @@ test('TC-16: Rechazo estricto de la Falacia de CPU Ociosa: CPU baja y RAM libre 
   manifest.resource_reservation.accredited = false;
   manifest.resource_reservation.evidence_doc = null;
 
-  // Make telemetry look overwhelmingly idle
-  manifest.telemetry_window.cpu_stats = { min: 0.1, max: 0.5, mean: 0.2 };
-  manifest.telemetry_window.mem_stats.min_available_mb = 12000;
+  // Make telemetry look overwhelmingly idle with mathematically consistent samples and stats
+  manifest.telemetry_window.cpu_stats = { min: 0.2, max: 0.2, mean: 0.2, p95: 0.2 };
+  manifest.telemetry_window.mem_stats.min_available_mb = 13500;
+  manifest.telemetry_window.mem_stats.max_available_mb = 13500;
   manifest.telemetry_window.mem_stats.mean_available_mb = 13500;
+
+  for (const s of manifest.telemetry_window.samples) {
+    s.cpu_percent = 0.2;
+    s.available_mb = 13500;
+    for (const g of s.groups) {
+      if (g.category === 'other') g.cpu_percent_logical_capacity = 0.2;
+      else g.cpu_percent_logical_capacity = 0.0;
+    }
+  }
 
   const result = validatePreflightManifest(manifest);
   assert.equal(result.valid, true, 'Sintacticamente el fixture puede ser valido');
@@ -636,11 +696,15 @@ test('TC-R7-A01-FRAUD-APTO: Rechazo por contradiccion si declara status EJECUTOR
   assert.ok(result.errors.some(e => e.includes('Contradiction') && e.includes('EJECUTOR_APTO')));
 });
 
-test('TC-R7-A01-LOCAL-DOC-VERIFIED: Acepta archivo documental local existente y no vacio con auditorApproval', () => {
+test('TC-R7-A01-LOCAL-DOC-VERIFIED: Acepta archivo documental local existente y no vacio con auditorApproval y auditorDecision', () => {
   const manifest = getAccreditedExecutorFixture();
-  manifest.resource_reservation.evidence_doc = 'docs/vnext/implementaciones/VNEXT-014-E01/r7/CONTRATO_EJECUTOR.md';
+  const docPath = manifest.resource_reservation.evidence_doc;
+  const decision = getValidAuditorDecision(manifest, docPath);
 
-  const result = validatePreflightManifest(manifest, { auditorApproval: true });
+  const result = validatePreflightManifest(manifest, {
+    expectedCommitSha: manifest.git.commit_sha,
+    auditorDecision: decision
+  });
   assert.equal(result.valid, true);
   assert.equal(result.validador_status, 'VALIDADOR_PASS');
   assert.equal(result.executor_status, 'EJECUTOR_APTO');
@@ -939,3 +1003,363 @@ test('TC-R7-FAIL-CLOSED-INVARIANT: Principio Fail-Closed: VALIDADOR_PASS nunca e
   assert.notEqual(result.validador_status, result.executor_status);
   assert.ok(result.reasons.some(r => r.includes('PREPARADO / RESERVA NO ACREDITADA')));
 });
+
+// ============================================================================
+// Group 9: Cierre Definitivo de Brechas Codex (R7-R01 a R7-R06 / REAUDITORIA_CODEX_2026-11-07)
+// ============================================================================
+
+// --- Reproducción de Casos del Snippet Codex ---
+test('TC-R7-R02-REPRO-AGGREGATES: Rechazo estricto si agregados cpu_stats, mem_stats o page_faults estan vacios', () => {
+  const m = getCanonicalFixture();
+  m.telemetry_window.cpu_stats = {};
+  m.telemetry_window.mem_stats = {};
+  m.telemetry_window.page_faults = {};
+
+  const r = validatePreflightManifest(m);
+  assert.equal(r.valid, false);
+  assert.equal(r.validador_status, 'VALIDADOR_FAIL');
+  assert.equal(r.executor_status, 'EJECUTOR_NO_APTO');
+  assert.ok(r.errors.some(e => e.includes('cpu_stats')));
+  assert.ok(r.errors.some(e => e.includes('mem_stats')));
+  assert.ok(r.errors.some(e => e.includes('page_faults')));
+});
+
+test('TC-R7-R02-REPRO-METADATA: Rechazo estricto de metadatos invalidos (sample_count no entero, interval negativo, fechas invalidas)', () => {
+  const m = getCanonicalFixture();
+  Object.assign(m.telemetry_window, {
+    sample_count: 'sesenta',
+    interval_ms: -1,
+    start_time: 'INVALID',
+    end_time: 'INVALID',
+    duration_ms: 999999
+  });
+
+  const r = validatePreflightManifest(m);
+  assert.equal(r.valid, false);
+  assert.equal(r.validador_status, 'VALIDADOR_FAIL');
+  assert.ok(r.errors.some(e => e.includes('sample_count')));
+  assert.ok(r.errors.some(e => e.includes('interval_ms')));
+  assert.ok(r.errors.some(e => e.includes('ISO-8601') || e.includes('timestamp')));
+});
+
+test('TC-R7-R02-REPRO-RANGES: Rechazo estricto de metricas fuera de rango (cpu_percent > 100, group.count no entero)', () => {
+  const m = getCanonicalFixture();
+  for (const s of m.telemetry_window.samples) {
+    s.cpu_percent = 999;
+    s.groups[0].count = 0.5;
+  }
+
+  const r = validatePreflightManifest(m);
+  assert.equal(r.valid, false);
+  assert.equal(r.validador_status, 'VALIDADOR_FAIL');
+  assert.ok(r.errors.some(e => e.includes('cpu_percent')));
+  assert.ok(r.errors.some(e => e.includes('count')));
+});
+
+test('TC-R7-R02-REPRO-ADDITIONAL: Rechazo Draft-07 estricto ante propiedades adicionales y swap_policy null', () => {
+  const m = getCanonicalFixture();
+  m.unapproved = true;
+  m.resource_reservation.swap_policy = null;
+
+  const r = validatePreflightManifest(m);
+  assert.equal(r.valid, false);
+  assert.equal(r.validador_status, 'VALIDADOR_FAIL');
+  assert.ok(r.errors.some(e => e.includes('Additional property not allowed') && e.includes('unapproved')));
+  assert.ok(r.errors.some(e => e.includes('swap_policy')));
+});
+
+test('TC-R7-R05-REPRO-GIT-CONTRADICTION: Rechazo determinista si clean_working_tree es true pero hay dirty_files', () => {
+  const m = getCanonicalFixture();
+  m.git.clean_working_tree = true;
+  m.git.dirty_files = ['packages/mcp/src/server.ts'];
+
+  const r = validatePreflightManifest(m);
+  assert.equal(r.valid, false);
+  assert.equal(r.validador_status, 'VALIDADOR_FAIL');
+  assert.ok(r.errors.some(e => e.includes('Contradiction') && e.includes('clean_working_tree')));
+});
+
+test('TC-R7-R03-REPRO-EXTERNAL-NODE: Toda la CPU node/chromium/other se imputa como externa en baseline preflight', () => {
+  const m = getCanonicalFixture();
+  for (const s of m.telemetry_window.samples) {
+    s.cpu_percent = 90;
+    s.groups.find(g => g.category === 'node').cpu_percent_logical_capacity = 90;
+    s.groups.find(g => g.category === 'other').cpu_percent_logical_capacity = 0;
+  }
+  m.telemetry_window.cpu_stats = { min: 90, max: 90, mean: 90, p95: 90 };
+
+  const r = validatePreflightManifest(m);
+  assert.equal(r.valid, false);
+  assert.equal(r.validador_status, 'VALIDADOR_FAIL');
+  assert.ok(r.errors.some(e => e.includes('external CPU') || e.includes('budget')));
+});
+
+test('TC-R7-R01-REPRO-UNVERIFIED-APPROVAL: Rechazo estricto de URLs no verificadas y bandera booleana sin auditorDecision', () => {
+  const m = getCanonicalFixture();
+  Object.assign(m.resource_reservation, {
+    accredited: true,
+    provenance: 'cloud_dedicated_host',
+    type: 'dedicated_host',
+    evidence_doc: 'https://no-evidence.invalid/reserva'
+  });
+
+  const r = validatePreflightManifest(m, { auditorApproval: true });
+  assert.equal(r.valid, false);
+  assert.equal(r.validador_status, 'VALIDADOR_FAIL');
+  assert.equal(r.executor_status, 'EJECUTOR_NO_APTO');
+  assert.ok(r.errors.some(e => e.includes('remote HTTP/HTTPS URLs') && e.includes('strictly prohibited')));
+});
+
+// --- R7-R03 & R7-R02 Consistencia Matemática y Balance ---
+test('TC-R7-R03-GROUP-SUM-MISMATCH: Rechazo inmediato si la suma de grupos difiere de sample.cpu_percent en > 0.05%', () => {
+  const m = getCanonicalFixture();
+  // Alter groups sum in first sample
+  m.telemetry_window.samples[0].groups.forEach(g => {
+    g.cpu_percent_logical_capacity = 0.25;
+  }); // sum = 1.0 vs cpu_percent = 4.5
+
+  const r = validatePreflightManifest(m);
+  assert.equal(r.valid, false);
+  assert.equal(r.validador_status, 'VALIDADOR_FAIL');
+  assert.ok(r.errors.some(e => e.includes('group sum mismatch') || e.includes('groups sum')));
+});
+
+test('TC-R7-R02-STATS-MATH-CONSISTENCY-CPU: Rechazo si cpu_stats.mean discrepa de las muestras computadas', () => {
+  const m = getCanonicalFixture();
+  m.telemetry_window.cpu_stats.mean = 45.0; // sample mean is ~4.5%
+
+  const r = validatePreflightManifest(m);
+  assert.equal(r.valid, false);
+  assert.equal(r.validador_status, 'VALIDADOR_FAIL');
+  assert.ok(r.errors.some(e => e.includes('cpu_stats.mean')));
+});
+
+test('TC-R7-R02-STATS-MATH-CONSISTENCY-MEM: Rechazo si mem_stats.min_available_mb discrepa del minimo de muestras', () => {
+  const m = getCanonicalFixture();
+  m.telemetry_window.mem_stats.min_available_mb = 9999; // sample min is 2500
+
+  const r = validatePreflightManifest(m);
+  assert.equal(r.valid, false);
+  assert.equal(r.validador_status, 'VALIDADOR_FAIL');
+  assert.ok(r.errors.some(e => e.includes('mem_stats.min_available_mb')));
+});
+
+// --- R7-R05 Parsing Robusto y Cierre ante CLI Inválido ---
+test('TC-R7-R05-CLI-MISSING-EXPECTED-SHA-VALUE: CLI falla con exit code 1 si --expected-sha no tiene argumento', () => {
+  const cliPath = path.resolve(__dirname, 'check-preflight.mjs');
+  const manifestPath = path.resolve(__dirname, 'manifest-ejemplo.json');
+  const res = spawnSync(process.execPath, [cliPath, manifestPath, '--expected-sha'], {
+    encoding: 'utf-8'
+  });
+  assert.equal(res.status, 1);
+  assert.ok(res.stderr.includes('--expected-sha') && res.stderr.includes('Missing value'));
+});
+
+test('TC-R7-R05-CLI-EMPTY-ARG-VALUE: CLI falla con exit code 1 si un argumento esta vacio (--expected-sha=)', () => {
+  const cliPath = path.resolve(__dirname, 'check-preflight.mjs');
+  const manifestPath = path.resolve(__dirname, 'manifest-ejemplo.json');
+  const res = spawnSync(process.execPath, [cliPath, manifestPath, '--expected-sha='], {
+    encoding: 'utf-8'
+  });
+  assert.equal(res.status, 1);
+  assert.ok(res.stderr.includes('--expected-sha') && res.stderr.includes('Empty value'));
+});
+
+test('TC-R7-R05-CLI-INVALID-NUMERIC-MAX-GAP: CLI falla con exit code 1 si --max-gap no es un numero valido', () => {
+  const cliPath = path.resolve(__dirname, 'check-preflight.mjs');
+  const manifestPath = path.resolve(__dirname, 'manifest-ejemplo.json');
+  const res = spawnSync(process.execPath, [cliPath, manifestPath, '--max-gap=abc'], {
+    encoding: 'utf-8'
+  });
+  assert.equal(res.status, 1);
+  assert.ok(res.stderr.includes('--max-gap') && res.stderr.includes('Invalid numeric value'));
+});
+
+test('TC-R7-R05-CLI-INVALID-NUMERIC-MIN-DURATION: CLI falla con exit code 1 si --min-duration es NaN', () => {
+  const cliPath = path.resolve(__dirname, 'check-preflight.mjs');
+  const manifestPath = path.resolve(__dirname, 'manifest-ejemplo.json');
+  const res = spawnSync(process.execPath, [cliPath, manifestPath, '--min-duration=NaN'], {
+    encoding: 'utf-8'
+  });
+  assert.equal(res.status, 1);
+  assert.ok(res.stderr.includes('--min-duration') && res.stderr.includes('Invalid numeric value'));
+});
+
+// --- R7-R01 Auditor Decision Gate y Acreditación Verificable ---
+test('TC-R7-R01-AUDITOR-DECISION-MISSING: Documento local valido sin decision de auditor permanece en EJECUTOR_NO_APTO', () => {
+  const manifest = getAccreditedExecutorFixture();
+  manifest.status = 'VALIDADOR_PASS';
+  const res = validatePreflightManifest(manifest, {
+    expectedCommitSha: manifest.git.commit_sha
+  });
+  assert.equal(res.valid, true);
+  assert.equal(res.validador_status, 'VALIDADOR_PASS');
+  assert.equal(res.executor_status, 'EJECUTOR_NO_APTO');
+  assert.equal(res.details.reservation_accredited, false);
+});
+
+test('TC-R7-R01-AUDITOR-DECISION-MISMATCHED-EXECUTOR: Auditor decision con executor_id discrepante es rechazada', () => {
+  const manifest = getAccreditedExecutorFixture();
+  const decision = getValidAuditorDecision(manifest, manifest.resource_reservation.evidence_doc, {
+    executor_id: 'discrepant-executor-999'
+  });
+  const res = validatePreflightManifest(manifest, {
+    expectedCommitSha: manifest.git.commit_sha,
+    auditorDecision: decision
+  });
+  assert.equal(res.executor_status, 'EJECUTOR_NO_APTO');
+  assert.equal(res.details.reservation_accredited, false);
+  assert.ok(res.errors.some(e => e.includes('executor_id')));
+});
+
+test('TC-R7-R01-AUDITOR-DECISION-EXPIRED: Decision expirada antes del final de la ventana de telemetria es rechazada', () => {
+  const manifest = getAccreditedExecutorFixture();
+  const decision = getValidAuditorDecision(manifest, manifest.resource_reservation.evidence_doc, {
+    expires_at_utc: '2026-11-07T17:14:30.000Z' // window ends at 17:15:00
+  });
+  const res = validatePreflightManifest(manifest, {
+    expectedCommitSha: manifest.git.commit_sha,
+    auditorDecision: decision
+  });
+  assert.equal(res.executor_status, 'EJECUTOR_NO_APTO');
+  assert.equal(res.details.reservation_accredited, false);
+  assert.ok(res.errors.some(e => e.includes('expired before telemetry window end')));
+});
+
+test('TC-R7-R01-AUDITOR-DECISION-EVIDENCE-HASH-MISMATCH: Decision con hash SHA256 de evidencia no coincidente es rechazada', () => {
+  const manifest = getAccreditedExecutorFixture();
+  const decision = getValidAuditorDecision(manifest, manifest.resource_reservation.evidence_doc, {
+    evidence_doc_sha256: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'
+  });
+  const res = validatePreflightManifest(manifest, {
+    expectedCommitSha: manifest.git.commit_sha,
+    auditorDecision: decision
+  });
+  assert.equal(res.executor_status, 'EJECUTOR_NO_APTO');
+  assert.equal(res.details.reservation_accredited, false);
+  assert.ok(res.errors.some(e => e.includes('evidence_doc_sha256')));
+});
+
+test('TC-R7-R01-AUDITOR-DECISION-COMMIT-SHA-MISMATCH: Decision con commit SHA no coincidente con el manifiesto es rechazada', () => {
+  const manifest = getAccreditedExecutorFixture();
+  const decision = getValidAuditorDecision(manifest, manifest.resource_reservation.evidence_doc, {
+    approved_commit_sha: '1111111111111111111111111111111111111111'
+  });
+  const res = validatePreflightManifest(manifest, {
+    expectedCommitSha: manifest.git.commit_sha,
+    auditorDecision: decision
+  });
+  assert.equal(res.executor_status, 'EJECUTOR_NO_APTO');
+  assert.equal(res.details.reservation_accredited, false);
+  assert.ok(res.errors.some(e => e.includes('approved_commit_sha')));
+});
+
+test('TC-R7-R01-AUDITOR-DECISION-EXPECTED-SHA-MISSING: Decision rechazada si options.expectedCommitSha no se suministra', () => {
+  const manifest = getAccreditedExecutorFixture();
+  const decision = getValidAuditorDecision(manifest, manifest.resource_reservation.evidence_doc);
+  const res = validatePreflightManifest(manifest, {
+    auditorDecision: decision
+  });
+  assert.equal(res.executor_status, 'EJECUTOR_NO_APTO');
+  assert.equal(res.details.reservation_accredited, false);
+  assert.ok(res.errors.some(e => e.includes('options.expectedCommitSha') && e.includes('required')));
+});
+
+test('TC-R7-R01-AUDITOR-DECISION-VALID-APTO: Decision completa verificada otorga de forma legitima EJECUTOR_APTO', () => {
+  const manifest = getAccreditedExecutorFixture();
+  const decision = getValidAuditorDecision(manifest, manifest.resource_reservation.evidence_doc);
+  const res = validatePreflightManifest(manifest, {
+    expectedCommitSha: manifest.git.commit_sha,
+    auditorDecision: decision
+  });
+  assert.equal(res.valid, true);
+  assert.equal(res.validador_status, 'VALIDADOR_PASS');
+  assert.equal(res.executor_status, 'EJECUTOR_APTO');
+  assert.equal(res.details.reservation_accredited, true);
+  assert.equal(res.errors.length, 0);
+  assert.ok(res.reasons.some(r => r.includes('acreditado')));
+});
+
+// --- R7-R04 & R7-R06 Pruebas PowerShell Dinámicas ---
+test('TC-R7-R04-POWERSHELL-GIT-STATUS-FAIL: Get-HostGitState emite clean_working_tree = false cuando git status falla', () => {
+  const psScriptPath = path.resolve(__dirname, 'preflight.ps1');
+  const psCode = `
+    $ErrorActionPreference = 'Stop'
+    $content = Get-Content -LiteralPath '${psScriptPath.replace(/'/g, "''")}' -Raw
+    if ($content -match '(?s)(function Get-HostGitState\\s*\\{.*?\\n\\})\\s*\\r?\\nfunction Get-DistHashes') {
+      $funcDef = $matches[1]
+    } else {
+      throw 'Cannot find Get-HostGitState definition'
+    }
+    Invoke-Expression $funcDef
+
+    function git {
+      param([Parameter(ValueFromRemainingArguments)]$args)
+      if ($args -contains 'status') {
+        $global:LASTEXITCODE = 128
+        return $null
+      }
+      $global:LASTEXITCODE = 0
+      return 'c161c0f995a8f9844f2ec09c041354d77a08fea0'
+    }
+
+    $state = Get-HostGitState -Root '${__dirname.replace(/'/g, "''")}'
+    $state | ConvertTo-Json -Compress
+  `;
+
+  const res = spawnSync('powershell', ['-NoProfile', '-Command', psCode], {
+    encoding: 'utf-8'
+  });
+  assert.equal(res.status, 0, `PowerShell execution failed: ${res.stderr}`);
+  const gitState = JSON.parse(res.stdout.trim());
+  assert.equal(gitState.clean_working_tree, false, 'Git status con exit code 128 NUNCA debe marcar arbol limpio');
+  assert.ok(
+    Array.isArray(gitState.dirty_files) && gitState.dirty_files.some(f => f.includes('git-status-failed')),
+    'dirty_files debe reportar git-status-failed'
+  );
+});
+
+test('TC-R7-R06-POWERSHELL-PATH-CONFINEMENT-JUNCTION: Assert-PathConfinement rechaza terminantemente enlaces reparse/junction', () => {
+  const psScriptPath = path.resolve(__dirname, 'preflight.ps1');
+  const tmpSandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'qap-confinement-test-'));
+  const targetDir = path.join(tmpSandbox, 'target');
+  fs.mkdirSync(targetDir, { recursive: true });
+
+  try {
+    const psCode = `
+      $ErrorActionPreference = 'Stop'
+      $content = Get-Content -LiteralPath '${psScriptPath.replace(/'/g, "''")}' -Raw
+      if ($content -match '(?s)(function Assert-PathConfinement\\s*\\{.*?\\n\\})\\s*\\r?\\n# Confinement assertions') {
+        $funcDef = $matches[1]
+      } else {
+        throw 'Cannot find Assert-PathConfinement definition'
+      }
+      Invoke-Expression $funcDef
+
+      $sandbox = '${tmpSandbox.replace(/'/g, "''")}'
+      $scriptDir = $sandbox
+      $junctionPath = Join-Path $sandbox 'junction-link'
+      $target = '${targetDir.replace(/'/g, "''")}'
+
+      New-Item -ItemType Junction -Path $junctionPath -Target $target | Out-Null
+
+      try {
+        Assert-PathConfinement -Path $junctionPath -ParamName 'TestJunction'
+        Write-Output 'ALLOWED'
+      } catch {
+        Write-Output ('REJECTED: ' + $_.Exception.Message)
+      }
+    `;
+
+    const res = spawnSync('powershell', ['-NoProfile', '-Command', psCode], {
+      encoding: 'utf-8'
+    });
+    assert.equal(res.status, 0, `PowerShell execution failed: ${res.stderr}`);
+    const output = res.stdout.trim();
+    assert.ok(output.startsWith('REJECTED:'), 'Junction DEBE ser rechazada por Assert-PathConfinement');
+    assert.ok(output.includes('Reparse point') || output.includes('symbolic link'), 'Mensaje de error debe indicar Reparse point o symlink');
+  } finally {
+    fs.rmSync(tmpSandbox, { recursive: true, force: true });
+  }
+});
+
