@@ -252,11 +252,11 @@ export function registerCommands(program: Command): void {
      .command('prune')
      .description('Elimina ejecuciones, capturas temporales y logs obsoletos')
      .option('--older-than-days <dias>', 'Antigüedad máxima en días')
-     .option('--max-bytes <bytes>', 'Límite de cuota en disco')
+     .option('--max-bytes <bytes>', 'Cuota de runtime/runs; purga solo videos/trazas y preserva registros y pinned')
      .option('--max-entries <entradas>', 'Número máximo de ejecuciones a conservar')
      .option('--include-screenshots', 'Incluir purga de capturas de pantalla de artefactos')
      .option('--include-hashes', 'Incluir purga de snapshots DOM antiguos en caché')
-     .option('--dry-run', 'Audita sin eliminar ningún archivo')
+     .option('--dry-run', 'Audita sin cambiar el proyecto; SQLite se inspecciona en copia temporal')
      .action(async (options: PruneCommandOptions) => {
        await handlePrune(options);
      });

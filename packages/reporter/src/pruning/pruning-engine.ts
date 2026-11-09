@@ -2,6 +2,52 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { QapDatabase } from '../persistence/sqlite-client.js';
+import type { RunRow } from '../persistence/sqlite-client.js';
+
+export interface QuotaArtifact {
+  path: string;
+  bytes: number;
+}
+
+/** Shared, non-mutating quota selection. Records, unknown files and pins survive. */
+export function planQuotaArtifacts(
+  runtimeDir: string,
+  runs: RunRow[],
+  maxBytes: number,
+  alreadyRemoved: ReadonlySet<string> = new Set()
+): QuotaArtifact[] {
+  if (!Number.isSafeInteger(maxBytes) || maxBytes < 0) throw new Error('Invalid byte quota');
+  const sizes = new Map<string, number>();
+  const collect = (dir: string): void => {
+    if (!fs.existsSync(dir)) return;
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const fullPath = path.join(dir, entry.name);
+      if (alreadyRemoved.has(fullPath) || entry.isSymbolicLink()) continue;
+      if (entry.isDirectory()) collect(fullPath);
+      else if (entry.isFile()) sizes.set(fullPath, fs.statSync(fullPath).size);
+    }
+  };
+  const runsDir = path.resolve(runtimeDir, 'runs');
+  collect(runsDir);
+  let remaining = [...sizes.values()].reduce((sum, size) => sum + size, 0);
+  const selected: QuotaArtifact[] = [];
+  const ordered = runs.filter((run) => run.pinned === 0).slice().sort((a, b) =>
+    Date.parse(a.started_at) - Date.parse(b.started_at) || a.run_id.localeCompare(b.run_id));
+  for (const run of ordered) {
+    // Do not traverse IDs outside the managed runs directory.
+    const runDir = path.resolve(runsDir, run.run_id);
+    if (path.dirname(runDir) !== path.resolve(runsDir)) throw new Error('Invalid runtime run ID');
+    const artifactsDir = path.join(runDir, 'artifacts');
+    const artifacts = [...sizes.keys()].filter((file) => path.dirname(file) === artifactsDir && /\.(webm|mp4|zip)$/i.test(file)).sort();
+    for (const file of artifacts) {
+      if (remaining <= maxBytes) return selected;
+      const bytes = sizes.get(file)!;
+      selected.push({ path: file, bytes });
+      remaining -= bytes;
+    }
+  }
+  return selected;
+}
 
 export const TTL_DEFAULTS = {
   VIDEO_MS: 7 * 24 * 60 * 60 * 1000,    // 7 días
@@ -99,40 +145,11 @@ export class PruningEngine {
     }
 
     // Regla 6.c: Cuota dura por LRU sobre multimedia si se definió maxDiskUsageBytes
-    if (policy.maxDiskUsageBytes && policy.maxDiskUsageBytes > 0) {
-      const runsBaseDir = path.join(this.runtimeDir, 'runs');
-      if (fs.existsSync(runsBaseDir)) {
-        let currentDiskUsage = this.calculateDirSize(runsBaseDir);
-
-        if (currentDiskUsage > policy.maxDiskUsageBytes) {
-          // Ordenar runs unpinned de más antiguo a más reciente (LRU)
-          const unpinnedRuns = this.db
-            .listRuns()
-            .filter((r) => r.pinned === 0)
-            .sort((a, b) => new Date(a.started_at).getTime() - new Date(b.started_at).getTime());
-
-          for (const run of unpinnedRuns) {
-            if (currentDiskUsage <= policy.maxDiskUsageBytes) break;
-
-            const artifactsDir = path.join(this.runtimeDir, 'runs', run.run_id, 'artifacts');
-            if (fs.existsSync(artifactsDir)) {
-              const files = fs.readdirSync(artifactsDir);
-              for (const file of files) {
-                if (currentDiskUsage <= policy.maxDiskUsageBytes) break;
-                const filePath = path.join(artifactsDir, file);
-                try {
-                  const stat = fs.statSync(filePath);
-                  bytesFreed += stat.size;
-                  currentDiskUsage -= stat.size;
-                  fs.unlinkSync(filePath);
-                  purgedArtifactsCount++;
-                } catch {
-                  // Continuar
-                }
-              }
-            }
-          }
-        }
+    if (policy.maxDiskUsageBytes !== undefined && policy.maxDiskUsageBytes >= 0) {
+      for (const artifact of planQuotaArtifacts(this.runtimeDir, this.db.listRuns(), policy.maxDiskUsageBytes)) {
+        fs.unlinkSync(artifact.path);
+        bytesFreed += artifact.bytes;
+        purgedArtifactsCount++;
       }
     }
 

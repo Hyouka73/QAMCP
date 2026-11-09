@@ -1,9 +1,10 @@
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 
 import type { IStorage } from '@qap/engine';
 import { HistoryManager, type HistoryEntry } from '@qap/knowledge';
-import { QapDatabase, TTL_DEFAULTS } from '@qap/reporter';
+import { QapDatabase, TTL_DEFAULTS, planQuotaArtifacts } from '@qap/reporter';
 
 export interface PruneCommandOptions {
   olderThanDays?: string | number;
@@ -24,6 +25,59 @@ export interface PruneAuditResult {
   candidateExecutionsCount?: number;
   markedHistoryEntriesCount?: number;
   isDryRun: boolean;
+  quotaSatisfied?: boolean;
+  remainingRuntimeBytes?: number;
+}
+
+function numericOption(value: string | number | undefined, name: string): number | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value === 'string' && value.trim() === '') throw new Error(`${name} requires a number`);
+  const number = Number(value);
+  if (!Number.isSafeInteger(number) || number < 0) throw new Error(`${name} requires a non-negative safe integer`);
+  return number;
+}
+
+/** Never open the user's database during dry-run (even read-only WAL may create SHM).
+ * The copy is an estimate, not a coordinated multi-file or Knowledge snapshot.
+ */
+function openPruneDatabase(runtimeDir: string, dryRun: boolean): { db?: QapDatabase; close: () => void } {
+  if (!dryRun) {
+    const db = new QapDatabase(runtimeDir);
+    return { db, close: () => db.close() };
+  }
+  const source = path.join(runtimeDir, 'qap.sqlite');
+  if (!fs.existsSync(source)) return { close: () => {} };
+  const temporaryRoot = path.resolve(os.tmpdir());
+  const copyDir = fs.mkdtempSync(path.join(temporaryRoot, 'qap-prune-audit-'));
+  let db: QapDatabase | undefined;
+  const close = (): void => {
+    try { db?.close(); } finally {
+      if (path.dirname(path.resolve(copyDir)) !== temporaryRoot || !path.basename(copyDir).startsWith('qap-prune-audit-')) {
+        throw new Error('Invalid prune audit temporary directory');
+      }
+      fs.rmSync(copyDir, { recursive: true, force: true });
+    }
+  };
+  try {
+    const fingerprint = (file: string): string | undefined => {
+      if (!fs.existsSync(file)) return undefined;
+      const stat = fs.statSync(file, { bigint: true });
+      return `${stat.dev}:${stat.ino}:${stat.size}:${stat.mtimeNs}:${stat.ctimeNs}`;
+    };
+    const before = ['', '-wal'].map((suffix) => fingerprint(source + suffix));
+    // Do not copy SHM: SQLite rebuilds its transient index only in the private directory.
+    for (const [index, suffix] of ['', '-wal'].entries()) {
+      if (before[index] !== undefined) fs.copyFileSync(source + suffix, path.join(copyDir, 'qap.sqlite' + suffix));
+    }
+    if (['', '-wal'].some((suffix, index) => fingerprint(source + suffix) !== before[index])) {
+      throw new Error('Prune audit blocked: SQLite changed while copying; retry in a quiet window.');
+    }
+    db = new QapDatabase(copyDir, false, { readOnly: true });
+    return { db, close };
+  } catch (error) {
+    close();
+    throw error;
+  }
 }
 
 /**
@@ -142,8 +196,11 @@ async function markPurgedInHistory(rootDir: string, purgedIds: Set<string>, dryR
  * Subcomando `qap prune` (S75-017).
  */
 export async function handlePrune(options: PruneCommandOptions = {}): Promise<PruneAuditResult> {
-  const rootDir = options.rootDir || process.cwd();
-  const runtimeDir = options.runtimeDir || path.resolve(rootDir, '.qa/runtime');
+  const olderThanDays = numericOption(options.olderThanDays, '--older-than-days');
+  const maxEntries = numericOption(options.maxEntries, '--max-entries') ?? 50;
+  const maxBytes = numericOption(options.maxBytes, '--max-bytes');
+  const rootDir = path.resolve(options.rootDir || process.cwd());
+  const runtimeDir = path.resolve(options.runtimeDir || path.join(rootDir, '.qa/runtime'));
 
   if (!fs.existsSync(runtimeDir) && !fs.existsSync(path.join(rootDir, '.qa'))) {
     process.stdout.write(`El directorio runtime no existe en ${runtimeDir}. No hay nada para podar.\n`);
@@ -158,204 +215,220 @@ export async function handlePrune(options: PruneCommandOptions = {}): Promise<Pr
     };
   }
 
-  // Asegurar directorio runtime si no existe
-  fs.mkdirSync(runtimeDir, { recursive: true });
+  const database = openPruneDatabase(runtimeDir, Boolean(options.dryRun));
+  const db = database.db;
+  try {
+    const recordTtlMs = olderThanDays !== undefined ? olderThanDays * DAY_MS : TTL_DEFAULTS.RECORD_MS;
+    const now = Date.now();
 
-  const db = new QapDatabase(runtimeDir);
+    let candidateRunsCount = 0;
+    let candidateArtifactsCount = 0;
+    let candidateBytes = 0;
+    let candidateHashesCount = 0;
 
-  const olderThanDays = options.olderThanDays ? Number(options.olderThanDays) : undefined;
-  const maxEntries = options.maxEntries !== undefined ? Number(options.maxEntries) : 50;
+    const runs = db?.listRuns() ?? [];
+    const runsBaseDir = path.join(runtimeDir, 'runs');
+    const plannedRuntimeRemovals = new Set<string>();
 
-  const recordTtlMs = olderThanDays ? olderThanDays * DAY_MS : TTL_DEFAULTS.RECORD_MS;
-  const now = Date.now();
+    const unpinnedRuns = runs.filter((r) => r.pinned === 0);
+    const runsToPruneByCount =
+      maxEntries && unpinnedRuns.length > maxEntries
+        ? new Set(
+            unpinnedRuns
+              .sort((a, b) => new Date(a.started_at).getTime() - new Date(b.started_at).getTime())
+              .slice(0, unpinnedRuns.length - maxEntries)
+              .map((r) => r.run_id)
+          )
+        : new Set<string>();
 
-  let candidateRunsCount = 0;
-  let candidateArtifactsCount = 0;
-  let candidateBytes = 0;
-  let candidateHashesCount = 0;
+    const purgedRunIds: string[] = [];
 
-  const runs = db.listRuns();
-  const runsBaseDir = path.join(runtimeDir, 'runs');
+    for (const run of runs) {
+      if (run.pinned === 1) continue;
 
-  const unpinnedRuns = runs.filter((r) => r.pinned === 0);
-  const runsToPruneByCount =
-    maxEntries && unpinnedRuns.length > maxEntries
-      ? new Set(
-          unpinnedRuns
-            .sort((a, b) => new Date(a.started_at).getTime() - new Date(b.started_at).getTime())
-            .slice(0, unpinnedRuns.length - maxEntries)
-            .map((r) => r.run_id)
-        )
-      : new Set<string>();
+      const ageMs = now - new Date(run.started_at).getTime();
+      const runDir = path.join(runsBaseDir, run.run_id);
+      if (path.dirname(path.resolve(runDir)) !== path.resolve(runsBaseDir)) throw new Error('Invalid runtime run ID');
 
-  const purgedRunIds: string[] = [];
+      if (ageMs >= recordTtlMs || runsToPruneByCount.has(run.run_id)) {
+        candidateRunsCount++;
+        purgedRunIds.push(run.run_id);
+        plannedRuntimeRemovals.add(runDir);
+        if (fs.existsSync(runDir)) {
+          candidateBytes += calculateDirectorySize(runDir);
+        }
+      } else {
+        const artifactsDir = path.join(runDir, 'artifacts');
+        if (fs.existsSync(artifactsDir)) {
+          const files = fs.readdirSync(artifactsDir);
+          for (const file of files) {
+            const isVideo = file.endsWith('.webm') || file.endsWith('.mp4');
+            const isTrace = file.endsWith('.zip');
+            const isScreenshot = file.endsWith('.png') || file.endsWith('.jpg');
 
-  for (const run of runs) {
-    if (run.pinned === 1) continue;
+            const shouldPruneArtifact =
+              (isVideo && ageMs >= TTL_DEFAULTS.VIDEO_MS) ||
+              (isTrace && ageMs >= TTL_DEFAULTS.TRACE_MS) ||
+              (options.includeScreenshots && isScreenshot);
 
-    const ageMs = now - new Date(run.started_at).getTime();
-    const runDir = path.join(runsBaseDir, run.run_id);
-
-    if (ageMs >= recordTtlMs || runsToPruneByCount.has(run.run_id)) {
-      candidateRunsCount++;
-      purgedRunIds.push(run.run_id);
-      if (fs.existsSync(runDir)) {
-        candidateBytes += calculateDirectorySize(runDir);
-      }
-    } else {
-      const artifactsDir = path.join(runDir, 'artifacts');
-      if (fs.existsSync(artifactsDir)) {
-        const files = fs.readdirSync(artifactsDir);
-        for (const file of files) {
-          const isVideo = file.endsWith('.webm') || file.endsWith('.mp4');
-          const isTrace = file.endsWith('.zip');
-          const isScreenshot = file.endsWith('.png') || file.endsWith('.jpg');
-
-          const shouldPruneArtifact =
-            (isVideo && ageMs >= TTL_DEFAULTS.VIDEO_MS) ||
-            (isTrace && ageMs >= TTL_DEFAULTS.TRACE_MS) ||
-            (options.includeScreenshots && isScreenshot);
-
-          if (shouldPruneArtifact) {
-            try {
-              const filePath = path.join(artifactsDir, file);
-              const stat = fs.statSync(filePath);
-              candidateBytes += stat.size;
-              candidateArtifactsCount++;
-              if (!options.dryRun) {
-                fs.unlinkSync(filePath);
+            if (shouldPruneArtifact) {
+              try {
+                const filePath = path.join(artifactsDir, file);
+                const stat = fs.lstatSync(filePath);
+                if (!stat.isFile()) continue;
+                if (!options.dryRun) fs.unlinkSync(filePath);
+                candidateBytes += stat.size;
+                candidateArtifactsCount++;
+                plannedRuntimeRemovals.add(filePath);
+              } catch (error) {
+                throw new Error('Prune artifact removal/audit failed; no success may be reported.', { cause: error });
               }
-            } catch {
-              // Continuar
             }
           }
         }
       }
     }
-  }
 
-  // Ejecuciones de .qa/executions/ que exceden max-entries o la antigüedad (S75-017).
-  // maxEntries <= 0 se interpreta como "sin límite por cantidad", igual que con las corridas.
-  const purgedExecutionIds = new Set<string>();
-  const executionGroups = collectExecutionGroups(path.join(rootDir, '.qa', 'executions')).sort(
-    (a, b) => b.modifiedMs - a.modifiedMs // más reciente primero
-  );
+    // Same quota policy as Reporter: multimedia only, oldest unpinned runs first.
+    let remainingRuntimeBytes: number | undefined;
+    let quotaSatisfied: boolean | undefined;
+    if (maxBytes !== undefined) {
+      for (const artifact of planQuotaArtifacts(runtimeDir, runs, maxBytes, plannedRuntimeRemovals)) {
+        candidateBytes += artifact.bytes;
+        candidateArtifactsCount++;
+        plannedRuntimeRemovals.add(artifact.path);
+        if (!options.dryRun) fs.unlinkSync(artifact.path);
+      }
+      remainingRuntimeBytes = calculateDirectorySize(runsBaseDir, plannedRuntimeRemovals);
+      quotaSatisfied = remainingRuntimeBytes <= maxBytes;
+      if (!quotaSatisfied) process.stdout.write('Cuota no alcanzable sin eliminar registros o contenido protegido; se conserva.\n');
+    }
 
-  executionGroups.forEach((group, index) => {
-    const exceedsCount = maxEntries > 0 && index >= maxEntries;
-    const exceedsAge = olderThanDays !== undefined && now - group.modifiedMs >= olderThanDays * DAY_MS;
-    if (!exceedsCount && !exceedsAge) return;
+    // Ejecuciones de .qa/executions/ que exceden max-entries o la antigüedad (S75-017).
+    // maxEntries <= 0 se interpreta como "sin límite por cantidad", igual que con las corridas.
+    const purgedExecutionIds = new Set<string>();
+    const executionGroups = collectExecutionGroups(path.join(rootDir, '.qa', 'executions')).sort(
+      (a, b) => b.modifiedMs - a.modifiedMs // más reciente primero
+    );
 
-    purgedExecutionIds.add(group.id);
-    candidateBytes += group.bytes;
+    executionGroups.forEach((group, index) => {
+      const exceedsCount = maxEntries > 0 && index >= maxEntries;
+      const exceedsAge = olderThanDays !== undefined && now - group.modifiedMs >= olderThanDays * DAY_MS;
+      if (!exceedsCount && !exceedsAge) return;
+
+      purgedExecutionIds.add(group.id);
+      candidateBytes += group.bytes;
+      if (!options.dryRun) {
+        for (const filePath of group.files) {
+          fs.rmSync(filePath, { recursive: true, force: true });
+        }
+      }
+    });
+
+    // Sincronizar history.json (formato previo, por run_id de las corridas purgadas)
+    const historyCacheDir = path.join(rootDir, '.qa', 'cache', 'history');
+    if (fs.existsSync(historyCacheDir)) {
+      const historyFiles = fs.readdirSync(historyCacheDir).filter((f) => f.endsWith('.json'));
+
+      for (const hFile of historyFiles) {
+        const historyPath = path.join(historyCacheDir, hFile);
+        try {
+          const historyData: unknown = JSON.parse(fs.readFileSync(historyPath, 'utf-8'));
+          if (Array.isArray(historyData)) {
+            let changed = false;
+            for (const entry of historyData as Array<Record<string, unknown>>) {
+              const entryRunId = entry.runId ?? entry.run_id;
+              if (typeof entryRunId === 'string' && purgedRunIds.includes(entryRunId)) {
+                entry.execution_exists = false;
+                changed = true;
+              }
+            }
+            if (changed && !options.dryRun) {
+              fs.writeFileSync(historyPath, JSON.stringify(historyData, null, 2));
+            }
+          }
+        } catch {
+          // Continuar
+        }
+      }
+    }
+
+    // Sincronizar el historial de HistoryManager (.jsonl) con las ejecuciones purgadas
+    const markedHistoryEntriesCount = await markPurgedInHistory(rootDir, purgedExecutionIds, Boolean(options.dryRun));
+
+    // Soporte para --include-hashes (>24h en .qa/cache/hashes/)
+    const hashesDir = path.join(rootDir, '.qa', 'cache', 'hashes');
+    if (options.includeHashes && fs.existsSync(hashesDir)) {
+      const hashEntries = fs.readdirSync(hashesDir, { withFileTypes: true });
+      for (const entry of hashEntries) {
+        const fullPath = path.join(hashesDir, entry.name);
+        try {
+          const stat = fs.statSync(fullPath);
+          const fileAgeMs = now - stat.mtimeMs;
+          if (fileAgeMs >= DAY_MS) {
+            candidateHashesCount++;
+            candidateBytes += stat.size;
+            if (!options.dryRun) {
+              fs.unlinkSync(fullPath);
+            }
+          }
+        } catch {
+          // Continuar
+        }
+      }
+    }
+
     if (!options.dryRun) {
-      for (const filePath of group.files) {
-        fs.rmSync(filePath, { recursive: true, force: true });
-      }
-    }
-  });
-
-  // Sincronizar history.json (formato previo, por run_id de las corridas purgadas)
-  const historyCacheDir = path.join(rootDir, '.qa', 'cache', 'history');
-  if (fs.existsSync(historyCacheDir)) {
-    const historyFiles = fs.readdirSync(historyCacheDir).filter((f) => f.endsWith('.json'));
-
-    for (const hFile of historyFiles) {
-      const historyPath = path.join(historyCacheDir, hFile);
-      try {
-        const historyData: unknown = JSON.parse(fs.readFileSync(historyPath, 'utf-8'));
-        if (Array.isArray(historyData)) {
-          let changed = false;
-          for (const entry of historyData as Array<Record<string, unknown>>) {
-            const entryRunId = entry.runId ?? entry.run_id;
-            if (typeof entryRunId === 'string' && purgedRunIds.includes(entryRunId)) {
-              entry.execution_exists = false;
-              changed = true;
-            }
-          }
-          if (changed && !options.dryRun) {
-            fs.writeFileSync(historyPath, JSON.stringify(historyData, null, 2));
-          }
+      for (const runId of purgedRunIds) {
+        const runDir = path.join(runsBaseDir, runId);
+        if (fs.existsSync(runDir)) {
+          fs.rmSync(runDir, { recursive: true, force: true });
         }
-      } catch {
-        // Continuar
+        db?.deleteRun(runId);
       }
     }
-  }
 
-  // Sincronizar el historial de HistoryManager (.jsonl) con las ejecuciones purgadas
-  const markedHistoryEntriesCount = await markPurgedInHistory(rootDir, purgedExecutionIds, Boolean(options.dryRun));
-
-  // Soporte para --include-hashes (>24h en .qa/cache/hashes/)
-  const hashesDir = path.join(rootDir, '.qa', 'cache', 'hashes');
-  if (options.includeHashes && fs.existsSync(hashesDir)) {
-    const hashEntries = fs.readdirSync(hashesDir, { withFileTypes: true });
-    for (const entry of hashEntries) {
-      const fullPath = path.join(hashesDir, entry.name);
-      try {
-        const stat = fs.statSync(fullPath);
-        const fileAgeMs = now - stat.mtimeMs;
-        if (fileAgeMs >= DAY_MS) {
-          candidateHashesCount++;
-          candidateBytes += stat.size;
-          if (!options.dryRun) {
-            fs.unlinkSync(fullPath);
-          }
-        }
-      } catch {
-        // Continuar
-      }
+    if (options.dryRun) {
+      process.stdout.write(
+        `[DRY RUN] Espacio liberable estimado: ${candidateBytes} bytes (${candidateRunsCount} corrida(s) candidata(s), ${candidateArtifactsCount} artefacto(s) multimedia, ${candidateHashesCount} hash(es)). Ningún archivo fue eliminado.\n`
+      );
+    } else {
+      process.stdout.write(
+        `✔ Poda completada: ${candidateBytes} bytes liberados. ${candidateRunsCount} corrida(s) eliminada(s), ${candidateArtifactsCount} artefacto(s) multimedia purgados.\n`
+      );
     }
-  }
 
-  if (!options.dryRun) {
-    for (const runId of purgedRunIds) {
-      const runDir = path.join(runsBaseDir, runId);
-      if (fs.existsSync(runDir)) {
-        fs.rmSync(runDir, { recursive: true, force: true });
-      }
-      db.deleteRun(runId);
+    if (purgedExecutionIds.size > 0 || markedHistoryEntriesCount > 0) {
+      process.stdout.write(
+        `Ejecuciones en .qa/executions: ${purgedExecutionIds.size}. Entradas de historial marcadas con execution_exists: false: ${markedHistoryEntriesCount}.\n`
+      );
     }
+
+    return {
+      candidateRunsCount,
+      candidateArtifactsCount,
+      candidateBytes,
+      candidateHashesCount,
+      candidateExecutionsCount: purgedExecutionIds.size,
+      markedHistoryEntriesCount,
+      isDryRun: Boolean(options.dryRun),
+      ...(maxBytes !== undefined ? { quotaSatisfied, remainingRuntimeBytes } : {}),
+    };
+  } finally {
+    database.close();
   }
-
-  db.close();
-
-  if (options.dryRun) {
-    process.stdout.write(
-      `[DRY RUN] Espacio liberable estimado: ${candidateBytes} bytes (${candidateRunsCount} corrida(s) candidata(s), ${candidateArtifactsCount} artefacto(s) multimedia, ${candidateHashesCount} hash(es)). Ningún archivo fue eliminado.\n`
-    );
-  } else {
-    process.stdout.write(
-      `✔ Poda completada: ${candidateBytes} bytes liberados. ${candidateRunsCount} corrida(s) eliminada(s), ${candidateArtifactsCount} artefacto(s) multimedia purgados.\n`
-    );
-  }
-
-  if (purgedExecutionIds.size > 0 || markedHistoryEntriesCount > 0) {
-    process.stdout.write(
-      `Ejecuciones en .qa/executions: ${purgedExecutionIds.size}. Entradas de historial marcadas con execution_exists: false: ${markedHistoryEntriesCount}.\n`
-    );
-  }
-
-  return {
-    candidateRunsCount,
-    candidateArtifactsCount,
-    candidateBytes,
-    candidateHashesCount,
-    candidateExecutionsCount: purgedExecutionIds.size,
-    markedHistoryEntriesCount,
-    isDryRun: Boolean(options.dryRun),
-  };
 }
 
-function calculateDirectorySize(dirPath: string): number {
+function calculateDirectorySize(dirPath: string, excluded: ReadonlySet<string> = new Set()): number {
   let size = 0;
-  if (!fs.existsSync(dirPath)) return 0;
+  if (excluded.has(dirPath) || !fs.existsSync(dirPath)) return 0;
 
   const entries = fs.readdirSync(dirPath, { withFileTypes: true });
   for (const entry of entries) {
     const full = path.join(dirPath, entry.name);
+    if (excluded.has(full)) continue;
     if (entry.isDirectory()) {
-      size += calculateDirectorySize(full);
+      size += calculateDirectorySize(full, excluded);
     } else if (entry.isFile()) {
       try {
         size += fs.statSync(full).size;
