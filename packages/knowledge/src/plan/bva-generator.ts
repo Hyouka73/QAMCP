@@ -56,40 +56,49 @@ interface FieldGroup {
   conflictReason?: string;
 }
 
+// Token numérico estricto (entero, decimal o notación científica completa)
+const STRICT_NUMBER_TOKEN = /^[+-]?\d+(?:\.\d+)?(?:e[+-]?\d+)?$/i;
+
 // Nivel 1: atributos del DOM en rule.evidence y rule.id:
-// Distinguir explícitamente límites de longitud de cadena de límites numéricos (incluyendo decimales)
-const ATTR_LEN_MIN = /(?:^|[\s,;.])\bminlength\s*[=:]\s*["']?(-?\d+(?:\.\d+)?)["']?/i;
-const ATTR_LEN_MAX = /(?:^|[\s,;.])\bmaxlength\s*[=:]\s*["']?(-?\d+(?:\.\d+)?)["']?/i;
-const ATTR_NUM_MIN = /(?:^|[\s,;.])\bmin\b\s*[=:]\s*["']?(-?\d+(?:\.\d+)?)["']?/i;
-const ATTR_NUM_MAX = /(?:^|[\s,;.])\bmax\b\s*[=:]\s*["']?(-?\d+(?:\.\d+)?)["']?/i;
-const ATTR_NUM_STEP = /(?:^|[\s,;.])\bstep\b\s*[=:]\s*["']?(\d+(?:\.\d+)?)["']?/i;
+// Consume el token completo del atributo (entre comillas o hasta delimitador) para impedir truncación de prefijos.
+const ATTR_VALUE_TOKEN = '(?:"([^"]*)"|\'([^\']*)\'|([^\\s,;"\']+?)(?=[.;,]?(?:\\s|$)))';
+const ATTR_LEN_MIN = new RegExp(`(?:^|[\\s,;.])\\bminlength\\b\\s*[=:]\\s*${ATTR_VALUE_TOKEN}`, 'gi');
+const ATTR_LEN_MAX = new RegExp(`(?:^|[\\s,;.])\\bmaxlength\\b\\s*[=:]\\s*${ATTR_VALUE_TOKEN}`, 'gi');
+const ATTR_NUM_MIN = new RegExp(`(?:^|[\\s,;.])\\bmin\\b\\s*[=:]\\s*${ATTR_VALUE_TOKEN}`, 'gi');
+const ATTR_NUM_MAX = new RegExp(`(?:^|[\\s,;.])\\bmax\\b\\s*[=:]\\s*${ATTR_VALUE_TOKEN}`, 'gi');
+const ATTR_NUM_STEP = new RegExp(`(?:^|[\\s,;.])\\bstep\\b\\s*[=:]\\s*${ATTR_VALUE_TOKEN}`, 'gi');
 
-// Nivel 2: texto libre (description y condition)
-const TEXT_LEN_RANGE = /entre\s+(-?\d+(?:\.\d+)?)\s+y\s+(-?\d+(?:\.\d+)?)\s*(?:caracteres|caracteres\b|letras)/i;
-const TEXT_LEN_MIN = /m[ií]nimo\s*(?:de)?\s*(-?\d+(?:\.\d+)?)\s*(?:caracteres|caracteres\b|letras)/i;
-const TEXT_LEN_MAX = /m[aá]ximo\s*(?:de)?\s*(-?\d+(?:\.\d+)?)\s*(?:caracteres|caracteres\b|letras)/i;
-
-const TEXT_RANGE = /entre\s+(-?\d+(?:\.\d+)?)\s+y\s+(-?\d+(?:\.\d+)?)(?!\s*(?:caracteres|letras))/i;
-const TEXT_MIN = /m[ií]nimo\s*(?:de)?\s*(-?\d+(?:\.\d+)?)(?!\s*(?:caracteres|letras))/i;
-const TEXT_MAX = /m[aá]ximo\s*(?:de)?\s*(-?\d+(?:\.\d+)?)(?!\s*(?:caracteres|letras))/i;
+// Nivel 2: texto libre (description y condition):
+// Unifica el token numérico completo y su unidad opcional (caracteres/letras) sin retroceso parcial sobre dígitos.
+const TEXT_RANGE_PHRASE =
+  /\bentre\s+([+-]?\d+(?:\.\d+)?(?:e[+-]?\d+)?|[+-]?\d[^\s,;:!?()[\]"']*?)(?=[.,;:!?)\]]*(?:\s|$)|\s*(?:caracteres?|letras?)\b)(?:\s*(caracteres?|letras?)\b)?\s+y\s+([+-]?\d+(?:\.\d+)?(?:e[+-]?\d+)?|[+-]?\d[^\s,;:!?()[\]"']*?)(?=[.,;:!?)\]]*(?:\s|$)|\s*(?:caracteres?|letras?)\b)(?:\s*(caracteres?|letras?)\b)?/gi;
+const TEXT_MIN_PHRASE =
+  /\bm[ií]nim[oa]\s*(?:de\b\s*)?([+-]?\d+(?:\.\d+)?(?:e[+-]?\d+)?|[+-]?\d[^\s,;:!?()[\]"']*?)(?=[.,;:!?)\]]*(?:\s|$)|\s*(?:caracteres?|letras?)\b)(?:\s*(caracteres?|letras?)\b)?/gi;
+const TEXT_MAX_PHRASE =
+  /\bm[aá]xim[oa]\s*(?:de\b\s*)?([+-]?\d+(?:\.\d+)?(?:e[+-]?\d+)?|[+-]?\d[^\s,;:!?()[\]"']*?)(?=[.,;:!?)\]]*(?:\s|$)|\s*(?:caracteres?|letras?)\b)(?:\s*(caracteres?|letras?)\b)?/gi;
 
 function parseExtractedNumber(raw: string | undefined): number | undefined {
   if (raw === undefined) return undefined;
-  const parsed = Number(raw);
+  const trimmed = raw.trim();
+  if (!STRICT_NUMBER_TOKEN.test(trimmed)) return undefined;
+  const parsed = Number(trimmed);
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
-function firstNumber(text: string, pattern: RegExp): number | undefined {
-  const match = pattern.exec(text);
-  return parseExtractedNumber(match?.[1]);
+function isStepAligned(distance: number, step: number): boolean {
+  if (step <= 0 || !Number.isFinite(distance) || !Number.isFinite(step)) return false;
+  const quotient = distance / step;
+  return Math.abs(quotient - Math.round(quotient)) < 1e-9;
 }
 
 function countDecimals(n: number | undefined): number {
   if (n === undefined || !Number.isFinite(n) || Number.isInteger(n)) return 0;
-  const str = String(n);
+  const str = String(n).toLowerCase();
   if (str.includes('e-')) {
-    const exp = parseInt(str.split('e-')[1] ?? '0', 10);
-    return Number.isFinite(exp) ? exp : 0;
+    const [mantissa = '', expStr = '0'] = str.split('e-');
+    const mantissaDecimals = mantissa.split('.')[1]?.length ?? 0;
+    const exp = parseInt(expStr, 10);
+    return Number.isFinite(exp) ? mantissaDecimals + exp : mantissaDecimals;
   }
   const parts = str.split('.');
   return parts[1]?.length ?? 0;
@@ -103,13 +112,21 @@ function roundToPrecision(n: number, decimals: number): number {
 
 /**
  * Combina dos candidatos de Bounds detectando contradicciones internas
- * (p. ej. evidence min="10" frente a description "mínimo de 18").
+ * (p. ej. evidence min="10" frente a description "mínimo de 18", o múltiples min en la misma fuente).
  */
 function mergeCandidateBounds(base: Bounds, incoming: Bounds): Bounds {
-  if (incoming.min === undefined && incoming.max === undefined) {
+  if (incoming.hasConflict) {
+    return {
+      ...base,
+      ...incoming,
+      hasConflict: true,
+      conflictReason: incoming.conflictReason ?? base.conflictReason ?? 'Contradicción interna en regla',
+    };
+  }
+  if (incoming.min === undefined && incoming.max === undefined && incoming.step === undefined) {
     return base;
   }
-  if (base.min === undefined && base.max === undefined) {
+  if (base.min === undefined && base.max === undefined && base.step === undefined && !base.hasConflict) {
     return { ...incoming };
   }
 
@@ -154,79 +171,136 @@ function mergeCandidateBounds(base: Bounds, incoming: Bounds): Bounds {
   return merged;
 }
 
+function extractAllAttrTokens(text: string, pattern: RegExp): string[] {
+  const regex = new RegExp(pattern.source, pattern.flags);
+  const tokens: string[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(text)) !== null) {
+    const raw = match[1] ?? match[2] ?? match[3] ?? '';
+    tokens.push(raw);
+  }
+  return tokens;
+}
+
 /**
  * Límites que aporta una sola regla confirmada:
- * Distingue límites numéricos (incluyendo decimales) de longitud de cadena (minlength/maxlength).
- * Coteja Nivel 1 (evidence/id) y Nivel 2 (description/condition) para detectar contradicciones internas.
+ * Distingue límites numéricos (enteros, decimales, exponenciales) de longitud de cadena (minlength/maxlength).
+ * Extrae todas las coincidencias de cada fuente en Nivel 1 (id, evidence) y Nivel 2 (description, condition)
+ * y las fusiona detectando cualquier contradicción interna o token malformado.
  */
 function extractRuleBounds(rule: RuleEntry): Bounds {
   if (rule.status !== 'confirmed' || !TRUSTED_RULE_SOURCES.has(rule.source)) {
     return {};
   }
 
-  const level1 = `${rule.id} ${rule.evidence ?? ''}`;
-  const level2 = `${rule.description} ${rule.condition ?? ''}`;
-
   let combined: Bounds = {};
 
-  // 1. Longitud de cadena desde evidencia/id DOM
-  const lenMinL1 = firstNumber(level1, ATTR_LEN_MIN);
-  const lenMaxL1 = firstNumber(level1, ATTR_LEN_MAX);
-  if (lenMinL1 !== undefined || lenMaxL1 !== undefined) {
-    if (
-      (lenMinL1 !== undefined && (!Number.isInteger(lenMinL1) || lenMinL1 < 0)) ||
-      (lenMaxL1 !== undefined && (!Number.isInteger(lenMaxL1) || lenMaxL1 < 0))
-    ) {
-      return { hasConflict: true, conflictReason: 'Longitud de cadena inválida (negativa o decimal)' };
+  const level1Sources = [rule.id, rule.evidence].filter(
+    (s): s is string => typeof s === 'string' && s.trim().length > 0
+  );
+
+  for (const source of level1Sources) {
+    // 1. Longitud de cadena desde atributos DOM (minlength / maxlength)
+    for (const raw of extractAllAttrTokens(source, ATTR_LEN_MIN)) {
+      const val = parseExtractedNumber(raw);
+      if (val === undefined || !Number.isInteger(val) || val < 0) {
+        return { hasConflict: true, conflictReason: 'Longitud mínima de cadena inválida en atributo DOM' };
+      }
+      combined = mergeCandidateBounds(combined, { min: val, valueType: 'string' });
     }
-    combined = mergeCandidateBounds(combined, {
-      min: lenMinL1,
-      max: lenMaxL1,
-      valueType: 'string',
-    });
-  }
 
-  // 2. Límites numéricos desde evidencia/id DOM
-  const numMinL1 = firstNumber(level1, ATTR_NUM_MIN);
-  const numMaxL1 = firstNumber(level1, ATTR_NUM_MAX);
-  const numStepL1 = firstNumber(level1, ATTR_NUM_STEP);
-  if (numMinL1 !== undefined || numMaxL1 !== undefined) {
-    combined = mergeCandidateBounds(combined, {
-      min: numMinL1,
-      max: numMaxL1,
-      ...(numStepL1 !== undefined && numStepL1 > 0 ? { step: numStepL1 } : {}),
-      valueType: 'number',
-    });
-  }
-
-  // 3. Longitud de cadena desde texto libre
-  const lenRange = TEXT_LEN_RANGE.exec(level2);
-  const lenMinL2 = lenRange ? parseExtractedNumber(lenRange[1]) : firstNumber(level2, TEXT_LEN_MIN);
-  const lenMaxL2 = lenRange ? parseExtractedNumber(lenRange[2]) : firstNumber(level2, TEXT_LEN_MAX);
-  if (lenMinL2 !== undefined || lenMaxL2 !== undefined) {
-    if (
-      (lenMinL2 !== undefined && (!Number.isInteger(lenMinL2) || lenMinL2 < 0)) ||
-      (lenMaxL2 !== undefined && (!Number.isInteger(lenMaxL2) || lenMaxL2 < 0))
-    ) {
-      return { hasConflict: true, conflictReason: 'Longitud de cadena inválida en texto (negativa o decimal)' };
+    for (const raw of extractAllAttrTokens(source, ATTR_LEN_MAX)) {
+      const val = parseExtractedNumber(raw);
+      if (val === undefined || !Number.isInteger(val) || val < 0) {
+        return { hasConflict: true, conflictReason: 'Longitud máxima de cadena inválida en atributo DOM' };
+      }
+      combined = mergeCandidateBounds(combined, { max: val, valueType: 'string' });
     }
-    combined = mergeCandidateBounds(combined, {
-      min: lenMinL2,
-      max: lenMaxL2,
-      valueType: 'string',
-    });
+
+    // 2. Límites numéricos desde atributos DOM (min / max / step)
+    for (const raw of extractAllAttrTokens(source, ATTR_NUM_MIN)) {
+      const val = parseExtractedNumber(raw);
+      if (val === undefined) {
+        return { hasConflict: true, conflictReason: 'Valor numérico min inválido en atributo DOM' };
+      }
+      combined = mergeCandidateBounds(combined, { min: val, valueType: 'number' });
+    }
+
+    for (const raw of extractAllAttrTokens(source, ATTR_NUM_MAX)) {
+      const val = parseExtractedNumber(raw);
+      if (val === undefined) {
+        return { hasConflict: true, conflictReason: 'Valor numérico max inválido en atributo DOM' };
+      }
+      combined = mergeCandidateBounds(combined, { max: val, valueType: 'number' });
+    }
+
+    for (const raw of extractAllAttrTokens(source, ATTR_NUM_STEP)) {
+      const val = parseExtractedNumber(raw);
+      if (val === undefined || val <= 0) {
+        return { hasConflict: true, conflictReason: 'Valor numérico step inválido en atributo DOM' };
+      }
+      combined = mergeCandidateBounds(combined, { step: val, valueType: 'number' });
+    }
   }
 
-  // 4. Rango numérico desde texto libre
-  const numRange = TEXT_RANGE.exec(level2);
-  const numMinL2 = numRange ? parseExtractedNumber(numRange[1]) : firstNumber(level2, TEXT_MIN);
-  const numMaxL2 = numRange ? parseExtractedNumber(numRange[2]) : firstNumber(level2, TEXT_MAX);
-  if (numMinL2 !== undefined || numMaxL2 !== undefined) {
-    combined = mergeCandidateBounds(combined, {
-      min: numMinL2,
-      max: numMaxL2,
-      valueType: 'number',
-    });
+  // 3. Nivel 2: texto libre en description y condition (todas las apariciones por fuente)
+  const level2Sources = [rule.description, rule.condition].filter(
+    (s): s is string => typeof s === 'string' && s.trim().length > 0
+  );
+
+  for (const source of level2Sources) {
+    const rangeRegex = new RegExp(TEXT_RANGE_PHRASE.source, TEXT_RANGE_PHRASE.flags);
+    let match: RegExpExecArray | null;
+    while ((match = rangeRegex.exec(source)) !== null) {
+      const minVal = parseExtractedNumber(match[1]);
+      const maxVal = parseExtractedNumber(match[3]);
+      const isString = Boolean(match[2] || match[4]);
+      if (minVal === undefined || maxVal === undefined) {
+        return { hasConflict: true, conflictReason: 'Rango malformado en texto libre' };
+      }
+      if (isString) {
+        if (!Number.isInteger(minVal) || minVal < 0 || !Number.isInteger(maxVal) || maxVal < 0) {
+          return { hasConflict: true, conflictReason: 'Longitud de cadena inválida en texto (negativa o decimal)' };
+        }
+        combined = mergeCandidateBounds(combined, { min: minVal, max: maxVal, valueType: 'string' });
+      } else {
+        combined = mergeCandidateBounds(combined, { min: minVal, max: maxVal, valueType: 'number' });
+      }
+    }
+
+    const minRegex = new RegExp(TEXT_MIN_PHRASE.source, TEXT_MIN_PHRASE.flags);
+    while ((match = minRegex.exec(source)) !== null) {
+      const minVal = parseExtractedNumber(match[1]);
+      const isString = Boolean(match[2]);
+      if (minVal === undefined) {
+        return { hasConflict: true, conflictReason: 'Límite mínimo malformado en texto libre' };
+      }
+      if (isString) {
+        if (!Number.isInteger(minVal) || minVal < 0) {
+          return { hasConflict: true, conflictReason: 'Longitud mínima de cadena inválida en texto' };
+        }
+        combined = mergeCandidateBounds(combined, { min: minVal, valueType: 'string' });
+      } else {
+        combined = mergeCandidateBounds(combined, { min: minVal, valueType: 'number' });
+      }
+    }
+
+    const maxRegex = new RegExp(TEXT_MAX_PHRASE.source, TEXT_MAX_PHRASE.flags);
+    while ((match = maxRegex.exec(source)) !== null) {
+      const maxVal = parseExtractedNumber(match[1]);
+      const isString = Boolean(match[2]);
+      if (maxVal === undefined) {
+        return { hasConflict: true, conflictReason: 'Límite máximo malformado en texto libre' };
+      }
+      if (isString) {
+        if (!Number.isInteger(maxVal) || maxVal < 0) {
+          return { hasConflict: true, conflictReason: 'Longitud máxima de cadena inválida en texto' };
+        }
+        combined = mergeCandidateBounds(combined, { max: maxVal, valueType: 'string' });
+      } else {
+        combined = mergeCandidateBounds(combined, { max: maxVal, valueType: 'number' });
+      }
+    }
   }
 
   return combined;
@@ -308,7 +382,7 @@ function groupRulesByField(rules: RuleEntry[]): FieldGroup[] {
     groups.set(field, group);
   }
 
-  // Validación posterior de consistencia matemática (min <= max y longitudes no negativas)
+  // Validación posterior de consistencia matemática (min <= max, longitudes no negativas y alineación con step)
   for (const group of groups.values()) {
     if (group.bounds.valueType === 'string') {
       if (
@@ -325,6 +399,22 @@ function groupRulesByField(rules: RuleEntry[]): FieldGroup[] {
         group.conflictReason = `Rango invertido: min (${group.bounds.min}) > max (${group.bounds.max})`;
       }
     }
+    if (group.bounds.valueType === 'number' && group.bounds.step !== undefined) {
+      if (group.bounds.step <= 0) {
+        group.hasConflict = true;
+        group.conflictReason = `Valor step inválido (${group.bounds.step})`;
+      } else if (group.bounds.min !== undefined && group.bounds.max !== undefined) {
+        if (!isStepAligned(group.bounds.max - group.bounds.min, group.bounds.step)) {
+          group.hasConflict = true;
+          group.conflictReason = `Rango [${group.bounds.min}, ${group.bounds.max}] incompatible con step (${group.bounds.step})`;
+        }
+      } else if (group.bounds.min === undefined && group.bounds.max !== undefined) {
+        if (!isStepAligned(group.bounds.max, group.bounds.step)) {
+          group.hasConflict = true;
+          group.conflictReason = `Límite max (${group.bounds.max}) incompatible con step (${group.bounds.step})`;
+        }
+      }
+    }
   }
 
   return [...groups.values()];
@@ -332,7 +422,8 @@ function groupRulesByField(rules: RuleEntry[]): FieldGroup[] {
 
 /**
  * Construye los valores de frontera sin inventar límites artificiales,
- * preservando precisión decimal y omitiendo fronteras imposibles (ej. longitud < 0).
+ * preservando precisión decimal, alineando el valor nominal a la retícula de step
+ * y omitiendo fronteras imposibles (ej. longitud < 0).
  */
 function buildBoundaries(bounds: Bounds): Boundary[] {
   const { min, max, step, valueType } = bounds;
@@ -396,16 +487,26 @@ function buildBoundaries(bounds: Bounds): Boundary[] {
     return [];
   }
 
-  // Rango numérico (entero o decimal)
+  // Rango numérico (entero, decimal o notación exponencial)
   const decimals = Math.max(countDecimals(min), countDecimals(max), countDecimals(step));
   const delta = step && step > 0 ? step : decimals > 0 ? roundToPrecision(Math.pow(10, -decimals), decimals) : 1;
 
   // Rango bilateral numérico
   if (min !== undefined && max !== undefined) {
-    const nominal =
-      decimals > 0
-        ? roundToPrecision((min + max) / 2, Math.max(decimals, countDecimals((min + max) / 2)))
-        : Math.floor((min + max) / 2);
+    let nominal: number;
+    if (step !== undefined && step > 0) {
+      if (!isStepAligned(max - min, step)) {
+        return [];
+      }
+      const totalSteps = Math.round((max - min) / step);
+      const midSteps = Math.floor(totalSteps / 2);
+      nominal = roundToPrecision(min + midSteps * step, decimals);
+    } else if (decimals > 0) {
+      nominal = roundToPrecision((min + max) / 2, Math.max(decimals, countDecimals((min + max) / 2)));
+    } else {
+      nominal = Math.floor((min + max) / 2);
+    }
+
     return [
       { type: 'under_min', value: roundToPrecision(min - delta, decimals), valid: false },
       { type: 'min', value: min, valid: true },
@@ -543,17 +644,24 @@ function generateBoundaryValue(boundary: Boundary, valueType?: 'number' | 'strin
 
 /**
  * Verifica después de materializar el valor que el resultado esperado (valid/invalid)
- * corresponde genuinamente al valor real frente a los límites declarados.
+ * corresponde genuinamente al valor real frente a los límites declarados (min, max y step).
  */
 function matchesExpectedValidity(fillValue: string, bounds: Bounds, expectedValid: boolean): boolean {
-  const { min, max, valueType } = bounds;
+  const { min, max, step, valueType } = bounds;
   const metric = valueType === 'string' ? fillValue.length : Number(fillValue);
   if (!Number.isFinite(metric)) return false;
 
-  const isActuallyValid =
+  const withinRange =
     (min === undefined || metric >= min) &&
     (max === undefined || metric <= max);
 
+  let alignedWithStep = true;
+  if (valueType !== 'string' && step !== undefined && step > 0) {
+    const stepBase = min ?? 0;
+    alignedWithStep = isStepAligned(metric - stepBase, step);
+  }
+
+  const isActuallyValid = withinRange && alignedWithStep;
   return isActuallyValid === expectedValid;
 }
 

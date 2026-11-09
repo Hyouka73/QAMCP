@@ -560,4 +560,60 @@ describe('Empirical Challenger: BVA Generator Adversarial Stress Suite', () => {
       expect(totalCasesEmitted).toBeGreaterThan(0);
     });
   });
+
+  // =========================================================================
+  // Challenge 7: DEV-MVP-01-R3 Parser & Step Grid Hardening
+  // =========================================================================
+  describe('Challenge 7: DEV-MVP-01-R3 Parser & Step Grid Hardening', () => {
+    it('ATTACK 7.1: Scientific notation (min="1e2" max="2e2" and min="1e-2" max="3e-2") is parsed in full without mantissa truncation', () => {
+      const expRule = createConfirmedRule('R-EXP-INT', 'quantity', { evidence: 'min="1e2" max="2e2"' });
+      const expCases = generateBvaCases('mod', [expRule], fullSelectors);
+      expect(expCases.map((c) => c.steps[1].value)).toEqual(['99', '100', '150', '200', '201']);
+      expCases.forEach((c) => verifyTcCaseIntegrity(c));
+
+      const smallExpRule = createConfirmedRule('R-EXP-DEC', 'score', { evidence: 'min="1e-2" max="3e-2"' });
+      const smallExpCases = generateBvaCases('mod', [smallExpRule], fullSelectors);
+      expect(smallExpCases.map((c) => c.steps[1].value)).toEqual(['0', '0.01', '0.02', '0.03', '0.04']);
+      smallExpCases.forEach((c) => verifyTcCaseIntegrity(c));
+    });
+
+    it('ATTACK 7.2: Step-aligned nominal value (min="0" max="6" step="2" and min="1" max="7" step="2") never emits stepMismatch', () => {
+      const evenStepRule = createConfirmedRule('R-EVEN-STEP', 'quantity', { evidence: 'min="0" max="6" step="2"' });
+      const evenCases = generateBvaCases('mod', [evenStepRule], fullSelectors);
+      expect(evenCases.map((c) => c.steps[1].value)).toEqual(['-2', '0', '2', '6', '8']);
+      evenCases.forEach((c) => verifyTcCaseIntegrity(c));
+
+      const oddOriginRule = createConfirmedRule('R-ODD-STEP', 'quantity', { evidence: 'min="1" max="7" step="2"' });
+      const oddCases = generateBvaCases('mod', [oddOriginRule], fullSelectors);
+      expect(oddCases.map((c) => c.steps[1].value)).toEqual(['-1', '1', '3', '7', '9']);
+      oddCases.forEach((c) => verifyTcCaseIntegrity(c));
+    });
+
+    it('ATTACK 7.3: Multi-digit text length rules ("Longitud mínimo de 18 caracteres", "entre 10 y 25 caracteres") do not backtrack into numeric conflicts', () => {
+      const minLenRule = createConfirmedRule('R-TXT-18', 'username', {
+        description: 'Longitud mínimo de 18 caracteres',
+      });
+      const minLenCases = generateBvaCases('mod', [minLenRule], fullSelectors);
+      expect(minLenCases.map((c) => c.steps[1].value?.length)).toEqual([17, 18, 19]);
+      minLenCases.forEach((c) => verifyTcCaseIntegrity(c));
+
+      const rangeLenRule = createConfirmedRule('R-TXT-RANGE', 'username', {
+        description: 'El nombre debe tener entre 10 y 25 caracteres',
+      });
+      const rangeLenCases = generateBvaCases('mod', [rangeLenRule], fullSelectors);
+      expect(rangeLenCases.map((c) => c.steps[1].value?.length)).toEqual([9, 10, 17, 25, 26]);
+      rangeLenCases.forEach((c) => verifyTcCaseIntegrity(c));
+    });
+
+    it('ATTACK 7.4: Intra-level contradictions (duplicate min in evidence, or description vs condition) fail closed', () => {
+      const dupAttr = createConfirmedRule('R-DUP-ATTR', 'age', { evidence: 'min="10" min="18"' });
+      expect(generateBvaCases('mod', [dupAttr], fullSelectors)).toEqual([]);
+
+      const splitText = createConfirmedRule('R-SPLIT-TXT', 'age', {
+        description: 'Importe mínimo de 10',
+        condition: 'Importe mínimo de 18',
+      });
+      expect(generateBvaCases('mod', [splitText], fullSelectors)).toEqual([]);
+    });
+  });
 });

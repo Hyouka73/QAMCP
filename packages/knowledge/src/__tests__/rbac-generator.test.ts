@@ -413,4 +413,28 @@ describe('RbacGenerator (DEV-MVP-01 / DEV-MVP-01-R2 / S81-002)', () => {
 
     expect(cases).toEqual([]);
   });
+
+  it('R2-03 (H04): rechaza etiquetas con prefijo explícito (role:<x>, actor:<x>) que no correspondan a un rol válido del proyecto o tengan errores tipográficos', () => {
+    const allProfiles = [
+      { id: 'admin-p', role: 'admin', env: 'local', username: 'a' },
+      { id: 'viewer-p', role: 'viewer', env: 'local', username: 'v' },
+    ] as unknown as AuthProfile[];
+
+    for (const unknownTag of ['role:seguridad', 'actor:superadmin', 'role:admn']) {
+      const rule = actorRule(`R-${unknownTag}`, {
+        description: 'Aplicar controles de acceso',
+        tags: [unknownTag],
+      });
+
+      const cases = generateRbacNegativeCases(
+        'mod',
+        ['admin', 'viewer'],
+        { denial_selector: '#denied' },
+        [rule],
+        allProfiles
+      );
+
+      expect(cases).toEqual([]);
+    }
+  });
 });

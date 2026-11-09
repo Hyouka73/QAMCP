@@ -99,23 +99,24 @@ function extractRuleRoleGrounding(
   const validRoleSet = new Set(validRoles);
 
   // 1. Tags de la regla:
-  // - Prefijo explícito `role:<rol>` o `actor:<rol>`
+  // - Prefijo explícito `role:<rol>` o `actor:<rol>` (solo si corresponde a un rol válido del proyecto)
   // - O coincidencia exacta con un rol válido del proyecto (`validRoleSet`)
-  // Las etiquetas temáticas (ej. 'seguridad', 'pagos', 'critico') NO fundamentan permisos.
+  // Las etiquetas temáticas (ej. 'seguridad', 'role:seguridad') o roles inexistentes ('actor:superadmin')
+  // NO fundamentan permisos ni fabrican matrices de denegación.
   for (const rawTag of rule.tags ?? []) {
     if (typeof rawTag !== 'string') continue;
     const trimmed = rawTag.trim();
     const explicitPrefixMatch = /^(?:role|actor)\s*[:=-]\s*(.+)$/i.exec(trimmed);
     if (explicitPrefixMatch) {
       const candidate = normalizeSlug(explicitPrefixMatch[1] ?? '');
-      if (candidate.length > 0 && !IGNORED_ROLE_WORDS.has(candidate)) {
+      if (candidate.length > 0 && !IGNORED_ROLE_WORDS.has(candidate) && validRoleSet.has(candidate)) {
         authorized.add(candidate);
       }
       continue;
     }
 
     const normalizedTag = normalizeSlug(trimmed);
-    if (normalizedTag.length > 0 && validRoleSet.has(normalizedTag)) {
+    if (normalizedTag.length > 0 && !IGNORED_ROLE_WORDS.has(normalizedTag) && validRoleSet.has(normalizedTag)) {
       authorized.add(normalizedTag);
     }
   }

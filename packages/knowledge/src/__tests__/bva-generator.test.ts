@@ -475,4 +475,105 @@ describe('BvaGenerator (S81-001 / DEV-MVP-01 / DEV-MVP-01-R2)', () => {
       expect(generateBvaCases('mod', [userConfirmedRule], selectors).length).toBe(5);
     });
   });
+
+  describe('DEV-MVP-01-R3: Cierre de hallazgos R2-01, R2-02, R2-04 y R2-05', () => {
+    it('R2-01 (H02): soporta notación exponencial completa (ej. min="1e2" max="2e2") sin truncar a la mantisa', () => {
+      const cases = generateBvaCases(
+        'mod',
+        [rule({ id: 'R-EXP', field: 'age', evidence: 'min="1e2" max="2e2"' })],
+        selectors
+      );
+
+      expect(cases.length).toBe(5);
+      expect(filledValues(cases)).toEqual(['99', '100', '150', '200', '201']);
+      expect(cases.find((c) => c.name === 'BVA_R-EXP_min')?.steps[1].value).toBe('100');
+      expect(cases.find((c) => c.name === 'BVA_R-EXP_max')?.steps[1].value).toBe('200');
+    });
+
+    it('R2-01 (H02): rechaza fail-closed tokens numéricos malformados o con sufijos inválidos sin reinterpretar su prefijo', () => {
+      const malformedEvidence = [
+        'min="10px" max="20px"',
+        'min="1.2.3" max="5"',
+        'min="1e2abc" max="200"',
+        'min="1,000" max="2,000"',
+      ];
+
+      for (const evidence of malformedEvidence) {
+        const cases = generateBvaCases('mod', [rule({ id: 'R-MAL', field: 'age', evidence })], selectors);
+        expect(cases).toEqual([]);
+      }
+    });
+
+    it('R2-02 (H02): alinea el valor nominal a la retícula válida de step desde min y rechaza rangos incompatibles con step', () => {
+      const stepCases = generateBvaCases(
+        'mod',
+        [rule({ id: 'R-STEP', field: 'age', evidence: 'min="0" max="6" step="2"' })],
+        selectors
+      );
+
+      expect(stepCases.length).toBe(5);
+      expect(filledValues(stepCases)).toEqual(['-2', '0', '2', '6', '8']);
+      const validStepCases = stepCases.filter((c) => c.steps[3].selector === '.success-message');
+      expect(validStepCases.every((c) => Number(c.steps[1].value) % 2 === 0)).toBe(true);
+
+      // max=5 no es alcanzable desde min=0 con step=2 -> fail-closed
+      const misaligned = generateBvaCases(
+        'mod',
+        [rule({ id: 'R-MISALIGNED', field: 'age', evidence: 'min="0" max="5" step="2"' })],
+        selectors
+      );
+      expect(misaligned).toEqual([]);
+    });
+
+    it('R2-04 (H08): rechaza fail-closed contradicciones dentro del mismo nivel (múltiples atributos en evidence o description vs condition)', () => {
+      const duplicateEvidence = generateBvaCases(
+        'mod',
+        [rule({ id: 'R-DUP-EV', field: 'age', evidence: 'min="10" min="18"' })],
+        selectors
+      );
+      expect(duplicateEvidence).toEqual([]);
+
+      const descVsCond = generateBvaCases(
+        'mod',
+        [
+          rule({
+            id: 'R-DESC-COND',
+            field: 'age',
+            description: 'Importe mínimo de 10',
+            condition: 'Importe mínimo de 18',
+          }),
+        ],
+        selectors
+      );
+      expect(descVsCond).toEqual([]);
+    });
+
+    it('R2-05 (Regresión): genera límites de longitud para reglas textuales de uno y varios dígitos sin falso conflicto string/number', () => {
+      const multiDigitLen = generateBvaCases(
+        'mod',
+        [rule({ id: 'R-LEN-18', field: 'name', description: 'Longitud mínimo de 18 caracteres' })],
+        selectors
+      );
+
+      expect(multiDigitLen.length).toBe(3);
+      expect(multiDigitLen.map((c) => c.steps[1].value?.length)).toEqual([17, 18, 19]);
+      expect(multiDigitLen.find((c) => c.name === 'BVA_R-LEN-18_min')?.steps[1].value).toBe('a'.repeat(18));
+
+      const singleDigitLen = generateBvaCases(
+        'mod',
+        [rule({ id: 'R-LEN-5', field: 'name', description: 'Longitud mínima de 5 caracteres y máxima de 12 caracteres' })],
+        selectors
+      );
+      expect(singleDigitLen.length).toBe(5);
+      expect(singleDigitLen.map((c) => c.steps[1].value?.length)).toEqual([4, 5, 8, 12, 13]);
+
+      // Longitud textual decimal se rechaza fail-closed
+      const decimalLen = generateBvaCases(
+        'mod',
+        [rule({ id: 'R-LEN-DEC', field: 'name', description: 'Longitud mínimo de 1.5 caracteres' })],
+        selectors
+      );
+      expect(decimalLen).toEqual([]);
+    });
+  });
 });

@@ -574,6 +574,29 @@ describe('Adversarial Challenger Suite: RBAC Generator Stress & Exploit Testing'
       expect(cases.find((c) => c.name.includes("'admin'"))).toBeDefined();
       expect(cases.find((c) => c.name.includes("'guest'"))).toBeDefined();
     });
+
+    it('rejects prefixed tags referencing unknown or misspelled roles ("role:seguridad", "actor:superadmin", "role:admn") without fabricating denial matrix (R2-03 / H04)', () => {
+      const profilesBoth: AuthProfile[] = [
+        { id: 'p-admin', role: 'admin', env: 'local', username: 'a' } as unknown as AuthProfile,
+        { id: 'p-viewer', role: 'viewer', env: 'local', username: 'v' } as unknown as AuthProfile,
+      ];
+
+      for (const badTag of ['role:seguridad', 'actor:superadmin', 'role:admn']) {
+        const rule = makeActorRule(`R-BAD-${badTag}`, {
+          description: 'Aplicar controles de acceso',
+          tags: [badTag],
+        });
+
+        const cases = generateRbacNegativeCases(
+          'mod',
+          ['admin', 'viewer'],
+          { denial_selector: '#denied' },
+          [rule],
+          profilesBoth
+        );
+        expect(cases).toEqual([]);
+      }
+    });
   });
 
   // =========================================================================

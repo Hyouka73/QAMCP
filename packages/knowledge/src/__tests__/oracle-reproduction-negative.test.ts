@@ -1068,5 +1068,82 @@ describe('Negative Reproduction & Regression Test Suite: BVA & RBAC Oracle Harde
         generateRbacNegativeCases('mod', ['admin', 'viewer'], { denial_selector: '#denied' }, [untrustedRbac], profiles)
       ).toEqual([]);
     });
+
+    it('R2-01 (H02): BVA no trunca notación exponencial (min="1e2" max="2e2") a la mantisa', () => {
+      const rule = createBvaRule('R-EXP', {
+        field: 'age',
+        evidence: 'min="1e2" max="2e2"',
+      });
+      const cases = generateBvaCases('mod', [rule], standardSelectors);
+
+      expect(cases.length).toBe(5);
+      expect(cases.map((c) => c.steps[1].value)).toEqual(['99', '100', '150', '200', '201']);
+      expect(cases.find((c) => c.name === 'BVA_R-EXP_min')?.steps[1].value).toBe('100');
+      cases.forEach(assertValidTcCase);
+    });
+
+    it('R2-02 (H02): BVA alinea el valor nominal con step=2 desde min=0 y nunca emite un nominal inválido como éxito', () => {
+      const rule = createBvaRule('R-STEP', {
+        field: 'age',
+        evidence: 'min="0" max="6" step="2"',
+      });
+      const cases = generateBvaCases('mod', [rule], standardSelectors);
+
+      expect(cases.length).toBe(5);
+      expect(cases.map((c) => c.steps[1].value)).toEqual(['-2', '0', '2', '6', '8']);
+      const validCases = cases.filter((c) => c.steps[3].selector === '.success-message');
+      expect(validCases.every((c) => Number(c.steps[1].value) % 2 === 0)).toBe(true);
+      cases.forEach(assertValidTcCase);
+    });
+
+    it('R2-03 (H04): RBAC no fabrica matriz de denegación para etiquetas con prefijo de roles inexistentes (role:seguridad, actor:superadmin)', () => {
+      const profiles = [
+        { id: 'admin-profile', role: 'admin', env: 'local', username: 'admin' } as unknown as AuthProfile,
+        { id: 'viewer-profile', role: 'viewer', env: 'local', username: 'viewer' } as unknown as AuthProfile,
+      ];
+
+      for (const tag of ['role:seguridad', 'actor:superadmin', 'role:typo_admin']) {
+        const rule = createActorRule('R-ACTOR', {
+          description: 'Aplicar controles de acceso',
+          tags: [tag],
+        });
+        const cases = generateRbacNegativeCases(
+          'mod',
+          ['admin', 'viewer'],
+          { denial_selector: '#denied' },
+          [rule],
+          profiles
+        );
+        expect(cases).toEqual([]);
+      }
+    });
+
+    it('R2-04 (H08): BVA rechaza contradicciones internas dentro del mismo nivel (evidence duplicado o description vs condition)', () => {
+      const dupEvidenceRule = createBvaRule('R-BVA-DUP', {
+        field: 'age',
+        evidence: 'min="10" min="18"',
+      });
+      expect(generateBvaCases('mod', [dupEvidenceRule], standardSelectors)).toEqual([]);
+
+      const descCondRule = createBvaRule('R-BVA-DC', {
+        field: 'age',
+        description: 'Importe mínimo de 10',
+        condition: 'Importe mínimo de 18',
+      });
+      expect(generateBvaCases('mod', [descCondRule], standardSelectors)).toEqual([]);
+    });
+
+    it('R2-05 (Regresión): BVA procesa longitudes textuales de varios dígitos sin falso conflicto con el parser numérico', () => {
+      const rule = createBvaRule('R-LEN-18', {
+        field: 'username',
+        description: 'Longitud mínimo de 18 caracteres',
+      });
+      const cases = generateBvaCases('mod', [rule], standardSelectors);
+
+      expect(cases.length).toBe(3);
+      expect(cases.find((c) => c.name === 'BVA_R-LEN-18_min')?.steps[1].value?.length).toBe(18);
+      expect(cases.map((c) => c.steps[1].value?.length)).toEqual([17, 18, 19]);
+      cases.forEach(assertValidTcCase);
+    });
   });
 });
