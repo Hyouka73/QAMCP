@@ -34,17 +34,16 @@ function collectAuthorizedRoles(moduleContext: RbacModuleContext): Set<string> {
   return authorized;
 }
 
-/** auth_profile del rol: coincidencia por profile.role o prefile.id, con fallback <rol>-local.  */
-function resolveProfileId(role: string, profiles?: AuthProfile[]): string {
-  const matched = profiles?.find(
-    (profile) => normalizeSlug((profile as { role?: string }).role ?? '') === role || profile.id.startsWith(role)
-  );
-  return matched?.id ?? `${role}-local`;
+/** A proposal may reference only an unambiguous, explicitly supplied profile. */
+function resolveProfileId(role: string, profiles?: AuthProfile[]): string | undefined {
+  const matches = profiles?.filter((profile) =>
+    profile.role ? normalizeSlug(profile.role) === role : profile.id === role);
+  return matches?.length === 1 ? matches[0].id : undefined;
 }
 
 /**
- * Genera casos RBAC negativos: cada rol del proyecto que NO está autorizado en el
- * módulo intenta acceder y debe ser bloqueado (switch_auth -> navigate -> assert).
+ * Produces blocked access proposals from the legacy role list, not verified denials.
+ * Explicit permissions, real resource oracles and isolated identities remain required.
  */
 export function generateRbacNegativeCases(
   moduleName: string,
@@ -54,33 +53,35 @@ export function generateRbacNegativeCases(
   profiles?: AuthProfile[]
 ): TCCase[] {
   const validRoles = filterValidRoles(projectRoles).map((role) => normalizeSlug(role));
-  if (validRoles.length === 0) return [];
+  if (validRoles.length === 0 || !Array.isArray(moduleContext.users) || !moduleContext.base_route) return [];
 
   const authorizedRoles = collectAuthorizedRoles(moduleContext);
 
   const actorRules = rules.filter((rule) => rule.status === 'confirmed' && rule.category === 'actor');
   if (actorRules.length === 0) return [];
    
-  const targetUrl = moduleContext.base_route ?? `/${normalizeSlug(moduleName)}`;
+  const targetUrl = moduleContext.base_route;
   const cases: TCCase[] = [];
 
   for (const role of validRoles) {
     if (authorizedRoles.has(role)) continue;
 
-    const profileId= resolveProfileId(role, profiles);
+    const profileId = resolveProfileId(role, profiles);
+    if (!profileId) continue;
 
     for (const rule of actorRules) {
       cases.push({
         _version: '1',
         id: generateDeterministicUuid(`${moduleName}:rbac:${rule.id}:${role}`),
-        name: `RBAC Negativo: Rol '${role}' no autorizado en ${rule.id}`,
+        name: `Propuesta RBAC: verificar acceso del rol '${role}' según ${rule.id}; oráculo pendiente`,
         case_category: 'rbac_negative',
-        tags: ['rbac-negative', moduleName],
+        // users/profile heuristics do not prove permissions or a denial oracle.
+        tags: ['rbac-negative', moduleName, 'candidate', 'blocked_missing_oracle'],
         source_rule_id: rule.id,
         steps: [
           { type: 'switch_auth', auth_profile: profileId },
           { type: 'navigate', url: targetUrl },
-          { type: 'assert', selector: 'body', assertion_type: 'exists' },
+          // No fabricated authorization assertion. The candidate stays blocked.
         ],
       });
     }

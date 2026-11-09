@@ -28,6 +28,7 @@ import {
   executeEvaluate,
 } from './actions/index.js';
 import { interpolateStep } from './context/interpolator.js';
+import { caseExecutionBlockReason } from './case-execution-policy.js';
 import { resolveModuleSession } from './session-resolver.js';
 
 function classifyError(error: unknown): { category: FailureType; message: string } {
@@ -122,6 +123,7 @@ export class PlaywrightRunner implements IRunner {
       : {};
 
     const loadCase = options.storageResolver ?? ((mod: string, caseId: string) => storage.getTestCase(mod, caseId));
+    const loadedCasesMap = new Map<string, TCCase>();
 
     let browser: Browser | null = null;
     let context: BrowserContext | null = null;
@@ -220,6 +222,26 @@ export class PlaywrightRunner implements IRunner {
         };
       }
 
+      // Inspect capability blocks before resolving any session or launching a browser.
+      for (const caseId of initialCaseIds) {
+        const testCase = await loadCase(moduleName, caseId);
+        if (testCase) loadedCasesMap.set(caseId, testCase);
+      }
+      if (initialCaseIds.every((id) => {
+        const testCase = loadedCasesMap.get(id);
+        return testCase && caseExecutionBlockReason(testCase);
+      })) {
+        return {
+          _version: '1', execution_id: executionId, module: moduleName, env,
+          started_at: startedAt, finished_at: new Date().toISOString(), result: 'failed', timed_out: false,
+          summary: { total: initialCaseIds.length, passed: 0, failed: 0, skipped: 0, not_run: initialCaseIds.length },
+          cases: initialCaseIds.map((id) => ({
+            id, title: loadedCasesMap.get(id)!.name, result: 'not_run', duration_ms: 0,
+            not_run_reason: caseExecutionBlockReason(loadedCasesMap.get(id)!),
+          })),
+        };
+      }
+
       // 2. Resolver sesión autenticada con resolveModuleSession()
       type BrowserContextOptions = NonNullable<Parameters<Browser['newContext']>[0]>;
       let storageState: BrowserContextOptions['storageState'] = undefined;
@@ -233,7 +255,13 @@ export class PlaywrightRunner implements IRunner {
             { allowImplicitAuth: options.allowImplicitAuth }
           )) as BrowserContextOptions['storageState'];
         } catch (error) {
+          if (options.profile !== undefined) {
+            throw new Error('No se pudo preservar la identidad solicitada; se bloquea la ejecución.', { cause: error });
+          }
           console.warn(`[PlaywrightRunner] No se pudo resolver la sesión autenticada para ${moduleName}:`, error);
+        }
+        if (options.profile !== undefined && !storageState) {
+          throw new Error('No existe sesión válida para la identidad solicitada; no se ejecutará como anónimo.');
         }
       }
 
@@ -342,13 +370,12 @@ export class PlaywrightRunner implements IRunner {
       page.setDefaultTimeout(timeout);
 
       let caseIds = [...initialCaseIds];
-      const loadedCasesMap = new Map<string, TCCase>();
 
       if (moduleName && caseIds.length > 0) {
         try {
           const loadedCases: Array<{ id: string; depends_on?: string[]; tc: TCCase }> = [];
           for (const cId of caseIds) {
-            const tc = await loadCase(moduleName, cId);
+            const tc = loadedCasesMap.get(cId);
             if (tc) {
               loadedCasesMap.set(cId, tc);
               loadedCases.push({ id: cId, depends_on: tc.depends_on, tc });
@@ -392,6 +419,21 @@ export class PlaywrightRunner implements IRunner {
         }
 
         const caseTitle = testCase?.name || caseId;
+        // Generated suggestions cannot certify business rules or authorization.
+        // This marker is a blocking signal, never a receipt of human authority.
+        const blockReason = testCase ? caseExecutionBlockReason(testCase) : undefined;
+        if (blockReason) {
+          totalNotRun++;
+          executedStatuses.set(caseId, 'not_run');
+          casesResult.push({
+            id: caseId,
+            title: caseTitle,
+            result: 'not_run',
+            not_run_reason: blockReason,
+            duration_ms: 0,
+          });
+          continue;
+        }
         const dependsOn = Array.isArray(testCase?.depends_on) ? testCase.depends_on : [];
 
         // Comprobar si alguna dependencia no tuvo estado 'passed'

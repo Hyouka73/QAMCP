@@ -40,31 +40,33 @@ interface FieldGroup {
   bounds: Bounds;
 }
 
-// Nivel 1: atributos del DOM en rule.evidence y rule.id: min="X", max="Y", minlength="N", maxlength="M"
-const ATTR_MIN = /(?:^|[\s,;.])(?:min|minlength)\s*[=:]\s*["']?(-?\d+)["']?/i;
-const ATTR_MAX = /(?:^|[\s,;.])(?:max|maxlength)\s*[=:]\s*["']?(-?\d+)["']?/i;
+// Numeric observations only; length/precision semantics need a typed oracle.
+const ATTR_MIN = /(?:^|[\s,;.])min\s*[=:]\s*["']?(-?\d+(?:[.,]\d+)?)["']?/i;
+const ATTR_MAX = /(?:^|[\s,;.])max\s*[=:]\s*["']?(-?\d+(?:[.,]\d+)?)["']?/i;
 
 // Nivel 2: texto libre (description y condition)
-const TEXT_RANGE = /entre\s+(-?\d+)\s+y\s+(-?\d+)/i;
-const TEXT_MIN = /m[ií]nimo\s*(?:de)?\s*(-?\d+)/i;
-const TEXT_MAX = /m[aá]ximo\s*(?:de)?\s*(-?\d+)/i;
+const TEXT_RANGE = /entre\s+(-?\d+(?:[.,]\d+)?)\s+y\s+(-?\d+(?:[.,]\d+)?)/i;
+const TEXT_MIN = /m[ií]nimo\s*(?:de)?\s*(-?\d+(?:[.,]\d+)?)/i;
+const TEXT_MAX = /m[aá]ximo\s*(?:de)?\s*(-?\d+(?:[.,]\d+)?)/i;
 
 function firstNumber(text: string, pattern: RegExp): number | undefined {
   const match = pattern.exec(text);
-  return match ? parseInt(match[1], 10) : undefined;
+  return match ? Number(match[1]) : undefined;
 }
 
 /** Límites que aporta una sola regla: Nivel 1 (evidence/id) y, si falta, Nivel 2 (description/condition). */
 function extractRuleBounds(rule: RuleEntry): Bounds {
   const level1 = `${rule.id} ${rule.evidence ?? ''}`;
   const level2 = `${rule.description} ${rule.condition ?? ''}`;
+  // String length boundaries cannot be executed by filling the decimal digits of a length.
+  if (/minlength|maxlength/i.test(`${level1} ${level2}`)) return {};
 
   let min = firstNumber(level1, ATTR_MIN);
   let max = firstNumber(level1, ATTR_MAX);
 
   const range = TEXT_RANGE.exec(level2);
-  if (min === undefined) min = range ? parseInt(range[1], 10) : firstNumber(level2, TEXT_MIN);
-  if (max === undefined) max = range ? parseInt(range[2], 10) : firstNumber(level2, TEXT_MAX);
+  if (min === undefined) min = range ? Number(range[1]) : firstNumber(level2, TEXT_MIN);
+  if (max === undefined) max = range ? Number(range[2]) : firstNumber(level2, TEXT_MAX);
 
   return { min, max };
 }
@@ -92,13 +94,15 @@ function groupRulesByField(rules: RuleEntry[]): FieldGroup[] {
 }
 
 /**
- * Los 5 valores de frontera. Si el campo define un solo límite, el otro se
- * deriva con una holgura de 10 (suposición a confirmar con el equipo).
+ * Only complete, safe integer ranges can produce these numeric proposals.
+ * Precision, lengths and inclusivity require an approved typed oracle contract.
  */
 function buildBoundaries(min: number | undefined, max: number | undefined): Boundary[] {
-  const effectiveMin = min ?? (max !== undefined ? max - 10 : 0);
-  const effectiveMax = max ?? effectiveMin + 10;
-  const nominal = Math.floor((effectiveMin + effectiveMax) / 2);
+  if (min === undefined || max === undefined || !Number.isSafeInteger(min) || !Number.isSafeInteger(max) ||
+      min > max || !Number.isSafeInteger(min - 1) || !Number.isSafeInteger(max + 1)) return [];
+  const effectiveMin = min;
+  const effectiveMax = max;
+  const nominal = Math.floor(min / 2 + max / 2);
 
   return [
     { type: 'under_min', value: effectiveMin - 1, valid: false },
@@ -130,9 +134,8 @@ function resolveSelector(selectors: ModuleSelectors | undefined, field: string):
 }
 
 /**
- * Genera casos de prueba de análisis de valores límite (BVA) para las reglas
- * confirmadas con límites numéricos extraíbles (S81-001). Los casos se generan
- * una vez por campo, con los límites combinados de todas sus reglas.
+ * Produces blocked BVA proposals from legacy rules, never confirmed requirements.
+ * A complete integer range is necessary for a proposal, not sufficient authority.
  */
 export function generateBvaCases(
   moduleName: string,
@@ -162,7 +165,7 @@ export function generateBvaCases(
           selector: boundary.valid
             ? '.success-message, [data-testid="success"]'
             : '.error-message, [data-error], .invalid-feedback',
-          assertion_type: boundary.valid ? 'visible' : 'not_visible',
+          assertion_type: 'visible',
         },
       ];
 
@@ -170,13 +173,14 @@ export function generateBvaCases(
         _version: '1',
         id: generateDeterministicUuid(`${moduleName}:bva:${sourceRule.id}:${boundary.type}`),
         name: `BVA_${sourceRule.id}_${boundary.type}`,
-        title: `BVA Boundary Case for ${group.field}: ${boundary.type} (${boundary.value})`,
+        title: `Propuesta BVA para ${group.field}: ${boundary.type} (${boundary.value}); oráculo pendiente`,
         priority: 'medium',
         sequence: 1,
         manually_edited: false,
         case_category: 'bva',
         source_rule_id: sourceRule.id,
-        tags: ['bva', moduleName, group.field],
+        // These are proposals. A legacy status string is not canonical human authority.
+        tags: ['bva', moduleName, group.field, 'candidate', 'blocked_missing_oracle'],
         steps,
       });
     }
