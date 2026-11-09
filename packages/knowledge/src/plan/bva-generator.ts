@@ -61,7 +61,7 @@ const STRICT_NUMBER_TOKEN = /^[+-]?\d+(?:\.\d+)?(?:e[+-]?\d+)?$/i;
 
 // Nivel 1: atributos del DOM en rule.evidence y rule.id:
 // Consume el token completo del atributo (entre comillas o hasta delimitador) para impedir truncación de prefijos.
-const ATTR_VALUE_TOKEN = '(?:"([^"]*)"|\'([^\']*)\'|([^\\s,;"\']+?)(?=[.;,]?(?:\\s|$)))';
+const ATTR_VALUE_TOKEN = '(?:"([^"]*)"|\'([^\']*)\'|([^\\s,;"\'<>]+))';
 const ATTR_LEN_MIN = new RegExp(`(?:^|[\\s,;.])\\bminlength\\b\\s*[=:]\\s*${ATTR_VALUE_TOKEN}`, 'gi');
 const ATTR_LEN_MAX = new RegExp(`(?:^|[\\s,;.])\\bmaxlength\\b\\s*[=:]\\s*${ATTR_VALUE_TOKEN}`, 'gi');
 const ATTR_NUM_MIN = new RegExp(`(?:^|[\\s,;.])\\bmin\\b\\s*[=:]\\s*${ATTR_VALUE_TOKEN}`, 'gi');

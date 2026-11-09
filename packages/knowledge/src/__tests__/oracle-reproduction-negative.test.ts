@@ -1146,4 +1146,176 @@ describe('Negative Reproduction & Regression Test Suite: BVA & RBAC Oracle Harde
       cases.forEach(assertValidTcCase);
     });
   });
+
+  // =========================================================================
+  // 14. DEV-MVP-01-R4: Matanza de mutantes BVA y ejecución física de aserciones
+  // =========================================================================
+  describe('DEV-MVP-01-R4: Matanza de mutantes BVA y ejecución física de aserciones', () => {
+    /**
+     * Arnés de ejecución de casos de prueba contra modelos DOM reales y mutantes defectuosos.
+     * Simula con fidelidad el motor de aserciones de Playwright runner (executeAssert).
+     */
+    interface DomExecutionResult {
+      passed: boolean;
+      failedStepIndex?: number;
+      error?: string;
+    }
+
+    class DomExecutionHarness {
+      private min?: number;
+      private max?: number;
+      private step?: number;
+      private value = '';
+      private errorVisible = false;
+      private successVisible = false;
+
+      constructor(config: { min?: number; max?: number; step?: number }) {
+        this.min = config.min;
+        this.max = config.max;
+        this.step = config.step;
+      }
+
+      execute(tcCase: TCCase): DomExecutionResult {
+        this.value = '';
+        this.errorVisible = false;
+        this.successVisible = false;
+
+        for (let i = 0; i < tcCase.steps.length; i++) {
+          const step = tcCase.steps[i];
+          if (step.type === 'navigate') {
+            this.value = '';
+            this.errorVisible = false;
+            this.successVisible = false;
+          } else if (step.type === 'fill') {
+            this.value = step.value ?? '';
+          } else if (step.type === 'click') {
+            // Evaluación del formulario al hacer click en submit
+            const num = Number(this.value);
+            const isNumeric = Number.isFinite(num) && this.value.trim() !== '';
+            let valid = isNumeric;
+
+            if (isNumeric) {
+              if (this.min !== undefined && num < this.min) valid = false;
+              if (this.max !== undefined && num > this.max) valid = false;
+              if (this.step !== undefined && this.step > 0) {
+                const base = this.min ?? 0;
+                const distance = Math.abs(num - base);
+                const quotient = distance / this.step;
+                if (Math.abs(quotient - Math.round(quotient)) > 1e-9) valid = false;
+              }
+            }
+
+            this.successVisible = valid;
+            this.errorVisible = !valid;
+          } else if (step.type === 'assert') {
+            const isError = step.selector === '.error-message' || step.selector === '#error';
+            const isSuccess = step.selector === '.success-message' || step.selector === '#success';
+            const targetVisible = isError ? this.errorVisible : isSuccess ? this.successVisible : false;
+
+            if (step.assertion_type === 'visible') {
+              if (!targetVisible) {
+                return {
+                  passed: false,
+                  failedStepIndex: i,
+                  error: `AssertionError: expected element '${step.selector}' to be visible, but it was hidden (input value='${this.value}', errorVisible=${this.errorVisible}, successVisible=${this.successVisible})`,
+                };
+              }
+            } else if (step.assertion_type === 'not_visible') {
+              if (targetVisible) {
+                return {
+                  passed: false,
+                  failedStepIndex: i,
+                  error: `AssertionError: expected element '${step.selector}' to be not_visible, but it was visible`,
+                };
+              }
+            }
+          }
+        }
+        return { passed: true };
+      }
+    }
+
+    it('R4-M1: los casos generados para min=20,max=20 pasan 5/5 en la implementación correcta', () => {
+      const rule = createBvaRule('R-EQUAL-20', {
+        field: 'age',
+        evidence: 'min=20,max=20',
+      });
+      const cases = generateBvaCases('mod', [rule], standardSelectors);
+      expect(cases.length).toBe(5);
+
+      const correctHarness = new DomExecutionHarness({ min: 20, max: 20 });
+      for (const tc of cases) {
+        const result = correctHarness.execute(tc);
+        expect(result.passed, `Caso ${tc.name} debe pasar en app correcta: ${result.error}`).toBe(true);
+      }
+    });
+
+    it('R4-M2: mutante defectuoso que omite la validación del mínimo (solo max=20) FALLA la suite al recibir el límite under_min (19)', () => {
+      const rule = createBvaRule('R-EQUAL-20', {
+        field: 'age',
+        evidence: 'min=20,max=20',
+      });
+      const cases = generateBvaCases('mod', [rule], standardSelectors);
+      expect(cases.length).toBe(5);
+
+      // Mutante defectuoso: olvidó validar min, solo valida max: 20
+      const faultyLostMinHarness = new DomExecutionHarness({ max: 20 });
+
+      const underMinCase = cases.find((c) => c.name.endsWith('under_min'))!;
+      expect(underMinCase).toBeDefined();
+      expect(underMinCase.steps[1].value).toBe('19');
+      expect(underMinCase.steps[3].selector).toBe('.error-message');
+
+      const result = faultyLostMinHarness.execute(underMinCase);
+      // El mutante defectuoso ACEPTA 19 indebidamente mostrando éxito; la aserción espera error y debe FALLAR
+      expect(result.passed).toBe(false);
+      expect(result.error).toContain("AssertionError: expected element '.error-message' to be visible, but it was hidden");
+      expect(result.error).toContain("input value='19'");
+    });
+
+    it('R4-M3: mutante defectuoso que omite la validación del máximo (solo min=20) FALLA la suite al recibir over_max (21)', () => {
+      const rule = createBvaRule('R-EQUAL-20', {
+        field: 'age',
+        evidence: 'min=20,max=20',
+      });
+      const cases = generateBvaCases('mod', [rule], standardSelectors);
+      expect(cases.length).toBe(5);
+
+      // Mutante defectuoso: solo valida min: 20, olvidó max
+      const faultyLostMaxHarness = new DomExecutionHarness({ min: 20 });
+
+      const overMaxCase = cases.find((c) => c.name.endsWith('over_max'))!;
+      expect(overMaxCase).toBeDefined();
+      expect(overMaxCase.steps[1].value).toBe('21');
+      expect(overMaxCase.steps[3].selector).toBe('.error-message');
+
+      const result = faultyLostMaxHarness.execute(overMaxCase);
+      // El mutante acepta 21 indebidamente; la aserción espera error y debe FALLAR
+      expect(result.passed).toBe(false);
+      expect(result.error).toContain("AssertionError: expected element '.error-message' to be visible, but it was hidden");
+      expect(result.error).toContain("input value='21'");
+    });
+
+    it('R4-M4: mutante decimal que omite el mínimo en min=20.5,max=20.5 FALLA con under_min (20.4 o 20)', () => {
+      // Con step=0.5
+      const ruleStep = createBvaRule('R-DEC-STEP', {
+        field: 'age',
+        evidence: 'min=20.5,max=20.5,step=0.5',
+      });
+      const casesStep = generateBvaCases('mod', [ruleStep], standardSelectors);
+      expect(casesStep.length).toBe(5);
+
+      const correctHarness = new DomExecutionHarness({ min: 20.5, max: 20.5, step: 0.5 });
+      for (const tc of casesStep) {
+        expect(correctHarness.execute(tc).passed).toBe(true);
+      }
+
+      // Mutante que solo valida max=20.5
+      const faultyHarness = new DomExecutionHarness({ max: 20.5, step: 0.5 });
+      const underMin = casesStep.find((c) => c.name.endsWith('under_min'))!;
+      const resultFaulty = faultyHarness.execute(underMin);
+      expect(resultFaulty.passed).toBe(false);
+      expect(resultFaulty.error).toContain("expected element '.error-message' to be visible");
+    });
+  });
 });

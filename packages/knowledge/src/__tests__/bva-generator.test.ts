@@ -576,4 +576,117 @@ describe('BvaGenerator (S81-001 / DEV-MVP-01 / DEV-MVP-01-R2)', () => {
       expect(decimalLen).toEqual([]);
     });
   });
+
+  describe('DEV-MVP-01-R4: Tokenizador BVA con delimitadores coma/punto y coma y oráculos min=max (R3-01 / P1)', () => {
+    it('R4-01: extrae límites no entrecomillados delimitados por coma o punto y coma (min=20,max=20 y min=10;max=20)', () => {
+      const commaSeparated = generateBvaCases(
+        'mod',
+        [rule({ id: 'R-COMMA', field: 'age', evidence: 'min=10,max=20' })],
+        selectors
+      );
+      expect(commaSeparated.length).toBe(5);
+      expect(commaSeparated.map((c) => c.steps[1].value)).toEqual(['9', '10', '15', '20', '21']);
+
+      const semicolonSeparated = generateBvaCases(
+        'mod',
+        [rule({ id: 'R-SEMI', field: 'age', evidence: 'min=10;max=20' })],
+        selectors
+      );
+      expect(semicolonSeparated.length).toBe(5);
+      expect(semicolonSeparated.map((c) => c.steps[1].value)).toEqual(['9', '10', '15', '20', '21']);
+    });
+
+    it('R4-02: para min=20,max=20 genera exactamente 5 límites con oráculos acreditados (19/#error, 20/#success, 20/#success, 20/#success, 21/#error)', () => {
+      const cases = generateBvaCases(
+        'mod',
+        [rule({ id: 'R-EQUAL', field: 'age', evidence: 'min=20,max=20' })],
+        selectors
+      );
+
+      expect(cases.length).toBe(5);
+      expect(
+        cases.map((c) => [c.name.replace('BVA_R-EQUAL_', ''), c.steps[1].value, c.steps[3].selector])
+      ).toEqual([
+        ['under_min', '19', '.error-message'],
+        ['min', '20', '.success-message'],
+        ['nominal', '20', '.success-message'],
+        ['max', '20', '.success-message'],
+        ['over_max', '21', '.error-message'],
+      ]);
+
+      // Verificar aserciones visibles explícitas y ausencia de not_visible
+      for (const tc of cases) {
+        expect(tc.steps[3].assertion_type).toBe('visible');
+      }
+    });
+
+    it('R4-03: soporta min=max con decimales y step preservando precisión y oráculos correctos (step=0.5, step=0.1, sin step)', () => {
+      // Sin step: delta = 0.1
+      const noStep = generateBvaCases(
+        'mod',
+        [rule({ id: 'R-DEC-NO-STEP', field: 'age', evidence: 'min=20.5,max=20.5' })],
+        selectors
+      );
+      expect(noStep.length).toBe(5);
+      expect(
+        noStep.map((c) => [c.name.replace('BVA_R-DEC-NO-STEP_', ''), c.steps[1].value, c.steps[3].selector])
+      ).toEqual([
+        ['under_min', '20.4', '.error-message'],
+        ['min', '20.5', '.success-message'],
+        ['nominal', '20.5', '.success-message'],
+        ['max', '20.5', '.success-message'],
+        ['over_max', '20.6', '.error-message'],
+      ]);
+
+      // Con step=0.5: delta = 0.5
+      const step05 = generateBvaCases(
+        'mod',
+        [rule({ id: 'R-DEC-STEP-05', field: 'age', evidence: 'min=20.5,max=20.5,step=0.5' })],
+        selectors
+      );
+      expect(step05.length).toBe(5);
+      expect(
+        step05.map((c) => [c.name.replace('BVA_R-DEC-STEP-05_', ''), c.steps[1].value, c.steps[3].selector])
+      ).toEqual([
+        ['under_min', '20', '.error-message'],
+        ['min', '20.5', '.success-message'],
+        ['nominal', '20.5', '.success-message'],
+        ['max', '20.5', '.success-message'],
+        ['over_max', '21', '.error-message'],
+      ]);
+
+      // Con step=0.1: delta = 0.1
+      const step01 = generateBvaCases(
+        'mod',
+        [rule({ id: 'R-DEC-STEP-01', field: 'age', evidence: 'min=20.5;max=20.5;step=0.1' })],
+        selectors
+      );
+      expect(step01.length).toBe(5);
+      expect(
+        step01.map((c) => [c.name.replace('BVA_R-DEC-STEP-01_', ''), c.steps[1].value, c.steps[3].selector])
+      ).toEqual([
+        ['under_min', '20.4', '.error-message'],
+        ['min', '20.5', '.success-message'],
+        ['nominal', '20.5', '.success-message'],
+        ['max', '20.5', '.success-message'],
+        ['over_max', '20.6', '.error-message'],
+      ]);
+    });
+
+    it('R4-04 (H08): rechaza fail-closed duplicados no entrecomillados con coma o punto y coma (min=18,min=10 y min=18;min=10)', () => {
+      const commaDup = generateBvaCases(
+        'mod',
+        [rule({ id: 'R-DUP-COMMA', field: 'age', evidence: 'min=18,min=10' })],
+        selectors
+      );
+      expect(commaDup).toEqual([]);
+
+      const semicolonDup = generateBvaCases(
+        'mod',
+        [rule({ id: 'R-DUP-SEMI', field: 'age', evidence: 'min=18;min=10' })],
+        selectors
+      );
+      expect(semicolonDup).toEqual([]);
+    });
+  });
 });

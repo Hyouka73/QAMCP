@@ -1,17 +1,17 @@
-# INFORME TÉCNICO: DEV-MVP-01 (R1 + R2 + R3) — Remediación de Oráculos BVA y RBAC
+# INFORME TÉCNICO: DEV-MVP-01 (R1 + R2 + R3 + R4) — Remediación de Oráculos BVA y RBAC
 
 **Fecha:** 2026-11-09  
-**Hito:** DEV-MVP-01 / DEV-MVP-01-R2 / DEV-MVP-01-R3 (Remediación P0, P1 y P2 de Oráculos de Generación de Pruebas BVA y RBAC)  
+**Hito:** DEV-MVP-01 / DEV-MVP-01-R2 / DEV-MVP-01-R3 / DEV-MVP-01-R4 (Remediación P0, P1 y P2 de Oráculos de Generación de Pruebas BVA y RBAC)  
 **Repositorio Base:** `Hyouka73/QAMCP`  
 **Candidato Técnico de Integración (Parent Base):** `47f17ceafc2f76d5a41fd714cd0c071dbdcb8d72` (merge `b50453f` + `a3f7ab5`)  
 **Worktree Aislado de Trabajo:** `C:\Users\Judirico\Documents\QAMCP\worktrees\mvp01-bva-rbac`  
 **Paquete Impactado:** `@qap/knowledge` (`packages/knowledge`)  
-**Estado:** REMEDIACIÓN DEV-MVP-01-R3 COMPLETADA — REAUDITORÍA INDEPENDIENTE CODEX PENDIENTE
+**Estado:** REMEDIACIÓN DEV-MVP-01-R4 COMPLETADA — REAUDITORÍA INDEPENDIENTE CODEX PENDIENTE
 
 ---
 
 > **Aviso de Estado y No Autocertificación:**  
-> Este informe documenta la remediación técnica de los defectos P0 iniciales de DEV-MVP-01, los 6 hallazgos P1 (H01–H06) y 3 observaciones P2 (H07–H09) de `AUDITORIA_CODEX_2026-11-09.md`, así como el cierre de los 5 defectos reproducibles pendientes (`R2-01` a `R2-05`) identificados en `REAUDITORIA_CODEX_2026-11-09.md`. Todas las suites unitarias, de regresión negativa y adversariales pasan al 100% (`171/171` focales, `520/520` en `@qap/knowledge`), el arnés independiente `audits/DEV-MVP-01/reproduce.mjs` pasa `9/9` comprobaciones (`exit code 0`) sin haber sido modificado, y la compilación TypeScript y lint son limpios. En estricto apego al protocolo de calidad del proyecto QAMCP, **este paquete no declara GO integral ni autocertifica el hito**. La validación final corresponde a Codex.
+> Este informe documenta la remediación técnica de los defectos P0 iniciales de DEV-MVP-01, los 6 hallazgos P1 (H01–H06) y 3 observaciones P2 (H07–H09) de `AUDITORIA_CODEX_2026-11-09.md`, el cierre de los 5 defectos de R3 (`R2-01` a `R2-05`), y el cierre definitivo de la regresión P1 R3-01 en el tokenizador BVA con delimitadores no entrecomillados documentada en `REAUDITORIA_CODEX_2026-11-09.md`. Todas las suites unitarias, de regresión negativa y adversariales pasan al 100% (`179/179` focales, `528/528` en `@qap/knowledge`), el arnés independiente `exact-verification.mjs` pasa `19/19` comprobaciones (`exit code 0`), el arnés de navegador `browser-r3.mjs` demuestra físicamente que la app correcta pasa y el mutante defectuoso falla, y la compilación TypeScript y lint son limpios. En estricto apego al protocolo de calidad del proyecto QAMCP, **este paquete no declara GO integral ni autocertifica el hito**. La validación final corresponde a Codex.
 
 ---
 
@@ -20,7 +20,8 @@
 Durante la preparación para el MVP-01 funcional (fecha límite: 16 de noviembre de 2026):
 1. **Ronda 1 (`ea54a8b873ae9f224cddd7c6e3a8b7ca0b450f1d`):** Abordó los 11 defectos P0 iniciales (límites artificiales `±10`, selectores ciegos, aserción invertida `not_visible`, conflictos entre reglas, perfiles inventados `${role}-local`, `body exists`, producto cartesiano ciego).
 2. **Auditoría Independiente de Codex (`AUDITORIA_CODEX_2026-11-09.md`) y Ronda 2 (`c9d624c79e65bb3de5623d28ed93cbd3724465b1`):** Cerró en el alcance comprobado `H01`, `H03`, `H05`, `H06`, `H07` y las observaciones específicas de `H09`.
-3. **Reauditoría Independiente de Codex (`REAUDITORIA_CODEX_2026-11-09.md`) y Ronda 3 (`DEV-MVP-01-R3`):** Cierra de raíz los hallazgos parciales pendientes en `H02` (`R2-01`, `R2-02`), `H04` (`R2-03`), `H08` (`R2-04`) y la regresión en longitudes textuales de varios dígitos (`R2-05`).
+3. **Reauditoría Independiente de Codex (`REAUDITORIA_CODEX_2026-11-09.md`) y Ronda 3 (`15eaabcc03baf0b05d74e48c5887a5261a179041`):** Cerró de raíz los hallazgos parciales pendientes en `H02` (`R2-01`, `R2-02`), `H04` (`R2-03`), `H08` (`R2-04`) y la regresión en longitudes textuales de varios dígitos (`R2-05`).
+4. **Ronda 4 (`DEV-MVP-01-R4`):** Cierra de forma física y verificable la regresión P1 R3-01 detectada por Codex en el tokenizador BVA (pérdida de límites por delimitadores coma/punto y coma sin espacio, falso PASS en `min=20,max=20`, matanza de mutantes defectuosos y reactivación de fail-closed en H08).
 
 ---
 
@@ -73,35 +74,63 @@ Durante la preparación para el MVP-01 funcional (fecha límite: 16 de noviembre
 
 ---
 
+### 2.3 DEV-MVP-01-R4: Cierre del Falso Positivo P1 en Tokenizador BVA (R3-01) y Matanza de Mutantes
+
+#### R3-01 (P1): Pérdida de límites confirmados por delimitadores sin espacio y falso PASS
+- **Causa Raíz:** En `packages/knowledge/src/plan/bva-generator.ts:64`, la constante `ATTR_VALUE_TOKEN` utilizaba:
+  ```typescript
+  const ATTR_VALUE_TOKEN = '(?:"([^"]*)"|\'([^\']*)\'|([^\\s,;"\']+?)(?=[.;,]?(?:\\s|$)))';
+  ```
+  La alternativa no entrecomillada (`[^\\s,;"\']+?`) contenía un lookahead de cierre que exigía que cualquier delimitador opcional estuviera seguido de espacio en blanco (`\\s`) o fin de cadena (`$`). En cadenas con atributos contiguos sin espacio como `min=20,max=20`, `min=10;max=20` o `min=18,min=10`, la coma o punto y coma iba seguida inmediatamente de la siguiente letra (`m`), provocando que el lookahead fallara. En consecuencia, el primer atributo (`min=20`) era descartado silenciosamente sin registrar error ni conflicto, y solo se extraía `max=20`.
+- **Mecanismo del Falso PASS:** Al extraer únicamente `max=20`, el generador construía un rango unilateral superior y calculaba `nominal = max - delta = 20 - 1 = 19`, asignándole oráculo `#success` (visible). Cuando una prueba con valor `19` se ejecutaba contra una aplicación defectuosa que había omitido validar el mínimo (`<input type="number" max="20">`), la aplicación aceptaba `19` y mostraba éxito, pasando la prueba al 100% (3/3 PASS). En cambio, la aplicación correcta que sí validaba el mínimo (`<input type="number" min="20" max="20">`) rechazaba `19`, provocando el fallo del caso nominal (2/3 PASS). Se invertía el veredicto del oráculo.
+- **Impacto colateral en H08:** En `min=18,min=10`, el primer mínimo era descartado silenciosamente, por lo que `mergeCandidateBounds` recibía únicamente `min=10` y no detectaba la contradicción, emitiendo casos para `10` en vez de abortar fail-closed (`[]`).
+- **Corrección Física (R4):** Se sustituyó `ATTR_VALUE_TOKEN` en `bva-generator.ts:64` por:
+  ```typescript
+  const ATTR_VALUE_TOKEN = '(?:"([^"]*)"|\'([^\']*)\'|([^\\s,;"\'<>]+))';
+  ```
+  Esto permite que el token no entrecomillado sea consumido de manera codiciosa hasta el delimitador natural (`,`, `;`, espacio, comillas, corchetes angulares o fin de cadena).
+  1. En `min=20,max=20`, se extraen tanto `min=20` como `max=20`. Al ser bilateral con `min === max`, se generan 5 límites consistentes: `under_min` (`19`, `#error`), `min` (`20`, `#success`), `nominal` (`20`, `#success`), `max` (`20`, `#success`), `over_max` (`21`, `#error`).
+  2. En `min=18,min=10` y `min=18;min=10`, se extraen ambos mínimos; `mergeCandidateBounds` detecta `18 !== 10`, activa `hasConflict = true` y falla cerrado (`[]`).
+  3. Soporta `min=max` con decimales y `step`: `min=20.5,max=20.5` con `step=0.5` (`under_min: 20`, `over_max: 21`), `step=0.1` (`under_min: 20.4`, `over_max: 20.6`), y sin step (`under_min: 20.4`, `over_max: 20.6`), todos con oráculos acreditados.
+- **Demostración de Matanza de Mutantes:**
+  - **Navegador Real (`audits/DEV-MVP-01-R3/browser-r3.mjs`):** La implementación correcta (`min="20" max="20"`) aprueba todos sus casos generados (`runnerPassed: true`). La implementación defectuosa (`faulty-lost-minimum`, solo `max="20"`) **falla físicamente** el caso `under_min` (`19`), ya que la página muestra éxito y la aserción que exige `#error` visible lanza fallo (`runnerPassed: false`).
+  - **Suite Vitest (`oracle-reproduction-negative.test.ts: Secc. 14`):** Cuatro pruebas de ejecución física con `DomExecutionHarness` comprueban que el mutante sin mínimo falla al recibir `19`, el mutante sin máximo falla al recibir `21`, el mutante decimal falla con `under_min`, y la implementación correcta pasa 5/5.
+
+---
+
 ## 3. Inventario de Archivos Modificados en el Worktree
 
 | # | Archivo | Estado Git | Descripción |
 |---|---|---|---|
-| 1 | `packages/knowledge/src/plan/bva-generator.ts` | Modificado | Consumo íntegro de tokens numéricos y notación exponencial (`R2-01`), alineación de `nominal` y validación con `step` (`R2-02`), extracción exhaustiva intra-nivel y multi-nivel de contradicciones (`R2-04` / `H08`), unificación de frases textuales de longitud/número sin backtracking (`R2-05`), `minlength=0` (`H03`) y procedencia (`H09`). |
+| 1 | `packages/knowledge/src/plan/bva-generator.ts` | Modificado | Corrección de `ATTR_VALUE_TOKEN` (`R4`), soporte completo de delimitadores coma/punto y coma sin espacio, consumo íntegro de tokens numéricos y notación exponencial (`R2-01`), alineación de `nominal` y validación con `step` (`R2-02`), extracción exhaustiva intra-nivel y multi-nivel de contradicciones (`R2-04` / `H08`), unificación de frases textuales de longitud/número sin backtracking (`R2-05`), `minlength=0` (`H03`) y procedencia (`H09`). |
 | 2 | `packages/knowledge/src/plan/rbac-generator.ts` | Modificado | Oráculo positivo obligatorio antes de `not_exists` (`H01`), validación de pertenencia a `validRoleSet` en etiquetas con y sin prefijo (`R2-03` / `H04`), eliminación del fallback a `moduleContext.users` (`H05`), precedencia vinculante de `profile.role` (`H06`), compuerta de oráculo (`H07`) y filtro de `source` (`H09`). |
-| 3 | `packages/knowledge/src/__tests__/bva-generator.test.ts` | Modificado | 34 pruebas unitarias (incluye regresiones directas para R2-01, R2-02, R2-04, R2-05, H02, H03, H08, H09). |
+| 3 | `packages/knowledge/src/__tests__/bva-generator.test.ts` | Modificado | 38 pruebas unitarias (añadidas 4 pruebas R4 para `min=20,max=20`, `min=10;max=20`, decimales con `step`, y duplicados H08 no entrecomillados). |
 | 4 | `packages/knowledge/src/__tests__/rbac-generator.test.ts` | Modificado | 21 pruebas unitarias (incluye regresiones directas para R2-03, H01, H04, H05, H06, H07). |
-| 5 | `packages/knowledge/src/__tests__/oracle-reproduction-negative.test.ts` | Modificado | 54 pruebas de reproducción negativa (incluye regresiones directas de R1, R2 y R3). |
-| 6 | `packages/knowledge/src/__tests__/bva-adversarial-challenge.test.ts` | Modificado | 35 pruebas adversariales + 200 iteraciones fuzzing (añadido Challenge 7 para R2-01, R2-02, R2-04, R2-05). |
-| 7 | `packages/knowledge/src/__tests__/challenger-rbac-stress.test.ts` | Modificado | 27 pruebas adversariales de estrés RBAC (añadida regresión para etiquetas con prefijo de roles inexistentes/errores tipográficos R2-03). |
-| 8 | `docs/vnext/implementaciones/DEV-MVP-01/INFORME_TECNICO_DEV-MVP-01.md` | Modificado | Informe técnico actualizado con trazabilidad de R1, R2 y R3. |
+| 5 | `packages/knowledge/src/__tests__/oracle-reproduction-negative.test.ts` | Modificado | 58 pruebas de reproducción negativa (añadida Sección 14 con 4 pruebas de matanza física de mutantes DOM). |
+| 6 | `packages/knowledge/src/__tests__/bva-adversarial-challenge.test.ts` | Modificado | 35 pruebas adversariales + 200 iteraciones fuzzing (Challenge 7 para R2-01, R2-02, R2-04, R2-05). |
+| 7 | `packages/knowledge/src/__tests__/challenger-rbac-stress.test.ts` | Modificado | 27 pruebas adversariales de estrés RBAC (regresión para etiquetas con prefijo de roles inexistentes/errores tipográficos R2-03). |
+| 8 | `docs/vnext/implementaciones/DEV-MVP-01/INFORME_TECNICO_DEV-MVP-01.md` | Modificado | Informe técnico actualizado con trazabilidad de R1, R2, R3 y R4. |
 
 ---
 
 ## 4. Verificaciones Físicas Ejecutadas
 
-### 4.1 Arnés Independiente de Codex (`audits/DEV-MVP-01/reproduce.mjs`)
-- **Comando:** `node audits/DEV-MVP-01/reproduce.mjs`
-- **Resultado:** **9/9 comprobaciones PASS (`failed: 0`, exit code `0`)**, sin modificaciones al arnés.
+### 4.1 Arnés Independiente de Codex (`audits/DEV-MVP-01-R3/exact-verification.mjs`)
+- **Comando:** `node audits/DEV-MVP-01-R3/exact-verification.mjs`
+- **Resultado:** **19/19 comprobaciones PASS (`failed: 0`, exit code `0`)** en todas las secciones (`original-seven`: 7/7, `targeted-regression`: 5/5, `focused-control`: 7/7).
 
-### 4.2 Suites Focales y Adversariales (`@qap/knowledge`)
+### 4.2 Arnés de Navegador contra Mutantes (`audits/DEV-MVP-01-R3/browser-r3.mjs`)
+- **Comando:** `node audits/DEV-MVP-01-R3/browser-r3.mjs`
+- **Resultado:** **Exit code `0`**. Demostración física de que la implementación correcta (`min="20" max="20"`) pasa todos los casos (`5/5 PASS`), mientras que la implementación defectuosa (`max="20"` sin mínimo) **falla físicamente** el caso `under_min` (`19`) con `runnerPassed: false`.
+
+### 4.3 Suites Focales y Adversariales (`@qap/knowledge`)
 - **Comando:** `pnpm --dir "C:\Users\Judirico\Documents\QAMCP\worktrees\mvp01-bva-rbac" --filter @qap/knowledge test -- src/__tests__/bva-generator.test.ts src/__tests__/rbac-generator.test.ts src/__tests__/oracle-reproduction-negative.test.ts src/__tests__/bva-adversarial-challenge.test.ts src/__tests__/challenger-rbac-stress.test.ts`
-- **Resultado:** **5/5 archivos PASS, 171/171 pruebas PASS** (34 BVA + 21 RBAC + 54 Reproducción + 35 Challenger BVA + 27 Challenger RBAC).
+- **Resultado:** **5/5 archivos PASS, 179/179 pruebas PASS** (38 BVA + 21 RBAC + 58 Reproducción + 35 Challenger BVA + 27 Challenger RBAC).
 
-### 4.3 Suite Completa de `@qap/knowledge`, Build y Lint
-- **Suite Completa:** **34/34 archivos PASS, 520/520 pruebas PASS, 0 fallos**.
+### 4.4 Suite Completa de `@qap/knowledge`, Build y Lint
+- **Suite Completa:** **34/34 archivos PASS, 528/528 pruebas PASS, 0 fallos**.
 - **Build TypeScript (`tsup`):** Éxito en ESM (`dist/index.js`) y DTS (`dist/index.d.ts`).
-- **Lint (`@qap/knowledge`):** 0 errores.
+- **Lint (`@qap/knowledge`):** 0 errores, 0 advertencias.
 
 ---
 
@@ -115,10 +144,13 @@ git -C "C:\Users\Judirico\Documents\QAMCP\worktrees\mvp01-bva-rbac" log -3 --one
 # 2. Compilar @qap/knowledge
 pnpm --dir "C:\Users\Judirico\Documents\QAMCP\worktrees\mvp01-bva-rbac" --filter @qap/knowledge build
 
-# 3. Ejecutar el arnés independiente sin modificaciones (debe retornar checks: 9, failed: 0, exit code 0)
-node "C:\Users\Judirico\Documents\QAMCP\audits\DEV-MVP-01\reproduce.mjs"
+# 3. Ejecutar el arnés independiente exact-verification.mjs (19/19 checks PASS, exit code 0)
+node "C:\Users\Judirico\Documents\QAMCP\audits\DEV-MVP-01-R3\exact-verification.mjs"
 
-# 4. Ejecutar las 5 suites focales y adversariales (171 pruebas)
+# 4. Ejecutar el arnés browser-r3.mjs demostrando fallo físico del mutante defectuoso
+node "C:\Users\Judirico\Documents\QAMCP\audits\DEV-MVP-01-R3\browser-r3.mjs"
+
+# 5. Ejecutar las suites focales y adversariales (179 pruebas)
 pnpm --dir "C:\Users\Judirico\Documents\QAMCP\worktrees\mvp01-bva-rbac" --filter @qap/knowledge test -- `
   src/__tests__/bva-generator.test.ts `
   src/__tests__/rbac-generator.test.ts `
@@ -126,7 +158,7 @@ pnpm --dir "C:\Users\Judirico\Documents\QAMCP\worktrees\mvp01-bva-rbac" --filter
   src/__tests__/bva-adversarial-challenge.test.ts `
   src/__tests__/challenger-rbac-stress.test.ts
 
-# 5. Ejecutar la suite completa de @qap/knowledge (34 archivos, 520 pruebas) y lint
+# 6. Ejecutar la suite completa de @qap/knowledge (34 archivos, 528 pruebas) y lint
 pnpm --dir "C:\Users\Judirico\Documents\QAMCP\worktrees\mvp01-bva-rbac" --filter @qap/knowledge test
 pnpm --dir "C:\Users\Judirico\Documents\QAMCP\worktrees\mvp01-bva-rbac" exec eslint packages/knowledge/src/plan/bva-generator.ts packages/knowledge/src/plan/rbac-generator.ts packages/knowledge/src/__tests__/bva-generator.test.ts packages/knowledge/src/__tests__/rbac-generator.test.ts packages/knowledge/src/__tests__/oracle-reproduction-negative.test.ts packages/knowledge/src/__tests__/bva-adversarial-challenge.test.ts packages/knowledge/src/__tests__/challenger-rbac-stress.test.ts
 ```
