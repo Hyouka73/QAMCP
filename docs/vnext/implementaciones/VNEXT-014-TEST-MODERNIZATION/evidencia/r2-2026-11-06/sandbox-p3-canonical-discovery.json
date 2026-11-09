@@ -1,0 +1,39 @@
+{
+  "numTotalTestSuites": 1,
+  "numPassedTestSuites": 0,
+  "numFailedTestSuites": 1,
+  "numPendingTestSuites": 0,
+  "numTotalTests": 0,
+  "numPassedTests": 0,
+  "numFailedTests": 0,
+  "numPendingTests": 0,
+  "numTodoTests": 0,
+  "snapshot": {
+    "added": 0,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0,
+    "didUpdate": false
+  },
+  "startTime": 1794001827196,
+  "success": false,
+  "testResults": [
+    {
+      "assertionResults": [],
+      "startTime": 1794001827196,
+      "endTime": 1794001827196,
+      "status": "failed",
+      "message": "EPERM: operation not permitted, rename '<temp>/VF1254Et3FlUT4izT9xVH\\ssr\\.tmp-1794001827954-3ec2tat463t' -> '<temp>/VF1254Et3FlUT4izT9xVH\\ssr\\30fd21b81778179a9176863cee1a977ebf9ca782'",
+      "name": "<repo>/packages/mcp/src/__tests__/p3-canonical-discovery.test.ts"
+    }
+  ]
+}

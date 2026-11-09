@@ -1,0 +1,10 @@
+$ vitest run
+
+ RUN  v4.1.11 C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/engine
+
+
+ Test Files  11 passed (11)
+      Tests  168 passed (168)
+   Start at  12:17:56
+   Duration  1.86s (transform 3.43s, setup 0ms, import 7.85s, tests 569ms, environment 5ms)
+

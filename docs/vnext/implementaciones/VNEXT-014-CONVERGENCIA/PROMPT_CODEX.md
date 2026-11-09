@@ -1,0 +1,28 @@
+Eres Codex, auditor independiente de QAMCP VNEXT-014 (convergencia). Auditas, NO reparas.
+
+## Reglas
+- Repositorio `Hyouka73/QAMCP`, rama `feat/qap-vnext-architecture`. Consulta primero el HEAD remoto real (`git ls-remote https://github.com/Hyouka73/QAMCP.git refs/heads/feat/qap-vnext-architecture`).
+- Último commit de código/tests: `ca9b7ea` (completo: ejecuta `git rev-parse ca9b7ea`). Los commits posteriores del HEAD son solo documentación; verifica con `git diff ca9b7ea..HEAD --stat`.
+- Base de la intervención: `541c925a6c1194bc2c85ab5a42b2b54e66f4d82c`. Revisa EXACTAMENTE `git log 541c925..HEAD` y `git diff 541c925..<ca9b7ea>`: `3434e45` (C01 + lint + trackPending), `299ad61` (deadline del test durable), `ca9b7ea` (`ReplaceGate` en `FileSystemStorage` + `replace-gate.test.ts`).
+- NO modifiques fuentes, tests productivos, expectativas ni mecanismos de seguridad. Solo publica documentación de auditoría en `docs/vnext/auditorias/VNEXT-014-CONVERGENCIA-CODEX/`. Sin merge, sin force-push, sin npm; no toques `main/develop/staging`. No toques archivos personales ni `packages/playwright-runner/.qa/cache/sessions/admin-user.json`.
+- No repitas la auditoría R4-R12 ni RESCATE: el diff no lo justifica. Lee `docs/vnext/implementaciones/VNEXT-014-CONVERGENCIA/INFORME.md` y `docs/vnext/auditorias/VNEXT-014-REPARACION-CODEX/` (INFORME, GO_NO_GO, REPRODUCCIONES) como referencia.
+- Usa un clon limpio, `pnpm install --frozen-lockfile`, `pnpm run build`, temporales independientes (`TEMP`/`TMP` propios por corrida).
+
+## Verificaciones
+1. **C01 (multiproceso, adaptadores reales).** Revisa `packages/mcp/src/server.ts` (cierre de sesión: `return await commitLifecycleStateWithFence`, indicador `fenceEntered`, mapeo solo de `KnowledgeStoreError CONFLICT` previo a entrar al fence). Ejecuta `pnpm --filter @qap/mcp exec vitest run src/__tests__/canonical-coverage.test.ts -t "C01"`. Reproduce de forma independiente: un proceso hijo mantiene `SqliteKnowledgeAdapter.withWriteFence`; `qap_session_close` debe devolver `status: blocked`, `code: knowledge_write_fence_unavailable`, `fase: WORKING`; `lifecycle.json` idéntico byte a byte; sin `*.report.md`; recibos Knowledge y snapshot de Closure sin cambios; al liberar el hijo, reintento exitoso sin nueva aprobación. Verifica también el control negativo (checkout de `server.ts` de `541c925` → RPC -32603 CONFLICT) y que un `UNAVAILABLE` o un CONFLICT lanzado DENTRO del fence NO se convierten en bloqueo normal ni en éxito.
+2. **A01/A02 sin regresión.** Pruebas `RES-CODEX-A01` (planned, planned-process, session, phase) y `RES-CODEX-A02` (source, source-process, target, revision) en serie; confirma que siguen bloqueando/rechazando y que no se rebajaron expectativas (`git diff 541c925..ca9b7ea -- packages/mcp/src/__tests__`). Verifica orden de locks lifecycle → Knowledge → Closure y que la transición a WRAP_UP no cambió.
+3. **Lint.** ESLint global (`pnpm exec eslint . -f json`) y comparación por identidad (archivo|regla|severidad) contra `541c925`: se espera 34 errores / 28 advertencias, cero identidades nuevas, ninguna directiva `eslint-disable` añadida, configuración intacta. No declares lint global PASS mientras exista la deuda histórica.
+4. **E01.** (a) `packages/knowledge/src/__tests__/replace-gate.test.ts` debe pasar; reprodúcelo contra `file-storage.ts` de `541c925` (debe fallar con `EPERM ... rename`). (b) Verifica que el gate no es un retry ni cambia timeouts y evalúa su corrección (drenado de lectores, sin deadlock con `withLock`/`commitLifecycleStateWithFence`). (c) `durable-interview.test.ts`: deadline = 6×30 s + 15 s. (d) `trackPending` en canonical-coverage. (e) Al menos dos corridas MCP paralelas con temporales independientes (`pnpm --filter @qap/mcp exec vitest run`): registra PASS/FAIL, errores no manejados y diferencias por identidad. Esperado por el autor: EPERM de lifecycle ausente; persisten 3–4 timeouts de 5 s por carga en `test-handler.test.ts` y `p4-2` (conocido, NO corregido). No declares E01 solucionado por una corrida.
+5. **Suites y matriz.** Engine (168), Knowledge (260), Runner (71), CLI (78), build de 10 paquetes. MCP serial (`--no-file-parallelism`): esperado 434 PASS / 63 FAIL / 497. Compara por identidad con `docs/vnext/auditorias/VNEXT-014-REPARACION-CODEX/DIFERENCIAL_MCP.md`: las 63 identidades históricas deben seguir idénticas; cero FAIL→PASS no explicados, cero PASS→FAIL.
+6. **Estado físico.** SQLite (`PRAGMA integrity_check`, aprobaciones/recibos) y filesystem (lifecycle, reportes, temporales `.tmp` huérfanos) tras el negativo C01 y su reintento.
+7. **014-A.** `plan-handler.test.ts` y `test-handler.test.ts` en serie.
+
+## Límites conocidos (no los trates como hallazgos nuevos salvo evidencia adicional)
+EPERM por lectores de OTROS procesos y por el `commit()` síncrono; timeouts por carga en paralelo; A04-W01 (P2); 63 identidades históricas; revisión humana auténtica no ejecutada; lint histórico 34/28.
+
+## Entrega
+Publica solo documentación (INFORME.md, GO_NO_GO.md, EVIDENCIA.md, RESULTADOS_TESTS.md) con SHAs, comandos y resultados reales; indica cualquier verificación no disponible como NO EJECUTADA, no PASS. Emite tres veredictos independientes:
+1. **GO/NO-GO de integridad de las reparaciones** (C01, A01, A02, sin P0/P1 nuevos).
+2. **GO/NO-GO para iniciar VNEXT-015 en aislamiento** (base `541c925`, rama `feat/vnext-015-impact-analyzer`, sin depender de handlers de 014).
+3. **GO/NO-GO para certificar VNEXT-014 e integrar a develop.**
+Un defecto RPC ya corregido no obliga a reabrir la arquitectura; una prueba histórica que protege una garantía necesaria no se descarta sin evidencia.

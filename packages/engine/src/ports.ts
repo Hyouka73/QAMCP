@@ -34,6 +34,8 @@ import type {
   LifecycleState,
 } from '@qap/shared';
 
+export * from './knowledge-store.port.js';
+
 // ---------------------------------------------------------------------------
 // Auxiliary type aliases — bridge between plan naming and @qap/shared types
 // These keep the IStorage contract readable while reusing shared schemas.

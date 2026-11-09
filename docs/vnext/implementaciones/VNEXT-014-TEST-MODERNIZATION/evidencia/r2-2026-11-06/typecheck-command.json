@@ -1,0 +1,6 @@
+{
+  "exit_code": 1,
+  "elapsed_ms": 8253.9667,
+  "started_at": "2026-11-06T21:51:21.7389638Z",
+  "command": "pnpm --filter @qap/mcp exec tsc --noEmit"
+}

@@ -1,0 +1,20 @@
+
+ RUN  v4.1.11 C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp
+
+ ✓ src/__tests__/lifecycle-v3-e2e.test.ts > Lifecycle V3 E2E & Verification Suite (E0 - E3) > E0a: qap_status en WORKING para módulo con cobertura incompleta devuelve module, view y preguntas no vacías idénticas a qap_rules_set 2475ms
+ ✓ src/__tests__/lifecycle-v3-e2e.test.ts > Lifecycle V3 E2E & Verification Suite (E0 - E3) > E0b: contrato estricto de opciones y preguntas en todo el flujo 2456ms
+ ✓ src/__tests__/lifecycle-v3-e2e.test.ts > Lifecycle V3 E2E & Verification Suite (E0 - E3) > E0c: qap_report sin ejecuciones responde blocked y no escribe archivos; ninguna siguiente_accion recomienda qap_report sin ejecuciones 181ms
+ ✓ src/__tests__/lifecycle-v3-e2e.test.ts > Lifecycle V3 E2E & Verification Suite (E0 - E3) > E1: regresión consolidated -> interviewing tras re-discover y política de waivers 2701ms
+ ✓ src/__tests__/lifecycle-v3-e2e.test.ts > Lifecycle V3 E2E & Verification Suite (E0 - E3) > E1 canonical: applicability rejects legacy categories and short reasons; wire waivers cannot replace host review 310ms
+ ✓ src/__tests__/lifecycle-v3-e2e.test.ts > Lifecycle V3 E2E & Verification Suite (E0 - E3) > E1 canonical: a reviewed specification revision invalidates an earlier pending closure authorization 732ms
+ ✓ src/__tests__/lifecycle-v3-e2e.test.ts > Lifecycle V3 E2E & Verification Suite (E0 - E3) > E2: qap_module_close validaciones, compuertas y transiciones 1932ms
+ ✓ src/__tests__/lifecycle-v3-e2e.test.ts > Lifecycle V3 E2E & Verification Suite (E0 - E3) > E3: canExitWorking, qap_session_close, reporte de brechas y nueva sesión desde WRAP_UP 1844ms
+ ✓ src/__tests__/lifecycle-v3-e2e.test.ts > Lifecycle V3 E2E & Verification Suite (E0 - E3) > Criterio 9: E2E completo: init -> onboarding -> scoping -> working -> discover A -> rules_set parcial -> status (reanuda) -> rules_set completa -> module_close A -> discover B -> module_close waive B -> session_close -> status WRAP_UP -> session_plan nueva sesión 2823ms
+ ✓ src/__tests__/lifecycle-v3-e2e.test.ts > Lifecycle V3 E2E & Verification Suite (E0 - E3) > E0 authorization: removing host consent blocks navigation and leaves Knowledge, drafts and lifecycle intact 243ms
+
+ Test Files  1 passed (1)
+      Tests  10 passed (10)
+   Start at  15:25:22
+   Duration  17.94s (transform 895ms, setup 0ms, import 1.85s, tests 15.70s, environment 0ms)
+
+JSON report written to C:/Users/Judirico/Documents/QAMCP/QAMCP/docs/vnext/implementaciones/VNEXT-014-TEST-MODERNIZATION/evidencia/r1-2026-11-06/lifecycle-v3-e2e.json

@@ -14,7 +14,6 @@ export * from './loader/definitions-loader.js';
 export * from './loader/guardrails-loader.js';
 
 export * from './plan/case-generator.js';
-export * from './plan/update-guard.js';
 
 export * from './hasher/semantic-hasher.js';
 export * from './graph/dependency-graph.js';
@@ -26,5 +25,11 @@ export * from './route-scanner.js';
 export * from './candidate-generator.js';
 
 export * from './storage/lock-manager.js';
+export * from './storage/sqlite-knowledge-adapter.js';
+
+export * from './inference/knowledge-inference-engine.js';
+export * from './impact/impact-analyzer.js';
+export * from './impact/knowledge-impact-reader.js';
+
 export * from './plan/bva-generator.js';
 export * from './plan/rbac-generator.js';

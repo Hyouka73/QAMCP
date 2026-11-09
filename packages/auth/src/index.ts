@@ -5,3 +5,6 @@ export * from './modes/handoff-login.js';
 export * from './session-store.js';
 export * from './profiles-store.js';
 export * from './types.js';
+export * from './credential-provider.js';
+export * from './providers.js';
+export * from './portable-vault.js';

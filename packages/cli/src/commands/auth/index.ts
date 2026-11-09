@@ -54,6 +54,7 @@ export function handleAuthAdd(
       handoff_timeout_ms: profileData.handoff_timeout_ms ?? 30000,
       credential_source: profileData.credential_source || 'keychain',
       ...(profileData.env_var ? { env_var: profileData.env_var } : {}),
+      ...(profileData.application_id ? { application_id: profileData.application_id } : {}),
     };
 
     if (existingIndex >= 0) {
@@ -121,8 +122,8 @@ export async function handleAuthList(): Promise<void> {
         const val = p.env_var ? process.env[p.env_var] : undefined;
         status = val ? 'variable env (ok)' : 'variable env (no definida)';
       } else {
-        const hasValid = await authManager.hasValidCredentials(p.id);
-        status = hasValid ? 'registrada (keychain)' : 'pendiente (keychain)';
+        const result = await authManager.getCredentialStatus(p.id);
+        status = `${result.state} (${p.credential_source})`;
       }
       console.log(`${p.id}\t\t${p.env}\t\t${p.login_mode}\t\t${status}`);
     }
@@ -146,8 +147,10 @@ export async function handleAuthRemove(profileId: string): Promise<void> {
       return;
     }
 
+    // Resolve and revoke while the profile still exists. Failed revocation retains the reference.
+    const original = loadProfiles().find((p) => p.id === profileId);
+    if (original?.credential_source !== 'env') await authManager.deleteSecret(profileId);
     saveProfiles(profiles);
-    await authManager.deleteSecret(profileId);
     console.log(`✔ Credenciales y perfil '${profileId}' eliminados del registro.`);
   } catch (error) {
     console.error(`✖ Error al eliminar el perfil '${profileId}':`, error);

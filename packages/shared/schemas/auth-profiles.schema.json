@@ -34,9 +34,10 @@
           },
           "credential_source": {
             "type": "string",
-            "enum": ["keychain", "env"],
+            "enum": ["keychain", "env", "vault", "ephemeral"],
             "description": "Source of credentials (keychain or environment variable)"
           },
+          "application_id": { "type": "string", "minLength": 1, "maxLength": 256 },
           "env_var": {
             "type": "string",
             "description": "Nombre de la variable de entorno a leer cuando credential_source es 'env'"

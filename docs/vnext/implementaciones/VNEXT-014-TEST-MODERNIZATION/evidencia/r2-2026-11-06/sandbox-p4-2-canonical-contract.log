@@ -1,0 +1,21 @@
+
+ RUN  v4.1.11 <repo>/packages/mcp
+
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/p4-2-canonical-contract.test.ts [ src/__tests__/p4-2-canonical-contract.test.ts ]
+Error: EPERM: operation not permitted, rename '<temp>/DqI-sm7UXHlBA3nW0TfyS\ssr\.tmp-1794001830549-vwlzgyqbwaq' -> '<temp>/DqI-sm7UXHlBA3nW0TfyS\ssr\42f56ce56d797afeba697b928d114a9c2117cc94'
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  15:50:29
+   Duration  812ms (transform 0ms, setup 0ms, import 0ms, tests 0ms, environment 0ms)
+
+JSON report written to <repo>/docs/vnext/implementaciones/VNEXT-014-TEST-MODERNIZATION/evidencia/r2-2026-11-06/p4-2-canonical-contract.json
+Error: ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL
+
+  × "pnpm recursive exec" failed in C:
+  │ <user-home>\Documents\QAMCP\QAMCP\packages\mcp

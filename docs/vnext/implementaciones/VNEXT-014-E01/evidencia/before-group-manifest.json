@@ -1,0 +1,26 @@
+{
+  "exit_code": 1,
+  "started_at": "2026-11-06T17:55:26.6558551Z",
+  "arguments": [
+    "--filter",
+    "@qap/mcp",
+    "exec",
+    "vitest",
+    "run",
+    "lifecycle-v3-e2e",
+    "test-handler",
+    "state-handlers",
+    "p4-3-1-b-block",
+    "p4-2-pregunta",
+    "p3-verification",
+    "canonical-interview",
+    "canonical-coverage",
+    "--config",
+    "../../docs/vnext/implementaciones/VNEXT-014-E01/evidencia/diagnostic.config.ts",
+    "--reporter=default",
+    "--reporter=json",
+    "--outputFile=../../docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-group.json"
+  ],
+  "finished_at": "2026-11-06T17:56:00.1610020Z",
+  "name": "before-group"
+}

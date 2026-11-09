@@ -1,0 +1,4032 @@
+{
+  "name": "final-solo-b",
+  "sha": "c947d5347505283befc9cc2cc8b366f05b55c576",
+  "totals": {
+    "pass": 443,
+    "fail": 59,
+    "total": 502
+  },
+  "raw_json_sha256": "b2c5db8ff4d5ed455c54489579fda6036fd41584e69a2a22e4c5602f61a8153a",
+  "log_sha256": "41e95f0e0cd758ee35da7f1a10f26689740368656910fbaa4471fc43ee27be92",
+  "published_log_sha256": "db0643477221a20d2947a5d6fae75c988623df2a6647bd30ad0115fb650bc44f",
+  "unhandled_log_lines": [],
+  "failed_suites_without_assertions": [],
+  "identities": [
+    {
+      "file": "src/__tests__/adversarial-r5-guarantees.test.ts",
+      "fullName": "Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) Guarantee 1: Epistemic Bypass Stress-Testing 1.1: Rejects status confirmed when provenance is active_probe",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 10.253300000000309,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/adversarial-r5-guarantees.test.ts",
+      "fullName": "Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) Guarantee 1: Epistemic Bypass Stress-Testing 1.2: Rejects status confirmed when provenance is crawler",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1.4963999999999942,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/adversarial-r5-guarantees.test.ts",
+      "fullName": "Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) Guarantee 1: Epistemic Bypass Stress-Testing 1.3: Rejects status confirmed when provenance is network_intercept or observed_telemetry",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 2.0681000000004133,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/adversarial-r5-guarantees.test.ts",
+      "fullName": "Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) Guarantee 1: Epistemic Bypass Stress-Testing 1.4: Epistemic spoofing via source instead of provenance is caught",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 16.132700000000114,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/adversarial-r5-guarantees.test.ts",
+      "fullName": "Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) Guarantee 1: Epistemic Bypass Stress-Testing 1.5: Invariant R1: legacy_manual_edit without verification_evidence cannot confirm",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 2.9148000000004686,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/adversarial-r5-guarantees.test.ts",
+      "fullName": "Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) Guarantee 1: Epistemic Bypass Stress-Testing 1.6: Knowledge store and coverage engine strictly prevent observational requirements from confirming",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 182.07510000000002,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/adversarial-r5-guarantees.test.ts",
+      "fullName": "Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) Guarantee 2: Wire Authorization Injection Stress-Testing 2.1: Rejects all forbidden authorization keys in wire command arguments",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 7.5737000000008265,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/adversarial-r5-guarantees.test.ts",
+      "fullName": "Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) Guarantee 2: Wire Authorization Injection Stress-Testing 2.2: Rejects forbidden keys even when combined with waive or accept_gaps",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 2.609199999998964,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/adversarial-r5-guarantees.test.ts",
+      "fullName": "Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) Guarantee 2: Wire Authorization Injection Stress-Testing 2.3: Rejects unexpected fields in canonical closure commands",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 2.5578999999997905,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/adversarial-r5-guarantees.test.ts",
+      "fullName": "Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) Guarantee 2: Wire Authorization Injection Stress-Testing 2.4: Substantive reason enforcement rejects non-substantive explanations (< 15 chars)",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1.9848999999994703,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/adversarial-r5-guarantees.test.ts",
+      "fullName": "Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) Guarantee 2: Wire Authorization Injection Stress-Testing 2.5: Host gateway bypass rejection: closes block if gateway is missing",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 62.860099999999875,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/adversarial-r5-guarantees.test.ts",
+      "fullName": "Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) Guarantee 2: Wire Authorization Injection Stress-Testing 2.6: Host gateway tampered digest rejection: blocks if decision digest does not match request digest",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 72.04860000000008,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/adversarial-r5-guarantees.test.ts",
+      "fullName": "Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) Guarantee 2: Wire Authorization Injection Stress-Testing 2.7: Host gateway expired decision rejection: blocks if review decision timestamp expired",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 76.35909999999967,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/adversarial-r5-guarantees.test.ts",
+      "fullName": "Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) Guarantee 2: Wire Authorization Injection Stress-Testing 2.7b: Host gateway malformed date parsing: blocks on NaN/invalid timestamp avoiding fail-open",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 96.03060000000005,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/adversarial-r5-guarantees.test.ts",
+      "fullName": "Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) Guarantee 2: Wire Authorization Injection Stress-Testing 2.8: Host gateway rejected decision: blocks if reviewer rejects",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 66.0038999999997,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/adversarial-r5-guarantees.test.ts",
+      "fullName": "Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) Guarantee 3: Obsolete Revision Invalidation Stress-Testing 3.1: Aborts and rolls back if module revision mutates during human review window",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 316.40990000000056,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/adversarial-r5-guarantees.test.ts",
+      "fullName": "Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) Guarantee 3: Obsolete Revision Invalidation Stress-Testing 3.2: Aborts if module is deactivated during review",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 172.05010000000038,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/adversarial-r5-guarantees.test.ts",
+      "fullName": "Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) Guarantee 3: Obsolete Revision Invalidation Stress-Testing 3.3: Prevents approvalId reuse across closure attempts",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 298.57830000000104,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/adversarial-r5-guarantees.test.ts",
+      "fullName": "Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) Guarantee 4: Dual-Store Crash Recovery Stress-Testing 4.1: Recovers automatically without second human approval when process crashed after SQLite commit",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 103.253999999999,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/adversarial-r5-guarantees.test.ts",
+      "fullName": "Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) Guarantee 4: Dual-Store Crash Recovery Stress-Testing 4.2: Recovers waived module crash state accurately",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 108.30369999999857,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/adversarial-r5-guarantees.test.ts",
+      "fullName": "Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) Guarantee 4: Dual-Store Crash Recovery Stress-Testing 4.3: Corrupt database or wrong AES key strictly rejects without RAM fallback",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 70.88630000000012,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/adversarial-r5-guarantees.test.ts",
+      "fullName": "Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) Guarantee 5: Legacy Closure Bypass Stress-Testing 5.1: Legacy qap_module_close rejects canonical module with canonical_closure_required",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 163.3767000000007,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/adversarial-r5-guarantees.test.ts",
+      "fullName": "Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) Guarantee 5: Legacy Closure Bypass Stress-Testing 5.2: Legacy qap_module_close waive also blocked for canonical modules",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 81.82020000000011,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/adversarial-r5-guarantees.test.ts",
+      "fullName": "Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) Guarantee 5: Legacy Closure Bypass Stress-Testing 5.3: qap_session_close blocks advance to WRAP_UP when canonical module is unclosed",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 269.08640000000014,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/adversarial-r5-guarantees.test.ts",
+      "fullName": "Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) Guarantee 5: Legacy Closure Bypass Stress-Testing 5.4: Canonical closure unlocks qap_session_close",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 943.2896000000001,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/adversarial-r5-guarantees.test.ts",
+      "fullName": "Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) Guarantee 6: False Execution Attestation Stress-Testing 6.1: Invariant validator rejects execution_coverage status !== not_executed",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1.6220999999986816,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/adversarial-r5-guarantees.test.ts",
+      "fullName": "Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) Guarantee 6: False Execution Attestation Stress-Testing 6.2: Rejects non-zero passed counts even if status is not_executed",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1.0815000000002328,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/adversarial-r5-guarantees.test.ts",
+      "fullName": "Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) Guarantee 6: False Execution Attestation Stress-Testing 6.3: Invariant validator rejects individual category waiver (Amendment 6)",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 3.597300000001269,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/adversarial-r5-guarantees.test.ts",
+      "fullName": "Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) Guarantee 6: False Execution Attestation Stress-Testing 6.4: CanonicalCoverageService evaluate strictly emits not_executed and 0 counts",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 63.08429999999862,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/adversarial-r5-guarantees.test.ts",
+      "fullName": "Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) Guarantee 7: CAS Concurrency Stress-Testing 7.1: Physical SQLite concurrent transactions handle race conditions without history corruption",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 139.5788999999986,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/adversarial-r5-guarantees.test.ts",
+      "fullName": "Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) Guarantee 7: CAS Concurrency Stress-Testing 7.2: CanonicalClosureService serializes closure and second attempt is idempotent: true",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 204.80010000000038,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/adversarial-r5-guarantees.test.ts",
+      "fullName": "Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) Guarantee 7: CAS Concurrency Stress-Testing 7.3: Concurrent closure of distinct modules succeeds via bounded retry loop under SQLite CAS lock",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 466.72650000000067,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/adversarial-r5-guarantees.test.ts",
+      "fullName": "Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) Guarantee 7: CAS Concurrency Stress-Testing 7.4: Simultaneous closure requests for same module with divergent gateway decisions persist exactly one closure and canonical receipt",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 706.6677999999993,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/adversarial-r5-guarantees.test.ts",
+      "fullName": "Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2) Guarantee 7: CAS Concurrency Stress-Testing 7.5: Rejects write error recovery if existing receipt has tampered provenance or mismatched entity",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 252.26690000000053,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 1: Canonical Coverage & Epistemic Boundaries (R1) blocks evaluation when module is unbound or lifecycle context has drifted",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 291.46320000000014,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 1: Canonical Coverage & Epistemic Boundaries (R1) zero coverage from crawler observations or DOM elements alone",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 293.7420000000002,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 1: Canonical Coverage & Epistemic Boundaries (R1) strictly enforces Invariant D-011 and R1: excludes observational requirements from confirmed coverage",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 153.8672999999999,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 1: Canonical Coverage & Epistemic Boundaries (R1) tripartite coverage separation: execution coverage is strictly not_executed with 0 passed",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 195.34629999999925,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 2: Reproducible Gap Inventory & Non-Applicability (R2) identifies reproducible gaps with stable IDs and formal absence types",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 169.46370000000024,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 2: Reproducible Gap Inventory & Non-Applicability (R2) declares categories non-applicable and satisfies category status without category waivers (Amendment 6)",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 110.69310000000041,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 2: Reproducible Gap Inventory & Non-Applicability (R2) enforces Amendment 5: accepted gaps bind receipt and transition to status accepted",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 165.85679999999957,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 3: Host Review Gateway & Trust Boundary (R3) R4-R8-A01: deferred non-applicability review retains request identity and persists actual host decision time",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 848.9518000000007,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 3: Host Review Gateway & Trust Boundary (R3) R4-R8-A01: stale approval cannot authorize changed reason or canonical requirement revision",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 141.30149999999958,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 3: Host Review Gateway & Trust Boundary (R3) R4-R8-A01: host approval is rejected if knowledge mutates while awaiting the gateway",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 147.09060000000136,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 3: Host Review Gateway & Trust Boundary (R3) R4-R9-A02: writing a requirement after final validation cannot persist an obsolete approval",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 226.0622000000003,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 3: Host Review Gateway & Trust Boundary (R3) R4-R9-A02: both close and waive reject concurrent Knowledge writes before durable commit",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 825.1211999999996,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 3: Host Review Gateway & Trust Boundary (R3) VNEXT-014-CF01: unexpected closure persistence errors propagate without a false consistency block",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 259.46409999999923,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 3: Host Review Gateway & Trust Boundary (R3) 014-CODEX-002: UNAVAILABLE remains a real error rather than a consistency block",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 323.8877999999986,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 3: Host Review Gateway & Trust Boundary (R3) 014-CODEX-002: write_failed remains a real error rather than a consistency block",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 375.84790000000066,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 3: Host Review Gateway & Trust Boundary (R3) R4-R9-A02: missing fencing capability blocks even valid host decisions",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 146.95960000000014,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 3: Host Review Gateway & Trust Boundary (R3) R4-R9-A02: delayed fence acquisition does not consume an expired decision",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 622.5263000000014,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 3: Host Review Gateway & Trust Boundary (R3) R4-R9-A02: an updated pending requirement changes the coverage digest",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 136.95619999999872,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 3: Host Review Gateway & Trust Boundary (R3) R4-R10-A05: approves an existing gap with the real host approval receipt",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 437.2322000000004,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 3: Host Review Gateway & Trust Boundary (R3) R4-R10-A05: never requests approval for missing or duplicate gap IDs",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 218.78739999999925,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 3: Host Review Gateway & Trust Boundary (R3) R4-R12-A04: authorization expiring after callback rolls back all four SQLite commits",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 2513.0586999999996,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 3: Host Review Gateway & Trust Boundary (R3) R4-R12-A06: exact accepted gap replay returns prior receipt without a new decision",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1165.2462000000014,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 3: Host Review Gateway & Trust Boundary (R3) R4-R10-A01: a direct filesystem mutation before closure transaction fails the fingerprint guard",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 310.5027999999984,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 3: Host Review Gateway & Trust Boundary (R3) R4-R10-A01: the official lifecycle writer waits until authorization persistence releases the lock",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 400.086299999999,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 3: Host Review Gateway & Trust Boundary (R3) R4-R11-A01: case-aliased official writers wait through durable authorization in all four actions",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 2116.7229000000007,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 3: Host Review Gateway & Trust Boundary (R3) R4-R10-A02: changing cwd never moves the active SQLite writer fence",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 67.42160000000149,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 3: Host Review Gateway & Trust Boundary (R3) blocks closure when host gateway is absent or returns null (pending)",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 253.76130000000194,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 3: Host Review Gateway & Trust Boundary (R3) rejects decisions with invalid request digest or expired authorization",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 174.16019999999844,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 3: Host Review Gateway & Trust Boundary (R3) blocks client injection of authorization fields (approvalId / signature) on MCP wire",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 127.98359999999957,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 4: Durable Persistence & Concurrency (R4) SqliteModuleClosureStore encrypts all data with AES-256-GCM without plaintext leaks",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 191.32770000000164,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 4: Durable Persistence & Concurrency (R4) Amendment 3: Persists relation receipt in IKnowledgeStore with ZERO module.revision mutation",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 316.3345999999983,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 4: Durable Persistence & Concurrency (R4) zero SQLite locks held during asynchronous host review gateway evaluation",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 439.9808000000012,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) 014-CODEX-001: MCP sanitizes unexpected closure errors without false durable effects",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 492.2524999999987,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) qap_module_close routes canonical_closure cleanly through MCP SDK client",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 145.7567999999992,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) enforces Amendment 4: blocks canonical module called without canonical_closure",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 99.61589999999705,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) qap_session_close blocks transition to WRAP_UP when canonical modules remain unclosed",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 143.48289999999906,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) R4-R3: inconsistent durable closure 'short reason' cannot create receipt or reach WRAP_UP",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 779.3568000000014,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) R4-R3: inconsistent durable closure 'blank reason' cannot create receipt or reach WRAP_UP",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 708.7981,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) R4-R3: inconsistent durable closure 'missing approval' cannot create receipt or reach WRAP_UP",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 923.8567000000003,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) R4-R3: inconsistent durable closure 'mismatched approval digest' cannot create receipt or reach WRAP_UP",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 737.8693999999996,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) R4-R3: inconsistent durable closure 'duplicated approval' cannot create receipt or reach WRAP_UP",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 615.6025999999983,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) R4-R3: inconsistent durable closure 'closed without approval' cannot create receipt or reach WRAP_UP",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 527.3967999999986,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) R4-R3: inconsistent durable closure 'already waived without approval' cannot create receipt or reach WRAP_UP",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 529.3674999999967,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) R4-R5-A02: 16 bound modules, last invalid=false, preview stays capped but guidance checks all",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1211.7272000000012,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) R4-R5-A02: 17 bound modules, last invalid=false, preview stays capped but guidance checks all",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1305.1823999999979,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) R4-R5-A02: 17 bound modules, last invalid=true, preview stays capped but guidance checks all",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1125.6278999999995,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) R4-R4-A01 positive: a legitimately authorized durable waiver still recommends session close",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 709.182499999999,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) R4-R2-A01: first session close uses recovered waiver metadata for the gate and physical report",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 407.07760000000417,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) VNEXT-014 rescue: session report prefers durable canonical authorization, not legacy rules or synthetic execution",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 436.75710000000254,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) RES-CODEX-A01 serializes concurrent planned writer before close",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 308.5633999999991,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) RES-CODEX-A01 serializes concurrent planned-process writer before close",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 3431.1342000000004,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) RES-CODEX-A01 serializes concurrent session writer before close",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 378.20240000000194,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) RES-CODEX-A01 serializes concurrent phase writer before close",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 323.9614999999976,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) RES-CODEX-A02 refuses changed canonical receipt source",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 285.9626999999964,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) RES-CODEX-A02 refuses changed canonical receipt source-process",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 2058.3007,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) RES-CODEX-A02 refuses changed canonical receipt target",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 203.67990000000282,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) RES-CODEX-A02 refuses changed canonical receipt revision",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 309.5977999999959,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) VNEXT-014-C01 Knowledge fence contention returns a specific blocked result while another process holds the fence, then retries with the same durable authority",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 3869.5355999999956,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) VNEXT-014-C01 Knowledge fence contention does not turn unknown acquisition failures or in-fence CONFLICTs into normal blocks",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 486.5861999999979,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) VNEXT-014 rescue: controlled A closed + B waived produces distinct canonical report sections",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 441.3784000000014,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 5: MCP Integration & Lifecycle Guards (R4 / F8) qap_status reports honest canonical coverage and closure indicators without false 100%",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 419.91919999999664,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 6: Historical Regressions & Defensive Invariants (R01–R60) R02 / R60: Re-evaluating coverage is strictly read-only and never implicitly advances lifecycle",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 179.7525999999998,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 6: Historical Regressions & Defensive Invariants (R01–R60) R03: Canonical closure route catches errors cleanly and operates on SQLite/host gateway without ENOENT",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 202.35519999999815,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 6: Historical Regressions & Defensive Invariants (R01–R60) R11 / R27 / R31: Closing with gaps requires substantive justifications and formal host decisions",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 121.87069999999949,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix Suite 6: Historical Regressions & Defensive Invariants (R01–R60) Security Invariant: Protected file packages/playwright-runner/.qa/cache/sessions/admin-user.json is never inspected or touched",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 0.872799999997369,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix The 4 Crash Recovery Scenarios (spawnSync Hard Exits) Scenario 1: Crash before persisting decision leaves storage completely clean and recoverable",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 235.13359999999375,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix The 4 Crash Recovery Scenarios (spawnSync Hard Exits) Scenario 2: Crash after closureStore commits decision but before IKnowledgeStore or lifecycle.json updates recovers via self-healing reconciler",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 118.85580000000482,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix The 4 Crash Recovery Scenarios (spawnSync Hard Exits) Scenario 3: Crash after IKnowledgeStore receipt commit returns idempotent response on retry",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 169.3669000000009,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-coverage.test.ts",
+      "fullName": "VNEXT-013-R5 Comprehensive Physical Test Matrix The 4 Crash Recovery Scenarios (spawnSync Hard Exits) Scenario 4: Two concurrent closures cleanly serialize and prevent double consumption of decision",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 234.4748000000036,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-interview.test.ts",
+      "fullName": "R3 canonical interview and independent host authorization R4-R6-I01: qap_status resumes a real pending canonical question without YAML, approval or state mutation",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 2501.7688,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-interview.test.ts",
+      "fullName": "R3 canonical interview and independent host authorization R4-R7-I01: proposal correction, independent host review and real canonical coverage",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1595.2142999999996,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-interview.test.ts",
+      "fullName": "R3 canonical interview and independent host authorization real MCP + host inbox + physical SQLite: present, propose, approve, persist, read status, retry, reopen",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 972.7525999999998,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-interview.test.ts",
+      "fullName": "R3 canonical interview and independent host authorization blocks confirmation with gateway none and never reflects unsafe error text",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 295.97350000000006,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-interview.test.ts",
+      "fullName": "R3 canonical interview and independent host authorization blocks confirmation with gateway throw and never reflects unsafe error text",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 216.3837999999996,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-interview.test.ts",
+      "fullName": "R3 canonical interview and independent host authorization blocks confirmation with gateway null and never reflects unsafe error text",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 468.9547999999995,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-interview.test.ts",
+      "fullName": "R3 canonical interview and independent host authorization MCP cannot forge authority with source",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 223.38910000000033,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-interview.test.ts",
+      "fullName": "R3 canonical interview and independent host authorization MCP cannot forge authority with status",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 189.38110000000052,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-interview.test.ts",
+      "fullName": "R3 canonical interview and independent host authorization MCP cannot forge authority with from_option",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 299.5072999999993,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-interview.test.ts",
+      "fullName": "R3 canonical interview and independent host authorization MCP cannot forge authority with verified_by",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 256.84619999999995,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-interview.test.ts",
+      "fullName": "R3 canonical interview and independent host authorization MCP cannot forge authority with trace",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 516.8741000000009,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-interview.test.ts",
+      "fullName": "R3 canonical interview and independent host authorization MCP cannot forge authority with gateway",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 160.94800000000032,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-interview.test.ts",
+      "fullName": "R3 canonical interview and independent host authorization rejects invalid host decision: expired",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 146.89300000000003,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-interview.test.ts",
+      "fullName": "R3 canonical interview and independent host authorization rejects invalid host decision: future",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 333.0033000000003,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-interview.test.ts",
+      "fullName": "R3 canonical interview and independent host authorization rejects invalid host decision: revoked",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 210.84509999999864,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-interview.test.ts",
+      "fullName": "R3 canonical interview and independent host authorization rejects invalid host decision: digest",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 172.09790000000066,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-interview.test.ts",
+      "fullName": "R3 canonical interview and independent host authorization rejects invalid host decision: statement",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 184.95330000000104,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-interview.test.ts",
+      "fullName": "R3 canonical interview and independent host authorization rejects invalid host decision: reviewer",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 140.64910000000236,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-interview.test.ts",
+      "fullName": "R3 canonical interview and independent host authorization rejects invalid host decision: approval",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 234.70270000000164,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-interview.test.ts",
+      "fullName": "R3 canonical interview and independent host authorization rejects invalid host decision: decision",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 145.38010000000213,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-interview.test.ts",
+      "fullName": "R3 canonical interview and independent host authorization rejects invalid host decision: long-expiry",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 220.63210000000254,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-interview.test.ts",
+      "fullName": "R3 canonical interview and independent host authorization host decision reject does not create a canonical requirement",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 133.72290000000066,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-interview.test.ts",
+      "fullName": "R3 canonical interview and independent host authorization host decision defer does not create a canonical requirement",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 116.95400000000154,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-interview.test.ts",
+      "fullName": "R3 canonical interview and independent host authorization correction invalidates exact-text approval, renews review, uses CAS and preserves physical history",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 599.8009999999995,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-interview.test.ts",
+      "fullName": "R3 canonical interview and independent host authorization pending version, idempotent draft retries, defer/resume, unknown questions and cross-module replies",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 341.77960000000166,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-interview.test.ts",
+      "fullName": "R3 canonical interview and independent host authorization blocks unsafe context missing",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 118.03910000000178,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-interview.test.ts",
+      "fullName": "R3 canonical interview and independent host authorization blocks unsafe context ambiguous",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 125.78299999999945,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-interview.test.ts",
+      "fullName": "R3 canonical interview and independent host authorization blocks unsafe context inactive",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 138.7455000000009,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-interview.test.ts",
+      "fullName": "R3 canonical interview and independent host authorization blocks unsafe context revision",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 112.70190000000002,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-interview.test.ts",
+      "fullName": "R3 canonical interview and independent host authorization blocks unsafe context session",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 131.52349999999933,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-interview.test.ts",
+      "fullName": "R3 canonical interview and independent host authorization blocks unsafe context foreign-project",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 296.1746000000021,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-interview.test.ts",
+      "fullName": "R3 canonical interview and independent host authorization context changes while host review runs: cannot commit approved old context",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 170.10239999999976,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-interview.test.ts",
+      "fullName": "R3 canonical interview and independent host authorization associated aggregate evidence, partial=false, never invents fields or trusts DOM instructions",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 2065.899300000001,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-interview.test.ts",
+      "fullName": "R3 canonical interview and independent host authorization associated aggregate evidence, partial=true, never invents fields or trusts DOM instructions",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1009.7186000000002,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-interview.test.ts",
+      "fullName": "R3 canonical interview and independent host authorization absence allows general business questions; unspecified formal category stays pending",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 221.06159999999727,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-interview.test.ts",
+      "fullName": "R3 canonical interview and independent host authorization separate SQLite connections CAS, rollback trigger, safe errors, no duplicate/orphan requirement",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 311.4490000000005,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-interview.test.ts",
+      "fullName": "R3 canonical interview and independent host authorization untrusted proposal is never reflected in questions, logs or SQLite without human authority",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 156.15070000000196,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-interview.test.ts",
+      "fullName": "R3 canonical interview and independent host authorization one approval cannot authorize another question, even when the host mistakenly reuses its ID",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 831.2738000000027,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-interview.test.ts",
+      "fullName": "R3 canonical interview and independent host authorization a second connection changing a requirement while the host reviews causes a CAS conflict",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 613.4346000000005,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-interview.test.ts",
+      "fullName": "R3 canonical interview and independent host authorization restart recovers confirmed records without duplicating them; pending drafts require fresh review",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 484.45070000000123,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-interview.test.ts",
+      "fullName": "R3 canonical interview and independent host authorization approval for another project cannot confirm even with the same module, question category and statement",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 800.6080000000002,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-interview.test.ts",
+      "fullName": "R3 canonical interview and independent host authorization HTML required, HTTP 200, AgentInference and reviewed traces confer no requirement authority",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 906.7546999999977,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-interview.test.ts",
+      "fullName": "R3 canonical interview and independent host authorization physical approval receipt prevents reuse for another question after restarting the host",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 518.8908999999985,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/canonical-interview.test.ts",
+      "fullName": "R3 canonical interview and independent host authorization short free answers remain non-authoritative drafts and need a substantive corrected statement",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 287.3269,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013 real MCP black-box acquisition R3: unauthorized disposable root is a scoped block, not a fabricated browser outage",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 399.4400999999998,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013 real MCP black-box acquisition R1: onboarding to anonymous discovery preserves planned state and explicitly blocks the legacy interview",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 9542.2658,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013 real MCP black-box acquisition R1: stale observed state cannot manufacture rules or close a module without view context",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 539.475699999999,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013 real MCP black-box acquisition R1: stale consolidated state cannot manufacture rules or close a module without view context",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 562.0122999999985,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013 real MCP black-box acquisition R1: existing reviewed legacy context still accepts rules without promoting agent text or canonical observations",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 713.5005999999994,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013 real MCP black-box acquisition R1: explicit waiver remains an honest exit without claiming discovery or test coverage",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 187.02760000000126,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013 real MCP black-box acquisition owns exactly one route, preserves order, rejects collisions, and never falls back",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 189.10060000000158,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013 real MCP black-box acquisition navigates a real MPA, returns actual counts, commits once and reopens physical SQLite",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 3015.6386999999995,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013 real MCP black-box acquisition keeps project bindings and physical stores isolated between server instances",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 9880.307100000002,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013 real MCP black-box acquisition distinguishes static completion from a script dependent shell (false)",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 2483.506699999998,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013 real MCP black-box acquisition distinguishes static completion from a script dependent shell (true)",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 2199.6232999999993,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013 real MCP black-box acquisition blocks credentials without navigation or credential reflection",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 79.80789999999979,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013 real MCP black-box acquisition blocks profile without navigation or credential reflection",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 92.79750000000058,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013 real MCP black-box acquisition blocks profileId without navigation or credential reflection",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 73.55389999999898,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013 real MCP black-box acquisition blocks storageState without navigation or credential reflection",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 99.96880000000237,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013 real MCP black-box acquisition blocks cookies without navigation or credential reflection",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 79.4951000000001,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013 real MCP black-box acquisition blocks session without navigation or credential reflection",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 60.22070000000531,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013 real MCP black-box acquisition blocks auth without navigation or credential reflection",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 68.75860000000102,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013 real MCP black-box acquisition rejects ambiguous or unauthorized target /unknown",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 94.1675999999934,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013 real MCP black-box acquisition rejects ambiguous or unauthorized target //127.0.0.1/",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 92.43619999999646,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013 real MCP black-box acquisition rejects ambiguous or unauthorized target /a/../",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 82.06629999999859,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013 real MCP black-box acquisition rejects ambiguous or unauthorized target /%2e/",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 77.5824000000066,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013 real MCP black-box acquisition rejects ambiguous or unauthorized target /?token=secret",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 78.00939999999537,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013 real MCP black-box acquisition rejects ambiguous or unauthorized target /#fragment",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 73.04550000000017,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013 real MCP black-box acquisition rejects ambiguous or unauthorized target http://user:secret@127.0.0.1/",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 69.54130000000441,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013 real MCP black-box acquisition rejects ambiguous or unauthorized target /a\\b",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 71.44540000000416,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013 real MCP black-box acquisition rejects ambiguous or unauthorized target  /",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 75.09779999999591,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013 real MCP black-box acquisition retains phase gate ONBOARDING without lifecycle writes",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 113.92619999999442,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013 real MCP black-box acquisition retains phase gate SCOPING without lifecycle writes",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 78.64940000000206,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013 real MCP black-box acquisition retains phase gate WRAP_UP without lifecycle writes",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 99.06970000000001,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013 real MCP black-box acquisition blocks missing binding, stale authorization and incompatible environment",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 174.00940000000264,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013 real MCP black-box acquisition requires explicit read-only host acknowledgement and rejects authenticated plans/terminal modules",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 231.76180000000022,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013 real MCP black-box acquisition keeps host configuration isolated from later caller mutations",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1930.6466,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013 real MCP black-box acquisition rejects an already cancelled dispatcher invocation before crawler start",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 66.25940000000264,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013 real MCP black-box acquisition propagates in-flight dispatcher cancellation to transport and waits for cleanup",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1599.9239000000016,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013 real MCP black-box acquisition sanitizes host failures and emits no secret-bearing console logs",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 62.33090000000084,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013 real MCP black-box acquisition delegates page denial and budgets to the real crawler",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1315.176800000001,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013 real MCP black-box acquisition delegates bytes denial and budgets to the real crawler",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1552.5743000000002,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013 real MCP black-box acquisition delegates browser denial and budgets to the real crawler",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 102.24590000000171,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013 real MCP black-box acquisition delegates redirect denial and budgets to the real crawler",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1250.4032000000007,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013 real MCP black-box acquisition delegates private denial and budgets to the real crawler",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1440.2579000000042,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013 real MCP black-box acquisition delegates dns denial and budgets to the real crawler",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1283.3188999999984,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013 real MCP black-box acquisition reports atomic persistence failure without fabricated persisted findings",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1492.6686999999947,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013-R2 canonical execution scope bridge R4: real crawler to canonical interview, independent review, secure waiver and WRAP_UP through MCP",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 2066.651300000005,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013-R2 canonical execution scope bridge rejects unsafe identity: missing",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 55.79619999999704,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013-R2 canonical execution scope bridge rejects unsafe identity: wrong-id",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 61.90299999999843,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013-R2 canonical execution scope bridge rejects unsafe identity: wrong-key",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 80.32949999999983,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013-R2 canonical execution scope bridge rejects unsafe identity: inactive",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 67.09889999999723,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013-R2 canonical execution scope bridge rejects unsafe identity: ambiguous",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 53.48280000000523,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013-R2 canonical execution scope bridge rejects unsafe identity: application",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 52.976300000002084,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013-R2 canonical execution scope bridge rejects unsafe identity: environment",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 73.66670000000158,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013-R2 canonical execution scope bridge rejects unsafe identity: revision",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 59.75320000000647,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013-R2 canonical execution scope bridge rejects unsafe identity: unplanned",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 57.43260000000009,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013-R2 canonical execution scope bridge rejects unsafe identity: id-key-conflict",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 49.555599999999686,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013-R2 canonical execution scope bridge persists real MCP/Chrome/MPA associations, reopens SQLite, projects status, and preserves epistemic planes",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1506.260000000002,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013-R2 canonical execution scope bridge recovers after physical association rollback without reacquisition or history changes; rejects shortened and mixed receipts",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 2659.0835000000006,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013-R2 canonical execution scope bridge two physical connections race with CAS; retry is idempotent and context changes block recovery",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1286.7947000000058,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013-R2 canonical execution scope bridge isolates same planned names across physical projects and rejects another project receipt",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 84.46149999999761,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/discovery-handler.test.ts",
+      "fullName": "VNEXT-013-R2 canonical execution scope bridge detects context changed at the edge commit boundary without deleting already acquired facts",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1167.3224000000046,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/dispatcher-integration.test.ts",
+      "fullName": "real MCP client/server via linked transports lists and invokes an injected declarative tool exactly once",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 149.71809999999914,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/dispatcher-integration.test.ts",
+      "fullName": "real MCP client/server via linked transports isolates registries and preserves unknown-tool legacy errors",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 31.178200000000288,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/dispatcher-integration.test.ts",
+      "fullName": "real MCP client/server via linked transports rejects legacy collisions and duplicate injected names at startup",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 10.753000000000611,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/dispatcher-integration.test.ts",
+      "fullName": "real MCP client/server via linked transports preserves 16 definitions, order, prompts and legacy rules schema; adds explicit canonical interview operations",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 47.27450000000135,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/dispatcher-integration.test.ts",
+      "fullName": "real MCP client/server via linked transports runs informative legacy status on an empty disposable fixture",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 506.3809999999994,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/dispatcher-integration.test.ts",
+      "fullName": "real MCP client/server via linked transports sanitizes declarative exceptions through the real SDK",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 12.685699999999997,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/dispatcher-integration.test.ts",
+      "fullName": "real MCP client/server via linked transports demonstrates that low-level SDK does not validate inputSchema",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 7.898800000000847,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/dispatcher-integration.test.ts",
+      "fullName": "real MCP client/server via linked transports applies a handler validator through MCP before execution",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 12.32470000000103,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/dispatcher.test.ts",
+      "fullName": "ToolDispatcher registration preserves explicit insertion order and isolates instances",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 19.048999999999978,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/dispatcher.test.ts",
+      "fullName": "ToolDispatcher registration rejects invalid name \"\"",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 3.815399999999954,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/dispatcher.test.ts",
+      "fullName": "ToolDispatcher registration rejects invalid name \" \"",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1.3188000000000102,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/dispatcher.test.ts",
+      "fullName": "ToolDispatcher registration rejects invalid name \"a b\"",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1.211999999999989,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/dispatcher.test.ts",
+      "fullName": "ToolDispatcher registration rejects invalid name \"../path\"",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1.6226999999998952,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/dispatcher.test.ts",
+      "fullName": "ToolDispatcher registration rejects invalid name \"a/b\"",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1.4573999999997795,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/dispatcher.test.ts",
+      "fullName": "ToolDispatcher registration rejects invalid name \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1.070600000000013,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/dispatcher.test.ts",
+      "fullName": "ToolDispatcher registration accepts valid name qap.status",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1.2095000000003893,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/dispatcher.test.ts",
+      "fullName": "ToolDispatcher registration accepts valid name qap-status",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1.1239999999997963,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/dispatcher.test.ts",
+      "fullName": "ToolDispatcher registration accepts valid name qap_status",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1.2591999999999643,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/dispatcher.test.ts",
+      "fullName": "ToolDispatcher registration accepts valid name A1",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1.0590000000001965,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/dispatcher.test.ts",
+      "fullName": "ToolDispatcher registration rejects duplicates and legacy collisions without executing handlers",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 21.918299999999817,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/dispatcher.test.ts",
+      "fullName": "ToolDispatcher registration rejects malformed contracts",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 0.7878000000000611,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/dispatcher.test.ts",
+      "fullName": "ToolDispatcher registration rejects malformed contracts",
+      "ordinal": 2,
+      "status": "passed",
+      "duration_ms": 0.7822999999998501,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/dispatcher.test.ts",
+      "fullName": "ToolDispatcher registration rejects malformed contracts",
+      "ordinal": 3,
+      "status": "passed",
+      "duration_ms": 1.6394999999997708,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/dispatcher.test.ts",
+      "fullName": "ToolDispatcher registration rejects malformed contracts",
+      "ordinal": 4,
+      "status": "passed",
+      "duration_ms": 2.315100000000257,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/dispatcher.test.ts",
+      "fullName": "ToolDispatcher registration rejects malformed contracts",
+      "ordinal": 5,
+      "status": "passed",
+      "duration_ms": 0.7222000000001572,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/dispatcher.test.ts",
+      "fullName": "ToolDispatcher registration rejects malformed contracts",
+      "ordinal": 6,
+      "status": "passed",
+      "duration_ms": 0.7606999999998152,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/dispatcher.test.ts",
+      "fullName": "ToolDispatcher registration requires sealing and rejects registration during execution",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 39.46160000000009,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/dispatcher.test.ts",
+      "fullName": "ToolDispatcher registration captures metadata and callbacks independently of caller mutation",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 2.177099999999882,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/dispatcher.test.ts",
+      "fullName": "ToolDispatcher execution awaits async execution, passes context and isolates input mutation",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 7.42450000000008,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/dispatcher.test.ts",
+      "fullName": "ToolDispatcher execution rejects malformed invocations without execution",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1.1385000000000218,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/dispatcher.test.ts",
+      "fullName": "ToolDispatcher execution rejects malformed invocations without execution",
+      "ordinal": 2,
+      "status": "passed",
+      "duration_ms": 1.2428999999997359,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/dispatcher.test.ts",
+      "fullName": "ToolDispatcher execution rejects malformed invocations without execution",
+      "ordinal": 3,
+      "status": "passed",
+      "duration_ms": 1.3994000000002416,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/dispatcher.test.ts",
+      "fullName": "ToolDispatcher execution rejects malformed invocations without execution",
+      "ordinal": 4,
+      "status": "passed",
+      "duration_ms": 2.1447000000002845,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/dispatcher.test.ts",
+      "fullName": "ToolDispatcher execution rejects malformed invocations without execution",
+      "ordinal": 5,
+      "status": "passed",
+      "duration_ms": 1.381199999999808,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/dispatcher.test.ts",
+      "fullName": "ToolDispatcher execution rejects malformed invocations without execution",
+      "ordinal": 6,
+      "status": "passed",
+      "duration_ms": 1.2710000000001855,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/dispatcher.test.ts",
+      "fullName": "ToolDispatcher execution does exact lookup, including prototype-looking names",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 10.78839999999991,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/dispatcher.test.ts",
+      "fullName": "ToolDispatcher execution allows omitted arguments without inventing domain defaults",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 10.276600000000144,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/dispatcher.test.ts",
+      "fullName": "ToolDispatcher execution supports specific validators before execution",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 2.288000000000011,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/dispatcher.test.ts",
+      "fullName": "ToolDispatcher execution preserves intentional MCP error results",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 2.385399999999663,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/dispatcher.test.ts",
+      "fullName": "ToolDispatcher execution sanitizes thrown exceptions",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 3.322700000000168,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/dispatcher.test.ts",
+      "fullName": "ToolDispatcher execution sanitizes thrown exceptions",
+      "ordinal": 2,
+      "status": "passed",
+      "duration_ms": 6.376300000000356,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/dispatcher.test.ts",
+      "fullName": "ToolDispatcher execution sanitizes thrown exceptions",
+      "ordinal": 3,
+      "status": "passed",
+      "duration_ms": 2.30600000000004,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/dispatcher.test.ts",
+      "fullName": "ToolDispatcher execution returns fixed structured errors even if exception message is modified",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 2.2346999999999753,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/dispatcher.test.ts",
+      "fullName": "ToolDispatcher execution sanitizes invalid results and validator exceptions",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 2.6226999999998952,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/dispatcher.test.ts",
+      "fullName": "ToolDispatcher execution does not invoke handlers with an already cancelled context",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 3.2253999999998086,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/dispatcher.test.ts",
+      "fullName": "ToolDispatcher execution prevents registry mutation from inside an executing handler",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1.5623999999997977,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/durable-interview.test.ts",
+      "fullName": "R4 encrypted durable interview state recovers exact drafts, corrections, defer/resume and history across closed connections",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 876.8659000000007,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/durable-interview.test.ts",
+      "fullName": "R4 encrypted durable interview state persists host reject and prevents old decision replay",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 328.34519999999975,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/durable-interview.test.ts",
+      "fullName": "R4 encrypted durable interview state persists host defer and prevents old decision replay",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 245.89229999999952,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/durable-interview.test.ts",
+      "fullName": "R4 encrypted durable interview state two independent connections serialize writers, detect stale versions and preserve the winner",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 198.72920000000067,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/durable-interview.test.ts",
+      "fullName": "R4 encrypted durable interview state rolls back failed physical writes and reports unknown status when storage closes",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 181.0590999999995,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/durable-interview.test.ts",
+      "fullName": "R4 encrypted durable interview state reconciles canonical commit followed by failed draft commit without a second approval",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 426.97879999999986,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/durable-interview.test.ts",
+      "fullName": "R4 encrypted durable interview state blocks restored draft in changed project",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 147.64800000000014,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/durable-interview.test.ts",
+      "fullName": "R4 encrypted durable interview state blocks restored draft in changed application",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 158.40450000000055,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/durable-interview.test.ts",
+      "fullName": "R4 encrypted durable interview state blocks restored draft in changed environment",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 155.04320000000007,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/durable-interview.test.ts",
+      "fullName": "R4 encrypted durable interview state blocks restored draft in changed session",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 240.67869999999948,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/durable-interview.test.ts",
+      "fullName": "R4 encrypted durable interview state blocks restored draft in changed inactive",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 174.76260000000002,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/durable-interview.test.ts",
+      "fullName": "R4 encrypted durable interview state blocks restored draft in changed revision",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 286.6918999999998,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/durable-interview.test.ts",
+      "fullName": "R4 encrypted durable interview state does not create on read, adopt foreign schemas, accept wrong keys or destroy damaged state",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 333.96259999999893,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/durable-interview.test.ts",
+      "fullName": "R4 encrypted durable interview state reopened proposal has no authority with expired gateway decision",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 197.91220000000067,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/durable-interview.test.ts",
+      "fullName": "R4 encrypted durable interview state reopened proposal has no authority with revoked gateway decision",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 208.61059999999998,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/durable-interview.test.ts",
+      "fullName": "R4 encrypted durable interview state reopened proposal has no authority with altered gateway decision",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 199.26959999999963,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/durable-interview.test.ts",
+      "fullName": "R4 encrypted durable interview state reopened proposal has no authority with absent gateway decision",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 187.7422999999999,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/durable-interview.test.ts",
+      "fullName": "R4 encrypted durable interview state reopened proposal has no authority with unavailable gateway decision",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 188.13570000000072,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/durable-interview.test.ts",
+      "fullName": "R4 encrypted durable interview state retains consumed reject IDs across restart and requires fresh review for reactivation",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 366.2587000000003,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/durable-interview.test.ts",
+      "fullName": "R4 encrypted durable interview state SQLite rolls back a writer process that exits before COMMIT",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 588.0384999999987,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/durable-interview.test.ts",
+      "fullName": "R4 encrypted durable interview state terminates Node processes between real MCP SDK operations and reopens both physical stores",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 41943.8614,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/e0-investigation.test.ts",
+      "fullName": "E0 / B10 Pruebas de regresión sin impresión E0a: escaneo respeta targetPath y emite advertencia de subcarpeta si no hay docs",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 476.59979999999996,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/e0-investigation.test.ts",
+      "fullName": "E0 / B10 Pruebas de regresión sin impresión E0b: qap_context_ingest no degrada source_of_truth ni contamina notes, registra ingest.analyzed_by",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 652.535100000001,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/e0-investigation.test.ts",
+      "fullName": "E0 / B10 Pruebas de regresión sin impresión E0c: sin evidencia detectedService es undefined y baseUrl no se inventa",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 831.6198000000004,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/e0-investigation.test.ts",
+      "fullName": "E0 / B10 Pruebas de regresión sin impresión E0d / B10: objetivo largo se trunca a máx 280 con elipsis sin cortar palabras en preguntas, pero se guarda completo en context",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1014.3061999999991,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/guidance.test.ts",
+      "fullName": "Módulo de Guía Conversacional por Fase (E6 - P4.2) ONBOARDING: debe generar tipo \"entrevista\" con UNA pregunta estructurada pendiente y sin opciones top-level",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 16.91099999999983,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/guidance.test.ts",
+      "fullName": "Módulo de Guía Conversacional por Fase (E6 - P4.2) ONBOARDING: debe entregar la siguiente pregunta pendiente en orden canónico",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 9.114299999999957,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/guidance.test.ts",
+      "fullName": "Módulo de Guía Conversacional por Fase (E6 - P4.2) SCOPING: debe generar tipo \"decision\" requiriendo qap_session_plan y proponiendo sugerencias en pregunta.opciones",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 3.7026999999998225,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/guidance.test.ts",
+      "fullName": "Módulo de Guía Conversacional por Fase (E6 - P4.2) WORKING: debe indicar el siguiente módulo en estado planned con tool qap_discover",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1.5996999999999844,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/guidance.test.ts",
+      "fullName": "Módulo de Guía Conversacional por Fase (E6 - P4.2) WORKING: debe priorizar módulo en interviewing con tipo entrevista_vista y tool qap_rules_set",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1.5778999999999996,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/guidance.test.ts",
+      "fullName": "Módulo de Guía Conversacional por Fase (E6 - P4.2) WORKING: debe dirigir a qap_session_close con tipo decision si todos los módulos están listos",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1.6583000000000538,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/guidance.test.ts",
+      "fullName": "Módulo de Guía Conversacional por Fase (E6 - P4.2) WRAP_UP: debe ofrecer decisión con opciones de Knowledge Graph y nueva sesión",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 2.144900000000007,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/host-composition.test.ts",
+      "fullName": "VNEXT-014 host-owned Stdio composition keeps legacy-only startup when no manifest is configured",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 7.357299999999668,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/host-composition.test.ts",
+      "fullName": "VNEXT-014 host-owned Stdio composition rejects an explicitly configured nonexistent manifest rather than falling back",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 8.536000000000058,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/host-composition.test.ts",
+      "fullName": "VNEXT-014 host-owned Stdio composition opens existing canonical stores, resolves host-declared revisions and does not forge gateways",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 285.09649999999965,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/host-composition.test.ts",
+      "fullName": "VNEXT-014 host-owned Stdio composition RES-CODEX-A03 rejects empty existing Knowledge without provisioning or migration",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 158.21789999999964,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/host-composition.test.ts",
+      "fullName": "VNEXT-014 host-owned Stdio composition rejects missing keys and stale pinned revisions without silently adopting a store",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 207.91829999999936,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/host-composition.test.ts",
+      "fullName": "VNEXT-014 host-owned Stdio composition only wires explicitly host-approved pinned Discovery consent; rejects missing acknowledgement",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 468.53709999999955,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/host-composition.test.ts",
+      "fullName": "VNEXT-014 host-owned Stdio composition fails closed when canonical modules have no durable closure store",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 397.9560999999994,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/lifecycle-v3-e2e.test.ts",
+      "fullName": "Lifecycle V3 E2E & Verification Suite (E0 - E3) E0a: qap_status en WORKING para módulo con cobertura incompleta devuelve module, view y preguntas no vacías idénticas a qap_rules_set",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 2631.2690999999995,
+      "first_error": "AssertionError: expected 'trabajo' to be 'entrevista_vista' // Object.is equality"
+    },
+    {
+      "file": "src/__tests__/lifecycle-v3-e2e.test.ts",
+      "fullName": "Lifecycle V3 E2E & Verification Suite (E0 - E3) E0b: contrato estricto de opciones y preguntas en todo el flujo",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 2942.2868,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/lifecycle-v3-e2e.test.ts",
+      "fullName": "Lifecycle V3 E2E & Verification Suite (E0 - E3) E0c: qap_report sin ejecuciones responde blocked y no escribe archivos; ninguna siguiente_accion recomienda qap_report sin ejecuciones",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 903.1290000000008,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/lifecycle-v3-e2e.test.ts",
+      "fullName": "Lifecycle V3 E2E & Verification Suite (E0 - E3) E1: regresión consolidated -> interviewing tras re-discover y política de waivers",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 1116.7078999999994,
+      "first_error": "AssertionError: expected '{\\n  \"status\": \"blocked\",\\n  \"code\": …' to contain 'La categoría \\'proposito\\' no se pued…'"
+    },
+    {
+      "file": "src/__tests__/lifecycle-v3-e2e.test.ts",
+      "fullName": "Lifecycle V3 E2E & Verification Suite (E0 - E3) E2: qap_module_close validaciones, compuertas y transiciones",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 1063.0048000000006,
+      "first_error": "AssertionError: expected 'Falta el contexto de vista requerido …' to contain 'consolidated'"
+    },
+    {
+      "file": "src/__tests__/lifecycle-v3-e2e.test.ts",
+      "fullName": "Lifecycle V3 E2E & Verification Suite (E0 - E3) E3: canExitWorking, qap_session_close, reporte de brechas y nueva sesión desde WRAP_UP",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 737.7193000000007,
+      "first_error": "Error: ENOENT: no such file or directory, open 'C:\\Users\\Judirico\\Documents\\QAMCP\\rescate-evidence\\20261105-integracion\\tmp-solo-b\\qap-v3-e2e-Np09xL\\.qa\\modules\\auth\\rules.yaml'"
+    },
+    {
+      "file": "src/__tests__/lifecycle-v3-e2e.test.ts",
+      "fullName": "Lifecycle V3 E2E & Verification Suite (E0 - E3) Criterio 9: E2E completo: init -> onboarding -> scoping -> working -> discover A -> rules_set parcial -> status (reanuda) -> rules_set completa -> module_close A -> discover B -> module_close waive B -> session_close -> status WRAP_UP -> session_plan nueva sesión",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 954.4124999999985,
+      "first_error": "AssertionError: expected 'blocked' to be 'success' // Object.is equality"
+    },
+    {
+      "file": "src/__tests__/p3-verification.test.ts",
+      "fullName": "P3 Suite de Verificación MCP (T3 - T15) T3: Toda respuesta con siguiente_accion NO contiene \"botones interactivos en modal\" ni prohibición de listas",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 4317.0666,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p3-verification.test.ts",
+      "fullName": "P3 Suite de Verificación MCP (T3 - T15) T4: qap_status WORKING con módulo planned: sin pregunta de confirmación, sin \"Ver otros módulos\", sin botón de una sola opción, stats.modules refleja estado",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1584.1322999999993,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p3-verification.test.ts",
+      "fullName": "P3 Suite de Verificación MCP (T3 - T15) T5: lifecycle.json valida contra lifecycle-state.schema.json tras CADA mutación del flujo e2e",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1600.7960999999996,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p3-verification.test.ts",
+      "fullName": "P3 Suite de Verificación MCP (T3 - T15) T6: qap_discover éxito: no contiene \"Descubrir otro módulo\", \"pregunta_doc\" ni \"opciones_doc\"; siguiente_accion tipo entrevista_vista (<= 5 preguntas) con tool qap_rules_set, categorias_aplicables y rutas_detectadas_fuera_del_plan",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 1576.2090999999982,
+      "first_error": "TypeError: Cannot read properties of undefined (reading 'tipo')"
+    },
+    {
+      "file": "src/__tests__/p3-verification.test.ts",
+      "fullName": "P3 Suite de Verificación MCP (T3 - T15) T7: rules.yaml tras discover: reglas inferred/dom con ids deterministas; re-discover idempotente (sin duplicados, reglas confirmadas intactas)",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 1177.1297000000013,
+      "first_error": "AssertionError: expected false to be true // Object.is equality"
+    },
+    {
+      "file": "src/__tests__/p3-verification.test.ts",
+      "fullName": "P3 Suite de Verificación MCP (T3 - T15) T8: rules.yaml con manually_edited: true: discover no inserta reglas y declara el bloqueo canónico",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1092.4256999999998,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p3-verification.test.ts",
+      "fullName": "P3 Suite de Verificación MCP (T3 - T15) T9: Fallo de Playwright: no inserta reglas; siguiente_accion tipo decision",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 1234.8156000000017,
+      "first_error": "TypeError: Cannot read properties of undefined (reading 'tipo')"
+    },
+    {
+      "file": "src/__tests__/p3-verification.test.ts",
+      "fullName": "P3 Suite de Verificación MCP (T3 - T15) T10: qap_rules_set bloqueado (contrato blocked) en: fase distinta de WORKING, módulo no registrado, módulo planned, módulo waived",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1035.2255000000005,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p3-verification.test.ts",
+      "fullName": "P3 Suite de Verificación MCP (T3 - T15) T11: Primera llamada exitosa: observed -> interviewing; ids R-001, R-002... secuenciales por módulo",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1239.029400000003,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p3-verification.test.ts",
+      "fullName": "P3 Suite de Verificación MCP (T3 - T15) T12: No-downgrade: regla source user confirmed no se sobrescribe con source dom/prd; waivers solo source user y reason no vacío; lote con regla inválida se rechaza completo",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1147.652900000001,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p3-verification.test.ts",
+      "fullName": "P3 Suite de Verificación MCP (T3 - T15) T13: Dos llamadas concurrentes a qap_rules_set sin pérdida de actualización",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1352.1814000000013,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p3-verification.test.ts",
+      "fullName": "P3 Suite de Verificación MCP (T3 - T15) T14: qap_status WORKING: (a) observed con hipótesis reanuda entrevista; (b) interviewing incompleto reanuda; (c) planned elige high > medium > low luego orden; (d) todos completos tipo decision",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 2143.5445,
+      "first_error": "AssertionError: expected 'trabajo' to be 'entrevista_vista' // Object.is equality"
+    },
+    {
+      "file": "src/__tests__/p3-verification.test.ts",
+      "fullName": "P3 Suite de Verificación MCP (T3 - T15) T15: E2E: flujo de P2 hasta WORKING -> discover A -> rules_set parcial -> status (reanuda A) -> rules_set completa cobertura -> status (propone B) -> discover B; ninguna respuesta del flujo contiene texto del bucle",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 1292.813900000001,
+      "first_error": "AssertionError: expected 'trabajo' to be 'entrevista_vista' // Object.is equality"
+    },
+    {
+      "file": "src/__tests__/p4-2-pregunta-contract.test.ts",
+      "fullName": "P4.2 Suite: Contrato Canónico de Pregunta y Verificación E2E (Criterio 4 y Criterio 6) Criterio 4.1: qap_init en workspace con README devuelve pregunta fuente_de_verdad con ese README como opcion",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 331.1364000000003,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p4-2-pregunta-contract.test.ts",
+      "fullName": "P4.2 Suite: Contrato Canónico de Pregunta y Verificación E2E (Criterio 4 y Criterio 6) Criterio 4.2: qap_status a mitad de ONBOARDING devuelve la misma pregunta que ya estaba pendiente (reanudación)",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 3853.6359,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p4-2-pregunta-contract.test.ts",
+      "fullName": "P4.2 Suite: Contrato Canónico de Pregunta y Verificación E2E (Criterio 4 y Criterio 6) Criterio 4.3: Progresión canónica fuente_de_verdad -> objetivo -> roles -> flujos_criticos -> SCOPING",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 5476.5342,
+      "first_error": "Error: STACK_TRACE_ERROR"
+    },
+    {
+      "file": "src/__tests__/p4-2-pregunta-contract.test.ts",
+      "fullName": "P4.2 Suite: Contrato Canónico de Pregunta y Verificación E2E (Criterio 4 y Criterio 6) Criterio 4.4: Ninguna respuesta con siguiente_accion trae preguntas como cadenas ni pregunta aplanada",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 1408.4479000000028,
+      "first_error": "Error: Tool qap_discover failed: {"
+    },
+    {
+      "file": "src/__tests__/p4-2-pregunta-contract.test.ts",
+      "fullName": "P4.2 Suite: Contrato Canónico de Pregunta y Verificación E2E (Criterio 4 y Criterio 6) Criterio 4.5: Test de inyección: package.json description y nombre de archivo con instrucciones aparecen sanitizados",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 237.46619999999893,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p4-2-pregunta-contract.test.ts",
+      "fullName": "P4.2 Suite: Contrato Canónico de Pregunta y Verificación E2E (Criterio 4 y Criterio 6) Criterio 6: E2E Completo donde TODA siguiente_accion de tipo entrevista, entrevista_vista o decision trae Pregunta válida",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 2397.1635000000024,
+      "first_error": "Error: Tool qap_discover failed: {"
+    },
+    {
+      "file": "src/__tests__/p4-3-1-b-block.test.ts",
+      "fullName": "P4.3.1 Bloque B - Verificación y Cobertura de Correcciones Criterio 2 & B1: con el fixture de A1, ninguna pregunta de objetivo, roles o flujos es abierta si hay propuesta; critical_flows nunca contiene rutas; tarjeta no ofrece Confirmo todo con URL sin definir",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1298.2954000000009,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p4-3-1-b-block.test.ts",
+      "fullName": "P4.3.1 Bloque B - Verificación y Cobertura de Correcciones Criterio 3 & B4: la ingesta no modifica notes de source_of_truth y escribe ingest.analyzed_by",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1199.7592999999997,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p4-3-1-b-block.test.ts",
+      "fullName": "P4.3.1 Bloque B - Verificación y Cobertura de Correcciones B5: el detector nunca lee .env ni .env.local; SECRET_KEY=abc123 y credenciales nunca aparecen en scan ni salidas",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 163.53359999999884,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p4-3-1-b-block.test.ts",
+      "fullName": "P4.3.1 Bloque B - Verificación y Cobertura de Correcciones B6: ninguna siguiente_accion tipo trabajo apunta a herramientas que exigen confirmación (qap_module_close, qap_session_close); constante <= 600 caracteres",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 931.5267000000003,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p4-3-1-b-block.test.ts",
+      "fullName": "P4.3.1 Bloque B - Verificación y Cobertura de Correcciones B7: flujo corregir resumen realiza preguntas abiertas una por una citando propuesta, asigna source user, y permite confirmación final",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 4002.885599999998,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p4-3-1-b-block.test.ts",
+      "fullName": "P4.3.1 Bloque B - Verificación y Cobertura de Correcciones B8: advierte si targetPath parece una subcarpeta de un repo con .git sin escanear fuera",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 778.7207999999991,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p4-3-1-b-block.test.ts",
+      "fullName": "P4.3.1 Bloque B - Verificación y Cobertura de Correcciones B9: sanitizeDomString preserva \"/\", \"_\" y vocales acentuadas pero sanitiza caracteres de control e inyecciones HTML",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 15.777900000000955,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p4-3-investigate-before-ask.test.ts",
+      "fullName": "P4.3 Suite: Investigar antes de preguntar, Auto-ingesta, Confirmación única y Payload autosuficiente Criterio 3: Contrato MCP P4.3 3.1: qap_context_set con \"PRD_diff.md\" escrito libre ingiere en la misma llamada y la siguiente acción NO es abierta",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1703.3516999999993,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p4-3-investigate-before-ask.test.ts",
+      "fullName": "P4.3 Suite: Investigar antes de preguntar, Auto-ingesta, Confirmación única y Payload autosuficiente Criterio 3: Contrato MCP P4.3 3.2: con documento sin objetivo extraíble la siguiente_accion es trabajo",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 879.0936000000002,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p4-3-investigate-before-ask.test.ts",
+      "fullName": "P4.3 Suite: Investigar antes de preguntar, Auto-ingesta, Confirmación única y Payload autosuficiente Criterio 3: Contrato MCP P4.3 3.3: propuesta del agente se guarda como inferred con evidence y no avanza la fase",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1267.0096000000012,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p4-3-investigate-before-ask.test.ts",
+      "fullName": "P4.3 Suite: Investigar antes de preguntar, Auto-ingesta, Confirmación única y Payload autosuficiente Criterio 3: Contrato MCP P4.3 3.4: la ingesta no degrada source user",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1384.0692999999992,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p4-3-investigate-before-ask.test.ts",
+      "fullName": "P4.3 Suite: Investigar antes de preguntar, Auto-ingesta, Confirmación única y Payload autosuficiente Criterio 3: Contrato MCP P4.3 3.5: confirmación única (confirmo todo / corregir con seguimiento) y render_texto presente y consistente",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 2989.033199999998,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p4-3-investigate-before-ask.test.ts",
+      "fullName": "P4.3 Suite: Investigar antes de preguntar, Auto-ingesta, Confirmación única y Payload autosuficiente Criterio 4: Extracción determinista sobre PRD en español con pipeline de etapas reporta literal el resultado de la extracción heurística parsePrdContent",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 19.679400000000896,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p4-3-investigate-before-ask.test.ts",
+      "fullName": "P4.3 Suite: Investigar antes de preguntar, Auto-ingesta, Confirmación única y Payload autosuficiente Criterio 5: Flujo E2E ONBOARDING determinista flujo completo ONBOARDING sin ingest por iniciativa propia; falla si se emite pregunta abierta con dato existente",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1999.3588999999993,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p4-3-investigate-before-ask.test.ts",
+      "fullName": "P4.3 Suite: Investigar antes de preguntar, Auto-ingesta, Confirmación única y Payload autosuficiente Criterio 5: Flujo E2E ONBOARDING determinista valida respuestas y payloads de regresión P4.3",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 2979.8640000000014,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p4-4-auth-lifecycle.test.ts",
+      "fullName": "P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) 1. qap_discover protegido sin perfil: blocked auth_required y cero escrituras en disco",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 1021.1725999999999,
+      "first_error": "AssertionError: expected undefined to be 'auth_required' // Object.is equality"
+    },
+    {
+      "file": "src/__tests__/p4-4-auth-lifecycle.test.ts",
+      "fullName": "P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) 2. qap_discover con redirección HTTP 302 a login: detecta auth_wall determinista y bloquea sin escribir",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 529.3891999999996,
+      "first_error": "AssertionError: expected undefined to be 'auth_required' // Object.is equality"
+    },
+    {
+      "file": "src/__tests__/p4-4-auth-lifecycle.test.ts",
+      "fullName": "P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) 3. qap_discover con login embebido en ruta no-acceso: bloquea como auth_required sin persistir",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 457.5059000000001,
+      "first_error": "AssertionError: expected undefined to be 'auth_required' // Object.is equality"
+    },
+    {
+      "file": "src/__tests__/p4-4-auth-lifecycle.test.ts",
+      "fullName": "P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) 4. qap_discover con sesión expirada: blocked session_invalid y desverifica el perfil",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 277.03089999999975,
+      "first_error": "AssertionError: expected undefined to be 'session_invalid' // Object.is equality"
+    },
+    {
+      "file": "src/__tests__/p4-4-auth-lifecycle.test.ts",
+      "fullName": "P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) 5. qap_discover con perfil verificado y storageState válido: devuelve app y transiciona a observed",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 507.1067000000003,
+      "first_error": "AssertionError: expected 'blocked' to be 'success' // Object.is equality"
+    },
+    {
+      "file": "src/__tests__/p4-4-auth-lifecycle.test.ts",
+      "fullName": "P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) 6. qap_discover en módulo de acceso: selectors.json incluye auth_selectors y omite valores y atributos sensibles de password",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 610.7199999999993,
+      "first_error": "AssertionError: expected 'blocked' to be 'success' // Object.is equality"
+    },
+    {
+      "file": "src/__tests__/p4-4-auth-lifecycle.test.ts",
+      "fullName": "P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) 7. Secuencia de preguntas de SCOPING: 5 preguntas separadas y válidas sin mezclar módulos con auth",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 155.01740000000063,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p4-4-auth-lifecycle.test.ts",
+      "fullName": "P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) 8. canExitScoping: compuerta falsa sin sesión verificada y verdadera con ella",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 217.35560000000078,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p4-4-auth-lifecycle.test.ts",
+      "fullName": "P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) 9. qap_auth_add con verificación automática real contra el fixture HTTP local",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 20276.735,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p4-4-auth-lifecycle.test.ts",
+      "fullName": "P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) 10. qap_auth_add con handoff: probado con doble de prueba que sustituye SOLO la ventana humana (resto real)",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 6883.240699999995,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p4-4-auth-lifecycle.test.ts",
+      "fullName": "P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) 11. Test de no filtración: contraseña centinela NO aparece en respuestas, archivos .qa/, SQLite ni logs",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 17045.0366,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p4-4-auth-lifecycle.test.ts",
+      "fullName": "P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) 12. qap_session_plan: reordena módulos de acceso al inicio del plan de forma determinista y persiste acceso: true",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 98.93190000000322,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p4-4-auth-lifecycle.test.ts",
+      "fullName": "P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) 13. Validación integral de preguntas (C1 & C2): todas las preguntas de SCOPING y blocked son válidas, sin formato decision, sin \"Deseas\" y sin opciones únicas",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 67.31689999999799,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p4-4-auth-lifecycle.test.ts",
+      "fullName": "P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) 14. Timeout de handoff (C4): qap_auth_add devuelve blocked con razon handoff_timeout y reintento idempotente",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1066.1054000000004,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p4-4-auth-lifecycle.test.ts",
+      "fullName": "P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) 15. Guard de cliente asíncrono lento (~1200ms) en qap_discover: responde blocked auth_required y cero escrituras en .qa/modules (C3c)",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 102.50130000000354,
+      "first_error": "AssertionError: expected undefined to be 'auth_required' // Object.is equality"
+    },
+    {
+      "file": "src/__tests__/p4-5a-integrity.test.ts",
+      "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) Criterio 2: regla redactada por agente sin user_text ni from_option se guarda como inferred/agent y no cuenta en cobertura",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 1904.4128999999994,
+      "first_error": "AssertionError: expected 'blocked' to be 'success' // Object.is equality"
+    },
+    {
+      "file": "src/__tests__/p4-5a-integrity.test.ts",
+      "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) Criterio 3: una etiqueta de opción predefinida del motor NO cubre una categoría",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 1244.0789999999997,
+      "first_error": "AssertionError: expected 'blocked' to be 'success' // Object.is equality"
+    },
+    {
+      "file": "src/__tests__/p4-5a-integrity.test.ts",
+      "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) Criterio 4: un módulo con 2 reglas de 7 categorías no cierra sin accept_gaps, y cierra con él dejando registro",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 1002.4915000000001,
+      "first_error": "AssertionError: expected 'Falta el contexto de vista requerido …' to be 'cobertura_insuficiente' // Object.is equality"
+    },
+    {
+      "file": "src/__tests__/p4-5a-integrity.test.ts",
+      "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) C9a: blocked de qap_discover con auth_required incluye razon auth_required y directorio_objetivo, con claves alineadas a session_invalid",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 889.0018,
+      "first_error": "AssertionError: expected undefined to be 'auth_required' // Object.is equality"
+    },
+    {
+      "file": "src/__tests__/p4-5a-integrity.test.ts",
+      "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) C7: compuerta de roles exige auth.roles no vacío y perfil verificado por cada rol para salir de SCOPING",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 934.2258000000002,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p4-5a-integrity.test.ts",
+      "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) C8: tras \"corregir\", emite primero campos_a_corregir y luego pregunta abierta secuencial por campo",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 3502.260400000001,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p4-5a-integrity.test.ts",
+      "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) C4-a: from_option con pregunta_id inexistente, opcion_id inexistente o sin texto sustantivo (rechazo o degradación a agent/inferred)",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 1134.7078000000001,
+      "first_error": "AssertionError: expected 'blocked' to be 'error' // Object.is equality"
+    },
+    {
+      "file": "src/__tests__/p4-5a-integrity.test.ts",
+      "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) C4-b: límites de sustantividad (2 palabras o 19 caracteres no cubren; 3 palabras y 20 caracteres sí)",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 918.4544999999998,
+      "first_error": "Error: ENOENT: no such file or directory, open 'C:\\Users\\Judirico\\Documents\\QAMCP\\rescate-evidence\\20261105-integracion\\tmp-solo-b\\qap-p45a-RP8o60\\.qa\\modules\\catalogo\\rules.yaml'"
+    },
+    {
+      "file": "src/__tests__/p4-5a-integrity.test.ts",
+      "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) C4-c: accept_gaps con razón de 14 caracteres bloquea y con 15 cierra y deja el registro",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 1242.877700000001,
+      "first_error": "AssertionError: expected 'Falta el contexto de vista requerido …' to be 'cobertura_insuficiente' // Object.is equality"
+    },
+    {
+      "file": "src/__tests__/p4-5a-integrity.test.ts",
+      "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) C4-d: plan con auth.required true sin roles queda bloqueado con pregunta de roles y bloquea discover (V4)",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 873.7631999999976,
+      "first_error": "TypeError: .toMatch() expects to receive a string, but got undefined"
+    },
+    {
+      "file": "src/__tests__/p4-5a-integrity.test.ts",
+      "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) C1: campos honestos en bloqueos previos a navegar y navegación real",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 853.8594999999987,
+      "first_error": "AssertionError: expected undefined to be 'auth_required' // Object.is equality"
+    },
+    {
+      "file": "src/__tests__/p4-5a-integrity.test.ts",
+      "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) C3: flujo real de preguntas de categoría, formato una_opcion, persistencia y respuestas user_text y deferred",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 895.1150000000016,
+      "first_error": "AssertionError: expected 'blocked' to be 'success' // Object.is equality"
+    },
+    {
+      "file": "src/__tests__/p4-5a2-integrity.test.ts",
+      "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C1: Clasificación honesta con adaptador real C1-a: módulo de acceso pedido en login sin redirección NO se bloquea (page_kind login, success)",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 2254.4354000000003,
+      "first_error": "AssertionError: expected 'blocked' to be 'success' // Object.is equality"
+    },
+    {
+      "file": "src/__tests__/p4-5a2-integrity.test.ts",
+      "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C1: Clasificación honesta con adaptador real C1-b: ruta protegida con redirección HTTP 302 a /login detecta auth_wall determinista y bloquea",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 1380.3840999999993,
+      "first_error": "AssertionError: expected undefined to be 'auth_required' // Object.is equality"
+    },
+    {
+      "file": "src/__tests__/p4-5a2-integrity.test.ts",
+      "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C1: Clasificación honesta con adaptador real C1-c: ruta protegida con guard del lado del cliente detecta auth_wall con redirección al login",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 1054.723399999999,
+      "first_error": "AssertionError: expected undefined to be 'auth_required' // Object.is equality"
+    },
+    {
+      "file": "src/__tests__/p4-5a2-integrity.test.ts",
+      "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C2: Formatos de pregunta de roles según roles declarados C2-a: con 0 roles declarados genera formato abierta con ejemplo en el texto",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 170.01430000000073,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p4-5a2-integrity.test.ts",
+      "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C2: Formatos de pregunta de roles según roles declarados C2-b: con 1 rol declarado genera formato una_opcion con 2 opciones y seguimiento abierto",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 146.8711999999996,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p4-5a2-integrity.test.ts",
+      "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C2: Formatos de pregunta de roles según roles declarados C2-c: con 3 roles declarados genera formato multiple sin ninguna opción recomendada",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 121.97359999999935,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p4-5a2-integrity.test.ts",
+      "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C3: Integridad de categoría en from_option y regla de cobertura completa C3-a: la categoría de from_option se toma siempre de la pregunta pendiente persistida",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 1483.8444999999992,
+      "first_error": "AssertionError: expected 'blocked' to be 'success' // Object.is equality"
+    },
+    {
+      "file": "src/__tests__/p4-5a2-integrity.test.ts",
+      "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C3: Integridad de categoría en from_option y regla de cobertura completa C3-b: si la petición declara una categoría distinta a la de la pregunta pendiente se rechaza con blocked",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 1089.5871000000006,
+      "first_error": "AssertionError: the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string"
+    },
+    {
+      "file": "src/__tests__/p4-5a2-integrity.test.ts",
+      "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C3: Integridad de categoría en from_option y regla de cobertura completa C3-c: cobertura completa nunca es true mientras exista una categoría diferida (deferred no cubre)",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 158.66270000000077,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p4-5a2-integrity.test.ts",
+      "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C4: Flujo de respuestas cortas como borrador y propuesta de enunciado C4-a: respuesta corta se guarda como borrador (status inferred, source user_text, borrador true) y no cubre",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 1174.472600000001,
+      "first_error": "AssertionError: expected 'blocked' to be 'success' // Object.is equality"
+    },
+    {
+      "file": "src/__tests__/p4-5a2-integrity.test.ts",
+      "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C4: Flujo de respuestas cortas como borrador y propuesta de enunciado C4-b: derivación determinista en categoría actor que nombra roles emite Pregunta una_opcion directamente",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 1106.5638,
+      "first_error": "AssertionError: expected 'blocked' to be 'success' // Object.is equality"
+    },
+    {
+      "file": "src/__tests__/p4-5a2-integrity.test.ts",
+      "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C4: Flujo de respuestas cortas como borrador y propuesta de enunciado C4-c: envío de propuesta_enunciado válida para un borrador emite Pregunta una_opcion con las 3 opciones",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 1012.1254000000008,
+      "first_error": "AssertionError: expected 'blocked' to be 'success' // Object.is equality"
+    },
+    {
+      "file": "src/__tests__/p4-5a2-integrity.test.ts",
+      "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C4: Flujo de respuestas cortas como borrador y propuesta de enunciado C4-d: resolver con \"Es correcto\" guarda regla confirmed user_confirmed con enunciado exacto y cubre",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 956.5236999999979,
+      "first_error": "TypeError: Cannot read properties of undefined (reading 'id')"
+    },
+    {
+      "file": "src/__tests__/p4-5a2-integrity.test.ts",
+      "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C4: Flujo de respuestas cortas como borrador y propuesta de enunciado C4-e: resolver con \"Lo defino después\" guarda regla deferred y no cubre",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 956.5174999999981,
+      "first_error": "TypeError: Cannot read properties of undefined (reading 'id')"
+    },
+    {
+      "file": "src/__tests__/p4-5a2-integrity.test.ts",
+      "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C4: Flujo de respuestas cortas como borrador y propuesta de enunciado C4-f: propuesta_enunciado corta o genérica es rechazada con status error",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 965.1532999999981,
+      "first_error": "AssertionError: expected 'blocked' to be 'error' // Object.is equality"
+    },
+    {
+      "file": "src/__tests__/p4-5a2-integrity.test.ts",
+      "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C6: Ciclo completo plan -> auth -> compuerta de SCOPING con adaptador real C6-a: plan bloqueado por perfil no verificado persiste, auth_add verifica y compuerta avanza a WORKING",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 15945.114499999996,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p4-5a2-integrity.test.ts",
+      "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C9: Validación y filtrado riguroso de roles limpios C9-a: qap_init y qap_context_ingest descartan entradas de tabla Markdown y reportan roles_descartados",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 269.2514999999985,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p4-5a2-integrity.test.ts",
+      "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C9: Validación y filtrado riguroso de roles limpios C9-b: los 4 lectores ignoran roles inválidos presentes en un context.yaml contaminado",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 69.20919999999751,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p4-5a2-integrity.test.ts",
+      "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C9: Validación y filtrado riguroso de roles limpios C9-c: roles legítimos con espacios, tildes, guiones y números son aceptados siempre",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 76.60580000000482,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p4-5a2-integrity.test.ts",
+      "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C10: Detección y advertencia de extracción vacía C10-a: página app/login sin elementos interactivos genera advertencia extraccion_vacia y trabajo",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 729.2943999999989,
+      "first_error": "AssertionError: expected 'blocked' to be 'success' // Object.is equality"
+    },
+    {
+      "file": "src/__tests__/p4-5a2-integrity.test.ts",
+      "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C10: Detección y advertencia de extracción vacía C10-b: página con al menos un elemento interactivo no genera advertencia extraccion_vacia",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 767.3775999999998,
+      "first_error": "AssertionError: expected 'blocked' to be 'success' // Object.is equality"
+    },
+    {
+      "file": "src/__tests__/p4-5a2-integrity.test.ts",
+      "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C10: Detección y advertencia de extracción vacía C10-c: la advertencia extraccion_vacia es agnóstica de la aplicación",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 981.405700000003,
+      "first_error": "AssertionError: expected 'blocked' to be 'success' // Object.is equality"
+    },
+    {
+      "file": "src/__tests__/p4-5a2-integrity.test.ts",
+      "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C3: Transliteración NFD de slugs y prevención de módulos fuera del plan C3-a: opciones de módulos en guidance usan normalizeSlug sin sustituir tildes por guiones bajos",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 90.32219999999506,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p4-5a2-integrity.test.ts",
+      "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C3: Transliteración NFD de slugs y prevención de módulos fuera del plan C3-b: qap_session_plan limpia módulos planned huérfanos que ya no pertenezcan al plan",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 712.393799999998,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p4-5a2-integrity.test.ts",
+      "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C3: Transliteración NFD de slugs y prevención de módulos fuera del plan C1-c: módulo con tilde preserva nombre en lifecycle, crea directorio y normaliza pending_questions con transliteración NFD",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 888.5614999999962,
+      "first_error": "AssertionError: expected false to be true // Object.is equality"
+    },
+    {
+      "file": "src/__tests__/p4-5a2-integrity.test.ts",
+      "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C3: Transliteración NFD de slugs y prevención de módulos fuera del plan C2-seguimiento: selección de \"Corregir\" emite pregunta de seguimiento y no persiste regla espuria en rules.yaml",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 473.4661999999953,
+      "first_error": "AssertionError: expected undefined to be defined"
+    },
+    {
+      "file": "src/__tests__/p4-5s1-browser-candidates.test.ts",
+      "fullName": "P4.5-S1: Preflight browser, Module Candidates, and Session Plan C1: qap_status y qap_init incluyen navegador_qap en proyecto inicializado",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1436.1728000000003,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p4-5s1-browser-candidates.test.ts",
+      "fullName": "P4.5-S1: Preflight browser, Module Candidates, and Session Plan C1: directivas contienen la indicación de preflight, exploracion y longitud <= 600",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 15.742599999999584,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p4-5s1-browser-candidates.test.ts",
+      "fullName": "P4.5-S1: Preflight browser, Module Candidates, and Session Plan C1: status/init conservan la frase histórica y discover declara persistencia canónica estática",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 41.564800000000105,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p4-5s1-browser-candidates.test.ts",
+      "fullName": "P4.5-S1: Preflight browser, Module Candidates, and Session Plan C4/C6: qap_context_ingest persiste module-candidates.json y qap_session_plan lo usa",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1486.7641999999996,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p4-5s1-browser-candidates.test.ts",
+      "fullName": "P4.5-S1: Preflight browser, Module Candidates, and Session Plan C5: qap_session_plan responde blocked (no error) si un id de candidato no existe",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 762.7787000000008,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p4-5s1-browser-candidates.test.ts",
+      "fullName": "P4.5-S1: Preflight browser, Module Candidates, and Session Plan C4: qap_session_plan bloquea si candidato tiene ruta null con ejemplo generico fijo (/catalog) nunca derivado del nombre",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 991.7837,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p4-5s1-browser-candidates.test.ts",
+      "fullName": "P4.5-S1: Preflight browser, Module Candidates, and Session Plan C6: qap_context_ingest sin candidatos cuando hay flujos criticos genera paso trabajo",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1106.7286999999997,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p4-5s1-browser-candidates.test.ts",
+      "fullName": "P4.5-S1: Preflight browser, Module Candidates, and Session Plan C7: pregunta de alcance sin candidatos o sin front es byte a byte identica a la original",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1776.466199999999,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p4-5s1-browser-candidates.test.ts",
+      "fullName": "P4.5-S1: Preflight browser, Module Candidates, and Session Plan D5: comando de instalacion consistente en preflight, qap_init, qap_status y checkPlaywrightBrowser",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 452.21589999999924,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p4-5s1-browser-candidates.test.ts",
+      "fullName": "P4.5-S1: Preflight browser, Module Candidates, and Session Plan C5: scoping con 3 y con 9 candidatos (máximo 7 por tarjeta + Otro módulo), sin recomendada en opciones y pasa guardia de emisión",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1955.5580999999984,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/p4-5s1-browser-candidates.test.ts",
+      "fullName": "P4.5-S1: Preflight browser, Module Candidates, and Session Plan C6: qap_session_plan asigna high a los 3 primeros y medium al resto, con soporte retrocompatible para modules",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1900.379200000003,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/plan-handler.test.ts",
+      "fullName": "PlanHandler Real Declarative Implementation (VNEXT-014-B) resolves correct topological DAG order respecting dependencies and persists plan.json",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 475.3956999999991,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/plan-handler.test.ts",
+      "fullName": "PlanHandler Real Declarative Implementation (VNEXT-014-B) detects missing dependencies and returns structured error without crashing",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 121.48750000000109,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/plan-handler.test.ts",
+      "fullName": "PlanHandler Real Declarative Implementation (VNEXT-014-B) detects duplicate case IDs across files and reports error before graph resolution",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 114.3070000000007,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/plan-handler.test.ts",
+      "fullName": "PlanHandler Real Declarative Implementation (VNEXT-014-B) detects cyclic dependencies safely returning cycle information without unhandled crashes",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 184.90540000000146,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/plan-handler.test.ts",
+      "fullName": "PlanHandler Real Declarative Implementation (VNEXT-014-B) returns explicit cases: [] when module directory has no test cases",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 113.02030000000013,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/plan-handler.test.ts",
+      "fullName": "PlanHandler Real Declarative Implementation (VNEXT-014-B) returns explicit cases: [] when cases exist but lack executable steps",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 150.01389999999992,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/plan-handler.test.ts",
+      "fullName": "PlanHandler Real Declarative Implementation (VNEXT-014-B) rejects invalid arguments (missing or malformed module)",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1.9056000000000495,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/plan-handler.test.ts",
+      "fullName": "PlanHandler Real Declarative Implementation (VNEXT-014-B) rejects unauthorized external targetPath outside authorized projectRoots",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 67.05099999999948,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/plan-handler.test.ts",
+      "fullName": "PlanHandler Real Declarative Implementation (VNEXT-014-B) rejects targetPath containing directory traversal escapes",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 32.15030000000115,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/plan-handler.test.ts",
+      "fullName": "PlanHandler Real Declarative Implementation (VNEXT-014-B) rejects symlinks and junctions inside project directory",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 43.85529999999926,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/plan-handler.test.ts",
+      "fullName": "PlanHandler Real Declarative Implementation (VNEXT-014-B) returns blocked status if target module is not registered in .qa/modules/",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 45.81750000000102,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/plan-handler.test.ts",
+      "fullName": "PlanHandler Real Declarative Implementation (VNEXT-014-B) identifies and preserves manually edited cases with UpdateGuard",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 268.7540000000008,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/plan-handler.test.ts",
+      "fullName": "PlanHandler Real Declarative Implementation (VNEXT-014-B) integrates completely with createMcpServer, exposes exactly 18 tools and dispatches qap_plan cleanly",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 523.6561999999994,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/plan-handler.test.ts",
+      "fullName": "PlanHandler Real Declarative Implementation (VNEXT-014-B) never synthesizes fake test cases or relies on fallback defaultPlan",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 122.79429999999957,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/plan-handler.test.ts",
+      "fullName": "PlanHandler Real Declarative Implementation (VNEXT-014-B) detects modifications in YAML steps and dependencies post-plan generation (FAIL BEFORE / PASS AFTER)",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 442.5025999999998,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/plan-handler.test.ts",
+      "fullName": "PlanHandler Real Declarative Implementation (VNEXT-014-B) enforces authorized write mode and rejects directories with hardlinks in .qa (FAIL BEFORE / PASS AFTER)",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 127.55370000000039,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/plan-handler.test.ts",
+      "fullName": "PlanHandler Real Declarative Implementation (VNEXT-014-B) handles persistence write failure with sanitized error and no partial files (FAIL BEFORE / PASS AFTER)",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 125.65239999999903,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/plan-handler.test.ts",
+      "fullName": "PlanHandler Real Declarative Implementation (VNEXT-014-B) classifies historical plans without cases_fingerprint as unverifiable without deleting them (FAIL BEFORE / PASS AFTER)",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 62.3132999999998,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/plan-handler.test.ts",
+      "fullName": "PlanHandler Real Declarative Implementation (VNEXT-014-B) preserves manually edited test cases bit-for-bit on disk without modifying custom content (FAIL BEFORE / PASS AFTER)",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 224.73270000000048,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/plan-handler.test.ts",
+      "fullName": "R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1) R1.1: rejects truncated or altered matrix.cases even when test cases on disk are intact (FAIL BEFORE / PASS AFTER)",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 299.5136000000002,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/plan-handler.test.ts",
+      "fullName": "R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1) R1.2: rejects inverted DAG dependencies in matrix.cases (FAIL BEFORE / PASS AFTER)",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 570.1915000000008,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/plan-handler.test.ts",
+      "fullName": "R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1) R1.3: accepts valid alternate topological orders without arbitrary positional rejection (FAIL BEFORE / PASS AFTER)",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 274.35080000000016,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/plan-handler.test.ts",
+      "fullName": "R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1) R1.4: rejects environment mismatch between plan and requested environment (FAIL BEFORE / PASS AFTER)",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 476.8655999999992,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/plan-handler.test.ts",
+      "fullName": "R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1) R1.5: rejects module mismatch when plan belongs to another module (FAIL BEFORE / PASS AFTER)",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 176.85839999999916,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/plan-handler.test.ts",
+      "fullName": "R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1) R1.6: distinguishes corrupt JSON from missing plan and rejects missing matrix (FAIL BEFORE / PASS AFTER)",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 102.51070000000072,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/plan-handler.test.ts",
+      "fullName": "R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1) R1.7: rejects unknown or incompatible fingerprint and schema versions (FAIL BEFORE / PASS AFTER)",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 198.85709999999926,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/plan-handler.test.ts",
+      "fullName": "R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1) R1.8: rejects plan with missing cases_fingerprint_version (FAIL BEFORE / PASS AFTER)",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 159.9447,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/plan-handler.test.ts",
+      "fullName": "R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1) R1.9: rejects plan with missing checksum (FAIL BEFORE / PASS AFTER)",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 363.3787000000011,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/plan-handler.test.ts",
+      "fullName": "R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1) R1.10: rejects plan with missing schema version (FAIL BEFORE / PASS AFTER)",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 348.46149999999943,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/plan-handler.test.ts",
+      "fullName": "R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1) R1.11: handles listTestCases failure as unverifiable and never as success (FAIL BEFORE / PASS AFTER)",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 218.60879999999997,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/plan-handler.test.ts",
+      "fullName": "R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1) R1.12: returns verified plan and cases snapshot for TOCTOU prevention (FAIL BEFORE / PASS AFTER)",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 278.8748000000014,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/report-handler.test.ts",
+      "fullName": "VNEXT-014-D declarative ReportHandler — persisted evidence only D-R01: blocks reporting when no physical execution record exists",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 412.2554999999993,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/report-handler.test.ts",
+      "fullName": "VNEXT-014-D declarative ReportHandler — persisted evidence only D-R02: creates JSON from a persisted schema-valid execution unchanged",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 382.8742999999995,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/report-handler.test.ts",
+      "fullName": "VNEXT-014-D declarative ReportHandler — persisted evidence only D-R03: refuses inconsistent totals and does not create a report",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 363.5534000000007,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/report-handler.test.ts",
+      "fullName": "VNEXT-014-D declarative ReportHandler — persisted evidence only D-R04: latest selection respects module filter and real finished timestamps",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 583.4632000000001,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/report-handler.test.ts",
+      "fullName": "VNEXT-014-D declarative ReportHandler — persisted evidence only D-R05: blocks cross-module requests and path traversal identifiers",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 370.89990000000034,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/report-handler.test.ts",
+      "fullName": "VNEXT-014-D declarative ReportHandler — persisted evidence only D-R06: blocks screenshots pointing outside the approved evidence directory",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 272.0870999999988,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/report-handler.test.ts",
+      "fullName": "VNEXT-014-D declarative ReportHandler — persisted evidence only D-R07: renders all four formats from one persisted partial execution",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 462.84119999999893,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/report-handler.test.ts",
+      "fullName": "VNEXT-014-D declarative ReportHandler — persisted evidence only D-R08: rejects false PASS from a zero-case execution",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 305.14559999999983,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/report-handler.test.ts",
+      "fullName": "VNEXT-014-D declarative ReportHandler — persisted evidence only D-R09: rejects a contradictory partial status with no failed, skipped or blocked cases",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 346.59159999999974,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/report-handler.test.ts",
+      "fullName": "VNEXT-014-D declarative ReportHandler — persisted evidence only D-R10: rejects duplicate test identifiers without promoting ambiguous coverage",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 332.52059999999983,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/report-handler.test.ts",
+      "fullName": "VNEXT-014-D declarative ReportHandler — persisted evidence only D-R11: exposes exactly 18 tools and invokes the migrated report via MCP transport",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 511.53429999999935,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/report-handler.test.ts",
+      "fullName": "VNEXT-014-D declarative ReportHandler — persisted evidence only D-R12: an initialized but empty executions directory returns a compatible blocked reason",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 269.9971999999998,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/server.test.ts",
+      "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 debe registrar y exponer la suite completa de 15 tools y prompts",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 72.23049999999967,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/server.test.ts",
+      "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 debe ejecutar qap_init y crear el arbol .qa/",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 314.52680000000055,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/server.test.ts",
+      "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 debe validar y mostrar estado con directivas UX en qap_status",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1552.699199999999,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/server.test.ts",
+      "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 debe descubrir modulos y responder en desarrollo para qap_plan y qap_test",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 1044.2299000000003,
+      "first_error": "AssertionError: expected true to be falsy"
+    },
+    {
+      "file": "src/__tests__/server.test.ts",
+      "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 debe registrar un perfil de autenticacion con qap_auth_add y listar con qap_auth_list",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 177.31139999999868,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/server.test.ts",
+      "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 debe generar reportes con qap_report y limpiar con qap_clean",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1041.7927999999993,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/server.test.ts",
+      "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 debe operar sobre targetPath independiente de cwd y validar qap_server",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 708.5270999999993,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/server.test.ts",
+      "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 debe ser idempotente en qap_init sin alterar context.yaml ni environments.yaml en segunda ejecución (Criterio 3)",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 218.8829999999998,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/server.test.ts",
+      "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 el contexto de vista generado por qap_discover debe validar contra module-view.schema.json (Criterio 4)",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 865.318299999999,
+      "first_error": "AssertionError: expected true to be falsy"
+    },
+    {
+      "file": "src/__tests__/server.test.ts",
+      "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 qap_discover con contexto de vista inválido no debe escribir archivos y debe retornar error (Criterio 4)",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 910.226200000001,
+      "first_error": "AssertionError: expected 'blocked' to be 'error' // Object.is equality"
+    },
+    {
+      "file": "src/__tests__/server.test.ts",
+      "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 E0a: qap_discover valida contra module-view.schema.json en camino de fallo de Playwright",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 1078.8173000000006,
+      "first_error": "AssertionError: expected true to be falsy"
+    },
+    {
+      "file": "src/__tests__/server.test.ts",
+      "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 E0b: qap_discover valida contra module-view.schema.json en vista de autenticacion con session_saved true",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 1101.4552999999996,
+      "first_error": "AssertionError: expected true to be falsy"
+    },
+    {
+      "file": "src/__tests__/server.test.ts",
+      "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 E0c: qap_discover valida contra module-view.schema.json en vista con routes_found vacio",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 835.0866999999998,
+      "first_error": "AssertionError: expected true to be falsy"
+    },
+    {
+      "file": "src/__tests__/server.test.ts",
+      "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 qap_context_set: merge parcial, no-downgrade de user, faltantes, transicion automatica con session.id y history",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 3048.456000000002,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/server.test.ts",
+      "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 qap_context_set: dos llamadas concurrentes no pierden actualizaciones",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1424.0240000000013,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/server.test.ts",
+      "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 qap_context_ingest: ingesta desde docPath y docContent, persistencia inferred, nunca avanza fase, rechazo de seguridad",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1275.001900000003,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/server.test.ts",
+      "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 qap_session_plan: SCOPING define plan y auth, transiciona a WORKING, rechazo atomico, ampliacion en WORKING, bloqueada en ONBOARDING",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1027.9487999999983,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/server.test.ts",
+      "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 qap_discover: gating por fase y estado de modulo, actualizacion planned -> observed",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 147.40670000000318,
+      "first_error": "AssertionError: expected undefined to be 'ONBOARDING' // Object.is equality"
+    },
+    {
+      "file": "src/__tests__/server.test.ts",
+      "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 Criterio 7: Proyecto legacy sin campos de negocio valida contra el schema y qap_status responde con fase WORKING derivada",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 1109.1222000000016,
+      "first_error": "AssertionError: expected 'blocked' to be 'success' // Object.is equality"
+    },
+    {
+      "file": "src/__tests__/server.test.ts",
+      "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 Criterio 8 (E2E): init -> status (entrevista) -> ingest -> context_set compuerta -> auto-SCOPING -> session_plan -> auto-WORKING -> discover",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 1091.6542999999983,
+      "first_error": "AssertionError: expected undefined to be 'ONBOARDING' // Object.is equality"
+    },
+    {
+      "file": "src/__tests__/server.test.ts",
+      "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 qap_rules_set: actualiza reglas, transiciona observed -> interviewing, recalcula cobertura y actualiza guidance",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 1127.5303000000022,
+      "first_error": "AssertionError: expected 'planned' to be 'observed' // Object.is equality"
+    },
+    {
+      "file": "src/__tests__/state-handlers.test.ts",
+      "fullName": "VNEXT-012 real MCP and physical persistence registers all three declarative owners exactly once and never falls back after failure",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 659.222099999999,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/state-handlers.test.ts",
+      "fullName": "VNEXT-012 real MCP and physical persistence status inspects uninitialized and legacy projects without creating memory or scan files",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1305.1417999999994,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/state-handlers.test.ts",
+      "fullName": "VNEXT-012 real MCP and physical persistence preserves the browser installation directive without launching a browser",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 375.7569000000003,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/state-handlers.test.ts",
+      "fullName": "VNEXT-012 real MCP and physical persistence status reports actual isolated SQLite inventory and leaves revisions unchanged",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 782.6970000000001,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/state-handlers.test.ts",
+      "fullName": "VNEXT-012 real MCP and physical persistence reports unavailable/ambiguous bindings without reopening or adopting a database",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1145.4007999999994,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/state-handlers.test.ts",
+      "fullName": "VNEXT-012 real MCP and physical persistence reports incomplete inventory without turning an unavailable query into zero modules",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 711.8472999999994,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/state-handlers.test.ts",
+      "fullName": "VNEXT-012 real MCP and physical persistence isolates two projects explicitly bound to different applications in the same physical store",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1826.0023,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/state-handlers.test.ts",
+      "fullName": "VNEXT-012 real MCP and physical persistence clean blocks force=undefined and physically preserves every protected resource",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 357.04819999999927,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/state-handlers.test.ts",
+      "fullName": "VNEXT-012 real MCP and physical persistence clean blocks force=true and physically preserves every protected resource",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 465.4542000000001,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/state-handlers.test.ts",
+      "fullName": "VNEXT-012 real MCP and physical persistence clean blocks force=false and physically preserves every protected resource",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 502.59720000000016,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/state-handlers.test.ts",
+      "fullName": "VNEXT-012 real MCP and physical persistence blocks cleanup of uninitialized, external and junction projects without touching targets",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 100.99720000000161,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/state-handlers.test.ts",
+      "fullName": "VNEXT-012 real MCP and physical persistence preserves incremental context, provenance, corrections and explicit confirmation without promoting canonical entities",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 4784.7477,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/state-handlers.test.ts",
+      "fullName": "VNEXT-012 real MCP and physical persistence rejects environment discrepancies before YAML writes and never copies legacy secrets to SQLite",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 851.2327000000005,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/state-handlers.test.ts",
+      "fullName": "VNEXT-012 real MCP and physical persistence validates nested inputs and sanitizes errors without logging canaries",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 670.0227000000014,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/state-handlers.test.ts",
+      "fullName": "VNEXT-012 real MCP and physical persistence keeps corrupt YAML intact and reports sanitized errors",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 329.9024000000027,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/state-handlers.test.ts",
+      "fullName": "VNEXT-012 real MCP and physical persistence reports a real multi-file publication failure and blocks replay while its recovery journal is unresolved",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 694.0731999999989,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/state-handlers.test.ts",
+      "fullName": "VNEXT-012 real MCP and physical persistence reports lifecycle failure after YAML publication instead of claiming global success",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1739.988300000001,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/state-handlers.test.ts",
+      "fullName": "VNEXT-012 real MCP and physical persistence does not grow context history for an identical update and preserves it after reopening the server",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1241.2374999999993,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/state-handlers.test.ts",
+      "fullName": "VNEXT-012 real MCP and physical persistence detects concurrent legacy changes, active locks, aborts and unresolved journals",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 199.91899999999805,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/state-handlers.test.ts",
+      "fullName": "VNEXT-012 real MCP and physical persistence rejects cancellation before execution and preserves the fixture",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 74.7451000000001,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/state-handlers.test.ts",
+      "fullName": "VNEXT-012 real MCP and physical persistence preserves physical CAS, history, reference pins, rollback and integrity across two connections and reopen",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 179.11089999999967,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/test-handler.test.ts",
+      "fullName": "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) 014-CODEX-004: an overlapping cleanup owns only its original roots until locks drain",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 179.28139999999985,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/test-handler.test.ts",
+      "fullName": "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) Scenario 1: executes valid and authorized plan, persisting authentic result (R4.1)",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 9842.2614,
+      "first_error": "Error: STACK_TRACE_ERROR"
+    },
+    {
+      "file": "src/__tests__/test-handler.test.ts",
+      "fullName": "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) Scenario 2: rejects missing, historical, corrupt, or obsolete plans without executing runner (R4.2)",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 354.01800000000003,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/test-handler.test.ts",
+      "fullName": "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) Scenario 3: rejects environment mismatch, module mismatch, and missing module (R4.3)",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 483.3205999999991,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/test-handler.test.ts",
+      "fullName": "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) Scenario 4: in-memory snapshot prevents TOCTOU tampering of YAML files after verification (R4.4)",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 5354.4324000000015,
+      "first_error": "Error: STACK_TRACE_ERROR"
+    },
+    {
+      "file": "src/__tests__/test-handler.test.ts",
+      "fullName": "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) Scenario 5: blocks unauthorized URLs, unconfigured host policy, and redirects (R4.5)",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 9338.668800000003,
+      "first_error": "Error: STACK_TRACE_ERROR"
+    },
+    {
+      "file": "src/__tests__/test-handler.test.ts",
+      "fullName": "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) Scenario 6: classifies missing browser launch failure as infrastructure block (R4.6)",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 355.8304999999964,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/test-handler.test.ts",
+      "fullName": "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) Scenario 7: rejects unauthorized profiles and disables implicit session recovery (R4.7)",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 3162.5481,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/test-handler.test.ts",
+      "fullName": "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) Scenario 8: distinguishes real functional failure from infrastructure failure (R4.8)",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 2161.6085999999996,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/test-handler.test.ts",
+      "fullName": "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) Scenario 9: zero cases executed never returns fake PASS verdict (R4.9)",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 385.4047999999966,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/test-handler.test.ts",
+      "fullName": "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) Scenario 10: supports cancellation and resource cleanup under AbortSignal (R4.10)",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 115.78979999999865,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/test-handler.test.ts",
+      "fullName": "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) Scenario 11: persists execution results adhering to schema without automatic SQLite ConformityAssessment (R4.11)",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1311.296000000002,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/test-handler.test.ts",
+      "fullName": "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) Scenario 12: integrates cleanly via createMcpServer preserving exact 18 tools (R4.12)",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1769.171500000004,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/test-handler.test.ts",
+      "fullName": "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) Scenario 13: physical Playwright Chromium execution against isolated local HTTP fixture (Real PASS & FAIL)",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 1650.4829000000027,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/test-handler.test.ts",
+      "fullName": "VNEXT-014-D preflight — execution evidence integrity D-01: does not persist schema-invalid runner outputs",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 264.2600999999995,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/test-handler.test.ts",
+      "fullName": "VNEXT-014-D preflight — execution evidence integrity D-02: refuses traversal-capable execution IDs despite schema v1 accepting strings",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 367.8073000000004,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/test-handler.test.ts",
+      "fullName": "VNEXT-014-D preflight — execution evidence integrity D-03: failed execution persistence cannot be reported as success or recorded in history",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 311.3741999999984,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/test-handler.test.ts",
+      "fullName": "VNEXT-014-D preflight — execution evidence integrity D-04: history failure preserves saved evidence but returns an explicit partial error",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 353.80479999999807,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/test-handler.test.ts",
+      "fullName": "VNEXT-014-D preflight — execution evidence integrity D-05: rejects a schema-valid execution associated with a different module",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 422.28719999999885,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/test-handler.test.ts",
+      "fullName": "VNEXT-014-D preflight — execution evidence integrity D-06: rejects summary totals that disagree with executed cases",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 454.6787999999942,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/test-handler.test.ts",
+      "fullName": "VNEXT-014-D preflight — execution evidence integrity D-07: a critical runner error persists not_run evidence without reporting MCP success",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 539.2514999999985,
+      "first_error": null
+    }
+  ]
+}

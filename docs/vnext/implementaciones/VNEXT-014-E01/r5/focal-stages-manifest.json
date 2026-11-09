@@ -1,0 +1,22 @@
+{
+  "started_at": "2026-11-07T00:02:38.6800631Z",
+  "sha": "9e9d2c8062b908d936ae090bbe9cb5c4ca2b0772",
+  "elapsed_ms": 18293.5978,
+  "arguments": [
+    "--filter",
+    "@qap/mcp",
+    "exec",
+    "vitest",
+    "run",
+    "lifecycle-v3-e2e",
+    "--config",
+    "<repo>\\docs\\vnext\\implementaciones\\VNEXT-014-E01\\r5/diagnostic.config.ts",
+    "--reporter=verbose",
+    "--reporter=json",
+    "--outputFile.json=<repo>\\docs\\vnext\\implementaciones\\VNEXT-014-E01\\r5/focal-stages.json"
+  ],
+  "exit_code": 0,
+  "name": "focal-stages",
+  "finished_at": "2026-11-07T00:02:56.9736540Z",
+  "instrumented": true
+}

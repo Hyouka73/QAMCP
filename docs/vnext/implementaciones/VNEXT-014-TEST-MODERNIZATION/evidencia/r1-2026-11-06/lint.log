@@ -1,0 +1,2 @@
+$ eslint . "--format" "json" "--output-file" "C:\\Users\\Judirico\\Documents\\QAMCP\\QAMCP\\docs\\vnext\\implementaciones\\VNEXT-014-TEST-MODERNIZATION\\evidencia\\r1-2026-11-06/lint.json"
+[ELIFECYCLE] Command failed with exit code 1.

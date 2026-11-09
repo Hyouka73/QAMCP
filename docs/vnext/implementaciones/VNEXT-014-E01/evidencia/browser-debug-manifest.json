@@ -1,0 +1,16 @@
+{
+  "finished_at": "2026-11-06T18:06:51.9240368Z",
+  "exit_code": 1,
+  "started_at": "2026-11-06T18:05:58.5786084Z",
+  "name": "browser-debug",
+  "arguments": [
+    "--filter",
+    "@qap/mcp",
+    "exec",
+    "vitest",
+    "run",
+    "--reporter=default",
+    "--reporter=json",
+    "--outputFile=../../docs/vnext/implementaciones/VNEXT-014-E01/evidencia/browser-debug.json"
+  ]
+}

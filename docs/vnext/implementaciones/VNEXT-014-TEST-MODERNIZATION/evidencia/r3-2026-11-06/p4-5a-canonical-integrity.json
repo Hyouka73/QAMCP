@@ -1,0 +1,148 @@
+{
+  "numTotalTestSuites": 2,
+  "numPassedTestSuites": 2,
+  "numFailedTestSuites": 0,
+  "numPendingTestSuites": 0,
+  "numTotalTests": 9,
+  "numPassedTests": 9,
+  "numFailedTests": 0,
+  "numPendingTests": 0,
+  "numTodoTests": 0,
+  "snapshot": {
+    "added": 0,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0,
+    "didUpdate": false
+  },
+  "startTime": 1794006666251,
+  "success": true,
+  "testResults": [
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a)"
+          ],
+          "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) Criterio 2: regla redactada por agente sin user_text ni from_option se guarda como inferred/agent y no cuenta en cobertura",
+          "status": "passed",
+          "title": "Criterio 2: regla redactada por agente sin user_text ni from_option se guarda como inferred/agent y no cuenta en cobertura",
+          "duration": 826.0668999999998,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a)"
+          ],
+          "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) Criterio 3: una etiqueta de opción predefinida del motor NO cubre una categoría",
+          "status": "passed",
+          "title": "Criterio 3: una etiqueta de opción predefinida del motor NO cubre una categoría",
+          "duration": 329.3150999999998,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a)"
+          ],
+          "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) Criterio 4: un módulo con 2 reglas de 7 categorías no cierra sin accept_gaps, y cierra con él dejando registro",
+          "status": "passed",
+          "title": "Criterio 4: un módulo con 2 reglas de 7 categorías no cierra sin accept_gaps, y cierra con él dejando registro",
+          "duration": 640.3143,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a)"
+          ],
+          "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) C9a: blocked de qap_discover con auth_required incluye razon auth_required y directorio_objetivo, con claves alineadas a session_invalid",
+          "status": "passed",
+          "title": "C9a: blocked de qap_discover con auth_required incluye razon auth_required y directorio_objetivo, con claves alineadas a session_invalid",
+          "duration": 236.94610000000011,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a)"
+          ],
+          "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) C4-a: from_option con pregunta_id inexistente, opcion_id inexistente o sin texto sustantivo (rechazo o degradación a agent/inferred)",
+          "status": "passed",
+          "title": "C4-a: from_option con pregunta_id inexistente, opcion_id inexistente o sin texto sustantivo (rechazo o degradación a agent/inferred)",
+          "duration": 321.28539999999975,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a)"
+          ],
+          "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) C4-b: límites de sustantividad (2 palabras o 19 caracteres no cubren; 3 palabras y 20 caracteres sí)",
+          "status": "passed",
+          "title": "C4-b: límites de sustantividad (2 palabras o 19 caracteres no cubren; 3 palabras y 20 caracteres sí)",
+          "duration": 455.54150000000027,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a)"
+          ],
+          "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) C4-c: accept_gaps con razón de 14 caracteres bloquea y con 15 cierra y deja el registro",
+          "status": "passed",
+          "title": "C4-c: accept_gaps con razón de 14 caracteres bloquea y con 15 cierra y deja el registro",
+          "duration": 386.09370000000035,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a)"
+          ],
+          "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) C1: campos honestos en bloqueos previos a navegar y navegación real",
+          "status": "passed",
+          "title": "C1: campos honestos en bloqueos previos a navegar y navegación real",
+          "duration": 1553.4081999999999,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a)"
+          ],
+          "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) C3: flujo real de preguntas de categoría, formato una_opcion, persistencia y respuestas user_text y deferred",
+          "status": "passed",
+          "title": "C3: flujo real de preguntas de categoría, formato una_opcion, persistencia y respuestas user_text y deferred",
+          "duration": 1388.8564999999999,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        }
+      ],
+      "startTime": 1794006668535,
+      "endTime": 1794006674673.8564,
+      "status": "passed",
+      "message": "",
+      "name": "<repo>/packages/mcp/src/__tests__/p4-5a-canonical-integrity.test.ts"
+    }
+  ]
+}

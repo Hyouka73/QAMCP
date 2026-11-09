@@ -1,0 +1,16 @@
+{
+  "arguments": [
+    "--filter",
+    "@qap/mcp",
+    "exec",
+    "vitest",
+    "run",
+    "--reporter=default",
+    "--reporter=json",
+    "--outputFile=../../docs/vnext/implementaciones/VNEXT-014-E01/evidencia/cache-normal-1.json"
+  ],
+  "finished_at": "2026-11-06T18:04:00.3357318Z",
+  "started_at": "2026-11-06T18:03:01.9680184Z",
+  "name": "cache-normal-1",
+  "exit_code": 1
+}

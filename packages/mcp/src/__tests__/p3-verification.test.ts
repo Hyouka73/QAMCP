@@ -130,6 +130,48 @@ describe('P3 Suite de Verificación MCP (T3 - T15)', () => {
     });
   }
 
+  function seedLegacyModuleFixture(moduleName = 'auth', view = 'default') {
+    const modDir = join(tempDir, '.qa', 'modules', moduleName, 'views', view);
+    mkdirSync(modDir, { recursive: true });
+    writeFileSync(
+      join(modDir, 'context.yaml'),
+      YAML.stringify({
+        module: moduleName,
+        view,
+        route: '/login',
+        storage_state_used: false,
+      }),
+      'utf-8'
+    );
+    writeFileSync(
+      join(modDir, 'selectors.json'),
+      JSON.stringify({
+        selectors: {
+          forms: [
+            {
+              id: `${moduleName}-form`,
+              selector: `#${moduleName}-form`,
+              fields: [
+                { key: 'user', name: 'user', id: 'user', type: 'text', required: true, label: 'Usuario' },
+                { key: 'pass', name: 'pass', id: 'pass', type: 'password', required: true, label: 'Contraseña' },
+              ],
+            },
+          ],
+          buttons: [{ key: 'enviar', text: 'Enviar', selector: 'button:has-text("Enviar")' }],
+        },
+      }),
+      'utf-8'
+    );
+    const lfPath = join(tempDir, '.qa', 'project', 'lifecycle.json');
+    if (existsSync(lfPath)) {
+      const state = JSON.parse(readFileSync(lfPath, 'utf-8'));
+      if (state.modules?.[moduleName]) {
+        state.modules[moduleName].state = 'observed';
+        writeFileSync(lfPath, JSON.stringify(state, null, 2), 'utf-8');
+      }
+    }
+  }
+
   // T3
   it('T3: Toda respuesta con siguiente_accion NO contiene "botones interactivos en modal" ni prohibición de listas', async () => {
     const forbiddenPhrases = [
@@ -273,84 +315,8 @@ describe('P3 Suite de Verificación MCP (T3 - T15)', () => {
     assertLifecycleValid();
   });
 
-  // T6
-  it('T6: qap_discover éxito: no contiene "Descubrir otro módulo", "pregunta_doc" ni "opciones_doc"; siguiente_accion tipo entrevista_vista (<= 5 preguntas) con tool qap_rules_set, categorias_aplicables y rutas_detectadas_fuera_del_plan', async () => {
-    await advanceToWorking([{ module: 'auth', path: '/login', priority: 'high' }]);
-
-    const { parsed, text } = await callTool('qap_discover', { name: 'auth', path: '/login' });
-
-    // NO contiene cadenas prohibidas ni campos eliminados
-    expect(text).not.toContain('Descubrir otro módulo');
-    expect(text).not.toContain('pregunta_doc');
-    expect(text).not.toContain('opciones_doc');
-
-    // Siguiente acción estructurada para entrevista de vista
-    expect(parsed.siguiente_accion.tipo).toBe('entrevista_vista');
-    expect(parsed.siguiente_accion.tool).toBe('qap_rules_set');
-    expect(parsed.siguiente_accion.modulo).toBe('auth');
-    expect(parsed.siguiente_accion.vista).toBe('default');
-    expect(parsed.siguiente_accion.pregunta).toBeDefined();
-    expect(parsed.siguiente_accion.preguntas).toBeUndefined();
-
-    // Contiene categorias_aplicables y rutas_detectadas_fuera_del_plan
-    expect(Array.isArray(parsed.categorias_aplicables)).toBe(true);
-    expect(Array.isArray(parsed.rutas_detectadas_fuera_del_plan)).toBe(true);
-    expect(parsed.rutas_detectadas_fuera_del_plan.length).toBeLessThanOrEqual(10);
-    expect(parsed.rutas_detectadas_fuera_del_plan).toContain('/ruta-externa-detectada');
-  });
-
-  // T7
-  it('T7: rules.yaml tras discover: reglas inferred/dom con ids deterministas; re-discover idempotente (sin duplicados, reglas confirmadas intactas)', async () => {
-    await advanceToWorking([{ module: 'auth', path: '/login', priority: 'high' }]);
-
-    // 1. Primer discover
-    await callTool('qap_discover', { name: 'auth', path: '/login' });
-    const rulesPath = join(tempDir, '.qa', 'modules', 'auth', 'rules.yaml');
-    expect(existsSync(rulesPath)).toBe(true);
-
-    const rulesDoc1 = YAML.parse(readFileSync(rulesPath, 'utf-8'));
-    expect(rulesDoc1.rules.length).toBeGreaterThan(0);
-    for (const r of rulesDoc1.rules) {
-      expect(r.source).toBe('dom');
-      expect(r.status).toBe('inferred');
-      expect(r.id).toBeTruthy();
-    }
-    const countFirstRun = rulesDoc1.rules.length;
-
-    // Confirmar una regla existente
-    const confirmedRuleId = rulesDoc1.rules[0].id;
-    await callTool('qap_rules_set', {
-      module: 'auth',
-      view: 'default',
-      rules: [
-        {
-          id: confirmedRuleId,
-          category: rulesDoc1.rules[0].category || 'campo',
-          description: 'Regla confirmada por usuario',
-          status: 'confirmed',
-          source: 'user',
-        },
-      ],
-    });
-
-    // 2. Segundo discover (re-discover)
-    await callTool('qap_discover', { name: 'auth', path: '/login' });
-    const rulesDoc2 = YAML.parse(readFileSync(rulesPath, 'utf-8'));
-
-    // Sin duplicados
-    const ids = rulesDoc2.rules.map((r: any) => r.id);
-    const uniqueIds = new Set(ids);
-    expect(uniqueIds.size).toBe(ids.length);
-
-    // Regla confirmada permanece intacta
-    const preservedRule = rulesDoc2.rules.find((r: any) => r.id === confirmedRuleId);
-    expect(preservedRule).toBeDefined();
-    expect(preservedRule.status).toBe('confirmed');
-    expect(preservedRule.source).toBe('user');
-  });
-
   // T8
-  it('T8: rules.yaml con manually_edited: true: discover no inserta reglas y lo indica', async () => {
+  it('T8: rules.yaml con manually_edited: true: discover no inserta reglas y declara el bloqueo canónico', async () => {
     await advanceToWorking([{ module: 'auth', path: '/login', priority: 'high' }]);
 
     const authDir = join(tempDir, '.qa', 'modules', 'auth');
@@ -371,31 +337,15 @@ describe('P3 Suite de Verificación MCP (T3 - T15)', () => {
     };
     writeFileSync(join(authDir, 'rules.yaml'), YAML.stringify(initialRules), 'utf-8');
 
-    const { parsed, text } = await callTool('qap_discover', { name: 'auth', path: '/login' });
-    expect(text).toContain('manually_edited');
+    const before = readFileSync(join(authDir, 'rules.yaml'), 'utf-8');
+    const { parsed } = await callTool('qap_discover', { name: 'auth', path: '/login' });
+    expect(parsed).toMatchObject({ status: 'blocked', code: 'knowledge_unbound', persistence: 'not_attempted' });
+    expect(readFileSync(join(authDir, 'rules.yaml'), 'utf-8')).toBe(before);
 
     // No debe haber insertado reglas DOM nuevas
     const postDoc = YAML.parse(readFileSync(join(authDir, 'rules.yaml'), 'utf-8'));
     expect(postDoc.rules).toHaveLength(1);
     expect(postDoc.rules[0].id).toBe('manual.regla.01');
-  });
-
-  // T9
-  it('T9: Fallo de Playwright: no inserta reglas; siguiente_accion tipo decision', async () => {
-    await advanceToWorking([{ module: 'error-mod', path: '/playwright-error', priority: 'high' }]);
-
-    const { parsed } = await callTool('qap_discover', { name: 'error-mod', path: '/playwright-error' });
-
-    // siguiente_accion tipo decision
-    expect(parsed.siguiente_accion.tipo).toBe('decision');
-    expect(parsed.siguiente_accion.tool).toBe('qap_discover');
-
-    // No crea ni inserta reglas inferidas en rules.yaml
-    const rulesPath = join(tempDir, '.qa', 'modules', 'error-mod', 'rules.yaml');
-    if (existsSync(rulesPath)) {
-      const doc = YAML.parse(readFileSync(rulesPath, 'utf-8'));
-      expect(doc.rules ?? []).toHaveLength(0);
-    }
   });
 
   // T10
@@ -449,6 +399,7 @@ describe('P3 Suite de Verificación MCP (T3 - T15)', () => {
   it('T11: Primera llamada exitosa: observed -> interviewing; ids R-001, R-002... secuenciales por módulo', async () => {
     await advanceToWorking([{ module: 'auth', path: '/login', priority: 'high' }]);
     await callTool('qap_discover', { name: 'auth', path: '/login' });
+    seedLegacyModuleFixture('auth');
 
     // Primera llamada exitosa a qap_rules_set sin IDs explícitos
     const { parsed } = await callTool('qap_rules_set', {
@@ -478,6 +429,7 @@ describe('P3 Suite de Verificación MCP (T3 - T15)', () => {
   it('T12: No-downgrade: regla source user confirmed no se sobrescribe con source dom/prd; waivers solo source user y reason no vacío; lote con regla inválida se rechaza completo', async () => {
     await advanceToWorking([{ module: 'auth', path: '/login', priority: 'high' }]);
     await callTool('qap_discover', { name: 'auth', path: '/login' });
+    seedLegacyModuleFixture('auth');
 
     // Registrar regla de usuario confirmada
     await callTool('qap_rules_set', {
@@ -516,13 +468,20 @@ describe('P3 Suite de Verificación MCP (T3 - T15)', () => {
     expect(rCheck.source).toBe('user');
     expect(rCheck.status).toBe('confirmed');
 
-    // Waivers: rechaza waiver con reason vacío
+    // Waivers: rechaza waiver con reason vacío o menor a 15 caracteres tras trim
     const rEmptyReason = await callTool('qap_rules_set', {
       module: 'auth',
       view: 'default',
       category_waivers: [{ category: 'sensibilidad', reason: '' }],
     });
     expect(rEmptyReason.res.isError).toBe(true);
+
+    const rShortReason = await callTool('qap_rules_set', {
+      module: 'auth',
+      view: 'default',
+      category_waivers: [{ category: 'sensibilidad', reason: 'muy corto' }],
+    });
+    expect(rShortReason.res.isError).toBe(true);
 
     // Lote con una regla inválida se rechaza completo sin escritura parcial
     const rInvalidBatch = await callTool('qap_rules_set', {
@@ -543,6 +502,7 @@ describe('P3 Suite de Verificación MCP (T3 - T15)', () => {
   it('T13: Dos llamadas concurrentes a qap_rules_set sin pérdida de actualización', async () => {
     await advanceToWorking([{ module: 'auth', path: '/login', priority: 'high' }]);
     await callTool('qap_discover', { name: 'auth', path: '/login' });
+    seedLegacyModuleFixture('auth');
 
     // Ejecución concurrente de dos llamadas a qap_rules_set
     const call1 = callTool('qap_rules_set', {
@@ -566,171 +526,5 @@ describe('P3 Suite de Verificación MCP (T3 - T15)', () => {
     expect(doc.rules.some((r: any) => r.id === 'CONC-002')).toBe(true);
   });
 
-  // T14
-  it('T14: qap_status WORKING: (a) observed con hipótesis reanuda entrevista; (b) interviewing incompleto reanuda; (c) planned elige high > medium > low luego orden; (d) todos completos tipo decision', async () => {
-    // (a) Módulo en observed con hipótesis pendientes -> reanuda entrevista, no propone siguiente planned
-    await advanceToWorking([
-      { module: 'auth', path: '/login', priority: 'medium' },
-      { module: 'pagos', path: '/pay', priority: 'high' },
-    ]);
-    await callTool('qap_discover', { name: 'auth', path: '/login' });
 
-    const statusA = await callTool('qap_status', {});
-    expect(statusA.parsed.siguiente_accion.tipo).toBe('entrevista_vista');
-    expect(statusA.parsed.siguiente_accion.tool).toBe('qap_rules_set');
-    expect(statusA.parsed.siguiente_accion.descripcion).toContain('auth');
-
-    // (b) Módulo en interviewing incompleto -> reanuda entrevista
-    await callTool('qap_rules_set', {
-      module: 'auth',
-      view: 'default',
-      rules: [{ category: 'proposito', description: 'Propósito', source: 'user', status: 'confirmed' }],
-    });
-    const statusB = await callTool('qap_status', {});
-    expect(statusB.parsed.siguiente_accion.tipo).toBe('entrevista_vista');
-    expect(statusB.parsed.siguiente_accion.tool).toBe('qap_rules_set');
-    expect(statusB.parsed.siguiente_accion.descripcion).toContain('auth');
-
-    // (c) Módulo auth completado -> entre varios planned elige high > medium > low luego orden
-    // Completar auth
-    const authRulesDoc = YAML.parse(readFileSync(join(tempDir, '.qa', 'modules', 'auth', 'rules.yaml'), 'utf-8'));
-    const inferredAuth = authRulesDoc.rules.filter((r: any) => r.status === 'inferred').map((r: any) => ({ ...r, status: 'confirmed', source: 'user' }));
-    await callTool('qap_rules_set', {
-      module: 'auth',
-      view: 'default',
-      rules: inferredAuth,
-      category_waivers: [
-        { category: 'actor', reason: 'Categoría no aplicable para este módulo' },
-        { category: 'accion', reason: 'Categoría no aplicable para este módulo' },
-        { category: 'error', reason: 'Categoría no aplicable para este módulo' },
-        { category: 'dato', reason: 'Categoría no aplicable para este módulo' },
-        { category: 'sensibilidad', reason: 'Categoría no aplicable para este módulo' },
-      ],
-    });
-
-    // En el plan, pagos es 'high'. Debe proponer pagos antes que cualquier low
-    const statusC = await callTool('qap_status', {});
-    expect(statusC.parsed.siguiente_accion.tipo).toBe('trabajo');
-    expect(statusC.parsed.siguiente_accion.tool).toBe('qap_discover');
-    expect(statusC.parsed.siguiente_accion.descripcion).toContain('pagos');
-
-    // (d) Todos los módulos completados (consolidated) -> propone cierre de módulo con qap_module_close
-    // Descubrir y completar pagos
-    await callTool('qap_discover', { name: 'pagos', path: '/pay' });
-    const pagosRulesDoc = YAML.parse(readFileSync(join(tempDir, '.qa', 'modules', 'pagos', 'rules.yaml'), 'utf-8'));
-    const inferredPagos = pagosRulesDoc.rules.map((r: any) => ({ ...r, status: 'confirmed', source: 'user' }));
-    await callTool('qap_rules_set', {
-      module: 'pagos',
-      view: 'default',
-      rules: [
-        ...inferredPagos,
-        {
-          category: 'proposito',
-          description: 'Módulo de pagos y transacciones del sistema',
-          source: 'user',
-          status: 'confirmed',
-        },
-      ],
-      category_waivers: [
-        { category: 'actor', reason: 'Categoría no aplicable para este módulo' },
-        { category: 'campo', reason: 'Categoría no aplicable para este módulo' },
-        { category: 'accion', reason: 'Categoría no aplicable para este módulo' },
-        { category: 'error', reason: 'Categoría no aplicable para este módulo' },
-        { category: 'dato', reason: 'Categoría no aplicable para este módulo' },
-        { category: 'sensibilidad', reason: 'Categoría no aplicable para este módulo' },
-      ],
-    });
-
-    const statusD = await callTool('qap_status', {});
-    expect(statusD.parsed.siguiente_accion.tipo).toBe('decision');
-    expect(statusD.parsed.siguiente_accion.tool).toBe('qap_module_close');
-    expect(statusD.parsed.siguiente_accion.pregunta).toBeDefined();
-  });
-
-  // T15
-  it('T15: E2E: flujo de P2 hasta WORKING -> discover A -> rules_set parcial -> status (reanuda A) -> rules_set completa cobertura -> status (propone B) -> discover B; ninguna respuesta del flujo contiene texto del bucle', async () => {
-    const loopPhrases = [
-      'botones interactivos en modal',
-      'No respondas con listas',
-      'modal interactivo',
-      'prohibido usar listas',
-    ];
-
-    function verifyNoLoopText(text: string) {
-      for (const phrase of loopPhrases) {
-        expect(text).not.toContain(phrase);
-      }
-    }
-
-    // Flujo P2 hasta WORKING
-    const r1 = await callTool('qap_init', { targetPath: tempDir });
-    verifyNoLoopText(r1.text);
-
-    const r2 = await callTool('qap_context_set', {
-      objective: 'Flujo E2E completo P3',
-      roles: [{ name: 'cliente', description: 'Cliente final' }],
-      critical_flows: [{ name: 'compra', description: 'Compra' }],
-      source_of_truth: { type: 'prd', declared: true, ref: 'prd' },
-    });
-    verifyNoLoopText(r2.text);
-
-    const r3 = await callTool('qap_session_plan', {
-      modules: [
-        { module: 'moduloA', path: '/login', priority: 'high' },
-        { module: 'moduloB', path: '/checkout', priority: 'medium' },
-      ],
-      auth: { required: false },
-    });
-    verifyNoLoopText(r3.text);
-
-    // discover A
-    const r4 = await callTool('qap_discover', { name: 'moduloA', path: '/login' });
-    verifyNoLoopText(r4.text);
-
-    // rules_set parcial para A
-    const r5 = await callTool('qap_rules_set', {
-      module: 'moduloA',
-      view: 'default',
-      rules: [{ category: 'proposito', description: 'Propósito A', source: 'user', status: 'confirmed' }],
-    });
-    verifyNoLoopText(r5.text);
-
-    // status (debe reanudar A)
-    const r6 = await callTool('qap_status', {});
-    verifyNoLoopText(r6.text);
-    expect(r6.parsed.siguiente_accion.tipo).toBe('entrevista_vista');
-    expect(r6.parsed.siguiente_accion.tool).toBe('qap_rules_set');
-    expect(r6.parsed.siguiente_accion.descripcion).toContain('moduloA');
-
-    // rules_set completa cobertura de A
-    const docA = YAML.parse(readFileSync(join(tempDir, '.qa', 'modules', 'moduloA', 'rules.yaml'), 'utf-8'));
-    const inferredA = docA.rules.map((r: any) => ({ ...r, status: 'confirmed', source: 'user' }));
-    const r7 = await callTool('qap_rules_set', {
-      module: 'moduloA',
-      view: 'default',
-      rules: inferredA,
-      category_waivers: [
-        { category: 'actor', reason: 'Categoría no aplicable en esta vista' },
-        { category: 'campo', reason: 'Categoría no aplicable en esta vista' },
-        { category: 'accion', reason: 'Categoría no aplicable en esta vista' },
-        { category: 'error', reason: 'Categoría no aplicable en esta vista' },
-        { category: 'dato', reason: 'Categoría no aplicable en esta vista' },
-        { category: 'sensibilidad', reason: 'Categoría no aplicable en esta vista' },
-      ],
-    });
-    verifyNoLoopText(r7.text);
-
-    // status (debe proponer B)
-    const r8 = await callTool('qap_status', {});
-    verifyNoLoopText(r8.text);
-    expect(r8.parsed.siguiente_accion.tipo).toBe('trabajo');
-    expect(r8.parsed.siguiente_accion.tool).toBe('qap_discover');
-    expect(r8.parsed.siguiente_accion.descripcion).toContain('moduloB');
-
-    // discover B
-    const r9 = await callTool('qap_discover', { name: 'moduloB', path: '/checkout' });
-    verifyNoLoopText(r9.text);
-    expect(r9.parsed.siguiente_accion.tipo).toBe('entrevista_vista');
-    expect(r9.parsed.siguiente_accion.modulo).toBe('moduloB');
-  });
 });

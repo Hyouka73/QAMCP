@@ -1,0 +1,121 @@
+
+ RUN  v4.1.11 C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/playwright-runner
+
+ ✓ src/__tests__/interpolator.test.ts (7 tests) 21ms
+ ✓ src/__tests__/actions.test.ts (3 tests) 1662ms
+ ✓ test/spike.test.ts (1 test) 1614ms
+     ✓ debe lanzar Chromium, navegar y resolver un selector sin errores  1606ms
+ ✓ src/__tests__/actions-context.test.ts (6 tests) 1971ms
+     ✓ captura el texto de un elemento y lo guarda en las variables de contexto  322ms
+stderr | test/cancellation-drain.test.ts > 014-CODEX-004 cancellation and resource drain > drains a late launch before releasing the lock and deleting its root
+[PlaywrightRunner] Error crítico durante la ejecución: Error: Ejecución cancelada por AbortSignal.
+    at checkCancellation (C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/playwright-runner/src/runner.ts:182:42)
+    at PlaywrightRunner.execute (C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/playwright-runner/src/runner.ts:256:7)
+
+ ✓ test/actions.test.ts (7 tests) 2352ms
+     ✓ click hace scroll automático hasta un elemento fuera del viewport  340ms
+stderr | test/cancellation-drain.test.ts > 014-CODEX-004 cancellation and resource drain > drains a late context before releasing the lock and deleting its root
+[PlaywrightRunner] Error crítico durante la ejecución: Error: Ejecución cancelada por AbortSignal.
+    at checkCancellation (C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/playwright-runner/src/runner.ts:182:42)
+    at PlaywrightRunner.execute (C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/playwright-runner/src/runner.ts:287:7)
+
+ ✓ test/cancellation-drain.test.ts (2 tests) 145ms
+stderr | test/runner-safety-honesty.test.ts > PlaywrightRunner Safety & Honesty Regressions — VNEXT-014-C1 (R2) > REG-R2-04: classifies Chromium launch failure as infrastructure error with not_run cases (FAIL BEFORE / PASS AFTER)
+[PlaywrightRunner] Error de infraestructura al iniciar el navegador Chromium: Error: Executable doesn't exist at C:\Users\Fake\AppData\Local\ms-playwright\chromium
+    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/playwright-runner/test/runner-safety-honesty.test.ts:106:7
+    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+stderr | test/adversarial-stress.test.ts > Adversarial Stress & Empirical Challenge Suite — PlaywrightRunner > Challenge 5: Infrastructure Errors vs Functional Failures > C5.1: Chromium launch failure produces result error, 0 failed, all not_run with structured reasons
+[PlaywrightRunner] Error de infraestructura al iniciar el navegador Chromium: Error: Executable doesn't exist at C:\Users\Fake\AppData\Local\ms-playwright\chromium
+    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/playwright-runner/test/adversarial-stress.test.ts:546:9
+    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+stderr | test/adversarial-stress.test.ts > Adversarial Stress & Empirical Challenge Suite — PlaywrightRunner > Challenge 5: Infrastructure Errors vs Functional Failures > C5.2: Chromium launch timeout produces result error without lock leakage
+[PlaywrightRunner] Error de infraestructura al iniciar el navegador Chromium: Error: browserType.launch: Timeout 30000ms exceeded.
+    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/playwright-runner/test/adversarial-stress.test.ts:576:9
+    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+stderr | test/runner-safety-honesty.test.ts > PlaywrightRunner Safety & Honesty Regressions — VNEXT-014-C1 (R2) > REG-R2-11: a browser-context setup failure reports an error and every planned case as not_run
+[PlaywrightRunner] Error crítico durante la ejecución: Error: Browser context could not be allocated
+    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/playwright-runner/test/runner-safety-honesty.test.ts:375:49
+    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+ ✓ test/runner-safety-honesty.test.ts (11 tests) 796ms
+     ✓ REG-R2-05: produces execution result strictly compliant with schema without rejected properties (FAIL BEFORE / PASS AFTER)  338ms
+ ✓ test/session-resolver.test.ts (4 tests) 893ms
+     ✓ ante sesión expirada, ejecuta re-login automático (login_mode: auto) y guarda la nueva sesión  693ms
+stderr | test/adversarial-stress.test.ts > Adversarial Stress & Empirical Challenge Suite — PlaywrightRunner > Challenge 5: Infrastructure Errors vs Functional Failures > C5.3: infrastructure error ExecutionResult satisfies strict schema validation
+[PlaywrightRunner] Error de infraestructura al iniciar el navegador Chromium: Error: Failed to launch browser: headless_shell missing
+    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/playwright-runner/test/adversarial-stress.test.ts:599:9
+    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64
+
+stderr | test/adversarial-stress.test.ts > Adversarial Stress & Empirical Challenge Suite — PlaywrightRunner > Challenge 6: Host MCP Process Protection & Signals > C6.3: pre-aborted cancellation returns error and accounts for every unexecuted case
+[PlaywrightRunner] Error crítico durante la ejecución: Error: Ejecución cancelada por AbortSignal.
+    at PlaywrightRunner.execute (C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/playwright-runner/src/runner.ts:190:15)
+    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/playwright-runner/test/adversarial-stress.test.ts:665:35
+    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)
+
+ ✓ test/adversarial-stress.test.ts (24 tests) 1257ms
+ ✓ test/runner.test.ts (3 tests) 1771ms
+     ✓ ejecuta un caso real usando storageResolver y navega sin consumir tokens de IA  917ms
+     ✓ con sesión válida inyectada vía resolveModuleSession, accede a ruta protegida sin redirigir a /login  811ms
+ ✓ test/lifecycle.test.ts (5 tests) 4792ms
+     ✓ inicializa el navegador y crea contextos aislados por caso  1812ms
+     ✓ aplica el viewport configurado  878ms
+     ✓ crea una pagina aislada por paso dentro del mismo caso  854ms
+     ✓ cleanup() cierra el navegador y es seguro llamarlo varias veces  401ms
+     ✓ ante SIGINT, invoca cleanup() y termina el proceso de forma segura  841ms
+
+ Test Files  11 passed (11)
+      Tests  73 passed (73)
+   Start at  17:54:15
+   Duration  6.93s (transform 4.02s, setup 0ms, import 27.61s, tests 17.27s, environment 4ms)
+
+JSON report written to C:/Users/Judirico/Documents/QAMCP/rescate-evidence/20261105-integracion/final-runner.json

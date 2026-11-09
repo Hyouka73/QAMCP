@@ -1,0 +1,6 @@
+{
+  "exit_code": 0,
+  "command": "pnpm --fail-if-no-match --filter @hyouka73/qap-cli test",
+  "finished_at": "2026-11-06T17:32:37.4673554Z",
+  "started_at": "2026-11-06T17:32:12.8409891Z"
+}

@@ -40,6 +40,8 @@ export interface SiguienteAccion {
   descripcion: string;
   tool?: string;
   comando?: string;
+  /** Exact, non-authorizing canonical interview continuation command for qap_rules_set. */
+  canonical_interview?: { action: 'next' };
   module?: string;
   modulo?: string;
   view?: string;

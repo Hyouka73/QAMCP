@@ -108,15 +108,24 @@ describe('E0 / B10 Pruebas de regresión sin impresión', () => {
   it('E0d / B10: objetivo largo se trunca a máx 280 con elipsis sin cortar palabras en preguntas, pero se guarda completo en context', async () => {
     const root = mkdtempSync(join(tmpdir(), 'qap-e0d-'));
     try {
-      const server = createMcpServer();
+      const server = createMcpServer({ projectRoots: [root] });
       const longObjective = 'Plataforma SaaS B2B que digitaliza y centraliza el ciclo de vida del reclutamiento y seleccion de personal, en particular los estudios socioeconomicos y los expedientes documentales. Transforma un proceso artesanal en una operacion industrializada mediante un pipeline Kanban de seis etapas que integra investigacion telefonica, visitas de campo offline-first y generacion automatica de reportes PDF. Resuelve la fragmentacion operativa entre clientes, mesa de control y ejecutivos de campo, con trazabilidad y SLAs definidos, y protege datos sensibles con cifrado y aislamiento multi-tenant.';
       expect(longObjective.length).toBeGreaterThan(300);
 
-      const prdContent = `# PRD Largo\n## Objetivo\n${longObjective}\n## Roles\n- Reclutador\n- Evaluador\n`;
+      // Real Markdown line separators are required for heading extraction.
+      const prdContent = `# PRD Largo
+## Objetivo
+${longObjective}
+## Roles
+- Reclutador
+- Evaluador
+`;
       writeFileSync(join(root, 'PRD.md'), prdContent, 'utf-8');
 
       await callTool(server, 'qap_init', { targetPath: root, baseUrl: 'http://localhost:3000' });
-      await callTool(server, 'qap_context_set', { targetPath: root, source_of_truth: 'PRD.md' });
+      const setRes = await callTool(server, 'qap_context_set', { targetPath: root, source_of_truth: 'PRD.md' });
+      expect(setRes.isError).not.toBe(true);
+      expect(JSON.parse(setRes.content[0].text as string).status).toBe('success');
 
       // Verificar truncarTexto función pura
       const truncado = truncarTexto(longObjective, 280);

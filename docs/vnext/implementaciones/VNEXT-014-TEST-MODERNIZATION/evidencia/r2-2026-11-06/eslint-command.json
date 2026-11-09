@@ -1,0 +1,6 @@
+{
+  "exit_code": 0,
+  "elapsed_ms": 18294.8472,
+  "started_at": "2026-11-06T21:51:30.0516896Z",
+  "command": "pnpm exec eslint packages/mcp/src/__tests__/fixtures/lifecycle-canonical.ts packages/mcp/src/__tests__/p3-canonical-discovery.test.ts packages/mcp/src/__tests__/p4-2-canonical-contract.test.ts packages/mcp/src/__tests__/p4-5a2-canonical-integrity.test.ts packages/mcp/src/__tests__/server-canonical-discovery.test.ts --format json --output-file <evidence>/eslint-focal.json"
+}

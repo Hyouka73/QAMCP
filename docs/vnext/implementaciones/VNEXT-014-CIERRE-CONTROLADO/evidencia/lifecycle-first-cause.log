@@ -1,0 +1,44 @@
+[
+  {
+    name: 'qap_init',
+    status: 'success',
+    code: undefined,
+    next: 'entrevista'
+  },
+  {
+    name: 'qap_context_set',
+    status: 'success',
+    code: undefined,
+    next: 'decision'
+  },
+  {
+    name: 'qap_session_plan',
+    status: 'success',
+    code: undefined,
+    next: 'trabajo'
+  },
+  {
+    name: 'qap_discover',
+    status: 'blocked',
+    code: 'knowledge_unbound',
+    next: undefined
+  },
+  {
+    name: 'qap_status',
+    status: 'success',
+    code: undefined,
+    next: 'trabajo'
+  },
+  {
+    name: 'qap_rules_set',
+    status: 'blocked',
+    code: 'legacy_interview_unavailable',
+    next: 'trabajo'
+  },
+  {
+    name: 'qap_module_close',
+    status: 'blocked',
+    code: 'legacy_interview_unavailable',
+    next: 'trabajo'
+  }
+]

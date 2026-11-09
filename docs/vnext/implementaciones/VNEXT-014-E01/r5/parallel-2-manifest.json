@@ -1,0 +1,19 @@
+{
+  "exit_code": 1,
+  "finished_at": "2026-11-07T00:02:01.4509799Z",
+  "elapsed_ms": 65431.832,
+  "arguments": [
+    "--filter",
+    "@qap/mcp",
+    "exec",
+    "vitest",
+    "run",
+    "--reporter=verbose",
+    "--reporter=json",
+    "--outputFile.json=<repo>\\docs\\vnext\\implementaciones\\VNEXT-014-E01\\r5/parallel-2.json"
+  ],
+  "started_at": "2026-11-07T00:00:56.0191547Z",
+  "sha": "9e9d2c8062b908d936ae090bbe9cb5c4ca2b0772",
+  "name": "parallel-2",
+  "instrumented": false
+}

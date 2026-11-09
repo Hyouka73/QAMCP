@@ -1,0 +1,19 @@
+
+ RUN  v4.1.11 C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp
+
+ ✓ src/__tests__/test-handler.test.ts (21 tests) 6739ms
+     ✓ Scenario 1: executes valid and authorized plan, persisting authentic result (R4.1)  700ms
+     ✓ Scenario 4: in-memory snapshot prevents TOCTOU tampering of YAML files after verification (R4.4)  579ms
+     ✓ Scenario 5: blocks unauthorized URLs, unconfigured host policy, and redirects (R4.5)  760ms
+     ✓ Scenario 7: rejects unauthorized profiles and disables implicit session recovery (R4.7)  613ms
+     ✓ Scenario 8: distinguishes real functional failure from infrastructure failure (R4.8)  758ms
+     ✓ Scenario 11: persists execution results adhering to schema without automatic SQLite ConformityAssessment (R4.11)  624ms
+     ✓ Scenario 12: integrates cleanly via createMcpServer preserving exact 18 tools (R4.12)  562ms
+     ✓ Scenario 13: physical Playwright Chromium execution against isolated local HTTP fixture (Real PASS & FAIL)  717ms
+
+ Test Files  1 passed (1)
+      Tests  21 passed (21)
+   Start at  10:26:25
+   Duration  11.39s (transform 2.74s, setup 0ms, import 4.22s, tests 6.74s, environment 0ms)
+
+JSON report written to C:/Users/Judirico/Documents/QAMCP/rescate-evidence/20261105-integracion/drain-fix-focal.json

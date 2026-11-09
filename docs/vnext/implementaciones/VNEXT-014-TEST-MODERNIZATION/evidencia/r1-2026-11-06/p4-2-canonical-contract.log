@@ -1,0 +1,33 @@
+
+ RUN  v4.1.11 C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp
+
+ ✓ src/__tests__/p4-2-canonical-contract.test.ts > P4.2 Suite: Contrato Canónico de Pregunta y Verificación E2E (Criterio 4 y Criterio 6) > Criterio 4.4: Ninguna respuesta con siguiente_accion trae preguntas como cadenas ni pregunta aplanada 2434ms
+ × src/__tests__/p4-2-canonical-contract.test.ts > P4.2 Suite: Contrato Canónico de Pregunta y Verificación E2E (Criterio 4 y Criterio 6) > Criterio 6: E2E Completo donde TODA siguiente_accion de tipo entrevista, entrevista_vista o decision trae Pregunta válida 1271ms
+   → expected 0 to be greater than 0
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/p4-2-canonical-contract.test.ts > P4.2 Suite: Contrato Canónico de Pregunta y Verificación E2E (Criterio 4 y Criterio 6) > Criterio 6: E2E Completo donde TODA siguiente_accion de tipo entrevista, entrevista_vista o decision trae Pregunta válida
+AssertionError: expected 0 to be greater than 0
+ ❯ src/__tests__/p4-2-canonical-contract.test.ts:52:30
+     50|     const question = (await f.interview('catalog', { action: 'next' })…
+     51|     expect(question.id).toMatch(/^interview:[a-f0-9]{64}$/);
+     52|     expect(question.version).toBeGreaterThan(0);
+       |                              ^
+     53|     expect(question.text.length).toBeGreaterThan(15);
+     54|     expect(question.human_review_required).toBe(true);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 1 passed (2)
+   Start at  15:24:45
+   Duration  6.01s (transform 913ms, setup 0ms, import 1.94s, tests 3.71s, environment 0ms)
+
+JSON report written to C:/Users/Judirico/Documents/QAMCP/QAMCP/docs/vnext/implementaciones/VNEXT-014-TEST-MODERNIZATION/evidencia/r1-2026-11-06/p4-2-canonical-contract.json
+Error: ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL
+
+  × "pnpm recursive exec" failed in C:
+  │ \Users\Judirico\Documents\QAMCP\QAMCP\packages\mcp
+

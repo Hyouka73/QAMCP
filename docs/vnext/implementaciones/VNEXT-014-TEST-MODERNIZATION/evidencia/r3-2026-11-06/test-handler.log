@@ -1,0 +1,31 @@
+
+ RUN  v4.1.11 <repo>/packages/mcp
+
+ ✓ src/__tests__/test-handler.test.ts > TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) > 014-CODEX-004: an overlapping cleanup owns only its original roots until locks drain 42ms
+ ✓ src/__tests__/test-handler.test.ts > TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) > Scenario 1: executes valid and authorized plan, persisting authentic result (R4.1) 1061ms
+ ✓ src/__tests__/test-handler.test.ts > TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) > Scenario 2: rejects missing, historical, corrupt, or obsolete plans without executing runner (R4.2) 106ms
+ ✓ src/__tests__/test-handler.test.ts > TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) > Scenario 3: rejects environment mismatch, module mismatch, and missing module (R4.3) 104ms
+ ✓ src/__tests__/test-handler.test.ts > TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) > Scenario 4: in-memory snapshot prevents TOCTOU tampering of YAML files after verification (R4.4) 559ms
+ ✓ src/__tests__/test-handler.test.ts > TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) > Scenario 5: blocks unauthorized URLs, unconfigured host policy, and redirects (R4.5) 1218ms
+ ✓ src/__tests__/test-handler.test.ts > TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) > Scenario 6: classifies missing browser launch failure as infrastructure block (R4.6) 89ms
+ ✓ src/__tests__/test-handler.test.ts > TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) > Scenario 7: rejects unauthorized profiles and disables implicit session recovery (R4.7) 590ms
+ ✓ src/__tests__/test-handler.test.ts > TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) > Scenario 8: distinguishes real functional failure from infrastructure failure (R4.8) 522ms
+ ✓ src/__tests__/test-handler.test.ts > TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) > Scenario 9: zero cases executed never returns fake PASS verdict (R4.9) 64ms
+ ✓ src/__tests__/test-handler.test.ts > TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) > Scenario 10: supports cancellation and resource cleanup under AbortSignal (R4.10) 52ms
+ ✓ src/__tests__/test-handler.test.ts > TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) > Scenario 11: persists execution results adhering to schema without automatic SQLite ConformityAssessment (R4.11) 501ms
+ ✓ src/__tests__/test-handler.test.ts > TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) > Scenario 12: integrates cleanly via createMcpServer preserving exact 18 tools (R4.12) 515ms
+ ✓ src/__tests__/test-handler.test.ts > TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) > Scenario 13: physical Playwright Chromium execution against isolated local HTTP fixture (Real PASS & FAIL) 611ms
+ ✓ src/__tests__/test-handler.test.ts > VNEXT-014-D preflight — execution evidence integrity > D-01: does not persist schema-invalid runner outputs 105ms
+ ✓ src/__tests__/test-handler.test.ts > VNEXT-014-D preflight — execution evidence integrity > D-02: refuses traversal-capable execution IDs despite schema v1 accepting strings 105ms
+ ✓ src/__tests__/test-handler.test.ts > VNEXT-014-D preflight — execution evidence integrity > D-03: failed execution persistence cannot be reported as success or recorded in history 87ms
+ ✓ src/__tests__/test-handler.test.ts > VNEXT-014-D preflight — execution evidence integrity > D-04: history failure preserves saved evidence but returns an explicit partial error 112ms
+ ✓ src/__tests__/test-handler.test.ts > VNEXT-014-D preflight — execution evidence integrity > D-05: rejects a schema-valid execution associated with a different module 94ms
+ ✓ src/__tests__/test-handler.test.ts > VNEXT-014-D preflight — execution evidence integrity > D-06: rejects summary totals that disagree with executed cases 96ms
+ ✓ src/__tests__/test-handler.test.ts > VNEXT-014-D preflight — execution evidence integrity > D-07: a critical runner error persists not_run evidence without reporting MCP success 99ms
+
+ Test Files  1 passed (1)
+      Tests  21 passed (21)
+   Start at  17:11:57
+   Duration  9.12s (transform 1.01s, setup 0ms, import 2.03s, tests 6.74s, environment 0ms)
+
+JSON report written to <repo>/docs/vnext/implementaciones/VNEXT-014-TEST-MODERNIZATION/evidencia/r3-2026-11-06/test-handler.json

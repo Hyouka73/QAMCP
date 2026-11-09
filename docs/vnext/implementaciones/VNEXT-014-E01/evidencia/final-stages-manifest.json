@@ -1,0 +1,18 @@
+{
+  "finished_at": "2026-11-06T18:16:51.8330022Z",
+  "started_at": "2026-11-06T18:15:59.7608874Z",
+  "exit_code": 1,
+  "name": "final-stages",
+  "arguments": [
+    "--filter",
+    "@qap/mcp",
+    "exec",
+    "vitest",
+    "run",
+    "--config",
+    "../../docs/vnext/implementaciones/VNEXT-014-E01/evidencia/diagnostic.config.ts",
+    "--reporter=default",
+    "--reporter=json",
+    "--outputFile=../../docs/vnext/implementaciones/VNEXT-014-E01/evidencia/final-stages.json"
+  ]
+}

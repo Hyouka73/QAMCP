@@ -1,0 +1,82 @@
+{
+  "baseline": {
+    "pass": 447,
+    "fail": 55,
+    "total": 502
+  },
+  "current": {
+    "pass": 455,
+    "fail": 50,
+    "total": 505
+  },
+  "recovered": [
+    {
+      "file": "src/__tests__/lifecycle-v3-e2e.test.ts",
+      "fullName": "Lifecycle V3 E2E & Verification Suite (E0 - E3) E0a: qap_status en WORKING para módulo con cobertura incompleta devuelve module, view y preguntas no vacías idénticas a qap_rules_set",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 510.9277999999997,
+      "first_error": "AssertionError: expected 'trabajo' to be 'entrevista_vista' // Object.is equality\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/lifecycle-v3-e2e.test.ts:140:52\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
+    },
+    {
+      "file": "src/__tests__/lifecycle-v3-e2e.test.ts",
+      "fullName": "Lifecycle V3 E2E & Verification Suite (E0 - E3) E1: regresión consolidated -> interviewing tras re-discover y política de waivers",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 310.3323999999998,
+      "first_error": "AssertionError: expected '{\\n  \"status\": \"blocked\",\\n  \"code\": …' to contain 'La categoría \\'proposito\\' no se pued…'\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/lifecycle-v3-e2e.test.ts:252:32\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
+    },
+    {
+      "file": "src/__tests__/lifecycle-v3-e2e.test.ts",
+      "fullName": "Lifecycle V3 E2E & Verification Suite (E0 - E3) E2: qap_module_close validaciones, compuertas y transiciones",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 358.68460000000005,
+      "first_error": "AssertionError: expected 'Falta el contexto de vista requerido …' to contain 'consolidated'\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/lifecycle-v3-e2e.test.ts:339:43\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
+    },
+    {
+      "file": "src/__tests__/lifecycle-v3-e2e.test.ts",
+      "fullName": "Lifecycle V3 E2E & Verification Suite (E0 - E3) E3: canExitWorking, qap_session_close, reporte de brechas y nueva sesión desde WRAP_UP",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 263.93859999999995,
+      "first_error": "Error: ENOENT: no such file or directory, open 'C:\\Users\\Judirico\\AppData\\Local\\Temp\\qap-v3-e2e-3dQuyt\\.qa\\modules\\auth\\rules.yaml'\n    at Proxy.readFileSync (node:fs:441:20)\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/lifecycle-v3-e2e.test.ts:407:28\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
+    },
+    {
+      "file": "src/__tests__/lifecycle-v3-e2e.test.ts",
+      "fullName": "Lifecycle V3 E2E & Verification Suite (E0 - E3) Criterio 9: E2E completo: init -> onboarding -> scoping -> working -> discover A -> rules_set parcial -> status (reanuda) -> rules_set completa -> module_close A -> discover B -> module_close waive B -> session_close -> status WRAP_UP -> session_plan nueva sesión",
+      "ordinal": 1,
+      "status": "failed",
+      "duration_ms": 291.9032000000002,
+      "first_error": "AssertionError: expected 'blocked' to be 'success' // Object.is equality\n    at C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/lifecycle-v3-e2e.test.ts:537:30\n    at file:///C:/Users/Judirico/Documents/QAMCP/QAMCP/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
+    }
+  ],
+  "regressions": [],
+  "removed": [],
+  "added": [
+    {
+      "file": "src/__tests__/lifecycle-v3-e2e.test.ts",
+      "fullName": "Lifecycle V3 E2E & Verification Suite (E0 - E3) E1 canonical: applicability rejects legacy categories and short reasons; wire waivers cannot replace host review",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 422.5102000000006,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/lifecycle-v3-e2e.test.ts",
+      "fullName": "Lifecycle V3 E2E & Verification Suite (E0 - E3) E1 canonical: a reviewed specification revision invalidates an earlier pending closure authorization",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 747.5455000000002,
+      "first_error": null
+    },
+    {
+      "file": "src/__tests__/lifecycle-v3-e2e.test.ts",
+      "fullName": "Lifecycle V3 E2E & Verification Suite (E0 - E3) E0 authorization: removing host consent blocks navigation and leaves Knowledge, drafts and lifecycle intact",
+      "ordinal": 1,
+      "status": "passed",
+      "duration_ms": 345.9845000000023,
+      "first_error": null
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+$ tsup src/index.ts --format esm --dts
+CLI Building entry: src/index.ts
+CLI Using tsconfig: tsconfig.json
+CLI tsup v8.5.1
+CLI Using tsup config: C:\Users\Judirico\Documents\QAMCP\QAMCP\packages\knowledge\tsup.config.ts
+CLI Target: es2022
+ESM Build start
+ESM dist\index.js 169.29 KB
+ESM ⚡️ Build success in 66ms
+DTS Build start
+DTS ⚡️ Build success in 2352ms
+DTS dist\index.d.ts 37.02 KB

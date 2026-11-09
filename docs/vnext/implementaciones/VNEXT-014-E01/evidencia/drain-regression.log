@@ -1,0 +1,12 @@
+
+ RUN  v4.1.11 C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp
+
+ ✓ src/__tests__/dispatcher.test.ts (38 tests) 30ms
+ ✓ src/__tests__/dispatcher-integration.test.ts (9 tests) 175ms
+
+ Test Files  2 passed (2)
+      Tests  47 passed (47)
+   Start at  12:04:49
+   Duration  2.67s (transform 827ms, setup 0ms, import 2.49s, tests 205ms, environment 0ms)
+
+JSON report written to C:/Users/Judirico/Documents/QAMCP/QAMCP/docs/vnext/implementaciones/VNEXT-014-E01/evidencia/drain-regression.json

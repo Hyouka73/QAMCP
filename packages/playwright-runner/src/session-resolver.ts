@@ -1,12 +1,17 @@
-import { chromium, type BrowserContext } from 'playwright-core';
+import type { BrowserContext } from 'playwright-core';
 import { AuthManager, SessionStore, executeAutoLogin, executeHandoffLogin, readProfile } from '@qap/auth';
 import { FileSystemStorage } from '@qap/knowledge';
 import type { StorageState } from '@qap/auth';
 
+export interface SessionResolverOptions {
+  allowImplicitAuth?: boolean;
+}
+
 export async function resolveModuleSession(
   projectRoot: string = process.cwd(),
   moduleName: string,
-  overrideProfile?: string
+  overrideProfile?: string,
+  options?: SessionResolverOptions
 ): Promise<StorageState | null> {
   const storage = new FileSystemStorage({ rootDir: projectRoot });
   const prereqs = await storage.getModulePrereqs(moduleName);
@@ -24,6 +29,10 @@ export async function resolveModuleSession(
     return session;
   }
 
+  if (options?.allowImplicitAuth === false) {
+    return null;
+  }
+
   const profile = await readProfile(profileId, projectRoot);
   if (!profile) {
     throw new Error(`Perfil de autenticación '${profileId}' no encontrado.`);
@@ -35,18 +44,19 @@ export async function resolveModuleSession(
   let browserContext: BrowserContext | null = null;
   try {
     const isHandoff = profile.login_mode === 'handoff';
+    const { chromium } = await import('playwright-core');
     const browser = await chromium.launch({ headless: !isHandoff });
     browserContext = await browser.newContext();
 
     let newStorageState: StorageState;
 
     if (isHandoff) {
-      newStorageState = (await executeHandoffLogin(profile, browserContext)) as StorageState;
+      newStorageState = await executeHandoffLogin(profile, browserContext);
     } else {
       if (!credentials) {
         throw new Error(`No se pudieron resolver las credenciales para el perfil '${profileId}'.`);
       }
-      newStorageState = (await executeAutoLogin(profile, credentials, browserContext)) as StorageState;
+      newStorageState = await executeAutoLogin(profile, credentials, browserContext);
     }
 
     sessionStore.saveSession(profileId, newStorageState);

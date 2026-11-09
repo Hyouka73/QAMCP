@@ -12,8 +12,9 @@ export interface AuthProfile {
   id: string;
   env: string;
   username: string;
-  credential_source: 'keychain' | 'env';
+  credential_source: 'keychain' | 'env' | 'vault' | 'ephemeral';
   env_var?: string;
+  application_id?: string;
   login_mode: 'auto' | 'handoff';
   login_route?: string;
   handoff_timeout_ms?: number;

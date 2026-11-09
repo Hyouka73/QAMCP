@@ -1,10 +1,13 @@
 import { createCipheriv, createDecipheriv, randomBytes, createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs';
-import { join, basename } from 'node:path';
+import { unlinkSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 
-import pkg from 'node-machine-id';
-const { machineIdSync } = pkg;
 import type { Cookie } from 'playwright-core';
+
+import { CredentialError } from './credential-provider.js';
+import { atomicPrivateWrite, readPrivateFile, safeDirectory, safeProfileId, withFileLock } from './secure-files.js';
+
+const processSessionKey = randomBytes(32);
 
 export interface StorageState {
   cookies: Cookie[];
@@ -26,30 +29,23 @@ export class SessionStore {
   private secretKey: Buffer;
 
   constructor(customCacheDir?: string, projectPath: string = process.cwd()) {
-    this.cacheDir = customCacheDir ?? join(process.cwd(), '.qa', 'cache', 'sessions');
-    if (!existsSync(this.cacheDir)) {
-      mkdirSync(this.cacheDir, { recursive: true });
-    }
-
-    // Prioridad 1: QAP_SESSION_KEY (variable de entorno explicita)
-    // Prioridad 2: derivada de machine-id + hash del proyecto
-    const keySeed = process.env.QAP_SESSION_KEY ?? this.deriveDefaultKeySeed(projectPath);
-    this.secretKey = createHash('sha256').update(keySeed).digest();
-  }
-
-  private deriveDefaultKeySeed(projectPath: string): string {
-    const machineId = machineIdSync(true);
-    const projectHash = createHash('sha256').update(basename(projectPath)).digest('hex');
-    return `${machineId}:${projectHash}`;
+    this.cacheDir = safeDirectory(customCacheDir ?? join(projectPath, '.qa', 'cache', 'sessions'), true);
+    const configured = process.env.QAP_SESSION_KEY;
+    if (configured !== undefined && !/^[0-9a-fA-F]{64}$/.test(configured)) throw new CredentialError('INVALID_INPUT');
+    const seed = configured ? Buffer.from(configured, 'hex') : processSessionKey;
+    this.secretKey = createHash('sha256').update(seed).update(resolve(this.cacheDir)).digest();
   }
 
   private getFilePath(profileId: string): string {
+    safeProfileId(profileId);
     return join(this.cacheDir, `${profileId}.json`);
   }
 
   public saveSession(profileId: string, state: StorageState): void {
+    this.getFilePath(profileId);
     const iv = randomBytes(12);
     const cipher = createCipheriv('aes-256-gcm', this.secretKey, iv);
+    cipher.setAAD(Buffer.from(profileId));
     const jsonString = JSON.stringify(state);
     let encrypted = cipher.update(jsonString, 'utf8', 'hex');
     encrypted += cipher.final('hex');
@@ -62,39 +58,33 @@ export class SessionStore {
       createdAt: Date.now(),
     };
 
-    writeFileSync(this.getFilePath(profileId), JSON.stringify(payload, null, 2), 'utf8');
+    withFileLock(this.getFilePath(profileId), () => atomicPrivateWrite(this.getFilePath(profileId), JSON.stringify(payload)));
   }
 
   public getValidSession(profileId: string): StorageState | null {
     const filePath = this.getFilePath(profileId);
-    if (!existsSync(filePath)) return null;
-
     try {
-      const rawContent = readFileSync(filePath, 'utf8');
-      const payload = JSON.parse(rawContent) as EncryptedSessionPayload;
-
-      const decipher = createDecipheriv(
-        'aes-256-gcm',
-        this.secretKey,
-        Buffer.from(payload.iv, 'hex')
-      );
-      decipher.setAuthTag(Buffer.from(payload.authTag, 'hex'));
-
-      let decrypted = decipher.update(payload.data, 'hex', 'utf8');
-      decrypted += decipher.final('utf8');
-
-      const state = JSON.parse(decrypted) as StorageState;
-
-      if (this.isExpired(state)) {
-        this.clearSession(profileId);
-        return null;
-      }
-
-      return state;
-    } catch {
-      this.clearSession(profileId);
-      return null;
-    }
+      return withFileLock(filePath, () => {
+        try {
+          const rawContent = readPrivateFile(filePath);
+          if (rawContent === null) return null;
+          const payload = JSON.parse(rawContent) as EncryptedSessionPayload;
+          const decipher = createDecipheriv('aes-256-gcm', this.secretKey,
+            Buffer.from(payload.iv, 'hex'), { authTagLength: 16 });
+          decipher.setAAD(Buffer.from(profileId));
+          decipher.setAuthTag(Buffer.from(payload.authTag, 'hex'));
+          const plaintext = Buffer.concat([decipher.update(Buffer.from(payload.data, 'hex')), decipher.final()]);
+          try {
+            const state = JSON.parse(plaintext.toString('utf8')) as StorageState;
+            if (this.isExpired(state)) { unlinkSync(filePath); return null; }
+            return state;
+          } finally { plaintext.fill(0); }
+        } catch {
+          // Wrong keys or tampering do not destroy another process's cached state.
+          return null;
+        }
+      });
+    } catch { return null; }
   }
 
   public isExpired(state: StorageState): boolean {
@@ -109,12 +99,8 @@ export class SessionStore {
 
   public clearSession(profileId: string): void {
     const filePath = this.getFilePath(profileId);
-    if (existsSync(filePath)) {
-      try {
-        unlinkSync(filePath);
-      } catch {
-        // Ignorar: el archivo pudo haber sido eliminado por otro proceso.
-      }
-    }
+    withFileLock(filePath, () => {
+      if (readPrivateFile(filePath) !== null) unlinkSync(filePath);
+    });
   }
 }
