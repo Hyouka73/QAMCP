@@ -36,7 +36,7 @@ function createActorRule(id: string, overrides: Partial<RuleEntry> = {}): RuleEn
   };
 }
 
-const standardSelectors: ModuleSelectors = {
+const standardSelectors = {
   selectors: {
     age: '#age-input',
     username: '#username-input',
@@ -246,7 +246,7 @@ describe('Negative Reproduction & Regression Test Suite: BVA & RBAC Oracle Harde
     });
 
     it('remediated behavior: omits test generation when submit button is absent from ModuleSelectors (fail-closed)', () => {
-      const selectorsWithoutSubmit: ModuleSelectors = {
+      const selectorsWithoutSubmit = {
         selectors: {
           age: '#age-input',
           error: '.error-message',
@@ -396,7 +396,7 @@ describe('Negative Reproduction & Regression Test Suite: BVA & RBAC Oracle Harde
     });
 
     it('remediated behavior: when error selector is absent, omits invalid boundary cases without oracle', () => {
-      const selectorsNoErr: ModuleSelectors = {
+      const selectorsNoErr = {
         selectors: {
           age: '#age-input',
           submit: '#submit-btn',
@@ -418,7 +418,7 @@ describe('Negative Reproduction & Regression Test Suite: BVA & RBAC Oracle Harde
     });
 
     it('remediated behavior: when success selector is absent, omits valid boundary cases without oracle', () => {
-      const selectorsNoSuccess: ModuleSelectors = {
+      const selectorsNoSuccess = {
         selectors: {
           age: '#age-input',
           submit: '#submit-btn',
@@ -440,7 +440,7 @@ describe('Negative Reproduction & Regression Test Suite: BVA & RBAC Oracle Harde
     });
 
     it('remediated behavior: when neither success nor error selector is present, returns empty cases (fail-closed)', () => {
-      const selectorsNoOracles: ModuleSelectors = {
+      const selectorsNoOracles = {
         selectors: {
           age: '#age-input',
           submit: '#submit-btn',
@@ -485,7 +485,7 @@ describe('Negative Reproduction & Regression Test Suite: BVA & RBAC Oracle Harde
       const cases = generateRbacNegativeCases(
         'configuracion',
         projectRoles,
-        { base_route: '/config' },
+        { base_route: '/config', denial_selector: '#denied' },
         [rule],
         accreditedProfiles
       );
@@ -510,7 +510,7 @@ describe('Negative Reproduction & Regression Test Suite: BVA & RBAC Oracle Harde
       const cases = generateRbacNegativeCases(
         'configuracion',
         projectRoles,
-        { base_route: '/config' },
+        { base_route: '/config', denial_selector: '#denied' },
         [rule],
         accreditedProfiles
       );
@@ -564,7 +564,7 @@ describe('Negative Reproduction & Regression Test Suite: BVA & RBAC Oracle Harde
       const cases = generateRbacNegativeCases(
         'aprobaciones',
         projectRoles,
-        { users: ['admin'], base_route: '/aprobaciones' },
+        { users: ['admin'], base_route: '/aprobaciones', denial_selector: '#denied' },
         [rule],
         accreditedProfiles
       );
@@ -599,7 +599,7 @@ describe('Negative Reproduction & Regression Test Suite: BVA & RBAC Oracle Harde
       const cases = generateRbacNegativeCases(
         'general',
         projectRoles,
-        { users: [] }, // No context users either
+        { users: [], denial_selector: '#denied' }, // No context users either
         [ungroundedRule],
         accreditedProfiles
       );
@@ -639,7 +639,7 @@ describe('Negative Reproduction & Regression Test Suite: BVA & RBAC Oracle Harde
       const cases = generateRbacNegativeCases(
         'secretos',
         projectRoles,
-        { base_route: '/secretos' },
+        { base_route: '/secretos', observable_denial: true },
         [rule],
         accreditedProfiles
       );
@@ -690,7 +690,7 @@ describe('Negative Reproduction & Regression Test Suite: BVA & RBAC Oracle Harde
       const cases = generateRbacNegativeCases(
         'operaciones',
         projectRoles,
-        { base_route: '/operaciones' },
+        { base_route: '/operaciones', denial_selector: '#denied' },
         [rule],
         accreditedProfiles
       );
@@ -717,7 +717,7 @@ describe('Negative Reproduction & Regression Test Suite: BVA & RBAC Oracle Harde
       const cases = generateRbacNegativeCases(
         'general',
         projectRoles,
-        { users: [] },
+        { users: [], denial_selector: '#denied' },
         rules,
         accreditedProfiles
       );
@@ -759,8 +759,9 @@ describe('Negative Reproduction & Regression Test Suite: BVA & RBAC Oracle Harde
       assertValidTcCase(cases[0]);
     });
 
-    it('remediated behavior: supports privileged_selector with assertion_type: not_exists', () => {
-      const cases = generateRbacNegativeCases(
+    it('remediated behavior: requires positive denial oracle and appends privileged_selector with assertion_type: not_exists (never isolated not_exists)', () => {
+      // Isolated privileged_selector without positive denial oracle must fail closed (H01)
+      const isolatedCases = generateRbacNegativeCases(
         'admin-panel',
         projectRoles,
         {
@@ -770,11 +771,32 @@ describe('Negative Reproduction & Regression Test Suite: BVA & RBAC Oracle Harde
         [rule],
         accreditedProfiles
       );
+      expect(isolatedCases).toEqual([]);
+
+      // Combined with positive denial_selector, emits both positive visible assertion and not_exists check
+      const cases = generateRbacNegativeCases(
+        'admin-panel',
+        projectRoles,
+        {
+          base_route: '/admin',
+          denial_selector: '.access-denied-banner',
+          privileged_selector: '#privileged-delete-action-button',
+        },
+        [rule],
+        accreditedProfiles
+      );
 
       expect(cases.length).toBe(1);
-      const assertStep = cases[0].steps.find((s) => s.type === 'assert')!;
-      expect(assertStep.selector).toBe('#privileged-delete-action-button');
-      expect(assertStep.assertion_type).toBe('not_exists');
+      expect(cases[0].steps[2]).toEqual({
+        type: 'assert',
+        selector: '.access-denied-banner',
+        assertion_type: 'visible',
+      });
+      expect(cases[0].steps[3]).toEqual({
+        type: 'assert',
+        selector: '#privileged-delete-action-button',
+        assertion_type: 'not_exists',
+      });
 
       assertValidTcCase(cases[0]);
     });
@@ -823,8 +845,8 @@ describe('Negative Reproduction & Regression Test Suite: BVA & RBAC Oracle Harde
 
       const rbacRule = createActorRule('R-DET-RBAC', { tags: ['role:admin'] });
       const profiles = [{ id: 'profile-viewer', role: 'viewer', env: 'local', username: 'v' }] as unknown as AuthProfile[];
-      const rbacRun1 = generateRbacNegativeCases('mod', ['admin', 'viewer'], {}, [rbacRule], profiles);
-      const rbacRun2 = generateRbacNegativeCases('mod', ['admin', 'viewer'], {}, [rbacRule], profiles);
+      const rbacRun1 = generateRbacNegativeCases('mod', ['admin', 'viewer'], { denial_selector: '#denied' }, [rbacRule], profiles);
+      const rbacRun2 = generateRbacNegativeCases('mod', ['admin', 'viewer'], { denial_selector: '#denied' }, [rbacRule], profiles);
 
       expect(rbacRun1.map((c) => c.id)).toEqual(rbacRun2.map((c) => c.id));
     });
@@ -835,7 +857,7 @@ describe('Negative Reproduction & Regression Test Suite: BVA & RBAC Oracle Harde
 
       const rbacRule = createActorRule('R-PLAYWRIGHT-RBAC', { tags: ['role:admin'] });
       const profiles = [{ id: 'profile-guest', role: 'guest', env: 'local', username: 'g' }] as unknown as AuthProfile[];
-      const rbacCases = generateRbacNegativeCases('mod', ['admin', 'guest'], {}, [rbacRule], profiles);
+      const rbacCases = generateRbacNegativeCases('mod', ['admin', 'guest'], { denial_selector: '#denied' }, [rbacRule], profiles);
 
       const allCases = [...bvaCases, ...rbacCases];
       expect(allCases.length).toBeGreaterThan(0);
@@ -872,6 +894,179 @@ describe('Negative Reproduction & Regression Test Suite: BVA & RBAC Oracle Harde
           }
         }
       }
+    });
+  });
+
+  // =========================================================================
+  // 13. DEV-MVP-01-R2: Regresiones para los 6 P1 y 3 P2 de Auditoría Codex
+  // =========================================================================
+  describe('DEV-MVP-01-R2: Regresiones para los 6 P1 y 3 P2 de Auditoría Codex', () => {
+    it('P1-1 (H01): HTTP 500 o página de error jamás se acredita como denegación correcta mediante not_exists aislado', () => {
+      const profiles = [
+        { id: 'viewer-profile', role: 'viewer', env: 'local', username: 'viewer' } as unknown as AuthProfile,
+      ];
+      const rule = createActorRule('R-ACTOR', { description: 'Solo admin accede' });
+
+      // Si se proveen ambos (privileged_selector y denial_selector), la aserción primaria DEBE ser visible sobre denial_selector
+      const cases = generateRbacNegativeCases(
+        'mod',
+        ['admin', 'viewer'],
+        { base_route: '/mod', privileged_selector: '#delete', denial_selector: '#denied' },
+        [rule],
+        profiles
+      );
+
+      expect(cases.length).toBe(1);
+      expect(cases[0].steps[2]).toEqual({
+        type: 'assert',
+        selector: '#denied',
+        assertion_type: 'visible',
+      });
+      expect(cases[0].steps[3]).toEqual({
+        type: 'assert',
+        selector: '#delete',
+        assertion_type: 'not_exists',
+      });
+      assertValidTcCase(cases[0]);
+    });
+
+    it('P1-2 (H02): BVA preserva límites decimales exactos incluyendo min=0.5 y max=2.5', () => {
+      const rule = createBvaRule('R-BVA', {
+        field: 'age',
+        evidence: 'min="0.5" max="2.5"',
+      });
+      const cases = generateBvaCases('mod', [rule], standardSelectors);
+
+      expect(cases.length).toBe(5);
+      const minCase = cases.find((c) => c.name === 'BVA_R-BVA_min')!;
+      expect(minCase).toBeDefined();
+      expect(minCase.steps[1].value).toBe('0.5');
+      expect(minCase.steps[1].value).not.toBe('0');
+
+      const values = cases.map((c) => c.steps[1].value);
+      expect(values).toEqual(['0.4', '0.5', '1.5', '2.5', '2.6']);
+      cases.forEach(assertValidTcCase);
+    });
+
+    it('P1-3 (H03): BVA resuelve contradicciones con minlength=0 y cadena vacía (no emite under_min imposible)', () => {
+      const rule = createBvaRule('R-BVA', {
+        field: 'username',
+        evidence: 'minlength="0"',
+      });
+      const cases = generateBvaCases('mod', [rule], standardSelectors);
+
+      expect(cases.some((c) => c.name.endsWith('_under_min'))).toBe(false);
+      expect(cases.length).toBe(2);
+      expect(cases.map((c) => ({ value: c.steps[1].value, oracle: c.steps[3].selector }))).toEqual([
+        { value: '', oracle: '.success-message' },
+        { value: 'a', oracle: '.success-message' },
+      ]);
+      cases.forEach(assertValidTcCase);
+    });
+
+    it('P1-4 (H04): RBAC no interpreta etiquetas temáticas (ej. tags: ["seguridad"]) como roles autorizados', () => {
+      const profiles = [
+        { id: 'admin-profile', role: 'admin', env: 'local', username: 'admin' } as unknown as AuthProfile,
+        { id: 'viewer-profile', role: 'viewer', env: 'local', username: 'viewer' } as unknown as AuthProfile,
+      ];
+      const rule = createActorRule('R-ACTOR', {
+        description: 'Aplicar controles de acceso',
+        tags: ['seguridad'],
+      });
+
+      const cases = generateRbacNegativeCases(
+        'mod',
+        ['admin', 'viewer'],
+        { denial_selector: '#denied' },
+        [rule],
+        profiles
+      );
+
+      expect(cases).toEqual([]);
+    });
+
+    it('P1-5 (H05): RBAC elimina definitivamente la inferencia de permisos desde moduleContext.users', () => {
+      const profiles = [
+        { id: 'viewer-profile', role: 'viewer', env: 'local', username: 'viewer' } as unknown as AuthProfile,
+      ];
+      const genericRule = createActorRule('R-ACTOR', {
+        description: 'Aplicar controles de acceso a esta vista',
+      });
+
+      const cases = generateRbacNegativeCases(
+        'mod',
+        ['admin', 'viewer'],
+        { users: ['admin'], denial_selector: '#denied' },
+        [genericRule],
+        profiles
+      );
+
+      expect(cases).toEqual([]);
+    });
+
+    it('P1-6 (H06): RBAC impide asignar perfiles con roles incompatibles (ej. role: "admin" con id: "viewer-admin" para prueba viewer)', () => {
+      const profiles = [
+        { id: 'viewer-admin', role: 'admin', env: 'local', username: 'admin' } as unknown as AuthProfile,
+      ];
+      const rule = createActorRule('R-ACTOR', { description: 'Solo admin accede' });
+
+      const cases = generateRbacNegativeCases(
+        'mod',
+        ['admin', 'viewer'],
+        { denial_selector: '#denied' },
+        [rule],
+        profiles
+      );
+
+      expect(cases).toEqual([]);
+    });
+
+    it('P2-1 (H07): RBAC omite casos cuando no existe oráculo de denegación acreditado en el contexto', () => {
+      const profiles = [
+        { id: 'viewer-profile', role: 'viewer', env: 'local', username: 'viewer' } as unknown as AuthProfile,
+      ];
+      const rule = createActorRule('R-ACTOR', { description: 'Solo admin accede' });
+
+      const cases = generateRbacNegativeCases(
+        'mod',
+        ['admin', 'viewer'],
+        { base_route: '/mod' },
+        [rule],
+        profiles
+      );
+
+      expect(cases).toEqual([]);
+    });
+
+    it('P2-2 (H08): BVA rechaza límites contradictorios dentro de una misma regla (descripción vs evidencia DOM)', () => {
+      const rule = createBvaRule('R-BVA', {
+        field: 'age',
+        description: 'El importe tiene un mínimo de 18',
+        evidence: 'min="10"',
+      });
+
+      const cases = generateBvaCases('mod', [rule], standardSelectors);
+      expect(cases).toEqual([]);
+    });
+
+    it('P2-3 (H09): BVA y RBAC respetan el filtro de procedencia acreditada (rechazan source: "agent" o "dom")', () => {
+      const untrustedBva = createBvaRule('R-BVA', {
+        field: 'age',
+        source: 'agent',
+        evidence: 'min="10"',
+      });
+      expect(generateBvaCases('mod', [untrustedBva], standardSelectors)).toEqual([]);
+
+      const untrustedRbac = createActorRule('R-ACTOR', {
+        source: 'agent',
+        description: 'Solo admin accede',
+      });
+      const profiles = [
+        { id: 'viewer-profile', role: 'viewer', env: 'local', username: 'viewer' } as unknown as AuthProfile,
+      ];
+      expect(
+        generateRbacNegativeCases('mod', ['admin', 'viewer'], { denial_selector: '#denied' }, [untrustedRbac], profiles)
+      ).toEqual([]);
     });
   });
 });

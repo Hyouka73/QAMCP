@@ -8,18 +8,18 @@ function actorRule(id: string, overrides: Partial<RuleEntry> = {}): RuleEntry {
   return { id, description: 'Solo admin accede', category: 'actor', status: 'confirmed', ...overrides };
 }
 
-describe('RbacGenerator (DEV-MVP-01 / S81-002)', () => {
+describe('RbacGenerator (DEV-MVP-01 / DEV-MVP-01-R2 / S81-002)', () => {
   const roles = ['admin', 'viewer', 'guest'];
   const accreditedProfiles = [
     { id: 'profile-viewer', role: 'viewer', env: 'local', username: 'v' },
     { id: 'profile-guest', role: 'guest', env: 'local', username: 'g' },
   ] as unknown as AuthProfile[];
 
-  it('genera un caso por cada rol NO autorizado acreditado, con aserción observable de denegación, válido en SchemaValidator', () => {
+  it('genera un caso por cada rol NO autorizado acreditado, con aserción observable de denegación acreditada, válido en SchemaValidator', () => {
     const cases = generateRbacNegativeCases(
       'pagos',
       roles,
-      { users: ['admin'] },
+      { users: ['admin'], observable_denial: true },
       [actorRule('R-ACT-1')],
       accreditedProfiles
     );
@@ -45,7 +45,7 @@ describe('RbacGenerator (DEV-MVP-01 / S81-002)', () => {
     }
   });
 
-  it('acepta users como objetos { role } y { roles } de contextos antiguos', () => {
+  it('tolera objetos legacy en moduleContext.users pero exige autorización fundamentada en la regla y oráculo acreditado', () => {
     const guestProfile = [
       { id: 'guest-profile', role: 'guest', env: 'local', username: 'g' },
     ] as unknown as AuthProfile[];
@@ -53,7 +53,7 @@ describe('RbacGenerator (DEV-MVP-01 / S81-002)', () => {
     const cases = generateRbacNegativeCases(
       'pagos',
       roles,
-      { users: [{ role: 'admin' }, { roles: ['viewer'] }] },
+      { users: [{ role: 'admin' }, { roles: ['viewer'] }], denial_selector: '#denied' },
       [actorRule('R1', { description: 'Permite acceso a admin y viewer' })],
       guestProfile
     );
@@ -64,7 +64,12 @@ describe('RbacGenerator (DEV-MVP-01 / S81-002)', () => {
 
   it('omite roles sin perfil acreditado (elimina fallback <rol>-local, fail-closed, RBAC-1)', () => {
     // Sin perfiles acreditados proporcionados: no debe inventar <rol>-local ni emitir casos no ejecutables
-    const cases = generateRbacNegativeCases('pagos', ['viewer'], { users: [] }, [actorRule('R1')]);
+    const cases = generateRbacNegativeCases(
+      'pagos',
+      ['viewer'],
+      { users: [], denial_selector: '#denied' },
+      [actorRule('R1')]
+    );
 
     expect(cases).toEqual([]);
   });
@@ -78,7 +83,7 @@ describe('RbacGenerator (DEV-MVP-01 / S81-002)', () => {
     const cases = generateRbacNegativeCases(
       'pagos',
       ['admin', 'viewer', 'guest'],
-      { users: ['admin'] },
+      { users: ['admin'], denial_selector: '#denied' },
       [actorRule('R1')],
       onlyViewerProfile
     );
@@ -88,13 +93,19 @@ describe('RbacGenerator (DEV-MVP-01 / S81-002)', () => {
     expect(cases.find((c) => c.name.includes('guest'))).toBeUndefined();
   });
 
-  it('mapea el rol a su perfil por profile.role o por prefijo de profile.id', () => {
+  it('mapea el rol a su perfil por profile.role explícito o por prefijo legacy con frontera de slug cuando no hay profile.role', () => {
     const profiles = [
       { id: 'cuenta-visor', role: 'viewer', env: 'local', username: 'v' },
       { id: 'guest-staging', env: 'local', username: 'g' },
     ] as unknown as AuthProfile[];
 
-    const cases = generateRbacNegativeCases('pagos', ['viewer', 'guest'], { users: [] }, [actorRule('R1')], profiles);
+    const cases = generateRbacNegativeCases(
+      'pagos',
+      ['viewer', 'guest'],
+      { users: [], denial_selector: '#denied' },
+      [actorRule('R1')],
+      profiles
+    );
     const byRole = (needle: string) => cases.find((c) => c.name.includes(`'${needle}'`));
 
     expect(byRole('viewer')?.steps[0].auth_profile).toBe('cuenta-visor');
@@ -109,14 +120,14 @@ describe('RbacGenerator (DEV-MVP-01 / S81-002)', () => {
     const withRoute = generateRbacNegativeCases(
       'pagos',
       ['viewer'],
-      { users: [], base_route: '/pagos' },
+      { users: [], base_route: '/pagos', denial_selector: '#denied' },
       [actorRule('R1')],
       viewerProfile
     );
     const withoutRoute = generateRbacNegativeCases(
       'Mi Módulo',
       ['viewer'],
-      { users: [] },
+      { users: [], denial_selector: '#denied' },
       [actorRule('R1')],
       viewerProfile
     );
@@ -128,16 +139,17 @@ describe('RbacGenerator (DEV-MVP-01 / S81-002)', () => {
   it('ignora reglas actor no confirmadas o de otra categoría, y devuelve [] sin roles válidos', () => {
     const rules = [actorRule('R1', { status: 'inferred' }), actorRule('R2', { category: 'campo' })];
 
-    expect(generateRbacNegativeCases('pagos', roles, { users: [] }, rules, accreditedProfiles)).toEqual([]);
-    expect(generateRbacNegativeCases('pagos', [], { users: [] }, [actorRule('R1')], accreditedProfiles)).toEqual([]);
-    expect(generateRbacNegativeCases('pagos', [42, null, ''], { users: [] }, [actorRule('R1')], accreditedProfiles)).toEqual([]);
+    expect(generateRbacNegativeCases('pagos', roles, { denial_selector: '#denied' }, rules, accreditedProfiles)).toEqual([]);
+    expect(generateRbacNegativeCases('pagos', [], { denial_selector: '#denied' }, [actorRule('R1')], accreditedProfiles)).toEqual([]);
+    expect(generateRbacNegativeCases('pagos', [42, null, ''], { denial_selector: '#denied' }, [actorRule('R1')], accreditedProfiles)).toEqual([]);
   });
 
   it('genera IDs UUID deterministas, distintos por rol y por regla', () => {
     const rules = [actorRule('R1'), actorRule('R2')];
-    const first = generateRbacNegativeCases('pagos', roles, { users: ['admin'] }, rules, accreditedProfiles);
-    const again = generateRbacNegativeCases('pagos', roles, { users: ['admin'] }, rules, accreditedProfiles);
+    const first = generateRbacNegativeCases('pagos', roles, { denial_selector: '#denied' }, rules, accreditedProfiles);
+    const again = generateRbacNegativeCases('pagos', roles, { denial_selector: '#denied' }, rules, accreditedProfiles);
 
+    expect(first.length).toBeGreaterThan(0);
     expect(first.map((c) => c.id)).toEqual(again.map((c) => c.id));
     expect(new Set(first.map((c) => c.id)).size).toBe(first.length);
     expect(first[0].id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-a[0-9a-f]{3}-[0-9a-f]{12}$/);
@@ -160,36 +172,64 @@ describe('RbacGenerator (DEV-MVP-01 / S81-002)', () => {
     });
   });
 
-  it('usa comprobación not_exists sobre selector privilegiado si está definido en moduleContext', () => {
-    const cases = generateRbacNegativeCases(
+  it('H01: exige evidencia positiva de denegación antes de añadir not_exists sobre privileged_selector (jamás aprueba un HTTP 500 por ausencia aislada)', () => {
+    // 1. Solo privileged_selector sin oráculo positivo de denegación -> fail-closed (0 casos)
+    const unverifiedCases = generateRbacNegativeCases(
       'admin-panel',
       roles,
       { users: ['admin'], privileged_selector: '#sensitive-admin-controls' },
       [actorRule('R-ACT-1')],
       accreditedProfiles
     );
+    expect(unverifiedCases).toEqual([]);
 
-    expect(cases.length).toBe(2);
-    expect(cases[0].steps[2]).toEqual({
+    // 2. Con denial_selector y privileged_selector -> paso principal es visible en denial_selector, seguido de not_exists en privileged_selector
+    const verifiedCases = generateRbacNegativeCases(
+      'admin-panel',
+      roles,
+      {
+        users: ['admin'],
+        denial_selector: '#access-denied-banner',
+        privileged_selector: '#sensitive-admin-controls',
+      },
+      [actorRule('R-ACT-1')],
+      accreditedProfiles
+    );
+
+    expect(verifiedCases.length).toBe(2);
+    expect(verifiedCases[0].steps[2]).toEqual({
+      type: 'assert',
+      selector: '#access-denied-banner',
+      assertion_type: 'visible',
+    });
+    expect(verifiedCases[0].steps[3]).toEqual({
       type: 'assert',
       selector: '#sensitive-admin-controls',
       assertion_type: 'not_exists',
     });
   });
 
-  it('no emite casos si se declara explícitamente que no hay oráculo observable de denegación (fail-closed)', () => {
-    const cases = generateRbacNegativeCases(
+  it('no emite casos si no hay oráculo acreditado o si se declara explícitamente observable_denial: false (H07 / RBAC-5)', () => {
+    const explicitFalse = generateRbacNegativeCases(
       'pagos',
       roles,
       { users: ['admin'], observable_denial: false },
       [actorRule('R-ACT-1')],
       accreditedProfiles
     );
+    expect(explicitFalse).toEqual([]);
 
-    expect(cases).toEqual([]);
+    const missingOracle = generateRbacNegativeCases(
+      'pagos',
+      roles,
+      { base_route: '/pagos' },
+      [actorRule('R-ACT-1')],
+      accreditedProfiles
+    );
+    expect(missingOracle).toEqual([]);
   });
 
-  it('fundamenta la autorización en la regla de actor confirmada y no únicamente en moduleContext.users (RBAC-2)', () => {
+  it('fundamenta la autorización en la regla de actor confirmada y no en moduleContext.users (RBAC-2 / H05)', () => {
     const allProfiles = [
       { id: 'admin-p', role: 'admin', env: 'local', username: 'a' },
       { id: 'supervisor-p', role: 'supervisor', env: 'local', username: 's' },
@@ -201,7 +241,7 @@ describe('RbacGenerator (DEV-MVP-01 / S81-002)', () => {
     const cases = generateRbacNegativeCases(
       'auditoria',
       ['admin', 'supervisor', 'viewer'],
-      { users: ['admin'] },
+      { users: ['admin'], denial_selector: '#denied' },
       [rule],
       allProfiles
     );
@@ -215,6 +255,61 @@ describe('RbacGenerator (DEV-MVP-01 / S81-002)', () => {
     expect(byRole('viewer')?.steps[0].auth_profile).toBe('viewer-p');
   });
 
+  it('H05: elimina definitivamente la inferencia de permisos desde moduleContext.users cuando la regla es genérica', () => {
+    const genericRule = actorRule('R-GEN', {
+      description: 'Aplicar controles de acceso a esta vista',
+    });
+
+    const cases = generateRbacNegativeCases(
+      'mod',
+      ['admin', 'viewer'],
+      { users: ['admin'], denial_selector: '#denied' },
+      [genericRule],
+      accreditedProfiles
+    );
+
+    expect(cases).toEqual([]);
+  });
+
+  it('H04: no interpreta etiquetas temáticas (ej. tags: ["seguridad"]) como roles autorizados', () => {
+    const thematicRule = actorRule('R-THEME', {
+      description: 'Aplicar controles de acceso',
+      tags: ['seguridad', 'cumplimiento'],
+    });
+    const allProfiles = [
+      { id: 'admin-p', role: 'admin', env: 'local', username: 'a' },
+      { id: 'viewer-p', role: 'viewer', env: 'local', username: 'v' },
+    ] as unknown as AuthProfile[];
+
+    const cases = generateRbacNegativeCases(
+      'mod',
+      ['admin', 'viewer'],
+      { denial_selector: '#denied' },
+      [thematicRule],
+      allProfiles
+    );
+
+    expect(cases).toEqual([]);
+  });
+
+  it('H06: impide asignar un perfil con rol explícito incompatible aunque su id empiece con el nombre del rol objetivo', () => {
+    // Perfil con id 'viewer-admin' pero role explícito 'admin'
+    const conflictingProfiles = [
+      { id: 'viewer-admin', role: 'admin', env: 'local', username: 'admin' },
+    ] as unknown as AuthProfile[];
+
+    const cases = generateRbacNegativeCases(
+      'mod',
+      ['admin', 'viewer'],
+      { denial_selector: '#denied' },
+      [actorRule('R-ADMIN')],
+      conflictingProfiles
+    );
+
+    // Jamás debe asignar 'viewer-admin' (que es admin) al caso negativo de 'viewer'
+    expect(cases).toEqual([]);
+  });
+
   it('aplica restricciones a roles explícitamente prohibidos en la regla actor', () => {
     const profiles = [
       { id: 'guest-p', role: 'guest', env: 'local', username: 'g' },
@@ -225,7 +320,7 @@ describe('RbacGenerator (DEV-MVP-01 / S81-002)', () => {
     const cases = generateRbacNegativeCases(
       'pagos',
       ['admin', 'viewer', 'guest'],
-      {},
+      { denial_selector: '#denied' },
       [rule],
       profiles
     );
@@ -236,12 +331,12 @@ describe('RbacGenerator (DEV-MVP-01 / S81-002)', () => {
     expect(cases[0].name).toContain("'guest'");
   });
 
-  it('evita producto cartesiano ciego si la regla actor no fundamenta roles ni hay usuarios en contexto (RBAC-4)', () => {
+  it('evita producto cartesiano ciego si la regla actor no fundamenta roles (RBAC-4)', () => {
     const rule = actorRule('R-GENERIC', { description: 'Regla sin roles especificados' });
     const cases = generateRbacNegativeCases(
       'pagos',
       roles,
-      { users: [] },
+      { users: [], denial_selector: '#denied' },
       [rule],
       accreditedProfiles
     );
@@ -263,7 +358,7 @@ describe('RbacGenerator (DEV-MVP-01 / S81-002)', () => {
       const cases = generateRbacNegativeCases(
         'pagos',
         ['admin', 'viewer'],
-        { users: ['admin'] },
+        { users: ['admin'], denial_selector: '#denied' },
         [actorRule('R1')],
         malformed
       );
@@ -291,7 +386,7 @@ describe('RbacGenerator (DEV-MVP-01 / S81-002)', () => {
       const cases = generateRbacNegativeCases(
         'pagos',
         ['admin', 'user', 'guest'],
-        {},
+        { denial_selector: '#denied' },
         [rule],
         profiles
       );
@@ -311,7 +406,7 @@ describe('RbacGenerator (DEV-MVP-01 / S81-002)', () => {
     const cases = generateRbacNegativeCases(
       'pagos',
       ['###', '---', '   ', '@@@'],
-      {},
+      { denial_selector: '#denied' },
       [rule],
       profiles
     );

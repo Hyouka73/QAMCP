@@ -5,7 +5,6 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_DENIAL_SELECTOR,
   generateRbacNegativeCases,
-  type RbacModuleContext,
 } from '../plan/rbac-generator.js';
 
 const UUID_V4_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -40,7 +39,7 @@ describe('Adversarial Challenger Suite: RBAC Generator Stress & Exploit Testing'
       const cases = generateRbacNegativeCases(
         'security',
         ['admin', 'guest', 'viewer'],
-        { base_route: '/sec' },
+        { base_route: '/sec', denial_selector: '#denied' },
         [makeActorRule('R1')],
         undefined
       );
@@ -58,7 +57,7 @@ describe('Adversarial Challenger Suite: RBAC Generator Stress & Exploit Testing'
       const cases = generateRbacNegativeCases(
         'security',
         ['admin', 'guest'],
-        { base_route: '/sec' },
+        { base_route: '/sec', denial_selector: '#denied' },
         [makeActorRule('R1')],
         []
       );
@@ -75,7 +74,7 @@ describe('Adversarial Challenger Suite: RBAC Generator Stress & Exploit Testing'
       const cases = generateRbacNegativeCases(
         'security',
         trickyRoles,
-        { users: ['admin'] },
+        { users: ['admin'], denial_selector: '#denied' },
         [makeActorRule('R1')],
         accreditedProfiles
       );
@@ -94,7 +93,7 @@ describe('Adversarial Challenger Suite: RBAC Generator Stress & Exploit Testing'
       const cases = generateRbacNegativeCases(
         'mod',
         allRoles,
-        {},
+        { denial_selector: '#denied' },
         [rule],
         onlyOneAccredited
       );
@@ -120,7 +119,7 @@ describe('Adversarial Challenger Suite: RBAC Generator Stress & Exploit Testing'
         const cases = generateRbacNegativeCases(
           'mod',
           ['admin', 'viewer'],
-          { users: ['admin'] },
+          { users: ['admin'], denial_selector: '#denied' },
           [makeActorRule('R1')],
           malformedProfiles
         );
@@ -137,7 +136,7 @@ describe('Adversarial Challenger Suite: RBAC Generator Stress & Exploit Testing'
       const cases = generateRbacNegativeCases(
         'mod',
         ['admin', 'viewer'],
-        { users: ['admin'] },
+        { users: ['admin'], denial_selector: '#denied' },
         [makeActorRule('R1')],
         edgeProfiles
       );
@@ -153,7 +152,7 @@ describe('Adversarial Challenger Suite: RBAC Generator Stress & Exploit Testing'
       const cases = generateRbacNegativeCases(
         'test_mod',
         ['###'],
-        {},
+        { denial_selector: '#denied' },
         [makeActorRule('R1', { tags: ['role:admin'], description: '' })],
         profiles
       );
@@ -162,42 +161,43 @@ describe('Adversarial Challenger Suite: RBAC Generator Stress & Exploit Testing'
       expect(cases).toEqual([]);
     });
 
-    it('tests prefix matching in profile id: prevents cross-role profile hijacking', () => {
-      // Suppose we have role 'adm' and role 'admin'
-      // Profile is for 'admin' with id 'admin-root'
+    it('prevents cross-role profile hijacking when profile has explicit conflicting role or non-boundary prefix (H06)', () => {
+      // Profile is explicitly for 'admin' with id 'admin-root' or 'viewer-admin'
       const profiles: AuthProfile[] = [
         { id: 'admin-root', role: 'admin', env: 'local', username: 'adm' } as unknown as AuthProfile,
+        { id: 'viewer-admin', role: 'admin', env: 'local', username: 'adm2' } as unknown as AuthProfile,
       ];
 
-      // If 'adm' is tested: 'admin-root'.startsWith('adm') is true!
-      // Let's verify what happens if both 'admin' and 'adm' exist
+      // Neither 'adm' (partial prefix of 'admin-root') nor 'viewer' (prefix of 'viewer-admin' whose role is 'admin')
+      // may hijack an 'admin' profile!
       const rule = makeActorRule('R-ADM', { description: 'Solo auditor accede' });
       const cases = generateRbacNegativeCases(
         'mod',
-        ['auditor', 'adm'],
-        {},
+        ['auditor', 'adm', 'viewer'],
+        { denial_selector: '#denied' },
         [rule],
         profiles
       );
 
-      // 'adm' matches 'admin-root' because 'admin-root'.startsWith('adm') is true.
-      // Every emitted case must be valid and never fabricated
-      for (const c of cases) {
-        validateCase(c);
-        expect(c.steps[0].auth_profile).toBe('admin-root');
-      }
+      expect(cases).toEqual([]);
     });
   });
 
   // =========================================================================
-  // 2. ASSERTION ORACLE EXPLOITS (NEVER BODY EXISTS)
+  // 2. ASSERTION ORACLE EXPLOITS (NEVER BODY EXISTS, NEVER UNVERIFIED FALLBACK)
   // =========================================================================
   describe('Exploit Attempt: Trick generator into emitting selector: body, assertion_type: exists', () => {
-    it('under standard configuration, denial step is DEFAULT_DENIAL_SELECTOR and visible', () => {
+    it('under observable_denial: true configuration, denial step is DEFAULT_DENIAL_SELECTOR and visible', () => {
       const profiles: AuthProfile[] = [
         { id: 'p-guest', role: 'guest', env: 'local', username: 'g' } as unknown as AuthProfile,
       ];
-      const cases = generateRbacNegativeCases('m', ['admin', 'guest'], {}, [makeActorRule('R1')], profiles);
+      const cases = generateRbacNegativeCases(
+        'm',
+        ['admin', 'guest'],
+        { observable_denial: true },
+        [makeActorRule('R1')],
+        profiles
+      );
 
       expect(cases.length).toBe(1);
       const assertStep = cases[0].steps[2];
@@ -228,23 +228,40 @@ describe('Adversarial Challenger Suite: RBAC Generator Stress & Exploit Testing'
       expect(assertStep.assertion_type).not.toBe('exists');
     });
 
-    it('when privileged_selector is used, assertion_type is not_exists, NOT exists', () => {
+    it('when privileged_selector is used alongside a positive denial oracle, emits visible on denial followed by not_exists on privileged_selector (H01)', () => {
       const profiles: AuthProfile[] = [
         { id: 'p-guest', role: 'guest', env: 'local', username: 'g' } as unknown as AuthProfile,
       ];
-      const cases = generateRbacNegativeCases(
+      // Without positive denial oracle -> fail-closed (never emit isolated not_exists that passes on HTTP 500)
+      const isolated = generateRbacNegativeCases(
         'm',
         ['admin', 'guest'],
         { privileged_selector: '#secret-admin-btn' },
         [makeActorRule('R1')],
         profiles
       );
+      expect(isolated).toEqual([]);
+
+      // With positive denial_selector -> emits both visible and not_exists
+      const cases = generateRbacNegativeCases(
+        'm',
+        ['admin', 'guest'],
+        { denial_selector: '#denied', privileged_selector: '#secret-admin-btn' },
+        [makeActorRule('R1')],
+        profiles
+      );
 
       expect(cases.length).toBe(1);
-      const assertStep = cases[0].steps[2];
-      expect(assertStep.selector).toBe('#secret-admin-btn');
-      expect(assertStep.assertion_type).toBe('not_exists');
-      expect(assertStep.assertion_type).not.toBe('exists');
+      expect(cases[0].steps[2]).toEqual({
+        type: 'assert',
+        selector: '#denied',
+        assertion_type: 'visible',
+      });
+      expect(cases[0].steps[3]).toEqual({
+        type: 'assert',
+        selector: '#secret-admin-btn',
+        assertion_type: 'not_exists',
+      });
       validateCase(cases[0]);
     });
 
@@ -294,7 +311,7 @@ describe('Adversarial Challenger Suite: RBAC Generator Stress & Exploit Testing'
       const cases = generateRbacNegativeCases(
         'vuln_mod',
         sqliRoles,
-        { users: ['admin'] },
+        { users: ['admin'], denial_selector: '#denied' },
         [makeActorRule('R-SQLI', { description: 'Solo admin accede' })],
         profiles
       );
@@ -317,7 +334,7 @@ describe('Adversarial Challenger Suite: RBAC Generator Stress & Exploit Testing'
       const cases = generateRbacNegativeCases(
         'xss_mod',
         xssRoles,
-        { users: ['admin'] },
+        { users: ['admin'], denial_selector: '#denied' },
         [makeActorRule('R-XSS', { description: 'Solo admin accede' })],
         profiles
       );
@@ -344,7 +361,7 @@ describe('Adversarial Challenger Suite: RBAC Generator Stress & Exploit Testing'
         const cases = generateRbacNegativeCases(
           'reg_mod',
           regexRoles,
-          { users: ['admin'] },
+          { users: ['admin'], denial_selector: '#denied' },
           [makeActorRule('R-REGEX', { description: 'Solo admin accede' })],
           profiles
         );
@@ -372,7 +389,7 @@ describe('Adversarial Challenger Suite: RBAC Generator Stress & Exploit Testing'
       const cases = generateRbacNegativeCases(
         'i18n_mod',
         unicodeRoles,
-        { users: ['admin'] },
+        { users: ['admin'], denial_selector: '#denied' },
         [makeActorRule('R-I18N', { description: 'Solo admin accede' })],
         profiles
       );
@@ -391,7 +408,7 @@ describe('Adversarial Challenger Suite: RBAC Generator Stress & Exploit Testing'
       const cases = generateRbacNegativeCases(
         'mod',
         emptyRoles,
-        { users: ['admin'] },
+        { users: ['admin'], denial_selector: '#denied' },
         [makeActorRule('R1', { description: 'Solo admin accede' })],
         profiles
       );
@@ -409,7 +426,7 @@ describe('Adversarial Challenger Suite: RBAC Generator Stress & Exploit Testing'
       const casesUpper = generateRbacNegativeCases(
         'mod',
         ['ADMIN', 'AUDITÓR'],
-        { users: ['admin'] },
+        { users: ['admin'], denial_selector: '#denied' },
         [makeActorRule('R1', { description: 'Solo admin accede' })],
         profiles
       );
@@ -429,7 +446,7 @@ describe('Adversarial Challenger Suite: RBAC Generator Stress & Exploit Testing'
       { id: 'p-user', role: 'user', env: 'local', username: 'u' } as unknown as AuthProfile,
     ];
 
-    it('rules that do not restrict access to specific roles do NOT emit negative cases when context has no users', () => {
+    it('rules that do not restrict access to specific roles do NOT emit negative cases even if context has users (H05)', () => {
       const publicRule = makeActorRule('R-PUBLIC', {
         description: 'Cualquier usuario puede ver la pagina de inicio sin restricciones',
       });
@@ -437,12 +454,12 @@ describe('Adversarial Challenger Suite: RBAC Generator Stress & Exploit Testing'
       const cases = generateRbacNegativeCases(
         'landing',
         ['guest', 'user'],
-        { users: [] },
+        { users: ['admin'], denial_selector: '#denied' },
         [publicRule],
         profiles
       );
 
-      // Fail-closed: ungrounded rule does not emit blind negative tests
+      // Fail-closed: ungrounded rule does not emit blind negative tests nor infer from users
       expect(cases).toEqual([]);
     });
 
@@ -452,14 +469,14 @@ describe('Adversarial Challenger Suite: RBAC Generator Stress & Exploit Testing'
         description: 'Solo admin puede editar el campo saldo',
       });
       const layoutRule = makeActorRule('R-LAYOUT', {
-        category: 'layout',
+        category: 'layout' as any,
         description: 'Exclusivo para rol supervisor',
       });
 
       const cases = generateRbacNegativeCases(
         'mod',
         ['admin', 'guest'],
-        {},
+        { denial_selector: '#denied' },
         [campoRule, layoutRule],
         profiles
       );
@@ -484,7 +501,7 @@ describe('Adversarial Challenger Suite: RBAC Generator Stress & Exploit Testing'
       const cases = generateRbacNegativeCases(
         'mod',
         ['admin', 'guest'],
-        {},
+        { denial_selector: '#denied' },
         [inferredRule, draftRule, rejectedRule],
         profiles
       );
@@ -500,7 +517,7 @@ describe('Adversarial Challenger Suite: RBAC Generator Stress & Exploit Testing'
       const cases = generateRbacNegativeCases(
         'mod',
         ['admin', 'user', 'guest'],
-        {},
+        { denial_selector: '#denied' },
         [prohibitionRule],
         profiles
       );
@@ -520,7 +537,7 @@ describe('Adversarial Challenger Suite: RBAC Generator Stress & Exploit Testing'
       const cases = generateRbacNegativeCases(
         'mod',
         ['admin', 'user', 'guest'],
-        {},
+        { denial_selector: '#denied' },
         [activeVerbRule],
         profiles
       );
@@ -532,7 +549,7 @@ describe('Adversarial Challenger Suite: RBAC Generator Stress & Exploit Testing'
       validateCase(cases[0]);
     });
 
-    it('extracts role from tags ("role:supervisor", "actor:admin")', () => {
+    it('extracts role from explicit role tags ("role:supervisor", "actor:admin") while ignoring thematic tags (H04)', () => {
       const profilesSuper: AuthProfile[] = [
         { id: 'p-guest', role: 'guest', env: 'local', username: 'g' } as unknown as AuthProfile,
         { id: 'p-admin', role: 'admin', env: 'local', username: 'a' } as unknown as AuthProfile,
@@ -540,13 +557,13 @@ describe('Adversarial Challenger Suite: RBAC Generator Stress & Exploit Testing'
 
       const taggedRule = makeActorRule('R-TAGGED', {
         description: 'Acceso al modulo de autorizaciones',
-        tags: ['role:supervisor'],
+        tags: ['role:supervisor', 'seguridad'],
       });
 
       const cases = generateRbacNegativeCases(
         'autorizaciones',
         ['supervisor', 'admin', 'guest'],
-        {},
+        { denial_selector: '#denied' },
         [taggedRule],
         profilesSuper
       );
@@ -592,7 +609,7 @@ describe('Adversarial Challenger Suite: RBAC Generator Stress & Exploit Testing'
       const cases = generateRbacNegativeCases(
         'stress_module',
         roleList,
-        {},
+        { denial_selector: '#denied' },
         ruleList,
         profileList
       );
@@ -610,7 +627,7 @@ describe('Adversarial Challenger Suite: RBAC Generator Stress & Exploit Testing'
       const secondRun = generateRbacNegativeCases(
         'stress_module',
         roleList,
-        {},
+        { denial_selector: '#denied' },
         ruleList,
         profileList
       );

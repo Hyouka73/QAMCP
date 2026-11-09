@@ -7,7 +7,7 @@ import { generateBvaCases } from '../plan/bva-generator.js';
 
 const UUID_V4_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-const fullSelectors: ModuleSelectors = {
+const fullSelectors = {
   selectors: {
     age: '#age-input',
     score: '[name="score"]',
@@ -202,28 +202,31 @@ describe('Empirical Challenger: BVA Generator Adversarial Stress Suite', () => {
       cases.forEach((c) => verifyTcCaseIntegrity(c));
     });
 
-    it('ATTACK 2.6: Floating points and decimals in evidence (min="0.5")', () => {
+    it('ATTACK 2.6: Floating points and decimals in evidence (min="0.5") preserves exact decimal boundary', () => {
       // Input has floating point attribute: HTML type="number" step="0.1" min="0.5"
       const rule = createConfirmedRule('R-FLOAT', 'score', { evidence: 'min="0.5"' });
       const cases = generateBvaCases('mod', [rule], fullSelectors);
 
-      // parseInt matches leading integer "0", so min is parsed as 0
+      // Must preserve decimal 0.5 with step 0.1 (under_min=0.4, min=0.5, nominal=0.6)
       expect(cases.length).toBe(3);
       const values = cases.map((c) => c.steps[1].value);
-      expect(values).toEqual(['-1', '0', '1']);
+      expect(values).toEqual(['0.4', '0.5', '0.6']);
+      expect(cases[0].steps[3].selector).toBe('.error-banner');
+      expect(cases[1].steps[3].selector).toBe('.success-banner');
+      expect(cases[2].steps[3].selector).toBe('.success-banner');
       cases.forEach((c) => verifyTcCaseIntegrity(c));
     });
 
-    it('ATTACK 2.7: String length minlength="0" handles under_min gracefully with Math.max(0, -1)', () => {
+    it('ATTACK 2.7: String length minlength="0" omits impossible under_min (< 0) and avoids contradictory empty string oracles', () => {
       const rule = createConfirmedRule('R-STR-ZERO', 'notes', { evidence: 'minlength="0"' });
       const cases = generateBvaCases('mod', [rule], fullSelectors);
 
-      expect(cases.length).toBe(3);
+      // Length < 0 does not exist: only min (0 -> '') and nominal (1 -> 'a') are emitted, both valid
+      expect(cases.length).toBe(2);
+      expect(cases.some((c) => c.name.endsWith('_under_min'))).toBe(false);
       const values = cases.map((c) => c.steps[1].value);
-      // under_min (-1) clamped to length 0 -> empty string ''
-      // min (0) -> length 0 -> empty string ''
-      // nominal (1) -> length 1 -> 'a'
-      expect(values).toEqual(['', '', 'a']);
+      expect(values).toEqual(['', 'a']);
+      expect(cases.every((c) => c.steps[3].selector === '.success-banner')).toBe(true);
 
       // SchemaValidator accepts empty string in step value
       cases.forEach((c) => verifyTcCaseIntegrity(c));
@@ -526,9 +529,23 @@ describe('Empirical Challenger: BVA Generator Adversarial Stress Suite', () => {
         if (status !== 'confirmed' || (category !== 'campo' && category !== 'dato' && category !== 'error' && category !== undefined)) {
           // Must NEVER emit cases if not confirmed or category not in BVA_CATEGORIES
           expect(cases.length).toBe(0);
-        } else if (minVal > maxVal) {
-          // Inverted range must NEVER emit cases
+        } else if (minVal > maxVal || (isString && (minVal < 0 || maxVal < 0))) {
+          // Inverted range or negative string length must NEVER emit cases
           expect(cases.length).toBe(0);
+        } else if (isString && minVal === 0 && maxVal === 0) {
+          // String length [0, 0]: under_min (<0) omitted, min(0)='', nominal(0)='', max(0)='', over_max(1)='a'
+          expect(cases.length).toBe(4);
+          totalCasesEmitted += cases.length;
+          for (const c of cases) {
+            verifyTcCaseIntegrity(c);
+          }
+        } else if (isString && minVal === 0) {
+          // String length [0, maxVal]: under_min (<0) omitted -> 4 valid/invalid boundary cases
+          expect(cases.length).toBe(4);
+          totalCasesEmitted += cases.length;
+          for (const c of cases) {
+            verifyTcCaseIntegrity(c);
+          }
         } else {
           // Valid confirmed case
           expect(cases.length).toBe(5);

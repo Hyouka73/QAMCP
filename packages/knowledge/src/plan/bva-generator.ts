@@ -20,6 +20,16 @@ function generateDeterministicUuid(seed: string): string {
 /** Categorías de regla sobre las que aplica BVA (enum real de rules.schema.json + legacy sin categoría). */
 const BVA_CATEGORIES: ReadonlyArray<string | undefined> = ['campo', 'dato', 'error', undefined];
 
+/** Procedencias acreditadas para reglas BVA (excluye inferencias no validadas como 'agent' o 'dom'). */
+const TRUSTED_RULE_SOURCES: ReadonlySet<string | undefined> = new Set([
+  'user_confirmed',
+  'prd',
+  'user_text',
+  'user',
+  'doc',
+  undefined,
+]);
+
 /** Tipos de frontera. */
 type BoundaryType = 'under_min' | 'min' | 'nominal' | 'max' | 'over_max';
 
@@ -32,7 +42,10 @@ interface Boundary {
 interface Bounds {
   min?: number;
   max?: number;
+  step?: number;
   valueType?: 'number' | 'string';
+  hasConflict?: boolean;
+  conflictReason?: string;
 }
 
 interface FieldGroup {
@@ -44,92 +57,184 @@ interface FieldGroup {
 }
 
 // Nivel 1: atributos del DOM en rule.evidence y rule.id:
-// Distinguir explícitamente límites de longitud de cadena de límites numéricos
-const ATTR_LEN_MIN = /(?:^|[\s,;.])\bminlength\s*[=:]\s*["']?(-?\d+)["']?/i;
-const ATTR_LEN_MAX = /(?:^|[\s,;.])\bmaxlength\s*[=:]\s*["']?(-?\d+)["']?/i;
-const ATTR_NUM_MIN = /(?:^|[\s,;.])\bmin\b\s*[=:]\s*["']?(-?\d+)["']?/i;
-const ATTR_NUM_MAX = /(?:^|[\s,;.])\bmax\b\s*[=:]\s*["']?(-?\d+)["']?/i;
+// Distinguir explícitamente límites de longitud de cadena de límites numéricos (incluyendo decimales)
+const ATTR_LEN_MIN = /(?:^|[\s,;.])\bminlength\s*[=:]\s*["']?(-?\d+(?:\.\d+)?)["']?/i;
+const ATTR_LEN_MAX = /(?:^|[\s,;.])\bmaxlength\s*[=:]\s*["']?(-?\d+(?:\.\d+)?)["']?/i;
+const ATTR_NUM_MIN = /(?:^|[\s,;.])\bmin\b\s*[=:]\s*["']?(-?\d+(?:\.\d+)?)["']?/i;
+const ATTR_NUM_MAX = /(?:^|[\s,;.])\bmax\b\s*[=:]\s*["']?(-?\d+(?:\.\d+)?)["']?/i;
+const ATTR_NUM_STEP = /(?:^|[\s,;.])\bstep\b\s*[=:]\s*["']?(\d+(?:\.\d+)?)["']?/i;
 
 // Nivel 2: texto libre (description y condition)
-const TEXT_LEN_RANGE = /entre\s+(-?\d+)\s+y\s+(-?\d+)\s*(?:caracteres|caracteres\b|letras)/i;
-const TEXT_LEN_MIN = /m[ií]nimo\s*(?:de)?\s*(-?\d+)\s*(?:caracteres|caracteres\b|letras)/i;
-const TEXT_LEN_MAX = /m[aá]ximo\s*(?:de)?\s*(-?\d+)\s*(?:caracteres|caracteres\b|letras)/i;
+const TEXT_LEN_RANGE = /entre\s+(-?\d+(?:\.\d+)?)\s+y\s+(-?\d+(?:\.\d+)?)\s*(?:caracteres|caracteres\b|letras)/i;
+const TEXT_LEN_MIN = /m[ií]nimo\s*(?:de)?\s*(-?\d+(?:\.\d+)?)\s*(?:caracteres|caracteres\b|letras)/i;
+const TEXT_LEN_MAX = /m[aá]ximo\s*(?:de)?\s*(-?\d+(?:\.\d+)?)\s*(?:caracteres|caracteres\b|letras)/i;
 
-const TEXT_RANGE = /entre\s+(-?\d+)\s+y\s+(-?\d+)/i;
-const TEXT_MIN = /m[ií]nimo\s*(?:de)?\s*(-?\d+)/i;
-const TEXT_MAX = /m[aá]ximo\s*(?:de)?\s*(-?\d+)/i;
+const TEXT_RANGE = /entre\s+(-?\d+(?:\.\d+)?)\s+y\s+(-?\d+(?:\.\d+)?)(?!\s*(?:caracteres|letras))/i;
+const TEXT_MIN = /m[ií]nimo\s*(?:de)?\s*(-?\d+(?:\.\d+)?)(?!\s*(?:caracteres|letras))/i;
+const TEXT_MAX = /m[aá]ximo\s*(?:de)?\s*(-?\d+(?:\.\d+)?)(?!\s*(?:caracteres|letras))/i;
+
+function parseExtractedNumber(raw: string | undefined): number | undefined {
+  if (raw === undefined) return undefined;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
 
 function firstNumber(text: string, pattern: RegExp): number | undefined {
   const match = pattern.exec(text);
-  return match ? parseInt(match[1], 10) : undefined;
+  return parseExtractedNumber(match?.[1]);
+}
+
+function countDecimals(n: number | undefined): number {
+  if (n === undefined || !Number.isFinite(n) || Number.isInteger(n)) return 0;
+  const str = String(n);
+  if (str.includes('e-')) {
+    const exp = parseInt(str.split('e-')[1] ?? '0', 10);
+    return Number.isFinite(exp) ? exp : 0;
+  }
+  const parts = str.split('.');
+  return parts[1]?.length ?? 0;
+}
+
+function roundToPrecision(n: number, decimals: number): number {
+  if (decimals <= 0) return Math.round(n);
+  const factor = Math.pow(10, Math.min(decimals, 12));
+  return Math.round((n + Number.EPSILON) * factor) / factor;
+}
+
+/**
+ * Combina dos candidatos de Bounds detectando contradicciones internas
+ * (p. ej. evidence min="10" frente a description "mínimo de 18").
+ */
+function mergeCandidateBounds(base: Bounds, incoming: Bounds): Bounds {
+  if (incoming.min === undefined && incoming.max === undefined) {
+    return base;
+  }
+  if (base.min === undefined && base.max === undefined) {
+    return { ...incoming };
+  }
+
+  const merged: Bounds = { ...base };
+
+  if (incoming.valueType !== undefined) {
+    if (merged.valueType !== undefined && merged.valueType !== incoming.valueType) {
+      merged.hasConflict = true;
+      merged.conflictReason = `Contradicción interna de tipo: ${merged.valueType} vs ${incoming.valueType}`;
+    } else {
+      merged.valueType = incoming.valueType;
+    }
+  }
+
+  if (incoming.min !== undefined) {
+    if (merged.min !== undefined && merged.min !== incoming.min) {
+      merged.hasConflict = true;
+      merged.conflictReason = `Contradicción interna en min: ${merged.min} vs ${incoming.min}`;
+    } else {
+      merged.min = incoming.min;
+    }
+  }
+
+  if (incoming.max !== undefined) {
+    if (merged.max !== undefined && merged.max !== incoming.max) {
+      merged.hasConflict = true;
+      merged.conflictReason = `Contradicción interna en max: ${merged.max} vs ${incoming.max}`;
+    } else {
+      merged.max = incoming.max;
+    }
+  }
+
+  if (incoming.step !== undefined) {
+    if (merged.step !== undefined && merged.step !== incoming.step) {
+      merged.hasConflict = true;
+      merged.conflictReason = `Contradicción interna en step: ${merged.step} vs ${incoming.step}`;
+    } else {
+      merged.step = incoming.step;
+    }
+  }
+
+  return merged;
 }
 
 /**
  * Límites que aporta una sola regla confirmada:
- * Distingue límites numéricos de longitud de cadena (minlength/maxlength).
- * Solo procesa reglas con status 'confirmed'.
+ * Distingue límites numéricos (incluyendo decimales) de longitud de cadena (minlength/maxlength).
+ * Coteja Nivel 1 (evidence/id) y Nivel 2 (description/condition) para detectar contradicciones internas.
  */
 function extractRuleBounds(rule: RuleEntry): Bounds {
-  if (rule.status !== 'confirmed') {
+  if (rule.status !== 'confirmed' || !TRUSTED_RULE_SOURCES.has(rule.source)) {
     return {};
   }
 
   const level1 = `${rule.id} ${rule.evidence ?? ''}`;
   const level2 = `${rule.description} ${rule.condition ?? ''}`;
 
+  let combined: Bounds = {};
+
   // 1. Longitud de cadena desde evidencia/id DOM
   const lenMinL1 = firstNumber(level1, ATTR_LEN_MIN);
   const lenMaxL1 = firstNumber(level1, ATTR_LEN_MAX);
   if (lenMinL1 !== undefined || lenMaxL1 !== undefined) {
-    return {
+    if (
+      (lenMinL1 !== undefined && (!Number.isInteger(lenMinL1) || lenMinL1 < 0)) ||
+      (lenMaxL1 !== undefined && (!Number.isInteger(lenMaxL1) || lenMaxL1 < 0))
+    ) {
+      return { hasConflict: true, conflictReason: 'Longitud de cadena inválida (negativa o decimal)' };
+    }
+    combined = mergeCandidateBounds(combined, {
       min: lenMinL1,
       max: lenMaxL1,
       valueType: 'string',
-    };
+    });
   }
 
   // 2. Límites numéricos desde evidencia/id DOM
   const numMinL1 = firstNumber(level1, ATTR_NUM_MIN);
   const numMaxL1 = firstNumber(level1, ATTR_NUM_MAX);
+  const numStepL1 = firstNumber(level1, ATTR_NUM_STEP);
   if (numMinL1 !== undefined || numMaxL1 !== undefined) {
-    return {
+    combined = mergeCandidateBounds(combined, {
       min: numMinL1,
       max: numMaxL1,
+      ...(numStepL1 !== undefined && numStepL1 > 0 ? { step: numStepL1 } : {}),
       valueType: 'number',
-    };
+    });
   }
 
   // 3. Longitud de cadena desde texto libre
   const lenRange = TEXT_LEN_RANGE.exec(level2);
-  const lenMinL2 = lenRange ? parseInt(lenRange[1], 10) : firstNumber(level2, TEXT_LEN_MIN);
-  const lenMaxL2 = lenRange ? parseInt(lenRange[2], 10) : firstNumber(level2, TEXT_LEN_MAX);
+  const lenMinL2 = lenRange ? parseExtractedNumber(lenRange[1]) : firstNumber(level2, TEXT_LEN_MIN);
+  const lenMaxL2 = lenRange ? parseExtractedNumber(lenRange[2]) : firstNumber(level2, TEXT_LEN_MAX);
   if (lenMinL2 !== undefined || lenMaxL2 !== undefined) {
-    return {
+    if (
+      (lenMinL2 !== undefined && (!Number.isInteger(lenMinL2) || lenMinL2 < 0)) ||
+      (lenMaxL2 !== undefined && (!Number.isInteger(lenMaxL2) || lenMaxL2 < 0))
+    ) {
+      return { hasConflict: true, conflictReason: 'Longitud de cadena inválida en texto (negativa o decimal)' };
+    }
+    combined = mergeCandidateBounds(combined, {
       min: lenMinL2,
       max: lenMaxL2,
       valueType: 'string',
-    };
+    });
   }
 
   // 4. Rango numérico desde texto libre
   const numRange = TEXT_RANGE.exec(level2);
-  const numMinL2 = numRange ? parseInt(numRange[1], 10) : firstNumber(level2, TEXT_MIN);
-  const numMaxL2 = numRange ? parseInt(numRange[2], 10) : firstNumber(level2, TEXT_MAX);
+  const numMinL2 = numRange ? parseExtractedNumber(numRange[1]) : firstNumber(level2, TEXT_MIN);
+  const numMaxL2 = numRange ? parseExtractedNumber(numRange[2]) : firstNumber(level2, TEXT_MAX);
   if (numMinL2 !== undefined || numMaxL2 !== undefined) {
-    return {
+    combined = mergeCandidateBounds(combined, {
       min: numMinL2,
       max: numMaxL2,
       valueType: 'number',
-    };
+    });
   }
 
-  return {};
+  return combined;
 }
 
 /**
  * Agrupa las reglas por rule.field y combina sus límites.
- * Detecta y registra contradicciones (min > max, min contradictorio, max contradictorio o tipos incompatibles)
- * en lugar de silenciarlas con '??'.
+ * Detecta y registra contradicciones (internas en una regla o entre reglas del mismo campo).
  */
 function groupRulesByField(rules: RuleEntry[]): FieldGroup[] {
   const groups = new Map<string, FieldGroup>();
@@ -146,6 +251,14 @@ function groupRulesByField(rules: RuleEntry[]): FieldGroup[] {
     };
 
     const ruleBounds = extractRuleBounds(rule);
+    if (ruleBounds.hasConflict) {
+      group.hasConflict = true;
+      group.conflictReason = ruleBounds.conflictReason ?? 'Contradicción interna en regla';
+      group.rules.push(rule);
+      groups.set(field, group);
+      continue;
+    }
+
     if (ruleBounds.min === undefined && ruleBounds.max === undefined) {
       continue;
     }
@@ -182,11 +295,30 @@ function groupRulesByField(rules: RuleEntry[]): FieldGroup[] {
       }
     }
 
+    // Detección de conflicto en step
+    if (ruleBounds.step !== undefined) {
+      if (group.bounds.step !== undefined && group.bounds.step !== ruleBounds.step) {
+        group.hasConflict = true;
+        group.conflictReason = `Valores step contradictorios: ${group.bounds.step} vs ${ruleBounds.step}`;
+      } else {
+        group.bounds.step = ruleBounds.step;
+      }
+    }
+
     groups.set(field, group);
   }
 
-  // Validación posterior de consistencia matemática (min <= max)
+  // Validación posterior de consistencia matemática (min <= max y longitudes no negativas)
   for (const group of groups.values()) {
+    if (group.bounds.valueType === 'string') {
+      if (
+        (group.bounds.min !== undefined && (group.bounds.min < 0 || !Number.isInteger(group.bounds.min))) ||
+        (group.bounds.max !== undefined && (group.bounds.max < 0 || !Number.isInteger(group.bounds.max)))
+      ) {
+        group.hasConflict = true;
+        group.conflictReason = 'Rango de longitud de cadena inválido (negativo o decimal)';
+      }
+    }
     if (group.bounds.min !== undefined && group.bounds.max !== undefined) {
       if (group.bounds.min > group.bounds.max) {
         group.hasConflict = true;
@@ -199,15 +331,11 @@ function groupRulesByField(rules: RuleEntry[]): FieldGroup[] {
 }
 
 /**
- * Construye los valores de frontera sin inventar límites artificiales.
- * - Si existen min y max: 5 valores (min-1 [invalid], min, nominal, max, max+1 [invalid]).
- * - Si solo existe min: 3 valores unilaterales (min-1 [invalid], min [valid], min+1 [valid]).
- *   PROHIBIDO inventar max = min + 10.
- * - Si solo existe max: 3 valores unilaterales (max-1 [valid], max [valid], max+1 [invalid]).
- *   PROHIBIDO inventar min = max - 10.
- * - Si ninguno: retorna [] (fail-closed).
+ * Construye los valores de frontera sin inventar límites artificiales,
+ * preservando precisión decimal y omitiendo fronteras imposibles (ej. longitud < 0).
  */
-function buildBoundaries(min: number | undefined, max: number | undefined): Boundary[] {
+function buildBoundaries(bounds: Bounds): Boundary[] {
+  const { min, max, step, valueType } = bounds;
   if (min === undefined && max === undefined) {
     return [];
   }
@@ -215,33 +343,93 @@ function buildBoundaries(min: number | undefined, max: number | undefined): Boun
     return [];
   }
 
-  // Rango bilateral completo
+  if (valueType === 'string') {
+    if (
+      (min !== undefined && (min < 0 || !Number.isInteger(min))) ||
+      (max !== undefined && (max < 0 || !Number.isInteger(max)))
+    ) {
+      return [];
+    }
+
+    // Rango bilateral de longitud de cadena
+    if (min !== undefined && max !== undefined) {
+      const nominal = Math.floor((min + max) / 2);
+      const result: Boundary[] = [];
+      if (min > 0) {
+        result.push({ type: 'under_min', value: min - 1, valid: false });
+      }
+      result.push(
+        { type: 'min', value: min, valid: true },
+        { type: 'nominal', value: nominal, valid: true },
+        { type: 'max', value: max, valid: true },
+        { type: 'over_max', value: max + 1, valid: false }
+      );
+      return result;
+    }
+
+    // Rango unilateral inferior de longitud (solo minlength)
+    if (min !== undefined) {
+      const result: Boundary[] = [];
+      if (min > 0) {
+        result.push({ type: 'under_min', value: min - 1, valid: false });
+      }
+      result.push(
+        { type: 'min', value: min, valid: true },
+        { type: 'nominal', value: min + 1, valid: true }
+      );
+      return result;
+    }
+
+    // Rango unilateral superior de longitud (solo maxlength)
+    if (max !== undefined) {
+      const result: Boundary[] = [];
+      if (max > 0) {
+        result.push({ type: 'nominal', value: max - 1, valid: true });
+      }
+      result.push(
+        { type: 'max', value: max, valid: true },
+        { type: 'over_max', value: max + 1, valid: false }
+      );
+      return result;
+    }
+
+    return [];
+  }
+
+  // Rango numérico (entero o decimal)
+  const decimals = Math.max(countDecimals(min), countDecimals(max), countDecimals(step));
+  const delta = step && step > 0 ? step : decimals > 0 ? roundToPrecision(Math.pow(10, -decimals), decimals) : 1;
+
+  // Rango bilateral numérico
   if (min !== undefined && max !== undefined) {
-    const nominal = Math.floor((min + max) / 2);
+    const nominal =
+      decimals > 0
+        ? roundToPrecision((min + max) / 2, Math.max(decimals, countDecimals((min + max) / 2)))
+        : Math.floor((min + max) / 2);
     return [
-      { type: 'under_min', value: min - 1, valid: false },
+      { type: 'under_min', value: roundToPrecision(min - delta, decimals), valid: false },
       { type: 'min', value: min, valid: true },
       { type: 'nominal', value: nominal, valid: true },
       { type: 'max', value: max, valid: true },
-      { type: 'over_max', value: max + 1, valid: false },
+      { type: 'over_max', value: roundToPrecision(max + delta, decimals), valid: false },
     ];
   }
 
   // Rango unilateral inferior (solo min confirmado)
   if (min !== undefined) {
     return [
-      { type: 'under_min', value: min - 1, valid: false },
+      { type: 'under_min', value: roundToPrecision(min - delta, decimals), valid: false },
       { type: 'min', value: min, valid: true },
-      { type: 'nominal', value: min + 1, valid: true },
+      { type: 'nominal', value: roundToPrecision(min + delta, decimals), valid: true },
     ];
   }
 
   // Rango unilateral superior (solo max confirmado)
   if (max !== undefined) {
     return [
-      { type: 'nominal', value: max - 1, valid: true },
+      { type: 'nominal', value: roundToPrecision(max - delta, decimals), valid: true },
       { type: 'max', value: max, valid: true },
-      { type: 'over_max', value: max + 1, valid: false },
+      { type: 'over_max', value: roundToPrecision(max + delta, decimals), valid: false },
     ];
   }
 
@@ -339,16 +527,34 @@ function resolveErrorSelector(selectors: ModuleSelectors | undefined, field: str
 }
 
 /**
- * Genera el valor de prueba a rellenar:
- * - Para longitud de cadena: genera una cadena con la longitud exacta requerida ('a'.repeat(length)).
+ * Genera el valor de prueba a rellenar y valida que pertenezca al dominio representable:
+ * - Para longitud de cadena: requiere un entero >= 0 ('a'.repeat(length)); retorna null si es < 0.
  * - Para numérico: genera String(boundary.value).
  */
-function generateBoundaryValue(boundary: Boundary, valueType?: 'number' | 'string'): string {
+function generateBoundaryValue(boundary: Boundary, valueType?: 'number' | 'string'): string | null {
   if (valueType === 'string') {
-    const length = Math.max(0, boundary.value);
-    return 'a'.repeat(length);
+    if (!Number.isInteger(boundary.value) || boundary.value < 0) {
+      return null;
+    }
+    return 'a'.repeat(boundary.value);
   }
   return String(boundary.value);
+}
+
+/**
+ * Verifica después de materializar el valor que el resultado esperado (valid/invalid)
+ * corresponde genuinamente al valor real frente a los límites declarados.
+ */
+function matchesExpectedValidity(fillValue: string, bounds: Bounds, expectedValid: boolean): boolean {
+  const { min, max, valueType } = bounds;
+  const metric = valueType === 'string' ? fillValue.length : Number(fillValue);
+  if (!Number.isFinite(metric)) return false;
+
+  const isActuallyValid =
+    (min === undefined || metric >= min) &&
+    (max === undefined || metric <= max);
+
+  return isActuallyValid === expectedValid;
 }
 
 /**
@@ -357,11 +563,12 @@ function generateBoundaryValue(boundary: Boundary, valueType?: 'number' | 'strin
  *
  * Garantías:
  * 1. No inventa límites artificiales (soporta unilaterales y fail-closed).
- * 2. Distingue límites numéricos de longitud de cadena ('a'.repeat(length)).
- * 3. Resuelve selectores estrictamente de ModuleSelectors (sin fallback genérico).
- * 4. Oráculo de error visible para casos inválidos (NUNCA not_visible).
- * 5. Detección y rechazo fail-closed de reglas contradictorias.
- * 6. Emite únicamente casos ejecutables con oráculos acreditados.
+ * 2. Preserva números decimales exactos y distingue longitud de cadena ('a'.repeat(length)).
+ * 3. No emite fronteras fuera del dominio representable (ej. longitud < 0) ni oráculos contradictorios para el mismo valor.
+ * 4. Resuelve selectores estrictamente de ModuleSelectors (sin fallback genérico).
+ * 5. Oráculo de error visible para casos inválidos (NUNCA not_visible).
+ * 6. Detección y rechazo fail-closed de contradicciones internas o entre reglas.
+ * 7. Emite únicamente casos ejecutables con procedencia y oráculos acreditados.
  */
 export function generateBvaCases(
   moduleName: string,
@@ -379,7 +586,10 @@ export function generateBvaCases(
   }
 
   const targetRules = rules.filter(
-    (rule) => rule.status === 'confirmed' && BVA_CATEGORIES.includes(rule.category)
+    (rule) =>
+      rule.status === 'confirmed' &&
+      TRUSTED_RULE_SOURCES.has(rule.source) &&
+      BVA_CATEGORIES.includes(rule.category)
   );
 
   for (const group of groupRulesByField(targetRules)) {
@@ -398,7 +608,8 @@ export function generateBvaCases(
     const successSelector = resolveSuccessSelector(selectors, group.field);
     const errorSelector = resolveErrorSelector(selectors, group.field);
 
-    const boundaries = buildBoundaries(min, max);
+    const boundaries = buildBoundaries(group.bounds);
+    const emittedOutcomeByValue = new Map<string, boolean>();
 
     for (const boundary of boundaries) {
       // Oráculo verificado obligatorio según el resultado esperado
@@ -409,6 +620,21 @@ export function generateBvaCases(
       }
 
       const fillValue = generateBoundaryValue(boundary, valueType);
+      if (fillValue === null) {
+        continue;
+      }
+
+      // Validar que el valor materializado siga correspondiendo a la validez esperada
+      if (!matchesExpectedValidity(fillValue, group.bounds, boundary.valid)) {
+        continue;
+      }
+
+      // Impedir emitir oráculos opuestos para un mismo valor de entrada
+      const previousValid = emittedOutcomeByValue.get(fillValue);
+      if (previousValid !== undefined && previousValid !== boundary.valid) {
+        continue;
+      }
+      emittedOutcomeByValue.set(fillValue, boundary.valid);
 
       const steps: TCStep[] = [
         { type: 'navigate', url: route },
@@ -439,4 +665,4 @@ export function generateBvaCases(
   }
 
   return bvaCases;
-}
+}

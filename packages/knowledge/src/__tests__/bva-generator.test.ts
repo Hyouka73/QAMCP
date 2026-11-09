@@ -33,7 +33,7 @@ function filledValues(cases: ReturnType<typeof generateBvaCases>): string[] {
   return cases.map((testCase) => testCase.steps.find((step) => step.type === 'fill')?.value ?? '');
 }
 
-describe('BvaGenerator (S81-001 / DEV-MVP-01)', () => {
+describe('BvaGenerator (S81-001 / DEV-MVP-01 / DEV-MVP-01-R2)', () => {
   it('extrae límites de Nivel 1 (evidence DOM) y Nivel 2 (texto libre) y genera 5 casos frontera válidos en SchemaValidator', () => {
     const rules: RuleEntry[] = [
       rule({ id: 'RULE-01', field: 'age', evidence: 'min="18" max="99"', description: 'Edad permitida' }),
@@ -401,4 +401,78 @@ describe('BvaGenerator (S81-001 / DEV-MVP-01)', () => {
       }
     });
   });
-});
+
+  describe('DEV-MVP-01-R2: Regresiones P1/P2 (decimales, minlength=0, contradicción interna y procedencia)', () => {
+    it('H02: preserva límites decimales exactos (ej. min="0.5" max="2.5") sin truncarlos con parseInt', () => {
+      const cases = generateBvaCases(
+        'mod',
+        [rule({ id: 'R-DEC', field: 'age', evidence: 'min="0.5" max="2.5"' })],
+        selectors
+      );
+
+      expect(cases.length).toBe(5);
+      expect(filledValues(cases)).toEqual(['0.4', '0.5', '1.5', '2.5', '2.6']);
+
+      const minCase = cases.find((c) => c.name === 'BVA_R-DEC_min');
+      expect(minCase?.steps[1].value).toBe('0.5');
+      expect(minCase?.steps[3].selector).toBe('.success-message');
+
+      const underMinCase = cases.find((c) => c.name === 'BVA_R-DEC_under_min');
+      expect(underMinCase?.steps[1].value).toBe('0.4');
+      expect(underMinCase?.steps[3].selector).toBe('.error-message');
+    });
+
+    it('H03: no emite under_min imposible ni oráculos opuestos para cadena vacía cuando minlength="0"', () => {
+      const cases = generateBvaCases(
+        'mod',
+        [rule({ id: 'R-ZERO-LEN', field: 'name', evidence: 'minlength="0"' })],
+        selectors
+      );
+
+      expect(cases.some((c) => c.name.endsWith('_under_min'))).toBe(false);
+      expect(cases.map((c) => c.name)).toEqual(['BVA_R-ZERO-LEN_min', 'BVA_R-ZERO-LEN_nominal']);
+      expect(filledValues(cases)).toEqual(['', 'a']);
+      expect(cases.every((c) => c.steps[3].selector === '.success-message')).toBe(true);
+    });
+
+    it('H08: rechaza fail-closed contradicciones internas entre evidencia DOM y descripción textual de la misma regla', () => {
+      const conflictingInternalRule = rule({
+        id: 'R-INT-CONFLICT',
+        field: 'age',
+        description: 'El importe tiene un mínimo de 18',
+        evidence: 'min="10"',
+      });
+
+      const cases = generateBvaCases('mod', [conflictingInternalRule], selectors);
+      expect(cases).toEqual([]);
+    });
+
+    it('H09: filtra reglas cuya procedencia (source) no está acreditada (ej. source: "agent" o "dom")', () => {
+      const agentRule = rule({
+        id: 'R-AGENT',
+        field: 'age',
+        source: 'agent',
+        status: 'confirmed',
+        evidence: 'min="10" max="20"',
+      });
+      const domRule = rule({
+        id: 'R-DOM',
+        field: 'age',
+        source: 'dom',
+        status: 'confirmed',
+        evidence: 'min="10" max="20"',
+      });
+      const userConfirmedRule = rule({
+        id: 'R-USER',
+        field: 'age',
+        source: 'user_confirmed',
+        status: 'confirmed',
+        evidence: 'min="10" max="20"',
+      });
+
+      expect(generateBvaCases('mod', [agentRule], selectors)).toEqual([]);
+      expect(generateBvaCases('mod', [domRule], selectors)).toEqual([]);
+      expect(generateBvaCases('mod', [userConfirmedRule], selectors).length).toBe(5);
+    });
+  });
+});
