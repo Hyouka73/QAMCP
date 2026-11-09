@@ -1,10 +1,12 @@
 import { existsSync, lstatSync, readFileSync, realpathSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, isAbsolute, resolve } from 'node:path';
+import { URL } from 'node:url';
 
 import { SqliteKnowledgeAdapter } from '@qap/knowledge';
 
 import { SqliteInterviewDraftStore } from './handlers/interview-draft-store.js';
+import type { TestNavigationAuthorization } from './handlers/test.handler.js';
 import type { DiscoveryAuthorization } from './handlers/discovery.handler.js';
 import { SqliteModuleClosureStore } from './handlers/module-closure-store.js';
 import type { ModuleBinding } from './handlers/module-observation-bridge.js';
@@ -187,6 +189,31 @@ function discoveryPolicy(
   };
 }
 
+/** Exact origins only: an opt-in host policy must never derive consent from tool arguments. */
+function testPolicy(input: unknown, projectRoot: string): TestNavigationAuthorization | undefined {
+  if (input === undefined) return;
+  if (!object(input) || Object.keys(input).some(key => !['allowedOrigins', 'authorizedProfiles'].includes(key)) ||
+      !Array.isArray(input.allowedOrigins) || !input.allowedOrigins.length || input.allowedOrigins.length > 64) {
+    throw new Error('Invalid host test navigation authorization.');
+  }
+  const allowedOrigins = input.allowedOrigins.map(value => {
+    const origin = requiredText(value, 'testAuthorization.allowedOrigins');
+    let url: URL;
+    try { url = new URL(origin); } catch { throw new Error('Test authorization requires exact HTTP origins.'); }
+    if (!['http:', 'https:'].includes(url.protocol) || url.origin !== origin || url.username || url.password) {
+      throw new Error('Test authorization requires exact HTTP origins.');
+    }
+    return origin;
+  });
+  if (input.authorizedProfiles !== undefined && (!Array.isArray(input.authorizedProfiles) ||
+      input.authorizedProfiles.length > 64 || input.authorizedProfiles.some(value =>
+        typeof value !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(value)))) {
+    throw new Error('Invalid host authorized profiles.');
+  }
+  return { projectRoot, allowedOrigins, allowRedirectsToAllowedOnly: true,
+    ...(Array.isArray(input.authorizedProfiles) ? { authorizedProfiles: input.authorizedProfiles.map(value => requiredText(value, 'authorizedProfiles')) } : {}) };
+}
+
 /** No manifest means legacy-only startup; malformed opt-in ALWAYS fails startup. */
 export async function loadHostComposition(
   env: NodeJS.ProcessEnv = process.env
@@ -206,6 +233,7 @@ export async function loadHostComposition(
   const app = requiredText(payload.applicationId, 'applicationId');
   const environment = requiredText(payload.environmentId, 'environmentId');
   const modules = declaredModules(payload.moduleBindings);
+  const testAuthorization = testPolicy(payload.testAuthorization, root);
   const dbPath = existingFile(payload.knowledgeDbPath, 'knowledgeDbPath');
 
   const closeables: Array<{ close(): void }> = [];
@@ -272,6 +300,7 @@ export async function loadHostComposition(
     return {
       options: {
         projectRoots: [root],
+        ...(testAuthorization ? { testAuthorizations: [testAuthorization] } : {}),
         knowledgeBindings: [{
           ...scope, store, moduleBindings: modules, interviewDraftStore, moduleClosureStore,
           // Never infer review authority from a JSON manifest or an MCP client.

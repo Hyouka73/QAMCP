@@ -1,0 +1,14 @@
+{
+  "status": "PASS",
+  "tools": 18,
+  "execution_id": "exec_1794266440404_cf8e0ba2d0b14480ab86b5b0c6cc1204",
+  "summary": {
+    "total": 2,
+    "passed": 1,
+    "failed": 1,
+    "skipped": 0,
+    "not_run": 0
+  },
+  "recovery": "persisted_execution",
+  "session_close": "canonical_closure_store_required"
+}

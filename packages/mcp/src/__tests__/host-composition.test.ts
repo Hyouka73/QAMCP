@@ -198,3 +198,24 @@ describe('VNEXT-014 host-owned Stdio composition', () => {
     }
   });
 });
+
+
+describe('INT-03-R5 host test navigation policy', () => {
+  it('wires exact authorized origins to the real test handler options', async () => {
+    const fixture = await provision();
+    writeFileSync(fixture.manifestPath, JSON.stringify({ ...fixture.manifest,
+      testAuthorization: { allowedOrigins: ['http://127.0.0.1:8080'], authorizedProfiles: ['tester'] } }));
+    const composed = await loadHostComposition(fixture.env);
+    try {
+      expect(composed.options.testAuthorizations).toEqual([{ projectRoot: fixture.root,
+        allowedOrigins: ['http://127.0.0.1:8080'], authorizedProfiles: ['tester'], allowRedirectsToAllowedOnly: true }]);
+    } finally { composed.close(); }
+  });
+  it.each(['*', 'http://localhost:*', 'https://example.invalid/path', 'https://u:p@example.invalid', 'file:///tmp/x'])(
+    'rejects broad or non-origin host consent %s', async (origin: string) => {
+      const fixture = await provision();
+      writeFileSync(fixture.manifestPath, JSON.stringify({ ...fixture.manifest,
+        testAuthorization: { allowedOrigins: [origin] } }));
+      await expect(loadHostComposition(fixture.env)).rejects.toThrow();
+    });
+});

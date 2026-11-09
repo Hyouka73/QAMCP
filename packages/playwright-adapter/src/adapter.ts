@@ -429,13 +429,17 @@ export class PlaywrightAdapter implements IDiscoverer {
         const response = await page.goto(targetUrl, { waitUntil: 'load', timeout: 30000 });
         httpStatus = response ? response.status() : null;
         // C3a: Esperar networkidle con tope máximo para que llamadas asíncronas de sesión se completen
-        await page.waitForLoadState('networkidle', { timeout: URL_NETWORKIDLE_MAX_TIMEOUT_MS }).catch(() => {});
+        if (!this.options.skipDomSettling) {
+          await page.waitForLoadState('networkidle', { timeout: URL_NETWORKIDLE_MAX_TIMEOUT_MS }).catch(() => {});
+        }
       } catch {
         // Si falló por abort o navegación inmediata
       }
 
       // Esperar a que React monte componentes en el root o DOM
-      await page.waitForSelector('#root > *, main, form, input, button, a[href]', { timeout: 10000 }).catch(() => {});
+      if (!this.options.skipDomSettling) {
+        await page.waitForSelector('#root > *, main, form, input, button, a[href]', { timeout: 10000 }).catch(() => {});
+      }
       if (!this.options.skipDomSettling && (this.options.urlStabilityWindowMs ?? URL_STABILITY_WINDOW_MS) >= 300) {
         await page.waitForTimeout(300);
       }

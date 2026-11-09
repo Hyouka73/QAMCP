@@ -1,0 +1,10 @@
+{
+  "base": "df107c3117b23558c6988d5e2e38c2d6bc181945",
+  "protected_sources_unchanged": true,
+  "R4_ancestor": true,
+  "base_parents": "18199e0c036ab53c6d0f7af0a9f65740eb0aec89 d49297a36f0340d46108553bb1e7989c66549eb1",
+  "push_performed": false,
+  "admin_user_sha256": "2234E33C43F854C51DF0304967A9C670F0935E43C1CDFE8A1AE7AF31D5363CEA",
+  "INT03_ancestor": true,
+  "official_merge_performed": false
+}
