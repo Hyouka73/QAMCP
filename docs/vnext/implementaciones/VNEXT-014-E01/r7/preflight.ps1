@@ -148,6 +148,9 @@ param(
     [Parameter()]
     [string]$SwapPolicy = 'host_managed',
 
+    [Parameter()]
+    [int[]]$AuthorizedPids = @(),
+
     [Parameter(ParameterSetName = 'BackgroundSet')]
     [switch]$UseJob,
 
@@ -183,6 +186,43 @@ function Assert-PathConfinement {
     if (-not ($fullPath.Equals($scriptDir, [System.StringComparison]::OrdinalIgnoreCase) -or `
               $fullPath.StartsWith($requiredPrefix, [System.StringComparison]::OrdinalIgnoreCase))) {
         throw "Security/Isolation Violation: $ParamName ('$fullPath') must be strictly confined inside '$scriptDir'"
+    }
+
+    # Inspect target file (if exists) and all existing ancestor directories up to $scriptDir for ReparsePoint / symlinks
+    $curr = $fullPath
+    $deepestExisting = $null
+
+    while ($curr) {
+        if (Test-Path -LiteralPath $curr) {
+            $item = Get-Item -LiteralPath $curr -Force
+            if ($null -eq $deepestExisting) {
+                $deepestExisting = $item
+            }
+            $isReparse = (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) -or `
+                         ($null -ne $item.LinkTarget)
+            if ($isReparse) {
+                throw "Security/Isolation Violation: Reparse point or symbolic link detected at '$curr' for $ParamName"
+            }
+        }
+
+        if ($curr.Equals($scriptDir, [System.StringComparison]::OrdinalIgnoreCase)) {
+            break
+        }
+
+        $parent = [System.IO.Path]::GetDirectoryName($curr)
+        if ([string]::IsNullOrEmpty($parent) -or $parent.Equals($curr, [System.StringComparison]::OrdinalIgnoreCase)) {
+            break
+        }
+        $curr = $parent
+    }
+
+    # Verify physical resolved path of deepest existing ancestor stays strictly within $scriptDir
+    if ($deepestExisting) {
+        $resolvedPhysical = (Resolve-Path -LiteralPath $deepestExisting.FullName).ProviderPath
+        if (-not ($resolvedPhysical.Equals($scriptDir, [System.StringComparison]::OrdinalIgnoreCase) -or `
+                  $resolvedPhysical.StartsWith($requiredPrefix, [System.StringComparison]::OrdinalIgnoreCase))) {
+            throw "Security/Isolation Violation: Resolved physical path ('$resolvedPhysical') escapes '$scriptDir' for $ParamName"
+        }
     }
 }
 
@@ -293,14 +333,19 @@ function Get-HostGitState {
     try {
         Set-Location -LiteralPath $Root
 
+        $gitError = $false
+
         # Commit SHA (40 chars)
         $commitSha = $null
         try {
             $rawSha = & git rev-parse HEAD 2>$null
             if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($rawSha)) {
                 $commitSha = $rawSha.Trim()
+            } else {
+                $gitError = $true
             }
         } catch {
+            $gitError = $true
             $commitSha = $null
         }
 
@@ -310,24 +355,49 @@ function Get-HostGitState {
             $rawBranch = & git rev-parse --abbrev-ref HEAD 2>$null
             if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($rawBranch)) {
                 $branchName = $rawBranch.Trim()
+            } else {
+                $gitError = $true
             }
         } catch {
+            $gitError = $true
             $branchName = $null
         }
 
         # Working tree status inspection
-        $porcelain = @(git status --porcelain 2>$null)
-        $dirtyFiles = @()
-        foreach ($line in $porcelain) {
-            if ([string]::IsNullOrWhiteSpace($line)) { continue }
-            $filePath = $line.Substring(3).Trim().Replace('\', '/')
-            if ($filePath -eq 'packages/playwright-runner/.qa/cache/sessions/admin-user.json') {
-                continue
-            }
-            $dirtyFiles += $filePath
+        $porcelain = $null
+        $statusExitCode = -1
+        try {
+            $porcelain = @(& git status --porcelain=v1 2>$null)
+            $statusExitCode = $LASTEXITCODE
+        } catch {
+            $statusExitCode = -1
+            $porcelain = $null
         }
 
-        $isClean = ($dirtyFiles.Count -eq 0)
+        $dirtyFiles = @()
+        $isClean = $false
+
+        if ($statusExitCode -ne 0 -or $null -eq $porcelain) {
+            # Git status invocation failed - fail explicitly and record error state. NEVER emit clean_working_tree = $true
+            $isClean = $false
+            $dirtyFiles = @('<git-status-failed: exit code ' + $statusExitCode + '>')
+        } else {
+            foreach ($line in $porcelain) {
+                if ([string]::IsNullOrWhiteSpace($line)) { continue }
+                $filePath = $line.Substring(3).Trim().Replace('\', '/')
+                if ($filePath -eq 'packages/playwright-runner/.qa/cache/sessions/admin-user.json') {
+                    continue
+                }
+                $dirtyFiles += $filePath
+            }
+            # Clean working tree is only true if status succeeded, no dirty files exist, and no git rev-parse errors occurred
+            $isClean = ($dirtyFiles.Count -eq 0 -and -not $gitError)
+        }
+
+        if ($gitError -and $dirtyFiles.Count -eq 0) {
+            $dirtyFiles = @('<git-rev-parse-failed>')
+            $isClean = $false
+        }
 
         return [ordered]@{
             commit_sha         = $commitSha
@@ -373,7 +443,8 @@ function Measure-HostTelemetryWindow {
         [int]$TargetDurationSeconds,
         [int]$TargetSamples,
         [int]$TargetIntervalMs,
-        [string]$SentinelFilePath = $null
+        [string]$SentinelFilePath = $null,
+        [int[]]$AuthorizedPids = @()
     )
 
     # Enforce minimums per contract (>= 60s continuous, >= 30 samples)
@@ -402,8 +473,13 @@ function Measure-HostTelemetryWindow {
 
         # 1. Query CIM memory metrics
         $mem = Get-CimInstance Win32_PerfFormattedData_PerfOS_Memory
-        if ($null -eq $mem -or $null -eq $mem.AvailableMBytes) {
-            throw "Host Telemetry Failure: Win32_PerfFormattedData_PerfOS_Memory is missing or unavailable."
+        if ($null -eq $mem -or `
+            $null -eq $mem.AvailableMBytes -or `
+            $null -eq $mem.CommittedBytes -or `
+            $null -eq $mem.CommitLimit -or `
+            $null -eq $mem.PagesInputPersec -or `
+            $null -eq $mem.PagesOutputPersec) {
+            throw "Host Telemetry Failure: Win32_PerfFormattedData_PerfOS_Memory is missing or has null counters (AvailableMBytes, CommittedBytes, CommitLimit, PagesInputPersec, PagesOutputPersec)."
         }
 
         # 2. Query CIM CPU total utilization
@@ -420,23 +496,63 @@ function Measure-HostTelemetryWindow {
 
         # 4. Query process metrics and aggregate into 4 canonical groups
         $proc = @(Get-CimInstance Win32_PerfFormattedData_PerfProc_Process | Where-Object { $_.IDProcess -gt 0 -and $_.Name -ne '_Total' })
+        if ($proc.Count -eq 0) {
+            throw "Host Telemetry Failure: Win32_PerfFormattedData_PerfProc_Process returned no processes."
+        }
+
+        $observerFound = $false
+        foreach ($p in $proc) {
+            if ($p.IDProcess -eq $PID) {
+                $observerFound = $true
+            }
+            if ($null -eq $p.PercentProcessorTime -or $null -eq $p.WorkingSetPrivate -or $null -eq $p.PageFaultsPersec) {
+                throw "Host Telemetry Failure: Process (PID: $($p.IDProcess), Name: $($p.Name)) has null performance counters."
+            }
+        }
+        if (-not $observerFound) {
+            throw "Host Telemetry Failure: Current process (PID: $PID) was not found in Win32_PerfFormattedData_PerfProc_Process query."
+        }
 
         $groups = @()
         foreach ($kind in @('node', 'chromium', 'observer', 'other')) {
             $selected = @($proc | Where-Object {
-                $k = if ($_.Name -match '^node(?:#|$)') { 'node' }
-                     elseif ($_.Name -match '^(chrome|headless_shell)(?:#|$)') { 'chromium' }
-                     elseif ($_.IDProcess -eq $PID) { 'observer' }
-                     else { 'other' }
+                $pidVal = [int]$_.IDProcess
+                $isAuthorized = ($AuthorizedPids -and ($AuthorizedPids -contains $pidVal))
+                $k = if ($pidVal -eq $PID) {
+                         'observer'
+                     } elseif ($isAuthorized -and ($_.Name -match '^node(?:#|$)')) {
+                         'node'
+                     } elseif ($isAuthorized -and ($_.Name -match '^(chrome|headless_shell)(?:#|$)')) {
+                         'chromium'
+                     } else {
+                         'other'
+                     }
                 $k -eq $kind
             })
 
-            $cpuSum = ($selected | Measure-Object PercentProcessorTime -Sum).Sum
-            if ($null -eq $cpuSum) { $cpuSum = 0.0 }
-            $wsSum = ($selected | Measure-Object WorkingSetPrivate -Sum).Sum
-            if ($null -eq $wsSum) { $wsSum = 0.0 }
-            $pfSum = ($selected | Measure-Object PageFaultsPersec -Sum).Sum
-            if ($null -eq $pfSum) { $pfSum = 0.0 }
+            $cpuSum = 0.0
+            $wsSum = 0.0
+            $pfSum = 0.0
+
+            if ($selected.Count -gt 0) {
+                $cpuMeasure = ($selected | Measure-Object PercentProcessorTime -Sum).Sum
+                if ($null -eq $cpuMeasure) {
+                    throw "Host Telemetry Failure: Null PercentProcessorTime sum in group '$kind'."
+                }
+                $cpuSum = [double]$cpuMeasure
+
+                $wsMeasure = ($selected | Measure-Object WorkingSetPrivate -Sum).Sum
+                if ($null -eq $wsMeasure) {
+                    throw "Host Telemetry Failure: Null WorkingSetPrivate sum in group '$kind'."
+                }
+                $wsSum = [double]$wsMeasure
+
+                $pfMeasure = ($selected | Measure-Object PageFaultsPersec -Sum).Sum
+                if ($null -eq $pfMeasure) {
+                    throw "Host Telemetry Failure: Null PageFaultsPersec sum in group '$kind'."
+                }
+                $pfSum = [double]$pfMeasure
+            }
 
             $groups += [ordered]@{
                 category                     = [string]$kind
@@ -482,9 +598,12 @@ function Measure-HostTelemetryWindow {
         $elapsedMs = ($sampleFinished - $windowStartUtc).TotalMilliseconds
 
         # Check termination condition: sentinel file detection (Background mode)
-        if ($SentinelFilePath -and (Test-Path -LiteralPath $SentinelFilePath)) {
-            Write-Host "[preflight] Sentinel detected after $($samples.Count) samples ($([Math]::Round($elapsedMs / 1000, 1))s)."
-            break
+        if ($SentinelFilePath) {
+            Assert-PathConfinement -Path $SentinelFilePath -ParamName 'SentinelFilePath'
+            if (Test-Path -LiteralPath $SentinelFilePath) {
+                Write-Host "[preflight] Sentinel detected after $($samples.Count) samples ($([Math]::Round($elapsedMs / 1000, 1))s)."
+                break
+            }
         }
 
         # Check termination condition: target duration & minimum samples reached (Baseline mode)
@@ -660,11 +779,13 @@ if ($Mode -eq 'Background') {
 
             # Clean stale sentinel
             if (Test-Path -LiteralPath $sentinelPath) {
+                Assert-PathConfinement -Path $sentinelPath -ParamName 'SentinelPath'
                 Remove-Item -LiteralPath $sentinelPath -Force
             }
 
             # Check if background job/process is already active
             if (Test-Path -LiteralPath $pidFilePath) {
+                Assert-PathConfinement -Path $pidFilePath -ParamName 'PidFilePath'
                 $existingPid = (Get-Content -LiteralPath $pidFilePath -Raw).Trim()
                 $procActive = Get-Process -Id $existingPid -ErrorAction SilentlyContinue
                 if ($procActive) {
@@ -676,10 +797,13 @@ if ($Mode -eq 'Background') {
 
             if ($UseJob) {
                 $job = Start-Job -Name "QAP_Preflight_$WindowName" -ScriptBlock {
-                    param($Script, $WinName, $OutPath, $ExecId, $StopFile, $PidFile, $Interval)
-                    Set-Content -LiteralPath $PidFile -Value $PID -Encoding utf8
-                    & $Script -Mode Baseline -WindowName $WinName -OutputPath $OutPath -ExecutorId $ExecId -IntervalMs $Interval -SentinelFile $StopFile
-                } -ArgumentList $PSCommandPath, $WindowName, $resolvedOutput, $ExecutorId, $sentinelPath, $pidFilePath, $IntervalMs
+                    param($Script, $WinName, $OutPath, $ExecId, $StopFile, $PidFile, $Interval, $AuthPids)
+                    if ($PidFile) {
+                        Assert-PathConfinement -Path $PidFile -ParamName 'PidFile'
+                        Set-Content -LiteralPath $PidFile -Value $PID -Encoding utf8
+                    }
+                    & $Script -Mode Baseline -WindowName $WinName -OutputPath $OutPath -ExecutorId $ExecId -IntervalMs $Interval -SentinelFile $StopFile -AuthorizedPids $AuthPids
+                } -ArgumentList $PSCommandPath, $WindowName, $resolvedOutput, $ExecutorId, $sentinelPath, $pidFilePath, $IntervalMs, $AuthorizedPids
 
                 Write-Host "[preflight] Background PowerShell Job started: $($job.Name) (ID: $($job.Id))"
                 return [PSCustomObject]@{
@@ -704,8 +828,13 @@ if ($Mode -eq 'Background') {
                     '-SentinelFile', "`"$sentinelPath`"",
                     '-PidFile', "`"$pidFilePath`""
                 )
+                if ($AuthorizedPids -and $AuthorizedPids.Count -gt 0) {
+                    $procArgs += '-AuthorizedPids'
+                    $procArgs += ($AuthorizedPids -join ',')
+                }
 
                 $bgProc = Start-Process -FilePath 'powershell.exe' -ArgumentList $procArgs -WindowStyle Hidden -PassThru
+                Assert-PathConfinement -Path $pidFilePath -ParamName 'PidFilePath'
                 Set-Content -LiteralPath $pidFilePath -Value $bgProc.Id -Encoding utf8
 
                 Write-Host "[preflight] Background process started (PID: $($bgProc.Id))"
@@ -733,6 +862,7 @@ if ($Mode -eq 'Background') {
             $isProcRunning = $false
             $currentPid = $null
             if (Test-Path -LiteralPath $pidFilePath) {
+                Assert-PathConfinement -Path $pidFilePath -ParamName 'PidFilePath'
                 $currentPid = (Get-Content -LiteralPath $pidFilePath -Raw).Trim()
                 $proc = Get-Process -Id $currentPid -ErrorAction SilentlyContinue
                 if ($proc) { $isProcRunning = $true }
@@ -755,6 +885,7 @@ if ($Mode -eq 'Background') {
             Write-Host "[preflight] Stopping background capture series '$WindowName'..."
 
             # Signal termination via sentinel file
+            Assert-PathConfinement -Path $sentinelPath -ParamName 'SentinelPath'
             Set-Content -LiteralPath $sentinelPath -Value 'STOP' -Encoding utf8
 
             # Handle Job if active
@@ -768,6 +899,7 @@ if ($Mode -eq 'Background') {
 
             # Handle Process if active
             if (Test-Path -LiteralPath $pidFilePath) {
+                Assert-PathConfinement -Path $pidFilePath -ParamName 'PidFilePath'
                 $targetPid = (Get-Content -LiteralPath $pidFilePath -Raw).Trim()
                 $proc = Get-Process -Id $targetPid -ErrorAction SilentlyContinue
                 if ($proc) {
@@ -779,10 +911,12 @@ if ($Mode -eq 'Background') {
 
             # Remove sentinel file
             if (Test-Path -LiteralPath $sentinelPath) {
+                Assert-PathConfinement -Path $sentinelPath -ParamName 'SentinelPath'
                 Remove-Item -LiteralPath $sentinelPath -Force -ErrorAction SilentlyContinue
             }
 
             Write-Host "[preflight] Background capture stopped."
+            Assert-PathConfinement -Path $resolvedOutput -ParamName 'OutputPath'
             if (Test-Path -LiteralPath $resolvedOutput) {
                 Write-Host "[preflight] Output manifest generated at: $resolvedOutput"
             } else {
@@ -829,7 +963,8 @@ $telemetryResult = Measure-HostTelemetryWindow `
     -TargetDurationSeconds $MinDurationSeconds `
     -TargetSamples $Samples `
     -TargetIntervalMs $IntervalMs `
-    -SentinelFilePath $SentinelFile
+    -SentinelFilePath $SentinelFile `
+    -AuthorizedPids $AuthorizedPids
 
 # Compile manifest according to canonical contract
 $manifest = Build-PreflightManifest `
@@ -848,6 +983,7 @@ $manifest = Build-PreflightManifest `
 # Serialize strictly conforming JSON manifest (UTF-8 without BOM for Node.js parser compatibility)
 $jsonOutput = ConvertTo-Json -InputObject $manifest -Depth 12
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+Assert-PathConfinement -Path $resolvedOutput -ParamName 'OutputPath'
 [System.IO.File]::WriteAllText($resolvedOutput, $jsonOutput, $utf8NoBom)
 
 # Clean up PID and Sentinel files if passed as internal parameters

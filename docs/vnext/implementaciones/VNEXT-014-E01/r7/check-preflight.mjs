@@ -19,6 +19,7 @@
  * 11. Strict CLI argument parsing with fail-closed rejection of unknown options or mismatched SHAs
  */
 
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
@@ -93,6 +94,105 @@ export const REQUIRED_SAMPLE_FIELDS = [
 
 export const REQUIRED_GROUP_CATEGORIES = ['node', 'chromium', 'observer', 'other'];
 
+export const VALID_SWAP_POLICIES = new Set([
+  'disabled',
+  'fixed_managed',
+  'host_managed',
+  'swap_on_zram',
+  'swapfile_permitted'
+]);
+
+export const ALLOWED_TOP_LEVEL_KEYS = new Set([
+  ...REQUIRED_TOP_LEVEL_KEYS,
+  '$schema'
+]);
+
+export const ALLOWED_OS_INFO_KEYS = new Set([
+  'name',
+  'release',
+  'build',
+  'arch'
+]);
+
+export const ALLOWED_TOOLCHAIN_KEYS = new Set([
+  'node_version',
+  'pnpm_version',
+  'chromium_version'
+]);
+
+export const ALLOWED_GIT_KEYS = new Set([
+  'commit_sha',
+  'branch_name',
+  'clean_working_tree',
+  'allowed_untracked_or_modified',
+  'dirty_files',
+  'modified_files'
+]);
+
+export const ALLOWED_DIST_HASHES_KEYS = new Set([
+  'packages/mcp/dist/server.js',
+  'packages/playwright-adapter/dist/index.js',
+  'packages/knowledge/dist/index.js',
+  'packages/shared/dist/index.js'
+]);
+
+export const ALLOWED_RESOURCE_RESERVATION_KEYS = new Set([
+  'provenance',
+  'evidence_doc',
+  'type',
+  'allocated_cores',
+  'allocated_ram_mb',
+  'swap_policy',
+  'accredited'
+]);
+
+export const ALLOWED_INTERFERENCE_LIMITS_KEYS = new Set([
+  'max_external_cpu_percent',
+  'max_disk_queue',
+  'max_pages_input_per_sec',
+  'min_available_ram_mb'
+]);
+
+export const ALLOWED_TELEMETRY_WINDOW_KEYS = new Set([
+  'duration_ms',
+  'interval_ms',
+  'max_gap_ms',
+  'start_time',
+  'end_time',
+  'sample_count',
+  'cpu_stats',
+  'mem_stats',
+  'page_faults',
+  'samples'
+]);
+
+export const ALLOWED_CPU_STATS_KEYS = new Set(['min', 'max', 'mean', 'p95']);
+
+export const ALLOWED_MEM_STATS_KEYS = new Set([
+  'min_available_mb',
+  'max_available_mb',
+  'mean_available_mb',
+  'committed_bytes_mean',
+  'commit_limit_bytes'
+]);
+
+export const ALLOWED_PAGE_FAULTS_KEYS = new Set([
+  'max_pages_input_per_sec',
+  'mean_pages_input_per_sec',
+  'max_pages_output_per_sec'
+]);
+
+export const ALLOWED_SAMPLE_KEYS = new Set(REQUIRED_SAMPLE_FIELDS);
+
+export const ALLOWED_GROUP_KEYS = new Set([
+  'category',
+  'count',
+  'cpu_percent_logical_capacity',
+  'working_set_private_bytes',
+  'page_faults_per_sec'
+]);
+
+
 /**
  * Validates a preflight manifest object against the R7 contract.
  *
@@ -150,19 +250,30 @@ export function validatePreflightManifest(manifest, options = {}) {
     };
   }
 
-  // 2. Check all required top-level keys (no PASS by omission)
+  // 2a. Check additionalProperties: false on root
+  for (const key of Object.keys(manifest)) {
+    if (!ALLOWED_TOP_LEVEL_KEYS.has(key)) {
+      details.schema_valid = false;
+      errors.push(`Additional property not allowed at root: '${key}'`);
+    }
+  }
+
+  // 2b. Check all required top-level keys (no PASS by omission)
+  let missingRequiredTopLevel = false;
   for (const key of REQUIRED_TOP_LEVEL_KEYS) {
     if (manifest[key] === undefined || manifest[key] === null) {
       details.schema_valid = false;
+      missingRequiredTopLevel = true;
       errors.push(`Missing required top-level field: '${key}'`);
     } else if (typeof manifest[key] === 'string' && manifest[key].trim() === '') {
       details.schema_valid = false;
+      missingRequiredTopLevel = true;
       errors.push(`Required top-level field '${key}' cannot be an empty string`);
     }
   }
 
   // If top-level keys are missing, stop deeper parsing that would throw null dereferences
-  if (!details.schema_valid) {
+  if (missingRequiredTopLevel) {
     return {
       valid: false,
       validador_status: 'VALIDADOR_FAIL',
@@ -208,6 +319,12 @@ export function validatePreflightManifest(manifest, options = {}) {
     details.schema_valid = false;
     errors.push('Field os_info must be an object');
   } else {
+    for (const osKey of Object.keys(manifest.os_info)) {
+      if (!ALLOWED_OS_INFO_KEYS.has(osKey)) {
+        details.schema_valid = false;
+        errors.push(`Additional property not allowed in os_info: '${osKey}'`);
+      }
+    }
     for (const osKey of ['name', 'release', 'build', 'arch']) {
       if (!manifest.os_info[osKey] || typeof manifest.os_info[osKey] !== 'string' || manifest.os_info[osKey].trim() === '') {
         details.schema_valid = false;
@@ -226,6 +343,12 @@ export function validatePreflightManifest(manifest, options = {}) {
     details.toolchain_valid = false;
     errors.push('Field toolchain must be an object');
   } else {
+    for (const tcKey of Object.keys(manifest.toolchain)) {
+      if (!ALLOWED_TOOLCHAIN_KEYS.has(tcKey)) {
+        details.schema_valid = false;
+        errors.push(`Additional property not allowed in toolchain: '${tcKey}'`);
+      }
+    }
     const { node_version, pnpm_version, chromium_version } = manifest.toolchain;
 
     // Node version check
@@ -281,6 +404,12 @@ export function validatePreflightManifest(manifest, options = {}) {
     details.git_valid = false;
     errors.push('Field git must be an object');
   } else {
+    for (const gk of Object.keys(manifest.git)) {
+      if (!ALLOWED_GIT_KEYS.has(gk)) {
+        details.schema_valid = false;
+        errors.push(`Additional property not allowed in git: '${gk}'`);
+      }
+    }
     const { commit_sha, branch_name, clean_working_tree } = manifest.git;
 
     // Commit SHA (40-char hex)
@@ -309,20 +438,29 @@ export function validatePreflightManifest(manifest, options = {}) {
     if (typeof clean_working_tree !== 'boolean') {
       details.git_valid = false;
       errors.push('Field git.clean_working_tree must be a boolean');
-    } else if (clean_working_tree === false) {
-      // ONLY the normative immutable whitelist is permitted. Executor cannot add paths.
-      const allowedList = new Set(ALLOWED_GIT_EXCEPTIONS);
+    } else {
       const dirtyFiles = manifest.git.dirty_files || manifest.git.modified_files || options.dirtyFiles;
+      const hasDirtyFiles = Array.isArray(dirtyFiles) && dirtyFiles.length > 0;
 
-      if (Array.isArray(dirtyFiles) && dirtyFiles.length > 0) {
-        const unapproved = dirtyFiles.filter(f => !allowedList.has(f));
-        if (unapproved.length > 0) {
+      if (clean_working_tree === true) {
+        if (hasDirtyFiles) {
           details.git_valid = false;
-          errors.push(`Working tree is dirty with unapproved modified/untracked files: ${unapproved.join(', ')}`);
+          errors.push(`Contradiction: git.clean_working_tree is true but dirty/modified files are present: ${dirtyFiles.join(', ')}`);
         }
       } else {
-        details.git_valid = false;
-        errors.push('Working tree is not clean: clean_working_tree is false with no approved exceptions');
+        // clean_working_tree === false
+        // ONLY the normative immutable whitelist is permitted. Executor cannot add paths.
+        const allowedList = new Set(ALLOWED_GIT_EXCEPTIONS);
+        if (hasDirtyFiles) {
+          const unapproved = dirtyFiles.filter(f => !allowedList.has(f));
+          if (unapproved.length > 0) {
+            details.git_valid = false;
+            errors.push(`Working tree is dirty with unapproved modified/untracked files: ${unapproved.join(', ')}`);
+          }
+        } else {
+          details.git_valid = false;
+          errors.push('Working tree is not clean: clean_working_tree is false with no approved exceptions');
+        }
       }
     }
   }
@@ -333,6 +471,12 @@ export function validatePreflightManifest(manifest, options = {}) {
     details.dist_hashes_valid = false;
     errors.push('Field dist_hashes must be an object');
   } else {
+    for (const dhKey of Object.keys(manifest.dist_hashes)) {
+      if (!ALLOWED_DIST_HASHES_KEYS.has(dhKey)) {
+        details.schema_valid = false;
+        errors.push(`Additional property not allowed in dist_hashes: '${dhKey}'`);
+      }
+    }
     const expectedHashes = options.expectedDistHashes || CANONICAL_DIST_HASHES;
     const requiredDistKeys = [
       'packages/mcp/dist/server.js',
@@ -362,6 +506,12 @@ export function validatePreflightManifest(manifest, options = {}) {
     details.schema_valid = false;
     errors.push('Field predeclared_interference_limits must be an object');
   } else {
+    for (const lk of Object.keys(manifest.predeclared_interference_limits)) {
+      if (!ALLOWED_INTERFERENCE_LIMITS_KEYS.has(lk)) {
+        details.schema_valid = false;
+        errors.push(`Additional property not allowed in predeclared_interference_limits: '${lk}'`);
+      }
+    }
     const limits = manifest.predeclared_interference_limits;
     const requiredLimits = ['max_external_cpu_percent', 'max_disk_queue', 'max_pages_input_per_sec', 'min_available_ram_mb'];
     for (const lk of requiredLimits) {
@@ -382,19 +532,33 @@ export function validatePreflightManifest(manifest, options = {}) {
     }
   }
 
-  // 12. Validate resource_reservation (Independent evidence verification & auditor gate)
+  // 12. Validate resource_reservation (Independent evidence verification & auditor decision gate)
+  let computedEvidenceDocSha256 = null;
+  let localEvidenceDocValid = false;
+
   if (typeof manifest.resource_reservation !== 'object' || Array.isArray(manifest.resource_reservation)) {
     details.schema_valid = false;
     errors.push('Field resource_reservation must be an object');
   } else {
     const res = manifest.resource_reservation;
-    const requiredResKeys = ['provenance', 'evidence_doc', 'type', 'allocated_cores', 'allocated_ram_mb', 'swap_policy', 'accredited'];
+    for (const rk of Object.keys(res)) {
+      if (!ALLOWED_RESOURCE_RESERVATION_KEYS.has(rk)) {
+        details.schema_valid = false;
+        errors.push(`Additional property not allowed in resource_reservation: '${rk}'`);
+      }
+    }
 
+    const requiredResKeys = ['provenance', 'evidence_doc', 'type', 'allocated_cores', 'allocated_ram_mb', 'swap_policy', 'accredited'];
     for (const rk of requiredResKeys) {
       if (res[rk] === undefined) {
         details.schema_valid = false;
         errors.push(`Missing required resource_reservation field: '${rk}'`);
       }
+    }
+
+    if (typeof res.swap_policy !== 'string' || !VALID_SWAP_POLICIES.has(res.swap_policy)) {
+      details.schema_valid = false;
+      errors.push(`Invalid resource_reservation.swap_policy: must be one of ${Array.from(VALID_SWAP_POLICIES).join(', ')}`);
     }
 
     if (typeof res.accredited !== 'boolean') {
@@ -412,8 +576,6 @@ export function validatePreflightManifest(manifest, options = {}) {
       errors.push('Field resource_reservation.allocated_ram_mb must be an integer >= 1024');
     }
 
-    const auditorApproved = options.auditorApproval === true;
-
     // Evaluate accreditation and evidence document
     if (res.accredited === true) {
       if (typeof res.evidence_doc !== 'string' || res.evidence_doc.trim() === '') {
@@ -429,38 +591,102 @@ export function validatePreflightManifest(manifest, options = {}) {
         errors.push(`Invalid reservation type '${res.type}': accredited reservation must be one of ${Array.from(ACCREDITED_TYPES).join(', ')}`);
       }
 
-      // Check evidence document physically
+      // Check evidence document physically: remote URLs are strictly prohibited and unaccredited
       if (typeof res.evidence_doc === 'string' && res.evidence_doc.trim() !== '') {
-        let isLocalDoc = false;
-        let localDocPath = null;
-
-        if (res.evidence_doc.startsWith('file://')) {
-          isLocalDoc = true;
-          try {
-            localDocPath = fileURLToPath(res.evidence_doc);
-          } catch {
-            localDocPath = res.evidence_doc.replace(/^file:\/\//, '');
+        if (/^https?:\/\//i.test(res.evidence_doc)) {
+          details.reservation_accredited = false;
+          errors.push(`Invalid reservation accreditation: remote HTTP/HTTPS URLs ('${res.evidence_doc}') are unverifiable and strictly prohibited for accredited reservation`);
+        } else {
+          let localDocPath = res.evidence_doc;
+          if (localDocPath.startsWith('file://')) {
+            try {
+              localDocPath = fileURLToPath(localDocPath);
+            } catch {
+              localDocPath = localDocPath.replace(/^file:\/\//, '');
+            }
           }
-        } else if (!/^https?:\/\//i.test(res.evidence_doc)) {
-          isLocalDoc = true;
-          localDocPath = path.isAbsolute(res.evidence_doc)
-            ? res.evidence_doc
-            : path.resolve(process.cwd(), res.evidence_doc);
-        }
+          if (!path.isAbsolute(localDocPath)) {
+            localDocPath = path.resolve(process.cwd(), localDocPath);
+          }
 
-        if (isLocalDoc && localDocPath) {
           if (!fs.existsSync(localDocPath)) {
             details.reservation_accredited = false;
             errors.push(`Evidence document does not exist or is inaccessible: '${res.evidence_doc}'`);
           } else {
             try {
               const stat = fs.statSync(localDocPath);
-              if (stat.size === 0) {
+              if (!stat.isFile()) {
+                details.reservation_accredited = false;
+                errors.push(`Evidence document is not a regular file: '${res.evidence_doc}'`);
+              } else if (stat.size === 0) {
                 details.reservation_accredited = false;
                 errors.push(`Evidence document is empty (0 bytes): '${res.evidence_doc}'`);
               } else {
-                if (ACCREDITED_PROVENANCES.has(res.provenance) && ACCREDITED_TYPES.has(res.type)) {
-                  details.reservation_accredited = auditorApproved;
+                let docPayload = null;
+                try {
+                  const docRaw = fs.readFileSync(localDocPath, 'utf-8');
+                  docPayload = JSON.parse(docRaw);
+                } catch (err) {
+                  details.reservation_accredited = false;
+                  errors.push(`Evidence document '${res.evidence_doc}' is not valid JSON: ${err.message}`);
+                }
+
+                if (docPayload && typeof docPayload === 'object' && !Array.isArray(docPayload)) {
+                  let docValid = true;
+                  const allowedDocKeys = new Set([
+                    'executor_id',
+                    'provenance',
+                    'type',
+                    'allocated_cores',
+                    'allocated_ram_mb',
+                    'exclusive_reservation',
+                    'provider_metadata'
+                  ]);
+                  for (const dk of Object.keys(docPayload)) {
+                    if (!allowedDocKeys.has(dk)) {
+                      docValid = false;
+                      details.reservation_accredited = false;
+                      errors.push(`Additional property not allowed in evidence document: '${dk}'`);
+                    }
+                  }
+                  if (docPayload.executor_id !== manifest.executor_id) {
+                    docValid = false;
+                    details.reservation_accredited = false;
+                    errors.push(`Evidence document executor_id ('${docPayload.executor_id}') does not match manifest executor_id ('${manifest.executor_id}')`);
+                  }
+                  if (docPayload.provenance !== res.provenance) {
+                    docValid = false;
+                    details.reservation_accredited = false;
+                    errors.push(`Evidence document provenance ('${docPayload.provenance}') does not match manifest ('${res.provenance}')`);
+                  }
+                  if (docPayload.type !== res.type) {
+                    docValid = false;
+                    details.reservation_accredited = false;
+                    errors.push(`Evidence document type ('${docPayload.type}') does not match manifest ('${res.type}')`);
+                  }
+                  if (docPayload.allocated_cores !== res.allocated_cores) {
+                    docValid = false;
+                    details.reservation_accredited = false;
+                    errors.push(`Evidence document allocated_cores (${docPayload.allocated_cores}) does not match manifest (${res.allocated_cores})`);
+                  }
+                  if (docPayload.allocated_ram_mb !== res.allocated_ram_mb) {
+                    docValid = false;
+                    details.reservation_accredited = false;
+                    errors.push(`Evidence document allocated_ram_mb (${docPayload.allocated_ram_mb}) does not match manifest (${res.allocated_ram_mb})`);
+                  }
+                  if (docPayload.exclusive_reservation !== true) {
+                    docValid = false;
+                    details.reservation_accredited = false;
+                    errors.push('Evidence document exclusive_reservation must be true');
+                  }
+
+                  if (docValid) {
+                    computedEvidenceDocSha256 = crypto.createHash('sha256').update(fs.readFileSync(localDocPath)).digest('hex').toLowerCase();
+                    localEvidenceDocValid = true;
+                  }
+                } else if (docPayload !== null) {
+                  details.reservation_accredited = false;
+                  errors.push('Evidence document must be a JSON object');
                 }
               }
             } catch (err) {
@@ -468,17 +694,137 @@ export function validatePreflightManifest(manifest, options = {}) {
               errors.push(`Evidence document cannot be read: '${res.evidence_doc}' (${err.message})`);
             }
           }
-        } else if (/^https?:\/\//i.test(res.evidence_doc)) {
-          try {
-            new URL(res.evidence_doc);
-            if (ACCREDITED_PROVENANCES.has(res.provenance) && ACCREDITED_TYPES.has(res.type)) {
-              details.reservation_accredited = auditorApproved;
-            }
-          } catch {
+        }
+      }
+
+      // Check external auditable decision (sine qua non gate for accreditation)
+      let auditorDecision = null;
+      if (typeof options.auditorDecision === 'string') {
+        try {
+          const decPath = path.isAbsolute(options.auditorDecision)
+            ? options.auditorDecision
+            : path.resolve(process.cwd(), options.auditorDecision);
+          if (fs.existsSync(decPath)) {
+            auditorDecision = JSON.parse(fs.readFileSync(decPath, 'utf-8'));
+          } else {
             details.reservation_accredited = false;
-            errors.push(`Evidence document URL is invalid: '${res.evidence_doc}'`);
+            errors.push(`Auditor decision file does not exist at '${options.auditorDecision}'`);
+          }
+        } catch (err) {
+          details.reservation_accredited = false;
+          errors.push(`Failed to read/parse auditor decision file '${options.auditorDecision}': ${err.message}`);
+        }
+      } else if (typeof options.auditorDecision === 'object' && options.auditorDecision !== null && !Array.isArray(options.auditorDecision)) {
+        auditorDecision = options.auditorDecision;
+      }
+
+      if (auditorDecision) {
+        let decValid = true;
+        const requiredDecKeys = [
+          'decision',
+          'auditor_id',
+          'executor_id',
+          'approved_commit_sha',
+          'evidence_doc_sha256',
+          'allocated_cores',
+          'allocated_ram_mb',
+          'issued_at_utc',
+          'expires_at_utc'
+        ];
+        const allowedDecKeys = new Set(requiredDecKeys);
+        for (const dk of Object.keys(auditorDecision)) {
+          if (!allowedDecKeys.has(dk)) {
+            decValid = false;
+            errors.push(`Additional property not allowed in auditorDecision: '${dk}'`);
           }
         }
+        for (const rdk of requiredDecKeys) {
+          if (auditorDecision[rdk] === undefined || auditorDecision[rdk] === null) {
+            decValid = false;
+            errors.push(`Missing required field in auditorDecision: '${rdk}'`);
+          }
+        }
+
+        if (auditorDecision.decision !== 'APPROVED') {
+          decValid = false;
+          errors.push(`Auditor decision is '${auditorDecision.decision}', must be 'APPROVED'`);
+        }
+        if (typeof auditorDecision.auditor_id !== 'string' || auditorDecision.auditor_id.trim().length < 3) {
+          decValid = false;
+          errors.push('Auditor decision auditor_id must be a non-empty string');
+        }
+        if (auditorDecision.executor_id !== manifest.executor_id) {
+          decValid = false;
+          errors.push(`Auditor decision executor_id ('${auditorDecision.executor_id}') does not match manifest ('${manifest.executor_id}')`);
+        }
+        if (typeof auditorDecision.approved_commit_sha !== 'string' || !/^[a-fA-F0-9]{40}$/.test(auditorDecision.approved_commit_sha)) {
+          decValid = false;
+          errors.push(`Auditor decision approved_commit_sha is invalid 40-char hex: '${auditorDecision.approved_commit_sha}'`);
+        } else {
+          if (manifest.git?.commit_sha && auditorDecision.approved_commit_sha.toLowerCase() !== manifest.git.commit_sha.toLowerCase()) {
+            decValid = false;
+            errors.push(`Auditor decision approved_commit_sha ('${auditorDecision.approved_commit_sha}') does not match manifest commit_sha ('${manifest.git?.commit_sha}')`);
+          }
+          if (options.expectedCommitSha && auditorDecision.approved_commit_sha.toLowerCase() !== options.expectedCommitSha.toLowerCase()) {
+            decValid = false;
+            errors.push(`Auditor decision approved_commit_sha does not match options.expectedCommitSha ('${options.expectedCommitSha}')`);
+          }
+        }
+
+        if (!options.expectedCommitSha) {
+          decValid = false;
+          errors.push('Expected commit SHA (options.expectedCommitSha) is required for verified auditor decision');
+        }
+
+        if (!computedEvidenceDocSha256 || auditorDecision.evidence_doc_sha256?.toLowerCase() !== computedEvidenceDocSha256) {
+          decValid = false;
+          errors.push(`Auditor decision evidence_doc_sha256 ('${auditorDecision.evidence_doc_sha256}') does not match computed digest ('${computedEvidenceDocSha256 ?? 'none'}')`);
+        }
+
+        if (typeof auditorDecision.allocated_cores === 'number' && typeof res.allocated_cores === 'number') {
+          if (auditorDecision.allocated_cores < res.allocated_cores) {
+            decValid = false;
+            errors.push(`Auditor decision allocated_cores (${auditorDecision.allocated_cores}) is less than manifest (${res.allocated_cores})`);
+          }
+        }
+        if (typeof auditorDecision.allocated_ram_mb === 'number' && typeof res.allocated_ram_mb === 'number') {
+          if (auditorDecision.allocated_ram_mb < res.allocated_ram_mb) {
+            decValid = false;
+            errors.push(`Auditor decision allocated_ram_mb (${auditorDecision.allocated_ram_mb}) is less than manifest (${res.allocated_ram_mb})`);
+          }
+        }
+
+        const issuedMs = Date.parse(auditorDecision.issued_at_utc);
+        const expiresMs = Date.parse(auditorDecision.expires_at_utc);
+        const winStartMs = Date.parse(manifest.telemetry_window?.start_time);
+        const winEndMs = Date.parse(manifest.telemetry_window?.end_time);
+
+        if (isNaN(issuedMs) || isNaN(expiresMs)) {
+          decValid = false;
+          errors.push('Auditor decision temporal bounds are invalid ISO-8601 strings');
+        } else {
+          if (issuedMs > expiresMs) {
+            decValid = false;
+            errors.push('Auditor decision issued_at_utc is after expires_at_utc');
+          }
+          if (!isNaN(winStartMs) && issuedMs > winStartMs) {
+            decValid = false;
+            errors.push(`Auditor decision was issued after telemetry window start: ${auditorDecision.issued_at_utc} > ${manifest.telemetry_window?.start_time}`);
+          }
+          if (!isNaN(winEndMs) && winEndMs > expiresMs) {
+            decValid = false;
+            errors.push(`Auditor decision expired before telemetry window end: ${auditorDecision.expires_at_utc} < ${manifest.telemetry_window?.end_time}`);
+          }
+        }
+
+        if (decValid && localEvidenceDocValid && ACCREDITED_PROVENANCES.has(res.provenance) && ACCREDITED_TYPES.has(res.type)) {
+          details.reservation_accredited = true;
+        } else {
+          details.reservation_accredited = false;
+        }
+      } else {
+        // No auditable decision provided: bare boolean flag or unverified approval strictly prohibited
+        details.reservation_accredited = false;
       }
     } else {
       // Not accredited
@@ -491,12 +837,20 @@ export function validatePreflightManifest(manifest, options = {}) {
   }
 
   // 13. Validate telemetry_window & samples (No PASS by omission, sample count >= 30, metrics mandatory)
+  // 13. Validate telemetry_window & samples (Draft-07 strict, mathematical consistency, external CPU budget)
   if (typeof manifest.telemetry_window !== 'object' || Array.isArray(manifest.telemetry_window)) {
     details.schema_valid = false;
     details.telemetry_valid = false;
     errors.push('Field telemetry_window must be an object');
   } else {
     const win = manifest.telemetry_window;
+    for (const wk of Object.keys(win)) {
+      if (!ALLOWED_TELEMETRY_WINDOW_KEYS.has(wk)) {
+        details.schema_valid = false;
+        errors.push(`Additional property not allowed in telemetry_window: '${wk}'`);
+      }
+    }
+
     const requiredWinKeys = [
       'duration_ms',
       'interval_ms',
@@ -518,17 +872,120 @@ export function validatePreflightManifest(manifest, options = {}) {
     }
 
     const minDuration = options.minDurationMs || 60000;
-    if (typeof win.duration_ms !== 'number' || win.duration_ms < minDuration) {
+    if (typeof win.duration_ms !== 'number' || isNaN(win.duration_ms) || win.duration_ms < minDuration) {
       details.telemetry_valid = false;
       errors.push(`Telemetry window duration (${win.duration_ms}ms) is less than required minimum of ${minDuration}ms`);
     }
 
     const maxAllowedGap = options.maxGapMs || 5000;
-    if (typeof win.max_gap_ms !== 'number' || win.max_gap_ms > maxAllowedGap || win.max_gap_ms < 0) {
+    if (typeof win.max_gap_ms !== 'number' || isNaN(win.max_gap_ms) || win.max_gap_ms > maxAllowedGap || win.max_gap_ms < 0) {
       details.telemetry_valid = false;
       errors.push(`Field telemetry_window.max_gap_ms (${win.max_gap_ms}) exceeds maximum tolerable gap of ${maxAllowedGap}ms`);
     }
 
+    // Interval ms validation: [100, 10000]
+    if (typeof win.interval_ms !== 'number' || isNaN(win.interval_ms) || win.interval_ms < 100 || win.interval_ms > 10000) {
+      details.schema_valid = false;
+      details.telemetry_valid = false;
+      errors.push(`Field telemetry_window.interval_ms (${win.interval_ms}) must be a number between 100 and 10000`);
+    }
+
+    // Sample count validation: integer >= 30
+    if (typeof win.sample_count !== 'number' || !Number.isInteger(win.sample_count) || win.sample_count < 30) {
+      details.schema_valid = false;
+      details.telemetry_valid = false;
+      errors.push(`Field telemetry_window.sample_count must be an integer >= 30 (received ${win.sample_count})`);
+    }
+
+    // Timestamps validation: valid ISO-8601 strings
+    const winStartMs = Date.parse(win.start_time);
+    const winEndMs = Date.parse(win.end_time);
+    if (typeof win.start_time !== 'string' || isNaN(winStartMs)) {
+      details.schema_valid = false;
+      details.telemetry_valid = false;
+      errors.push(`Invalid telemetry_window.start_time '${win.start_time}': must be valid ISO-8601 date-time string`);
+    }
+    if (typeof win.end_time !== 'string' || isNaN(winEndMs)) {
+      details.schema_valid = false;
+      details.telemetry_valid = false;
+      errors.push(`Invalid telemetry_window.end_time '${win.end_time}': must be valid ISO-8601 date-time string`);
+    }
+    if (!isNaN(winStartMs) && !isNaN(winEndMs)) {
+      if (winStartMs >= winEndMs) {
+        details.telemetry_valid = false;
+        errors.push(`Telemetry start_time (${win.start_time}) must be earlier than end_time (${win.end_time})`);
+      }
+      const calculatedDuration = winEndMs - winStartMs;
+      if (typeof win.duration_ms === 'number' && Math.abs(win.duration_ms - calculatedDuration) > 100) {
+        details.telemetry_valid = false;
+        errors.push(`Telemetry duration_ms mismatch: declared ${win.duration_ms}ms, but span from start_time to end_time is ${calculatedDuration}ms`);
+      }
+    }
+
+    // Validate cpu_stats
+    if (!win.cpu_stats || typeof win.cpu_stats !== 'object' || Array.isArray(win.cpu_stats)) {
+      details.schema_valid = false;
+      errors.push('Field telemetry_window.cpu_stats must be an object');
+    } else {
+      for (const ck of Object.keys(win.cpu_stats)) {
+        if (!ALLOWED_CPU_STATS_KEYS.has(ck)) {
+          details.schema_valid = false;
+          errors.push(`Additional property not allowed in cpu_stats: '${ck}'`);
+        }
+      }
+      for (const req of ['min', 'max', 'mean']) {
+        if (win.cpu_stats[req] === undefined || win.cpu_stats[req] === null || typeof win.cpu_stats[req] !== 'number' || isNaN(win.cpu_stats[req]) || win.cpu_stats[req] < 0 || win.cpu_stats[req] > 100) {
+          details.schema_valid = false;
+          errors.push(`Missing or invalid numeric field in cpu_stats: '${req}' (must be number in [0, 100])`);
+        }
+      }
+      if (win.cpu_stats.p95 !== undefined && (typeof win.cpu_stats.p95 !== 'number' || isNaN(win.cpu_stats.p95) || win.cpu_stats.p95 < 0 || win.cpu_stats.p95 > 100)) {
+        details.schema_valid = false;
+        errors.push('Field cpu_stats.p95 must be a number in [0, 100]');
+      }
+    }
+
+    // Validate mem_stats
+    if (!win.mem_stats || typeof win.mem_stats !== 'object' || Array.isArray(win.mem_stats)) {
+      details.schema_valid = false;
+      errors.push('Field telemetry_window.mem_stats must be an object');
+    } else {
+      for (const mk of Object.keys(win.mem_stats)) {
+        if (!ALLOWED_MEM_STATS_KEYS.has(mk)) {
+          details.schema_valid = false;
+          errors.push(`Additional property not allowed in mem_stats: '${mk}'`);
+        }
+      }
+      const reqMem = ['min_available_mb', 'max_available_mb', 'mean_available_mb', 'committed_bytes_mean', 'commit_limit_bytes'];
+      for (const req of reqMem) {
+        if (win.mem_stats[req] === undefined || win.mem_stats[req] === null || typeof win.mem_stats[req] !== 'number' || isNaN(win.mem_stats[req]) || win.mem_stats[req] < 0) {
+          details.schema_valid = false;
+          errors.push(`Missing or invalid numeric field in mem_stats: '${req}' (must be number >= 0)`);
+        }
+      }
+    }
+
+    // Validate page_faults
+    if (!win.page_faults || typeof win.page_faults !== 'object' || Array.isArray(win.page_faults)) {
+      details.schema_valid = false;
+      errors.push('Field telemetry_window.page_faults must be an object');
+    } else {
+      for (const pfk of Object.keys(win.page_faults)) {
+        if (!ALLOWED_PAGE_FAULTS_KEYS.has(pfk)) {
+          details.schema_valid = false;
+          errors.push(`Additional property not allowed in page_faults: '${pfk}'`);
+        }
+      }
+      const reqPf = ['max_pages_input_per_sec', 'mean_pages_input_per_sec', 'max_pages_output_per_sec'];
+      for (const req of reqPf) {
+        if (win.page_faults[req] === undefined || win.page_faults[req] === null || typeof win.page_faults[req] !== 'number' || isNaN(win.page_faults[req]) || win.page_faults[req] < 0) {
+          details.schema_valid = false;
+          errors.push(`Missing or invalid numeric field in page_faults: '${req}' (must be number >= 0)`);
+        }
+      }
+    }
+
+    // Validate samples
     if (!Array.isArray(win.samples)) {
       details.schema_valid = false;
       details.telemetry_valid = false;
@@ -561,6 +1018,14 @@ export function validatePreflightManifest(manifest, options = {}) {
             continue;
           }
 
+          // Check additionalProperties: false on sample
+          for (const sk of Object.keys(s)) {
+            if (!ALLOWED_SAMPLE_KEYS.has(sk)) {
+              details.schema_valid = false;
+              errors.push(`Additional property not allowed in sample ${i}: '${sk}'`);
+            }
+          }
+
           // Validate all 10 required fields per sample
           for (const f of REQUIRED_SAMPLE_FIELDS) {
             if (s[f] === undefined || s[f] === null) {
@@ -588,6 +1053,11 @@ export function validatePreflightManifest(manifest, options = {}) {
             }
           }
 
+          if (typeof s.cpu_percent === 'number' && s.cpu_percent > 100) {
+            details.telemetry_valid = false;
+            errors.push(`Sample at index ${i} cpu_percent (${s.cpu_percent}%) exceeds maximum limit of 100%`);
+          }
+
           // Process groups validation: exactly 4 unique groups
           if (!Array.isArray(s.groups) || s.groups.length !== 4) {
             details.telemetry_valid = false;
@@ -601,23 +1071,46 @@ export function validatePreflightManifest(manifest, options = {}) {
                 errors.push(`Sample ${i} group ${gi} is not an object`);
                 continue;
               }
+              for (const gk of Object.keys(g)) {
+                if (!ALLOWED_GROUP_KEYS.has(gk)) {
+                  details.schema_valid = false;
+                  errors.push(`Additional property not allowed in sample ${i} group ${gi}: '${gk}'`);
+                }
+              }
               if (!REQUIRED_GROUP_CATEGORIES.includes(g.category)) {
                 details.telemetry_valid = false;
                 errors.push(`Sample ${i} group has invalid category '${g.category}'`);
               } else {
                 seenCategories.add(g.category);
               }
-              const groupNums = ['count', 'cpu_percent_logical_capacity', 'working_set_private_bytes', 'page_faults_per_sec'];
+              if (typeof g.count !== 'number' || !Number.isInteger(g.count) || g.count < 0) {
+                details.telemetry_valid = false;
+                errors.push(`Sample ${i} group '${g.category}' count must be an integer >= 0 (received ${g.count})`);
+              }
+              const groupNums = ['cpu_percent_logical_capacity', 'working_set_private_bytes', 'page_faults_per_sec'];
               for (const gn of groupNums) {
                 if (g[gn] === undefined || g[gn] === null || typeof g[gn] !== 'number' || isNaN(g[gn]) || g[gn] < 0) {
                   details.telemetry_valid = false;
                   errors.push(`Sample ${i} group '${g.category}' missing or invalid numeric field '${gn}'`);
                 }
               }
+              if (typeof g.cpu_percent_logical_capacity === 'number' && g.cpu_percent_logical_capacity > 100) {
+                details.telemetry_valid = false;
+                errors.push(`Sample ${i} group '${g.category}' cpu_percent_logical_capacity exceeds 100%`);
+              }
             }
             if (seenCategories.size !== 4) {
               details.telemetry_valid = false;
               errors.push(`Sample at index ${i} does not contain all 4 unique categories: missing ${REQUIRED_GROUP_CATEGORIES.filter(c => !seenCategories.has(c)).join(', ')}`);
+            }
+
+            // Group sum consistency against sample.cpu_percent (|diff| <= 0.05%)
+            if (typeof s.cpu_percent === 'number') {
+              const groupCpuSum = s.groups.reduce((acc, grp) => acc + (grp && typeof grp.cpu_percent_logical_capacity === 'number' ? grp.cpu_percent_logical_capacity : 0), 0);
+              if (Math.abs(s.cpu_percent - groupCpuSum) > 0.05) {
+                details.telemetry_valid = false;
+                errors.push(`Sample ${i} CPU group sum mismatch: groups sum to ${groupCpuSum.toFixed(4)}% but cpu_percent is ${s.cpu_percent}% (difference > 0.05%)`);
+              }
             }
           }
 
@@ -690,12 +1183,20 @@ export function validatePreflightManifest(manifest, options = {}) {
             errors.push(`Sample ${i} violates available_ram_mb limit: ${s.available_mb} < ${effectiveLimits.min_available_ram_mb}`);
           }
 
+          // External CPU attribution: in baseline preflight (without authorized test PIDs),
+          // all other, node, and chromium processes count as external load
           if (Array.isArray(s.groups)) {
             const otherG = s.groups.find(g => g && g.category === 'other');
+            const nodeG = s.groups.find(g => g && g.category === 'node');
+            const chromG = s.groups.find(g => g && g.category === 'chromium');
             const otherCpu = otherG?.cpu_percent_logical_capacity ?? 0;
-            if (otherCpu > effectiveLimits.max_external_cpu_percent) {
+            const nodeCpu = nodeG?.cpu_percent_logical_capacity ?? 0;
+            const chromCpu = chromG?.cpu_percent_logical_capacity ?? 0;
+
+            const externalCpu = otherCpu + nodeCpu + chromCpu;
+            if (externalCpu > effectiveLimits.max_external_cpu_percent) {
               details.telemetry_valid = false;
-              errors.push(`Sample ${i} violates max_external_cpu_percent limit: ${otherCpu}% > ${effectiveLimits.max_external_cpu_percent}%`);
+              errors.push(`Sample ${i} violates max_external_cpu_percent limit: external CPU ${externalCpu}% > ${effectiveLimits.max_external_cpu_percent}%`);
             }
           }
 
@@ -706,6 +1207,16 @@ export function validatePreflightManifest(manifest, options = {}) {
 
         details.max_observed_gap_ms = maxObservedGap;
 
+        // Check endpoints match start_time and end_time
+        if (win.samples[0]?.started_at && win.start_time !== win.samples[0].started_at) {
+          details.telemetry_valid = false;
+          errors.push(`telemetry_window.start_time ('${win.start_time}') does not match samples[0].started_at ('${win.samples[0]?.started_at}')`);
+        }
+        if (win.samples[win.samples.length - 1]?.finished_at && win.end_time !== win.samples[win.samples.length - 1].finished_at) {
+          details.telemetry_valid = false;
+          errors.push(`telemetry_window.end_time ('${win.end_time}') does not match samples[last].finished_at ('${win.samples[win.samples.length - 1]?.finished_at}')`);
+        }
+
         // Total observed span derived strictly from valid real samples
         const firstStart = Date.parse(win.samples[0]?.started_at);
         const lastFinish = Date.parse(win.samples[win.samples.length - 1]?.finished_at);
@@ -715,6 +1226,79 @@ export function validatePreflightManifest(manifest, options = {}) {
         if (observedSpanMs < minDuration) {
           details.telemetry_valid = false;
           errors.push(`Observed continuous telemetry span of ${observedSpanMs}ms is less than required ${minDuration}ms`);
+        }
+
+        // Mathematical consistency between samples and aggregated stats
+        const sampleCpus = win.samples.map(s => s?.cpu_percent).filter(v => typeof v === 'number' && !isNaN(v));
+        if (sampleCpus.length === win.samples.length && win.cpu_stats && typeof win.cpu_stats === 'object') {
+          const compMinCpu = Math.min(...sampleCpus);
+          const compMaxCpu = Math.max(...sampleCpus);
+          const compMeanCpu = sampleCpus.reduce((a, b) => a + b, 0) / sampleCpus.length;
+
+          if (typeof win.cpu_stats.min === 'number' && Math.abs(win.cpu_stats.min - compMinCpu) > 0.05) {
+            details.telemetry_valid = false;
+            errors.push(`cpu_stats.min (${win.cpu_stats.min}) does not match samples minimum (${compMinCpu})`);
+          }
+          if (typeof win.cpu_stats.max === 'number' && Math.abs(win.cpu_stats.max - compMaxCpu) > 0.05) {
+            details.telemetry_valid = false;
+            errors.push(`cpu_stats.max (${win.cpu_stats.max}) does not match samples maximum (${compMaxCpu})`);
+          }
+          if (typeof win.cpu_stats.mean === 'number' && Math.abs(win.cpu_stats.mean - compMeanCpu) > 0.05) {
+            details.telemetry_valid = false;
+            errors.push(`cpu_stats.mean (${win.cpu_stats.mean}) does not match samples mean (${compMeanCpu.toFixed(4)})`);
+          }
+          if (typeof win.cpu_stats.p95 === 'number') {
+            const sorted = [...sampleCpus].sort((a, b) => a - b);
+            const p95Idx = Math.min(sorted.length - 1, Math.floor(0.95 * sorted.length));
+            const compP95 = sorted[p95Idx];
+            if (Math.abs(win.cpu_stats.p95 - compP95) > 0.15 && Math.abs(win.cpu_stats.p95 - sorted[Math.round(0.95 * (sorted.length - 1))]) > 0.15) {
+              details.telemetry_valid = false;
+              errors.push(`cpu_stats.p95 (${win.cpu_stats.p95}) does not match samples p95 (${compP95})`);
+            }
+          }
+        }
+
+        const sampleAvail = win.samples.map(s => s?.available_mb).filter(v => typeof v === 'number' && !isNaN(v));
+        if (sampleAvail.length === win.samples.length && win.mem_stats && typeof win.mem_stats === 'object') {
+          const compMinAvail = Math.min(...sampleAvail);
+          const compMaxAvail = Math.max(...sampleAvail);
+          const compMeanAvail = sampleAvail.reduce((a, b) => a + b, 0) / sampleAvail.length;
+
+          if (typeof win.mem_stats.min_available_mb === 'number' && Math.abs(win.mem_stats.min_available_mb - compMinAvail) > 0.05) {
+            details.telemetry_valid = false;
+            errors.push(`mem_stats.min_available_mb (${win.mem_stats.min_available_mb}) does not match samples minimum (${compMinAvail})`);
+          }
+          if (typeof win.mem_stats.max_available_mb === 'number' && Math.abs(win.mem_stats.max_available_mb - compMaxAvail) > 0.05) {
+            details.telemetry_valid = false;
+            errors.push(`mem_stats.max_available_mb (${win.mem_stats.max_available_mb}) does not match samples maximum (${compMaxAvail})`);
+          }
+          if (typeof win.mem_stats.mean_available_mb === 'number' && Math.abs(win.mem_stats.mean_available_mb - compMeanAvail) > 1.0) {
+            details.telemetry_valid = false;
+            errors.push(`mem_stats.mean_available_mb (${win.mem_stats.mean_available_mb}) does not match samples mean (${compMeanAvail.toFixed(2)})`);
+          }
+        }
+
+        const samplePagesIn = win.samples.map(s => s?.pages_input_per_sec).filter(v => typeof v === 'number' && !isNaN(v));
+        const samplePagesOut = win.samples.map(s => s?.pages_output_per_sec).filter(v => typeof v === 'number' && !isNaN(v));
+        if (samplePagesIn.length === win.samples.length && win.page_faults && typeof win.page_faults === 'object') {
+          const compMaxPfIn = Math.max(...samplePagesIn);
+          const compMeanPfIn = samplePagesIn.reduce((a, b) => a + b, 0) / samplePagesIn.length;
+
+          if (typeof win.page_faults.max_pages_input_per_sec === 'number' && Math.abs(win.page_faults.max_pages_input_per_sec - compMaxPfIn) > 0.05) {
+            details.telemetry_valid = false;
+            errors.push(`page_faults.max_pages_input_per_sec (${win.page_faults.max_pages_input_per_sec}) does not match samples max (${compMaxPfIn})`);
+          }
+          if (typeof win.page_faults.mean_pages_input_per_sec === 'number' && Math.abs(win.page_faults.mean_pages_input_per_sec - compMeanPfIn) > 0.1) {
+            details.telemetry_valid = false;
+            errors.push(`page_faults.mean_pages_input_per_sec (${win.page_faults.mean_pages_input_per_sec}) does not match samples mean (${compMeanPfIn.toFixed(2)})`);
+          }
+          if (samplePagesOut.length === win.samples.length && typeof win.page_faults.max_pages_output_per_sec === 'number') {
+            const compMaxPfOut = Math.max(...samplePagesOut);
+            if (Math.abs(win.page_faults.max_pages_output_per_sec - compMaxPfOut) > 0.05) {
+              details.telemetry_valid = false;
+              errors.push(`page_faults.max_pages_output_per_sec (${win.page_faults.max_pages_output_per_sec}) does not match samples max (${compMaxPfOut})`);
+            }
+          }
         }
 
         // Aggregate statistics limit verification
@@ -741,8 +1325,8 @@ export function validatePreflightManifest(manifest, options = {}) {
 
   // 14. Contractual Contradiction Detection
   if (manifest.status === 'EJECUTOR_APTO') {
-    if (!details.reservation_accredited || options.auditorApproval !== true) {
-      errors.push('Contradiction: Manifest claims EJECUTOR_APTO without independently verified reservation');
+    if (!details.reservation_accredited || !options.auditorDecision) {
+      errors.push('Contradiction: Manifest claims EJECUTOR_APTO without independently verified reservation and auditable decision');
     }
     if (manifest.resource_reservation && (manifest.resource_reservation.provenance === 'synthetic' || manifest.resource_reservation.type === 'synthetic_fixture')) {
       errors.push('Contradiction: Manifest claims EJECUTOR_APTO for synthetic fixture');
@@ -775,11 +1359,11 @@ export function validatePreflightManifest(manifest, options = {}) {
   if (
     valid &&
     details.reservation_accredited &&
-    options.auditorApproval === true &&
     details.telemetry_valid &&
     details.git_valid &&
     details.dist_hashes_valid &&
     details.toolchain_valid &&
+    options.expectedCommitSha &&
     manifest.resource_reservation?.type !== 'synthetic_fixture' &&
     manifest.resource_reservation?.provenance !== 'synthetic'
   ) {
@@ -815,52 +1399,184 @@ export function parseCliArgs(args) {
   const options = {};
   let manifestPath = null;
   const unknownOptions = [];
+  const cliErrors = [];
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
 
     if (arg === '--manifest') {
-      manifestPath = args[++i];
+      const next = args[++i];
+      if (!next || next.startsWith('--')) {
+        cliErrors.push("Option '--manifest' requires a non-empty file path");
+        i--;
+      } else {
+        manifestPath = next;
+      }
     } else if (arg.startsWith('--manifest=')) {
-      manifestPath = arg.slice('--manifest='.length);
+      const val = arg.slice('--manifest='.length);
+      if (!val || val.trim() === '') {
+        cliErrors.push("Option '--manifest' requires a non-empty file path");
+      } else {
+        manifestPath = val;
+      }
     } else if (arg === '--expected-sha') {
-      options.expectedCommitSha = args[++i];
+      const next = args[++i];
+      if (!next || next.startsWith('--')) {
+        cliErrors.push("Missing value for option '--expected-sha' (requires a non-empty 40-character commit SHA)");
+        i--;
+      } else {
+        options.expectedCommitSha = next;
+      }
     } else if (arg.startsWith('--expected-sha=')) {
-      options.expectedCommitSha = arg.slice('--expected-sha='.length);
+      const val = arg.slice('--expected-sha='.length);
+      if (!val || val.trim() === '') {
+        cliErrors.push("Empty value for option '--expected-sha' (requires a non-empty 40-character commit SHA)");
+      } else {
+        options.expectedCommitSha = val;
+      }
     } else if (arg === '--expected-branch') {
-      options.expectedBranch = args[++i];
+      const next = args[++i];
+      if (!next || next.startsWith('--')) {
+        cliErrors.push("Option '--expected-branch' requires a branch name");
+        i--;
+      } else {
+        options.expectedBranch = next;
+      }
     } else if (arg.startsWith('--expected-branch=')) {
-      options.expectedBranch = arg.slice('--expected-branch='.length);
+      const val = arg.slice('--expected-branch='.length);
+      if (!val || val.trim() === '') {
+        cliErrors.push("Option '--expected-branch' requires a branch name");
+      } else {
+        options.expectedBranch = val;
+      }
     } else if (arg === '--expected-chromium') {
-      options.expectedChromiumVersion = args[++i];
+      const next = args[++i];
+      if (!next || next.startsWith('--')) {
+        cliErrors.push("Option '--expected-chromium' requires a version string");
+        i--;
+      } else {
+        options.expectedChromiumVersion = next;
+      }
     } else if (arg.startsWith('--expected-chromium=')) {
-      options.expectedChromiumVersion = arg.slice('--expected-chromium='.length);
+      const val = arg.slice('--expected-chromium='.length);
+      if (!val || val.trim() === '') {
+        cliErrors.push("Option '--expected-chromium' requires a version string");
+      } else {
+        options.expectedChromiumVersion = val;
+      }
     } else if (arg === '--require-chromium') {
       options.requireChromium = true;
     } else if (arg === '--expected-node') {
-      options.expectedNodeVersion = args[++i];
+      const next = args[++i];
+      if (!next || next.startsWith('--')) {
+        cliErrors.push("Option '--expected-node' requires a version string");
+        i--;
+      } else {
+        options.expectedNodeVersion = next;
+      }
     } else if (arg.startsWith('--expected-node=')) {
-      options.expectedNodeVersion = arg.slice('--expected-node='.length);
+      const val = arg.slice('--expected-node='.length);
+      if (!val || val.trim() === '') {
+        cliErrors.push("Option '--expected-node' requires a version string");
+      } else {
+        options.expectedNodeVersion = val;
+      }
     } else if (arg === '--expected-pnpm') {
-      options.expectedPnpmVersion = args[++i];
+      const next = args[++i];
+      if (!next || next.startsWith('--')) {
+        cliErrors.push("Option '--expected-pnpm' requires a version string");
+        i--;
+      } else {
+        options.expectedPnpmVersion = next;
+      }
     } else if (arg.startsWith('--expected-pnpm=')) {
-      options.expectedPnpmVersion = arg.slice('--expected-pnpm='.length);
+      const val = arg.slice('--expected-pnpm='.length);
+      if (!val || val.trim() === '') {
+        cliErrors.push("Option '--expected-pnpm' requires a version string");
+      } else {
+        options.expectedPnpmVersion = val;
+      }
     } else if (arg === '--min-duration') {
-      options.minDurationMs = Number(args[++i]);
+      const next = args[++i];
+      const num = Number(next);
+      if (!next || next.startsWith('--') || isNaN(num) || !Number.isFinite(num)) {
+        cliErrors.push(`Invalid numeric value for option '--min-duration', received '${next ?? ''}'`);
+        if (next && next.startsWith('--')) i--;
+      } else {
+        options.minDurationMs = num;
+      }
     } else if (arg.startsWith('--min-duration=')) {
-      options.minDurationMs = Number(arg.slice('--min-duration='.length));
+      const val = arg.slice('--min-duration='.length);
+      const num = Number(val);
+      if (!val || isNaN(num) || !Number.isFinite(num)) {
+        cliErrors.push(`Invalid numeric value for option '--min-duration', received '${val}'`);
+      } else {
+        options.minDurationMs = num;
+      }
     } else if (arg === '--max-gap') {
-      options.maxGapMs = Number(args[++i]);
+      const next = args[++i];
+      const num = Number(next);
+      if (!next || next.startsWith('--') || isNaN(num) || !Number.isFinite(num)) {
+        cliErrors.push(`Invalid numeric value for option '--max-gap', received '${next ?? ''}'`);
+        if (next && next.startsWith('--')) i--;
+      } else {
+        options.maxGapMs = num;
+      }
     } else if (arg.startsWith('--max-gap=')) {
-      options.maxGapMs = Number(arg.slice('--max-gap='.length));
+      const val = arg.slice('--max-gap='.length);
+      const num = Number(val);
+      if (!val || isNaN(num) || !Number.isFinite(num)) {
+        cliErrors.push(`Invalid numeric value for option '--max-gap', received '${val}'`);
+      } else {
+        options.maxGapMs = num;
+      }
     } else if (arg === '--max-query') {
-      options.maxQueryMs = Number(args[++i]);
+      const next = args[++i];
+      const num = Number(next);
+      if (!next || next.startsWith('--') || isNaN(num) || !Number.isFinite(num)) {
+        cliErrors.push(`Invalid numeric value for option '--max-query', received '${next ?? ''}'`);
+        if (next && next.startsWith('--')) i--;
+      } else {
+        options.maxQueryMs = num;
+      }
     } else if (arg.startsWith('--max-query=')) {
-      options.maxQueryMs = Number(arg.slice('--max-query='.length));
+      const val = arg.slice('--max-query='.length);
+      const num = Number(val);
+      if (!val || isNaN(num) || !Number.isFinite(num)) {
+        cliErrors.push(`Option '--max-query' requires a valid numeric value, received '${val}'`);
+      } else {
+        options.maxQueryMs = num;
+      }
     } else if (arg === '--telemetry') {
-      options.telemetryPath = args[++i];
+      const next = args[++i];
+      if (!next || next.startsWith('--')) {
+        cliErrors.push("Option '--telemetry' requires a file path");
+        i--;
+      } else {
+        options.telemetryPath = next;
+      }
     } else if (arg.startsWith('--telemetry=')) {
-      options.telemetryPath = arg.slice('--telemetry='.length);
+      const val = arg.slice('--telemetry='.length);
+      if (!val || val.trim() === '') {
+        cliErrors.push("Option '--telemetry' requires a file path");
+      } else {
+        options.telemetryPath = val;
+      }
+    } else if (arg === '--auditor-decision') {
+      const next = args[++i];
+      if (!next || next.startsWith('--')) {
+        cliErrors.push("Option '--auditor-decision' requires a file path");
+        i--;
+      } else {
+        options.auditorDecision = next;
+      }
+    } else if (arg.startsWith('--auditor-decision=')) {
+      const val = arg.slice('--auditor-decision='.length);
+      if (!val || val.trim() === '') {
+        cliErrors.push("Option '--auditor-decision' requires a file path");
+      } else {
+        options.auditorDecision = val;
+      }
     } else if (arg === '--require-accreditation') {
       options.requireAccreditation = true;
     } else if (arg === '--auditor-approval') {
@@ -876,14 +1592,14 @@ export function parseCliArgs(args) {
     }
   }
 
-  return { manifestPath, options, unknownOptions };
+  return { manifestPath, options, unknownOptions, cliErrors };
 }
 
 /**
  * CLI Entrypoint
  */
 async function main() {
-  const { manifestPath: parsedPath, options, unknownOptions } = parseCliArgs(process.argv.slice(2));
+  const { manifestPath: parsedPath, options, unknownOptions, cliErrors } = parseCliArgs(process.argv.slice(2));
 
   if (options.help) {
     console.log(`
@@ -899,11 +1615,17 @@ Options:
   --min-duration <ms>          Minimum telemetry duration in ms (default: 60000)
   --max-gap <ms>               Maximum sampling gap in ms (default: 5000)
   --max-query <ms>             Maximum query duration in ms (default: 5000)
+  --auditor-decision <path>    Path to independent auditor decision JSON
   --require-accreditation      Fail if reservation is not accredited
   --auditor-approval           Signal independent external auditor approval
   --help, -h                   Show this help message
 `);
     process.exit(0);
+  }
+
+  if (cliErrors && cliErrors.length > 0) {
+    console.error(`Error: CLI argument error(s):\n${cliErrors.map(e => `  - ${e}`).join('\n')}`);
+    process.exit(1);
   }
 
   if (unknownOptions.length > 0) {

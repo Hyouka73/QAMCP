@@ -55,7 +55,8 @@
     "cpu_stats": {
       "min": 1,
       "max": 7.9,
-      "mean": 4.5
+      "mean": 4.5,
+      "p95": 7.2
     },
     "mem_stats": {
       "min_available_mb": 2353,
@@ -959,7 +960,7 @@
           {
             "category": "observer",
             "count": 1,
-            "cpu_percent_logical_capacity": 1.5,
+            "cpu_percent_logical_capacity": 0.8,
             "working_set_private_bytes": 24000000,
             "page_faults_per_sec": 1500
           },
@@ -1000,7 +1001,7 @@
           {
             "category": "observer",
             "count": 1,
-            "cpu_percent_logical_capacity": 1.5,
+            "cpu_percent_logical_capacity": 1.1,
             "working_set_private_bytes": 24000000,
             "page_faults_per_sec": 1500
           },
@@ -1246,7 +1247,7 @@
           {
             "category": "observer",
             "count": 1,
-            "cpu_percent_logical_capacity": 1.5,
+            "cpu_percent_logical_capacity": 1.2,
             "working_set_private_bytes": 24000000,
             "page_faults_per_sec": 1500
           },
@@ -2387,14 +2388,14 @@
           {
             "category": "chromium",
             "count": 22,
-            "cpu_percent_logical_capacity": 0.5,
+            "cpu_percent_logical_capacity": 0.3,
             "working_set_private_bytes": 1056256000,
             "page_faults_per_sec": 1200
           },
           {
             "category": "observer",
             "count": 1,
-            "cpu_percent_logical_capacity": 1.5,
+            "cpu_percent_logical_capacity": 0.7,
             "working_set_private_bytes": 24000000,
             "page_faults_per_sec": 1500
           },
@@ -2435,7 +2436,7 @@
           {
             "category": "observer",
             "count": 1,
-            "cpu_percent_logical_capacity": 1.5,
+            "cpu_percent_logical_capacity": 1.2,
             "working_set_private_bytes": 24000000,
             "page_faults_per_sec": 1500
           },
