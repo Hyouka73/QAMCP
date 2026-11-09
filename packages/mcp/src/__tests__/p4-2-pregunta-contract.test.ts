@@ -1,11 +1,10 @@
-import { existsSync, mkdtempSync, rmSync, writeFileSync, mkdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { validarPregunta, type Pregunta } from '@qap/engine';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import YAML from 'yaml';
 
 import { createMcpServer } from '../server.js';
 

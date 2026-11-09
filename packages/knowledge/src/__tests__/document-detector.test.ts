@@ -45,8 +45,8 @@ describe('E2a: detectarDocumentosProyecto (Criterio 3)', () => {
     expect(readme?.es_ingerible).toBe(true);
     expect(readme?.tamano_bytes).toBeGreaterThan(0);
     // NUNCA devuelve contenido
-    expect((readme as Record<string, unknown>).content).toBeUndefined();
-    expect((readme as Record<string, unknown>).contenido).toBeUndefined();
+    expect(readme).not.toHaveProperty('content');
+    expect(readme).not.toHaveProperty('contenido');
 
     const prd = hallazgos.documentos.find((d) => d.nombre === 'PRD.txt');
     expect(prd).toBeDefined();
@@ -305,7 +305,7 @@ describe('E2a: detectarDocumentosProyecto (Criterio 3)', () => {
       expect(scanStr).not.toContain('9999');
 
       // 3. Evidencia cita archivo y clave, no valor sensible
-      const envServicio = hallazgos.servicios.find((s) => s.url === 'http://localhost:8085');
+      const envServicio = (hallazgos.servicios ?? []).find((s) => s.url === 'http://localhost:8085');
       expect(envServicio).toBeDefined();
       expect(envServicio?.evidencia).toBe('.env.example (PORT)');
 

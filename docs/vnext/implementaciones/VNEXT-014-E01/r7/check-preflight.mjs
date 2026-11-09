@@ -1354,7 +1354,7 @@ export function validatePreflightManifest(manifest, options = {}) {
   const valid = errors.length === 0;
   const validador_status = valid ? 'VALIDADOR_PASS' : 'VALIDADOR_FAIL';
 
-  let executor_status = 'EJECUTOR_NO_APTO';
+  let executor_status;
 
   if (
     valid &&

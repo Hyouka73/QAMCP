@@ -19,9 +19,9 @@
  */
 
 import { describe, it, expect } from 'vitest';
+
 import type {
   DomainModule,
-  FlowScenario,
   ClarificationQuestion,
   TestRecommendation,
 } from '../../domain/index.js';

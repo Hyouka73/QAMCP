@@ -19,6 +19,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
+
 import type {
   RolePermissionScope,
   PrerequisiteDefinition,
@@ -212,6 +213,10 @@ describe('VNEXT-001 / Escenario C — Representación Sintética de Dominio: Aut
     // 4. Verificaciones de preservación histórica
     const preservationViewCheck = validateHistoricalPreservation(archivedLoginView, newViewId, true);
     expect(preservationViewCheck.valid).toBe(true);
+
+    expect(validateHistoricalPreservation(archivedPasswordInput, 'target_otp_token_input_v2', true).valid).toBe(true);
+    expect(archivedPasswordInput.is_active).toBe(false);
+    expect(archivedPasswordInput.superseded_by).toBe('target_otp_token_input_v2');
 
     const preservationRuleCheck = validateHistoricalPreservation(archivedAuthRule, newRuleId, true);
     expect(preservationRuleCheck.valid).toBe(true);

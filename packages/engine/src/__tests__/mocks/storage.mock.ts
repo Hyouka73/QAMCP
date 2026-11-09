@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-return */
+
 /**
  * Storage Mock — S3-001 (QAP v2.1)
  *
@@ -85,6 +85,9 @@ export function createStorageMock(): StorageMock {
     saveModuleContext: vi.fn().mockResolvedValue(undefined),
     getModuleRules: vi.fn().mockResolvedValue(null),
     saveModuleRules: vi.fn().mockResolvedValue(undefined),
+    updateModuleRules: vi.fn().mockResolvedValue(undefined),
+    getRepoMap: vi.fn().mockResolvedValue(null),
+    saveRepoMap: vi.fn().mockResolvedValue(undefined),
     getModulePrereqs: vi.fn().mockResolvedValue(null),
     saveModulePrereqs: vi.fn().mockResolvedValue(undefined),
     getModuleSelectors: vi.fn().mockResolvedValue({ selectors: {} }),

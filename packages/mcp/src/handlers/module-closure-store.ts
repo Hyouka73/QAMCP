@@ -146,8 +146,8 @@ export class SqliteModuleClosureStore implements IModuleClosureStore {
     } catch (error) {
       this.db?.close();
       this.db = undefined;
-      const code = error && typeof error === 'object' && 'code' in error ? (error as { code: unknown }).code : undefined;
-      const sqliteCode = error && typeof error === 'object' && 'errcode' in error ? (error as { errcode: unknown }).errcode : undefined;
+      const code = error && typeof error === 'object' && 'code' in error ? (error).code : undefined;
+      const sqliteCode = error && typeof error === 'object' && 'errcode' in error ? (error).errcode : undefined;
       this.availability =
         (error instanceof ClosureStoreError && error.code === 'corrupt') || sqliteCode === 11 || sqliteCode === 26
           ? 'corrupt'

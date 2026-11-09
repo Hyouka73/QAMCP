@@ -51,10 +51,10 @@ function openPruneDatabase(runtimeDir: string, dryRun: boolean): { db?: QapDatab
   const copyDir = fs.mkdtempSync(path.join(temporaryRoot, 'qap-prune-audit-'));
   let db: QapDatabase | undefined;
   const close = (): void => {
+    if (path.dirname(path.resolve(copyDir)) !== temporaryRoot || !path.basename(copyDir).startsWith('qap-prune-audit-')) {
+      throw new Error('Invalid prune audit temporary directory');
+    }
     try { db?.close(); } finally {
-      if (path.dirname(path.resolve(copyDir)) !== temporaryRoot || !path.basename(copyDir).startsWith('qap-prune-audit-')) {
-        throw new Error('Invalid prune audit temporary directory');
-      }
       fs.rmSync(copyDir, { recursive: true, force: true });
     }
   };

@@ -29,8 +29,7 @@ describe('INT-01E: generated candidates never constitute verified oracles', () =
   });
 
   it.each(['min="1"', 'max="10"', 'min="1.5" max="10.5"', 'min="1,5" max="10,5"',
-    'minlength="3" maxlength="10"', 'min="10" max="1"', 'min="1" max="9007199254740991"'])
-  ('does not invent integer frontiers for incomplete/unsupported bounds: %s', (bounds) => {
+    'minlength="3" maxlength="10"', 'min="10" max="1"', 'min="1" max="9007199254740991"'])('does not invent integer frontiers for incomplete/unsupported bounds: %s', (bounds) => {
     expect(generateBvaCases('people', [rule(bounds)], selectors)).toEqual([]);
   });
 

@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { LockManager } from '@qap/knowledge';
+import { FileSystemStorage, LockManager } from '@qap/knowledge';
 import { SchemaValidator, type TCCase, type TestPlan } from '@qap/shared';
 import { chromium } from 'playwright-core';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -15,6 +15,16 @@ function createTempDir(prefix = 'qap-challenger-test-'): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
   tempDirs.push(dir);
   return dir;
+}
+
+async function seedRunnableCases(projectRoot: string, moduleName: string, caseIds: string[]): Promise<void> {
+  const storage = new FileSystemStorage({ rootDir: projectRoot });
+  for (const id of caseIds) {
+    await storage.saveTestCase(moduleName, {
+      _version: '1', id, name: `Infrastructure ${id}`,
+      steps: [{ type: 'navigate', url: 'https://example.test' }],
+    });
+  }
 }
 
 describe('Adversarial Stress & Empirical Challenge Suite — PlaywrightRunner', () => {
@@ -541,6 +551,7 @@ describe('Adversarial Stress & Empirical Challenge Suite — PlaywrightRunner', 
     it('C5.1: Chromium launch failure produces result error, 0 failed, all not_run with structured reasons', async () => {
       const runner = new PlaywrightRunner();
       const projectRoot = createTempDir();
+      await seedRunnableCases(projectRoot, 'infra-mod', ['TC-A', 'TC-B', 'TC-C']);
 
       vi.spyOn(chromium, 'launch').mockRejectedValueOnce(
         new Error("Executable doesn't exist at C:\\Users\\Fake\\AppData\\Local\\ms-playwright\\chromium")
@@ -548,9 +559,10 @@ describe('Adversarial Stress & Empirical Challenge Suite — PlaywrightRunner', 
 
       const result = await runner.execute(
         { modules: ['infra-mod'], cases: ['TC-A', 'TC-B', 'TC-C'] },
-        { projectRoot }
+        { projectRoot, allowImplicitAuth: false }
       );
 
+      expect(chromium.launch).toHaveBeenCalledTimes(1);
       expect(result.result).toBe('error');
       expect(result.result).not.toBe('failed'); // Must be 'error'
       expect(result.result).not.toBe('passed');
@@ -571,6 +583,7 @@ describe('Adversarial Stress & Empirical Challenge Suite — PlaywrightRunner', 
       const runner = new PlaywrightRunner();
       const projectRoot = createTempDir();
       const moduleName = 'timeout-launch-mod';
+      await seedRunnableCases(projectRoot, moduleName, ['TC-1']);
 
       vi.spyOn(chromium, 'launch').mockRejectedValueOnce(
         new Error('browserType.launch: Timeout 30000ms exceeded.')
@@ -578,9 +591,10 @@ describe('Adversarial Stress & Empirical Challenge Suite — PlaywrightRunner', 
 
       const result = await runner.execute(
         { modules: [moduleName], cases: ['TC-1'] },
-        { projectRoot }
+        { projectRoot, allowImplicitAuth: false }
       );
 
+      expect(chromium.launch).toHaveBeenCalledTimes(1);
       expect(result.result).toBe('error');
       expect(result.summary.not_run).toBe(1);
 
@@ -594,6 +608,8 @@ describe('Adversarial Stress & Empirical Challenge Suite — PlaywrightRunner', 
     it('C5.3: infrastructure error ExecutionResult satisfies strict schema validation', async () => {
       const runner = new PlaywrightRunner();
       const validator = new SchemaValidator();
+      const projectRoot = createTempDir();
+      await seedRunnableCases(projectRoot, 'schema-infra-mod', ['TC-S1', 'TC-S2']);
 
       vi.spyOn(chromium, 'launch').mockRejectedValueOnce(
         new Error('Failed to launch browser: headless_shell missing')
@@ -601,9 +617,12 @@ describe('Adversarial Stress & Empirical Challenge Suite — PlaywrightRunner', 
 
       const result = await runner.execute(
         { modules: ['schema-infra-mod'], cases: ['TC-S1', 'TC-S2'] },
-        { projectRoot: createTempDir() }
+        { projectRoot, allowImplicitAuth: false }
       );
 
+      expect(chromium.launch).toHaveBeenCalledTimes(1);
+      expect(result.result).toBe('error');
+      expect(result.cases.every(item => item.not_run_reason?.includes('headless_shell missing'))).toBe(true);
       const validation = validator.validateExecutionResult(result);
       expect(validation.valid).toBe(true);
       expect(validation.errors).toHaveLength(0);

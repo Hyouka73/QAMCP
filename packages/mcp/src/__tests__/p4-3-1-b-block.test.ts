@@ -1,14 +1,16 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'node:fs';
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import YAML from 'yaml';
 import { CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
-import { createMcpServer } from '../server.js';
-import { QAP_CORE_DIRECTIVES, getPhaseGuidance } from '../guidance.js';
 import { sanitizeDomString } from '@qap/engine';
 import { parsePrdContent, detectarDocumentosProyecto } from '@qap/knowledge';
+
+import { QAP_CORE_DIRECTIVES, getPhaseGuidance } from '../guidance.js';
+import { createMcpServer } from '../server.js';
 
 describe('P4.3.1 Bloque B - Verificación y Cobertura de Correcciones', () => {
   let tempDir: string;

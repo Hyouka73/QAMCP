@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, writeFileSync, rmSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+
 import lockfile from 'proper-lockfile';
 
 export interface LockManagerOptions {
@@ -53,14 +54,21 @@ export class LockManager {
       };
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      throw new Error(`lock_timeout: El módulo '${moduleName}' se encuentra bloqueado por otro proceso (${msg}).`);
+      throw new Error(`lock_timeout: El módulo '${moduleName}' se encuentra bloqueado por otro proceso (${msg}).`, { cause: err });
     }
   }
 
   /**
    * Implementa forceUnlock(moduleName?) eliminando los .lock y archivos asociados en .qa/cache/locks/
    */
-    async forceUnlock(moduleName?: string): Promise<void> {
+  forceUnlock(moduleName?: string): Promise<void> {
+    return new Promise<void>((resolve) => {
+      this.removeModuleLocks(moduleName);
+      resolve();
+    });
+  }
+
+  private removeModuleLocks(moduleName?: string): void {
     if (moduleName) {
       this.removeLockFiles(moduleName);
       return;

@@ -320,8 +320,6 @@ describe('FileSystemStorage (S3-002)', () => {
             category: 'sensibilidad',
             view: 'default',
             reason: 'Sin datos personales',
-            waived_at: new Date().toISOString(),
-            waived_by: 'user',
           },
         ];
         return curr;

@@ -127,7 +127,7 @@ export function sanitizeHttpHeaders(
   const sanitized: Record<string, string> = {};
   for (const [key, value] of Object.entries(headers)) {
     const lowerKey = key.toLowerCase();
-    if (SENSITIVE_HTTP_HEADERS.includes(lowerKey as any)) {
+    if (SENSITIVE_HTTP_HEADERS.some(header => header === lowerKey)) {
       sanitized[key] = '[REDACTED]';
     } else {
       sanitized[key] = value;
@@ -170,13 +170,13 @@ export function validateObservationPayload(payload: unknown): ObservationValidat
 
   for (const [key, value] of Object.entries(copy)) {
     const lowerKey = key.toLowerCase();
-    if (SENSITIVE_CREDENTIAL_KEYS.includes(lowerKey as any)) {
+    if (SENSITIVE_CREDENTIAL_KEYS.some(key => key === lowerKey)) {
       copy[key] = '[REDACTED]';
       redacted_keys.push(key);
     } else if (lowerKey === 'headers' && value && typeof value === 'object' && !Array.isArray(value)) {
       const sanitizedH: Record<string, unknown> = {};
       for (const [hKey, hVal] of Object.entries(value as Record<string, unknown>)) {
-        if (SENSITIVE_HTTP_HEADERS.includes(hKey.toLowerCase() as any)) {
+        if (SENSITIVE_HTTP_HEADERS.some(header => header === hKey.toLowerCase())) {
           sanitizedH[hKey] = '[REDACTED]';
           redacted_keys.push(`headers.${hKey}`);
         } else {
@@ -200,7 +200,7 @@ export function validateObservationPayload(payload: unknown): ObservationValidat
     ) {
       const sanitizedReqH: Record<string, unknown> = {};
       for (const [hKey, hVal] of Object.entries(netEvent.request_headers as Record<string, unknown>)) {
-        if (SENSITIVE_HTTP_HEADERS.includes(hKey.toLowerCase() as any)) {
+        if (SENSITIVE_HTTP_HEADERS.some(header => header === hKey.toLowerCase())) {
           sanitizedReqH[hKey] = '[REDACTED]';
           redacted_keys.push(`network_event.request_headers.${hKey}`);
         } else {
@@ -262,7 +262,7 @@ export function validateExpectedRequirement(req: ExpectedRequirement): DomainVal
 
   // Invariante D-011: Prohibida la confirmación de requisitos esperados mediante sondas o telemetría empírica
   if (status === 'confirmed') {
-    const invalidSources = ['active_probe', 'crawler', 'network_intercept', 'observed_telemetry'] as unknown as string[];
+    const invalidSources = ['active_probe', 'crawler', 'network_intercept', 'observed_telemetry'];
     if (provenance && invalidSources.includes(provenance)) {
       violations.push({
         code: 'EPISTEMIC_VIOLATION_PROBE_CANNOT_CONFIRM_REQUIREMENT',
@@ -1213,7 +1213,7 @@ export function validateCoverageAssessmentInvariants(assessment: unknown): Domai
     const catStatuses = spec.category_statuses;
     if (Array.isArray(catStatuses)) {
       catStatuses.forEach((cs, idx) => {
-        if (cs && typeof cs === 'object' && Object.hasOwn(cs, 'is_waived')) {
+        if (cs && typeof cs === 'object' && Object.hasOwn(cs as object, 'is_waived')) {
           const isWaived = (cs as Record<string, unknown>).is_waived;
           if (isWaived !== false) {
             violations.push({

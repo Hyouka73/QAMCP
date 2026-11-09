@@ -9,7 +9,6 @@ import {
   type CategoryApplicabilityDecision,
   type CategorySpecificationStatus,
   type ExecutionCoverageSummary,
-  type ExpectedRequirement,
   type RequirementCategory,
   type ReviewCoverage,
   type SpecificationCoverage,
@@ -132,7 +131,7 @@ export class CanonicalCoverageService {
       });
 
       for (const req of page.items) {
-        const ent = req.entity as ExpectedRequirement;
+        const ent = req.entity;
         if (
           ent.module_key === link.moduleKey &&
           ent.is_active === true &&
@@ -179,10 +178,10 @@ export class CanonicalCoverageService {
     for (const cat of FORMAL_CATEGORIES) {
       const decision = applicabilityMap.get(cat);
       const catConfirmed = confirmedRequirements.filter(
-        r => (r.entity as ExpectedRequirement).category === cat
+        r => (r.entity).category === cat
       );
       const catPending = pendingRequirements.filter(
-        r => (r.entity as ExpectedRequirement).category === cat
+        r => (r.entity).category === cat
       );
 
       let applicability: 'applicable' | 'not_applicable' | 'unknown';
@@ -230,7 +229,7 @@ export class CanonicalCoverageService {
         } else {
           // Requisitos confirmados pero con criterios incompletos
           for (const req of catConfirmed) {
-            const ent = req.entity as ExpectedRequirement;
+            const ent = req.entity;
             if (!ent.acceptance_criteria || ent.acceptance_criteria.length === 0) {
               const gapId = `gap:${link.moduleKey}:${req.id}:incomplete_criteria`;
               catGapIds.push(gapId);
@@ -253,7 +252,7 @@ export class CanonicalCoverageService {
 
         // Brechas por requisitos pendientes
         for (const req of catPending) {
-          const ent = req.entity as ExpectedRequirement;
+          const ent = req.entity;
           const gapId = `gap:${link.moduleKey}:${req.id}:pending_requirement`;
           catGapIds.push(gapId);
           const acceptedInfo = acceptedGapsMap.get(gapId);

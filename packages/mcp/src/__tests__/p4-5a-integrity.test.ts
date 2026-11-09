@@ -1,10 +1,9 @@
-import { mkdtempSync, rmSync, writeFileSync, readFileSync, mkdirSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import YAML from 'yaml';
 
 import { createMcpServer } from '../server.js';
 
@@ -126,33 +125,6 @@ describe('P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a
     const text = res.content?.[0]?.text ?? '';
     const parsed = JSON.parse(text);
     return { res, text, parsed };
-  }
-
-  async function initAndAdvanceToWorking() {
-    const init = await callTool('qap_init', { projectName: 'integrity-test' });
-    expect(init.res.isError).not.toBe(true);
-    expect(init.parsed.status).toBe('success');
-    const context = await callTool('qap_context_set', {
-      framework: 'react',
-      app_type: 'spa',
-      objective: 'Plataforma empresarial para gestión de auditorías de calidad',
-      critical_flows: [{ name: 'auditoria', description: 'Flujo de auditoría completa' }],
-      roles: [
-        { name: 'auditor', description: 'Auditor certificado' },
-        { name: 'admin', description: 'Administrador del sistema' },
-      ],
-      source_of_truth: { type: 'prd', declared: true, ref: 'prd-inline' },
-    });
-    expect(context.res.isError).not.toBe(true);
-    expect(context.parsed.status).toBe('success');
-    const plan = await callTool('qap_session_plan', {
-      plan: [{ module: 'auditorias', path: '/auditorias', priority: 'high' }],
-      auth: { required: false },
-    });
-    expect(plan.res.isError).not.toBe(true);
-    expect(plan.parsed.status).toBe('success');
-    // The new canonical DiscoveryHandler does not synthesize legacy rules.
-    await callTool('qap_discover', { name: 'auditorias', path: '/auditorias' });
   }
 
   it('C7: compuerta de roles exige auth.roles no vacío y perfil verificado por cada rol para salir de SCOPING', async () => {

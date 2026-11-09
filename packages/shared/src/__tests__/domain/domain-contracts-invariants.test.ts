@@ -13,6 +13,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
+
 import type {
   ExpectedRequirement,
   ApplicationObservation,
@@ -247,6 +248,21 @@ describe('VNEXT-001 / Pruebas de Contratos e Invariantes de Dominio', () => {
       expect(validationResult.redacted_keys).toContain('network_event.request_headers.authorization');
     });
 
+    it('INT03-R1: redacts every canonical sensitive key without mutating the input', () => {
+      const headers = Object.fromEntries(SENSITIVE_HTTP_HEADERS.map(key => [key.toUpperCase(), 'private']));
+      const credentials = Object.fromEntries(SENSITIVE_CREDENTIAL_KEYS.map(key => [key.toUpperCase(), 'private']));
+      const payload = { ...credentials, headers, network_event: { request_headers: headers } };
+      const before = structuredClone(payload);
+      const result = validateObservationPayload(payload);
+      const redactedHeaders = Object.fromEntries(Object.keys(headers).map(key => [key, '[REDACTED]']));
+      expect(sanitizeHttpHeaders(headers)).toEqual(redactedHeaders);
+      expect(result.sanitized_payload).toEqual({
+        ...Object.fromEntries(Object.keys(credentials).map(key => [key, '[REDACTED]'])),
+        headers: redactedHeaders, network_event: { request_headers: redactedHeaders },
+      });
+      expect(payload).toEqual(before);
+    });
+
     it('debe sanitizar encabezados sensibles con sanitizeHttpHeaders', () => {
       const headers = {
         authorization: 'Bearer test',
@@ -288,14 +304,14 @@ describe('VNEXT-001 / Pruebas de Contratos e Invariantes de Dominio', () => {
       expect(nanRes.violations.some((v) => v.code === 'INVALID_CONFIDENCE_SCORE_RANGE')).toBe(true);
 
       // Strings
-      expect(validateConfidenceValue('0.95' as unknown as number).valid).toBe(false);
-      expect(validateConfidenceValue('high' as unknown as number).valid).toBe(false);
+      expect(validateConfidenceValue('0.95').valid).toBe(false);
+      expect(validateConfidenceValue('high').valid).toBe(false);
 
       // Booleanos / Objetos / Arrays / Null / Undefined
-      expect(validateConfidenceValue(true as unknown as number).valid).toBe(false);
-      expect(validateConfidenceValue({} as unknown as number).valid).toBe(false);
-      expect(validateConfidenceValue([] as unknown as number).valid).toBe(false);
-      expect(validateConfidenceValue(null as unknown as number).valid).toBe(false);
+      expect(validateConfidenceValue(true).valid).toBe(false);
+      expect(validateConfidenceValue({}).valid).toBe(false);
+      expect(validateConfidenceValue([] as unknown).valid).toBe(false);
+      expect(validateConfidenceValue(null).valid).toBe(false);
       expect(validateConfidenceValue(undefined as unknown as number).valid).toBe(false);
 
       // Infinitos

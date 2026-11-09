@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { FileSystemStorage } from '@qap/knowledge';
-import { SchemaValidator, type ExecutionResult } from '@qap/shared';
+import { SchemaValidator, type ExecutionResult, type TCCase } from '@qap/shared';
 import { chromium } from 'playwright-core';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 
@@ -15,6 +15,19 @@ function createTempDir(prefix = 'qap-runner-test-'): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
   tempDirs.push(dir);
   return dir;
+}
+
+async function createRunnableFixture(caseIds = ['TC-001', 'TC-002']): Promise<string> {
+  const root = createTempDir('qap-runner-infrastructure-');
+  const storage = new FileSystemStorage({ rootDir: root });
+  for (const id of caseIds) {
+    const testCase: TCCase = {
+      _version: '1', id, name: `Runnable ${id}`,
+      steps: [{ type: 'navigate', url: 'https://example.test' }],
+    };
+    await storage.saveTestCase('checkout', testCase);
+  }
+  return root;
 }
 
 afterEach(() => {
@@ -65,6 +78,8 @@ describe('PlaywrightRunner Safety & Honesty Regressions — VNEXT-014-C1 (R2)', 
     // Verify storage was constructed with customRoot, not process.cwd()
     expect(storageSpy).toHaveBeenCalledWith('auth-mod', 'TC-001');
     expect(result.module).toBe('auth-mod');
+    expect(result.result).toBe('passed');
+    expect(mockPage.goto).toHaveBeenCalledWith('https://example.test', expect.any(Object));
   });
 
   // REG-R2-02: Zero cases executed never returns 'passed'
@@ -102,7 +117,7 @@ describe('PlaywrightRunner Safety & Honesty Regressions — VNEXT-014-C1 (R2)', 
   it('REG-R2-04: classifies Chromium launch failure as infrastructure error with not_run cases (FAIL BEFORE / PASS AFTER)', async () => {
     const runner = new PlaywrightRunner();
 
-    vi.spyOn(chromium, 'launch').mockRejectedValueOnce(
+    const launch = vi.spyOn(chromium, 'launch').mockRejectedValueOnce(
       new Error("Executable doesn't exist at C:\\Users\\Fake\\AppData\\Local\\ms-playwright\\chromium")
     );
 
@@ -111,9 +126,10 @@ describe('PlaywrightRunner Safety & Honesty Regressions — VNEXT-014-C1 (R2)', 
         modules: ['checkout'],
         cases: ['TC-001', 'TC-002'],
       },
-      { projectRoot: createTempDir() }
+      { projectRoot: await createRunnableFixture(), allowImplicitAuth: false }
     );
 
+    expect(launch).toHaveBeenCalledTimes(1);
     // FAIL BEFORE: Returned { result: 'failed', summary: { failed: 1, total: 1 }, cases: [] }
     // PASS AFTER: Returns { result: 'error', summary: { total: 2, passed: 0, failed: 0, not_run: 2 } }
     expect(result.result).toBe('error');
@@ -313,8 +329,8 @@ describe('PlaywrightRunner Safety & Honesty Regressions — VNEXT-014-C1 (R2)', 
     const customRoot = createTempDir('implicit-auth-test-');
     const storage = new FileSystemStorage({ rootDir: customRoot });
     // Write prereqs requiring 'admin'
-    await storage.writeYaml('.qa/modules/auth-mod/prereqs.yaml', {
-      _version: '1',
+    await storage.saveModulePrereqs('auth-mod', {
+      _version: '1', module: 'auth-mod',
       requires: {
         auth: { primary: 'admin' },
       },
@@ -378,7 +394,7 @@ describe('PlaywrightRunner Safety & Honesty Regressions — VNEXT-014-C1 (R2)', 
     vi.spyOn(chromium, 'launch').mockResolvedValueOnce(browser as any);
     const result = await runner.execute(
       { modules: ['checkout'], cases: ['TC-001', 'TC-002'] },
-      { projectRoot: createTempDir(), allowImplicitAuth: false }
+      { projectRoot: await createRunnableFixture(), allowImplicitAuth: false }
     );
 
     expect(result.result).toBe('error');
@@ -388,6 +404,23 @@ describe('PlaywrightRunner Safety & Honesty Regressions — VNEXT-014-C1 (R2)', 
     expect(result.cases).toHaveLength(2);
     expect(result.cases.map(item => item.id)).toEqual(['TC-001', 'TC-002']);
     expect(result.cases.every(item => item.result === 'not_run')).toBe(true);
-    expect(browser.close).toHaveBeenCalled();
+    expect(chromium.launch).toHaveBeenCalledTimes(1);
+    expect(browser.newContext).toHaveBeenCalledTimes(1);
+    expect(browser.close).toHaveBeenCalledTimes(1);
   });
+  it('INT03-R1: a missing case blocks launch, preserves the inventory and releases its lock', async () => {
+    const root = await createRunnableFixture(['TC-001']);
+    const launch = vi.spyOn(chromium, 'launch');
+    const result = await new PlaywrightRunner().execute(
+      { modules: ['checkout'], cases: ['TC-001', 'TC-002'] },
+      { projectRoot: root, allowImplicitAuth: false }
+    );
+    expect(launch).not.toHaveBeenCalled();
+    expect(result.result).toBe('error');
+    expect(result.summary).toEqual({ total: 2, passed: 0, failed: 0, skipped: 0, not_run: 2 });
+    expect(result.cases.map(item => item.id)).toEqual(['TC-001', 'TC-002']);
+    expect(result.cases.every(item => item.result === 'not_run')).toBe(true);
+    expect(fs.existsSync(path.join(root, '.qa/cache/locks/checkout.lock'))).toBe(false);
+  });
+
 });

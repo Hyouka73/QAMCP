@@ -236,6 +236,7 @@ describe('QAPEngine', () => {
 
   it('delegates context() to IStorage for module and global contexts', async () => {
     const mockModuleContext: ModuleContext = {
+      module: 'auth-module',
       _version: '2.1.0',
       objective: 'Verify user authentication',
       manually_edited: false,

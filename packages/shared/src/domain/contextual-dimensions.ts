@@ -45,7 +45,7 @@ export interface ApplicationContext {
 export interface EnvironmentPolicy {
   environment_id: string;
   application_id: string;
-  name: 'dev' | 'staging' | 'prod' | string;
+  name: string; // Includes dev, staging, prod and custom environment names.
   base_url: string;
   is_production: boolean;
   destructive_actions_allowed: boolean;

@@ -1,9 +1,9 @@
-import { existsSync, mkdtempSync, rmSync, readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
+import { mkdtempSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
-import { canExitScoping, computeCoverage, computeSessionGapSummary, type Pregunta } from '@qap/engine';
+import { canExitScoping, computeCoverage, computeSessionGapSummary } from '@qap/engine';
 import { filterValidRoles, isValidRoleName, type LifecycleState, type AuthProfile } from '@qap/shared';
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest';
 import YAML from 'yaml';

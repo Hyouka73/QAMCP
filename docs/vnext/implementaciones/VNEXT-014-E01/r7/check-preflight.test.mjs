@@ -20,12 +20,7 @@ import os from 'node:os';
 
 import {
   validatePreflightManifest,
-  parseCliArgs,
-  CANONICAL_DIST_HASHES,
-  CANONICAL_TOOLCHAIN,
-  NORMATIVE_INTERFERENCE_LIMITS,
-  AUTHORIZED_BRANCH,
-  ALLOWED_GIT_EXCEPTIONS
+  parseCliArgs
 } from './check-preflight.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
