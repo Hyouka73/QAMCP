@@ -1,0 +1,9 @@
+
+ RUN  v4.1.11 C:/Users/Judirico/.codex/worktrees/mvp-integral/QAMCP/packages/engine
+
+
+ Test Files  11 passed (11)
+      Tests  168 passed (168)
+   Start at  10:23:51
+   Duration  4.78s (transform 426ms, setup 0ms, import 1.48s, tests 131ms, environment 1ms)
+

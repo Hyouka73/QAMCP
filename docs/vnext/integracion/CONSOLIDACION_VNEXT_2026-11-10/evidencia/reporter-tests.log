@@ -1,0 +1,9 @@
+
+ RUN  v4.1.11 C:/Users/Judirico/.codex/worktrees/mvp-integral/QAMCP/packages/reporter
+
+
+ Test Files  13 passed (13)
+      Tests  51 passed (51)
+   Start at  10:23:56
+   Duration  6.79s (transform 552ms, setup 0ms, import 1.81s, tests 661ms, environment 2ms)
+

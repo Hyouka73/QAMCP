@@ -1,0 +1,142 @@
+$ pnpm run -r build
+Scope: 10 of 11 workspace projects
+packages/shared build$ tsup src/index.ts --format esm --dts
+packages/shared build: CLI Building entry: src/index.ts
+packages/shared build: CLI Using tsconfig: tsconfig.json
+packages/shared build: CLI tsup v8.5.1
+packages/shared build: CLI Using tsup config: C:\Users\Judirico\.codex\worktrees\mvp-integral\QAMCP\packages\shared\tsup.config.ts
+packages/shared build: CLI Target: es2022
+packages/shared build: ESM Build start
+packages/shared build: ESM dist\index.js 129.99 KB
+packages/shared build: ESM ⚡️ Build success in 59ms
+packages/shared build: DTS Build start
+packages/shared build: DTS ⚡️ Build success in 3242ms
+packages/shared build: DTS dist\index.d.ts 224.40 KB
+packages/shared build: Done
+packages/engine build$ tsup src/index.ts --format esm --dts
+packages/auth build$ tsup src/index.ts --format esm --dts
+packages/engine build: CLI Building entry: src/index.ts
+packages/engine build: CLI Using tsconfig: tsconfig.json
+packages/engine build: CLI tsup v8.5.1
+packages/engine build: CLI Using tsup config: C:\Users\Judirico\.codex\worktrees\mvp-integral\QAMCP\packages\engine\tsup.config.ts
+packages/auth build: CLI Building entry: src/index.ts
+packages/auth build: CLI Using tsconfig: tsconfig.json
+packages/auth build: CLI tsup v8.5.1
+packages/auth build: CLI Using tsup config: C:\Users\Judirico\.codex\worktrees\mvp-integral\QAMCP\packages\auth\tsup.config.ts
+packages/engine build: CLI Target: es2022
+packages/engine build: ESM Build start
+packages/auth build: CLI Target: es2022
+packages/auth build: ESM Build start
+packages/engine build: ESM dist\index.js 77.70 KB
+packages/engine build: ESM ⚡️ Build success in 55ms
+packages/auth build: ESM dist\index.js 24.74 KB
+packages/auth build: ESM ⚡️ Build success in 59ms
+packages/auth build: DTS Build start
+packages/engine build: DTS Build start
+packages/engine build: DTS ⚡️ Build success in 1776ms
+packages/engine build: DTS dist\index.d.ts 48.84 KB
+packages/engine build: Done
+packages/knowledge build$ tsup src/index.ts --format esm --dts
+packages/playwright-adapter build$ tsup src/index.ts --format esm --dts
+packages/knowledge build: CLI Building entry: src/index.ts
+packages/knowledge build: CLI Using tsconfig: tsconfig.json
+packages/knowledge build: CLI tsup v8.5.1
+packages/knowledge build: CLI Using tsup config: C:\Users\Judirico\.codex\worktrees\mvp-integral\QAMCP\packages\knowledge\tsup.config.ts
+packages/knowledge build: CLI Target: es2022
+packages/knowledge build: ESM Build start
+packages/playwright-adapter build: CLI Building entry: src/index.ts
+packages/playwright-adapter build: CLI Using tsconfig: tsconfig.json
+packages/playwright-adapter build: CLI tsup v8.5.1
+packages/playwright-adapter build: CLI Using tsup config: C:\Users\Judirico\.codex\worktrees\mvp-integral\QAMCP\packages\playwright-adapter\tsup.config.ts
+packages/playwright-adapter build: CLI Target: es2022
+packages/playwright-adapter build: ESM Build start
+packages/playwright-adapter build: ESM dist\index.js 123.51 KB
+packages/playwright-adapter build: ESM ⚡️ Build success in 111ms
+packages/knowledge build: ESM dist\index.js 206.24 KB
+packages/knowledge build: ESM ⚡️ Build success in 140ms
+packages/auth build: DTS ⚡️ Build success in 3152ms
+packages/auth build: DTS dist\index.d.ts 6.87 KB
+packages/auth build: Done
+packages/knowledge build: DTS Build start
+packages/playwright-adapter build: DTS Build start
+packages/knowledge build: DTS ⚡️ Build success in 4521ms
+packages/knowledge build: DTS dist\index.d.ts 42.48 KB
+packages/knowledge build: Done
+packages/reporter build$ tsup src/index.ts --format esm --dts
+packages/git-adapter build$ tsup src/index.ts --format esm --dts
+packages/playwright-runner build$ tsup src/index.ts --format esm --dts
+packages/playwright-adapter build: DTS ⚡️ Build success in 5099ms
+packages/playwright-adapter build: DTS dist\index.d.ts 24.23 KB
+packages/playwright-adapter build: Done
+packages/git-adapter build: CLI Building entry: src/index.ts
+packages/reporter build: CLI Building entry: src/index.ts
+packages/playwright-runner build: CLI Building entry: src/index.ts
+packages/playwright-runner build: CLI Using tsconfig: tsconfig.json
+packages/git-adapter build: CLI Using tsconfig: tsconfig.json
+packages/reporter build: CLI Using tsconfig: tsconfig.json
+packages/playwright-runner build: CLI tsup v8.5.1
+packages/git-adapter build: CLI tsup v8.5.1
+packages/playwright-runner build: CLI Using tsup config: C:\Users\Judirico\.codex\worktrees\mvp-integral\QAMCP\packages\playwright-runner\tsup.config.ts
+packages/git-adapter build: CLI Using tsup config: C:\Users\Judirico\.codex\worktrees\mvp-integral\QAMCP\packages\git-adapter\tsup.config.ts
+packages/reporter build: CLI tsup v8.5.1
+packages/reporter build: CLI Using tsup config: C:\Users\Judirico\.codex\worktrees\mvp-integral\QAMCP\packages\reporter\tsup.config.ts
+packages/playwright-runner build: CLI Target: es2022
+packages/reporter build: CLI Target: es2022
+packages/git-adapter build: CLI Target: es2022
+packages/playwright-runner build: ESM Build start
+packages/git-adapter build: ESM Build start
+packages/reporter build: ESM Build start
+packages/git-adapter build: ESM dist\index.js 2.03 KB
+packages/git-adapter build: ESM ⚡️ Build success in 34ms
+packages/playwright-runner build: ESM dist\index.js 31.81 KB
+packages/playwright-runner build: ESM ⚡️ Build success in 55ms
+packages/reporter build: ESM dist\index.js 69.57 KB
+packages/reporter build: ESM ⚡️ Build success in 70ms
+packages/git-adapter build: DTS Build start
+packages/reporter build: DTS Build start
+packages/playwright-runner build: DTS Build start
+packages/git-adapter build: DTS ⚡️ Build success in 2530ms
+packages/git-adapter build: DTS dist\index.d.ts 883.00 B
+packages/git-adapter build: Done
+packages/reporter build: DTS ⚡️ Build success in 3729ms
+packages/reporter build: DTS dist\index.d.ts 18.49 KB
+packages/reporter build: Done
+packages/playwright-runner build: DTS ⚡️ Build success in 4409ms
+packages/playwright-runner build: DTS dist\index.d.ts 4.28 KB
+packages/playwright-runner build: Done
+packages/mcp build$ tsup
+packages/mcp build: CLI Building entry: src/index.ts, src/server.ts
+packages/mcp build: CLI Using tsconfig: tsconfig.json
+packages/mcp build: CLI tsup v8.5.1
+packages/mcp build: CLI Using tsup config: C:\Users\Judirico\.codex\worktrees\mvp-integral\QAMCP\packages\mcp\tsup.config.ts
+packages/mcp build: CLI Target: node18
+packages/mcp build: CLI Cleaning output folder
+packages/mcp build: ESM Build start
+packages/mcp build: ESM dist\index.js          5.56 KB
+packages/mcp build: ESM dist\server.js         381.00 B
+packages/mcp build: ESM dist\chunk-ZXVDJ7XO.js 477.79 KB
+packages/mcp build: ESM ⚡️ Build success in 102ms
+packages/mcp build: DTS Build start
+packages/mcp build: DTS ⚡️ Build success in 7682ms
+packages/mcp build: DTS dist\index.d.ts           1.55 KB
+packages/mcp build: DTS dist\server.d.ts          342.00 B
+packages/mcp build: DTS dist\server-D72M15UW.d.ts 31.49 KB
+packages/mcp build: Done
+packages/cli build$ tsup
+packages/cli build: CLI Building entry: src/entrypoint.ts
+packages/cli build: CLI Using tsconfig: tsconfig.json
+packages/cli build: CLI tsup v8.5.1
+packages/cli build: CLI Using tsup config: C:\Users\Judirico\.codex\worktrees\mvp-integral\QAMCP\packages\cli\tsup.config.ts
+packages/cli build: CLI Target: node18
+packages/cli build: ESM Build start
+packages/cli build: ESM dist\chunk-XENM7LAA.js 24.62 KB
+packages/cli build: ESM dist\dist-BWTFLGPF.js  803.00 B
+packages/cli build: ESM dist\dist-XT3E4C4O.js  2.25 KB
+packages/cli build: ESM dist\dist-766BTWMF.js  1.30 KB
+packages/cli build: ESM dist\chunk-S6SLTU4G.js 335.20 KB
+packages/cli build: ESM dist\entrypoint.js     655.02 KB
+packages/cli build: ESM dist\chunk-FTVEXWEJ.js 394.49 KB
+packages/cli build: ESM dist\chunk-AOBXKQNP.js 1.97 KB
+packages/cli build: ESM dist\chunk-K4KDZ6GO.js 123.10 KB
+packages/cli build: ESM ⚡️ Build success in 253ms
+packages/cli build: Done

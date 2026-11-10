@@ -1,0 +1,45 @@
+
+ RUN  v4.1.11 C:/Users/Judirico/.codex/worktrees/mvp-integral/QAMCP/packages/playwright-adapter
+
+ ❯ src/__tests__/active-probes.test.ts (25 tests | 1 failed) 108184ms
+     × rolls back all probe pairs atomically and sanitizes SQLite failures 20020ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/active-probes.test.ts > VNEXT-010 real Chrome + physical SQLite > rolls back all probe pairs atomically and sanitizes SQLite failures
+Error: Test timed out in 20000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/__tests__/active-probes.test.ts:229:3
+    227|   }, 20000);
+    228|
+    229|   it('rolls back all probe pairs atomically and sanitizes SQLite failu…
+       |   ^
+    230|     const f = await fixture(); const db = new DatabaseSync(f.path);
+    231|     db.exec(`CREATE TRIGGER probe_failure BEFORE INSERT ON knowledge_r…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/__tests__/active-probes.test.ts > VNEXT-010 real Chrome + physical SQLite > rolls back all probe pairs atomically and sanitizes SQLite failures
+Error: EPERM, Permission denied: \\?\C:\Users\Judirico\AppData\Local\Temp\qap-probe-wLOSlW '\\?\C:\Users\Judirico\AppData\Local\Temp\qap-probe-wLOSlW'
+ ❯ src/__tests__/active-probes.test.ts:26:41
+     24|   }
+     25|   stores.splice(0).forEach(store => store.close());
+     26|   directories.splice(0).forEach(path => rmSync(path, { recursive: true…
+       |                                         ^
+     27| });
+     28| async function fixture(html = '<form><input required><button>Validate<…
+ ❯ src/__tests__/active-probes.test.ts:26:25
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed | 7 passed (8)
+      Tests  1 failed | 166 passed (167)
+   Start at  10:15:07
+   Duration  266.20s (transform 780ms, setup 0ms, import 3.84s, tests 259.36s, environment 1ms)
+
+Error: ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL
+
+  × "pnpm recursive exec" failed in C:\Users\Judirico\.codex\worktrees\mvp-
+  │ integral\QAMCP\packages\playwright-adapter
+

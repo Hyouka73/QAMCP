@@ -1,0 +1,1 @@
+PASS MCP Stdio -> discovery -> plan -> real Playwright -> persisted evidence -> 4 reports -> restart/recovery

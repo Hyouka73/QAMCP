@@ -1,0 +1,9 @@
+
+ RUN  v4.1.11 C:/Users/Judirico/.codex/worktrees/mvp-integral/QAMCP/packages/playwright-runner
+
+
+ Test Files  17 passed (17)
+      Tests  98 passed (98)
+   Start at  10:23:31
+   Duration  19.17s (transform 676ms, setup 0ms, import 6.81s, tests 7.05s, environment 2ms)
+
