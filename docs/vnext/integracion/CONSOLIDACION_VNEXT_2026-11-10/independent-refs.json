@@ -1,0 +1,79 @@
+[
+  {
+    "ref": "refs/heads/audit/vnext014-reparacion",
+    "sha": "541c925a6c1194bc2c85ab5a42b2b54e66f4d82c",
+    "known": true,
+    "integrated": true
+  },
+  {
+    "ref": "refs/heads/feat/qap-vnext-architecture",
+    "sha": "ed2955ff91a6506a80e3ff0e4bb9322cf9eed226",
+    "known": true,
+    "integrated": true
+  },
+  {
+    "ref": "refs/heads/fix/vnext-014-cierre-controlado",
+    "sha": "3fe4fec91843943c7b901974b7c0a4ef5540e0eb",
+    "known": true,
+    "integrated": true
+  },
+  {
+    "ref": "refs/remotes/origin/HEAD",
+    "sha": "ed2955ff91a6506a80e3ff0e4bb9322cf9eed226",
+    "known": true,
+    "integrated": true
+  },
+  {
+    "ref": "refs/remotes/origin/develop",
+    "sha": "b9d5b503a6c4c827f5184fe30cbcec7366efbfb6",
+    "known": true,
+    "integrated": true
+  },
+  {
+    "ref": "refs/remotes/origin/feat/qap-vnext-architecture",
+    "sha": "ed2955ff91a6506a80e3ff0e4bb9322cf9eed226",
+    "known": true,
+    "integrated": true
+  },
+  {
+    "ref": "refs/remotes/origin/main",
+    "sha": "fa6a527764f6e96514a1e589411e7f402e059b68",
+    "known": true,
+    "integrated": true
+  },
+  {
+    "ref": "unreachable",
+    "sha": "1a909d346ab75537e6dc59e44deb422c3016ffb4",
+    "integrated": true
+  },
+  {
+    "ref": "unreachable",
+    "sha": "d22036f0ad4ec528f97887e19b37b08e119771b8",
+    "integrated": false
+  },
+  {
+    "ref": "unreachable",
+    "sha": "62211fcd273a60a9e8108a737b0b0ae46a8f39d0",
+    "integrated": true
+  },
+  {
+    "ref": "unreachable",
+    "sha": "c5345e7fa8e4477faf726671335b563f33669631",
+    "integrated": false
+  },
+  {
+    "ref": "unreachable",
+    "sha": "0e5825cfd256065e532f45a171f9a0dc74116615",
+    "integrated": true
+  },
+  {
+    "ref": "unreachable",
+    "sha": "64db3c94b5d261c09ab2d7697759cf63ca005e89",
+    "integrated": true
+  },
+  {
+    "ref": "unreachable",
+    "sha": "63ddfa7a4149ced48f718b0c29b7f539b27e7da6",
+    "integrated": false
+  }
+]

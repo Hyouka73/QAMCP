@@ -1,0 +1,400 @@
+{
+  "recorded_at": "2026-11-10T16:09:29.272607+00:00",
+  "remote": {
+    "code": 0,
+    "output": "08a34bbdaffc1aee89b2fe1a26b08eab66c284d1\trefs/heads/feat/qap-vnext-architecture",
+    "error": ""
+  },
+  "branches": {
+    "code": 0,
+    "output": "* codex/consolidacion-vnext-20261110         90f7660 merge(mvp): reconcile DEV-MVP-02 and R5 with published operational contract\n  develop                                    b9d5b50 [origin/develop: behind 6] TAREA S75-016 & S75-015: Comando rollback y update con validación, backups y arquitectura estándar\n+ feat/qap-vnext-architecture                dda870e (C:/Users/Judirico/Documents/QAMCP/QAMCP) [origin/feat/qap-vnext-architecture: behind 1] fix(r7): remediacion integral R7-R2 de los seis hallazgos de reauditoria Codex\n+ feat/qap-vnext-architecture-work           6f4f55c (C:/Users/Judirico/Documents/QAMCP/vnext014-conv) [origin/feat/qap-vnext-architecture: behind 124] docs(vnext-014): convergence report, STATE/WBS addenda, VNEXT-015 preparation and audit prompts\n  main                                       fa6a527 [origin/main] docs: add AGENTS.md with local MCP setup guide for AI agents\n  remotes/origin/HEAD                        -> origin/main\n  remotes/origin/develop                     b50453f Merge branch 'S81-002' into develop\n  remotes/origin/feat/qap-vnext-architecture 08a34bb docs(vnext): especificar UX discovery-first, ingesta y aislamiento QA MVP\n  remotes/origin/main                        fa6a527 docs: add AGENTS.md with local MCP setup guide for AI agents",
+    "error": ""
+  },
+  "worktrees": [
+    {
+      "path": "C:/Users/Judirico/Documents/QAMCP/QAMCP",
+      "exists": true,
+      "head": "dda870e4695a8a27db07ea32b81c1efbbf6ba39e",
+      "status": {
+        "code": 0,
+        "output": "M packages/playwright-runner/.qa/cache/sessions/admin-user.json\n?? docs/vnext/implementaciones/VNEXT-014-E01/r7/AUDITORIA_CODEX_2026-11-07.md\n?? docs/vnext/implementaciones/VNEXT-014-E01/r7/REAUDITORIA_CODEX_2026-11-07.md",
+        "error": ""
+      },
+      "exclusive_vs_remote": {
+        "code": 0,
+        "output": "",
+        "error": ""
+      },
+      "not_in_candidate": {
+        "code": 0,
+        "output": "",
+        "error": ""
+      },
+      "diff_stat": {
+        "code": 0,
+        "output": "packages/playwright-runner/.qa/cache/sessions/admin-user.json | 8 ++++----\n 1 file changed, 4 insertions(+), 4 deletions(-)",
+        "error": "warning: in the working copy of 'packages/playwright-runner/.qa/cache/sessions/admin-user.json', LF will be replaced by CRLF the next time Git touches it"
+      }
+    },
+    {
+      "path": "C:/Users/Judirico/.codex/worktrees/dev-mvp-02/QAMCP",
+      "exists": true,
+      "head": "a64a90aa39374772fc756032b291688496e6a73c",
+      "status": {
+        "code": 0,
+        "output": "",
+        "error": ""
+      },
+      "exclusive_vs_remote": {
+        "code": 0,
+        "output": "a64a90aa39374772fc756032b291688496e6a73c 7a3d6dd6c189feb85d8097792ef1f0c2915e5c65 feat(mcp): connect authenticated MVP flow and independent host approvals\n7a3d6dd6c189feb85d8097792ef1f0c2915e5c65 df107c3117b23558c6988d5e2e38c2d6bc181945 fix(int03-r5): connect host-authorized MCP execution and honor SPA capture mode\ndf107c3117b23558c6988d5e2e38c2d6bc181945 18199e0c036ab53c6d0f7af0a9f65740eb0aec89 d49297a36f0340d46108553bb1e7989c66549eb1 Merge DEV-MVP-01-R4 into isolated INT-03 candidate; record NO-GO gates\nd49297a36f0340d46108553bb1e7989c66549eb1 15eaabcc03baf0b05d74e48c5887a5261a179041 fix(knowledge): resolver falso positivo P1 en tokenizador BVA (DEV-MVP-01-R4)\n15eaabcc03baf0b05d74e48c5887a5261a179041 c9d624c79e65bb3de5623d28ed93cbd3724465b1 fix(knowledge): cierre de hallazgos R2-01 a R2-05 en DEV-MVP-01-R3 (QA pending)\nc9d624c79e65bb3de5623d28ed93cbd3724465b1 ea54a8b873ae9f224cddd7c6e3a8b7ca0b450f1d fix(knowledge): remediacion P1/P2 de oraculos BVA y RBAC en DEV-MVP-01-R2 (QA pending)\nea54a8b873ae9f224cddd7c6e3a8b7ca0b450f1d 47f17ceafc2f76d5a41fd714cd0c071dbdcb8d72 fix(knowledge): remediacion P0 de oraculos BVA y RBAC para candidato MVP-01 (QA pending)\n18199e0c036ab53c6d0f7af0a9f65740eb0aec89 e27544a98854d1b527e734a675409fbdb9709313 fix(int03): restore runner coverage and clear focal QA gates\ne27544a98854d1b527e734a675409fbdb9709313 387e7be8b8440dac1c8144bffa601aa832c88e06 docs(integration): record updated candidate evidence and physical certification blockers\n387e7be8b8440dac1c8144bffa601aa832c88e06 9da2b5b4a6f2438773dac71a64297fa4ca04ec98 fix(integration): block unverified oracles and unsafe identity transitions (QA pending)\n9da2b5b4a6f2438773dac71a64297fa4ca04ec98 4d2b5ee81d7bf86425950db73a4a980d6e934ef0 fix(cli): honor media quota and isolate dry-run SQLite reads (QA pending)\n4d2b5ee81d7bf86425950db73a4a980d6e934ef0 47f17ceafc2f76d5a41fd714cd0c071dbdcb8d72 dda870e4695a8a27db07ea32b81c1efbbf6ba39e INT-01E: refresh isolated candidate with published R7-R2 delta (audit pending)\n47f17ceafc2f76d5a41fd714cd0c071dbdcb8d72 b50453f27470b49a88623c6617cb4d16e49180a8 a3f7ab5a21368142884a5a6dc6f5bc072015e6af INT-01E: prepare isolated two-parent MVP integration candidate (QA pending)\nb50453f27470b49a88623c6617cb4d16e49180a8 0e5825cfd256065e532f45a171f9a0dc74116615 f416616614e08d20405b0cbeedb4dc711c2a3b46 Merge branch 'S81-002' into develop\nf416616614e08d20405b0cbeedb4dc711c2a3b46 1a909d346ab75537e6dc59e44deb422c3016ffb4 feat: completa tarea S81-002 de generador RBAC y acciones del runner\n0e5825cfd256065e532f45a171f9a0dc74116615 1a909d346ab75537e6dc59e44deb422c3016ffb4 docs(vnext): publish independent R4-R10 audit on develop\n1a909d346ab75537e6dc59e44deb422c3016ffb4 64db3c94b5d261c09ab2d7697759cf63ca005e89 TAREA S81-001   Motor Boundary Value Analysis (BVA) con heurística DOM/Léxica en packages/knowledge/src/plan/bva-generator.ts\n64db3c94b5d261c09ab2d7697759cf63ca005e89 62211fcd273a60a9e8108a737b0b0ae46a8f39d0 TAREA S81-006 Schemas JSON para expectativas de fallo controlado (BVA/RBAC), unificación de dialectos TC y tipos en @qap/shared\n62211fcd273a60a9e8108a737b0b0ae46a8f39d0 b9d5b503a6c4c827f5184fe30cbcec7366efbfb6 Tarea S75-016 | S75-017  Comando CLI qap rollback para restaurar módulos desde .qa/cache/backups/ (SHA-256)",
+        "error": ""
+      },
+      "not_in_candidate": {
+        "code": 0,
+        "output": "",
+        "error": ""
+      },
+      "diff_stat": {
+        "code": 0,
+        "output": "",
+        "error": ""
+      }
+    },
+    {
+      "path": "C:/Users/Judirico/.codex/worktrees/int-03-r5/QAMCP",
+      "exists": true,
+      "head": "7a3d6dd6c189feb85d8097792ef1f0c2915e5c65",
+      "status": {
+        "code": 0,
+        "output": "",
+        "error": ""
+      },
+      "exclusive_vs_remote": {
+        "code": 0,
+        "output": "7a3d6dd6c189feb85d8097792ef1f0c2915e5c65 df107c3117b23558c6988d5e2e38c2d6bc181945 fix(int03-r5): connect host-authorized MCP execution and honor SPA capture mode\ndf107c3117b23558c6988d5e2e38c2d6bc181945 18199e0c036ab53c6d0f7af0a9f65740eb0aec89 d49297a36f0340d46108553bb1e7989c66549eb1 Merge DEV-MVP-01-R4 into isolated INT-03 candidate; record NO-GO gates\nd49297a36f0340d46108553bb1e7989c66549eb1 15eaabcc03baf0b05d74e48c5887a5261a179041 fix(knowledge): resolver falso positivo P1 en tokenizador BVA (DEV-MVP-01-R4)\n15eaabcc03baf0b05d74e48c5887a5261a179041 c9d624c79e65bb3de5623d28ed93cbd3724465b1 fix(knowledge): cierre de hallazgos R2-01 a R2-05 en DEV-MVP-01-R3 (QA pending)\nc9d624c79e65bb3de5623d28ed93cbd3724465b1 ea54a8b873ae9f224cddd7c6e3a8b7ca0b450f1d fix(knowledge): remediacion P1/P2 de oraculos BVA y RBAC en DEV-MVP-01-R2 (QA pending)\nea54a8b873ae9f224cddd7c6e3a8b7ca0b450f1d 47f17ceafc2f76d5a41fd714cd0c071dbdcb8d72 fix(knowledge): remediacion P0 de oraculos BVA y RBAC para candidato MVP-01 (QA pending)\n18199e0c036ab53c6d0f7af0a9f65740eb0aec89 e27544a98854d1b527e734a675409fbdb9709313 fix(int03): restore runner coverage and clear focal QA gates\ne27544a98854d1b527e734a675409fbdb9709313 387e7be8b8440dac1c8144bffa601aa832c88e06 docs(integration): record updated candidate evidence and physical certification blockers\n387e7be8b8440dac1c8144bffa601aa832c88e06 9da2b5b4a6f2438773dac71a64297fa4ca04ec98 fix(integration): block unverified oracles and unsafe identity transitions (QA pending)\n9da2b5b4a6f2438773dac71a64297fa4ca04ec98 4d2b5ee81d7bf86425950db73a4a980d6e934ef0 fix(cli): honor media quota and isolate dry-run SQLite reads (QA pending)\n4d2b5ee81d7bf86425950db73a4a980d6e934ef0 47f17ceafc2f76d5a41fd714cd0c071dbdcb8d72 dda870e4695a8a27db07ea32b81c1efbbf6ba39e INT-01E: refresh isolated candidate with published R7-R2 delta (audit pending)\n47f17ceafc2f76d5a41fd714cd0c071dbdcb8d72 b50453f27470b49a88623c6617cb4d16e49180a8 a3f7ab5a21368142884a5a6dc6f5bc072015e6af INT-01E: prepare isolated two-parent MVP integration candidate (QA pending)\nb50453f27470b49a88623c6617cb4d16e49180a8 0e5825cfd256065e532f45a171f9a0dc74116615 f416616614e08d20405b0cbeedb4dc711c2a3b46 Merge branch 'S81-002' into develop\nf416616614e08d20405b0cbeedb4dc711c2a3b46 1a909d346ab75537e6dc59e44deb422c3016ffb4 feat: completa tarea S81-002 de generador RBAC y acciones del runner\n0e5825cfd256065e532f45a171f9a0dc74116615 1a909d346ab75537e6dc59e44deb422c3016ffb4 docs(vnext): publish independent R4-R10 audit on develop\n1a909d346ab75537e6dc59e44deb422c3016ffb4 64db3c94b5d261c09ab2d7697759cf63ca005e89 TAREA S81-001   Motor Boundary Value Analysis (BVA) con heurística DOM/Léxica en packages/knowledge/src/plan/bva-generator.ts\n64db3c94b5d261c09ab2d7697759cf63ca005e89 62211fcd273a60a9e8108a737b0b0ae46a8f39d0 TAREA S81-006 Schemas JSON para expectativas de fallo controlado (BVA/RBAC), unificación de dialectos TC y tipos en @qap/shared\n62211fcd273a60a9e8108a737b0b0ae46a8f39d0 b9d5b503a6c4c827f5184fe30cbcec7366efbfb6 Tarea S75-016 | S75-017  Comando CLI qap rollback para restaurar módulos desde .qa/cache/backups/ (SHA-256)",
+        "error": ""
+      },
+      "not_in_candidate": {
+        "code": 0,
+        "output": "",
+        "error": ""
+      },
+      "diff_stat": {
+        "code": 0,
+        "output": "",
+        "error": ""
+      }
+    },
+    {
+      "path": "C:/Users/Judirico/.codex/worktrees/int01-mvp-lab/QAMCP",
+      "exists": true,
+      "head": "4d2b5ee81d7bf86425950db73a4a980d6e934ef0",
+      "status": {
+        "code": 0,
+        "output": "",
+        "error": ""
+      },
+      "exclusive_vs_remote": {
+        "code": 0,
+        "output": "4d2b5ee81d7bf86425950db73a4a980d6e934ef0 47f17ceafc2f76d5a41fd714cd0c071dbdcb8d72 dda870e4695a8a27db07ea32b81c1efbbf6ba39e INT-01E: refresh isolated candidate with published R7-R2 delta (audit pending)\n47f17ceafc2f76d5a41fd714cd0c071dbdcb8d72 b50453f27470b49a88623c6617cb4d16e49180a8 a3f7ab5a21368142884a5a6dc6f5bc072015e6af INT-01E: prepare isolated two-parent MVP integration candidate (QA pending)\nb50453f27470b49a88623c6617cb4d16e49180a8 0e5825cfd256065e532f45a171f9a0dc74116615 f416616614e08d20405b0cbeedb4dc711c2a3b46 Merge branch 'S81-002' into develop\nf416616614e08d20405b0cbeedb4dc711c2a3b46 1a909d346ab75537e6dc59e44deb422c3016ffb4 feat: completa tarea S81-002 de generador RBAC y acciones del runner\n0e5825cfd256065e532f45a171f9a0dc74116615 1a909d346ab75537e6dc59e44deb422c3016ffb4 docs(vnext): publish independent R4-R10 audit on develop\n1a909d346ab75537e6dc59e44deb422c3016ffb4 64db3c94b5d261c09ab2d7697759cf63ca005e89 TAREA S81-001   Motor Boundary Value Analysis (BVA) con heurística DOM/Léxica en packages/knowledge/src/plan/bva-generator.ts\n64db3c94b5d261c09ab2d7697759cf63ca005e89 62211fcd273a60a9e8108a737b0b0ae46a8f39d0 TAREA S81-006 Schemas JSON para expectativas de fallo controlado (BVA/RBAC), unificación de dialectos TC y tipos en @qap/shared\n62211fcd273a60a9e8108a737b0b0ae46a8f39d0 b9d5b503a6c4c827f5184fe30cbcec7366efbfb6 Tarea S75-016 | S75-017  Comando CLI qap rollback para restaurar módulos desde .qa/cache/backups/ (SHA-256)",
+        "error": ""
+      },
+      "not_in_candidate": {
+        "code": 0,
+        "output": "",
+        "error": ""
+      },
+      "diff_stat": {
+        "code": 0,
+        "output": "",
+        "error": ""
+      }
+    },
+    {
+      "path": "C:/Users/Judirico/.codex/worktrees/int03-mvp-fixes/QAMCP",
+      "exists": true,
+      "head": "e27544a98854d1b527e734a675409fbdb9709313",
+      "status": {
+        "code": 0,
+        "output": "",
+        "error": ""
+      },
+      "exclusive_vs_remote": {
+        "code": 0,
+        "output": "e27544a98854d1b527e734a675409fbdb9709313 387e7be8b8440dac1c8144bffa601aa832c88e06 docs(integration): record updated candidate evidence and physical certification blockers\n387e7be8b8440dac1c8144bffa601aa832c88e06 9da2b5b4a6f2438773dac71a64297fa4ca04ec98 fix(integration): block unverified oracles and unsafe identity transitions (QA pending)\n9da2b5b4a6f2438773dac71a64297fa4ca04ec98 4d2b5ee81d7bf86425950db73a4a980d6e934ef0 fix(cli): honor media quota and isolate dry-run SQLite reads (QA pending)\n4d2b5ee81d7bf86425950db73a4a980d6e934ef0 47f17ceafc2f76d5a41fd714cd0c071dbdcb8d72 dda870e4695a8a27db07ea32b81c1efbbf6ba39e INT-01E: refresh isolated candidate with published R7-R2 delta (audit pending)\n47f17ceafc2f76d5a41fd714cd0c071dbdcb8d72 b50453f27470b49a88623c6617cb4d16e49180a8 a3f7ab5a21368142884a5a6dc6f5bc072015e6af INT-01E: prepare isolated two-parent MVP integration candidate (QA pending)\nb50453f27470b49a88623c6617cb4d16e49180a8 0e5825cfd256065e532f45a171f9a0dc74116615 f416616614e08d20405b0cbeedb4dc711c2a3b46 Merge branch 'S81-002' into develop\nf416616614e08d20405b0cbeedb4dc711c2a3b46 1a909d346ab75537e6dc59e44deb422c3016ffb4 feat: completa tarea S81-002 de generador RBAC y acciones del runner\n0e5825cfd256065e532f45a171f9a0dc74116615 1a909d346ab75537e6dc59e44deb422c3016ffb4 docs(vnext): publish independent R4-R10 audit on develop\n1a909d346ab75537e6dc59e44deb422c3016ffb4 64db3c94b5d261c09ab2d7697759cf63ca005e89 TAREA S81-001   Motor Boundary Value Analysis (BVA) con heurística DOM/Léxica en packages/knowledge/src/plan/bva-generator.ts\n64db3c94b5d261c09ab2d7697759cf63ca005e89 62211fcd273a60a9e8108a737b0b0ae46a8f39d0 TAREA S81-006 Schemas JSON para expectativas de fallo controlado (BVA/RBAC), unificación de dialectos TC y tipos en @qap/shared\n62211fcd273a60a9e8108a737b0b0ae46a8f39d0 b9d5b503a6c4c827f5184fe30cbcec7366efbfb6 Tarea S75-016 | S75-017  Comando CLI qap rollback para restaurar módulos desde .qa/cache/backups/ (SHA-256)",
+        "error": ""
+      },
+      "not_in_candidate": {
+        "code": 0,
+        "output": "",
+        "error": ""
+      },
+      "diff_stat": {
+        "code": 0,
+        "output": "",
+        "error": ""
+      }
+    },
+    {
+      "path": "C:/Users/Judirico/.codex/worktrees/int03-qa-r1/QAMCP",
+      "exists": true,
+      "head": "18199e0c036ab53c6d0f7af0a9f65740eb0aec89",
+      "status": {
+        "code": 0,
+        "output": "",
+        "error": ""
+      },
+      "exclusive_vs_remote": {
+        "code": 0,
+        "output": "18199e0c036ab53c6d0f7af0a9f65740eb0aec89 e27544a98854d1b527e734a675409fbdb9709313 fix(int03): restore runner coverage and clear focal QA gates\ne27544a98854d1b527e734a675409fbdb9709313 387e7be8b8440dac1c8144bffa601aa832c88e06 docs(integration): record updated candidate evidence and physical certification blockers\n387e7be8b8440dac1c8144bffa601aa832c88e06 9da2b5b4a6f2438773dac71a64297fa4ca04ec98 fix(integration): block unverified oracles and unsafe identity transitions (QA pending)\n9da2b5b4a6f2438773dac71a64297fa4ca04ec98 4d2b5ee81d7bf86425950db73a4a980d6e934ef0 fix(cli): honor media quota and isolate dry-run SQLite reads (QA pending)\n4d2b5ee81d7bf86425950db73a4a980d6e934ef0 47f17ceafc2f76d5a41fd714cd0c071dbdcb8d72 dda870e4695a8a27db07ea32b81c1efbbf6ba39e INT-01E: refresh isolated candidate with published R7-R2 delta (audit pending)\n47f17ceafc2f76d5a41fd714cd0c071dbdcb8d72 b50453f27470b49a88623c6617cb4d16e49180a8 a3f7ab5a21368142884a5a6dc6f5bc072015e6af INT-01E: prepare isolated two-parent MVP integration candidate (QA pending)\nb50453f27470b49a88623c6617cb4d16e49180a8 0e5825cfd256065e532f45a171f9a0dc74116615 f416616614e08d20405b0cbeedb4dc711c2a3b46 Merge branch 'S81-002' into develop\nf416616614e08d20405b0cbeedb4dc711c2a3b46 1a909d346ab75537e6dc59e44deb422c3016ffb4 feat: completa tarea S81-002 de generador RBAC y acciones del runner\n0e5825cfd256065e532f45a171f9a0dc74116615 1a909d346ab75537e6dc59e44deb422c3016ffb4 docs(vnext): publish independent R4-R10 audit on develop\n1a909d346ab75537e6dc59e44deb422c3016ffb4 64db3c94b5d261c09ab2d7697759cf63ca005e89 TAREA S81-001   Motor Boundary Value Analysis (BVA) con heurística DOM/Léxica en packages/knowledge/src/plan/bva-generator.ts\n64db3c94b5d261c09ab2d7697759cf63ca005e89 62211fcd273a60a9e8108a737b0b0ae46a8f39d0 TAREA S81-006 Schemas JSON para expectativas de fallo controlado (BVA/RBAC), unificación de dialectos TC y tipos en @qap/shared\n62211fcd273a60a9e8108a737b0b0ae46a8f39d0 b9d5b503a6c4c827f5184fe30cbcec7366efbfb6 Tarea S75-016 | S75-017  Comando CLI qap rollback para restaurar módulos desde .qa/cache/backups/ (SHA-256)",
+        "error": ""
+      },
+      "not_in_candidate": {
+        "code": 0,
+        "output": "",
+        "error": ""
+      },
+      "diff_stat": {
+        "code": 0,
+        "output": "",
+        "error": ""
+      }
+    },
+    {
+      "path": "C:/Users/Judirico/.codex/worktrees/int03-r4-consolidated/mvp01-bva-rbac",
+      "exists": true,
+      "head": "df107c3117b23558c6988d5e2e38c2d6bc181945",
+      "status": {
+        "code": 0,
+        "output": "",
+        "error": ""
+      },
+      "exclusive_vs_remote": {
+        "code": 0,
+        "output": "df107c3117b23558c6988d5e2e38c2d6bc181945 18199e0c036ab53c6d0f7af0a9f65740eb0aec89 d49297a36f0340d46108553bb1e7989c66549eb1 Merge DEV-MVP-01-R4 into isolated INT-03 candidate; record NO-GO gates\nd49297a36f0340d46108553bb1e7989c66549eb1 15eaabcc03baf0b05d74e48c5887a5261a179041 fix(knowledge): resolver falso positivo P1 en tokenizador BVA (DEV-MVP-01-R4)\n15eaabcc03baf0b05d74e48c5887a5261a179041 c9d624c79e65bb3de5623d28ed93cbd3724465b1 fix(knowledge): cierre de hallazgos R2-01 a R2-05 en DEV-MVP-01-R3 (QA pending)\nc9d624c79e65bb3de5623d28ed93cbd3724465b1 ea54a8b873ae9f224cddd7c6e3a8b7ca0b450f1d fix(knowledge): remediacion P1/P2 de oraculos BVA y RBAC en DEV-MVP-01-R2 (QA pending)\nea54a8b873ae9f224cddd7c6e3a8b7ca0b450f1d 47f17ceafc2f76d5a41fd714cd0c071dbdcb8d72 fix(knowledge): remediacion P0 de oraculos BVA y RBAC para candidato MVP-01 (QA pending)\n18199e0c036ab53c6d0f7af0a9f65740eb0aec89 e27544a98854d1b527e734a675409fbdb9709313 fix(int03): restore runner coverage and clear focal QA gates\ne27544a98854d1b527e734a675409fbdb9709313 387e7be8b8440dac1c8144bffa601aa832c88e06 docs(integration): record updated candidate evidence and physical certification blockers\n387e7be8b8440dac1c8144bffa601aa832c88e06 9da2b5b4a6f2438773dac71a64297fa4ca04ec98 fix(integration): block unverified oracles and unsafe identity transitions (QA pending)\n9da2b5b4a6f2438773dac71a64297fa4ca04ec98 4d2b5ee81d7bf86425950db73a4a980d6e934ef0 fix(cli): honor media quota and isolate dry-run SQLite reads (QA pending)\n4d2b5ee81d7bf86425950db73a4a980d6e934ef0 47f17ceafc2f76d5a41fd714cd0c071dbdcb8d72 dda870e4695a8a27db07ea32b81c1efbbf6ba39e INT-01E: refresh isolated candidate with published R7-R2 delta (audit pending)\n47f17ceafc2f76d5a41fd714cd0c071dbdcb8d72 b50453f27470b49a88623c6617cb4d16e49180a8 a3f7ab5a21368142884a5a6dc6f5bc072015e6af INT-01E: prepare isolated two-parent MVP integration candidate (QA pending)\nb50453f27470b49a88623c6617cb4d16e49180a8 0e5825cfd256065e532f45a171f9a0dc74116615 f416616614e08d20405b0cbeedb4dc711c2a3b46 Merge branch 'S81-002' into develop\nf416616614e08d20405b0cbeedb4dc711c2a3b46 1a909d346ab75537e6dc59e44deb422c3016ffb4 feat: completa tarea S81-002 de generador RBAC y acciones del runner\n0e5825cfd256065e532f45a171f9a0dc74116615 1a909d346ab75537e6dc59e44deb422c3016ffb4 docs(vnext): publish independent R4-R10 audit on develop\n1a909d346ab75537e6dc59e44deb422c3016ffb4 64db3c94b5d261c09ab2d7697759cf63ca005e89 TAREA S81-001   Motor Boundary Value Analysis (BVA) con heurística DOM/Léxica en packages/knowledge/src/plan/bva-generator.ts\n64db3c94b5d261c09ab2d7697759cf63ca005e89 62211fcd273a60a9e8108a737b0b0ae46a8f39d0 TAREA S81-006 Schemas JSON para expectativas de fallo controlado (BVA/RBAC), unificación de dialectos TC y tipos en @qap/shared\n62211fcd273a60a9e8108a737b0b0ae46a8f39d0 b9d5b503a6c4c827f5184fe30cbcec7366efbfb6 Tarea S75-016 | S75-017  Comando CLI qap rollback para restaurar módulos desde .qa/cache/backups/ (SHA-256)",
+        "error": ""
+      },
+      "not_in_candidate": {
+        "code": 0,
+        "output": "",
+        "error": ""
+      },
+      "diff_stat": {
+        "code": 0,
+        "output": "",
+        "error": ""
+      }
+    },
+    {
+      "path": "C:/Users/Judirico/.codex/worktrees/mvp-integral/QAMCP",
+      "exists": true,
+      "head": "90f7660d60c1a6c41bbab7953691bee25679d63e",
+      "status": {
+        "code": 0,
+        "output": "",
+        "error": ""
+      },
+      "exclusive_vs_remote": {
+        "code": 0,
+        "output": "90f7660d60c1a6c41bbab7953691bee25679d63e a64a90aa39374772fc756032b291688496e6a73c 08a34bbdaffc1aee89b2fe1a26b08eab66c284d1 merge(mvp): reconcile DEV-MVP-02 and R5 with published operational contract\na64a90aa39374772fc756032b291688496e6a73c 7a3d6dd6c189feb85d8097792ef1f0c2915e5c65 feat(mcp): connect authenticated MVP flow and independent host approvals\n7a3d6dd6c189feb85d8097792ef1f0c2915e5c65 df107c3117b23558c6988d5e2e38c2d6bc181945 fix(int03-r5): connect host-authorized MCP execution and honor SPA capture mode\ndf107c3117b23558c6988d5e2e38c2d6bc181945 18199e0c036ab53c6d0f7af0a9f65740eb0aec89 d49297a36f0340d46108553bb1e7989c66549eb1 Merge DEV-MVP-01-R4 into isolated INT-03 candidate; record NO-GO gates\nd49297a36f0340d46108553bb1e7989c66549eb1 15eaabcc03baf0b05d74e48c5887a5261a179041 fix(knowledge): resolver falso positivo P1 en tokenizador BVA (DEV-MVP-01-R4)\n15eaabcc03baf0b05d74e48c5887a5261a179041 c9d624c79e65bb3de5623d28ed93cbd3724465b1 fix(knowledge): cierre de hallazgos R2-01 a R2-05 en DEV-MVP-01-R3 (QA pending)\nc9d624c79e65bb3de5623d28ed93cbd3724465b1 ea54a8b873ae9f224cddd7c6e3a8b7ca0b450f1d fix(knowledge): remediacion P1/P2 de oraculos BVA y RBAC en DEV-MVP-01-R2 (QA pending)\nea54a8b873ae9f224cddd7c6e3a8b7ca0b450f1d 47f17ceafc2f76d5a41fd714cd0c071dbdcb8d72 fix(knowledge): remediacion P0 de oraculos BVA y RBAC para candidato MVP-01 (QA pending)\n18199e0c036ab53c6d0f7af0a9f65740eb0aec89 e27544a98854d1b527e734a675409fbdb9709313 fix(int03): restore runner coverage and clear focal QA gates\ne27544a98854d1b527e734a675409fbdb9709313 387e7be8b8440dac1c8144bffa601aa832c88e06 docs(integration): record updated candidate evidence and physical certification blockers\n387e7be8b8440dac1c8144bffa601aa832c88e06 9da2b5b4a6f2438773dac71a64297fa4ca04ec98 fix(integration): block unverified oracles and unsafe identity transitions (QA pending)\n9da2b5b4a6f2438773dac71a64297fa4ca04ec98 4d2b5ee81d7bf86425950db73a4a980d6e934ef0 fix(cli): honor media quota and isolate dry-run SQLite reads (QA pending)\n4d2b5ee81d7bf86425950db73a4a980d6e934ef0 47f17ceafc2f76d5a41fd714cd0c071dbdcb8d72 dda870e4695a8a27db07ea32b81c1efbbf6ba39e INT-01E: refresh isolated candidate with published R7-R2 delta (audit pending)\n47f17ceafc2f76d5a41fd714cd0c071dbdcb8d72 b50453f27470b49a88623c6617cb4d16e49180a8 a3f7ab5a21368142884a5a6dc6f5bc072015e6af INT-01E: prepare isolated two-parent MVP integration candidate (QA pending)\nb50453f27470b49a88623c6617cb4d16e49180a8 0e5825cfd256065e532f45a171f9a0dc74116615 f416616614e08d20405b0cbeedb4dc711c2a3b46 Merge branch 'S81-002' into develop\nf416616614e08d20405b0cbeedb4dc711c2a3b46 1a909d346ab75537e6dc59e44deb422c3016ffb4 feat: completa tarea S81-002 de generador RBAC y acciones del runner\n0e5825cfd256065e532f45a171f9a0dc74116615 1a909d346ab75537e6dc59e44deb422c3016ffb4 docs(vnext): publish independent R4-R10 audit on develop\n1a909d346ab75537e6dc59e44deb422c3016ffb4 64db3c94b5d261c09ab2d7697759cf63ca005e89 TAREA S81-001   Motor Boundary Value Analysis (BVA) con heurística DOM/Léxica en packages/knowledge/src/plan/bva-generator.ts\n64db3c94b5d261c09ab2d7697759cf63ca005e89 62211fcd273a60a9e8108a737b0b0ae46a8f39d0 TAREA S81-006 Schemas JSON para expectativas de fallo controlado (BVA/RBAC), unificación de dialectos TC y tipos en @qap/shared\n62211fcd273a60a9e8108a737b0b0ae46a8f39d0 b9d5b503a6c4c827f5184fe30cbcec7366efbfb6 Tarea S75-016 | S75-017  Comando CLI qap rollback para restaurar módulos desde .qa/cache/backups/ (SHA-256)",
+        "error": ""
+      },
+      "not_in_candidate": {
+        "code": 0,
+        "output": "",
+        "error": ""
+      },
+      "diff_stat": {
+        "code": 0,
+        "output": "",
+        "error": ""
+      }
+    },
+    {
+      "path": "C:/Users/Judirico/.codex/worktrees/vnext-015-04/QAMCP",
+      "exists": true,
+      "head": "7149c030eb814e759bc824b1106c8bf3d77e1d11",
+      "status": {
+        "code": 0,
+        "output": "",
+        "error": ""
+      },
+      "exclusive_vs_remote": {
+        "code": 0,
+        "output": "7149c030eb814e759bc824b1106c8bf3d77e1d11 0b8d8c78b2e76be170cc399ece8d063db3d3c501 docs(vnext): record 015-04 delivery and deferred certification\n0b8d8c78b2e76be170cc399ece8d063db3d3c501 a3f7ab5a21368142884a5a6dc6f5bc072015e6af feat(knowledge): propagate canonical inverse flow impact (VNEXT-015-04)",
+        "error": ""
+      },
+      "not_in_candidate": {
+        "code": 0,
+        "output": "7149c030eb814e759bc824b1106c8bf3d77e1d11 0b8d8c78b2e76be170cc399ece8d063db3d3c501 docs(vnext): record 015-04 delivery and deferred certification\n0b8d8c78b2e76be170cc399ece8d063db3d3c501 a3f7ab5a21368142884a5a6dc6f5bc072015e6af feat(knowledge): propagate canonical inverse flow impact (VNEXT-015-04)",
+        "error": ""
+      },
+      "diff_stat": {
+        "code": 0,
+        "output": "",
+        "error": ""
+      }
+    },
+    {
+      "path": "C:/Users/Judirico/Documents/QAMCP/audit-r4-r10",
+      "exists": true,
+      "head": "7cfdefca9482b59d0c5606fb70d23903483373f3",
+      "status": {
+        "code": 0,
+        "output": "",
+        "error": ""
+      },
+      "exclusive_vs_remote": {
+        "code": 0,
+        "output": "",
+        "error": ""
+      },
+      "not_in_candidate": {
+        "code": 0,
+        "output": "",
+        "error": ""
+      },
+      "diff_stat": {
+        "code": 0,
+        "output": "",
+        "error": ""
+      }
+    },
+    {
+      "path": "C:/Users/Judirico/Documents/QAMCP/audit-r4-r10-docs",
+      "exists": true,
+      "head": "0e5825cfd256065e532f45a171f9a0dc74116615",
+      "status": {
+        "code": 0,
+        "output": "",
+        "error": ""
+      },
+      "exclusive_vs_remote": {
+        "code": 0,
+        "output": "0e5825cfd256065e532f45a171f9a0dc74116615 1a909d346ab75537e6dc59e44deb422c3016ffb4 docs(vnext): publish independent R4-R10 audit on develop\n1a909d346ab75537e6dc59e44deb422c3016ffb4 64db3c94b5d261c09ab2d7697759cf63ca005e89 TAREA S81-001   Motor Boundary Value Analysis (BVA) con heurística DOM/Léxica en packages/knowledge/src/plan/bva-generator.ts\n64db3c94b5d261c09ab2d7697759cf63ca005e89 62211fcd273a60a9e8108a737b0b0ae46a8f39d0 TAREA S81-006 Schemas JSON para expectativas de fallo controlado (BVA/RBAC), unificación de dialectos TC y tipos en @qap/shared\n62211fcd273a60a9e8108a737b0b0ae46a8f39d0 b9d5b503a6c4c827f5184fe30cbcec7366efbfb6 Tarea S75-016 | S75-017  Comando CLI qap rollback para restaurar módulos desde .qa/cache/backups/ (SHA-256)",
+        "error": ""
+      },
+      "not_in_candidate": {
+        "code": 0,
+        "output": "",
+        "error": ""
+      },
+      "diff_stat": {
+        "code": 0,
+        "output": "",
+        "error": ""
+      }
+    },
+    {
+      "path": "C:/Users/Judirico/Documents/QAMCP/audit-r4-r8",
+      "exists": true,
+      "head": "4829a7d4af869f29f1d4c9b2d2d4124a3796b2ca",
+      "status": {
+        "code": 0,
+        "output": "?? .audit-r8/exits.txt\n?? .audit-r8/fixture.mjs.txt\n?? .audit-r8/generate.mjs\n?? .audit-r8/mcp.json\n?? .audit-r8/old-coverage.mjs.txt\n?? .audit-r8/prepare.mjs.txt\n?? .audit-r8/probe.mjs.txt\n?? .audit-r8/run.ps1\n?? .audit-r8/stdio-fixture/cli/.qa/.gitignore\n?? .audit-r8/stdio-fixture/cli/.qa/project/context.yaml\n?? .audit-r8/stdio-fixture/cli/.qa/project/environments.yaml\n?? .audit-r8/stdio-fixture/cli/.qa/project/lifecycle.json\n?? .audit-r8/stdio-fixture/cli/.qa/project/repo-map.json\n?? .audit-r8/stdio-fixture/cli/.qa/project/scan.json\n?? .audit-r8/stdio-fixture/server/.qa/.gitignore\n?? .audit-r8/stdio-fixture/server/.qa/project/context.yaml\n?? .audit-r8/stdio-fixture/server/.qa/project/environments.yaml\n?? .audit-r8/stdio-fixture/server/.qa/project/lifecycle.json\n?? .audit-r8/stdio-fixture/server/.qa/project/repo-map.json\n?? .audit-r8/stdio-fixture/server/.qa/project/scan.json\n?? .audit-r8/stdio.mjs.txt\n?? packages/mcp/.audit-r8/fixture.mjs.txt\n?? packages/mcp/.audit-r8/old-closure.mjs.txt\n?? packages/mcp/.audit-r8/old-coverage.mjs.txt",
+        "error": ""
+      },
+      "exclusive_vs_remote": {
+        "code": 0,
+        "output": "",
+        "error": ""
+      },
+      "not_in_candidate": {
+        "code": 0,
+        "output": "",
+        "error": ""
+      },
+      "diff_stat": {
+        "code": 0,
+        "output": "",
+        "error": ""
+      }
+    },
+    {
+      "path": "C:/Users/Judirico/Documents/QAMCP/audit-r4-r9",
+      "exists": true,
+      "head": "05c0253b90c179612a166f1d98702efd14f99be7",
+      "status": {
+        "code": 0,
+        "output": "",
+        "error": ""
+      },
+      "exclusive_vs_remote": {
+        "code": 0,
+        "output": "",
+        "error": ""
+      },
+      "not_in_candidate": {
+        "code": 0,
+        "output": "",
+        "error": ""
+      },
+      "diff_stat": {
+        "code": 0,
+        "output": "",
+        "error": ""
+      }
+    },
+    {
+      "path": "C:/Users/Judirico/Documents/QAMCP/vnext014-conv",
+      "exists": true,
+      "head": "6f4f55c41d5ed340d85a8f38174868ac8741387f",
+      "status": {
+        "code": 0,
+        "output": "",
+        "error": ""
+      },
+      "exclusive_vs_remote": {
+        "code": 0,
+        "output": "",
+        "error": ""
+      },
+      "not_in_candidate": {
+        "code": 0,
+        "output": "",
+        "error": ""
+      },
+      "diff_stat": {
+        "code": 0,
+        "output": "",
+        "error": ""
+      }
+    },
+    {
+      "path": "C:/Users/Judirico/Documents/QAMCP/worktrees/mvp01-bva-rbac",
+      "exists": true,
+      "head": "d49297a36f0340d46108553bb1e7989c66549eb1",
+      "status": {
+        "code": 0,
+        "output": "",
+        "error": ""
+      },
+      "exclusive_vs_remote": {
+        "code": 0,
+        "output": "d49297a36f0340d46108553bb1e7989c66549eb1 15eaabcc03baf0b05d74e48c5887a5261a179041 fix(knowledge): resolver falso positivo P1 en tokenizador BVA (DEV-MVP-01-R4)\n15eaabcc03baf0b05d74e48c5887a5261a179041 c9d624c79e65bb3de5623d28ed93cbd3724465b1 fix(knowledge): cierre de hallazgos R2-01 a R2-05 en DEV-MVP-01-R3 (QA pending)\nc9d624c79e65bb3de5623d28ed93cbd3724465b1 ea54a8b873ae9f224cddd7c6e3a8b7ca0b450f1d fix(knowledge): remediacion P1/P2 de oraculos BVA y RBAC en DEV-MVP-01-R2 (QA pending)\nea54a8b873ae9f224cddd7c6e3a8b7ca0b450f1d 47f17ceafc2f76d5a41fd714cd0c071dbdcb8d72 fix(knowledge): remediacion P0 de oraculos BVA y RBAC para candidato MVP-01 (QA pending)\n47f17ceafc2f76d5a41fd714cd0c071dbdcb8d72 b50453f27470b49a88623c6617cb4d16e49180a8 a3f7ab5a21368142884a5a6dc6f5bc072015e6af INT-01E: prepare isolated two-parent MVP integration candidate (QA pending)\nb50453f27470b49a88623c6617cb4d16e49180a8 0e5825cfd256065e532f45a171f9a0dc74116615 f416616614e08d20405b0cbeedb4dc711c2a3b46 Merge branch 'S81-002' into develop\nf416616614e08d20405b0cbeedb4dc711c2a3b46 1a909d346ab75537e6dc59e44deb422c3016ffb4 feat: completa tarea S81-002 de generador RBAC y acciones del runner\n0e5825cfd256065e532f45a171f9a0dc74116615 1a909d346ab75537e6dc59e44deb422c3016ffb4 docs(vnext): publish independent R4-R10 audit on develop\n1a909d346ab75537e6dc59e44deb422c3016ffb4 64db3c94b5d261c09ab2d7697759cf63ca005e89 TAREA S81-001   Motor Boundary Value Analysis (BVA) con heurística DOM/Léxica en packages/knowledge/src/plan/bva-generator.ts\n64db3c94b5d261c09ab2d7697759cf63ca005e89 62211fcd273a60a9e8108a737b0b0ae46a8f39d0 TAREA S81-006 Schemas JSON para expectativas de fallo controlado (BVA/RBAC), unificación de dialectos TC y tipos en @qap/shared\n62211fcd273a60a9e8108a737b0b0ae46a8f39d0 b9d5b503a6c4c827f5184fe30cbcec7366efbfb6 Tarea S75-016 | S75-017  Comando CLI qap rollback para restaurar módulos desde .qa/cache/backups/ (SHA-256)",
+        "error": ""
+      },
+      "not_in_candidate": {
+        "code": 0,
+        "output": "",
+        "error": ""
+      },
+      "diff_stat": {
+        "code": 0,
+        "output": "",
+        "error": ""
+      }
+    }
+  ],
+  "refs": {
+    "code": 0,
+    "output": "refs/codex/snapshots/abab3701149477c2627259038cefbc9413ae6891 18199e0c036ab53c6d0f7af0a9f65740eb0aec89 fix(int03): restore runner coverage and clear focal QA gates\nrefs/codex/turn-diffs/checkpoints/6790bfba54ae211980c081cef80cda51/6bb1428a3ca1e77692f65a6cbbe94f64/1794247629372/60e5b1d4-8472-451f-aefa-d6d29080228e f01ff2efdf34a9af4e751df7ae6d73f47467c97a \nrefs/heads/codex/consolidacion-vnext-20261110 90f7660d60c1a6c41bbab7953691bee25679d63e merge(mvp): reconcile DEV-MVP-02 and R5 with published operational contract\nrefs/heads/develop b9d5b503a6c4c827f5184fe30cbcec7366efbfb6 TAREA S75-016 & S75-015: Comando rollback y update con validación, backups y arquitectura estándar\nrefs/heads/feat/qap-vnext-architecture dda870e4695a8a27db07ea32b81c1efbbf6ba39e fix(r7): remediacion integral R7-R2 de los seis hallazgos de reauditoria Codex\nrefs/heads/feat/qap-vnext-architecture-work 6f4f55c41d5ed340d85a8f38174868ac8741387f docs(vnext-014): convergence report, STATE/WBS addenda, VNEXT-015 preparation and audit prompts\nrefs/heads/main fa6a527764f6e96514a1e589411e7f402e059b68 docs: add AGENTS.md with local MCP setup guide for AI agents\nrefs/remotes/origin/HEAD fa6a527764f6e96514a1e589411e7f402e059b68 docs: add AGENTS.md with local MCP setup guide for AI agents\nrefs/remotes/origin/develop b50453f27470b49a88623c6617cb4d16e49180a8 Merge branch 'S81-002' into develop\nrefs/remotes/origin/feat/qap-vnext-architecture 08a34bbdaffc1aee89b2fe1a26b08eab66c284d1 docs(vnext): especificar UX discovery-first, ingesta y aislamiento QA MVP\nrefs/remotes/origin/main fa6a527764f6e96514a1e589411e7f402e059b68 docs: add AGENTS.md with local MCP setup guide for AI agents",
+    "error": ""
+  },
+  "reflog_tips": {
+    "code": 0,
+    "output": "90f7660d60c1a6c41bbab7953691bee25679d63e branch: Created from HEAD\n90f7660d60c1a6c41bbab7953691bee25679d63e checkout: moving from 90f7660d60c1a6c41bbab7953691bee25679d63e to codex/consolidacion-vnext-20261110\n90f7660d60c1a6c41bbab7953691bee25679d63e merge origin/feat/qap-vnext-architecture: Merge made by the 'ort' strategy.\na64a90aa39374772fc756032b291688496e6a73c \n08a34bbdaffc1aee89b2fe1a26b08eab66c284d1 fetch origin feat/qap-vnext-architecture: fast-forward\na64a90aa39374772fc756032b291688496e6a73c commit (amend): feat(mcp): connect authenticated MVP flow and independent host approvals\n480eed8f969202c59a6ba7f0cd43c4bdf84d8b88 commit: feat(mcp): connect authenticated MVP flow and independent host approvals\n7a3d6dd6c189feb85d8097792ef1f0c2915e5c65 \n7a3d6dd6c189feb85d8097792ef1f0c2915e5c65 commit (amend): fix(int03-r5): connect host-authorized MCP execution and honor SPA capture mode\nf967d777d0ba9eecff84d4ec503e74b8682290a8 commit: fix(int03-r5): connect host-authorized MCP execution and honor SPA capture mode\ndf107c3117b23558c6988d5e2e38c2d6bc181945 \ndf107c3117b23558c6988d5e2e38c2d6bc181945 commit (amend): Merge DEV-MVP-01-R4 into isolated INT-03 candidate; record NO-GO gates\neadb2f94aa312c33803ad6ef9c37a5b1f931d5b9 commit (merge): Merge DEV-MVP-01-R4 into isolated INT-03 candidate; record NO-GO gates\n18199e0c036ab53c6d0f7af0a9f65740eb0aec89 \nd49297a36f0340d46108553bb1e7989c66549eb1 commit: fix(knowledge): resolver falso positivo P1 en tokenizador BVA (DEV-MVP-01-R4)\n15eaabcc03baf0b05d74e48c5887a5261a179041 commit: fix(knowledge): cierre de hallazgos R2-01 a R2-05 en DEV-MVP-01-R3 (QA pending)\nc9d624c79e65bb3de5623d28ed93cbd3724465b1 commit: fix(knowledge): remediacion P1/P2 de oraculos BVA y RBAC en DEV-MVP-01-R2 (QA pending)\nea54a8b873ae9f224cddd7c6e3a8b7ca0b450f1d commit: fix(knowledge): remediacion P0 de oraculos BVA y RBAC para candidato MVP-01 (QA pending)\n18199e0c036ab53c6d0f7af0a9f65740eb0aec89 commit: fix(int03): restore runner coverage and clear focal QA gates\ne27544a98854d1b527e734a675409fbdb9709313 \n47f17ceafc2f76d5a41fd714cd0c071dbdcb8d72 \ne27544a98854d1b527e734a675409fbdb9709313 commit: docs(integration): record updated candidate evidence and physical certification blockers\n387e7be8b8440dac1c8144bffa601aa832c88e06 commit: fix(integration): block unverified oracles and unsafe identity transitions (QA pending)\n9da2b5b4a6f2438773dac71a64297fa4ca04ec98 commit: fix(cli): honor media quota and isolate dry-run SQLite reads (QA pending)\n4d2b5ee81d7bf86425950db73a4a980d6e934ef0 \n4d2b5ee81d7bf86425950db73a4a980d6e934ef0 merge dda870e4695a8a27db07ea32b81c1efbbf6ba39e: Merge made by the 'ort' strategy.\n47f17ceafc2f76d5a41fd714cd0c071dbdcb8d72 commit (merge): INT-01E: prepare isolated two-parent MVP integration candidate (QA pending)\ndda870e4695a8a27db07ea32b81c1efbbf6ba39e update by push\ndda870e4695a8a27db07ea32b81c1efbbf6ba39e commit: fix(r7): remediacion integral R7-R2 de los seis hallazgos de reauditoria Codex\ndda870e4695a8a27db07ea32b81c1efbbf6ba39e commit: fix(r7): remediacion integral R7-R2 de los seis hallazgos de reauditoria Codex\nb50453f27470b49a88623c6617cb4d16e49180a8 \n7149c030eb814e759bc824b1106c8bf3d77e1d11 commit: docs(vnext): record 015-04 delivery and deferred certification\n0b8d8c78b2e76be170cc399ece8d063db3d3c501 commit: feat(knowledge): propagate canonical inverse flow impact (VNEXT-015-04)\na3f7ab5a21368142884a5a6dc6f5bc072015e6af \na3f7ab5a21368142884a5a6dc6f5bc072015e6af update by push\na3f7ab5a21368142884a5a6dc6f5bc072015e6af commit: docs(r7): add R7-R2 forensic audit, remediation plan and execution prompt in README\na3f7ab5a21368142884a5a6dc6f5bc072015e6af commit: docs(r7): add R7-R2 forensic audit, remediation plan and execution prompt in README\nc34e1e51b153cb7006104cd0e698ad2a3e905083 commit: fix(r7): remediate Codex independent audit findings R7-A01 through R7-A07 in preflight system\nc34e1e51b153cb7006104cd0e698ad2a3e905083 commit: fix(r7): remediate Codex independent audit findings R7-A01 through R7-A07 in preflight system\nf555f9dc2d17a2933210cc49db7dbe3bdda646f0 commit: docs(vnext): implement R7 preflight system, contracts, and automated validation\nf555f9dc2d17a2933210cc49db7dbe3bdda646f0 commit: docs(vnext): implement R7 preflight system, contracts, and automated validation\n8dc020e3e2a7d1ab701b94ae2473b0cd49ba69b0 merge origin/feat/qap-vnext-architecture: Fast-forward\n8dc020e3e2a7d1ab701b94ae2473b0cd49ba69b0 merge origin/feat/qap-vnext-architecture: Fast-forward\n8dc020e3e2a7d1ab701b94ae2473b0cd49ba69b0 fetch origin feat/qap-vnext-architecture: fast-forward\nc161c0f995a8f9844f2ec09c041354d77a08fea0 update by push\nc161c0f995a8f9844f2ec09c041354d77a08fea0 commit: docs(e01): record R6-A environmental gate and indeterminate causality\nc161c0f995a8f9844f2ec09c041354d77a08fea0 commit: docs(e01): record R6-A environmental gate and indeterminate causality\n9974555e8b2c64c5c187a7a21427d8f5b9c0c1b8 merge origin/feat/qap-vnext-architecture: Fast-forward\n9974555e8b2c64c5c187a7a21427d8f5b9c0c1b8 merge origin/feat/qap-vnext-architecture: Fast-forward\n9974555e8b2c64c5c187a7a21427d8f5b9c0c1b8 fetch origin feat/qap-vnext-architecture: fast-forward\n37c51e52ad81c5d3dd1a017ab461ec540c7ca630 update by push\n37c51e52ad81c5d3dd1a017ab461ec540c7ca630 commit: docs(e01): publish independent R5 stability diagnosis\n37c51e52ad81c5d3dd1a017ab461ec540c7ca630 commit: docs(e01): publish independent R5 stability diagnosis\n9e9d2c8062b908d936ae090bbe9cb5c4ca2b0772 update by push\n9e9d2c8062b908d936ae090bbe9cb5c4ca2b0772 commit: docs(vnext-014): certify R4 corrective fixes independently\n9e9d2c8062b908d936ae090bbe9cb5c4ca2b0772 commit: docs(vnext-014): certify R4 corrective fixes independently\n2dc2f5800f64e2a08fd11c88608a4f6beddcf635 merge 2dc2f5800f64e2a08fd11c88608a4f6beddcf635: Fast-forward\n2dc2f5800f64e2a08fd11c88608a4f6beddcf635 merge 2dc2f5800f64e2a08fd11c88608a4f6beddcf635: Fast-forward\n2dc2f5800f64e2a08fd11c88608a4f6beddcf635 fetch origin feat/qap-vnext-architecture: fast-forward\n642800b0abda022c3a9695545e1cc465acbb55b8 update by push\n642800b0abda022c3a9695545e1cc465acbb55b8 commit: docs(vnext-014): publish independent R3 focal certification and regressions\n642800b0abda022c3a9695545e1cc465acbb55b8 commit: docs(vnext-014): publish independent R3 focal certification and regressions\nbdafeeb834549fc13c5d952c1f341098c2592468 merge bdafeeb834549fc13c5d952c1f341098c2592468: Fast-forward\nbdafeeb834549fc13c5d952c1f341098c2592468 merge bdafeeb834549fc13c5d952c1f341098c2592468: Fast-forward\nbdafeeb834549fc13c5d952c1f341098c2592468 fetch origin feat/qap-vnext-architecture: fast-forward\ndf6783a7452824ecd19abdec06c95e971cff4195 update by push\ndf6783a7452824ecd19abdec06c95e971cff4195 commit: docs(vnext-014): certify R2 focal execution and record semantic gaps\ndf6783a7452824ecd19abdec06c95e971cff4195 commit: docs(vnext-014): certify R2 focal execution and record semantic gaps\n92579ebaf576dd3d461acc2d88fb30272e5cbe40 merge 92579ebaf576dd3d461acc2d88fb30272e5cbe40: Fast-forward\n92579ebaf576dd3d461acc2d88fb30272e5cbe40 merge 92579ebaf576dd3d461acc2d88fb30272e5cbe40: Fast-forward\n92579ebaf576dd3d461acc2d88fb30272e5cbe40 fetch origin feat/qap-vnext-architecture: fast-forward\na333cfbab9597a485f2fd9704d7f2518102f01f9 update by push\na333cfbab9597a485f2fd9704d7f2518102f01f9 commit: docs(vnext): retain R1 command logs and failure diagnostics\na333cfbab9597a485f2fd9704d7f2518102f01f9 commit: docs(vnext): retain R1 command logs and failure diagnostics\nd9ce78b9132f0c0ccbaab94cc8a84a7c102f2e21 commit: docs(vnext): record R1 physical verification and remaining certification gaps\nd9ce78b9132f0c0ccbaab94cc8a84a7c102f2e21 commit: docs(vnext): record R1 physical verification and remaining certification gaps\n8de5a2260bf7c936bbc2c12c81675dd0f6270a36 merge origin/feat/qap-vnext-architecture: Fast-forward\n8de5a2260bf7c936bbc2c12c81675dd0f6270a36 merge origin/feat/qap-vnext-architecture: Fast-forward\n8de5a2260bf7c936bbc2c12c81675dd0f6270a36 fetch origin feat/qap-vnext-architecture: fast-forward\n6062dcb2939135a772f20852bc8a7c978de73ca5 update by push\n6062dcb2939135a772f20852bc8a7c978de73ca5 commit: docs(mcp): publish E01 stage evidence and remaining parallel failures\n6062dcb2939135a772f20852bc8a7c978de73ca5 commit: docs(mcp): publish E01 stage evidence and remaining parallel failures\nf76584dab89d9524d60656b7a88aea8aa4495134 commit: fix(mcp): reduce E01 resource amplification and drain active calls\nf76584dab89d9524d60656b7a88aea8aa4495134 commit: fix(mcp): reduce E01 resource amplification and drain active calls\n26143382d1262b2ef9cbeb02f8773148e4439ebc update by push\n26143382d1262b2ef9cbeb02f8773148e4439ebc commit: docs(mcp): publish lifecycle traceability and serial parallel evidence\n26143382d1262b2ef9cbeb02f8773148e4439ebc commit: docs(mcp): publish lifecycle traceability and serial parallel evidence\n9a7ce20b4bd3a07518351397a1eab40ce84f2e84 update by push\n9a7ce20b4bd3a07518351397a1eab40ce84f2e84 commit: test(mcp): modernize lifecycle against canonical host contracts\n9a7ce20b4bd3a07518351397a1eab40ce84f2e84 commit: test(mcp): modernize lifecycle against canonical host contracts\n794dc0d2fe1fb85dd1f9fb0c211b9b35346ac747 update by push\nb50453f27470b49a88623c6617cb4d16e49180a8 fetch origin: fast-forward\n794dc0d2fe1fb85dd1f9fb0c211b9b35346ac747 commit: docs(vnext): publish integrated rescue evidence and retain four no-go gates\n794dc0d2fe1fb85dd1f9fb0c211b9b35346ac747 commit: docs(vnext): publish integrated rescue evidence and retain four no-go gates\nc947d5347505283befc9cc2cc8b366f05b55c576 commit: style(test): remove unused cleanup fixture initializer\nc947d5347505283befc9cc2cc8b366f05b55c576 commit: style(test): remove unused cleanup fixture initializer\nb319047d07e4658396f94654e7c92ce4b8ad41ea commit: fix(test): isolate cleanup ownership across timed-out hooks\nb319047d07e4658396f94654e7c92ce4b8ad41ea commit: fix(test): isolate cleanup ownership across timed-out hooks\nc9e58ceaa145965db96dbc1951a2ca36ecfbb7e5 update by push\nc9e58ceaa145965db96dbc1951a2ca36ecfbb7e5 commit: fix(runner): drain cancellation before releasing locks and cleaning roots\nc9e58ceaa145965db96dbc1951a2ca36ecfbb7e5 commit: fix(runner): drain cancellation before releasing locks and cleaning roots\na02b0986f8c638a324df8b63b53156001d5b727f commit: test(closure): repair forged receipt fixture and verify physical reopen\n4afaeb5668ac6598536383f325030c263684a78b commit: fix(closure): preserve typed drift and reject reentrant fenced writes\na02b0986f8c638a324df8b63b53156001d5b727f commit: test(closure): repair forged receipt fixture and verify physical reopen\n4afaeb5668ac6598536383f325030c263684a78b commit: fix(closure): preserve typed drift and reject reentrant fenced writes\n2d38212658a3acd8e245c1be42a27d7bc1ccf750 commit: fix(mcp): sanitize unexpected closure failures at RPC boundary\n2d38212658a3acd8e245c1be42a27d7bc1ccf750 commit: fix(mcp): sanitize unexpected closure failures at RPC boundary\n6ce7472bc1cef8d252434a3d71a0a614ed06a390 update by push\n6ce7472bc1cef8d252434a3d71a0a614ed06a390 commit (amend): merge(vnext): absorb controlled 014 repairs preserving 015 history\n6ce7472bc1cef8d252434a3d71a0a614ed06a390 commit (amend): merge(vnext): absorb controlled 014 repairs preserving 015 history\n9044ceb8d1fa6b8117ca3e95f666a335ac96b659 commit (merge): merge(vnext): absorb controlled 014 repairs preserving 015 history\n9044ceb8d1fa6b8117ca3e95f666a335ac96b659 commit (merge): merge(vnext): absorb controlled 014 repairs preserving 015 history\n46b1177110312797bab02a6f5a8ef228d79d367e update by push\n46b1177110312797bab02a6f5a8ef228d79d367e commit: docs(vnext-015): certify read-only reader physical checks (015-03)\n46b1177110312797bab02a6f5a8ef228d79d367e commit: docs(vnext-015): certify read-only reader physical checks (015-03)\n8e923a3ba6c56039df21cf321d30360fcf478196 update by push\n8e923a3ba6c56039df21cf321d30360fcf478196 commit: feat(knowledge): add bounded read-only impact reader (VNEXT-015-03)\n8e923a3ba6c56039df21cf321d30360fcf478196 commit: feat(knowledge): add bounded read-only impact reader (VNEXT-015-03)\nf8b87d85c1249de3d3772f61f22f5d589c7d1282 merge origin/feat/qap-vnext-architecture: Fast-forward\nf8b87d85c1249de3d3772f61f22f5d589c7d1282 merge origin/feat/qap-vnext-architecture: Fast-forward\nf8b87d85c1249de3d3772f61f22f5d589c7d1282 fetch origin feat/qap-vnext-architecture: fast-forward\nfc97aa544063b8573405fdcaee8a637c6b12b4eb update by push\nfc97aa544063b8573405fdcaee8a637c6b12b4eb commit: docs(vnext-015): normalize captured log endings\nfc97aa544063b8573405fdcaee8a637c6b12b4eb commit: docs(vnext-015): normalize captured log endings\n23c6a8d82eef3d152e14db99fcae068a1c385c8b update by push\n23c6a8d82eef3d152e14db99fcae068a1c385c8b commit: docs(vnext-015): record 015-01/02 implementation and physical checks\n23c6a8d82eef3d152e14db99fcae068a1c385c8b commit: docs(vnext-015): record 015-01/02 implementation and physical checks\n23ef5e6b558f3d750c5bff8b15c936d0d1a534b3 update by push\n23ef5e6b558f3d750c5bff8b15c936d0d1a534b3 commit: feat(knowledge): calculate pure inverse module impact (VNEXT-015-02)\n23ef5e6b558f3d750c5bff8b15c936d0d1a534b3 commit: feat(knowledge): calculate pure inverse module impact (VNEXT-015-02)\naac2ad23e203b977e76db741b1cdde68e61f30f8 commit: feat(engine): define versioned module impact contract (VNEXT-015-01)\naac2ad23e203b977e76db741b1cdde68e61f30f8 commit: feat(engine): define versioned module impact contract (VNEXT-015-01)\ne4d7fbc2c6e4525b4e5fab38ec22e0cd365305d6 merge origin/feat/qap-vnext-architecture: Fast-forward\ne4d7fbc2c6e4525b4e5fab38ec22e0cd365305d6 merge origin/feat/qap-vnext-architecture: Fast-forward\ne4d7fbc2c6e4525b4e5fab38ec22e0cd365305d6 fetch origin feat/qap-vnext-architecture: fast-forward\n6f4f55c41d5ed340d85a8f38174868ac8741387f update by push\n6f4f55c41d5ed340d85a8f38174868ac8741387f commit: docs(vnext-014): convergence report, STATE/WBS addenda, VNEXT-015 preparation and audit prompts\n6f4f55c41d5ed340d85a8f38174868ac8741387f commit: docs(vnext-014): convergence report, STATE/WBS addenda, VNEXT-015 preparation and audit prompts\nca9b7ea67ce05f1e4f1f9832a5f9c0c188cc72cf commit: fix(knowledge): coordinate same-process readers with atomic replacements to avoid Windows EPERM (VNEXT-014 E01)\nca9b7ea67ce05f1e4f1f9832a5f9c0c188cc72cf commit: fix(knowledge): coordinate same-process readers with atomic replacements to avoid Windows EPERM (VNEXT-014 E01)\n299ad61cf3a78002aa8a12af9a545b83c6ca410b commit: test(mcp): align durable interview deadline with its six child-process budgets (VNEXT-014 E01)\n299ad61cf3a78002aa8a12af9a545b83c6ca410b commit: test(mcp): align durable interview deadline with its six child-process budgets (VNEXT-014 E01)\n3434e4501c007f4ec39fc2293bac867e8b2b29f7 commit: fix(mcp): return specific blocked result when Knowledge write fence is held by another process (VNEXT-014 C01)\n3434e4501c007f4ec39fc2293bac867e8b2b29f7 commit: fix(mcp): return specific blocked result when Knowledge write fence is held by another process (VNEXT-014 C01)\n541c925a6c1194bc2c85ab5a42b2b54e66f4d82c reset: moving to HEAD\n541c925a6c1194bc2c85ab5a42b2b54e66f4d82c branch: Created from origin/feat/qap-vnext-architecture\n541c925a6c1194bc2c85ab5a42b2b54e66f4d82c fetch origin feat/qap-vnext-architecture: fast-forward\n541c925a6c1194bc2c85ab5a42b2b54e66f4d82c \n8f091626825ceb2fa3f1abdfb0732f0f3dad8e9c fetch origin feat/qap-vnext-architecture: fast-forward\n7cfdefca9482b59d0c5606fb70d23903483373f3 update by push\n7cfdefca9482b59d0c5606fb70d23903483373f3 commit: docs(vnext): publish independent rescue acceptance audit and reproductions\ne71818ac6fdaa1847e300a67bd4540fbfbd514c5 checkout: moving from 419fb2fa476e524b5528c2392385b7beabe7711c to e71818ac6fdaa1847e300a67bd4540fbfbd514c5\ne71818ac6fdaa1847e300a67bd4540fbfbd514c5 fetch origin feat/qap-vnext-architecture: fast-forward\n419fb2fa476e524b5528c2392385b7beabe7711c update by push\n419fb2fa476e524b5528c2392385b7beabe7711c commit: docs(vnext): publish independent R4-R12 expiry and replay audit\n7ccf3db1a6f259f6a5c51521518bbb399a13fda2 checkout: moving from e3a95d408882e222e0211a43c1a6cea80fa49306 to 7ccf3db1a6f259f6a5c51521518bbb399a13fda2\n7ccf3db1a6f259f6a5c51521518bbb399a13fda2 fetch origin feat/qap-vnext-architecture: fast-forward\ne3a95d408882e222e0211a43c1a6cea80fa49306 update by push\ne3a95d408882e222e0211a43c1a6cea80fa49306 commit: docs(vnext): publish independent R4-R11 concurrency audit\n4bb22547349a407b1eeb2383e6981af5dd1db07a checkout: moving from 741b02561ca959a31f5b010a921923cbea4dbcac to 4bb22547349a407b1eeb2383e6981af5dd1db07a\n4bb22547349a407b1eeb2383e6981af5dd1db07a fetch origin feat/qap-vnext-architecture: fast-forward\n741b02561ca959a31f5b010a921923cbea4dbcac update by push\n741b02561ca959a31f5b010a921923cbea4dbcac commit: docs(vnext): publish independent R4-R10 audit on feature branch\n0e5825cfd256065e532f45a171f9a0dc74116615 update by push\n0e5825cfd256065e532f45a171f9a0dc74116615 commit: docs(vnext): publish independent R4-R10 audit on develop\n1a909d346ab75537e6dc59e44deb422c3016ffb4 \n1a909d346ab75537e6dc59e44deb422c3016ffb4 fetch origin develop: fast-forward\ne7d3717d9311ed73736568b13ce99e131d617453 \ne7d3717d9311ed73736568b13ce99e131d617453 fetch origin feat/qap-vnext-architecture: fast-forward\n05c0253b90c179612a166f1d98702efd14f99be7 update by push\n05c0253b90c179612a166f1d98702efd14f99be7 commit: docs(vnext): publish independent R4-R9 audit and conditional NO-GO\n09c9ce276c9c328026de4236dadf0a85d8e94d21 \n09c9ce276c9c328026de4236dadf0a85d8e94d21 fetch origin feat/qap-vnext-architecture: fast-forward\n4829a7d4af869f29f1d4c9b2d2d4124a3796b2ca update by push\n4829a7d4af869f29f1d4c9b2d2d4124a3796b2ca commit: docs(vnext): audit R4-R8 deferred approvals and residual race\n44c69f826a0599eeee400ff413ae9faedeeecd75 \n44c69f826a0599eeee400ff413ae9faedeeecd75 fetch origin feat/qap-vnext-architecture: fast-forward\ned2955ff91a6506a80e3ff0e4bb9322cf9eed226 merge ed2955ff91a6506a80e3ff0e4bb9322cf9eed226: Fast-forward\ned2955ff91a6506a80e3ff0e4bb9322cf9eed226 merge ed2955ff91a6506a80e3ff0e4bb9322cf9eed226: Fast-forward\ned2955ff91a6506a80e3ff0e4bb9322cf9eed226 fetch origin feat/qap-vnext-architecture: fast-forward\n22387b77162da984f9cfb167a93580219f1f9fff merge 22387b77162da984f9cfb167a93580219f1f9fff: Fast-forward\n22387b77162da984f9cfb167a93580219f1f9fff merge 22387b77162da984f9cfb167a93580219f1f9fff: Fast-forward\n22387b77162da984f9cfb167a93580219f1f9fff fetch origin feat/qap-vnext-architecture: fast-forward\n49aa44a358b288070ff710e64cfa0feae161be67 merge 49aa44a358b288070ff710e64cfa0feae161be67: Fast-forward\n49aa44a358b288070ff710e64cfa0feae161be67 merge 49aa44a358b288070ff710e64cfa0feae161be67: Fast-forward\n49aa44a358b288070ff710e64cfa0feae161be67 fetch origin feat/qap-vnext-architecture: fast-forward\n0016c22b012877817bde6fe153fea2e39dbfb187 merge 0016c22b012877817bde6fe153fea2e39dbfb187: Fast-forward\n0016c22b012877817bde6fe153fea2e39dbfb187 merge 0016c22b012877817bde6fe153fea2e39dbfb187: Fast-forward\n0016c22b012877817bde6fe153fea2e39dbfb187 fetch origin feat/qap-vnext-architecture: fast-forward\n64db3c94b5d261c09ab2d7697759cf63ca005e89 fetch: fast-forward\ne44bbca51e2f35253b5d6cb0faabddde103b2bbc fetch: fast-forward\nd70f46a616447002f96a1dadd6e6f44924b24155 update by push\nd70f46a616447002f96a1dadd6e6f44924b24155 commit: feat(vnext): canonical coverage, gap inventory, and safe module closure (VNEXT-013-R5)\nd70f46a616447002f96a1dadd6e6f44924b24155 commit: feat(vnext): canonical coverage, gap inventory, and safe module closure (VNEXT-013-R5)\n7a906005c98afbdc9623762f1ee4e6035c9a781d update by push\n7a906005c98afbdc9623762f1ee4e6035c9a781d commit: feat(mcp): persist and recover canonical interview drafts\n7a906005c98afbdc9623762f1ee4e6035c9a781d commit: feat(mcp): persist and recover canonical interview drafts\n6568a161d94494cf189775257362b57612e9f9fa update by push\n6568a161d94494cf189775257362b57612e9f9fa commit: feat(mcp): add canonical interviews with host-authorized requirement review\n6568a161d94494cf189775257362b57612e9f9fa commit: feat(mcp): add canonical interviews with host-authorized requirement review",
+    "error": ""
+  }
+}

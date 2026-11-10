@@ -1,0 +1,77 @@
+{
+  "searched_roots": [
+    "C:\\Users\\Judirico\\Documents",
+    "C:\\Users\\Judirico\\Desktop",
+    "C:\\Users\\Judirico\\Downloads",
+    "C:\\Users\\Judirico\\.codex\\worktrees",
+    "C:\\Users\\Judirico\\.gemini\\antigravity\\scratch",
+    "C:\\Users\\Judirico\\.antigravity"
+  ],
+  "qap_checkouts": [
+    {
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audit-r4-r10",
+      "origin": "https://github.com/Hyouka73/QAMCP.git"
+    },
+    {
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audit-r4-r10-docs",
+      "origin": "https://github.com/Hyouka73/QAMCP.git"
+    },
+    {
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audit-r4-r8",
+      "origin": "https://github.com/Hyouka73/QAMCP.git"
+    },
+    {
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audit-r4-r9",
+      "origin": "https://github.com/Hyouka73/QAMCP.git"
+    },
+    {
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\QAMCP",
+      "origin": "https://github.com/Hyouka73/QAMCP.git"
+    },
+    {
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\vnext014-conv",
+      "origin": "https://github.com/Hyouka73/QAMCP.git"
+    },
+    {
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\vnext014-reparacion-audit",
+      "origin": "C:\\Users\\Judirico\\Documents\\QAMCP\\QAMCP"
+    },
+    {
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\worktrees\\mvp01-bva-rbac",
+      "origin": "https://github.com/Hyouka73/QAMCP.git"
+    },
+    {
+      "path": "C:\\Users\\Judirico\\.codex\\worktrees\\dev-mvp-02\\QAMCP",
+      "origin": "https://github.com/Hyouka73/QAMCP.git"
+    },
+    {
+      "path": "C:\\Users\\Judirico\\.codex\\worktrees\\int-03-r5\\QAMCP",
+      "origin": "https://github.com/Hyouka73/QAMCP.git"
+    },
+    {
+      "path": "C:\\Users\\Judirico\\.codex\\worktrees\\int01-mvp-lab\\QAMCP",
+      "origin": "https://github.com/Hyouka73/QAMCP.git"
+    },
+    {
+      "path": "C:\\Users\\Judirico\\.codex\\worktrees\\int03-mvp-fixes\\QAMCP",
+      "origin": "https://github.com/Hyouka73/QAMCP.git"
+    },
+    {
+      "path": "C:\\Users\\Judirico\\.codex\\worktrees\\int03-qa-r1\\QAMCP",
+      "origin": "https://github.com/Hyouka73/QAMCP.git"
+    },
+    {
+      "path": "C:\\Users\\Judirico\\.codex\\worktrees\\int03-r4-consolidated\\mvp01-bva-rbac",
+      "origin": "https://github.com/Hyouka73/QAMCP.git"
+    },
+    {
+      "path": "C:\\Users\\Judirico\\.codex\\worktrees\\mvp-integral\\QAMCP",
+      "origin": "https://github.com/Hyouka73/QAMCP.git"
+    },
+    {
+      "path": "C:\\Users\\Judirico\\.codex\\worktrees\\vnext-015-04\\QAMCP",
+      "origin": "https://github.com/Hyouka73/QAMCP.git"
+    }
+  ],
+  "access_errors": []
+}
