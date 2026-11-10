@@ -81,16 +81,21 @@ export class DiscoveryHandler implements IMcpToolHandler {
         env.entity.environment_id !== bound.environmentId) return blocked('context_incompatible');
       const configurations = this.authorizations.filter(a => realpathSync(a.projectRoot) === root &&
         a.applicationId === bound.applicationId && a.environmentId === bound.environmentId);
-      if (configurations.length !== 1) return blocked('discovery_authorization_required');
+      if (configurations.length !== 1) return result({ status: 'blocked', category: 'human_authorization', code: 'discovery_authorization_required',
+        acquisition_status: 'blocked', acquisition_persistence: 'not_attempted', association_status: 'not_attempted', persistence: 'not_attempted',
+        desbloquear_con: { mecanismo: 'local_host', script: 'scripts/qap-provision-host.mjs',
+          descripcion: 'El operador local debe provisionar el host con la aplicación y URL ya registradas, modules: [], y una discoveryAuthorization explícita para esas URLs. No requiere testAuthorization. El script genera client-config.json privado; aplica esa configuración al cliente y reconecta. Nunca uses argumentos MCP como aprobación administrativa.' } }, true);
       const config = configurations[0];
       if (config.environmentRevision !== env.revision || config.authorization.read_only_acknowledged !== true) return blocked('authorization_context_mismatch');
       const target = resolveTarget(args.path as string, env.entity.base_url);
       if (!target || !config.authorization.navigation_urls.includes(target)) return blocked('url_not_authorized');
       const lifecycle = await new FileSystemStorage({ rootDir: root }).getLifecycleState();
-      if (lifecycle.phase !== 'WORKING') return blocked('phase_restricted', lifecycle.phase === 'ONBOARDING' ? 'qap_context_set' : 'qap_session_plan');
+      const provisional = this.dependencies.provisionalInventory && !bound.moduleBindings?.length &&
+        ['ONBOARDING', 'SCOPING'].includes(lifecycle.phase) && args.name === 'inventario-provisional';
+      if (lifecycle.phase !== 'WORKING' && !provisional) return blocked('phase_restricted', lifecycle.phase === 'ONBOARDING' ? 'qap_context_set' : 'qap_session_plan');
       const module = lifecycle.modules && Object.hasOwn(lifecycle.modules, args.name as string)
         ? lifecycle.modules[args.name as string] : undefined;
-      if (!module || ['closed', 'waived'].includes(module.state)) return blocked('module_restricted', 'qap_session_plan');
+      if (!provisional && (!module || ['closed', 'waived'].includes(module.state))) return blocked('module_restricted', 'qap_session_plan');
       let authenticated_session: BlackBoxCrawlerInput['authenticated_session'];
       if (args.profile !== undefined || lifecycle.session?.auth?.required) {
         if (typeof args.profile !== 'string' || !config.authorizedProfiles?.includes(args.profile)) return blocked('unauthorized_profile');

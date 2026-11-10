@@ -13,7 +13,7 @@ const root = realpathSync(settings.projectRoot), host = realpathSync(hostDirecto
 if (!isAbsolute(settings.projectRoot) || root !== settings.projectRoot || resolve(hostDirectory) !== host ||
     host === root || host.startsWith(root + '/') || host.startsWith(root + String.fromCharCode(92))) throw new Error('Use canonical paths and a separate private host directory');
 for (const field of ['applicationId','applicationName','environmentId','environmentName','baseUrl']) if (typeof settings[field] !== 'string' || !settings[field].trim()) throw new Error('Missing ' + field);
-if (!Array.isArray(settings.modules) || !settings.modules.length || !settings.discoveryAuthorization || !settings.testAuthorization) throw new Error('Explicit module bindings and host navigation policies required');
+if (!Array.isArray(settings.modules)) throw new Error('Explicit module bindings required; use [] before investigation. Navigation policies are optional and never inferred.');
 for (const name of ['knowledge.sqlite','interview.sqlite','closure.sqlite','host.json','secrets.json','client-config.json']) if (existsSync(join(host,name))) throw new Error('Refusing to overwrite existing host data');
 const keys = Object.fromEntries(['REVIEW','INTERVIEW','CLOSURE'].map(name => ['QAP_MCP_' + name + '_KEY_HEX', randomBytes(32).toString('hex')])); keys.QAP_SESSION_KEY = randomBytes(32).toString('hex');
 const at = new Date().toISOString(), app = settings.applicationId;
@@ -35,7 +35,8 @@ new SqliteModuleClosureStore({ ...scope, path: closurePath, key: Buffer.from(key
 const reviews = join(host,'reviews'); mkdirSync(reviews);
 const manifest = { version: 1, ...scope, knowledgeDbPath,
   moduleBindings: settings.modules.map(m => ({ plannedName: m.plannedName, moduleId: m.moduleId, moduleKey: m.moduleKey, moduleRevision: 1, applicationRevision: 1, environmentRevision: 1, provenance: 'host_declared' })),
-  discoveryAuthorization: { ...settings.discoveryAuthorization, environmentRevision: 1 }, testAuthorization: settings.testAuthorization,
+  ...(settings.discoveryAuthorization ? { discoveryAuthorization: { ...settings.discoveryAuthorization, environmentRevision: 1 } } : {}),
+  ...(settings.testAuthorization ? { testAuthorization: settings.testAuthorization } : {}),
   humanReview: { directory: reviews, keyEnv: 'QAP_MCP_REVIEW_KEY_HEX', protection },
   interviewDraft: { dbPath: draftPath, keyEnv: 'QAP_MCP_INTERVIEW_KEY_HEX', protection },
   moduleClosure: { dbPath: closurePath, keyEnv: 'QAP_MCP_CLOSURE_KEY_HEX', protection } };

@@ -33,7 +33,7 @@ export const QAP_CORE_DIRECTIVES =
   '3. No pidas al usuario lo que un documento ya especifica.\n' +
   '4. Pasos de tipo "trabajo" son autónomos: ejecútalos directamente sin consultar al usuario; las acciones que requieren confirmación nunca vienen como trabajo.\n' +
   '5. Máximo una sola pregunta estructurada al usuario por turno.\n' +
-  '6. Si falta navegador, instálalo con el comando indicado como paso de trabajo autónomo. Explora solo con qap_discover.';
+  '6. Navegación, autenticación, instalación y ejecución requieren su autorización correspondiente. Explora solo con qap_discover.';
 
 export interface SiguienteAccion {
   tipo: AccionTipo;
@@ -117,6 +117,7 @@ export function buildInterviewNextAction(params: BuildInterviewActionParams): Si
 }
 
 export interface PhaseGuidanceOptions {
+  investigateBeforeScoping?: boolean;
   context?: CanExitOnboardingContext | null;
   lifecycle?: LifecycleState | null;
   hallazgos?: HallazgosProyectoMin | null;
@@ -143,6 +144,11 @@ export function getPhaseGuidance(
 ): GuidanceResult {
   switch (phase) {
     case 'ONBOARDING': {
+      const configuredUrl = options.environments?.environments && Object.values(options.environments.environments).some(env => Boolean(env.url));
+      if (options.investigateBeforeScoping && configuredUrl && !options.hallazgos?.documentos?.length) {
+        return { fase: 'ONBOARDING', siguiente_accion: { tipo: 'trabajo', tool: 'qap_discover',
+          descripcion: 'Investiga primero la URL registrada con qap_discover (name: inventario-provisional, path: URL registrada), sin exigir módulos, roles ni requisitos. Solo procede con autorización de navegación del host; de lo contrario sigue su acción local de autorización.' } };
+      }
       // E3a: Con fuente declarada e ingerible (existente en workspace) y campos sin propuesta, siguiente_accion es tipo "trabajo"
       const sot = options.context?.source_of_truth;
       const isIngestibleDoc = Boolean(
@@ -212,6 +218,10 @@ export function getPhaseGuidance(
       const hasPlan = Array.isArray(plan) && plan.length > 0;
 
       if (!hasPlan) {
+        if (options.investigateBeforeScoping && !options.moduleCandidates?.length && !options.suggestedModules?.length) {
+          return { fase: 'SCOPING', siguiente_accion: { tipo: 'trabajo', tool: 'qap_discover',
+            descripcion: 'Investiga la aplicación con qap_discover (name: inventario-provisional, path: URL registrada) antes de pedir módulos. Es un inventario provisional, sin crear módulos confirmados. Si falta autorización de navegación, solicita al host esa autorización y conserva el estado.' } };
+        }
         const candidateModules: Array<{ module: string; path: string; flujos?: string[]; id?: string }> = [];
         if (options.moduleCandidates && options.moduleCandidates.length > 0) {
           for (const c of options.moduleCandidates) {

@@ -11,6 +11,7 @@ import {
 } from 'node:fs';
 import { resolve, join, basename, extname } from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -83,8 +84,9 @@ import {
 } from '@qap/reporter';
 
 import { getPhaseGuidance, buildInterviewNextAction, type SiguienteAccion } from './guidance.js';
+import type { WorkspaceBootstrap } from './workspace-bootstrap.js';
 import { loadHostComposition } from './host-composition.js';
-import { ToolDispatcher, type IMcpToolHandler } from './dispatcher.js';
+import { ToolDispatcher, McpToolError, type IMcpToolHandler } from './dispatcher.js';
 import { TOOLS } from './tool-catalog.js';
 import { StatusHandler } from './handlers/status.handler.js';
 import { ContextHandler } from './handlers/context.handler.js';
@@ -225,18 +227,41 @@ const PROMPTS: Prompt[] = [
  * pnpm-workspace.yaml o package.json con "workspaces" (B8).
  */
 export interface McpServerOptions extends StateDependencies {
+  readonly workspaceBootstrap?: WorkspaceBootstrap;
+  readonly clientWorkspaceRoots?: boolean;
   readonly discoveryAuthorizations?: readonly DiscoveryAuthorization[];
   readonly testAuthorizations?: readonly TestNavigationAuthorization[];
   readonly handlers?: readonly IMcpToolHandler[];
 }
 
 export function createMcpServer(options: McpServerOptions = {}): Server {
+  const preparationCommand = `"${process.execPath}" "${fileURLToPath(new URL('../../../scripts/qap-authorize-workspace.mjs', import.meta.url))}" <workspace-absoluto>`;
+  const authorizedRoots = [...(options.projectRoots ?? [process.cwd()])];
+  const workspaceBindings = [...(options.knowledgeBindings ?? [])];
+  const pendingPreparations = new Map<string, Promise<void>>();
   const dependencies: StateDependencies = {
-    projectRoots: Object.freeze([...(options.projectRoots ?? [process.cwd()])]),
-    knowledgeBindings: Object.freeze((options.knowledgeBindings ?? []).map(binding => Object.freeze({ ...binding,
-      moduleBindings: binding.moduleBindings && Object.freeze(binding.moduleBindings.map(link => Object.freeze({ ...link }))),
-    }))),
+    projectRoots: authorizedRoots,
+    knowledgeBindings: workspaceBindings,
+    provisionalInventory: options.provisionalInventory ?? Boolean(options.workspaceBootstrap),
+    prepareWorkspace: options.workspaceBootstrap ? async (root, url) => {
+      const previous = pendingPreparations.get(root) ?? Promise.resolve();
+      const operation = previous.catch(() => undefined).then(async () => {
+        if (workspaceBindings.some(b => realpathSync(b.projectRoot) === root)) return;
+        const bound = await options.workspaceBootstrap!.prepare(root, url);
+        if (bound && !workspaceBindings.some(b => b.projectRoot === root)) {
+          const interview = new CanonicalInterviewService(bound.store, { projectRoot: root,
+            applicationId: bound.applicationId, environmentId: bound.environmentId, moduleBindings: bound.moduleBindings }, undefined, undefined);
+          workspaceBindings.push(bound);
+          interviews.set(root, interview);
+        }
+      });
+      pendingPreparations.set(root, operation);
+      try { await operation; } finally { if (pendingPreparations.get(root) === operation) pendingPreparations.delete(root); }
+    } : undefined,
   };
+  workspaceBindings.splice(0, workspaceBindings.length, ...(options.knowledgeBindings ?? []).map(binding => Object.freeze({ ...binding,
+      moduleBindings: binding.moduleBindings && Object.freeze(binding.moduleBindings.map(link => Object.freeze({ ...link }))),
+    })));
   const interviews = new Map<string, CanonicalInterviewService>();
   const closures = new Map<string, CanonicalClosureService>();
   const interviewBindings = (dependencies.knowledgeBindings ?? []).flatMap(bound => {
@@ -277,6 +302,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         prompts: {},
       },
       instructions: `DIRECTIVAS DE INTERACCIÓN OBLIGATORIAS (QAP v3.0):
+0. Si el usuario dice «Quiero probar un sistema» o quiere probar una aplicación, invoca qap_status inmediatamente. No requiere qap_start. La preparación local segura es automática solo en raíces autorizadas. targetPath nunca concede permisos. No instales, navegues, autentiques ni ejecutes sin autorización correspondiente. Si falta información pregunta una vez; si falta autorización sigue la acción local concreta del host.
 1. RUTA OBJETIVO OBLIGATORIA (targetPath): En TODAS las llamadas a herramientas MCP, envía SIEMPRE la ruta absoluta del workspace del usuario en el parámetro 'targetPath'. NUNCA lo omitas.
 2. PROHIBIDO mostrar tablas markdown de estado, resúmenes de archivos o listas de próximos pasos (1, 2, 3...).
 3. Cuando siguiente_accion trae pregunta, presentala con la herramienta ask_question: UNA sola pregunta por llamada, usando texto, formato y opciones tal cual (no inventes, reordenes ni agregues opciones). Deja siempre disponible la respuesta libre. Si formato es abierta, haz esa unica pregunta en texto y espera. Nunca agrupes varias preguntas en un mensaje ni preguntes algo que siguiente_accion no pidio. Si ask_question no existe en tu cliente, haz la misma pregunta en texto con las opciones numeradas, una a la vez.
@@ -339,10 +365,53 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
     const context = { ...sdkContext, signal: AbortSignal.any([controller.signal, ...(sdkContext.signal ? [sdkContext.signal] : [])]) };
     const operation = (async (): Promise<CallToolResult> => {
     const { name, arguments: rawArgs } = request.params;
+    if (options.clientWorkspaceRoots) {
+      // Roots are an out-of-band client capability, never supplied as tool arguments.
+      try {
+        if (server.getClientCapabilities()?.roots) {
+          const response = await server.listRoots();
+          const roots = response.roots.map(r => {
+            const uri = new URL(r.uri);
+            if (uri.protocol !== 'file:' || (uri.hostname && uri.hostname !== 'localhost')) throw new Error('Invalid root');
+            const path = fileURLToPath(uri);
+            if (resolve(path).toLowerCase() !== realpathSync(path).toLowerCase()) throw new Error('Linked root');
+            return realpathSync(path);
+          });
+          authorizedRoots.splice(0, authorizedRoots.length, ...new Set([...(options.projectRoots ?? []), ...roots]));
+        }
+      } catch { return canonicalResult({ status: 'blocked', category: 'technical_error', code: 'workspace_roots_unavailable', retryable: true }); }
+    }
+    if (options.workspaceBootstrap) {
+      const candidate = rawArgs?.targetPath;
+      const targetPath = typeof candidate === 'string' ? candidate : authorizedRoots.length === 1 ? authorizedRoots[0] : undefined;
+      if (!targetPath) return canonicalResult({ status: 'blocked', category: 'human_authorization', code: 'workspace_selection_required',
+        desbloquear_con: { mecanismo: 'local_host', comando: preparationCommand, descripcion: 'El host debe seleccionar la carpeta autorizada; reintenta qap_status tras reconectar el MCP.' } });
+      try { authorizedProjectRoot({ targetPath }, dependencies, true); }
+      catch (error) {
+        if (!(error instanceof McpToolError) || error.code === 'execution_failed') return canonicalResult({ status: 'blocked', category: 'technical_error', code: 'workspace_inspection_failed', retryable: true });
+        return canonicalResult({ status: 'blocked', category: 'human_authorization', code: 'workspace_authorization_required',
+        desbloquear_con: { mecanismo: 'local_host', comando: preparationCommand, descripcion: 'Autoriza localmente la carpeta y reconecta el MCP. targetPath no concede permiso.' } }); }
+      request.params.arguments = { ...rawArgs, targetPath };
+      if (['qap_status', 'qap_init', 'qap_context_set'].includes(name)) {
+        try {
+          const suppliedUrl = rawArgs?.base_url ?? rawArgs?.environments;
+          const url = name === 'qap_context_set' && typeof suppliedUrl === 'string' ? suppliedUrl : undefined;
+          // Validate before performing any canonical writes.
+          await dependencies.prepareWorkspace!(realpathSync(targetPath), name === 'qap_context_set' && new ContextHandler(dependencies).validateArguments(request.params.arguments) ? url : undefined);
+        } catch { return canonicalResult({ status: 'blocked', category: 'technical_error', code: 'workspace_preparation_failed', retryable: true }); }
+      }
+    }
     if (dispatcher.has(name)) return dispatcher.dispatch(request.params, { requestId: context.requestId, signal: context.signal ?? new AbortController().signal });
+    // Provisioned hosts keep their existing composition, but legacy writers must
+    // obey the same root boundary as migrated handlers. No tool argument grants it.
+    if (!options.workspaceBootstrap && options.projectRoots !== undefined) {
+      try { authorizedProjectRoot(request.params.arguments, dependencies, true); }
+      catch { return canonicalResult({ status: 'blocked', category: 'human_authorization', code: 'workspace_authorization_required',
+        desbloquear_con: { mecanismo: 'local_host', descripcion: 'Selecciona una raíz autorizada por este host. No se amplían los permisos del manifiesto desde argumentos MCP.' } }); }
+    }
     // Legacy invocation boundary; removed incrementally when handlers migrate.
     /* eslint-disable @typescript-eslint/no-base-to-string, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any, @typescript-eslint/require-await, @typescript-eslint/no-unnecessary-type-assertion, @typescript-eslint/no-unsafe-return */
-    const args = (rawArgs || {}) as Record<string, unknown>;
+    const args = (request.params.arguments || {}) as Record<string, unknown>;
     const rootDir = args.targetPath ? resolve(String(args.targetPath)) : process.cwd();
 
     try {
@@ -518,7 +587,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
             lifecycle: currentLifecycle,
           });
 
-          if (!browserCheck.disponible) {
+          if (!browserCheck.disponible && !options.workspaceBootstrap) {
             guidance.siguiente_accion = {
               tipo: 'trabajo',
               comando: PLAYWRIGHT_INSTALL_COMMAND,
@@ -555,7 +624,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
                     },
                     fase: finalPhase,
                     siguiente_accion: guidance.siguiente_accion,
-                    _guidance_for_assistant: !browserCheck.disponible
+                    _guidance_for_assistant: !browserCheck.disponible && !options.workspaceBootstrap
                       ? `Ejecuta '${PLAYWRIGHT_INSTALL_COMMAND}' sin consultar al usuario.`
                       : `Fase actual: ${finalPhase}. Siguiente acción: ${guidance.siguiente_accion.descripcion}`,
                   },
@@ -568,6 +637,8 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         }
 
         case 'qap_auth_add': {
+          if (options.workspaceBootstrap) return canonicalResult({ status: 'blocked', category: 'human_authorization', code: 'authentication_authorization_required',
+            desbloquear_con: { mecanismo: 'local_host', descripcion: 'El host debe configurar una política explícita de autenticación mediante la provisión local segura antes de iniciar login. La URL y las credenciales enviadas no conceden ese permiso.' } });
           const profileId = String(args.profile || args.id || 'default');
           const env = String(args.env || 'local');
           const username = String(args.username || 'user');

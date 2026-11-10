@@ -32,6 +32,9 @@ export interface ProjectKnowledgeBinding {
   readonly moduleClosureStore?: IModuleClosureStore;
 }
 export interface StateDependencies {
+  /** Host capability; no MCP argument can install or grant it. */
+  readonly prepareWorkspace?: (root: string, url?: string) => Promise<void>;
+  readonly provisionalInventory?: boolean;
   /** Internal host runtime, never tool arguments. */
   readonly canonicalInterviews?: ReadonlyMap<string, CanonicalInterviewService>;
   readonly canonicalClosures?: ReadonlyMap<string, CanonicalClosureService>;

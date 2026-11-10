@@ -2,6 +2,7 @@ import { existsSync, lstatSync, readFileSync, realpathSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, isAbsolute, resolve } from 'node:path';
 import { URL } from 'node:url';
+import { homedir } from 'node:os';
 
 import { SqliteKnowledgeAdapter } from '@qap/knowledge';
 
@@ -12,6 +13,7 @@ import type { DiscoveryAuthorization } from './handlers/discovery.handler.js';
 import { SqliteModuleClosureStore } from './handlers/module-closure-store.js';
 import type { ModuleBinding } from './handlers/module-observation-bridge.js';
 import type { McpServerOptions } from './server.js';
+import { WorkspaceBootstrap } from './workspace-bootstrap.js';
 
 /**
  * Opt-in Stdio composition. The manifest comes from the HOST environment, never
@@ -89,8 +91,8 @@ function secret(env: NodeJS.ProcessEnv, name: unknown): Buffer {
 }
 
 function declaredModules(value: unknown): ModuleBinding[] {
-  if (!Array.isArray(value) || value.length === 0 || value.length > 256) {
-    throw new Error('Host must explicitly declare one or more module bindings.');
+  if (!Array.isArray(value) || value.length > 256) {
+    throw new Error('Host must explicitly declare module bindings (empty for provisional inventory).');
   }
   const modules: ModuleBinding[] = [];
   const names = new Set<string>();
@@ -218,13 +220,22 @@ function testPolicy(input: unknown, projectRoot: string): TestNavigationAuthoriz
     ...(Array.isArray(input.authorizedProfiles) ? { authorizedProfiles: input.authorizedProfiles.map(value => requiredText(value, 'authorizedProfiles')) } : {}) };
 }
 
-/** No manifest means legacy-only startup; malformed opt-in ALWAYS fails startup. */
+/** No manifest enables root-authorized local bootstrap. Malformed opt-in fails closed. */
 export async function loadHostComposition(
   env: NodeJS.ProcessEnv = process.env
 ): Promise<HostComposition> {
   const manifestPath = env.QAP_MCP_HOST_CONFIG_PATH;
   if (manifestPath === undefined) {
-    return { options: {}, close() { /* No host-owned resources. */ } };
+    const directory = resolve(env.QAP_MCP_WORKSPACE_HOST_DIR ?? resolve(homedir(), '.qap', 'workspaces'));
+    const bootstrap = new WorkspaceBootstrap(directory);
+    const registry = resolve(directory, 'authorized-roots.json');
+    const roots: string[] = [];
+    if (existsSync(registry)) {
+      const values: unknown = JSON.parse(readFileSync(existingFile(registry, 'workspace registry'), 'utf8'));
+      if (!Array.isArray(values) || values.some(value => typeof value !== 'string' || !isAbsolute(value) || realpathSync(value) !== value)) throw new Error('Invalid workspace registry');
+      roots.push(...values as string[]);
+    }
+    return { options: { projectRoots: roots, workspaceBootstrap: bootstrap, clientWorkspaceRoots: true }, close() { bootstrap.close(); } };
   }
   const path = existingFile(manifestPath, 'manifest');
   const payload: unknown = JSON.parse(readFileSync(path, 'utf8'));
@@ -312,6 +323,7 @@ export async function loadHostComposition(
     return {
       options: {
         projectRoots: [root],
+        provisionalInventory: modules.length === 0,
         ...(testAuthorization ? { testAuthorizations: [testAuthorization] } : {}),
         knowledgeBindings: [{
           ...scope, store, moduleBindings: modules, interviewDraftStore, moduleClosureStore,

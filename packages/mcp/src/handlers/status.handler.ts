@@ -71,6 +71,28 @@ export class StatusHandler implements IMcpToolHandler {
     const text = legacy.content[0];
     if (text.type !== 'text') return legacy;
     const payload = JSON.parse(text.text) as Record<string, unknown>;
+    if (this.dependencies.prepareWorkspace && payload.fase === 'ONBOARDING') {
+      const contextFile = join(rootDir, '.qa', 'project', 'context.yaml');
+      const context = existsSync(contextFile) ? readContext(contextFile) : null;
+      const docs = (payload.scan as { documentos?: Array<{ path: string }> } | undefined)?.documentos ?? [];
+      const service = payload.detectedService as { url?: string } | undefined;
+      const bound = binding(rootDir, this.dependencies);
+      const application = bound ? await bound.store.get(bound.applicationId, 'application', bound.applicationId) : undefined;
+      if (!context?.base_url && application?.entity.base_url) {
+        payload.siguiente_accion = { tipo: 'trabajo', tool: 'qap_context_set', argumentos: { targetPath: rootDir, base_url: application.entity.base_url, source: 'inferred' },
+          descripcion: 'Recupera la ubicación ya registrada desde Knowledge con los argumentos indicados. No vuelvas a preguntar su URL; esto no autoriza navegación.' };
+      } else if (!context?.base_url && !service?.url && docs.length === 0) {
+        const texto = '¿Dónde está el sistema que quieres probar? Puedes proporcionarme su URL o indicarme un proyecto local';
+        payload.siguiente_accion = { tipo: 'entrevista', descripcion: texto, tool: 'qap_context_set', pregunta: {
+          id: 'onboarding.system_location', texto, render_texto: texto, formato: 'abierta', opciones: [], permite_otra: true,
+          registrar_con: { tool: 'qap_context_set', campo: 'base_url' },
+        } };
+        payload._guidance_for_assistant = texto + '. Si indica otro proyecto local, primero resuelve su raíz autorizada con qap_status. Nunca uses una ruta local como base_url.';
+        payload.onboarding = { category: 'missing_information', terminal: false, inventory: 'provisional', application_registered: false };
+      } else if (docs.length > 0 && !context?.source_of_truth?.declared) {
+        payload.siguiente_accion = { tipo: 'trabajo', tool: 'qap_context_ingest', descripcion: `Lee '${docs[0].path}' e ingiere únicamente propuestas con evidencia antes de preguntar. No confirma requisitos ni módulos.` };
+      }
+    }
     const nextAction = payload.siguiente_accion as SiguienteAccion | undefined;
     // Never recommend qap_session_close based only on the legacy lifecycle:
     // the actual session-close gate also requires every bound canonical module
@@ -105,7 +127,7 @@ export class StatusHandler implements IMcpToolHandler {
       } satisfies SiguienteAccion;
       payload._guidance_for_assistant = description;
     }
-    return result({ ...payload, knowledge, canonical_modules: canonicalModules,
+    return result({ ...payload, knowledge: this.dependencies.prepareWorkspace && knowledge.state === 'unbound' ? { state: 'prepared', context_present: false, next: 'await_application_location' } : knowledge, canonical_modules: canonicalModules,
       canonical_bridge: { absence_does_not_imply_no_observations: true, coverage: 'partial', human_review_required: true },
       integration: { ...discoveryIntegration, module_association: 'inspect_canonical_modules' }, provenance: { knowledge: 'IKnowledgeStore', onboarding: 'legacy_files', hallazgos_workspace: 'workspace_inspection', preflight: 'runtime' }, coverage: 'partial_inventory_not_test_verdicts' });
   }
@@ -402,7 +424,9 @@ export class StatusHandler implements IMcpToolHandler {
       } catch { /* empty */ }
     }
 
+    const currentKnowledge = this.dependencies.provisionalInventory ? await knowledgeStatus(rootDir, this.dependencies) : undefined;
     const guidance = getPhaseGuidance(currentPhase, {
+      investigateBeforeScoping: this.dependencies.provisionalInventory && !(currentKnowledge && 'counts' in currentKnowledge && (currentKnowledge.counts.observation?.available ?? 0) > 0),
       faltantes,
       plan: lifecycleState.session?.plan,
       modules: modulesGuidance,
@@ -416,7 +440,7 @@ export class StatusHandler implements IMcpToolHandler {
       profiles: profilesList,
     });
 
-    if (!browserCheck.disponible) {
+    if (!browserCheck.disponible && !this.dependencies.prepareWorkspace) {
       guidance.siguiente_accion = installAccion;
     }
 

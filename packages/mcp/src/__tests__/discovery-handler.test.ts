@@ -89,6 +89,16 @@ async function invoke(client: Client, root: string, name: string, args: Record<s
 }
 
 describe('VNEXT-013 real MCP black-box acquisition', () => {
+  it('P0: explicitly authorized provisional inventory observes before modules are known', async () => {
+    const f = await fixture('<html><body><h1>Inventory</h1></body></html>');
+    writeFileSync(f.lifecyclePath, JSON.stringify({ ...f.lifecycle, phase: 'SCOPING', modules: {}, session: { ...f.lifecycle.session, plan: [] } }));
+    const client = await connect({ ...f.options, provisionalInventory: true });
+    const data = await call(client, f.root, { name: 'inventario-provisional' });
+    expect(f.hits.length).toBeGreaterThan(0);
+    expect(data.acquisition_persistence).toBe('committed');
+    expect(data.confirmed_relations).toBe(0);
+    expect((await f.store.query('a', 'module', { limit: 100 })).items).toHaveLength(0);
+  });
   it('R3: unauthorized disposable root is a scoped block, not a fabricated browser outage', async () => {
     const root = mkdtempSync(join(tmpdir(), 'qap-discovery-denied-'));
     roots.push(root);

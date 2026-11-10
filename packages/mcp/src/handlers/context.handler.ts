@@ -496,6 +496,7 @@ export class ContextHandler implements IMcpToolHandler {
     hallazgos.servicios = serviciosConEvidencia;
 
     const guidance = getPhaseGuidance(finalPhase, {
+      investigateBeforeScoping: this.dependencies.provisionalInventory,
       faltantes: gateRes.faltantes,
       hallazgos,
       context: existingContext,
