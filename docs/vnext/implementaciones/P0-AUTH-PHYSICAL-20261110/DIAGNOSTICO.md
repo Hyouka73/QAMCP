@@ -28,7 +28,7 @@ Códigos: `workspace_path_invalid`, `workspace_authorizer_not_configured`, `work
 
 Los diagnósticos quedan en `~/.qap/diagnostics/<pid>-<uuid>/authorization.jsonl`. En Windows cada carpeta nueva elimina herencia y concede acceso al SID del usuario y SYSTEM; si falla la protección, no se escribe el contenido a stderr como alternativa. Se registran etapas, rutas, PID, códigos de salida y tipos/HResult de error del script; no credenciales, entorno completo ni trazas arbitrarias. En POSIX se usan modos 0700/0600.
 
-PowerShell se lanza en STA, sin consola visible; la ventana WinForms sigue siendo la interfaz interactiva. Escape/cierre son cancelación; solo el botón Rechazar produce rechazo; el temporizador produce expiración. Un fallo PowerShell con exit 1 nunca constituye consentimiento ni rechazo humano.
+PowerShell se lanza en STA y sin ocultar las ventanas del proceso. Escape/cierre son cancelación; solo el botón Rechazar produce rechazo; el temporizador produce expiración. Un fallo PowerShell con exit 1 nunca constituye consentimiento ni rechazo humano.
 
 ## Modelo de confianza
 

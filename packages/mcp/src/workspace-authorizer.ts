@@ -188,8 +188,8 @@ export class WindowsInteractiveWorkspaceAuthorizer implements IWorkspaceAuthoriz
 
       const child = spawn(
         powershellExe,
-        ['-NoProfile', '-NonInteractive', '-STA', '-WindowStyle', 'Hidden', '-ExecutionPolicy', 'Bypass', '-File', this.scriptPath, '-CanonicalPath', request.canonicalPath],
-        { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true },
+        ['-NoProfile', '-NonInteractive', '-STA', '-ExecutionPolicy', 'Bypass', '-File', this.scriptPath, '-CanonicalPath', request.canonicalPath],
+        { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: false },
       );
       authorizationDiagnostic('dialog_spawn', { childPid: child.pid, scriptPath: this.scriptPath, targetPath: request.canonicalPath });
 
