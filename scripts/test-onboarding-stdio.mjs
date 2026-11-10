@@ -36,7 +36,7 @@ let client;
 try {
   client = await open(false);
   const denied = await call(client, 'qap_status');
-  assert.equal(denied.code, 'workspace_authorization_required');
+  assert.equal(denied.code, 'workspace_authorizer_not_configured');
   assert(!existsSync(join(workspace, '.qa')));
   evidence.results.push('No roots: targetPath cannot authorize writes');
   await client.close();

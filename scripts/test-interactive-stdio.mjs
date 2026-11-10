@@ -71,7 +71,7 @@ try {
 
   // Test 1: Workspace A is not authorized initially
   const call1 = await call(client, 'qap_status', { targetPath: wsA });
-  assert.equal(call1.data.code, 'workspace_authorization_required');
+  assert.equal(call1.data.code, 'workspace_authorizer_not_configured');
   assert.equal(existsSync(join(wsA, '.qa')), false);
   evidence.results.push('1. Un-authorized workspace blocked over Stdio');
 
@@ -97,7 +97,7 @@ try {
 
   // Test 5: Workspace B remains strictly un-authorized
   const callB1 = await call(client, 'qap_status', { targetPath: wsB });
-  assert.equal(callB1.data.code, 'workspace_authorization_required');
+  assert.equal(callB1.data.code, 'workspace_authorizer_not_configured');
   assert.equal(existsSync(join(wsB, '.qa')), false);
   evidence.results.push('4. Workspace B is isolated and un-authorized');
 

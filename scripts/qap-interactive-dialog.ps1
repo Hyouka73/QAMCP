@@ -20,22 +20,60 @@ trap {
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
+try {
+  if (-not ([System.Management.Automation.PSTypeName]'QapDialogWindowUtils').Type) {
+    Add-Type @'
+using System;
+using System.Runtime.InteropServices;
+public class QapDialogWindowUtils {
+    [DllImport("user32.dll")]
+    public static extern bool SetForegroundWindow(IntPtr hWnd);
+    [DllImport("user32.dll")]
+    public static extern bool BringWindowToTop(IntPtr hWnd);
+    [DllImport("user32.dll")]
+    public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
+    [DllImport("user32.dll")]
+    public static extern void SwitchToThisWindow(IntPtr hWnd, bool fAltTab);
+}
+'@
+  }
+} catch {}
+
 if (-not [System.Windows.Forms.SystemInformation]::UserInteractive -or [System.Diagnostics.Process]::GetCurrentProcess().SessionId -eq 0) {
   Write-Output "UNAVAILABLE"
   exit 3
 }
+
+[System.Windows.Forms.Application]::EnableVisualStyles()
 
 $decision = "CANCELLED"
 
 $form = New-Object System.Windows.Forms.Form
 $form.Text = "QAP — Autorización de Workspace"
 $form.Size = New-Object System.Drawing.Size(560, 430)
-$form.StartPosition = "CenterScreen"
-$form.TopMost = $true
 $form.FormBorderStyle = "FixedDialog"
 $form.MaximizeBox = $false
 $form.MinimizeBox = $false
 $form.ShowInTaskbar = $true
+$form.TopMost = $true
+$form.WindowState = [System.Windows.Forms.FormWindowState]::Normal
+
+# Position dialog on active monitor (where operator mouse or focus resides)
+$targetScreen = [System.Windows.Forms.Screen]::PrimaryScreen
+try {
+  $cursorPos = [System.Windows.Forms.Cursor]::Position
+  $screenFromCursor = [System.Windows.Forms.Screen]::FromPoint($cursorPos)
+  if ($screenFromCursor) {
+    $targetScreen = $screenFromCursor
+  }
+} catch {}
+
+$wa = $targetScreen.WorkingArea
+$form.StartPosition = [System.Windows.Forms.FormStartPosition]::Manual
+$form.Location = New-Object System.Drawing.Point(
+  ($wa.Left + [Math]::Max(0, [int](($wa.Width - 560) / 2))),
+  ($wa.Top + [Math]::Max(0, [int](($wa.Height - 430) / 2)))
+)
 
 # Header Label
 $header = New-Object System.Windows.Forms.Label
@@ -106,7 +144,21 @@ $form.Controls.Add($btnReject)
 # Closing or pressing Escape is cancellation, never a human rejection.
 $form.KeyPreview = $true
 $form.Add_KeyDown({ if ($_.KeyCode -eq 'Escape') { $form.Close() } })
-$form.Add_Shown({ [Console]::Error.WriteLine('QAP_DIALOG_SHOWN'); $form.Activate() })
+$form.Add_Shown({
+  [Console]::Error.WriteLine('QAP_DIALOG_SHOWN')
+  try {
+    # Force top-most and bring to foreground across virtual desktops/displays
+    # HWND_TOPMOST = -1, SWP_NOSIZE = 0x0001, SWP_NOMOVE = 0x0002, SWP_SHOWWINDOW = 0x0040
+    [QapDialogWindowUtils]::SetWindowPos($form.Handle, [IntPtr](-1), 0, 0, 0, 0, 0x0043)
+    [QapDialogWindowUtils]::SetForegroundWindow($form.Handle)
+    [QapDialogWindowUtils]::BringWindowToTop($form.Handle)
+    [QapDialogWindowUtils]::SwitchToThisWindow($form.Handle, $true)
+  } catch {}
+  $form.BringToFront()
+  $form.Activate()
+  $form.Focus()
+  try { [System.Media.SystemSounds]::Asterisk.Play() } catch {}
+})
 
 # Safety timeout of 120 seconds if unattended
 $timeoutSec = 120
