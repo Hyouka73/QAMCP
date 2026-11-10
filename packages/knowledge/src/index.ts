@@ -30,6 +30,7 @@ export * from './storage/sqlite-knowledge-adapter.js';
 export * from './inference/knowledge-inference-engine.js';
 export * from './impact/impact-analyzer.js';
 export * from './impact/knowledge-impact-reader.js';
+export * from './impact/flow-impact.js';
 
 export * from './plan/bva-generator.js';
 export * from './plan/rbac-generator.js';
