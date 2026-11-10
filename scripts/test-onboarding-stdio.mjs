@@ -16,7 +16,7 @@ const open = async roots => {
   const client = new Client({ name: 'QAP-synthetic-stdio-regression', version: '1' }, { capabilities: roots ? { roots: { listChanged: true } } : {} });
   if (roots) client.setRequestHandler(ListRootsRequestSchema, () => ({ roots: [{ uri: pathToFileURL(workspace).href }] }));
   const transport = new StdioClientTransport({ command: process.execPath, args: [join(repo, 'packages/mcp/dist/server.js')], cwd: repo,
-    env: { ...process.env, QAP_MCP_HOST_CONFIG_PATH: undefined, QAP_MCP_WORKSPACE_HOST_DIR: host }, stderr: 'pipe' });
+    env: { ...process.env, QAP_MCP_HOST_CONFIG_PATH: undefined, QAP_MCP_WORKSPACE_HOST_DIR: host, QAP_DISABLE_INTERACTIVE_AUTH: '1' }, stderr: 'pipe' });
   transport.stderr?.on('data', () => {});
   await client.connect(transport);
   return client;

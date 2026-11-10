@@ -6,13 +6,13 @@ const UX_DIRECTIVE = 'DIRECTIVA DE UX ESTRICTA: Guía al usuario paso a paso int
 
 const TARGET_PATH_PROP = {
   type: 'string',
-  description: 'Ruta absoluta del workspace. No concede autorización: debe pertenecer a raíces autorizadas por el cliente o el host. En modo autónomo, omitir solo cuando haya una única raíz autorizada.',
+  description: 'Ruta absoluta del proyecto objetivo sobre el cual operar. Si se omite, usa process.cwd()',
 };
 
 export const TOOLS: Tool[] = [
   {
     name: 'qap_status',
-    description: `PUNTO DE ENTRADA OBLIGATORIO para «Quiero probar un sistema», probar una aplicación o empezar QA, incluso desde una carpeta vacía. Invócala inmediatamente sin exigir qap_start ni configuración técnica al usuario. Resuelve raíces autorizadas, prepara estructuras locales seguras, inspecciona documentos y devuelve una única siguiente acción. Información faltante y trabajo local no son errores terminales. No autoriza navegación, login, instalación, ejecución ni aprobación humana.\n\n${QAP_CORE_DIRECTIVES}`,
+    description: `PUNTO DE ENTRADA OBLIGATORIO: Invoca esta herramienta INMEDIATAMENTE cuando el usuario quiera probar su app, testear un proyecto o empezar con QAP. Analiza el repo y el preflight del navegador (Playwright), y devuelve exactamente la pregunta y opciones que debes presentar con ask_question. Si falta navegador, ejecuta la instalación como paso de trabajo autónomo. QAP observa la app con su propio navegador mediante qap_discover; no uses navegadores ni herramientas de otros servidores MCP ni del IDE para explorarla (no se persistiría conocimiento en .qa).\n\n${QAP_CORE_DIRECTIVES}`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -22,7 +22,7 @@ export const TOOLS: Tool[] = [
   },
   {
     name: 'qap_init',
-    description: `Inicialización compatible de .qa/ dentro de un workspace autorizado. El punto de entrada natural es qap_status, que prepara automáticamente los recursos locales seguros. No otorga permisos para instalación, navegación, login ni ejecución. ${UX_DIRECTIVE}\n\n${QAP_CORE_DIRECTIVES}`,
+    description: `Inicializa la arquitectura canónica .qa/ y configuraciones base en el proyecto actual, verificando el preflight del navegador y escaneando rutas en repo-map.json. Si falta navegador, ejecuta 'npx playwright install chromium' como paso de trabajo autónomo. QAP observa la app con su propio navegador mediante qap_discover; no uses navegadores ni herramientas de otros servidores MCP ni del IDE para explorarla (no se persistiría conocimiento en .qa). ${UX_DIRECTIVE}\n\n${QAP_CORE_DIRECTIVES}`,
     inputSchema: {
       type: 'object',
       properties: {

@@ -14,6 +14,7 @@ import { SqliteModuleClosureStore } from './handlers/module-closure-store.js';
 import type { ModuleBinding } from './handlers/module-observation-bridge.js';
 import type { McpServerOptions } from './server.js';
 import { WorkspaceBootstrap } from './workspace-bootstrap.js';
+import { WindowsInteractiveWorkspaceAuthorizer } from './workspace-authorizer.js';
 
 /**
  * Opt-in Stdio composition. The manifest comes from the HOST environment, never
@@ -235,7 +236,19 @@ export async function loadHostComposition(
       if (!Array.isArray(values) || values.some(value => typeof value !== 'string' || !isAbsolute(value) || realpathSync(value) !== value)) throw new Error('Invalid workspace registry');
       roots.push(...values as string[]);
     }
-    return { options: { projectRoots: roots, workspaceBootstrap: bootstrap, clientWorkspaceRoots: true }, close() { bootstrap.close(); } };
+    const authorizer = (process.platform === 'win32' && !env.QAP_DISABLE_INTERACTIVE_AUTH && env.NODE_ENV !== 'test')
+      ? new WindowsInteractiveWorkspaceAuthorizer()
+      : undefined;
+    return {
+      options: {
+        projectRoots: roots,
+        workspaceBootstrap: bootstrap,
+        clientWorkspaceRoots: true,
+        workspaceAuthorizer: authorizer,
+        hostRegistryPath: registry,
+      },
+      close() { bootstrap.close(); },
+    };
   }
   const path = existingFile(manifestPath, 'manifest');
   const payload: unknown = JSON.parse(readFileSync(path, 'utf8'));

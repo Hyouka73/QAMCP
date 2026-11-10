@@ -33,7 +33,7 @@ export const QAP_CORE_DIRECTIVES =
   '3. No pidas al usuario lo que un documento ya especifica.\n' +
   '4. Pasos de tipo "trabajo" son autónomos: ejecútalos directamente sin consultar al usuario; las acciones que requieren confirmación nunca vienen como trabajo.\n' +
   '5. Máximo una sola pregunta estructurada al usuario por turno.\n' +
-  '6. Navegación, autenticación, instalación y ejecución requieren su autorización correspondiente. Explora solo con qap_discover.';
+  '6. Si falta navegador, instálalo con el comando indicado como paso de trabajo autónomo. Explora solo con qap_discover.';
 
 export interface SiguienteAccion {
   tipo: AccionTipo;

@@ -85,6 +85,12 @@ import {
 
 import { getPhaseGuidance, buildInterviewNextAction, type SiguienteAccion } from './guidance.js';
 import type { WorkspaceBootstrap } from './workspace-bootstrap.js';
+import {
+  validateCandidateWorkspace,
+  syncAuthorizedRootsFromDisk,
+  atomicRecordAuthorizedRoot,
+  type IWorkspaceAuthorizer,
+} from './workspace-authorizer.js';
 import { loadHostComposition } from './host-composition.js';
 import { ToolDispatcher, McpToolError, type IMcpToolHandler } from './dispatcher.js';
 import { TOOLS } from './tool-catalog.js';
@@ -232,6 +238,8 @@ export interface McpServerOptions extends StateDependencies {
   readonly discoveryAuthorizations?: readonly DiscoveryAuthorization[];
   readonly testAuthorizations?: readonly TestNavigationAuthorization[];
   readonly handlers?: readonly IMcpToolHandler[];
+  readonly workspaceAuthorizer?: IWorkspaceAuthorizer;
+  readonly hostRegistryPath?: string;
 }
 
 export function createMcpServer(options: McpServerOptions = {}): Server {
@@ -381,16 +389,69 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         }
       } catch { return canonicalResult({ status: 'blocked', category: 'technical_error', code: 'workspace_roots_unavailable', retryable: true }); }
     }
+    if (options.hostRegistryPath) {
+      syncAuthorizedRootsFromDisk(options.hostRegistryPath, authorizedRoots);
+    }
     if (options.workspaceBootstrap) {
       const candidate = rawArgs?.targetPath;
-      const targetPath = typeof candidate === 'string' ? candidate : authorizedRoots.length === 1 ? authorizedRoots[0] : undefined;
+      let targetPath = typeof candidate === 'string' ? candidate : authorizedRoots.length === 1 ? authorizedRoots[0] : undefined;
       if (!targetPath) return canonicalResult({ status: 'blocked', category: 'human_authorization', code: 'workspace_selection_required',
         desbloquear_con: { mecanismo: 'local_host', comando: preparationCommand, descripcion: 'El host debe seleccionar la carpeta autorizada; reintenta qap_status tras reconectar el MCP.' } });
-      try { authorizedProjectRoot({ targetPath }, dependencies, true); }
-      catch (error) {
-        if (!(error instanceof McpToolError) || error.code === 'execution_failed') return canonicalResult({ status: 'blocked', category: 'technical_error', code: 'workspace_inspection_failed', retryable: true });
-        return canonicalResult({ status: 'blocked', category: 'human_authorization', code: 'workspace_authorization_required',
-        desbloquear_con: { mecanismo: 'local_host', comando: preparationCommand, descripcion: 'Autoriza localmente la carpeta y reconecta el MCP. targetPath no concede permiso.' } }); }
+      let isAuthorized = false;
+      try {
+        authorizedProjectRoot({ targetPath }, dependencies, true);
+        isAuthorized = true;
+      } catch (error) {
+        if (!(error instanceof McpToolError) || error.code === 'execution_failed') {
+          return canonicalResult({ status: 'blocked', category: 'technical_error', code: 'workspace_inspection_failed', retryable: true });
+        }
+      }
+      if (!isAuthorized) {
+        let canonicalTarget: string;
+        try {
+          canonicalTarget = validateCandidateWorkspace(targetPath, options.workspaceBootstrap.directory);
+        } catch {
+          return canonicalResult({ status: 'blocked', category: 'human_authorization', code: 'workspace_authorization_required',
+            desbloquear_con: { mecanismo: 'local_host', comando: preparationCommand, descripcion: 'Autoriza localmente la carpeta y reconecta el MCP. targetPath no concede permiso.' } });
+        }
+        if (options.workspaceAuthorizer) {
+          const authResult = await options.workspaceAuthorizer.requestAuthorization(
+            { requestedPath: targetPath, canonicalPath: canonicalTarget },
+            context.signal
+          );
+          if (authResult.decision === 'approved') {
+            const compare = (p: string) => (process.platform === 'win32' ? p.toLowerCase() : p);
+            if (!authorizedRoots.some(r => compare(r) === compare(authResult.root))) {
+              authorizedRoots.push(authResult.root);
+            }
+            if (options.hostRegistryPath) {
+              atomicRecordAuthorizedRoot(options.hostRegistryPath, authResult.root);
+            }
+            targetPath = authResult.root;
+          } else if (authResult.decision === 'rejected') {
+            return canonicalResult({
+              status: 'blocked',
+              category: 'human_authorization',
+              code: 'workspace_authorization_rejected',
+              mensaje: 'La autorización del workspace fue rechazada por el operador local.',
+              desbloquear_con: {
+                mecanismo: 'local_host',
+                descripcion: 'El operador local rechazó la autorización para este directorio. Si deseas utilizarlo, autorízalo localmente mediante el mecanismo del host.',
+              },
+            });
+          } else {
+            return canonicalResult({
+              status: 'blocked',
+              category: 'human_authorization',
+              code: 'workspace_authorization_required',
+              desbloquear_con: { mecanismo: 'local_host', comando: preparationCommand, descripcion: 'Autoriza localmente la carpeta y reconecta el MCP. targetPath no concede permiso.' },
+            });
+          }
+        } else {
+          return canonicalResult({ status: 'blocked', category: 'human_authorization', code: 'workspace_authorization_required',
+            desbloquear_con: { mecanismo: 'local_host', comando: preparationCommand, descripcion: 'Autoriza localmente la carpeta y reconecta el MCP. targetPath no concede permiso.' } });
+        }
+      }
       request.params.arguments = { ...rawArgs, targetPath };
       if (['qap_status', 'qap_init', 'qap_context_set'].includes(name)) {
         try {

@@ -17,3 +17,5 @@ export { SqliteInterviewDraftStore, InterviewDraftError, type IInterviewDraftSto
 export { HostReviewQueue } from './host-review.js';
 
 export { SqliteModuleClosureStore } from './handlers/module-closure-store.js';
+
+export * from './workspace-authorizer.js';
