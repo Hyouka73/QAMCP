@@ -15,6 +15,10 @@ import type { ModuleBinding } from './handlers/module-observation-bridge.js';
 import type { McpServerOptions } from './server.js';
 import { WorkspaceBootstrap } from './workspace-bootstrap.js';
 import { WindowsInteractiveWorkspaceAuthorizer } from './workspace-authorizer.js';
+import {
+  WindowsInteractiveDiscoveryAuthorizer,
+  loadDiscoveryAuthorizationsFromDisk,
+} from './discovery-authorizer.js';
 import { authorizationDiagnostic } from './authorization-diagnostics.js';
 
 /**
@@ -231,18 +235,27 @@ export async function loadHostComposition(
     const directory = resolve(env.QAP_MCP_WORKSPACE_HOST_DIR ?? resolve(homedir(), '.qap', 'workspaces'));
     const bootstrap = new WorkspaceBootstrap(directory);
     const registry = resolve(directory, 'authorized-roots.json');
+    const discoveryRegistry = resolve(directory, 'discovery-authorizations.json');
     const roots: string[] = [];
     if (existsSync(registry)) {
       const values: unknown = JSON.parse(readFileSync(existingFile(registry, 'workspace registry'), 'utf8'));
       if (!Array.isArray(values) || values.some(value => typeof value !== 'string' || !isAbsolute(value) || realpathSync(value) !== value)) throw new Error('Invalid workspace registry');
       roots.push(...values as string[]);
     }
-    const authorizer = (process.platform === 'win32' && !env.QAP_DISABLE_INTERACTIVE_AUTH && env.NODE_ENV !== 'test')
+    const isWindowsInteractive = process.platform === 'win32' && !env.QAP_DISABLE_INTERACTIVE_AUTH && env.NODE_ENV !== 'test';
+    const authorizer = isWindowsInteractive
       ? new WindowsInteractiveWorkspaceAuthorizer()
       : undefined;
+    const discoveryAuthorizer = isWindowsInteractive
+      ? new WindowsInteractiveDiscoveryAuthorizer()
+      : undefined;
+    const persistedDiscoveryAuthorizations = existsSync(discoveryRegistry)
+      ? loadDiscoveryAuthorizationsFromDisk(discoveryRegistry)
+      : [];
     authorizationDiagnostic('host_composition', {
       build: process.env.QAP_BUILD_REVISION ?? 'development',
       authorizer: authorizer ? 'WindowsInteractiveWorkspaceAuthorizer' : 'unconfigured',
+      discoveryAuthorizer: discoveryAuthorizer ? 'WindowsInteractiveDiscoveryAuthorizer' : 'unconfigured',
       disabledByFlag: Boolean(env.QAP_DISABLE_INTERACTIVE_AUTH), testEnvironment: env.NODE_ENV === 'test', manifest: false,
     });
     return {
@@ -252,6 +265,9 @@ export async function loadHostComposition(
         clientWorkspaceRoots: true,
         workspaceAuthorizer: authorizer,
         hostRegistryPath: registry,
+        discoveryAuthorizer,
+        hostDiscoveryRegistryPath: discoveryRegistry,
+        discoveryAuthorizations: persistedDiscoveryAuthorizations,
       },
       close() { bootstrap.close(); },
     };

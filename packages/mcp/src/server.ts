@@ -91,6 +91,7 @@ import {
   atomicRecordAuthorizedRoot,
   type IWorkspaceAuthorizer,
 } from './workspace-authorizer.js';
+import type { IDiscoveryAuthorizer } from './discovery-authorizer.js';
 import { loadHostComposition } from './host-composition.js';
 import { authorizationDiagnostic } from './authorization-diagnostics.js';
 import { ToolDispatcher, McpToolError, type IMcpToolHandler } from './dispatcher.js';
@@ -241,6 +242,8 @@ export interface McpServerOptions extends StateDependencies {
   readonly handlers?: readonly IMcpToolHandler[];
   readonly workspaceAuthorizer?: IWorkspaceAuthorizer;
   readonly hostRegistryPath?: string;
+  readonly discoveryAuthorizer?: IDiscoveryAuthorizer;
+  readonly hostDiscoveryRegistryPath?: string;
 }
 
 export function createMcpServer(options: McpServerOptions = {}): Server {
@@ -293,7 +296,12 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
   dispatcher.register(new StatusHandler({ ...runtimeDependencies, browser: checkPlaywrightBrowser, view: buildViewDiscoveryContext }));
   dispatcher.register(new CleanHandler(dependencies));
   dispatcher.register(new ContextHandler(dependencies));
-  dispatcher.register(new DiscoveryHandler(dependencies, options.discoveryAuthorizations));
+  dispatcher.register(new DiscoveryHandler(
+    dependencies,
+    options.discoveryAuthorizations,
+    options.discoveryAuthorizer,
+    options.hostDiscoveryRegistryPath,
+  ));
   dispatcher.register(new PlanHandler(dependencies));
   dispatcher.register(new TestHandler(dependencies, options.testAuthorizations));
   dispatcher.register(new ReportHandler(dependencies));
@@ -3895,7 +3903,12 @@ export async function startMcpServer(options?: McpServerOptions): Promise<void> 
     };
     const transport = new StdioServerTransport();
     await server.connect(transport);
-    console.error('[QAP MCP Server] Stdio ready', { pid: process.pid, build: process.env.QAP_BUILD_REVISION ?? 'development', interactive_authorizer: Boolean(composition.options.workspaceAuthorizer) });
+    console.error('[QAP MCP Server] Stdio ready', {
+      pid: process.pid,
+      build: process.env.QAP_BUILD_REVISION ?? 'development',
+      interactive_authorizer: Boolean(composition.options.workspaceAuthorizer),
+      interactive_discovery_authorizer: Boolean(composition.options.discoveryAuthorizer),
+    });
   } catch (error) {
     composition.close();
     throw error;

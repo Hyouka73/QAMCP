@@ -6,6 +6,11 @@ import { BlackBoxCrawler, BlackBoxCrawlerError, type BlackBoxCrawlerInput, type 
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
 import { McpToolError, type IMcpToolHandler, type McpInvocationContext } from '../dispatcher.js';
+import {
+  type IDiscoveryAuthorizer,
+  syncDiscoveryAuthorizationsFromDisk,
+  atomicRecordDiscoveryAuthorization,
+} from '../discovery-authorizer.js';
 
 import { binding, definition, isObject, projectRoot, result, validateBase, type StateDependencies } from './state-services.js';
 import { discoveryIntegration } from './legacy-discovery-contract.js';
@@ -31,7 +36,7 @@ function resolveTarget(path: string, base: string): string | undefined {
     const absolute = /^[a-z][a-z\d+.-]*:/i.test(path);
     const url = new URL(path, base);
     if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) return;
-    if (absolute && url.href !== path) return;
+    if (absolute && url.href !== path && url.href !== path + '/') return;
     if (!absolute && (!path.startsWith('/') && path.includes(':'))) return;
     return url.href;
   } catch { return; }
@@ -39,8 +44,18 @@ function resolveTarget(path: string, base: string): string | undefined {
 
 export class DiscoveryHandler implements IMcpToolHandler {
   readonly definition = definition('qap_discover');
-  private readonly authorizations: readonly DiscoveryAuthorization[];
-  constructor(private readonly dependencies: StateDependencies, authorizations: readonly DiscoveryAuthorization[] = []) {
+  private readonly authorizations: DiscoveryAuthorization[];
+  private readonly authorizer?: IDiscoveryAuthorizer;
+  private readonly hostDiscoveryRegistryPath?: string;
+
+  constructor(
+    private readonly dependencies: StateDependencies,
+    authorizations: readonly DiscoveryAuthorization[] = [],
+    authorizer?: IDiscoveryAuthorizer,
+    hostDiscoveryRegistryPath?: string,
+  ) {
+    this.authorizer = authorizer;
+    this.hostDiscoveryRegistryPath = hostDiscoveryRegistryPath;
     // Preserve resolver callbacks, but snapshot all mutable host policy structures.
     this.authorizations = authorizations.map(a => ({ ...a, authorization: structuredClone(a.authorization),
       authorizedProfiles: a.authorizedProfiles && [...a.authorizedProfiles], limits: a.limits && { ...a.limits }, dependencies: a.dependencies && {
@@ -79,16 +94,232 @@ export class DiscoveryHandler implements IMcpToolHandler {
       const env = await bound.store.get(bound.applicationId, 'environment', bound.environmentId);
       if (!app || !env || app.entity.application_id !== bound.applicationId || env.entity.application_id !== bound.applicationId ||
         env.entity.environment_id !== bound.environmentId) return blocked('context_incompatible');
-      const configurations = this.authorizations.filter(a => realpathSync(a.projectRoot) === root &&
-        a.applicationId === bound.applicationId && a.environmentId === bound.environmentId);
-      if (configurations.length !== 1) return result({ status: 'blocked', category: 'human_authorization', code: 'discovery_authorization_required',
-        acquisition_status: 'blocked', acquisition_persistence: 'not_attempted', association_status: 'not_attempted', persistence: 'not_attempted',
-        desbloquear_con: { mecanismo: 'local_host', script: 'scripts/qap-provision-host.mjs',
-          descripcion: 'El operador local debe provisionar el host con la aplicación y URL ya registradas, modules: [], y una discoveryAuthorization explícita para esas URLs. No requiere testAuthorization. El script genera client-config.json privado; aplica esa configuración al cliente y reconecta. Nunca uses argumentos MCP como aprobación administrativa.' } }, true);
-      const config = configurations[0];
-      if (config.environmentRevision !== env.revision || config.authorization.read_only_acknowledged !== true) return blocked('authorization_context_mismatch');
       const target = resolveTarget(args.path as string, env.entity.base_url);
-      if (!target || !config.authorization.navigation_urls.includes(target)) return blocked('url_not_authorized');
+      if (this.hostDiscoveryRegistryPath) {
+        syncDiscoveryAuthorizationsFromDisk(this.hostDiscoveryRegistryPath, this.authorizations);
+      }
+
+      const configurations = this.authorizations.filter(a => {
+        try {
+          return realpathSync(a.projectRoot) === root &&
+            a.applicationId === bound.applicationId &&
+            a.environmentId === bound.environmentId;
+        } catch {
+          return false;
+        }
+      });
+
+      let config: DiscoveryAuthorization | undefined;
+
+      if (configurations.length === 1) {
+        config = configurations[0];
+        if (config.environmentRevision !== env.revision || config.authorization.read_only_acknowledged !== true) {
+          return blocked('authorization_context_mismatch');
+        }
+        if (!target) return blocked('url_not_authorized');
+        if (!config.authorization.navigation_urls.includes(target)) {
+          if (!this.authorizer) {
+            return blocked('url_not_authorized');
+          }
+          // Dynamic prompt for new URL within existing authorized context
+          const defaultLimits: NonNullable<BlackBoxCrawlerInput['limits']> = {
+            max_pages: config.limits?.max_pages ?? 10,
+            max_depth: config.limits?.max_depth ?? 2,
+            total_timeout_ms: config.limits?.total_timeout_ms ?? 60_000,
+            navigation_timeout_ms: config.limits?.navigation_timeout_ms ?? 15_000,
+            max_requests: config.limits?.max_requests ?? 50,
+            max_bytes: config.limits?.max_bytes ?? 10_485_760,
+            max_redirects: config.limits?.max_redirects ?? 5,
+            max_elements: config.limits?.max_elements ?? 200,
+          };
+          const authResult = await this.authorizer.requestAuthorization({
+            projectRoot: root,
+            applicationId: bound.applicationId,
+            environmentId: bound.environmentId,
+            environmentRevision: env.revision,
+            baseUrl: env.entity.base_url,
+            targetUrl: target,
+            limits: defaultLimits,
+          }, context.signal).catch(() => ({ decision: 'unavailable' as const, code: 'discovery_dialog_start_failed' as const, reason: 'Dialog launch failed.' }));
+
+          if (authResult.decision === 'approved') {
+            if (!config.authorization.navigation_urls.includes(target)) {
+              (config.authorization.navigation_urls as string[]).push(target);
+            }
+            if (this.hostDiscoveryRegistryPath) {
+              atomicRecordDiscoveryAuthorization(this.hostDiscoveryRegistryPath, config);
+            }
+          } else if (authResult.decision === 'rejected') {
+            return result({
+              status: 'blocked',
+              category: 'human_authorization',
+              code: 'discovery_authorization_rejected',
+              acquisition_status: 'blocked',
+              acquisition_persistence: 'not_attempted',
+              association_status: 'not_attempted',
+              persistence: 'not_attempted',
+              mensaje: 'La autorización de navegación exploratoria fue rechazada por el operador local.',
+              next_safe_action: 'Continuar con investigación documental offline cuando sea posible; la navegación externa permanece bloqueada.',
+              desbloquear_con: {
+                mecanismo: 'local_host',
+                descripcion: 'El operador local rechazó la autorización para navegar en este origen. Continúa con investigación offline o solicita autorización cuando el operador lo determine.',
+              },
+            }, true);
+          } else if (authResult.decision === 'cancelled') {
+            return result({
+              status: 'blocked',
+              category: 'human_authorization',
+              code: authResult.code ?? 'discovery_authorization_cancelled',
+              acquisition_status: 'blocked',
+              acquisition_persistence: 'not_attempted',
+              association_status: 'not_attempted',
+              persistence: 'not_attempted',
+              mensaje: authResult.code === 'discovery_authorization_expired'
+                ? 'La solicitud de autorización de navegación exploratoria expiró tras 120 segundos sin respuesta.'
+                : 'La solicitud de autorización de navegación exploratoria fue cancelada o cerrada por el operador.',
+              next_safe_action: 'Reintentar qap_discover cuando el operador esté listo para responder en la interfaz del host.',
+              desbloquear_con: {
+                mecanismo: 'local_host',
+                descripcion: 'La solicitud se canceló o expiró. Reintenta qap_discover cuando el operador esté presente para autorizar la navegación.',
+              },
+            }, true);
+          } else {
+            return result({
+              status: 'blocked',
+              category: 'human_authorization',
+              code: authResult.code ?? 'discovery_gui_unavailable',
+              acquisition_status: 'blocked',
+              acquisition_persistence: 'not_attempted',
+              association_status: 'not_attempted',
+              persistence: 'not_attempted',
+              next_safe_action: 'Revisar la sesión de escritorio interactiva y los diagnósticos locales del host.',
+              desbloquear_con: {
+                mecanismo: 'local_host',
+                descripcion: 'El host no pudo mostrar el diálogo de autorización interactivo. Revisa la sesión de escritorio interactiva.',
+              },
+            }, true);
+          }
+        }
+      } else {
+        if (!target) return blocked('url_not_authorized');
+        if (this.authorizer) {
+          const defaultLimits: NonNullable<BlackBoxCrawlerInput['limits']> = {
+            max_pages: 10,
+            max_depth: 2,
+            total_timeout_ms: 60_000,
+            navigation_timeout_ms: 15_000,
+            max_requests: 50,
+            max_bytes: 10_485_760,
+            max_redirects: 5,
+            max_elements: 200,
+          };
+          const authResult = await this.authorizer.requestAuthorization({
+            projectRoot: root,
+            applicationId: bound.applicationId,
+            environmentId: bound.environmentId,
+            environmentRevision: env.revision,
+            baseUrl: env.entity.base_url,
+            targetUrl: target,
+            limits: defaultLimits,
+          }, context.signal).catch(() => ({ decision: 'unavailable' as const, code: 'discovery_dialog_start_failed' as const, reason: 'Dialog launch failed.' }));
+
+          if (authResult.decision === 'approved') {
+            const newAuth: DiscoveryAuthorization = {
+              projectRoot: root,
+              applicationId: bound.applicationId,
+              environmentId: bound.environmentId,
+              environmentRevision: env.revision,
+              authorization: {
+                read_only_acknowledged: true,
+                navigation_urls: [target],
+                allow_public_network: true,
+              },
+              limits: defaultLimits,
+            };
+            this.authorizations.push(newAuth);
+            config = newAuth;
+            if (this.hostDiscoveryRegistryPath) {
+              atomicRecordDiscoveryAuthorization(this.hostDiscoveryRegistryPath, newAuth);
+            }
+          } else if (authResult.decision === 'rejected') {
+            return result({
+              status: 'blocked',
+              category: 'human_authorization',
+              code: 'discovery_authorization_rejected',
+              acquisition_status: 'blocked',
+              acquisition_persistence: 'not_attempted',
+              association_status: 'not_attempted',
+              persistence: 'not_attempted',
+              mensaje: 'La autorización de navegación exploratoria fue rechazada por el operador local.',
+              next_safe_action: 'Continuar con investigación documental offline cuando sea posible; la navegación externa permanece bloqueada.',
+              desbloquear_con: {
+                mecanismo: 'local_host',
+                descripcion: 'El operador local rechazó la autorización para navegar en este origen. Continúa con investigación offline o solicita autorización cuando el operador lo determine.',
+              },
+            }, true);
+          } else if (authResult.decision === 'cancelled') {
+            return result({
+              status: 'blocked',
+              category: 'human_authorization',
+              code: authResult.code ?? 'discovery_authorization_cancelled',
+              acquisition_status: 'blocked',
+              acquisition_persistence: 'not_attempted',
+              association_status: 'not_attempted',
+              persistence: 'not_attempted',
+              mensaje: authResult.code === 'discovery_authorization_expired'
+                ? 'La solicitud de autorización de navegación exploratoria expiró tras 120 segundos sin respuesta.'
+                : 'La solicitud de autorización de navegación exploratoria fue cancelada o cerrada por el operador.',
+              next_safe_action: 'Reintentar qap_discover cuando el operador esté listo para responder en la interfaz del host.',
+              desbloquear_con: {
+                mecanismo: 'local_host',
+                descripcion: 'La solicitud se canceló o expiró. Reintenta qap_discover cuando el operador esté presente para autorizar la navegación.',
+              },
+            }, true);
+          } else {
+            return result({
+              status: 'blocked',
+              category: 'human_authorization',
+              code: authResult.code ?? 'discovery_gui_unavailable',
+              acquisition_status: 'blocked',
+              acquisition_persistence: 'not_attempted',
+              association_status: 'not_attempted',
+              persistence: 'not_attempted',
+              next_safe_action: 'Revisar la sesión de escritorio interactiva y los diagnósticos locales del host.',
+              desbloquear_con: {
+                mecanismo: 'local_host',
+                descripcion: 'El host no pudo mostrar el diálogo de autorización interactivo. Revisa la sesión de escritorio interactiva.',
+              },
+            }, true);
+          }
+        } else {
+          return result({
+            status: 'blocked',
+            category: 'human_authorization',
+            code: 'discovery_authorization_required',
+            acquisition_status: 'blocked',
+            acquisition_persistence: 'not_attempted',
+            association_status: 'not_attempted',
+            persistence: 'not_attempted',
+            desbloquear_con: {
+              mecanismo: 'local_host',
+              script: 'scripts/qap-provision-host.mjs',
+              descripcion: 'El operador local debe provisionar el host con la aplicación y URL ya registradas, modules: [], y una discoveryAuthorization explícita para esas URLs. No requiere testAuthorization. El script genera client-config.json privado; aplica esa configuración al cliente y reconecta. Nunca uses argumentos MCP como aprobación administrativa.',
+            },
+          }, true);
+        }
+      }
+
+      if (!config) {
+        return result({
+          status: 'blocked',
+          category: 'human_authorization',
+          code: 'discovery_authorization_required',
+          acquisition_status: 'blocked',
+          acquisition_persistence: 'not_attempted',
+          association_status: 'not_attempted',
+          persistence: 'not_attempted',
+        }, true);
+      }
       const lifecycle = await new FileSystemStorage({ rootDir: root }).getLifecycleState();
       const provisional = this.dependencies.provisionalInventory && !bound.moduleBindings?.length &&
         ['ONBOARDING', 'SCOPING'].includes(lifecycle.phase) && args.name === 'inventario-provisional';
