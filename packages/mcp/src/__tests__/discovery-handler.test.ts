@@ -131,7 +131,7 @@ describe('VNEXT-013 real MCP black-box acquisition', () => {
     expect(await invoke(client, f.root, 'qap_module_close', { module: 'catalog', action: 'close', user_confirmed: true, accept_gaps: true, accept_gaps_reason: 'Aceptación sintética explícita de brechas' }))
       .toMatchObject({ status: 'blocked', code: 'legacy_interview_unavailable' });
     expect(await invoke(client, f.root, 'qap_session_close')).toMatchObject({ status: 'blocked' });
-    expect(await invoke(client, f.root, 'qap_status')).toMatchObject({ fase: 'WORKING', integration: { discovery_advances_lifecycle: false, canonical_interview: 'unavailable' } });
+    expect(await invoke(client, f.root, 'qap_status')).toMatchObject({ fase: 'WORKING', integration: { discovery_advances_lifecycle: false, canonical_interview: 'qap_rules_set.canonical_interview' } });
     expect(readFileSync(f.lifecyclePath, 'utf8')).toBe(before);
     expect(existsSync(join(f.root, '.qa', 'modules', 'catalog'))).toBe(false);
     expect((await f.store.query('a', 'observation', { limit: 100 })).items).toHaveLength(6);
@@ -144,7 +144,7 @@ describe('VNEXT-013 real MCP black-box acquisition', () => {
     const before = readFileSync(f.lifecyclePath, 'utf8'); const client = await connect(f.options);
     expect(await invoke(client, f.root, 'qap_status')).toMatchObject({
       siguiente_accion: { tipo: 'trabajo', tool: 'qap_status' },
-      integration: { canonical_interview: 'unavailable' },
+      integration: { canonical_interview: 'qap_rules_set.canonical_interview' },
     });
     expect(await invoke(client, f.root, 'qap_rules_set', { module: 'catalog', rules: [] }))
       .toMatchObject({ status: 'blocked', code: 'legacy_interview_unavailable' });
@@ -288,7 +288,7 @@ describe('VNEXT-013 real MCP black-box acquisition', () => {
     expect(await call(await connect(f.options), f.root)).toMatchObject({ code: 'authorization_context_mismatch' });
     f.authorization.authorization.read_only_acknowledged = true;
     writeFileSync(f.lifecyclePath, JSON.stringify({ ...f.lifecycle, session: { ...f.lifecycle.session, auth: { required: true } } }));
-    expect(await call(await connect(f.options), f.root)).toMatchObject({ code: 'authentication_not_supported' });
+    expect(await call(await connect(f.options), f.root)).toMatchObject({ code: 'unauthorized_profile' });
     writeFileSync(f.lifecyclePath, JSON.stringify({ ...f.lifecycle, modules: { catalog: { state: 'closed' } } }));
     expect(await call(await connect(f.options), f.root)).toMatchObject({ code: 'module_restricted' }); expect(f.hits).toEqual([]);
     expect(await call(await connect(f.options), f.root, { name: 'toString' })).toMatchObject({ code: 'module_restricted' });

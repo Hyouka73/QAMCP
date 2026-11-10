@@ -932,7 +932,7 @@ export class CanonicalClosureService {
 
   private async requestGatewayDecision(
     request: ModuleClosureReviewRequest
-  ): Promise<ModuleClosureReviewDecision | { readonly status: 'blocked'; readonly code: string; readonly razon: string }> {
+  ): Promise<ModuleClosureReviewDecision | { readonly status: 'blocked'; readonly code: string; readonly razon: string; readonly review_request_digest?: string }> {
     if (!this.gateway) {
       return {
         status: 'blocked',
@@ -946,6 +946,7 @@ export class CanonicalClosureService {
       return {
         status: 'blocked',
         code: 'closure_review_pending',
+        review_request_digest: request.requestDigest,
         razon: 'La revisión humana de cierre del host no ha emitido una autorización o está pendiente.',
       };
     }

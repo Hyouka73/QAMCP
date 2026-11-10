@@ -300,7 +300,7 @@ export class CanonicalInterviewService {
       if (!this.gateway) return blocked('human_review_gateway_required');
       let decision: HumanReviewDecision | null;
       try { decision = await this.gateway.review(structuredClone(request)); } catch { return blocked('human_review_unavailable'); }
-      if (!decision) return blocked('human_review_not_authorized');
+      if (!decision) return { ...blocked('human_review_not_authorized'), review_request_digest: request.requestDigest };
       decision = structuredClone(decision);
       const now = Date.now(), at = Date.parse(decision.decidedAt), expiry = Date.parse(decision.expiresAt);
       if (decision.requestDigest !== request.requestDigest || decision.presentedStatementDigest !== request.statementDigest ||

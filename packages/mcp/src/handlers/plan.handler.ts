@@ -18,6 +18,7 @@ import {
   type McpInvocationContext,
 } from '../dispatcher.js';
 
+import { caseWorkflow } from './case-workflow.js';
 import {
   definition,
   isObject,
@@ -31,6 +32,7 @@ export interface PlanArguments {
   targetPath?: string;
   module: string;
   environment?: string;
+  case_workflow?: unknown;
 }
 
 export interface PlanMatrixPersisted {
@@ -515,7 +517,7 @@ export class PlanHandler implements IMcpToolHandler {
 
   validateArguments(args: unknown): boolean {
     if (!isObject(args)) return false;
-    if (!validateBase(args, ['targetPath', 'module', 'environment'])) return false;
+    if (!validateBase(args, ['targetPath', 'module', 'environment', 'case_workflow'])) return false;
     if (
       typeof args.module !== 'string' ||
       !args.module.trim() ||
@@ -544,7 +546,7 @@ export class PlanHandler implements IMcpToolHandler {
       throw new McpToolError('cancelled');
     }
 
-    const args = raw as PlanArguments;
+    const args = raw as unknown as PlanArguments;
 
     // 1. Path resolution, strict write authorization, symlink/junction & hardlink rejection
     let rootDir: string;
@@ -561,6 +563,10 @@ export class PlanHandler implements IMcpToolHandler {
         ? args.environment.trim()
         : 'local';
 
+    if (args.case_workflow !== undefined) {
+      const value = await caseWorkflow(rootDir, moduleName, args.case_workflow, this.dependencies);
+      return result(value, value.status === 'blocked');
+    }
     const storage = new FileSystemStorage({ rootDir });
 
     // 3. Module registration validation

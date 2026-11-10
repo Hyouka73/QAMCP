@@ -54,7 +54,10 @@ export class BlackBoxCrawler {
       !/^[a-zA-Z0-9_.:-]{1,128}$/.test(input.application_id) ||
       !/^[a-zA-Z0-9_.:-]{1,128}$/.test(input.environment.environment_id) ||
       input.authorization?.read_only_acknowledged !== true ||
-      (input.isolation !== undefined && input.isolation !== 'fresh_anonymous_static') ||
+      (input.isolation !== undefined && !['fresh_anonymous_static', 'fresh_authenticated_static'].includes(input.isolation)) ||
+      ((input.isolation === 'fresh_authenticated_static') !== !!input.authenticated_session) ||
+      (input.authenticated_session !== undefined && (!input.authenticated_session.cookies?.length ||
+        !input.authenticated_session.validation_selector || input.authenticated_session.origin !== new URL(input.environment.base_url).origin)) ||
       (input.tls_ca !== undefined && (typeof input.tls_ca !== 'string' || input.tls_ca.length > 65536)) ||
       (input.environment.rate_limit_ms !== undefined && (!Number.isSafeInteger(input.environment.rate_limit_ms) ||
         input.environment.rate_limit_ms < 0 || input.environment.rate_limit_ms > 60000))) throw new BlackBoxCrawlerError('INVALID_INPUT');
@@ -72,7 +75,7 @@ export class BlackBoxCrawler {
     const started = Date.now();
     const signal = AbortSignal.any([AbortSignal.timeout(limits.total_timeout_ms), ...(request.signal ? [request.signal] : [])]);
     const result: BlackBoxCrawlerResult = { execution_id: randomUUID(), status: 'indeterminate',
-      mode: 'fresh_anonymous_static', routes: [], views: [], relations: [], observations: [], evidence: [],
+      mode: input.authenticated_session ? 'fresh_authenticated_static' : 'fresh_anonymous_static', routes: [], views: [], relations: [], observations: [], evidence: [],
       derived_entities_deferred: true,
       warnings: ['STATIC_MODE_NO_APPLICATION_JAVASCRIPT', 'NO_GENERAL_BROWSER_SSRF_CERTIFICATION',
         'EXTERNAL_RESOURCES_FRAMES_DOWNLOADS_BLOCKED', 'ROUTE_REFERENCES_ARE_OPAQUE_PER_EXECUTION',
@@ -92,7 +95,7 @@ export class BlackBoxCrawler {
       }
       return found;
     };
-    const authorize = (url: URL) => { scope.authorize(url); if (!safeNavigation(url)) throw new ReconnaissanceError('SCOPE_BLOCKED'); };
+    const authorize = (url: URL) => { scope.authorize(url); if (input.authenticated_session && url.origin !== input.authenticated_session.origin) throw new ReconnaissanceError('SCOPE_BLOCKED'); if (!safeNavigation(url)) throw new ReconnaissanceError('SCOPE_BLOCKED'); };
     const queue = [{ url: target.href, depth: 0 }];
     const enqueued = new Set([target.href]);
     const attempted = new Set<string>();
@@ -150,7 +153,7 @@ export class BlackBoxCrawler {
             authorize(current);
             if (navigationSignal.aborted) throw new ReconnaissanceError('TIMEOUT');
             if (result.budget.requests && input.environment.rate_limit_ms) await delay(input.environment.rate_limit_ms, undefined, { signal: navigationSignal });
-            capture = await acquire(current, scope, recon, transportLimits, result.budget, navigationSignal);
+            capture = await acquire(current, scope, recon, transportLimits, result.budget, navigationSignal, undefined, input.authenticated_session);
             route.http_status = capture.status;
             if (capture.issue) throw new ReconnaissanceError(capture.issue);
             if (![301, 302, 303, 307, 308].includes(capture.status)) break;
@@ -173,6 +176,10 @@ export class BlackBoxCrawler {
           navigationSignal.addEventListener('abort', stopNavigation, { once: true });
           await page.goto(current.href, { waitUntil: 'domcontentloaded', timeout: limits.navigation_timeout_ms });
           if (navigationSignal.aborted || page.url() !== current.href) throw new ReconnaissanceError('TIMEOUT');
+          if (input.authenticated_session && (await page.locator('input[type="password"]').count() > 0 ||
+            await page.locator(input.authenticated_session.validation_selector).count() === 0)) {
+            route.state = 'blocked'; route.reason = 'AUTH_SESSION_INVALID'; result.warnings.push('AUTH_SESSION_INVALID'); break;
+          }
           const dom = await extractDom(page, limits.max_elements);
           if (navigationSignal.aborted) throw new ReconnaissanceError('TIMEOUT');
           const evidenceId = randomUUID();
@@ -261,7 +268,7 @@ export class BlackBoxCrawler {
     const now = new Date().toISOString();
     const evidence: MultimodalEvidenceRef = { id: evidenceId, kind: 'dom_snippet',
       uri: `urn:qap:crawler:${result.execution_id}:${evidenceId}`, pii_masked: true, captured_at: now,
-      session_id: result.execution_id, metadata: { source: 'static_dom_structure', view: structuredClone(view) } };
+      session_id: result.execution_id, metadata: { source: 'static_dom_structure', acquisition_mode: result.mode, ...(input.authenticated_session ? { auth_profile_id: input.authenticated_session.profile_id } : {}), view: structuredClone(view) } };
     result.evidence.push(evidence);
     const base = { application_id: input.application_id, environment_id: input.environment.environment_id,
       observed_by: 'crawler' as const, observed_at: now, session_id: result.execution_id, evidence };
@@ -279,7 +286,7 @@ export class BlackBoxCrawler {
     if (await this.context(input) !== context) throw new BlackBoxCrawlerError('CONTEXT_CHANGED');
     const trace: KnowledgeTrace = { source: 'blackbox_crawler', recorded_by: 'crawler',
       recorded_at: new Date().toISOString(), reason: 'Authorized static DOM observation', review: 'unreviewed',
-      environment_id: input.environment.environment_id, evidence_refs: [] };
+      environment_id: input.environment.environment_id, ...(input.authenticated_session ? { auth_profile_id: input.authenticated_session.profile_id } : {}), evidence_refs: [] };
     const writes: KnowledgeWrite[] = result.evidence.map(entity => ({ kind: 'evidence', entity, expected_revision: 0, trace }));
     for (const entity of result.observations) writes.push({ kind: 'observation', entity, expected_revision: 0,
       trace: { ...trace, evidence_refs: [{ kind: 'evidence', id: entity.evidence.id, revision: 1 }] } });

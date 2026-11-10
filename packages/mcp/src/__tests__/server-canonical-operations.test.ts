@@ -52,21 +52,18 @@ describe('Suite MCP Server QAP v2.1 / v2.1.2', () => {
     expect(savedPlan.cases_fingerprint).toMatch(/^[a-f0-9]{64}$/);
 
     const run = await f.call('qap_test', { module: 'catalog' });
-    expect(run).toMatchObject({ status: 'success', result: 'passed',
-      summary: { total: 1, passed: 1, failed: 0 } });
-    const executionId = (run as unknown as { execution_id?: string }).execution_id;
-    expect(executionId).toEqual(expect.any(String));
-    if (typeof executionId !== 'string') throw new Error('Missing real execution id');
-    const saved = JSON.parse(readFileSync(join(f.root, '.qa', 'executions', `${executionId}.json`), 'utf8'));
-    expect(saved).toMatchObject({ result: 'passed' });
-    const evidenceBefore = readdirSync(join(f.root, '.qa', 'executions'));
+    // Canonical projects can no longer execute handwritten cases without a confirmed rule/oracle.
+    expect(run).toMatchObject({ status: 'blocked', code: 'confirmed_oracle_required' });
+    const executions = join(f.root, '.qa', 'executions');
+    const evidenceBefore = existsSync(executions) ? readdirSync(executions) : [];
+    expect(evidenceBefore).toEqual([]);
 
     // Stale case contents must not execute using the old plan or emit PASS.
     writeFileSync(casePath, YAML.stringify({ ...testCase, name: 'Caso modificado después del plan' }), 'utf8');
     expect(await f.call('qap_test', { module: 'catalog' })).toMatchObject({
       status: 'blocked', code: 'cases_mismatch', desbloquear_con: 'qap_plan',
     });
-    expect(readdirSync(join(f.root, '.qa', 'executions'))).toEqual(evidenceBefore);
+    expect(existsSync(executions) ? readdirSync(executions) : []).toEqual(evidenceBefore);
   });
 
   it('qap_discover: gating por fase y estado de modulo, actualizacion planned -> observed', async () => {

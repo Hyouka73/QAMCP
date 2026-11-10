@@ -125,8 +125,20 @@ describe('real MCP client/server via linked transports', () => {
     const rules = tools.find(tool => tool.name === 'qap_rules_set')!;
     expect(rules.inputSchema.properties?.canonical_interview).toMatchObject({ type: 'object', additionalProperties: false,
       properties: { action: { enum: ['next', 'propose', 'correct', 'review', 'defer', 'resume'] } }, required: ['action'] });
+    expect(tools.find(t => t.name === 'qap_plan')!.inputSchema.properties?.case_workflow).toMatchObject({
+      type: 'object', additionalProperties: false, properties: { action: { enum: ['generate', 'review'] } } });
+    expect(tools.find(t => t.name === 'qap_auth_add')!.inputSchema.properties?.post_login_condition).toMatchObject({
+      type: 'object', required: ['type','value'], properties: { type: { enum: ['selector_present'] } } });
     expect({ tools: tools.map(tool => {
-      if (tool.name === 'qap_discover') return { ...tool, description: oldTools.find(t => t.name === tool.name)!.description };
+      if (tool.name === 'qap_discover') {
+        const prior = oldTools.find(t => t.name === tool.name)!;
+        return { ...tool, description: prior.description, inputSchema: { ...tool.inputSchema,
+          properties: { ...tool.inputSchema.properties, profile: prior.inputSchema.properties?.profile } } };
+      }
+      if (tool.name === 'qap_plan' || tool.name === 'qap_auth_add') {
+        const properties = { ...tool.inputSchema.properties }; delete properties.case_workflow; delete properties.post_login_condition;
+        return { ...tool, description: oldTools.find(t => t.name === tool.name)!.description, inputSchema: { ...tool.inputSchema, properties } };
+      }
       if (tool.name === 'qap_module_close') {
         const properties = { ...tool.inputSchema.properties }; delete properties.canonical_closure;
         return { ...tool, description: oldTools.find(t => t.name === tool.name)!.description,

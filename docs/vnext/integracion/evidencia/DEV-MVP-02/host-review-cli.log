@@ -1,0 +1,175 @@
+{
+  "version": 1,
+  "kind": "requirement",
+  "request": {
+    "projectRoot": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP02\\vertical-complete\\project",
+    "applicationId": "app-r5",
+    "environmentId": "local",
+    "moduleId": "mod-r5",
+    "moduleKey": "smoke",
+    "questionId": "interview:2751ac80b2ab5c0a20644d3fbf25806cfd891b6941b958dcb80e624527f676a9",
+    "context": "a6f3c60e1431f52e6e65f800821da1bf190251eeae7d2b93960cc3aee82e9e39",
+    "statementVersion": 1,
+    "statementDigest": "e1d62f6d28ece0ce9d0583eb937480973a1a938fb2032726ff0058dcc184806b",
+    "requirementId": "requirement:38a0b2ef91ff594d08f93995816e664bded4bd8745bfd7c0e2c5ac1415c56fcf",
+    "expectedRevision": 0,
+    "proposal": {
+      "title": "El módulo muestra su estado al usuario autenticado",
+      "description": "Un usuario de pruebas autenticado debe visualizar el estado Fixture ready dentro del módulo smoke.",
+      "category": "functional",
+      "acceptance_criteria": [
+        "El encabezado #title muestra exactamente Fixture ready."
+      ]
+    },
+    "question": {
+      "category": "proposito",
+      "text": "¿Qué resultado de negocio debe ofrecer este módulo?",
+      "evidenceRefs": []
+    },
+    "requestDigest": "d6d63a828434c4321eda0ce3a3ba028b78ab3f997ff5265717d5a8212b3511b6"
+  }
+}
+Identidad del revisor: Decisión explícita (confirm/reject/defer): Para vincular la decisión, escriba el requestDigest completo presentado: Decisión guardada. Repita la operación MCP pendiente en diez minutos.
+{
+  "version": 1,
+  "kind": "cases",
+  "request": {
+    "projectRoot": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP02\\vertical-complete\\project",
+    "applicationId": "app-r5",
+    "environmentId": "local",
+    "module": "smoke",
+    "context": "a6f3c60e1431f52e6e65f800821da1bf190251eeae7d2b93960cc3aee82e9e39",
+    "requirements": [
+      {
+        "id": "requirement:38a0b2ef91ff594d08f93995816e664bded4bd8745bfd7c0e2c5ac1415c56fcf",
+        "revision": 1,
+        "digest": "d8b14e9f4552e2dbbe3a7dbfe532a5a5f2ed5c3c2a4ba3a3c5fadb9dba45fe6a"
+      },
+      {
+        "id": "requirement:38a0b2ef91ff594d08f93995816e664bded4bd8745bfd7c0e2c5ac1415c56fcf",
+        "revision": 1,
+        "digest": "d8b14e9f4552e2dbbe3a7dbfe532a5a5f2ed5c3c2a4ba3a3c5fadb9dba45fe6a"
+      }
+    ],
+    "cases": [
+      {
+        "_version": "1.0.0",
+        "id": "132f144b-2fc9-4b9d-a8b7-1c2f5ab7b82b",
+        "name": "Estado autenticado correcto",
+        "tags": [
+          "smoke"
+        ],
+        "steps": [
+          {
+            "type": "navigate",
+            "url": "http://127.0.0.1:63023/smoke"
+          },
+          {
+            "type": "assert",
+            "selector": "#title",
+            "assertion_type": "equals",
+            "expected": "Fixture ready",
+            "timeout": 1000
+          },
+          {
+            "type": "screenshot"
+          }
+        ],
+        "source_rule_id": "requirement:38a0b2ef91ff594d08f93995816e664bded4bd8745bfd7c0e2c5ac1415c56fcf",
+        "case_category": "happy_path"
+      },
+      {
+        "_version": "1.0.0",
+        "id": "9d174543-61b2-4f69-a60b-af73a33e1085",
+        "name": "Control negativo deliberado",
+        "tags": [
+          "smoke"
+        ],
+        "steps": [
+          {
+            "type": "navigate",
+            "url": "http://127.0.0.1:63023/smoke"
+          },
+          {
+            "type": "assert",
+            "selector": "#title",
+            "assertion_type": "equals",
+            "expected": "Deliberately wrong",
+            "timeout": 1000
+          }
+        ],
+        "source_rule_id": "requirement:38a0b2ef91ff594d08f93995816e664bded4bd8745bfd7c0e2c5ac1415c56fcf",
+        "case_category": "happy_path"
+      }
+    ],
+    "requestDigest": "d5f2a80102c26bf8a1da50063cd353f01c5b576f5f77e90da54d719e8ab94b4b"
+  }
+}
+Identidad del revisor: Decisión explícita (approve/reject): Para vincular la decisión, escriba el requestDigest completo presentado: Decisión guardada. Repita la operación MCP pendiente en diez minutos.
+{
+  "version": 1,
+  "kind": "closure",
+  "request": {
+    "projectRoot": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP02\\vertical-complete\\project",
+    "applicationId": "app-r5",
+    "environmentId": "local",
+    "moduleId": "mod-r5",
+    "moduleKey": "smoke",
+    "moduleRevision": 1,
+    "plannedName": "smoke",
+    "action": "declare_non_applicable",
+    "coverageDigest": "f93dd485283550d33669265f1d701974e2eea5629afc401a30ca17726b7d919d",
+    "confirmedRequirementsCount": 1,
+    "unaddressedGapsCount": 0,
+    "acceptedGaps": [],
+    "nonApplicableCategories": [
+      {
+        "category": "business_rule",
+        "reason": "Fuera del alcance explícito del fixture técnico de transporte, no es aceptación de producto."
+      },
+      {
+        "category": "security",
+        "reason": "Fuera del alcance explícito del fixture técnico de transporte, no es aceptación de producto."
+      },
+      {
+        "category": "ui",
+        "reason": "Fuera del alcance explícito del fixture técnico de transporte, no es aceptación de producto."
+      },
+      {
+        "category": "ux",
+        "reason": "Fuera del alcance explícito del fixture técnico de transporte, no es aceptación de producto."
+      },
+      {
+        "category": "regression",
+        "reason": "Fuera del alcance explícito del fixture técnico de transporte, no es aceptación de producto."
+      },
+      {
+        "category": "performance",
+        "reason": "Fuera del alcance explícito del fixture técnico de transporte, no es aceptación de producto."
+      }
+    ],
+    "requestDigest": "ae06746f31164e67e229b2641d2c85f731e4809b3e8b2dda96f9583fac285145"
+  }
+}
+Identidad del revisor: Decisión explícita (approve/reject): Para vincular la decisión, escriba el requestDigest completo presentado: Decisión guardada. Repita la operación MCP pendiente en diez minutos.
+{
+  "version": 1,
+  "kind": "closure",
+  "request": {
+    "projectRoot": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP02\\vertical-complete\\project",
+    "applicationId": "app-r5",
+    "environmentId": "local",
+    "moduleId": "mod-r5",
+    "moduleKey": "smoke",
+    "moduleRevision": 1,
+    "plannedName": "smoke",
+    "action": "close",
+    "coverageDigest": "f93dd485283550d33669265f1d701974e2eea5629afc401a30ca17726b7d919d",
+    "confirmedRequirementsCount": 1,
+    "unaddressedGapsCount": 0,
+    "acceptedGaps": [],
+    "nonApplicableCategories": [],
+    "requestDigest": "0e34d68ebba59253f13b06d501be7811f2013b583b03b71fa886cc7502cea001"
+  }
+}
+Identidad del revisor: Decisión explícita (approve/reject): Para vincular la decisión, escriba el requestDigest completo presentado: Decisión guardada. Repita la operación MCP pendiente en diez minutos.

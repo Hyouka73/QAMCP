@@ -4,6 +4,8 @@ import { isIP } from 'node:net';
 import type { TLSSocket } from 'node:tls';
 import { brotliDecompressSync, gunzipSync, inflateSync } from 'node:zlib';
 
+import type { Cookie } from 'playwright-core';
+
 import { tlsMetadata } from './metadata.js';
 import { canonicalIp, hostname, type ReconScope } from './network.js';
 import { ReconnaissanceError, type ReconBudget, type ReconLimits, type ReconnaissanceInput, type TlsFindings } from './types.js';
@@ -33,9 +35,19 @@ function untilAbort<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
 
 /** One GET, no agent/pool/proxy/cookie jar, no automatic redirects and no retry. */
 export async function acquire(url: URL, scope: ReconScope, input: ReconnaissanceInput,
-  limits: ReconLimits, budget: ReconBudget, globalSignal: AbortSignal, origin?: string): Promise<HttpCapture> {
+  limits: ReconLimits, budget: ReconBudget, globalSignal: AbortSignal, origin?: string, session?: { origin: string; cookies: Cookie[] }): Promise<HttpCapture> {
   // Only a canonical origin may be supplied by the browser gateway, never arbitrary headers.
   if (origin !== undefined && parseOrigin(origin) !== origin) throw new ReconnaissanceError('SCOPE_BLOCKED');
+  if (session && session.origin !== url.origin) throw new ReconnaissanceError('SCOPE_BLOCKED');
+  const cookie = session?.cookies.filter(c => {
+    const domain = c.domain.startsWith('.') ? c.domain.slice(1) : c.domain;
+    return (url.hostname === domain || (c.domain.startsWith('.') && url.hostname.endsWith('.' + domain))) &&
+      (url.pathname === c.path || url.pathname.startsWith(c.path.endsWith('/') ? c.path : c.path + '/')) &&
+      (!c.secure || url.protocol === 'https:') && (c.expires === -1 || c.expires > Date.now() / 1000);
+  }).map(c => {
+    if (!/^[!#$%&'*+.^_`|~0-9a-z-]+$/i.test(c.name) || [...c.value].some(ch => ch === ';' || ch.charCodeAt(0) <= 32 || ch.charCodeAt(0) === 127)) throw new ReconnaissanceError('SCOPE_BLOCKED');
+    return c.name + '=' + c.value;
+  }).join('; ');
   const signal = AbortSignal.any([globalSignal, AbortSignal.timeout(limits.request_timeout_ms)]);
   scope.authorize(url);
   if (budget.requests >= limits.max_requests) throw new ReconnaissanceError('REQUEST_LIMIT');
@@ -52,7 +64,7 @@ export async function acquire(url: URL, scope: ReconScope, input: Reconnaissance
       protocol: url.protocol, hostname: hostname(url), port: url.port || (secure ? 443 : 80),
       path: `${url.pathname}${url.search}`, method: 'GET', agent: false, maxHeaderSize: 16384, family: pinned.family,
       headers: { Accept: 'text/html, text/plain, application/xml;q=0.9, */*;q=0.1',
-        'Accept-Encoding': 'identity', 'User-Agent': 'QAP-Recon/1', ...(origin ? { Origin: origin } : {}) },
+        'Accept-Encoding': 'identity', 'User-Agent': 'QAP-Recon/1', ...(origin ? { Origin: origin } : {}), ...(cookie ? { Cookie: cookie } : {}) },
       // Pin the checked DNS answer. Never resolve again between validation and connect.
       lookup: (_host, _options, callback) => callback(null, pinned.address, pinned.family),
       ...(secure ? { rejectUnauthorized: true, ...(input.tls_ca ? { ca: input.tls_ca } : {}),

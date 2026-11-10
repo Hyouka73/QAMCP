@@ -572,12 +572,16 @@ export class FileSystemStorage implements IStorage {
   }
 
   async getTestCase(moduleName: string, caseId: string): Promise<TestCase> {
-    return this.readYaml<TestCase>(join('.qa/modules', moduleName, 'tests', `${caseId}.yaml`));
+    const fileId = !caseId.startsWith('TC-') && !await this.exists(join('.qa/modules', moduleName, 'tests', caseId + '.yaml')) && await this.exists(join('.qa/modules', moduleName, 'tests', 'TC-' + caseId + '.yaml'))
+      ? 'TC-' + caseId : caseId;
+    return this.readYaml<TestCase>(join('.qa/modules', moduleName, 'tests', fileId + '.yaml'));
   }
 
-  async saveTestCase(moduleName: string, testCase: TestCase): Promise<void> {
+  async saveTestCase(moduleName: string, testCase: TestCase, fileId = testCase.id): Promise<void> {
+    // Canonical generators keep UUID identity while the legacy planner enumerates TC-* filenames.
+    if (fileId !== testCase.id && fileId !== 'TC-' + testCase.id) throw new Error('Invalid case filename identity');
     await this.writeYaml(
-      join('.qa/modules', moduleName, 'tests', `${testCase.id}.yaml`),
+      join('.qa/modules', moduleName, 'tests', `${fileId}.yaml`),
       testCase
     );
   }

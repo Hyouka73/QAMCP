@@ -115,7 +115,7 @@ describe('P4.5-S1: Preflight browser, Module Candidates, and Session Plan', () =
 
     expect(toolMap.get('qap_status')).toContain(requiredPhrase);
     expect(toolMap.get('qap_init')).toContain(requiredPhrase);
-    expect(toolMap.get('qap_discover')).toContain('BlackBoxCrawler real, estático y anónimo, con JavaScript deshabilitado');
+    expect(toolMap.get('qap_discover')).toContain('BlackBoxCrawler real y estático, con JavaScript deshabilitado');
     expect(toolMap.get('qap_discover')).toContain('Persiste observaciones y evidencias en IKnowledgeStore, sin escribir .qa/modules/ ni avanzar lifecycle.');
   });
 

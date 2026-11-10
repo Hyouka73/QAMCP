@@ -59,7 +59,7 @@ export class ModuleObservationBridge {
     const lifecycle = await new FileSystemStorage({ rootDir: this.context.projectRoot }).getLifecycleState();
     const planned = lifecycle.session?.plan?.filter(p => p.module === plannedName) ?? [];
     const state = lifecycle.modules && Object.hasOwn(lifecycle.modules, plannedName) ? lifecycle.modules[plannedName].state : undefined;
-    if (lifecycle.phase !== 'WORKING' || planned.length !== 1 || !state || ['closed', 'waived'].includes(state) || lifecycle.session?.auth?.required) return { status: 'context_changed' } as const;
+    if (lifecycle.phase !== 'WORKING' || planned.length !== 1 || !state || ['closed', 'waived'].includes(state)) return { status: 'context_changed' } as const;
     if (link.provenance !== 'host_declared' || ![link.moduleRevision, link.applicationRevision, link.environmentRevision].every(n => Number.isSafeInteger(n) && n > 0)) return { status: 'invalid_binding' } as const;
     const app = this.context.applicationId;
     const module = await this.store.get(app, 'module', link.moduleId);
@@ -108,10 +108,11 @@ export class ModuleObservationBridge {
       const contextPin = (kind: 'application' | 'environment', identity: string, revision: number) => observation.references.some(r => r.kind === kind && r.id === identity && r.revision === revision);
       if (o.id !== id || o.application_id !== app || o.environment_id !== env || o.session_id !== receipt.execution || o.observed_by !== 'crawler' ||
         !['navigation_route', 'dom_element'].includes(o.kind) || observation.trace.source !== 'blackbox_crawler' || observation.trace.recorded_by !== 'crawler' ||
-        observation.trace.environment_id !== env || observation.trace.role_id || observation.trace.auth_profile_id ||
+        observation.trace.environment_id !== env || observation.trace.role_id || (observation.trace.auth_profile_id &&
+          (object(evidence?.entity.metadata).acquisition_mode !== 'fresh_authenticated_static' || object(evidence?.entity.metadata).auth_profile_id !== observation.trace.auth_profile_id)) ||
         !contextPin('application', app, link.applicationRevision) || !contextPin('environment', env, link.environmentRevision) ||
         !evidence || !uuid(evidence.id) || evidence.entity.id !== evidence.id || evidence.application_id !== app || evidence.revision !== 1 || evidence.entity.session_id !== receipt.execution || evidence.entity.kind !== 'dom_snippet' ||
-        evidence.trace.source !== 'blackbox_crawler' || evidence.trace.recorded_by !== 'crawler' || evidence.trace.environment_id !== env || evidence.trace.role_id || evidence.trace.auth_profile_id ||
+        evidence.trace.source !== 'blackbox_crawler' || evidence.trace.recorded_by !== 'crawler' || evidence.trace.environment_id !== env || evidence.trace.role_id || evidence.trace.auth_profile_id !== observation.trace.auth_profile_id ||
         evidence.entity.pii_masked !== true || !isDeepStrictEqual(evidence.entity, o.evidence) ||
         !evidence.references.some(r => r.kind === 'application' && r.id === app && r.revision === link.applicationRevision) ||
         !evidence.references.some(r => r.kind === 'environment' && r.id === env && r.revision === link.environmentRevision) ||
@@ -215,7 +216,7 @@ export class ModuleObservationBridge {
         expected_observations: receipt.observations.length, observation_types: types, candidate_views: types.navigation_route, forms, controls, html_required_controls: required,
         navigation_candidates: navigation, evidence_available: true, evidence_refs: facts.map(f => ({ id: f.evidence.id, revision: f.evidence.revision })),
         context_revision: { application: identity.link.applicationRevision, environment: identity.link.environmentRevision, module: identity.link.moduleRevision }, coverage: 'partial',
-        limitations: ['static_anonymous_only', 'functional_membership_unconfirmed', 'selectors_unverified'], human_review_required: true });
+        limitations: ['static_capture_only', 'functional_membership_unconfirmed', 'selectors_unverified'], human_review_required: true });
     }
     return { module_identity_status: 'resolved', module_reference: hash([identity.module.id, identity.module.revision]), association_status: executions.length ? 'available' : 'absent',
       absence_does_not_imply_no_observations: true, truncated: !!page.next_cursor || receipts.size > 16, executions, coverage: 'partial', human_review_required: true };

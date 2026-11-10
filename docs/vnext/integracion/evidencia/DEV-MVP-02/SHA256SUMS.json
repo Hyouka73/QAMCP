@@ -1,0 +1,147 @@
+[
+  {
+    "file": ".gitattributes",
+    "bytes": 8,
+    "sha256": "705fd4d6451a31d36b3df7de96f83f30ac976c9b4a6d1e51671d8e2f33e2d0da"
+  },
+  {
+    "file": "canonical-session.report.md",
+    "bytes": 2471,
+    "sha256": "5ea30a583e86d6a9cd81961c42d168429b98a17ae7d676a19ec15ccf067fad38"
+  },
+  {
+    "file": "catalog.json",
+    "bytes": 47960,
+    "sha256": "c51cdf0803c5ba9f8be37a14a1f089c7d1ad3624023420ce551b14fc4f7f2acb"
+  },
+  {
+    "file": "dev-mvp02-adapter-full.log",
+    "bytes": 281,
+    "sha256": "a6f06e8949918a46c8e892dac7ba3e3ddde58d88a63fe69a442ee5a996f1b9c5"
+  },
+  {
+    "file": "dev-mvp02-adapter-typecheck.log",
+    "bytes": 1187,
+    "sha256": "f99519d34ab9c13fe3e5001b2b2cc15a9e725e5389bb7cc269eb1332ec5289b1"
+  },
+  {
+    "file": "dev-mvp02-build-cli-final.log",
+    "bytes": 601,
+    "sha256": "c0beb253f4ddc854c99e0c3bd18a944561ebebc6cd06c712ed77195595e19c75"
+  },
+  {
+    "file": "dev-mvp02-build-delivery.log",
+    "bytes": 4387,
+    "sha256": "9cd23c3ead43a9dff40f44876fbb30a832e9f1cbf7425c6d1fcde9ba5fbf19d4"
+  },
+  {
+    "file": "dev-mvp02-build-mcp-complete.log",
+    "bytes": 588,
+    "sha256": "f4e1d4909e35b423cd88519ef63f2f2b9e2e136818d8bd5e58e2a811c6f89a0d"
+  },
+  {
+    "file": "dev-mvp02-critical-final.log",
+    "bytes": 262,
+    "sha256": "64b4b29d5e0abf0f28f85d0dbe04d0beb8f8f2d225e037f01c6c5d2e2346fdf5"
+  },
+  {
+    "file": "dev-mvp02-lint-all-final.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "file": "dev-mvp02-lint-delivery.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "file": "dev-mvp02-mcp-final.log",
+    "bytes": 11315,
+    "sha256": "c446e1c36cdf2146b7b1455c98ced391f45a158f10a111a3efa69a4c348b1e03"
+  },
+  {
+    "file": "dev-mvp02-mcp-typecheck-final.log",
+    "bytes": 39166,
+    "sha256": "0090c7c84b9adaac837d6212ab21f925972a9d3aa0f3a3cac652a73e36852cfe"
+  },
+  {
+    "file": "dev-mvp02-storage-final.log",
+    "bytes": 266,
+    "sha256": "4d3cc74bedd339c9b44046aed2ec73804d8af45d6240de139b553afc0631b96a"
+  },
+  {
+    "file": "dev-mvp02-vertical-complete.log",
+    "bytes": 111,
+    "sha256": "65943c9fe79a76300737b05ace688a25685074001be14566e805011c12fd0011"
+  },
+  {
+    "file": "dev-mvp02-vertical-sha.log",
+    "bytes": 111,
+    "sha256": "65943c9fe79a76300737b05ace688a25685074001be14566e805011c12fd0011"
+  },
+  {
+    "file": "execution.json",
+    "bytes": 1192,
+    "sha256": "5c3449839f5fe13588efc4e16a669057f2613867807e992261aa5b650f9c6f66"
+  },
+  {
+    "file": "execution.report.html",
+    "bytes": 15999,
+    "sha256": "65e16bcc698d4f7cb5df81a2f281168e0a91b0a3f5c0f682387b0cb5c27f1e87"
+  },
+  {
+    "file": "execution.report.json",
+    "bytes": 1192,
+    "sha256": "5c3449839f5fe13588efc4e16a669057f2613867807e992261aa5b650f9c6f66"
+  },
+  {
+    "file": "execution.report.md",
+    "bytes": 586,
+    "sha256": "0e2d8a3b0a8b5f75a68d300c10412809a4cbad0049bc694a94185f58d58d1f16"
+  },
+  {
+    "file": "execution.report.xml",
+    "bytes": 466,
+    "sha256": "b9b22bbcaa8ffb105043e07ae50548f27d80c6d77bcf191eb7aa7d210d82e4a1"
+  },
+  {
+    "file": "execution.trace.json",
+    "bytes": 964,
+    "sha256": "09852b9d5df04bbfd43c10e624e41a0bddaaf7b34ddb4e77224414f2badca563"
+  },
+  {
+    "file": "history.jsonl",
+    "bytes": 197,
+    "sha256": "6cfb8b8bf0fde16b5bdf991ff1fad38d42b1e5bfa5473fe14f4598127821b38a"
+  },
+  {
+    "file": "host-review-cli.log",
+    "bytes": 6789,
+    "sha256": "4b7239e4561f7b27075e243ab71b37f5ddaffca48ab8d5c62e7c5a09cd0d746f"
+  },
+  {
+    "file": "physical-artifacts.json",
+    "bytes": 513,
+    "sha256": "54b48e334331e96a09dd675484c59717dfdbfb30c2f02884795f16854a37b0ba"
+  },
+  {
+    "file": "provision-result.json",
+    "bytes": 146,
+    "sha256": "f1ec3c2b2b35c9fc339829c628d1b7f7d354ca60f8686bcfeb393a9160c20248"
+  },
+  {
+    "file": "result.json",
+    "bytes": 499,
+    "sha256": "a5e2d5bfc28cbff55649bd5f65b55ea80507eb4c15a825033c04657b65e68b5a"
+  },
+  {
+    "file": "screenshot-0.png",
+    "bytes": 7911,
+    "sha256": "3c105115e140897ee09acb1a6d019917939d6e6bb8a7f7f5b938d413fa3b66e2"
+  },
+  {
+    "file": "transcript.json",
+    "bytes": 73982,
+    "sha256": "8e8167e45fdcc5804eea6ff56d81d1f8cb0f511cd6f2fea178b6e9453438d35e"
+  }
+]

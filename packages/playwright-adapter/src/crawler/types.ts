@@ -25,7 +25,10 @@ export interface BlackBoxCrawlerInput {
     allow_public_network?: boolean;
   };
   /** Only this isolated, anonymous, non-scripted mode is supported. */
-  isolation?: 'fresh_anonymous_static';
+  isolation?: 'fresh_anonymous_static' | 'fresh_authenticated_static';
+  /** Host-only Auth session. Never serialized into observations or evidence. Cookie transport only. */
+  authenticated_session?: { profile_id: string; role_id?: string; origin: string;
+    cookies: import('playwright-core').Cookie[]; validation_selector: string };
   limits?: Partial<CrawlerLimits>;
   tls_ca?: string;
   signal?: AbortSignal;
@@ -73,7 +76,7 @@ export interface ObservedView {
 export interface BlackBoxCrawlerResult {
   execution_id: string;
   status: 'completed' | 'partial' | 'blocked' | 'indeterminate';
-  mode: 'fresh_anonymous_static';
+  mode: 'fresh_anonymous_static' | 'fresh_authenticated_static';
   routes: CrawlerRoute[];
   views: ObservedView[];
   relations: Array<{ from: string; to: string; kind: 'link_candidate' | 'http_redirect' }>;

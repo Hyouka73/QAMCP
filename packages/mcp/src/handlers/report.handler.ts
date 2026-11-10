@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
@@ -261,6 +262,7 @@ export class ReportHandler implements IMcpToolHandler {
       summary: evidence.summary,
       reports: paths,
       evidence_source: 'persisted_execution',
+      traceability_file: existsSync(resolve(root, '.qa/executions/' + executionId + '.trace.json')) ? resolve(root, '.qa/executions/' + executionId + '.trace.json') : null,
       viewer_url: null,
     });
   }

@@ -1,0 +1,9 @@
+
+ RUN  v4.1.11 C:/Users/Judirico/.codex/worktrees/dev-mvp-02/QAMCP/packages/knowledge
+
+
+ Test Files  1 passed (1)
+      Tests  36 passed (36)
+   Start at  17:58:08
+   Duration  4.39s (transform 180ms, setup 0ms, import 519ms, tests 3.45s, environment 0ms)
+

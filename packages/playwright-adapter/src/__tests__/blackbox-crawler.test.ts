@@ -380,3 +380,25 @@ describe('VNEXT-007 real Chromium static acquisition', () => {
     expect(f.hits).toHaveLength(0);
   });
 });
+
+describe('DEV-MVP-02 authenticated static transport', () => {
+  it('uses only matching cookies, records profile provenance, and never persists the cookie value', async () => {
+    const f = await fixture((req,res) => { if (req.headers.cookie !== 'session=' + canary) { res.statusCode = 401; res.end('denied'); } else res.end('<main id="signed-in"><button>Inspect</button></main>'); }, true);
+    const input: BlackBoxCrawlerInput = { ...f.input, isolation: 'fresh_authenticated_static', authenticated_session: {
+      origin: f.origin, profile_id: 'fixture-profile', validation_selector: '#signed-in', cookies: [
+        { name: 'session', value: canary, domain: '127.0.0.1', path: '/', expires: -1, secure: false, httpOnly: true, sameSite: 'Strict' },
+        { name: 'foreign', value: 'do-not-send', domain: 'elsewhere.invalid', path: '/', expires: -1, secure: false, httpOnly: true, sameSite: 'Strict' },
+      ] } };
+    const result = await f.crawler.run(input); expect(result.mode).toBe('fresh_authenticated_static'); expect(result.views).toHaveLength(1);
+    const persisted = await f.store.query('crawler-a','observation'); expect(persisted.items[0].trace.auth_profile_id).toBe('fixture-profile');
+    expect(JSON.stringify(persisted)).not.toContain(canary); expect(JSON.stringify(result)).not.toContain(canary); expect(f.hits[0].cookie).toBe('session=' + canary);
+  }, 15000);
+  it('blocks a session with a missing server marker and releases the real browser', async () => {
+    const f = await fixture((_req,res) => res.end('<main>Expired session</main>'));
+    const output = await f.crawler.run({ ...f.input, isolation: 'fresh_authenticated_static', authenticated_session: {
+      origin: f.origin, profile_id: 'fixture-profile', validation_selector: '#signed-in', cookies: [
+        { name: 'session', value: 'expired-remotely', domain: '127.0.0.1', path: '/', expires: -1, secure: false, httpOnly: true, sameSite: 'Strict' },
+      ] } });
+    expect(output.status).toBe('blocked'); expect(output.observations).toHaveLength(0); expect(output.warnings).toContain('AUTH_SESSION_INVALID'); expect(output.cleanup.browser_closed).toBe(true);
+  }, 15000);
+});

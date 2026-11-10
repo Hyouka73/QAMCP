@@ -5,6 +5,7 @@ import { URL } from 'node:url';
 
 import { SqliteKnowledgeAdapter } from '@qap/knowledge';
 
+import { HostReviewQueue } from './host-review.js';
 import { SqliteInterviewDraftStore } from './handlers/interview-draft-store.js';
 import type { TestNavigationAuthorization } from './handlers/test.handler.js';
 import type { DiscoveryAuthorization } from './handlers/discovery.handler.js';
@@ -132,6 +133,8 @@ function discoveryPolicy(
       !input.navigation_urls.length || input.navigation_urls.length > 64) {
     throw new Error('Explicit pinned read-only Discovery authorization required.');
   }
+  if (input.authorizedProfiles !== undefined && (!Array.isArray(input.authorizedProfiles) || input.authorizedProfiles.length > 64 ||
+    input.authorizedProfiles.some(v => typeof v !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(v)))) throw new Error('Invalid Discovery profiles');
   const navigation_urls = input.navigation_urls.map(item => {
     const value = requiredText(item, 'discovery.navigation_urls');
     let url: URL;
@@ -175,6 +178,7 @@ function discoveryPolicy(
   return {
     ...scope,
     environmentRevision: currentRevision,
+    ...(Array.isArray(input.authorizedProfiles) ? { authorizedProfiles: input.authorizedProfiles.map(value => requiredText(value, 'authorizedProfiles')) } : {}),
     authorization: {
       read_only_acknowledged: true,
       navigation_urls,
@@ -261,6 +265,14 @@ export async function loadHostComposition(
     }
 
     const scope = { projectRoot: root, applicationId: app, environmentId: environment };
+    let reviewQueue: HostReviewQueue | undefined;
+    if (payload.humanReview !== undefined) {
+      if (!object(payload.humanReview) || payload.humanReview.protection !== 'host_private_directory_and_managed_key') throw new Error('Host review protection required');
+      const reviewKey = secret(env, payload.humanReview.keyEnv);
+      try { reviewQueue = new HostReviewQueue(requiredText(payload.humanReview.directory, 'humanReview.directory'), reviewKey); }
+      finally { reviewKey.fill(0); }
+      closeables.push(reviewQueue);
+    }
     let interviewDraftStore: SqliteInterviewDraftStore | undefined;
     let moduleClosureStore: SqliteModuleClosureStore | undefined;
     if (payload.interviewDraft !== undefined) {
@@ -303,6 +315,7 @@ export async function loadHostComposition(
         ...(testAuthorization ? { testAuthorizations: [testAuthorization] } : {}),
         knowledgeBindings: [{
           ...scope, store, moduleBindings: modules, interviewDraftStore, moduleClosureStore,
+          humanReviewGateway: reviewQueue, moduleClosureReviewGateway: reviewQueue, caseReviewGateway: reviewQueue,
           // Never infer review authority from a JSON manifest or an MCP client.
           // An application host may inject a genuine gateway through createMcpServer.
         }],

@@ -1,0 +1,40 @@
+{
+  "_version": "1",
+  "execution_id": "exec_1794325830504_22879cdeaa364e0382215aca390f2c8c",
+  "module": "smoke",
+  "env": "local",
+  "started_at": "2026-11-10T15:50:30.503Z",
+  "finished_at": "2026-11-10T15:50:31.661Z",
+  "result": "partial",
+  "timed_out": false,
+  "summary": {
+    "total": 2,
+    "passed": 1,
+    "failed": 1,
+    "skipped": 0,
+    "not_run": 0
+  },
+  "cases": [
+    {
+      "id": "132f144b-2fc9-4b9d-a8b7-1c2f5ab7b82b",
+      "title": "Estado autenticado correcto",
+      "result": "passed",
+      "duration_ms": 103
+    },
+    {
+      "id": "9d174543-61b2-4f69-a60b-af73a33e1085",
+      "title": "Control negativo deliberado",
+      "result": "failed",
+      "duration_ms": 83,
+      "failure_type": "assertion_failed",
+      "steps": [
+        {
+          "action": "execute",
+          "status": "failed",
+          "message": "Assertion failed: Se esperaba que '#title' fuera igual a 'Deliberately wrong', pero fue 'Fixture ready'.",
+          "screenshot": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP02\\vertical-complete\\project\\.qa\\reports\\screenshots\\failure_9d174543-61b2-4f69-a60b-af73a33e1085_1794325831552.png"
+        }
+      ]
+    }
+  ]
+}

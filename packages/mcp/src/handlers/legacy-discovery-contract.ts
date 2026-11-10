@@ -13,10 +13,10 @@ export function hasLegacyViewContext(root: string, module: string, view = 'defau
 
 export const discoveryIntegration = {
   discovery_advances_lifecycle: false,
-  canonical_interview: 'unavailable',
+  canonical_interview: 'qap_rules_set.canonical_interview',
   observations_are_confirmed_requirements: false,
   module_association: 'not_persisted_by_discovery',
-  next_safe_action: 'Revisar el inventario con qap_status. Para entrevistar se requiere contexto legacy previamente revisado o una integración futura expresamente autorizada; repetir discovery no crea ese contexto.',
+  next_safe_action: 'Revisar el inventario con qap_status. Usar qap_rules_set con canonical_interview.action=next para entrevista canónica. La ruta legacy conserva su contexto propio.',
 } as const;
 
 export function legacyInterviewBlocked(planned = false) {

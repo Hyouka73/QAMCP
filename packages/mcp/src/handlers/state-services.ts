@@ -7,6 +7,7 @@ import { SchemaValidator, type ProjectContext, type ContextSource, type Business
 import type { IKnowledgeStore, KnowledgeKind } from '@qap/engine';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
+import type { HostReviewQueue } from '../host-review.js';
 import { TOOLS } from '../tool-catalog.js';
 import { McpToolError } from '../dispatcher.js';
 
@@ -25,6 +26,7 @@ export interface ProjectKnowledgeBinding {
   readonly store: IKnowledgeStore;
   readonly moduleBindings?: readonly ModuleBinding[];
   readonly humanReviewGateway?: IHumanReviewGateway;
+  readonly caseReviewGateway?: HostReviewQueue;
   readonly interviewDraftStore?: IInterviewDraftStore;
   readonly moduleClosureReviewGateway?: IModuleClosureReviewGateway;
   readonly moduleClosureStore?: IModuleClosureStore;

@@ -1,0 +1,19 @@
+{
+  "status": "PASS_TECHNICAL",
+  "human_acceptance": "NOT_PERFORMED",
+  "tools": 18,
+  "execution_id": "exec_1794325830504_22879cdeaa364e0382215aca390f2c8c",
+  "summary": {
+    "total": 2,
+    "passed": 1,
+    "failed": 1,
+    "skipped": 0,
+    "not_run": 0
+  },
+  "recovery": "persisted_execution",
+  "module_close": "closed",
+  "session_close": "success",
+  "phase": "WRAP_UP",
+  "protected_reads": 5,
+  "case_approval_digest": "d5f2a80102c26bf8a1da50063cd353f01c5b576f5f77e90da54d719e8ab94b4b"
+}

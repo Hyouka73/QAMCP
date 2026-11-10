@@ -1,5 +1,6 @@
 import { realpathSync } from 'node:fs';
 
+import { SessionStore, readProfile } from '@qap/auth';
 import { FileSystemStorage } from '@qap/knowledge';
 import { SchemaValidator, type ExecutionResult, type TCCase } from '@qap/shared';
 import type { IRunner } from '@qap/engine';
@@ -12,7 +13,9 @@ import {
   type McpInvocationContext,
 } from '../dispatcher.js';
 
+import { verifyCaseApproval } from './case-workflow.js';
 import {
+  binding,
   definition,
   isObject,
   projectRoot,
@@ -296,6 +299,17 @@ export class TestHandler implements IMcpToolHandler {
       }
     }
 
+    const lifecycle = await storage.getLifecycleState();
+    const bound = binding(rootDir, this.dependencies);
+    if (bound && (environment !== bound.environmentId || (lifecycle.session?.auth?.profile && lifecycle.session.auth.profile !== args.profile))) return result({ status: 'blocked', code: 'auth_context_mismatch' }, true);
+    if (bound && lifecycle.session?.auth?.required && !args.profile) return result({ status: 'blocked', code: 'auth_profile_required' }, true);
+    if (args.profile && bound) {
+      if (!matchingAuths.some(a => a.authorizedProfiles?.includes(args.profile!))) return result({ status: 'blocked', code: 'unauthorized_profile' }, true);
+      const profile = await readProfile(args.profile, rootDir);
+      const session = new SessionStore(undefined, rootDir).getValidSession(args.profile);
+      if (!profile?.verified || profile.application_id !== bound.applicationId || profile.env !== environment || !session) return result({ status: 'blocked', code: 'auth_session_expired' }, true);
+    }
+
     // 6. Preflight Plan Verification Gate (R1 / R2)
     const planCheck: PlanVigenciaCheck = await verifyPlanIntegrity(storage, moduleName, {
       environment,
@@ -351,6 +365,11 @@ export class TestHandler implements IMcpToolHandler {
         }
         return Promise.resolve(structuredClone(tc));
       });
+
+    let approval;
+    try { approval = await verifyCaseApproval(rootDir, moduleName, [...snapshotMap.values()], this.dependencies); }
+    catch { return result({ status: 'blocked', code: 'case_approval_unavailable' }, true); }
+    if (!approval.allowed) return result({ status: 'blocked', ...approval }, true);
 
     // 8. Safe Runner Execution (R2 / F7 / F8)
     const runner = this.options.runner ?? new PlaywrightRunner();
@@ -466,6 +485,7 @@ export class TestHandler implements IMcpToolHandler {
 
     try {
       await storage.saveExecutionResult(executionId, executionResult);
+
     } catch {
       return result(
         {
@@ -478,6 +498,15 @@ export class TestHandler implements IMcpToolHandler {
         },
         true
       );
+    }
+
+    if (approval.request_digest) {
+      try { await storage.writeJson('.qa/executions/' + executionId + '.trace.json', {
+        execution_id: executionId, case_approval_digest: approval.request_digest, requirements: approval.requirements,
+        cases: [...snapshotMap.values()].map(c => ({ id: c.id, source_rule_id: c.source_rule_id })) }); }
+      catch { return result({ status: 'partial', code: 'execution_trace_not_persisted', execution_id: executionId,
+        execution_saved: true, trace_saved: false, summary: executionResult.summary,
+        message: 'La ejecución está guardada; falta persistir su trazabilidad. No reejecutar el navegador implícitamente.', desbloquear_con: 'qap_report' }, true); }
     }
 
     try {

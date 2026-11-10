@@ -93,7 +93,7 @@ import { CanonicalInterviewService } from './handlers/canonical-interview-servic
 import { CanonicalClosureError } from './handlers/canonical-closure-error.js';
 import { CanonicalClosureService } from './handlers/canonical-closure-service.js';
 import { renderCanonicalSessionReport } from './handlers/canonical-session-report.js';
-import { projectRoot as authorizedProjectRoot, result as canonicalResult } from './handlers/state-services.js';
+import { binding as knowledgeBinding, projectRoot as authorizedProjectRoot, result as canonicalResult } from './handlers/state-services.js';
 import { hasLegacyViewContext, legacyInterviewBlocked } from './handlers/legacy-discovery-contract.js';
 import { CleanHandler } from './handlers/clean.handler.js';
 import { PlanHandler } from './handlers/plan.handler.js';
@@ -595,6 +595,8 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
           }
 
           const existingIndex = profiles.findIndex((p) => p.id === profileId);
+          const authCondition = args.post_login_condition as { type?: unknown; value?: unknown } | undefined;
+          if (authCondition !== undefined && (!authCondition || authCondition.type !== 'selector_present' || typeof authCondition.value !== 'string' || !authCondition.value.trim() || authCondition.value.length > 500)) return canonicalResult({ status: 'blocked', code: 'invalid_post_login_condition' }, true);
           const newProfile: AuthProfile = {
             id: profileId,
             env,
@@ -603,8 +605,9 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
             login_route: loginRoute,
             role: role || undefined,
             session_cache: { enabled: true },
-            post_login_condition: { type: 'url_contains', value: '/dashboard' },
-            handoff_timeout_ms: Math.min(Number(args.timeout_ms) || 30000, 30000),
+            post_login_condition: authCondition as AuthProfile['post_login_condition'] ?? { type: 'url_contains', value: '/dashboard' },
+            application_id: knowledgeBinding(rootDir, dependencies)?.applicationId,
+            handoff_timeout_ms: Math.min(Number(args.timeout_ms) || 120000, 120000),
             credential_source: 'keychain',
             verified: false,
           };
@@ -675,9 +678,9 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
 
           const plan = lifecycleState.session?.plan || [];
           const firstProtected = plan.find((p: { module: string; path: string; acceso?: boolean }) => !p.acceso && !isAuthPath(p.path));
-          const postLoginCondition = firstProtected
+          const postLoginCondition = authCondition ? newProfile.post_login_condition! : (firstProtected
             ? { type: 'url_contains' as const, value: firstProtected.path }
-            : (newProfile.post_login_condition || { type: 'url_contains' as const, value: '/dashboard' });
+            : (newProfile.post_login_condition || { type: 'url_contains' as const, value: '/dashboard' }));
 
           let capturedStorageState: StorageState | undefined = args.storageState as StorageState | undefined;
           const verificationAttempted = Boolean(capturedStorageState || password || method === 'handoff');
@@ -705,7 +708,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
           } else if (!capturedStorageState && method === 'handoff') {
             try {
               const { chromium } = await import('playwright-core');
-              const browser = await chromium.launch({ headless: true });
+              const browser = await chromium.launch({ headless: false });
               const bCtx = await browser.newContext();
               try {
                 const handoffHook = (globalThis as Record<string, unknown>).__QAP_HANDOFF_TEST_HOOK__ || (args as Record<string, unknown>)._handoff_mock;
@@ -718,7 +721,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
                     ...newProfile,
                     login_route: `${baseUrl}${loginRoute.startsWith('/') ? loginRoute : `/${loginRoute}`}`,
                     post_login_condition: postLoginCondition,
-                    handoff_timeout_ms: Math.min(Number(args.timeout_ms) || 15000, 15000),
+                    handoff_timeout_ms: Math.min(Number(args.timeout_ms) || 120000, 120000),
                   },
                   bCtx
                 );
@@ -771,6 +774,24 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
             } catch {
               isVerified = false;
             }
+          }
+
+          // A supplied oracle must be physically verified, not just stored as profile metadata.
+          if (isVerified && authCondition && capturedStorageState) {
+            const { chromium } = await import('playwright-core');
+            let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined;
+            try {
+              for (const channel of ['chrome', 'msedge', undefined] as const) {
+                try { browser = await chromium.launch({ headless: true, ...(channel ? { channel } : {}) }); break; }
+                catch { /* Try another supported local Chromium installation. */ }
+              }
+              if (!browser) throw new Error('Browser unavailable');
+              const authContext = await browser.newContext({ storageState: capturedStorageState });
+              const page = await authContext.newPage();
+              await page.goto(new URL(verifiedRoute, baseUrl).href, { waitUntil: 'domcontentloaded', timeout: 15000 });
+              isVerified = await page.locator(String(authCondition.value)).count() > 0 && await page.locator('input[type="password"]').count() === 0;
+            } catch { isVerified = false; }
+            finally { await browser?.close().catch(() => undefined); }
           }
 
           if (verificationAttempted && !isVerified) {

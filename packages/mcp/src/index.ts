@@ -13,3 +13,7 @@ export { CanonicalInterviewService, INTERVIEW_CATEGORY_MAPPING, type IHumanRevie
   type HumanReviewRequest, type HumanReviewDecision, type RequirementProposal } from './handlers/canonical-interview-service.js';
 export { SqliteInterviewDraftStore, InterviewDraftError, type IInterviewDraftStore,
   type SqliteInterviewDraftOptions, type InterviewScope, type InterviewDraftSnapshot } from './handlers/interview-draft-store.js';
+
+export { HostReviewQueue } from './host-review.js';
+
+export { SqliteModuleClosureStore } from './handlers/module-closure-store.js';
