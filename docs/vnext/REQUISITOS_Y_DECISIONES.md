@@ -85,6 +85,23 @@ Se establece una separación estricta entre:
 - **Artefactos versionados en Git:** Reglas de repositorio (`.agents/rules/`), habilidades canónicas (`.agents/skills/`), esquemas de contratos y prompts de sistema compartidos por el equipo.
 - **Configuraciones de ejecución local:** Bases de datos locales SQLite (`.qamcp/`), bóveda de secretos cifrada local, configuraciones de clientes MCP (`claude_desktop_config.json`, etc.) y bitácoras efímeras de sesión. Estos artefactos son privados de cada máquina/entorno y están estrictamente excluidos del control de versiones.
 
+## Decisiones de producto nuevas — 2026-11-09 (contrato UX, implementación no certificada)
+
+### D-016 — Reconocimiento antes de seleccionar módulos
+QAP primero recupera conocimiento e investiga fuentes y estructura observable; no exige al usuario elegir módulos ni asumir un mapa inventado. Presenta un inventario provisional, pregunta por faltantes sin profundizar en todos, y luego focaliza los módulos necesarios para la tarea. El alcance y descubrimiento inicial se combinan; se exige una pregunta contextual por turno, no una entrevista exhaustiva.
+
+### D-017 — Modos de intención y QA progresivo
+Sin objetivo acreditado, ofrecer investigar/documentar, investigar mientras se prueba, investigar/reproducir un defecto o continuar. No volver a preguntar cuando la intención ya exista. No posponer toda ejecución hasta completar el inventario de la aplicación. Los modos son semántica de UX, no estados Lifecycle ni herramientas MCP nuevas por declaración.
+
+### D-018 — Ingesta documental de lectura y reconciliación verificable
+QAP debe extraer un inventario de manuales/especificaciones autorizados (caso prioritario: manual de Lendus) y comparar módulo/regla/flujo documentado contra observación real, reteniendo fuente, versión y discrepancias. Manual, observación, inferencia y requisito esperado no se confunden; ausencia de vista por permisos no es inexistencia. La lectura/reconciliación se considera objetivo P0 progresivo, mientras **la edición bidireccional automática del manual sigue siendo evolución posterior**. No declarar soporte nativo PDF/DOCX sin probarlo.
+
+### D-019 — Aislamiento multiproyecto y multitenant
+Una instalación local debe manejar varios proyectos y entornos, y distintos tenants cuando la aplicación los posea, con conocimiento, sesiones, perfiles, permisos, ejecuciones y reportes separados. Reanudación sin redescubrimiento redundante, rechazo de scopes ambiguos y pruebas negativas de acceso cruzado. No equivale a afirmar que el hosting Stdio actual ya proporciona gestión unificada multi-scoped.
+
+### D-020 — Prioridad funcional sobre optimización especulativa
+El MVP debe demostrar entrevista/aprobación reales, casos, ejecución, evidencia y continuidad, incluyendo controles de recursos y cierre; no iniciar Rust, pooling Chromium global ni refactorizaciones sin causalidad empírica. Las métricas E01 del host no prueban por sí mismas consumo de QAP. El detalle de alcance, aceptación, decisiones por definir y estado técnico está en [09 — Contrato de experiencia operativa](09_CONTRATO_EXPERIENCIA_OPERATIVA_MVP_2026-11-09.md).
+
 ## Requisitos abiertos y verificación empírica previa (no asumir como aprobados)
 1. **Verificación de Entorno de Ejecución Node.js:** Validar matriz de compatibilidad de `node:sqlite` (`DatabaseSync`) en versiones LTS (Node 20.x mediante flag/fallback vs Node 22.x nativo) en Windows, Linux y macOS antes de fijar DDL final.
 2. **Verificación de Distribución `npx` Zero-Config:** Evaluar tamaño de paquete, arranque sin compilación C++ nativa y estrategia de aprovisionamiento de navegadores Playwright (reutilización de binarios del sistema vs descarga bajo demanda) antes de implementar Hito 5.
