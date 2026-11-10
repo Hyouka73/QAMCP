@@ -92,6 +92,7 @@ import {
   type IWorkspaceAuthorizer,
 } from './workspace-authorizer.js';
 import { loadHostComposition } from './host-composition.js';
+import { authorizationDiagnostic } from './authorization-diagnostics.js';
 import { ToolDispatcher, McpToolError, type IMcpToolHandler } from './dispatcher.js';
 import { TOOLS } from './tool-catalog.js';
 import { StatusHandler } from './handlers/status.handler.js';
@@ -302,7 +303,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
   const server = new Server(
     {
       name: 'qap-mcp-server',
-      version: '3.0.0',
+      version: `3.0.0+${process.env.QAP_BUILD_REVISION ?? 'development'}`,
     },
     {
       capabilities: {
@@ -395,8 +396,9 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
     if (options.workspaceBootstrap) {
       const candidate = rawArgs?.targetPath;
       let targetPath = typeof candidate === 'string' ? candidate : authorizedRoots.length === 1 ? authorizedRoots[0] : undefined;
+      authorizationDiagnostic('workspace_request', { tool: name, targetPath, authorizerConfigured: Boolean(options.workspaceAuthorizer) });
       if (!targetPath) return canonicalResult({ status: 'blocked', category: 'human_authorization', code: 'workspace_selection_required',
-        desbloquear_con: { mecanismo: 'local_host', comando: preparationCommand, descripcion: 'El host debe seleccionar la carpeta autorizada; reintenta qap_status tras reconectar el MCP.' } });
+        desbloquear_con: { mecanismo: 'workspace_selection', descripcion: 'Indica la ruta absoluta de una carpeta existente en targetPath; luego reintenta qap_status.' } });
       let isAuthorized = false;
       try {
         authorizedProjectRoot({ targetPath }, dependencies, true);
@@ -410,15 +412,17 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         let canonicalTarget: string;
         try {
           canonicalTarget = validateCandidateWorkspace(targetPath, options.workspaceBootstrap.directory);
-        } catch {
-          return canonicalResult({ status: 'blocked', category: 'human_authorization', code: 'workspace_authorization_required',
-            desbloquear_con: { mecanismo: 'local_host', comando: preparationCommand, descripcion: 'Autoriza localmente la carpeta y reconecta el MCP. targetPath no concede permiso.' } });
+        } catch (error) {
+          const diagnosticId = authorizationDiagnostic('candidate_rejected', { targetPath, validation: error instanceof Error ? error.message.slice(0, 4096) : 'unknown' });
+          return canonicalResult({ status: 'blocked', category: 'human_authorization', code: 'workspace_path_invalid', diagnostic_id: diagnosticId,
+            desbloquear_con: { mecanismo: 'workspace_selection', descripcion: 'Selecciona una carpeta física existente y admitida, con ruta absoluta, fuera de directorios del sistema y del almacenamiento del host.' } });
         }
         if (options.workspaceAuthorizer) {
           const authResult = await options.workspaceAuthorizer.requestAuthorization(
             { requestedPath: targetPath, canonicalPath: canonicalTarget },
             context.signal
-          );
+          ).catch(() => ({ decision: 'unavailable' as const, code: 'workspace_dialog_start_failed' as const, reason: 'Dialog launch failed.' }));
+          const diagnosticId = authorizationDiagnostic('authorization_result', { decision: authResult.decision, code: 'code' in authResult ? authResult.code : undefined });
           if (authResult.decision === 'approved') {
             const compare = (p: string) => (process.platform === 'win32' ? p.toLowerCase() : p);
             if (!authorizedRoots.some(r => compare(r) === compare(authResult.root))) {
@@ -443,13 +447,16 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
             return canonicalResult({
               status: 'blocked',
               category: 'human_authorization',
-              code: 'workspace_authorization_required',
-              desbloquear_con: { mecanismo: 'local_host', comando: preparationCommand, descripcion: 'Autoriza localmente la carpeta y reconecta el MCP. targetPath no concede permiso.' },
+              code: authResult.code ?? (authResult.decision === 'cancelled' ? 'workspace_authorization_cancelled' : 'workspace_gui_unavailable'),
+              diagnostic_id: diagnosticId,
+              desbloquear_con: { mecanismo: 'local_host', descripcion: authResult.decision === 'cancelled'
+                ? 'La solicitud se canceló o expiró. Reintenta qap_status cuando el operador esté listo para responder.'
+                : 'El host no pudo mostrar el diálogo. Revisa la sesión de escritorio y los diagnósticos locales antes de reintentar.' },
             });
           }
         } else {
-          return canonicalResult({ status: 'blocked', category: 'human_authorization', code: 'workspace_authorization_required',
-            desbloquear_con: { mecanismo: 'local_host', comando: preparationCommand, descripcion: 'Autoriza localmente la carpeta y reconecta el MCP. targetPath no concede permiso.' } });
+          return canonicalResult({ status: 'blocked', category: 'human_authorization', code: 'workspace_authorizer_not_configured',
+            desbloquear_con: { mecanismo: 'local_host', comando: preparationCommand, descripcion: 'El host no configuró un autorizador interactivo. Revisa su configuración o autoriza localmente mediante el mecanismo administrativo del host; reintenta sin reiniciar.' } });
         }
       }
       request.params.arguments = { ...rawArgs, targetPath };
@@ -3888,7 +3895,7 @@ export async function startMcpServer(options?: McpServerOptions): Promise<void> 
     };
     const transport = new StdioServerTransport();
     await server.connect(transport);
-    console.error('[QAP MCP Server] Servidor iniciado correctamente en transporte Stdio.');
+    console.error('[QAP MCP Server] Stdio ready', { pid: process.pid, build: process.env.QAP_BUILD_REVISION ?? 'development', interactive_authorizer: Boolean(composition.options.workspaceAuthorizer) });
   } catch (error) {
     composition.close();
     throw error;

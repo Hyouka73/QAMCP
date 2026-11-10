@@ -133,7 +133,7 @@ describe('Interactive Workspace Authorization & Continuity', () => {
     }
   });
 
-  it('Prueba de cancelación/timeout: devuelve workspace_authorization_required con comando de desbloqueo', async () => {
+  it('Cancelación tiene código propio y no solicita reiniciar', async () => {
     const workspace = makeTemp('cancelled-ws-');
     const mockAuthorizer: IWorkspaceAuthorizer = {
       requestAuthorization: vi.fn(async (): Promise<WorkspaceAuthorizationResult> => {
@@ -147,9 +147,28 @@ describe('Interactive Workspace Authorization & Continuity', () => {
     expect(mockAuthorizer.requestAuthorization).toHaveBeenCalledTimes(1);
     expect(res.data.status).toBe('blocked');
     expect(res.data.category).toBe('human_authorization');
-    expect(res.data.code).toBe('workspace_authorization_required');
+    expect(res.data.code).toBe('workspace_authorization_cancelled');
     expect(res.data.desbloquear_con.mecanismo).toBe('local_host');
+    expect(JSON.stringify(res.data)).not.toContain('reconecta');
+    expect(res.data.desbloquear_con.comando).toBeUndefined();
     expect(existsSync(join(workspace, '.qa'))).toBe(false);
+  });
+
+  it.each([
+    ['unavailable', 'workspace_gui_unavailable'],
+    ['unavailable', 'workspace_dialog_start_failed'],
+    ['cancelled', 'workspace_authorization_expired'],
+  ] as const)('Distingue %s/%s sin exponer detalles del proveedor', async (decision, code) => {
+    const workspace = makeTemp('diagnostic-ws-');
+    const harness = await createTestHarness({ authorizer: {
+      requestAuthorization: async () => ({ decision, code, reason: 'PRIVATE_INTERNAL_DETAIL' }),
+    } });
+    const res = await harness.call('qap_status', { targetPath: workspace });
+    expect(res.data.code).toBe(code);
+    expect(JSON.stringify(res.data)).not.toContain('PRIVATE_INTERNAL_DETAIL');
+    expect(res.data.desbloquear_con.comando).toBeUndefined();
+    expect(existsSync(join(workspace, '.qa'))).toBe(false);
+    expect(readdirSync(harness.hostDir)).toEqual([]);
   });
 
   it('Prueba de continuidad sin reinicio del MCP: llamadas subsecuentes no vuelven a pedir autorización', async () => {
@@ -189,7 +208,7 @@ describe('Interactive Workspace Authorization & Continuity', () => {
 
     // Llamada 1: no autorizada
     const res1 = await harness.call('qap_status', { targetPath: workspace });
-    expect(res1.data.code).toBe('workspace_authorization_required');
+    expect(res1.data.code).toBe('workspace_authorizer_not_configured');
 
     // Simular que el operador ejecuta el script localmente y escribe en el registro
     atomicRecordAuthorizedRoot(harness.registryPath, workspace);
@@ -252,7 +271,7 @@ describe('Interactive Workspace Authorization & Continuity', () => {
 
       expect(mockAuthorizer.requestAuthorization).not.toHaveBeenCalled();
       expect(res.data.status).toBe('blocked');
-      expect(res.data.code).toBe('workspace_authorization_required');
+      expect(res.data.code).toBe('workspace_path_invalid');
     });
 
     it('Rechaza ruta inexistente sin llamar al autorizador', async () => {
@@ -303,7 +322,7 @@ describe('Interactive Workspace Authorization & Continuity', () => {
       });
 
       expect(res.data.status).toBe('blocked');
-      expect(res.data.code).toBe('workspace_authorization_required');
+      expect(res.data.code).toBe('workspace_authorizer_not_configured');
       expect(existsSync(join(workspace, '.qa'))).toBe(false);
     });
 

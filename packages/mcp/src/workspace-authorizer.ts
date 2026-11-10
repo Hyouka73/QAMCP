@@ -5,6 +5,8 @@ import { homedir } from 'node:os';
 import { dirname, isAbsolute, join, parse, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { authorizationDiagnostic } from './authorization-diagnostics.js';
+
 export interface WorkspaceAuthorizationRequest {
   readonly requestedPath: string;
   readonly canonicalPath: string;
@@ -13,8 +15,8 @@ export interface WorkspaceAuthorizationRequest {
 export type WorkspaceAuthorizationResult =
   | { readonly decision: 'approved'; readonly root: string }
   | { readonly decision: 'rejected'; readonly root: string; readonly reason?: string }
-  | { readonly decision: 'cancelled'; readonly reason?: string }
-  | { readonly decision: 'unavailable'; readonly reason: string };
+  | { readonly decision: 'cancelled'; readonly reason?: string; readonly code?: 'workspace_authorization_cancelled' | 'workspace_authorization_expired' }
+  | { readonly decision: 'unavailable'; readonly reason: string; readonly code?: 'workspace_gui_unavailable' | 'workspace_dialog_start_failed' };
 
 export interface IWorkspaceAuthorizer {
   requestAuthorization(
@@ -168,10 +170,11 @@ export class WindowsInteractiveWorkspaceAuthorizer implements IWorkspaceAuthoriz
     signal?: AbortSignal,
   ): Promise<WorkspaceAuthorizationResult> {
     if (process.platform !== 'win32') {
-      return { decision: 'unavailable', reason: 'Interactive dialog only supported on Windows.' };
+      return { decision: 'unavailable', code: 'workspace_gui_unavailable', reason: 'Interactive dialog only supported on Windows.' };
     }
     if (!existsSync(this.scriptPath)) {
-      return { decision: 'unavailable', reason: 'Authorization dialog script not found.' };
+      authorizationDiagnostic('dialog_script_missing', { scriptPath: this.scriptPath });
+      return { decision: 'unavailable', code: 'workspace_dialog_start_failed', reason: 'Authorization dialog script not found.' };
     }
     if (signal?.aborted) {
       return { decision: 'cancelled', reason: 'Operation aborted.' };
@@ -185,49 +188,81 @@ export class WindowsInteractiveWorkspaceAuthorizer implements IWorkspaceAuthoriz
 
       const child = spawn(
         powershellExe,
-        ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', this.scriptPath, request.canonicalPath],
-        { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: false },
+        ['-NoProfile', '-NonInteractive', '-STA', '-WindowStyle', 'Hidden', '-ExecutionPolicy', 'Bypass', '-File', this.scriptPath, '-CanonicalPath', request.canonicalPath],
+        { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true },
       );
+      authorizationDiagnostic('dialog_spawn', { childPid: child.pid, scriptPath: this.scriptPath, targetPath: request.canonicalPath });
 
       let stdout = '';
+      let shown = false;
+      let stderrBytes = 0;
+      let stderrTail = '';
       child.stdout.on('data', (chunk: Buffer) => {
-        stdout += chunk.toString('utf8');
+        stdout = (stdout + chunk.toString('utf8')).slice(-4096);
       });
+      child.stderr.on('data', (chunk: Buffer) => {
+        stderrBytes += chunk.length;
+        stderrTail = (stderrTail + chunk.toString('utf8')).slice(-256);
+        const failure = stderrTail.match(/QAP_DIALOG_ERROR ([A-Za-z0-9_.]+) (-?\d+)/);
+        if (failure) authorizationDiagnostic('dialog_script_error', { exceptionType: failure[1], hresult: failure[2] });
+        if (!shown && stderrTail.includes('QAP_DIALOG_SHOWN')) {
+          shown = true;
+          authorizationDiagnostic('dialog_shown', { childPid: child.pid });
+        }
+      });
+      const timer = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        signal?.removeEventListener('abort', onAbort);
+        child.kill();
+        authorizationDiagnostic('dialog_watchdog_expired', { shown });
+        resolveResult({ decision: 'cancelled', code: 'workspace_authorization_expired' });
+      }, 125_000);
 
       const onAbort = () => {
         if (!settled) {
           settled = true;
+          clearTimeout(timer);
+          signal?.removeEventListener('abort', onAbort);
           try { child.kill('SIGTERM'); } catch { /* ignore kill error */ }
+          authorizationDiagnostic('dialog_aborted', { shown });
           resolveResult({ decision: 'cancelled', reason: 'Operation aborted.' });
         }
       };
 
       if (signal) {
         signal.addEventListener('abort', onAbort, { once: true });
+        if (signal.aborted) onAbort();
       }
 
       child.on('close', (code) => {
         if (settled) return;
         settled = true;
+        clearTimeout(timer);
         if (signal) signal.removeEventListener('abort', onAbort);
 
         const text = stdout.trim();
-        if (code === 0 && text.includes('AUTHORIZED')) {
+        authorizationDiagnostic('dialog_closed', { childPid: child.pid, exitCode: code, shown, stderrBytes });
+        if (code === 0 && text === 'AUTHORIZED' && shown) {
           resolveResult({ decision: 'approved', root: request.canonicalPath });
-        } else if (code === 1 || text.includes('REJECTED')) {
+        } else if (code === 1 && text === 'REJECTED' && shown) {
           resolveResult({ decision: 'rejected', root: request.canonicalPath, reason: 'Operator rejected workspace authorization.' });
-        } else if (text.includes('UNAVAILABLE')) {
-          resolveResult({ decision: 'unavailable', reason: 'Desktop session not interactive.' });
+        } else if (code === 3 && text === 'UNAVAILABLE') {
+          resolveResult({ decision: 'unavailable', code: 'workspace_gui_unavailable', reason: 'Desktop session not interactive.' });
+        } else if (code === 2 && ['CANCELLED', 'EXPIRED'].includes(text) && shown) {
+          resolveResult({ decision: 'cancelled', code: text === 'EXPIRED' ? 'workspace_authorization_expired' : 'workspace_authorization_cancelled' });
         } else {
-          resolveResult({ decision: 'cancelled', reason: 'Authorization window dismissed or timed out.' });
+          resolveResult({ decision: 'unavailable', code: 'workspace_dialog_start_failed', reason: 'Dialog failed or returned an invalid response.' });
         }
       });
 
       child.on('error', (err) => {
         if (settled) return;
         settled = true;
+        clearTimeout(timer);
         if (signal) signal.removeEventListener('abort', onAbort);
-        resolveResult({ decision: 'unavailable', reason: `Failed to launch authorization dialog: ${err.message}` });
+        authorizationDiagnostic('dialog_spawn_error', { code: (err as NodeJS.ErrnoException).code });
+        resolveResult({ decision: 'unavailable', code: 'workspace_dialog_start_failed', reason: 'Failed to launch authorization dialog.' });
       });
     });
   }

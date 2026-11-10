@@ -15,6 +15,7 @@ import type { ModuleBinding } from './handlers/module-observation-bridge.js';
 import type { McpServerOptions } from './server.js';
 import { WorkspaceBootstrap } from './workspace-bootstrap.js';
 import { WindowsInteractiveWorkspaceAuthorizer } from './workspace-authorizer.js';
+import { authorizationDiagnostic } from './authorization-diagnostics.js';
 
 /**
  * Opt-in Stdio composition. The manifest comes from the HOST environment, never
@@ -239,6 +240,11 @@ export async function loadHostComposition(
     const authorizer = (process.platform === 'win32' && !env.QAP_DISABLE_INTERACTIVE_AUTH && env.NODE_ENV !== 'test')
       ? new WindowsInteractiveWorkspaceAuthorizer()
       : undefined;
+    authorizationDiagnostic('host_composition', {
+      build: process.env.QAP_BUILD_REVISION ?? 'development',
+      authorizer: authorizer ? 'WindowsInteractiveWorkspaceAuthorizer' : 'unconfigured',
+      disabledByFlag: Boolean(env.QAP_DISABLE_INTERACTIVE_AUTH), testEnvironment: env.NODE_ENV === 'test', manifest: false,
+    });
     return {
       options: {
         projectRoots: roots,
@@ -251,6 +257,7 @@ export async function loadHostComposition(
     };
   }
   const path = existingFile(manifestPath, 'manifest');
+  authorizationDiagnostic('host_composition', { build: process.env.QAP_BUILD_REVISION ?? 'development', manifest: true, authorizer: 'manifest_scope_only' });
   const payload: unknown = JSON.parse(readFileSync(path, 'utf8'));
   if (!object(payload) || payload.version !== 1) throw new Error('Unsupported host manifest version.');
   const root = requiredText(payload.projectRoot, 'projectRoot');

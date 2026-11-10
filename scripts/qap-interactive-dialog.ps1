@@ -4,18 +4,25 @@
 )
 
 # Host-managed interactive workspace authorization dialog for QAP.
-# This UI runs in the operator desktop session, outside AI agent control.
+# This UI requests a human decision. It is NOT a security boundary against
+# other processes running as the same Windows user; UIPI isolation is not claimed.
 # Exit codes:
 #   0 = Authorized by operator (stdout: AUTHORIZED)
 #   1 = Rejected by operator (stdout: REJECTED)
 #   2 = Cancelled / closed / timeout (stdout: CANCELLED)
 
+$ErrorActionPreference = 'Stop'
+trap {
+  [Console]::Error.WriteLine('QAP_DIALOG_ERROR ' + $_.Exception.GetType().FullName + ' ' + $_.Exception.HResult)
+  Write-Output 'ERROR'
+  exit 4
+}
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
-if (-not [System.Windows.Forms.SystemInformation]::UserInteractive) {
+if (-not [System.Windows.Forms.SystemInformation]::UserInteractive -or [System.Diagnostics.Process]::GetCurrentProcess().SessionId -eq 0) {
   Write-Output "UNAVAILABLE"
-  exit 2
+  exit 3
 }
 
 $decision = "CANCELLED"
@@ -96,14 +103,17 @@ $btnReject.Add_Click({
 })
 $form.Controls.Add($btnReject)
 
-$form.AcceptButton = $btnAuth
-$form.CancelButton = $btnReject
+# Closing or pressing Escape is cancellation, never a human rejection.
+$form.KeyPreview = $true
+$form.Add_KeyDown({ if ($_.KeyCode -eq 'Escape') { $form.Close() } })
+$form.Add_Shown({ [Console]::Error.WriteLine('QAP_DIALOG_SHOWN'); $form.Activate() })
 
 # Safety timeout of 120 seconds if unattended
-$timeoutSec = if ($env:QAP_DIALOG_TIMEOUT_SEC) { [int]$env:QAP_DIALOG_TIMEOUT_SEC } else { 120 }
+$timeoutSec = 120
 $timeoutTimer = New-Object System.Windows.Forms.Timer
 $timeoutTimer.Interval = $timeoutSec * 1000
 $timeoutTimer.Add_Tick({
+  $script:decision = 'EXPIRED'
   $form.Close()
 })
 $timeoutTimer.Start()

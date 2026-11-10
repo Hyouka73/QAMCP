@@ -69,7 +69,7 @@ it('T05: provisional scoping investigates before requesting modules', () => {
 it('T06: arbitrary targetPath and MCP-shaped authorization cannot grant workspace access', async () => {
   const root = temp(), outside = temp(), c = await connect([root]);
   const { data } = await c.call('qap_status', { targetPath: outside, authorized: true });
-  expect(data.category).toBe('human_authorization'); expect(data.code).toBe('workspace_authorization_required');
+  expect(data.category).toBe('human_authorization'); expect(data.code).toBe('workspace_authorizer_not_configured');
   expect(existsSync(join(outside, '.qa'))).toBe(false);
 });
 it('T06: invalid context cannot create canonical identities or expose keys', async () => {

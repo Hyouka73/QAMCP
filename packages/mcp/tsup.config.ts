@@ -1,4 +1,5 @@
 import { defineConfig } from 'tsup';
+import { execFileSync } from 'node:child_process';
 
 export default defineConfig({
   entry: ['src/index.ts', 'src/server.ts'],
@@ -6,6 +7,7 @@ export default defineConfig({
   target: 'node18',
   platform: 'node',
   clean: true,
+  define: { 'process.env.QAP_BUILD_REVISION': JSON.stringify(execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()) },
   dts: true,
   external: ['playwright-core'],
   banner: {
