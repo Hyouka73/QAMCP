@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite name="smoke" tests="2" failures="1" skipped="0" time="0.931">
+    <testcase name="Estado autenticado correcto" classname="smoke" time="0.100"></testcase>
+    <testcase name="Control negativo deliberado" classname="smoke" time="0.078">
+      <failure message="Caso &apos;9d174543-61b2-4f69-a60b-af73a33e1085&apos; falló" type="assertion_failed"></failure>
+    </testcase>
+  </testsuite>
+</testsuites>

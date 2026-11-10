@@ -1295,3 +1295,8 @@ A02 cwd/SQLite estable corregido en Windows probado; sustitución/desaparición 
 Corregir A01 y contratos pendientes antes de A closed+B waived+reporte/WRAP_UP/replanificación. Mantener E0a/E1/E2/E3/C9 y55históricos más9fallos R9. **VNEXT-014 NO-GO; VNEXT-015 no iniciado.** [Siguiente bloque](auditorias/VNEXT-014-R4-R10/SIGUIENTE_BLOQUE_P0.md).
 
 <!-- END DEVELOP HISTORICAL TEXT -->
+
+
+## Anexo aditivo 2026-11-10 — consolidación local verificada
+
+DEV-MVP-02, INT-03-R5, DEV-MVP-01-R4, el contrato operativo publicado y VNEXT-015-04 se conservan en un único candidato. Build monorepo y vertical MCP Stdio con cierre/recuperación PASS técnicos. MCP mantiene exactamente 12 FAIL heredados; Adapter tuvo un timeout y pasó en repetición focal. No hay GO integral ni aceptación humana. Informe adicional de Antigravity pendiente; no se eliminaron ramas/worktrees ni se tocó admin-user.json. [Inventario y validación](integracion/CONSOLIDACION_VNEXT_2026-11-10/VALIDACION_Y_ENTREGA.md).

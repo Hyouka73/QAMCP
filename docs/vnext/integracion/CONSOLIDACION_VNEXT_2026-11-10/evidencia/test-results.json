@@ -1,0 +1,95 @@
+[
+  {
+    "package": "knowledge",
+    "command": [
+      "pnpm.cmd",
+      "--filter",
+      "@qap/knowledge",
+      "exec",
+      "vitest",
+      "run",
+      "--maxWorkers=1",
+      "--no-file-parallelism"
+    ],
+    "exit": 0,
+    "duration_s": 35.65
+  },
+  {
+    "package": "playwright-adapter",
+    "command": [
+      "pnpm.cmd",
+      "--filter",
+      "@qap/playwright-adapter",
+      "exec",
+      "vitest",
+      "run",
+      "--maxWorkers=1",
+      "--no-file-parallelism"
+    ],
+    "exit": 1,
+    "duration_s": 267.03
+  },
+  {
+    "package": "adapter-rollback-retry",
+    "command": [
+      "node",
+      "C:\\Users\\Judirico\\.codex\\worktrees\\mvp-integral\\QAMCP\\packages\\playwright-adapter\\node_modules\\vitest\\vitest.mjs",
+      "run",
+      "--maxWorkers=1",
+      "--no-file-parallelism",
+      "src/__tests__/active-probes.test.ts",
+      "-t",
+      "rolls back all probe pairs"
+    ],
+    "exit": 0,
+    "duration_s": 3.96
+  },
+  {
+    "package": "mcp",
+    "command": [
+      "node",
+      "C:\\Users\\Judirico\\.codex\\worktrees\\mvp-integral\\QAMCP\\packages\\mcp\\node_modules\\vitest\\vitest.mjs",
+      "run",
+      "--maxWorkers=1",
+      "--no-file-parallelism"
+    ],
+    "exit": 1,
+    "duration_s": 173.9
+  },
+  {
+    "package": "playwright-runner",
+    "command": [
+      "node",
+      "C:\\Users\\Judirico\\.codex\\worktrees\\mvp-integral\\QAMCP\\packages\\playwright-runner\\node_modules\\vitest\\vitest.mjs",
+      "run",
+      "--maxWorkers=1",
+      "--no-file-parallelism"
+    ],
+    "exit": 0,
+    "duration_s": 19.78
+  },
+  {
+    "package": "engine",
+    "command": [
+      "node",
+      "C:\\Users\\Judirico\\.codex\\worktrees\\mvp-integral\\QAMCP\\packages\\engine\\node_modules\\vitest\\vitest.mjs",
+      "run",
+      "--maxWorkers=1",
+      "--no-file-parallelism"
+    ],
+    "exit": 0,
+    "duration_s": 5.47
+  },
+  {
+    "package": "reporter",
+    "command": [
+      "node",
+      "C:\\Users\\Judirico\\.codex\\worktrees\\mvp-integral\\QAMCP\\packages\\reporter\\node_modules\\vitest\\vitest.mjs",
+      "run",
+      "--maxWorkers=1",
+      "--no-file-parallelism"
+    ],
+    "exit": 0,
+    "duration_s": 7.41
+  }
+]
