@@ -9,3 +9,4 @@ export * from './types.js';
 export * from './credential-provider.js';
 export * from './providers.js';
 export * from './portable-vault.js';
+export * from './local-secret-prompt.js';

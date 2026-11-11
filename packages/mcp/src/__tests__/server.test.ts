@@ -209,7 +209,7 @@ describe('Suite MCP Server QAP v2.1 / v2.1.2', () => {
     expect(parsedAfter._guidance_for_assistant).toContain('ONBOARDING');
   });
 
-  it('debe registrar un perfil de autenticacion con qap_auth_add y listar con qap_auth_list', async () => {
+  it('bloquea el login y la creación de perfiles cuando el host no está habilitado', async () => {
     const server = createMcpServer();
     // @ts-expect-error accessing internal request handler
     const handler = server._requestHandlers.get(CallToolRequestSchema.shape.method.value);
@@ -224,27 +224,22 @@ describe('Suite MCP Server QAP v2.1 / v2.1.2', () => {
           arguments: {
             profile: 'admin-user',
             env: 'staging',
-            username: 'admin',
-            login_mode: 'auto',
+            method: 'auto',
           },
         },
       },
       {}
     );
 
-    expect(authResult.isError).toBeFalsy();
+    expect(authResult.isError).toBe(true);
     const parsed = JSON.parse(authResult.content[0].text);
-    expect(parsed.status).toBe('success');
-    expect(parsed.profile.id).toBe('admin-user');
-    expect(parsed.directorio_objetivo).toBe(tempDir);
-    expect(existsSync(join(tempDir, '.qa', 'project', 'auth', 'profiles.json'))).toBe(true);
+    expect(parsed).toMatchObject({ status: 'blocked', code: 'authentication_authorization_required' });
+    expect(existsSync(join(tempDir, '.qa', 'project', 'auth', 'profiles.json'))).toBe(false);
 
     // Listar
     const listResult = await handler({ method: 'tools/call', params: { name: 'qap_auth_list', arguments: {} } }, {});
     const parsedList = JSON.parse(listResult.content[0].text);
-    expect(parsedList.count).toBe(1);
-    expect(parsedList.profiles[0].id).toBe('admin-user');
-    expect(parsedList.directorio_objetivo).toBe(tempDir);
+    expect(parsedList).toMatchObject({ status: 'success', count: 0, profiles: [] });
   });
 
   it('debe generar reportes con qap_report y limpiar con qap_clean', async () => {

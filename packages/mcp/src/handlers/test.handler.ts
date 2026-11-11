@@ -407,7 +407,7 @@ export class TestHandler implements IMcpToolHandler {
       }
       if (context.signal.aborted) return interactiveBlocked('test_authorization_cancelled');
       if (args.profile) {
-        verifiedSession = interactive.readSession(scope, args.profile);
+        verifiedSession = await interactive.resolveSession(scope, args.profile);
         if (!verifiedSession) return interactiveBlocked('auth_session_expired');
       }
     }

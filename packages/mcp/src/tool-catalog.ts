@@ -60,65 +60,23 @@ export const TOOLS: Tool[] = [
   },
   {
     name: 'qap_auth_add',
-    description: `Registra y verifica un perfil de autenticación en .qa/project/auth/profiles.json. Permite método 'credentials' (almacenando únicamente credenciales de PRUEBA en llavero seguro keytar sin texto plano) o 'handoff' (login manual asistido en navegador). Tras capturar la sesión, ejecuta verificación automática contra el primer módulo protegido del plan y guarda el storageState. ${UX_DIRECTIVE}`,
+    description: 'Solicita autorización local para verificar una sesión. Usa auto con un perfil aprovisionado, reuse para comprobar una sesión existente, o handoff para iniciar sesión en el navegador. Usa el identificador del perfil y conserva toda credencial en el host.',
     inputSchema: {
       type: 'object',
+      additionalProperties: false,
       properties: {
         targetPath: TARGET_PATH_PROP,
-        profile: {
-          type: 'string',
-          description: 'Identificador del perfil de autenticación (ej: "admin", "tester")',
-        },
-        id: {
-          type: 'string',
-          description: 'Alias de profile',
-        },
-        env: {
-          type: 'string',
-          description: 'Entorno asignado al perfil (ej: "local", "dev", "staging")',
-          default: 'local',
-        },
-        username: {
-          type: 'string',
-          description: 'Nombre de usuario asociado al perfil',
-          default: 'user',
-        },
-        password: {
-          type: 'string',
-          description: 'Contraseña o credencial de PRUEBA a almacenar de forma segura en llavero',
-        },
-        secret: {
-          type: 'string',
-          description: 'Alias de password para compatibilidad',
-        },
-        method: {
-          type: 'string',
-          enum: ['credentials', 'handoff'],
-          description: 'Método de inicio de sesión: credentials (auto-login con llavero) o handoff (asistido en ventana)',
-          default: 'credentials',
-        },
-        login_mode: {
-          type: 'string',
-          enum: ['auto', 'handoff'],
-          description: 'Modo de inicio de sesión (auto = credentials)',
-          default: 'auto',
-        },
-        role: {
-          type: 'string',
-          description: 'Rol de negocio asociado al perfil (ej: "admin", "cliente", "operador")',
-        },
-        login_route: {
-          type: 'string',
-          description: 'Ruta de inicio de sesión',
-          default: '/login',
-        },
-        timeout_ms: {
-          type: 'number',
-          description: 'Tiempo límite de espera en milisegundos',
-        },
+        profile: { type: 'string', description: 'Identificador del perfil de pruebas.' },
+        env: { type: 'string', description: 'Entorno autorizado del perfil.' },
+        method: { type: 'string', enum: ['auto', 'reuse', 'handoff'] },
+        login_mode: { type: 'string', enum: ['auto', 'reuse', 'handoff'] },
+        role: { type: 'string', description: 'Rol para el handoff.' },
+        login_route: { type: 'string', description: 'Ruta de inicio de sesión para el handoff.' },
+        verification_route: { type: 'string', description: 'Ruta protegida del mismo origen para el handoff.' },
+        timeout_ms: { type: 'number', description: 'Tiempo máximo de la operación en milisegundos.' },
         post_login_condition: { type: 'object', additionalProperties: false, properties: {
           type: { type: 'string', enum: ['selector_present'] }, value: { type: 'string', minLength: 1, maxLength: 500 },
-        }, required: ['type', 'value'], description: 'Marcador explícito de sesión válida, verificado de nuevo en cada captura autenticada.' },
+        }, required: ['type', 'value'], description: 'Selector visible de autenticación para el handoff.' },
       },
       required: ['profile'],
     },

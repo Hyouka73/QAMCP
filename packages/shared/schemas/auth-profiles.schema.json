@@ -47,6 +47,20 @@
             "enum": ["auto", "handoff"],
             "description": "Login mode - auto for automated login, handoff for manual intervention"
           },
+          "login_origin": { "type": "string", "minLength": 1, "maxLength": 1024 },
+          "verification_route": { "type": "string", "minLength": 1, "maxLength": 1024 },
+          "token_exchange_route": { "type": "string", "minLength": 1, "maxLength": 1024 },
+          "challenge_selector": { "type": "string", "minLength": 1, "maxLength": 500 },
+          "form_selectors": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["username", "password", "submit"],
+            "properties": {
+              "username": { "type": "string", "minLength": 1, "maxLength": 500 },
+              "password": { "type": "string", "minLength": 1, "maxLength": 500 },
+              "submit": { "type": "string", "minLength": 1, "maxLength": 500 }
+            }
+          },
           "login_route": {
             "type": "string",
             "description": "Route or path for the login page",

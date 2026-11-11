@@ -42,7 +42,6 @@ import {
   type ProjectRepoMap,
   type ModuleCandidatesFile,
 } from '@qap/shared';
-import type { StorageState } from '@qap/auth';
 import {
   FileSystemStorage,
   validateDefinitions,
@@ -105,7 +104,7 @@ import { CanonicalInterviewService } from './handlers/canonical-interview-servic
 import { CanonicalClosureError } from './handlers/canonical-closure-error.js';
 import { CanonicalClosureService } from './handlers/canonical-closure-service.js';
 import { renderCanonicalSessionReport } from './handlers/canonical-session-report.js';
-import { binding as knowledgeBinding, projectRoot as authorizedProjectRoot, result as canonicalResult } from './handlers/state-services.js';
+import { projectRoot as authorizedProjectRoot, result as canonicalResult } from './handlers/state-services.js';
 import { hasLegacyViewContext, legacyInterviewBlocked } from './handlers/legacy-discovery-contract.js';
 import { CleanHandler } from './handlers/clean.handler.js';
 import { PlanHandler } from './handlers/plan.handler.js';
@@ -348,23 +347,9 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
 
 
   // Manejador de lista de tools
-  const catalog = !interactiveAccess ? TOOLS : TOOLS.map(tool => {
-    if (tool.name !== 'qap_auth_add') return tool;
-    const legacy = tool.inputSchema.properties ?? {};
-    const properties = Object.fromEntries(Object.entries(legacy).filter(([key]) =>
-      ['targetPath', 'profile', 'env', 'role', 'login_route', 'timeout_ms', 'post_login_condition'].includes(key)));
-    return { ...tool,
-      description: 'Solicita autorización humana para iniciar sesión en Chromium. El operador introduce las credenciales en el navegador. Usa una ruta protegida y un selector visible exclusivo de una sesión autenticada.',
-      inputSchema: { ...tool.inputSchema, additionalProperties: false,
-        properties: { ...properties, method: { type: 'string', enum: ['handoff'] },
-          login_mode: { type: 'string', enum: ['handoff'] },
-          verification_route: { type: 'string', description: 'Ruta protegida del mismo origen, ej. /dashboard.' } },
-        required: ['profile', 'verification_route', 'post_login_condition'],
-      },
-    };
-  });
+  const authInputProperties = TOOLS.find(tool => tool.name === 'qap_auth_add')?.inputSchema.properties ?? {};
   server.setRequestHandler(ListToolsRequestSchema, () =>
-    Promise.resolve({ tools: [...catalog, ...dispatcher.listTools().filter(tool => !migrated.has(tool.name))] }));
+    Promise.resolve({ tools: [...TOOLS, ...dispatcher.listTools().filter(tool => !migrated.has(tool.name))] }));
 
   // Manejador de lista de prompts
   server.setRequestHandler(ListPromptsRequestSchema, () => Promise.resolve({ prompts: PROMPTS }));
@@ -412,6 +397,9 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
     const context = { ...sdkContext, signal: AbortSignal.any([controller.signal, ...(sdkContext.signal ? [sdkContext.signal] : [])]) };
     const operation = (async (): Promise<CallToolResult> => {
     const { name, arguments: rawArgs } = request.params;
+    if (name === 'qap_auth_add' && Object.keys(rawArgs ?? {}).some(key => !Object.hasOwn(authInputProperties, key))) {
+      return interactiveBlocked('agent_auth_material_not_supported');
+    }
     if (options.clientWorkspaceRoots) {
       // Roots are an out-of-band client capability, never supplied as tool arguments.
       try {
@@ -771,408 +759,14 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         }
 
         case 'qap_auth_add': {
-          if (interactiveAccess) {
-            return await interactiveAccess.login(args, context.signal).catch(() => interactiveBlocked('authentication_failed'));
-          }
-          if (Object.hasOwn(args, 'storageState')) return interactiveBlocked('agent_storage_state_not_supported');
-          const profileId = String(args.profile || args.id || 'default');
-          const env = String(args.env || 'local');
-          const username = String(args.username || 'user');
-          const method = (args.method === 'handoff' || args.login_mode === 'handoff') ? 'handoff' : 'credentials';
-          const loginMode: 'auto' | 'handoff' = method === 'handoff' ? 'handoff' : 'auto';
-          const loginRoute = String(args.login_route || '/login');
-          const role = args.role ? String(args.role) : undefined;
-          const password = args.password ? String(args.password) : (args.secret ? String(args.secret) : undefined);
-
-          const authDir = resolve(rootDir, '.qa', 'project', 'auth');
-          const profilesPath = join(authDir, 'profiles.json');
-          if (!existsSync(authDir)) {
-            mkdirSync(authDir, { recursive: true });
-          }
-
-          let profiles: AuthProfile[] = [];
-          if (existsSync(profilesPath)) {
-            try {
-              const raw = readFileSync(profilesPath, 'utf-8');
-              const parsed = JSON.parse(raw);
-              profiles = parsed.profiles || [];
-            } catch {
-              profiles = [];
-            }
-          }
-
-          const existingIndex = profiles.findIndex((p) => p.id === profileId);
-          const authCondition = args.post_login_condition as { type?: unknown; value?: unknown } | undefined;
-          if (authCondition !== undefined && (!authCondition || authCondition.type !== 'selector_present' || typeof authCondition.value !== 'string' || !authCondition.value.trim() || authCondition.value.length > 500)) return canonicalResult({ status: 'blocked', code: 'invalid_post_login_condition' }, true);
-          const newProfile: AuthProfile = {
-            id: profileId,
-            env,
-            username,
-            login_mode: loginMode,
-            login_route: loginRoute,
-            role: role || undefined,
-            session_cache: { enabled: true },
-            post_login_condition: authCondition as AuthProfile['post_login_condition'] ?? { type: 'url_contains', value: '/dashboard' },
-            application_id: knowledgeBinding(rootDir, dependencies)?.applicationId,
-            handoff_timeout_ms: Math.min(Number(args.timeout_ms) || 120000, 120000),
-            credential_source: 'keychain',
-            verified: false,
-          };
-
-          if (existingIndex >= 0) {
-            profiles[existingIndex] = newProfile;
-          } else {
-            profiles.push(newProfile);
-          }
-
-          // Guardar perfil inicial en disco para que AuthManager pueda leerlo
-          writeFileSync(profilesPath, JSON.stringify({ profiles }, null, 2), 'utf-8');
-
-          if (password) {
-            try {
-              const { AuthManager } = await import('@qap/auth');
-              const authManager = new AuthManager(rootDir);
-              await authManager.setSecret(profileId, password);
-            } catch {
-              return {
-                content: [
-                  {
-                    type: 'text',
-                    text: JSON.stringify(
-                      {
-                        status: 'blocked',
-                        razon: 'keychain_unavailable',
-                        directorio_objetivo: rootDir,
-                        error: 'El llavero seguro del sistema (keytar) no está disponible. No se almacenarán credenciales en texto plano.',
-                        desbloquear_con: {
-                          tool: 'qap_auth_add',
-                          descripcion: 'Usa el método handoff para autenticarte interactivamente en el navegador sin almacenar contraseñas en el llavero.',
-                        },
-                      },
-                      null,
-                      2
-                    ),
-                  },
-                ],
-              };
-            }
-          }
-
-          const storage = new FileSystemStorage({ rootDir });
-          const lifecycleState = await storage.getLifecycleState();
-
-          // Resolver baseUrl
-          let baseUrl = 'http://localhost:3000';
-          const envsPath = join(rootDir, '.qa', 'project', 'environments.yaml');
-          if (existsSync(envsPath)) {
-            try {
-              const parsedEnv = YAML.parse(readFileSync(envsPath, 'utf-8'));
-              const defaultEnv = parsedEnv?.default ?? 'local';
-              baseUrl = parsedEnv?.environments?.[defaultEnv]?.url ?? baseUrl;
-            } catch { /* empty */ }
-          } else {
-            const ctxPath = join(rootDir, '.qa', 'project', 'context.yaml');
-            if (existsSync(ctxPath)) {
-              try {
-                const parsedCtx = YAML.parse(readFileSync(ctxPath, 'utf-8'));
-                if (parsedCtx?.base_url) baseUrl = parsedCtx.base_url;
-              } catch { /* empty */ }
-            }
-          }
-
-          const sessionDir = join(rootDir, '.qa', 'cache', 'sessions');
-          if (!existsSync(sessionDir)) mkdirSync(sessionDir, { recursive: true });
-
-          const plan = lifecycleState.session?.plan || [];
-          const firstProtected = plan.find((p: { module: string; path: string; acceso?: boolean }) => !p.acceso && !isAuthPath(p.path));
-          const postLoginCondition = authCondition ? newProfile.post_login_condition! : (firstProtected
-            ? { type: 'url_contains' as const, value: firstProtected.path }
-            : (newProfile.post_login_condition || { type: 'url_contains' as const, value: '/dashboard' }));
-
-          let capturedStorageState: StorageState | undefined;
-          const verificationAttempted = Boolean(capturedStorageState || password || method === 'handoff');
-
-          if (!capturedStorageState && password) {
-            try {
-              const { PlaywrightAdapter } = await import('@qap/playwright-adapter');
-              const tempSessionPath = join(sessionDir, `tmp_${profileId}_${Date.now()}.json`);
-              const loginAdapter = new PlaywrightAdapter({
-                headless: true,
-                baseUrl,
-                sessionPath: tempSessionPath,
-                credentials: { username, password },
-              });
-              await loginAdapter.discover({ name: 'login_flow', path: loginRoute });
-              if (existsSync(tempSessionPath)) {
-                try {
-                  capturedStorageState = JSON.parse(readFileSync(tempSessionPath, 'utf-8'));
-                } catch { /* empty */ }
-                try { rmSync(tempSessionPath, { force: true }); } catch { /* empty */ }
-              }
-            } catch {
-              // Si falla la navegación del auto-login
-            }
-          } else if (!capturedStorageState && method === 'handoff') {
-            try {
-              const { chromium } = await import('playwright-core');
-              const browser = await chromium.launch({ headless: false });
-              const bCtx = await browser.newContext();
-              try {
-                const handoffHook = (globalThis as Record<string, unknown>).__QAP_HANDOFF_TEST_HOOK__;
-                if (handoffHook && typeof handoffHook === 'function') {
-                  await (handoffHook as (ctx: unknown, url: string) => Promise<void>)(bCtx, baseUrl);
-                }
-                const { executeHandoffLogin } = await import('@qap/auth');
-                capturedStorageState = await executeHandoffLogin(
-                  {
-                    ...newProfile,
-                    login_route: `${baseUrl}${loginRoute.startsWith('/') ? loginRoute : `/${loginRoute}`}`,
-                    post_login_condition: postLoginCondition,
-                    handoff_timeout_ms: Math.min(Number(args.timeout_ms) || 120000, 120000),
-                  },
-                  bCtx
-                );
-              } finally {
-                await bCtx.close().catch(() => {});
-                await browser.close().catch(() => {});
-              }
-            } catch {
-              // Timeout o fallo en handoff
-            }
-          }
-
-          let isVerified = false;
-          const verifiedRoute = firstProtected ? firstProtected.path : loginRoute;
-
-          if (capturedStorageState) {
-            const { SessionStore } = await import('@qap/auth');
-            const sessionStore = new SessionStore(sessionDir, rootDir);
-            sessionStore.saveSession(profileId, capturedStorageState);
-
-            try {
-              const { PlaywrightAdapter, normalizeUrlForComparison } = await import('@qap/playwright-adapter');
-              const verifyAdapter = new PlaywrightAdapter({
-                headless: true,
-                baseUrl,
-                storageState: capturedStorageState,
-              });
-
-              if (firstProtected) {
-                const verifyRes = await verifyAdapter.discover(
-                  { name: firstProtected.module, path: firstProtected.path },
-                  { storageState: capturedStorageState }
-                );
-                const vCtx = (verifyRes.context || {}) as Record<string, unknown>;
-                const normFinal = normalizeUrlForComparison(String(vCtx.final_url || ''), baseUrl);
-                const normReq = normalizeUrlForComparison(String(vCtx.requested_url || firstProtected.path), baseUrl);
-                if (normFinal.pathname === normReq.pathname && vCtx.page_kind === 'app') {
-                  isVerified = true;
-                }
-              } else {
-                const verifyRes = await verifyAdapter.discover(
-                  { name: 'verify_post_login', path: loginRoute },
-                  { storageState: capturedStorageState }
-                );
-                const vCtx = (verifyRes.context || {}) as Record<string, unknown>;
-                if (vCtx.page_kind !== 'login') {
-                  isVerified = true;
-                }
-              }
-            } catch {
-              isVerified = false;
-            }
-          }
-
-          // A supplied oracle must be physically verified, not just stored as profile metadata.
-          if (isVerified && authCondition && capturedStorageState) {
-            const { chromium } = await import('playwright-core');
-            let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined;
-            try {
-              for (const channel of ['chrome', 'msedge', undefined] as const) {
-                try { browser = await chromium.launch({ headless: true, ...(channel ? { channel } : {}) }); break; }
-                catch { /* Try another supported local Chromium installation. */ }
-              }
-              if (!browser) throw new Error('Browser unavailable');
-              const authContext = await browser.newContext({ storageState: capturedStorageState });
-              const page = await authContext.newPage();
-              await page.goto(new URL(verifiedRoute, baseUrl).href, { waitUntil: 'domcontentloaded', timeout: 15000 });
-              isVerified = await page.locator(String(authCondition.value)).count() > 0 && await page.locator('input[type="password"]').count() === 0;
-            } catch { isVerified = false; }
-            finally { await browser?.close().catch(() => undefined); }
-          }
-
-          if (verificationAttempted && !isVerified) {
-            newProfile.verified = false;
-            const idx = profiles.findIndex((p) => p.id === profileId);
-            if (idx >= 0) profiles[idx] = newProfile;
-            writeFileSync(profilesPath, JSON.stringify({ profiles }, null, 2), 'utf-8');
-
-            const isHandoffTimeout = method === 'handoff' && !capturedStorageState;
-            const razon = isHandoffTimeout ? 'handoff_timeout' : 'session_invalid';
-            const message = isHandoffTimeout
-              ? `El inicio de sesión interactivo (handoff) para el perfil '${profileId}' excedió el tiempo límite sin completar el acceso a la ruta objetivo.`
-              : `La sesión para el perfil '${profileId}' falló la verificación contra '${verifiedRoute}'.`;
-
-            return {
-              content: [
-                {
-                  type: 'text',
-                  text: JSON.stringify(
-                    {
-                      status: 'blocked',
-                      razon,
-                      directorio_objetivo: rootDir,
-                      perfil: profileId,
-                      rol: role,
-                      message,
-                      desbloquear_con: {
-                        tool: 'qap_auth_add',
-                        descripcion: isHandoffTimeout
-                          ? `Reintenta el inicio de sesión con handoff para el perfil '${profileId}' con qap_auth_add.`
-                          : `Revisa las credenciales o flujo de inicio de sesión para el perfil '${profileId}'.`,
-                      },
-                      siguiente_accion: {
-                        tipo: 'trabajo',
-                        descripcion: isHandoffTimeout
-                          ? `Reintentar inicio de sesión manual para el perfil '${profileId}'.`
-                          : `Reintentar la autenticación para el perfil '${profileId}'.`,
-                        tool: 'qap_auth_add',
-                        parametros: {
-                          profile: profileId,
-                          role,
-                          method,
-                          login_route: loginRoute,
-                          timeout_ms: args.timeout_ms,
-                        },
-                      },
-                    },
-                    null,
-                    2
-                  ),
-                },
-              ],
-            };
-          }
-
-          if (isVerified) {
-            newProfile.verified = true;
-            newProfile.verified_at = new Date().toISOString();
-            newProfile.verified_route = verifiedRoute;
-          }
-
-          const idx = profiles.findIndex((p) => p.id === profileId);
-          if (idx >= 0) profiles[idx] = newProfile;
-          writeFileSync(profilesPath, JSON.stringify({ profiles }, null, 2), 'utf-8');
-
-          let currentPhase = lifecycleState.phase;
-          let faltantes: Array<{ campo: string; motivo: string }> = [];
-
-          if (currentPhase === 'ONBOARDING') {
-            const ctxPath = join(rootDir, '.qa', 'project', 'context.yaml');
-            const parsedContext = existsSync(ctxPath) ? YAML.parse(readFileSync(ctxPath, 'utf-8')) : null;
-            const parsedEnv = existsSync(envsPath) ? YAML.parse(readFileSync(envsPath, 'utf-8')) : null;
-            faltantes = canExitOnboarding(parsedContext, parsedEnv).faltantes;
-          } else if (currentPhase === 'SCOPING') {
-            const gate = canExitScoping(lifecycleState, profiles);
-            faltantes = gate.faltantes;
-            if (gate.passed) {
-              await storage.updateLifecycleState(async (curr) => {
-                curr.phase = 'WORKING';
-                curr.history = curr.history || [];
-                curr.history.push({
-                  from: 'SCOPING',
-                  to: 'WORKING',
-                  at: new Date().toISOString(),
-                  reason: 'Compuerta de salida de SCOPING superada tras verificar perfil de autenticación',
-                });
-                return curr;
-              });
-              currentPhase = 'WORKING';
-            }
-          }
-
-          const guidance = getPhaseGuidance(currentPhase, {
-            faltantes,
-            plan: lifecycleState.session?.plan,
-            modules: lifecycleState.modules as any,
-            profiles,
-          });
-
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify(
-                  {
-                    status: 'success',
-                    directorio_objetivo: rootDir,
-                    message: isVerified
-                      ? `✔ Perfil '${profileId}' verificado con éxito y sesión guardada.`
-                      : `✔ Perfil '${profileId}' registrado con éxito en .qa/project/auth/profiles.json.`,
-                    profile: {
-                      id: newProfile.id,
-                      env: newProfile.env,
-                      username: newProfile.username,
-                      role: newProfile.role,
-                      login_mode: newProfile.login_mode,
-                      verified: Boolean(newProfile.verified),
-                      verified_at: newProfile.verified_at,
-                      verified_route: newProfile.verified_route,
-                    },
-                    secretSaved: Boolean(password),
-                    fase: currentPhase,
-                    siguiente_accion: guidance.siguiente_accion,
-                  },
-                  null,
-                  2
-                ),
-              },
-            ],
-          };
+          if (!interactiveAccess) return interactiveBlocked('authentication_authorization_required');
+          return await interactiveAccess.login(args, context.signal).catch(() => interactiveBlocked('authentication_failed'));
         }
 
         case 'qap_auth_list': {
-          if (interactiveAccess) {
-            const profiles = await interactiveAccess.profiles(authorizedProjectRoot(args, dependencies, false));
-            return canonicalResult({ status: 'success', count: profiles.length,
-              profiles: profiles.map(p => ({ id: p.id, env: p.env, role: p.role, verified: p.verified, login_mode: p.login_mode })) });
-          }
-          const authDir = resolve(rootDir, '.qa', 'project', 'auth');
-          const profilesPath = join(authDir, 'profiles.json');
-          let profiles: AuthProfile[] = [];
-          if (existsSync(profilesPath)) {
-            try {
-              const parsed = JSON.parse(readFileSync(profilesPath, 'utf-8'));
-              profiles = parsed.profiles || [];
-            } catch {
-              profiles = [];
-            }
-          }
-
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify(
-                  {
-                    status: 'success',
-                    directorio_objetivo: rootDir,
-                    count: profiles.length,
-                    profiles: profiles.map((p) => ({
-                      id: p.id,
-                      env: p.env,
-                      username: p.username,
-                      login_mode: p.login_mode,
-                      login_route: p.login_route,
-                      credential_source: p.credential_source,
-                    })),
-                  },
-                  null,
-                  2
-                ),
-              },
-            ],
-          };
+          const profiles = interactiveAccess
+            ? await interactiveAccess.profileStatuses(authorizedProjectRoot(args, dependencies, false)) : [];
+          return canonicalResult({ status: 'success', count: profiles.length, profiles });
         }
 
         case 'qap_context_ingest': {

@@ -16,6 +16,15 @@ export interface AuthProfile {
   env_var?: string;
   application_id?: string;
   login_mode: 'auto' | 'handoff';
+  login_origin?: string;
+  verification_route?: string;
+  token_exchange_route?: string;
+  challenge_selector?: string;
+  form_selectors?: {
+    username: string;
+    password: string;
+    submit: string;
+  };
   login_route?: string;
   handoff_timeout_ms?: number;
   handoff_message?: string;

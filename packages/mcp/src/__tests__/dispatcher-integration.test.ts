@@ -127,22 +127,24 @@ describe('real MCP client/server via linked transports', () => {
       properties: { action: { enum: ['next', 'propose', 'correct', 'review', 'defer', 'resume'] } }, required: ['action'] });
     expect(tools.find(t => t.name === 'qap_plan')!.inputSchema.properties?.case_workflow).toMatchObject({
       type: 'object', additionalProperties: false, properties: { action: { enum: ['generate', 'review'] } } });
-    expect(tools.find(t => t.name === 'qap_auth_add')!.inputSchema.properties?.post_login_condition).toMatchObject({
+    const auth = tools.find(t => t.name === 'qap_auth_add')!.inputSchema;
+    expect(auth).toMatchObject({ additionalProperties: false, required: ['profile'] });
+    expect(auth.properties?.post_login_condition).toMatchObject({
       type: 'object', required: ['type','value'], properties: { type: { enum: ['selector_present'] } } });
+    expect(auth.properties?.method).toMatchObject({ enum: ['auto', 'reuse', 'handoff'] });
+    for (const key of ['password', 'secret', 'token', 'cookies', 'storageState', 'user_confirmed']) {
+      expect(auth.properties).not.toHaveProperty(key);
+    }
     expect({ tools: tools.map(tool => {
       if (tool.name === 'qap_discover') {
         const prior = oldTools.find(t => t.name === tool.name)!;
         return { ...tool, description: prior.description, inputSchema: { ...tool.inputSchema,
           properties: { ...tool.inputSchema.properties, profile: prior.inputSchema.properties?.profile } } };
       }
-      if (tool.name === 'qap_plan' || tool.name === 'qap_auth_add') {
-        const properties = { ...tool.inputSchema.properties }; delete properties.case_workflow; delete properties.post_login_condition;
-        if (tool.name === 'qap_auth_add') {
-          expect(properties.storageState).toBeUndefined();
-          const legacyStorageState = oldTools.find(t => t.name === tool.name)?.inputSchema.properties?.storageState;
-          if (!legacyStorageState) throw new Error('Missing legacy storageState fixture');
-          properties.storageState = legacyStorageState;
-        }
+      if (tool.name === 'qap_auth_add') return oldTools.find(t => t.name === tool.name)!;
+      if (tool.name === 'qap_plan') {
+        const properties = { ...tool.inputSchema.properties };
+        delete properties.case_workflow;
         return { ...tool, description: oldTools.find(t => t.name === tool.name)!.description, inputSchema: { ...tool.inputSchema, properties } };
       }
       if (tool.name === 'qap_module_close') {

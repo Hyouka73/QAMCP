@@ -9,12 +9,16 @@ const TEST_DIR = join(process.cwd(), '.qa', 'project', 'auth');
 const TEST_FILE = join(TEST_DIR, 'profiles.json');
 
 const authMock = vi.hoisted(() => ({
-  setSecret: vi.fn().mockResolvedValue(undefined),
+  setProfileSecret: vi.fn().mockResolvedValue(undefined),
+  close: vi.fn(),
   hasValidCredentials: vi.fn().mockResolvedValue(true),
   getCredentialStatus: vi.fn().mockResolvedValue({ auth_profile_id: 'test-profile', state: 'available' }),
   deleteSecret: vi.fn().mockResolvedValue(true),
 }));
-vi.mock('@qap/auth', () => ({ AuthManager: vi.fn().mockImplementation(function () { return authMock; }) }));
+vi.mock('@qap/auth', async importOriginal => ({
+  ...await importOriginal<typeof import('@qap/auth')>(),
+  AuthManager: vi.fn().mockImplementation(function () { return authMock; }),
+}));
 
 describe('Suite de Comandos CLI Auth (S2-003)', () => {
   beforeEach(() => {
@@ -31,10 +35,24 @@ describe('Suite de Comandos CLI Auth (S2-003)', () => {
     expect(existsSync(TEST_FILE)).toBe(true);
   });
 
-  it('debe guardar secreto con handleAuthSetSecret', async () => {
-    const spy = vi.spyOn(console, 'log');
-    await handleAuthSetSecret('test-profile', 'mi-pass-123');
-    expect(spy).toHaveBeenCalledWith(expect.stringContaining('Secreto guardado correctamente'));
+  it('guarda la contraseña obtenida del diálogo local y sólo imprime el identificador', async () => {
+    await handleAuthAdd({ id: 'test-profile', application_id: 'fixture', login_origin: 'https://fixture.invalid' });
+    const spy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const prompt = vi.fn().mockResolvedValue('synthetic-test-password');
+    try {
+      await handleAuthSetSecret('test-profile', prompt);
+      expect(prompt).toHaveBeenCalledOnce();
+      expect(authMock.setProfileSecret).toHaveBeenCalledWith(expect.objectContaining({ id: 'test-profile' }), 'synthetic-test-password');
+      expect(spy).toHaveBeenCalledWith(expect.stringContaining('Secreto guardado correctamente'));
+      expect(JSON.stringify(spy.mock.calls)).not.toContain('synthetic-test-password');
+      expect(readFileSync(TEST_FILE, 'utf8')).not.toContain('synthetic-test-password');
+    } finally { spy.mockRestore(); }
+  });
+
+  it('conserva el perfil sin credencial al cancelar el diálogo local', async () => {
+    await handleAuthAdd({ id: 'test-profile', application_id: 'fixture', login_origin: 'https://fixture.invalid' });
+    await handleAuthSetSecret('test-profile', () => Promise.resolve(undefined));
+    expect(authMock.setProfileSecret).not.toHaveBeenCalled();
   });
 
   it('debe listar perfiles con handleAuthList', async () => {

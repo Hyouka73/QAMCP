@@ -19,7 +19,7 @@ import type { Command } from 'commander';
 
 import { NotImplementedError } from './errors.js';
 import { handleClean } from './commands/clean.js';
-import { handleAuthAdd, handleAuthList, handleAuthSetSecret, handleAuthRemove } from './commands/auth/index.js';
+import { handleAuthAdd, handleAuthList, handleAuthSetSecret, handleAuthRemove, handleAuthTokenVariable } from './commands/auth/index.js';
 import { handleRun } from './commands/runner/index.js';
 import { handleStatus } from './commands/status/index.js';
 import { handleContext } from './commands/context.js';
@@ -104,15 +104,21 @@ export function registerCommands(program: Command): void {
     });
 
   authGroup
-    .command('set-secret [profile] [secret]')
-    .description('Almacena un secreto directamente en el llavero local')
-    .option('-p, --profile <profile>', 'Nombre del perfil')
-    .option('-s, --secret <secret>', 'Valor del secreto')
-    .action(async (profileArg?: string, secretArg?: string, options?: { profile?: string; secret?: string }) => {
-      const targetProfile = options?.profile || profileArg || 'default';
-      const targetSecret = options?.secret || secretArg || '';
-      await handleAuthSetSecret(targetProfile, targetSecret);
+    .command('set-secret <profile>')
+    .description('Guarda una credencial mediante el diálogo local de Windows')
+    .allowUnknownOption()
+    .allowExcessArguments()
+    .action(async (profile: string, _options: object, command: Command) => {
+      if (command.args.length !== 1 || !/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(profile)) {
+        throw new Error('Usa qap auth set-secret <perfil> y escribe la contraseña en el diálogo local.');
+      }
+      await handleAuthSetSecret(profile);
     });
+
+  authGroup
+    .command('token-variable <profile>')
+    .description('Muestra el nombre de la variable de token autorizada para este perfil')
+    .action(handleAuthTokenVariable);
 
   authGroup
     .command('remove [profile]')

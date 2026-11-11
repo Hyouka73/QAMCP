@@ -1,7 +1,8 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { AuthManager } from '@qap/auth';
+import { AuthManager, KeychainCredentialProvider, PortableCredentialVault, promptLocalSecret, readProfile,
+  TieredCredentialVault } from '@qap/auth';
 import type { AuthProfile } from '@qap/shared';
 import { SchemaValidator } from '@qap/shared';
 
@@ -55,6 +56,11 @@ export function handleAuthAdd(
       credential_source: profileData.credential_source || 'keychain',
       ...(profileData.env_var ? { env_var: profileData.env_var } : {}),
       ...(profileData.application_id ? { application_id: profileData.application_id } : {}),
+      ...(profileData.login_origin ? { login_origin: profileData.login_origin } : {}),
+      ...(profileData.verification_route ? { verification_route: profileData.verification_route } : {}),
+      ...(profileData.form_selectors ? { form_selectors: profileData.form_selectors } : {}),
+      ...(profileData.token_exchange_route ? { token_exchange_route: profileData.token_exchange_route } : {}),
+      ...(profileData.challenge_selector ? { challenge_selector: profileData.challenge_selector } : {}),
     };
 
     if (existingIndex >= 0) {
@@ -83,20 +89,37 @@ export function handleAuthAdd(
   }
 }
 
-/**
- * 2) qap auth set-secret <profile-id>: Solicita contraseña y guarda en keychain
- */
-export async function handleAuthSetSecret(profileId: string, secret: string): Promise<void> {
-  try {
-    if (!secret || secret.trim() === '') {
-      console.error(`✖ Error: El secreto para '${profileId}' no puede estar vacío.`);
-      return;
-    }
-    await authManager.setSecret(profileId, secret);
-    console.log(`✔ Secreto guardado correctamente para el perfil '${profileId}'.`);
-  } catch (error) {
-    console.error(`✖ Error al actualizar el secreto para el perfil '${profileId}':`, error);
+/** Provision the locally selected account through the host's masked dialog. */
+export async function handleAuthSetSecret(profileId: string, prompt = promptLocalSecret): Promise<void> {
+  const root = process.cwd();
+  const profile = await readProfile(profileId, root);
+  if (!profile || !profile.application_id || !profile.login_origin ||
+      !['keychain', 'vault'].includes(profile.credential_source)) {
+    throw new Error('Configura localmente un perfil con aplicación, origen y proveedor keychain o vault.');
   }
+  const destination = [root, profile.application_id, profile.env, profile.id, profile.username, profile.login_origin].join(' / ');
+  const portable = profile.credential_source === 'vault' ? new PortableCredentialVault(root) : undefined;
+  const manager = new AuthManager(root, { vault: new TieredCredentialVault({
+    keychain: new KeychainCredentialProvider(), vault: portable,
+  }) });
+  try {
+    if (portable) {
+      const passphrase = await prompt('Desbloquear Vault de QAP para ' + destination);
+      if (!passphrase) return;
+      await portable.unlock(passphrase);
+    }
+    const password = await prompt('Contraseña de pruebas para ' + destination);
+    if (!password) return;
+    await manager.setProfileSecret(profile, password);
+    console.log('Secreto guardado correctamente para el perfil ' + profileId + '.');
+  } finally { manager.close(); }
+}
+
+export async function handleAuthTokenVariable(profileId: string): Promise<void> {
+  const profile = await readProfile(profileId);
+  if (!profile || profile.credential_source !== 'env' || !profile.application_id ||
+      !profile.login_origin || !profile.token_exchange_route) throw new Error('Configura el perfil de intercambio de token.');
+  console.log(authManager.scopedTokenVariable(profile));
 }
 
 /**
@@ -119,7 +142,8 @@ export async function handleAuthList(): Promise<void> {
     for (const p of profiles) {
       let status = 'sin credencial';
       if (p.credential_source === 'env') {
-        const val = p.env_var ? process.env[p.env_var] : undefined;
+        const variable = p.login_origin ? authManager.scopedTokenVariable(p) : p.env_var;
+        const val = variable ? process.env[variable] : undefined;
         status = val ? 'variable env (ok)' : 'variable env (no definida)';
       } else {
         const result = await authManager.getCredentialStatus(p.id);

@@ -11,7 +11,6 @@ import {
   syncDiscoveryAuthorizationsFromDisk,
   atomicRecordDiscoveryAuthorization,
 } from '../discovery-authorizer.js';
-
 import { interactiveScope, sameInteractiveScope, validInteractiveProfile, type InteractiveAccess } from '../interactive-access.js';
 
 import { binding, definition, isObject, projectRoot, result, validateBase, type StateDependencies } from './state-services.js';
@@ -147,7 +146,7 @@ export class DiscoveryHandler implements IMcpToolHandler {
 
           if (authResult.decision === 'approved') {
             if (!config.authorization.navigation_urls.includes(target)) {
-              (config.authorization.navigation_urls as string[]).push(target);
+              config.authorization.navigation_urls.push(target);
             }
             if (this.hostDiscoveryRegistryPath) {
               atomicRecordDiscoveryAuthorization(this.hostDiscoveryRegistryPath, config);
@@ -348,7 +347,7 @@ export class DiscoveryHandler implements IMcpToolHandler {
           return blocked('authorization_context_mismatch');
         }
         if (context.signal.aborted) return blocked('cancelled');
-        const session = this.interactiveAccess.readSession(scope, args.profile);
+        const session = await this.interactiveAccess.resolveSession(scope, args.profile);
         if (!session?.state.cookies.length) return blocked('verified_cookie_profile_required', 'Completa qap_auth_add con un perfil compatible con Discovery basado en cookies.');
         authenticated_session = { profile_id: args.profile, origin: scope.origin,
           cookies: session.state.cookies, validation_selector: session.selector };

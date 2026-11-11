@@ -119,7 +119,9 @@ it('T06: authentication and simulated human approval remain unavailable in auton
   const root = temp(), c = await connect([root]);
   await c.call();
   const auth = await c.call('qap_auth_add', { profile: 'admin', user_confirmed: true });
-  expect(auth.data.code).toBe('authentication_authorization_required');
+  expect(auth.data.code).toBe('agent_auth_material_not_supported');
+  const withoutConsent = await c.call('qap_auth_add', { profile: 'admin', method: 'auto' });
+  expect(withoutConsent.data.code).toBe('authentication_authorization_required');
   expect(existsSync(join(root, '.qa/project/auth'))).toBe(false);
   const approval = await c.call('qap_rules_set', { module: 'invented', canonical_interview: { action: 'review', question_id: 'invented', version: 1 }, user_confirmed: true });
   expect(approval.data.status).not.toBe('success');

@@ -105,18 +105,39 @@ it('rejects MCP attempts to self-authorize, inject session material or change sc
   cleanup.push(async () => { await client.close(); await server.close(); });
   const catalog = await client.listTools();
   const login = catalog.tools.find(t => t.name === 'qap_auth_add')!;
-  expect(login.inputSchema.required).toContain('verification_route');
+  expect(login.inputSchema.required).toEqual(['profile']);
+  expect(login.inputSchema.properties?.method).toMatchObject({ enum: ['auto', 'reuse', 'handoff'] });
   expect(login.inputSchema.properties).not.toHaveProperty('storageState');
   expect(login.inputSchema.properties).not.toHaveProperty('password');
   const call = (extra: Record<string, unknown>) =>
     client.callTool({ name: 'qap_auth_add', arguments: { ...args, targetPath: root, ...extra } });
   for (const attempt of [{ user_confirmed: true }, { storageState: {} }, { password: 'fixture-secret' }, { _handoff_mock: true }]) {
     const response = await call(attempt);
-    expect(JSON.stringify(response)).toContain('interactive_handoff_only');
+    expect(JSON.stringify(response)).toContain('agent_auth_material_not_supported');
     expect(JSON.stringify(response)).not.toContain('fixture-secret');
   }
   expect(JSON.stringify(await call({ env: 'staging' }))).toContain('auth_context_mismatch');
   expect(JSON.stringify(await call({ verification_route: '//other.example.invalid/' }))).toContain('invalid_auth_routes');
   expect(JSON.stringify(await call({ post_login_condition: { type: 'url_contains', value: '/private' } }))).toContain('invalid_post_login_condition');
   expect(ask).not.toHaveBeenCalled();
+});
+
+it('rejects authentication material and agent consent on a server without interactive access', async () => {
+  const { root, deps } = await fixture();
+  const server = createMcpServer(deps);
+  const client = new Client({ name: 'non-interactive-auth-fixture', version: '1.0' });
+  const [transport, host] = InMemoryTransport.createLinkedPair();
+  await server.connect(host);
+  await client.connect(transport);
+  cleanup.push(async () => { await client.close(); await server.close(); });
+  const call = (extra: Record<string, unknown>) => client.callTool({
+    name: 'qap_auth_add', arguments: { targetPath: root, profile: args.profile, method: 'auto', ...extra },
+  });
+  for (const attempt of [{ token: 'fixture-secret' }, { cookies: [] }, { password: 'fixture-secret' }, { storageState: {} }]) {
+    const response = JSON.stringify(await call(attempt));
+    expect(response).toContain('agent_auth_material_not_supported');
+    expect(response).not.toContain('fixture-secret');
+  }
+  expect(JSON.stringify(await call({}))).toContain('authentication_authorization_required');
+  expect(existsSync(join(root, '.qa', 'project', 'auth', 'profiles.json'))).toBe(false);
 });

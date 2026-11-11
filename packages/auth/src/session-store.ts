@@ -24,7 +24,7 @@ export interface EncryptedSessionPayload {
   createdAt: number;
 }
 
-export class SessionStore {
+export class SessionStore<T extends StorageState = StorageState> {
   private cacheDir: string;
   private secretKey: Buffer;
 
@@ -41,7 +41,7 @@ export class SessionStore {
     return join(this.cacheDir, `${profileId}.json`);
   }
 
-  public saveSession(profileId: string, state: StorageState): void {
+  public saveSession(profileId: string, state: T): void {
     this.getFilePath(profileId);
     const iv = randomBytes(12);
     const cipher = createCipheriv('aes-256-gcm', this.secretKey, iv);
@@ -61,7 +61,7 @@ export class SessionStore {
     withFileLock(this.getFilePath(profileId), () => atomicPrivateWrite(this.getFilePath(profileId), JSON.stringify(payload)));
   }
 
-  public getValidSession(profileId: string): StorageState | null {
+  public getValidSession(profileId: string, preserveExpired = false): T | null {
     const filePath = this.getFilePath(profileId);
     try {
       return withFileLock(filePath, () => {
@@ -75,8 +75,11 @@ export class SessionStore {
           decipher.setAuthTag(Buffer.from(payload.authTag, 'hex'));
           const plaintext = Buffer.concat([decipher.update(Buffer.from(payload.data, 'hex')), decipher.final()]);
           try {
-            const state = JSON.parse(plaintext.toString('utf8')) as StorageState;
-            if (this.isExpired(state)) { unlinkSync(filePath); return null; }
+            const state = JSON.parse(plaintext.toString('utf8')) as T;
+            if (this.isExpired(state)) {
+              if (!preserveExpired) unlinkSync(filePath);
+              return null;
+            }
             return state;
           } finally { plaintext.fill(0); }
         } catch {
@@ -96,6 +99,8 @@ export class SessionStore {
     }
     return false;
   }
+
+  public close(): void { this.secretKey.fill(0); }
 
   public clearSession(profileId: string): void {
     const filePath = this.getFilePath(profileId);

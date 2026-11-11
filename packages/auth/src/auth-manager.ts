@@ -3,7 +3,7 @@ import { realpathSync } from 'node:fs';
 
 import type { AuthProfile } from '@qap/shared';
 
-import { CredentialError, credentialState, validateCredentials, type CredentialReference, type CredentialState } from './credential-provider.js';
+import { CredentialError, credentialState, referenceKey, validateCredentials, type CredentialReference, type CredentialState } from './credential-provider.js';
 import { readProfile } from './profiles-store.js';
 import { TieredCredentialVault } from './providers.js';
 import { safeProfileId } from './secure-files.js';
@@ -42,20 +42,42 @@ export class AuthManager {
 
   async getCredentials(profileId: string): Promise<AuthCredentials | null> {
     const profile = await this.profile(profileId);
-    if (!profile) return null;
+    return profile ? this.getProfileCredentials(profile) : null;
+  }
+
+  /** Use the exact validated snapshot that the local operator authorized. */
+  async getProfileCredentials(profile: AuthProfile, scoped = false): Promise<AuthCredentials | null> {
     if (profile.credential_source === 'env') {
       if (profile.env_var && !/^[A-Za-z_][A-Za-z0-9_]*$/.test(profile.env_var)) throw new CredentialError('INVALID_INPUT');
-      const token = profile.env_var ? process.env[profile.env_var] : undefined;
+      const variable = scoped ? this.scopedTokenVariable(profile) : profile.env_var;
+      if (scoped && profile.env_var !== undefined && profile.env_var !== variable) throw new CredentialError('INVALID_INPUT');
+      const token = variable ? process.env[variable] : undefined;
       return token ? validateCredentials({ token }) : null;
     }
     if (!['keychain', 'vault', 'ephemeral'].includes(profile.credential_source)) throw new CredentialError('INVALID_INPUT');
     const result = await this.invoke(() => this.vault.provider(profile.credential_source as 'keychain' | 'vault' | 'ephemeral').get(this.reference(profile)));
-    return result ? validateCredentials(result) : null;
+    if (!result) return null;
+    const credentials = validateCredentials(result);
+    if (scoped && credentials.username !== undefined && credentials.username !== profile.username) {
+      throw new CredentialError('INVALID_INPUT');
+    }
+    return credentials;
   }
 
   async setSecret(profileId: string, password: string): Promise<void> {
     const profile = await this.profile(profileId);
-    if (!profile || profile.credential_source === 'env') throw new CredentialError('INVALID_INPUT');
+    if (!profile) throw new CredentialError('INVALID_INPUT');
+    await this.setProfileSecret(profile, password);
+  }
+
+  scopedTokenVariable(profile: AuthProfile): string {
+    const digest = createHash('sha256').update(referenceKey(this.reference(profile)))
+      .update(JSON.stringify([profile.login_origin, profile.token_exchange_route])).digest('hex');
+    return 'QAP_AUTH_TOKEN_' + digest.toUpperCase();
+  }
+
+  async setProfileSecret(profile: AuthProfile, password: string): Promise<void> {
+    if (profile.credential_source === 'env') throw new CredentialError('INVALID_INPUT');
     await this.invoke(() => this.vault.provider(profile.credential_source as 'keychain' | 'vault' | 'ephemeral').set(this.reference(profile), { password }));
   }
 
