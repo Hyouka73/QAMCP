@@ -28,9 +28,9 @@ export class SessionStore<T extends StorageState = StorageState> {
   private cacheDir: string;
   private secretKey: Buffer;
 
-  constructor(customCacheDir?: string, projectPath: string = process.cwd()) {
+  constructor(customCacheDir?: string, projectPath: string = process.cwd(), explicitKeyHex?: string) {
     this.cacheDir = safeDirectory(customCacheDir ?? join(projectPath, '.qa', 'cache', 'sessions'), true);
-    const configured = process.env.QAP_SESSION_KEY;
+    const configured = explicitKeyHex ?? process.env.QAP_SESSION_KEY;
     if (configured !== undefined && !/^[0-9a-fA-F]{64}$/.test(configured)) throw new CredentialError('INVALID_INPUT');
     const seed = configured ? Buffer.from(configured, 'hex') : processSessionKey;
     this.secretKey = createHash('sha256').update(seed).update(resolve(this.cacheDir)).digest();
