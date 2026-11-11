@@ -1,5 +1,7 @@
 # P0 de aprovisionamiento local en Windows
 
+El procedimiento para Antigravity está en [APROVISIONAMIENTO-MCP.md](APROVISIONAMIENTO-MCP.md). Este informe conserva la evidencia de la prueba anterior con la CLI.
+
 Base verificada localmente y en `origin/feat/qap-vnext-architecture`: `a6dafbc5a95047f27973400f1db34e8ea7737322`.
 
 ## Diagnóstico
