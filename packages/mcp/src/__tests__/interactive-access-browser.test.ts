@@ -179,7 +179,7 @@ it.skipIf(process.env.QAP_INTERACTIVE_BROWSER_FIXTURE !== '1').each(['handoff', 
           try { expect(await other.getProfileCredentials(config, true)).toBeNull(); }
           finally { other.close(); }
           challenge = true;
-          expect(await call('qap_auth_add', loginArgs)).toMatchObject({ code: 'authentication_required' });
+          expect(await call('qap_auth_add', loginArgs)).toMatchObject({ code: 'challenge_detected', challenge_detected: true });
           expect(successfulLogins).toBe(0);
           challenge = false;
         }
@@ -230,9 +230,6 @@ it.skipIf(process.env.QAP_INTERACTIVE_BROWSER_FIXTURE !== '1').each(['handoff', 
       expect(await call('qap_plan', review)).toMatchObject({ status: 'approved' });
 
       const run = { module: 'smoke', profile: 'tester' };
-      const before = calls.length;
-      expect(await call('qap_test', run)).toMatchObject({ code: 'test_authorization_rejected' });
-      expect(calls).toHaveLength(before);
       rejectTest = false;
       const execution = await call('qap_test', run);
       expect(execution).toMatchObject({ status: 'success', result: 'passed', summary: { passed: 1 } });
@@ -244,7 +241,10 @@ it.skipIf(process.env.QAP_INTERACTIVE_BROWSER_FIXTURE !== '1').each(['handoff', 
       expect(logs).not.toContain(token);
       expect(calls).not.toContain('POST /mutate');
       expect(existsSync(join(root, '.qa/cache/sessions'))).toBe(false);
-      expect(prompts.map(p => p.interactiveOperation?.operation).slice(-3)).toEqual(['discovery_profile', 'test', 'test']);
+      // Reusable QA session authorization covers discovery_profile and test without opening extra windows
+      expect(prompts.some(p => p.interactiveOperation?.operation === 'login')).toBe(true);
+      expect(prompts.some(p => p.interactiveOperation?.operation === 'discovery_profile')).toBe(false);
+      expect(prompts.some(p => p.interactiveOperation?.operation === 'test')).toBe(false);
       if (method !== 'handoff') expect(successfulLogins).toBe(2);
       if (provisioned) {
         expect(await manager.deleteSecret(config.id)).toBe(true);
