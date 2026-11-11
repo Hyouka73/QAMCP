@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { existsSync, lstatSync, mkdirSync, realpathSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, realpathSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { basename, join, parse, resolve } from 'node:path';
 
 import { SqliteKnowledgeAdapter } from '@qap/knowledge';
@@ -33,6 +33,22 @@ export class WorkspaceBootstrap {
     mkdirSync(host, { recursive: true, mode: 0o700 });
     const db = join(host, 'knowledge.sqlite');
     for (const suffix of ['', '-wal', '-shm']) safe(db + suffix);
+    if (existsSync(db)) {
+      try {
+        if (lstatSync(db).isFile() && statSync(db).size === 0) {
+          const wal = db + '-wal';
+          const shm = db + '-shm';
+          const hasWalContent = existsSync(wal) && statSync(wal).size > 0;
+          if (!hasWalContent) {
+            unlinkSync(db);
+            if (existsSync(wal)) unlinkSync(wal);
+            if (existsSync(shm)) unlinkSync(shm);
+          }
+        }
+      } catch {
+        // Best effort
+      }
+    }
     let store = this.stores.get(root);
     if (!store) { store = new SqliteKnowledgeAdapter(db); this.stores.set(root, store); }
     const app = 'workspace-' + key.slice(0, 32), environmentId = 'local';

@@ -27,7 +27,7 @@ it('probes the actual builtin and refuses unsupported builds without changing a 
       const store = new SqliteKnowledgeAdapter(path); expect(store.schema_version).toBe(2); store.close();
     } else {
       expect(() => new SqliteKnowledgeAdapter(path)).toThrow(expect.objectContaining({
-        code: 'UNAVAILABLE', message: 'Knowledge store requires SQLite FTS5',
+        code: 'UNAVAILABLE', message: expect.stringContaining('Knowledge store requires SQLite FTS5'),
       }));
       expect(readFileSync(path)).toEqual(bytes);
       const unchanged = new DatabaseSync(path);

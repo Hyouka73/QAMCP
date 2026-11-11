@@ -7,7 +7,7 @@ import { type KnowledgeEntities, type KnowledgeKind, type KnowledgeWrite } from 
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { knowledgeStoreContract } from '../../engine/src/__tests__/knowledge-store.contract.js';
-import { SqliteKnowledgeAdapter } from '../src/storage/sqlite-knowledge-adapter.js';
+import { SqliteKnowledgeAdapter, checkSqliteFts5Capability } from '../src/storage/sqlite-knowledge-adapter.js';
 
 const timestamp = '2026-10-28T12:00:00.000Z';
 const directories: string[] = [];
@@ -237,5 +237,38 @@ describe('SqliteKnowledgeAdapter physical guarantees', () => {
     await expect(store.get('a', 'application', 'a')).rejects.toMatchObject({ code: 'UNAVAILABLE' });
     expect(() => new SqliteKnowledgeAdapter(join(fixture().directory, 'missing', 'file.sqlite')))
       .toThrow(expect.objectContaining({ code: 'UNAVAILABLE' }));
+  });
+
+  it('recovers cleanly from abandoned 0-byte sqlite files left by crashes', async () => {
+    const { path } = fixture();
+    // Simulate crash leaving a 0-byte file and stale sidecar
+    writeFileSync(path, Buffer.alloc(0));
+    writeFileSync(`${path}-wal`, Buffer.alloc(0));
+    const store = open(path);
+    await store.commit('a', [application()]);
+    const retrieved = await store.get('a', 'application', 'a');
+    expect(retrieved?.entity).toMatchObject({ application_id: 'a', name: 'a' });
+    expect(readFileSync(path).length).toBeGreaterThan(0);
+  });
+
+  it('preserves 0-byte database and active WAL if WAL has uncheckpointed data (> 0 bytes)', () => {
+    const { path } = fixture();
+    writeFileSync(path, Buffer.alloc(0));
+    writeFileSync(`${path}-wal`, Buffer.from('active-wal-transaction-data'));
+    // Sqlite initialization will fail or open but will NOT unlink the WAL file
+    try {
+      open(path);
+    } catch {
+      // It is expected to fail or throw UNAVAILABLE because dummy data is not valid SQLite WAL,
+      // but crucially the WAL file must NOT be unlinked
+    }
+    expect(readFileSync(`${path}-wal`).toString()).toBe('active-wal-transaction-data');
+  });
+
+  it('performs in-memory preflight check of SQLite FTS5 capability', () => {
+    const preflight = checkSqliteFts5Capability();
+    expect(preflight).toHaveProperty('supported');
+    expect(preflight).toHaveProperty('nodeVersion', process.version);
+    expect(preflight).toHaveProperty('nodeExecutable', process.execPath);
   });
 });

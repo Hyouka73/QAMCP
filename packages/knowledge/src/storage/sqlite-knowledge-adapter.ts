@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/require-await -- Promise port over synchronous SQLite; never yield inside a transaction. */
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { createHmac } from 'node:crypto';
-import { realpathSync, statSync } from 'node:fs';
+import { existsSync, realpathSync, statSync, unlinkSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
 import type { DatabaseSync, SQLInputValue } from 'node:sqlite';
@@ -21,6 +21,51 @@ export interface SqliteKnowledgeOptions {
   /** Bounded synchronous lock wait, default 1000 ms; no automatic commit retries. */
   busy_timeout_ms?: number;
 }
+
+export interface IFts5PreflightResult {
+  supported: boolean;
+  nodeVersion: string;
+  nodeExecutable: string;
+  error?: string;
+}
+
+let cachedFts5Preflight: IFts5PreflightResult | undefined;
+
+/**
+ * In-memory preflight check to verify that SQLite has ENABLE_FTS5 enabled
+ * before any database files are touched or allocated on disk.
+ */
+export function checkSqliteFts5Capability(): IFts5PreflightResult {
+  if (cachedFts5Preflight) return cachedFts5Preflight;
+  try {
+    const loadBuiltin = createRequire(import.meta.url);
+    const sqlite = loadBuiltin('node:sqlite') as typeof import('node:sqlite');
+    const memDb = new sqlite.DatabaseSync(':memory:');
+    try {
+      const row = memDb.prepare("SELECT sqlite_compileoption_used('ENABLE_FTS5') AS enabled").get() as { enabled?: number } | undefined;
+      const supported = row?.enabled === 1;
+      cachedFts5Preflight = {
+        supported,
+        nodeVersion: process.version,
+        nodeExecutable: process.execPath,
+        error: supported
+          ? undefined
+          : `Knowledge store requires SQLite FTS5: Node.js runtime (${process.version} at ${process.execPath}) lacks SQLite ENABLE_FTS5 support. Node >= 22.16.0 is required.`,
+      };
+    } finally {
+      memDb.close();
+    }
+  } catch (err) {
+    cachedFts5Preflight = {
+      supported: false,
+      nodeVersion: process.version,
+      nodeExecutable: process.execPath,
+      error: `Knowledge store requires SQLite FTS5: failed to initialize node:sqlite in-memory: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
+  return cachedFts5Preflight;
+}
+
 type Row = Record<string, unknown>;
 function fail(code: KnowledgeStoreError['code']): never {
   throw new KnowledgeStoreError(code, `Knowledge store: ${code}`);
@@ -63,6 +108,39 @@ export class SqliteKnowledgeAdapter implements IKnowledgeStore, IActionTargetSea
     this.databasePath = path === ':memory:' ? path : resolve(path);
     this.lockTimeoutMs = timeout;
     if (!Number.isSafeInteger(timeout) || timeout < 0 || timeout > 60_000) fail('INVALID_DATA');
+
+    // 1. In-memory preflight check BEFORE creating or touching any files on disk
+    const preflight = checkSqliteFts5Capability();
+    if (!preflight.supported) {
+      throw new KnowledgeStoreError(
+        'UNAVAILABLE',
+        preflight.error ?? `Knowledge store requires SQLite FTS5 (running on Node ${process.version} at ${process.execPath})`
+      );
+    }
+
+    // 2. Recover 0-byte corrupt/abandoned database files left by previous crashes
+    // Safety check: Never discard or touch databases if WAL contains uncheckpointed data (> 0 bytes)
+    if (this.databasePath !== ':memory:' && existsSync(this.databasePath)) {
+      try {
+        const stat = statSync(this.databasePath);
+        if (stat.isFile() && stat.size === 0) {
+          const walPath = this.databasePath + '-wal';
+          const shmPath = this.databasePath + '-shm';
+          const hasWalContent = existsSync(walPath) && statSync(walPath).size > 0;
+          if (hasWalContent) {
+            // WAL contains uncheckpointed transactions: refuse to overwrite or discard
+            fail('UNAVAILABLE');
+          }
+          unlinkSync(this.databasePath);
+          if (existsSync(walPath)) unlinkSync(walPath);
+          if (existsSync(shmPath)) unlinkSync(shmPath);
+        }
+      } catch (err) {
+        if (err instanceof KnowledgeStoreError) throw err;
+        // Best-effort cleanup; DatabaseSync will report access errors if file is locked
+      }
+    }
+
     try {
       // Lazy builtin load preserves legacy consumers on older Node runtimes. node:sqlite
       // must retain its prefix (bare 'sqlite' is not a builtin in downstream bundles).
@@ -72,11 +150,6 @@ export class SqliteKnowledgeAdapter implements IKnowledgeStore, IActionTargetSea
     } catch { fail('UNAVAILABLE'); }
     try {
       this.db.exec(`PRAGMA busy_timeout = ${timeout}; PRAGMA foreign_keys = ON`);
-      // Builtin builds differ: Node 22.13.1 Windows lacks ENABLE_FTS5. Refuse
-      // before any migration/journal change; never load native extensions implicitly.
-      if (this.db.prepare("SELECT sqlite_compileoption_used('ENABLE_FTS5') AS enabled").get()!.enabled !== 1) {
-        throw new KnowledgeStoreError('UNAVAILABLE', 'Knowledge store requires SQLite FTS5');
-      }
       this.cursorKey = this.transaction('IMMEDIATE', () => initializeKnowledgeSchema(this.db));
       // Reject foreign/unknown schemas before any persistent journal mode change.
       if (this.databasePath !== ':memory:' && this.db.prepare('PRAGMA journal_mode = WAL').get()!.journal_mode !== 'wal') fail('UNAVAILABLE');

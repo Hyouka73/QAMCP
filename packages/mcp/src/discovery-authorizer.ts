@@ -187,7 +187,9 @@ export class WindowsInteractiveDiscoveryAuthorizer implements IDiscoveryAuthoriz
   private readonly scriptPath: string;
 
   constructor(scriptPath?: string) {
-    this.scriptPath = scriptPath ?? fileURLToPath(new URL('../../../scripts/qap-interactive-discovery-dialog.ps1', import.meta.url));
+    this.scriptPath = scriptPath
+      ? decodeURIComponent(scriptPath)
+      : fileURLToPath(new URL('../../../scripts/qap-interactive-discovery-dialog.ps1', import.meta.url));
   }
 
   async requestAuthorization(

@@ -29,4 +29,8 @@ coverage/
 !.qa/definitions/
 .playwright-mcp/
 .qamcp/
-
+
+# Local agent artifacts and workspace configs
+.agents/
+.gemini/
+mcp_config.json

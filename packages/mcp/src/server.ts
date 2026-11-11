@@ -94,6 +94,7 @@ import {
 import type { IDiscoveryAuthorizer } from './discovery-authorizer.js';
 import { loadHostComposition } from './host-composition.js';
 import { authorizationDiagnostic } from './authorization-diagnostics.js';
+import { logTechnicalDiagnostic } from './technical-diagnostics.js';
 import { ToolDispatcher, McpToolError, type IMcpToolHandler } from './dispatcher.js';
 import { TOOLS } from './tool-catalog.js';
 import { StatusHandler } from './handlers/status.handler.js';
@@ -474,7 +475,35 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
           const url = name === 'qap_context_set' && typeof suppliedUrl === 'string' ? suppliedUrl : undefined;
           // Validate before performing any canonical writes.
           await dependencies.prepareWorkspace!(realpathSync(targetPath), name === 'qap_context_set' && new ContextHandler(dependencies).validateArguments(request.params.arguments) ? url : undefined);
-        } catch { return canonicalResult({ status: 'blocked', category: 'technical_error', code: 'workspace_preparation_failed', retryable: true }); }
+        } catch (error: unknown) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          const errorStack = error instanceof Error ? error.stack : undefined;
+          const diagnosticId = randomUUID();
+          logTechnicalDiagnostic({
+            event: 'workspace_preparation_failed',
+            diagnostic_id: diagnosticId,
+            tool: name,
+            targetPath,
+            error: {
+              name: error instanceof Error ? error.name : 'UnknownError',
+              message: errorMessage,
+              stack: errorStack,
+            },
+          }, targetPath);
+
+          return canonicalResult({
+            status: 'blocked',
+            category: 'technical_error',
+            code: 'workspace_preparation_failed',
+            diagnostic_id: diagnosticId,
+            razon: errorMessage || 'Fallo durante la preparación técnica del espacio de trabajo.',
+            retryable: true,
+            desbloquear_con: {
+              mecanismo: 'local_host',
+              descripcion: `Error técnico durante la preparación del espacio de trabajo: ${errorMessage}. Revisa ~/.qap/diagnostics/technical_errors.log.`,
+            },
+          });
+        }
       }
     }
     if (dispatcher.has(name)) return dispatcher.dispatch(request.params, { requestId: context.requestId, signal: context.signal ?? new AbortController().signal });
@@ -3896,11 +3925,46 @@ export async function startMcpServer(options?: McpServerOptions): Promise<void> 
     : await loadHostComposition();
   try {
     const server = createMcpServer(composition.options);
-    server.onclose = () => {
-      // SDK disconnect notification is synchronous; host stores must outlive
-      // asynchronous cancellation/cleanup just as they do on explicit close.
-      void server.close().then(() => composition.close(), () => composition.close());
+    let shuttingDown = false;
+    const orderlyShutdown = async (origin: string) => {
+      if (shuttingDown) return;
+      shuttingDown = true;
+      console.error(`[QAP MCP Server] Orderly shutdown initiated (${origin})...`);
+      try {
+        await server.close();
+      } catch (err) {
+        console.error('[QAP MCP Server] Error closing server instance:', err);
+      } finally {
+        try {
+          composition.close();
+        } catch (err) {
+          console.error('[QAP MCP Server] Error closing host composition:', err);
+        }
+        console.error(`[QAP MCP Server] Orderly shutdown finished (${origin}). Exiting 0.`);
+        process.exit(0);
+      }
     };
+
+    server.onclose = () => {
+      void orderlyShutdown('server.onclose');
+    };
+
+    // Stdio lifecycle hooks for Windows and Unix hosts:
+    // When the MCP client (Antigravity/Claude/etc.) disconnects, process.stdin emits 'end' or 'close'.
+    // Without these listeners, Node on Windows keeps running or aborts with 0xffffffff (-1).
+    process.stdin.on('close', () => {
+      void orderlyShutdown('stdin.close');
+    });
+    process.stdin.on('end', () => {
+      void orderlyShutdown('stdin.end');
+    });
+    process.on('SIGINT', () => {
+      void orderlyShutdown('SIGINT');
+    });
+    process.on('SIGTERM', () => {
+      void orderlyShutdown('SIGTERM');
+    });
+
     const transport = new StdioServerTransport();
     await server.connect(transport);
     console.error('[QAP MCP Server] Stdio ready', {
@@ -3921,6 +3985,37 @@ const isMainModule =
   process.argv[1]?.includes('qap-mcp');
 
 if (isMainModule) {
+  process.on('uncaughtException', (err: Error) => {
+    console.error('[QAP MCP UncaughtException]', err);
+    try {
+      logTechnicalDiagnostic({
+        event: 'uncaughtException',
+        error: {
+          name: err?.name,
+          message: err?.message,
+          stack: err?.stack,
+        },
+      });
+    } catch {
+      // Best-effort
+    }
+    process.exit(1);
+  });
+
+  process.on('unhandledRejection', (reason: unknown) => {
+    console.error('[QAP MCP UnhandledRejection]', reason);
+    try {
+      logTechnicalDiagnostic({
+        event: 'unhandledRejection',
+        error: reason instanceof Error
+          ? { name: reason.name, message: reason.message, stack: reason.stack }
+          : String(reason),
+      });
+    } catch {
+      // Best-effort
+    }
+  });
+
   startMcpServer().catch((error) => {
     console.error('[QAP MCP Server Fatal]', error);
     process.exit(1);
