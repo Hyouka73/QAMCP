@@ -444,6 +444,14 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
     }
     if (name === 'qap_auth_provision') {
       if (!interactiveAccess) return canonicalResult({ status: 'blocked', code: 'credential_dialog_host_unavailable' }, true);
+      if (options.workspaceBootstrap && typeof rawArgs?.targetPath === 'string') {
+        try {
+          const authRoot = authorizedProjectRoot({ targetPath: rawArgs.targetPath }, dependencies, true);
+          await dependencies.prepareWorkspace!(authRoot);
+        } catch {
+          // Provision handler will enforce workspace authorization and return blocked
+        }
+      }
       return await interactiveAccess.provision(rawArgs ?? {}, context.signal);
     }
     if (options.workspaceBootstrap) {
@@ -513,7 +521,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         }
       }
       request.params.arguments = { ...rawArgs, targetPath };
-      if (['qap_status', 'qap_init', 'qap_context_set'].includes(name)) {
+      if (['qap_status', 'qap_init', 'qap_context_set', 'qap_auth_add', 'qap_auth_list', 'qap_discover', 'qap_plan', 'qap_test', 'qap_session_plan'].includes(name)) {
         try {
           const suppliedUrl = rawArgs?.base_url ?? rawArgs?.environments;
           const url = name === 'qap_context_set' && typeof suppliedUrl === 'string' ? suppliedUrl : undefined;
