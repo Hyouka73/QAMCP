@@ -67,6 +67,12 @@ export class BlackBoxCrawler {
       tls_ca: input.tls_ca };
     let scope: ReconScope, target: URL, allowed: string[];
     try {
+      if (this.dependencies.allowCanonicalOrigin) {
+        const base = parseUrl(input.environment.base_url);
+        if (input.authorization.navigation_urls.every(value => parseUrl(value).origin === base.origin)) {
+          recon.environment = { ...input.environment, safe_domains: [...new Set([...input.environment.safe_domains, base.hostname])] };
+        }
+      }
       scope = new ReconScope(recon, this.dependencies.resolver);
       target = parseUrl(input.target_url); scope.authorize(target);
       allowed = input.authorization.navigation_urls.map(value => parseUrl(value).href);

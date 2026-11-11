@@ -12,6 +12,8 @@ import {
   atomicRecordDiscoveryAuthorization,
 } from '../discovery-authorizer.js';
 
+import { interactiveScope, sameInteractiveScope, validInteractiveProfile, type InteractiveAccess } from '../interactive-access.js';
+
 import { binding, definition, isObject, projectRoot, result, validateBase, type StateDependencies } from './state-services.js';
 import { discoveryIntegration } from './legacy-discovery-contract.js';
 import { ModuleObservationBridge, type AssociationReceipt } from './module-observation-bridge.js';
@@ -53,6 +55,7 @@ export class DiscoveryHandler implements IMcpToolHandler {
     authorizations: readonly DiscoveryAuthorization[] = [],
     authorizer?: IDiscoveryAuthorizer,
     hostDiscoveryRegistryPath?: string,
+    private readonly interactiveAccess?: InteractiveAccess,
   ) {
     this.authorizer = authorizer;
     this.hostDiscoveryRegistryPath = hostDiscoveryRegistryPath;
@@ -128,7 +131,7 @@ export class DiscoveryHandler implements IMcpToolHandler {
             total_timeout_ms: config.limits?.total_timeout_ms ?? 60_000,
             navigation_timeout_ms: config.limits?.navigation_timeout_ms ?? 15_000,
             max_requests: config.limits?.max_requests ?? 50,
-            max_bytes: config.limits?.max_bytes ?? 10_485_760,
+            max_bytes: Math.min(config.limits?.max_bytes ?? 1_048_576, 1_048_576),
             max_redirects: config.limits?.max_redirects ?? 5,
             max_elements: config.limits?.max_elements ?? 200,
           };
@@ -209,7 +212,7 @@ export class DiscoveryHandler implements IMcpToolHandler {
             total_timeout_ms: 60_000,
             navigation_timeout_ms: 15_000,
             max_requests: 50,
-            max_bytes: 10_485_760,
+            max_bytes: 1_048_576,
             max_redirects: 5,
             max_elements: 200,
           };
@@ -328,7 +331,28 @@ export class DiscoveryHandler implements IMcpToolHandler {
         ? lifecycle.modules[args.name as string] : undefined;
       if (!provisional && (!module || ['closed', 'waived'].includes(module.state))) return blocked('module_restricted', 'qap_session_plan');
       let authenticated_session: BlackBoxCrawlerInput['authenticated_session'];
-      if (args.profile !== undefined || lifecycle.session?.auth?.required) {
+      if (this.interactiveAccess && (args.profile !== undefined || lifecycle.session?.auth?.required)) {
+        if (!validInteractiveProfile(args.profile) || (lifecycle.session?.auth?.profile && lifecycle.session.auth.profile !== args.profile) ||
+            ((config.authorizedProfiles || !this.dependencies.prepareWorkspace) &&
+              !config.authorizedProfiles?.includes(args.profile))) return blocked('unauthorized_profile');
+        const scope = await interactiveScope(root, this.dependencies);
+        if (!scope || scope.environmentRevision !== env.revision || new URL(target).origin !== scope.origin) return blocked('authorization_context_mismatch');
+        const denied = await this.interactiveAccess.consent('discovery_profile', scope, args.profile, target,
+          'Captura estática con cookies del perfil. Módulo: ' + String(args.name), context.signal);
+        if (denied) return blocked(denied);
+        if (!sameInteractiveScope(scope, await interactiveScope(projectRoot(args, this.dependencies, true), this.dependencies))) {
+          return blocked('authorization_context_mismatch');
+        }
+        const currentLifecycle = await new FileSystemStorage({ rootDir: root }).getLifecycleState();
+        if (JSON.stringify(currentLifecycle.session?.auth) !== JSON.stringify(lifecycle.session?.auth)) {
+          return blocked('authorization_context_mismatch');
+        }
+        if (context.signal.aborted) return blocked('cancelled');
+        const session = this.interactiveAccess.readSession(scope, args.profile);
+        if (!session?.state.cookies.length) return blocked('verified_cookie_profile_required', 'Completa qap_auth_add con un perfil compatible con Discovery basado en cookies.');
+        authenticated_session = { profile_id: args.profile, origin: scope.origin,
+          cookies: session.state.cookies, validation_selector: session.selector };
+      } else if (args.profile !== undefined || lifecycle.session?.auth?.required) {
         if (typeof args.profile !== 'string' || !config.authorizedProfiles?.includes(args.profile)) return blocked('unauthorized_profile');
         const profile = await readProfile(args.profile, root);
         if (!profile || profile.application_id !== bound.applicationId || profile.env !== bound.environmentId || !profile.verified ||
@@ -345,9 +369,12 @@ export class DiscoveryHandler implements IMcpToolHandler {
       const currentEnvironment = await bound.store.get(bound.applicationId, 'environment', bound.environmentId);
       if (!currentEnvironment || currentEnvironment.revision !== env.revision) return blocked('authorization_context_mismatch');
       if (context.signal.aborted) return blocked('cancelled');
-      const output = await new BlackBoxCrawler(bound.store, config.dependencies).run({
+      const bootstrap = Boolean(this.dependencies.prepareWorkspace);
+      const limits = bootstrap && config.limits?.max_bytes
+        ? { ...config.limits, max_bytes: Math.min(config.limits.max_bytes, 1_048_576) } : config.limits;
+      const output = await new BlackBoxCrawler(bound.store, { ...config.dependencies, allowCanonicalOrigin: bootstrap }).run({
         application_id: bound.applicationId, environment: env.entity, target_url: target,
-        authorization: config.authorization, limits: config.limits, signal: context.signal,
+        authorization: config.authorization, limits, signal: context.signal,
         isolation: authenticated_session ? 'fresh_authenticated_static' : 'fresh_anonymous_static', authenticated_session,
       });
       if (authenticated_session && !output.observations.length && (output.warnings.includes('AUTH_SESSION_INVALID') ||

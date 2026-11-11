@@ -119,10 +119,6 @@ export const TOOLS: Tool[] = [
         post_login_condition: { type: 'object', additionalProperties: false, properties: {
           type: { type: 'string', enum: ['selector_present'] }, value: { type: 'string', minLength: 1, maxLength: 500 },
         }, required: ['type', 'value'], description: 'Marcador explícito de sesión válida, verificado de nuevo en cada captura autenticada.' },
-        storageState: {
-          type: 'object',
-          description: 'Objeto de sesión storageState previo o inyectado',
-        },
       },
       required: ['profile'],
     },

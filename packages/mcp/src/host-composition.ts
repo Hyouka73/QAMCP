@@ -231,6 +231,7 @@ export async function loadHostComposition(
   env: NodeJS.ProcessEnv = process.env
 ): Promise<HostComposition> {
   const manifestPath = env.QAP_MCP_HOST_CONFIG_PATH;
+  const isWindowsInteractive = process.platform === 'win32' && !env.QAP_DISABLE_INTERACTIVE_AUTH && env.NODE_ENV !== 'test';
   if (manifestPath === undefined) {
     const directory = resolve(env.QAP_MCP_WORKSPACE_HOST_DIR ?? resolve(homedir(), '.qap', 'workspaces'));
     const bootstrap = new WorkspaceBootstrap(directory);
@@ -242,7 +243,6 @@ export async function loadHostComposition(
       if (!Array.isArray(values) || values.some(value => typeof value !== 'string' || !isAbsolute(value) || realpathSync(value) !== value)) throw new Error('Invalid workspace registry');
       roots.push(...values as string[]);
     }
-    const isWindowsInteractive = process.platform === 'win32' && !env.QAP_DISABLE_INTERACTIVE_AUTH && env.NODE_ENV !== 'test';
     const authorizer = isWindowsInteractive
       ? new WindowsInteractiveWorkspaceAuthorizer()
       : undefined;
@@ -266,6 +266,7 @@ export async function loadHostComposition(
         workspaceAuthorizer: authorizer,
         hostRegistryPath: registry,
         discoveryAuthorizer,
+        interactiveAccessAuthorizer: discoveryAuthorizer,
         hostDiscoveryRegistryPath: discoveryRegistry,
         discoveryAuthorizations: persistedDiscoveryAuthorizations,
       },
@@ -284,6 +285,9 @@ export async function loadHostComposition(
   const app = requiredText(payload.applicationId, 'applicationId');
   const environment = requiredText(payload.environmentId, 'environmentId');
   const modules = declaredModules(payload.moduleBindings);
+  if (payload.interactiveAccess !== undefined && typeof payload.interactiveAccess !== 'boolean') {
+    throw new Error('Invalid host interactiveAccess setting.');
+  }
   const testAuthorization = testPolicy(payload.testAuthorization, root);
   const dbPath = existingFile(payload.knowledgeDbPath, 'knowledgeDbPath');
 
@@ -360,6 +364,9 @@ export async function loadHostComposition(
       options: {
         projectRoots: [root],
         provisionalInventory: modules.length === 0,
+        interactiveAccessEnabled: payload.interactiveAccess === true,
+        interactiveAccessAuthorizer: payload.interactiveAccess === true && isWindowsInteractive
+          ? new WindowsInteractiveDiscoveryAuthorizer() : undefined,
         ...(testAuthorization ? { testAuthorizations: [testAuthorization] } : {}),
         knowledgeBindings: [{
           ...scope, store, moduleBindings: modules, interviewDraftStore, moduleClosureStore,

@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import { CallToolResultSchema, type CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+import { CallToolResultSchema, type CallToolResult, type Tool } from '@modelcontextprotocol/sdk/types.js';
 import { LockManager } from '@qap/knowledge';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -113,7 +113,7 @@ describe('real MCP client/server via linked transports', () => {
     const baseline = JSON.parse(readFileSync(new URL('./fixtures/mcp-catalog-vnext010.json', import.meta.url), 'utf8'));
     const client = await connect();
     const tools = (await client.listTools()).tools;
-    const oldTools = baseline.tools as Array<{ name: string; description: string }>;
+    const oldTools = baseline.tools as Tool[];
     const changed = tools.find(tool => tool.name === 'qap_discover')!;
     expect(changed.description).not.toBe(oldTools.find(tool => tool.name === 'qap_discover')!.description);
     // qap_report was intentionally extended in VNEXT-014-D. Assert its
@@ -137,6 +137,10 @@ describe('real MCP client/server via linked transports', () => {
       }
       if (tool.name === 'qap_plan' || tool.name === 'qap_auth_add') {
         const properties = { ...tool.inputSchema.properties }; delete properties.case_workflow; delete properties.post_login_condition;
+        if (tool.name === 'qap_auth_add') {
+          expect(properties.storageState).toBeUndefined();
+          properties.storageState = oldTools.find(t => t.name === tool.name)!.inputSchema.properties?.storageState;
+        }
         return { ...tool, description: oldTools.find(t => t.name === tool.name)!.description, inputSchema: { ...tool.inputSchema, properties } };
       }
       if (tool.name === 'qap_module_close') {

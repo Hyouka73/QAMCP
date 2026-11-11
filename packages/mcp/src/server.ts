@@ -92,6 +92,7 @@ import {
   type IWorkspaceAuthorizer,
 } from './workspace-authorizer.js';
 import type { IDiscoveryAuthorizer } from './discovery-authorizer.js';
+import { InteractiveAccess, interactiveBlocked } from './interactive-access.js';
 import { loadHostComposition } from './host-composition.js';
 import { authorizationDiagnostic } from './authorization-diagnostics.js';
 import { logTechnicalDiagnostic } from './technical-diagnostics.js';
@@ -244,6 +245,8 @@ export interface McpServerOptions extends StateDependencies {
   readonly workspaceAuthorizer?: IWorkspaceAuthorizer;
   readonly hostRegistryPath?: string;
   readonly discoveryAuthorizer?: IDiscoveryAuthorizer;
+  readonly interactiveAccessAuthorizer?: IDiscoveryAuthorizer;
+  readonly interactiveAccessEnabled?: boolean;
   readonly hostDiscoveryRegistryPath?: string;
 }
 
@@ -294,17 +297,25 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
 
   const migrated = new Set(['qap_status', 'qap_clean', 'qap_context_set', 'qap_discover', 'qap_plan', 'qap_test', 'qap_report']);
   const dispatcher = new ToolDispatcher(TOOLS.filter(tool => !migrated.has(tool.name)).map(tool => tool.name));
-  dispatcher.register(new StatusHandler({ ...runtimeDependencies, browser: checkPlaywrightBrowser, view: buildViewDiscoveryContext }));
+
   dispatcher.register(new CleanHandler(dependencies));
   dispatcher.register(new ContextHandler(dependencies));
+  const interactiveAccess = options.workspaceBootstrap || options.interactiveAccessEnabled
+    ? new InteractiveAccess(dependencies, options.interactiveAccessAuthorizer) : undefined;
+  dispatcher.register(new StatusHandler({ ...runtimeDependencies, interactiveAccess,
+    browser: checkPlaywrightBrowser, view: buildViewDiscoveryContext }));
   dispatcher.register(new DiscoveryHandler(
     dependencies,
     options.discoveryAuthorizations,
     options.discoveryAuthorizer,
     options.hostDiscoveryRegistryPath,
+    interactiveAccess,
   ));
   dispatcher.register(new PlanHandler(dependencies));
-  dispatcher.register(new TestHandler(dependencies, options.testAuthorizations));
+  dispatcher.register(new TestHandler(dependencies, {
+    testAuthorizations: options.testAuthorizations,
+    interactiveAccess,
+  }));
   dispatcher.register(new ReportHandler(dependencies));
   for (const handler of options.handlers ?? []) dispatcher.register(handler);
   dispatcher.seal();
@@ -337,8 +348,23 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
 
 
   // Manejador de lista de tools
+  const catalog = !interactiveAccess ? TOOLS : TOOLS.map(tool => {
+    if (tool.name !== 'qap_auth_add') return tool;
+    const legacy = tool.inputSchema.properties ?? {};
+    const properties = Object.fromEntries(Object.entries(legacy).filter(([key]) =>
+      ['targetPath', 'profile', 'env', 'role', 'login_route', 'timeout_ms', 'post_login_condition'].includes(key)));
+    return { ...tool,
+      description: 'Solicita autorización humana para iniciar sesión en Chromium. El operador introduce las credenciales en el navegador. Usa una ruta protegida y un selector visible exclusivo de una sesión autenticada.',
+      inputSchema: { ...tool.inputSchema, additionalProperties: false,
+        properties: { ...properties, method: { type: 'string', enum: ['handoff'] },
+          login_mode: { type: 'string', enum: ['handoff'] },
+          verification_route: { type: 'string', description: 'Ruta protegida del mismo origen, ej. /dashboard.' } },
+        required: ['profile', 'verification_route', 'post_login_condition'],
+      },
+    };
+  });
   server.setRequestHandler(ListToolsRequestSchema, () =>
-    Promise.resolve({ tools: [...TOOLS, ...dispatcher.listTools().filter(tool => !migrated.has(tool.name))] }));
+    Promise.resolve({ tools: [...catalog, ...dispatcher.listTools().filter(tool => !migrated.has(tool.name))] }));
 
   // Manejador de lista de prompts
   server.setRequestHandler(ListPromptsRequestSchema, () => Promise.resolve({ prompts: PROMPTS }));
@@ -374,7 +400,10 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
     for (const controller of activeCalls.keys()) controller.abort();
     // Transport closure alone rejects client promises, but does not await the
     // server handlers. Keep stores/roots alive until browser work and locks drain.
-    closeOperation = Promise.allSettled([...activeCalls.values()]).then(() => closeTransport());
+    closeOperation = Promise.allSettled([...activeCalls.values()]).then(() => {
+      interactiveAccess?.close();
+      return closeTransport();
+    });
     return closeOperation;
   };
   server.setRequestHandler(CallToolRequestSchema, async (request, sdkContext) => {
@@ -742,8 +771,10 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         }
 
         case 'qap_auth_add': {
-          if (options.workspaceBootstrap) return canonicalResult({ status: 'blocked', category: 'human_authorization', code: 'authentication_authorization_required',
-            desbloquear_con: { mecanismo: 'local_host', descripcion: 'El host debe configurar una política explícita de autenticación mediante la provisión local segura antes de iniciar login. La URL y las credenciales enviadas no conceden ese permiso.' } });
+          if (interactiveAccess) {
+            return await interactiveAccess.login(args, context.signal).catch(() => interactiveBlocked('authentication_failed'));
+          }
+          if (Object.hasOwn(args, 'storageState')) return interactiveBlocked('agent_storage_state_not_supported');
           const profileId = String(args.profile || args.id || 'default');
           const env = String(args.env || 'local');
           const username = String(args.username || 'user');
@@ -858,7 +889,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
             ? { type: 'url_contains' as const, value: firstProtected.path }
             : (newProfile.post_login_condition || { type: 'url_contains' as const, value: '/dashboard' }));
 
-          let capturedStorageState: StorageState | undefined = args.storageState as StorageState | undefined;
+          let capturedStorageState: StorageState | undefined;
           const verificationAttempted = Boolean(capturedStorageState || password || method === 'handoff');
 
           if (!capturedStorageState && password) {
@@ -887,7 +918,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
               const browser = await chromium.launch({ headless: false });
               const bCtx = await browser.newContext();
               try {
-                const handoffHook = (globalThis as Record<string, unknown>).__QAP_HANDOFF_TEST_HOOK__ || (args as Record<string, unknown>)._handoff_mock;
+                const handoffHook = (globalThis as Record<string, unknown>).__QAP_HANDOFF_TEST_HOOK__;
                 if (handoffHook && typeof handoffHook === 'function') {
                   await (handoffHook as (ctx: unknown, url: string) => Promise<void>)(bCtx, baseUrl);
                 }
@@ -1101,6 +1132,11 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         }
 
         case 'qap_auth_list': {
+          if (interactiveAccess) {
+            const profiles = await interactiveAccess.profiles(authorizedProjectRoot(args, dependencies, false));
+            return canonicalResult({ status: 'success', count: profiles.length,
+              profiles: profiles.map(p => ({ id: p.id, env: p.env, role: p.role, verified: p.verified, login_mode: p.login_mode })) });
+          }
           const authDir = resolve(rootDir, '.qa', 'project', 'auth');
           const profilesPath = join(authDir, 'profiles.json');
           let profiles: AuthProfile[] = [];
@@ -1832,8 +1868,9 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
           }
 
           const profilesPath = join(qaDir, 'project', 'auth', 'profiles.json');
-          let allProfiles: AuthProfile[] = [];
-          if (existsSync(profilesPath)) {
+          let allProfiles: AuthProfile[] = interactiveAccess
+            ? await interactiveAccess.profiles(authorizedProjectRoot(args, dependencies, true)) : [];
+          if (!interactiveAccess && existsSync(profilesPath)) {
             try {
               const parsed = JSON.parse(readFileSync(profilesPath, 'utf-8'));
               allProfiles = parsed.profiles || [];
@@ -3972,6 +4009,7 @@ export async function startMcpServer(options?: McpServerOptions): Promise<void> 
       build: process.env.QAP_BUILD_REVISION ?? 'development',
       interactive_authorizer: Boolean(composition.options.workspaceAuthorizer),
       interactive_discovery_authorizer: Boolean(composition.options.discoveryAuthorizer),
+      interactive_access_authorizer: Boolean(composition.options.interactiveAccessAuthorizer),
     });
   } catch (error) {
     composition.close();

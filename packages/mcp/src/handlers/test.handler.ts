@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { realpathSync } from 'node:fs';
 
 import { SessionStore, readProfile } from '@qap/auth';
@@ -12,6 +13,7 @@ import {
   type IMcpToolHandler,
   type McpInvocationContext,
 } from '../dispatcher.js';
+import { interactiveBlocked, interactiveScope, sameInteractiveScope, validInteractiveProfile, type InteractiveAccess } from '../interactive-access.js';
 
 import { verifyCaseApproval } from './case-workflow.js';
 import {
@@ -38,6 +40,7 @@ export interface TestHandlerOptions {
   readonly testAuthorizations?: readonly TestNavigationAuthorization[];
   readonly storageResolver?: (moduleName: string, caseId: string) => Promise<TCCase>;
   readonly runner?: IRunner;
+  readonly interactiveAccess?: InteractiveAccess;
 }
 
 export interface TestArguments {
@@ -170,7 +173,9 @@ export class TestHandler implements IMcpToolHandler {
 
     // 4. Host Navigation Policy Authorization (R2)
     const authorizations = this.options.testAuthorizations ?? [];
-    if (authorizations.length === 0) {
+    const interactive = this.options.interactiveAccess;
+    const enforceHostPolicy = !interactive || authorizations.length > 0;
+    if (!interactive && authorizations.length === 0) {
       return result(
         {
           status: 'blocked',
@@ -204,7 +209,7 @@ export class TestHandler implements IMcpToolHandler {
       return true; // global policy if no specific projectRoot
     });
 
-    if (matchingAuths.length === 0) {
+    if (enforceHostPolicy && matchingAuths.length === 0) {
       return result(
         {
           status: 'blocked',
@@ -222,7 +227,7 @@ export class TestHandler implements IMcpToolHandler {
       new Set(matchingAuths.flatMap(a => Array.from(a.allowedOrigins ?? [])))
     );
 
-    if (allowedOrigins.length === 0) {
+    if (enforceHostPolicy && allowedOrigins.length === 0) {
       return result(
         {
           status: 'blocked',
@@ -245,7 +250,15 @@ export class TestHandler implements IMcpToolHandler {
       envUrl = undefined;
     }
 
-    if (envUrl && !isUrlAllowedByPolicy(envUrl, allowedOrigins)) {
+    const scope = interactive ? await interactiveScope(rootDir, this.dependencies, environment) : undefined;
+    if (interactive && (!scope || (envUrl && !isUrlAllowedByPolicy(envUrl, [scope.origin])) ||
+        (enforceHostPolicy && !matchingAuths.some(auth =>
+          isUrlAllowedByPolicy(scope.baseUrl, [...auth.allowedOrigins]) &&
+          (!args.profile || auth.authorizedProfiles?.includes(args.profile)))))) {
+      return interactiveBlocked('authorization_context_mismatch');
+    }
+
+    if (enforceHostPolicy && envUrl && !isUrlAllowedByPolicy(envUrl, allowedOrigins)) {
       return result(
         {
           status: 'blocked',
@@ -262,7 +275,7 @@ export class TestHandler implements IMcpToolHandler {
 
     // 5. Authentication Security (R2)
     // Absolute ban on admin-user.json
-    if (args.profile === 'admin-user' || args.profile === 'admin') {
+    if (enforceHostPolicy && (args.profile === 'admin-user' || args.profile === 'admin')) {
       // Check if specifically authorized in host policy
       const authorizedProfiles = Array.from(
         new Set(matchingAuths.flatMap(a => Array.from(a.authorizedProfiles ?? [])))
@@ -280,7 +293,7 @@ export class TestHandler implements IMcpToolHandler {
           true
         );
       }
-    } else if (args.profile) {
+    } else if (enforceHostPolicy && args.profile) {
       const authorizedProfiles = Array.from(
         new Set(matchingAuths.flatMap(a => Array.from(a.authorizedProfiles ?? [])))
       );
@@ -303,8 +316,10 @@ export class TestHandler implements IMcpToolHandler {
     const bound = binding(rootDir, this.dependencies);
     if (bound && (environment !== bound.environmentId || (lifecycle.session?.auth?.profile && lifecycle.session.auth.profile !== args.profile))) return result({ status: 'blocked', code: 'auth_context_mismatch' }, true);
     if (bound && lifecycle.session?.auth?.required && !args.profile) return result({ status: 'blocked', code: 'auth_profile_required' }, true);
-    if (args.profile && bound) {
-      if (!matchingAuths.some(a => a.authorizedProfiles?.includes(args.profile!))) return result({ status: 'blocked', code: 'unauthorized_profile' }, true);
+    if (enforceHostPolicy && args.profile && bound && !matchingAuths.some(a => a.authorizedProfiles?.includes(args.profile!))) {
+      return result({ status: 'blocked', code: 'unauthorized_profile' }, true);
+    }
+    if (!interactive && args.profile && bound) {
       const profile = await readProfile(args.profile, rootDir);
       const session = new SessionStore(undefined, rootDir).getValidSession(args.profile);
       if (!profile?.verified || profile.application_id !== bound.applicationId || profile.env !== environment || !session) return result({ status: 'blocked', code: 'auth_session_expired' }, true);
@@ -371,6 +386,32 @@ export class TestHandler implements IMcpToolHandler {
     catch { return result({ status: 'blocked', code: 'case_approval_unavailable' }, true); }
     if (!approval.allowed) return result({ status: 'blocked', ...approval }, true);
 
+    let verifiedSession: PlaywrightRunnerOptions['verifiedSession'];
+    if (interactive && scope) {
+      if (args.profile !== undefined && !validInteractiveProfile(args.profile)) return interactiveBlocked('unauthorized_profile');
+      if (snapshotMap.size === 0 || [...snapshotMap.values()].some(tc =>
+        tc.steps.some(step => !['navigate', 'click', 'assert', 'waitFor'].includes(step.type)))) {
+        return interactiveBlocked('test_scope_not_read_only');
+      }
+      const digest = createHash('sha256').update(JSON.stringify([...snapshotMap.values()])).digest('hex');
+      const blocked = await interactive.consent('test', scope, args.profile, scope.baseUrl,
+        `Módulo: ${moduleName}\nCasos: ${snapshotMap.size}\nPlan SHA-256: ${digest}`, context.signal);
+      if (blocked) return interactiveBlocked(blocked);
+      const current = await interactiveScope(projectRoot(args, this.dependencies, true), this.dependencies, environment);
+      const currentLifecycle = await storage.getLifecycleState();
+      const currentApproval = await verifyCaseApproval(rootDir, moduleName, [...snapshotMap.values()], this.dependencies);
+      if (!sameInteractiveScope(scope, current) ||
+          JSON.stringify(currentLifecycle.session?.auth) !== JSON.stringify(lifecycle.session?.auth) ||
+          !currentApproval.allowed || currentApproval.request_digest !== approval.request_digest) {
+        return interactiveBlocked('authorization_context_mismatch');
+      }
+      if (context.signal.aborted) return interactiveBlocked('test_authorization_cancelled');
+      if (args.profile) {
+        verifiedSession = interactive.readSession(scope, args.profile);
+        if (!verifiedSession) return interactiveBlocked('auth_session_expired');
+      }
+    }
+
     // 8. Safe Runner Execution (R2 / F7 / F8)
     const runner = this.options.runner ?? new PlaywrightRunner();
     const runnerOptions: PlaywrightRunnerOptions = {
@@ -383,7 +424,9 @@ export class TestHandler implements IMcpToolHandler {
       allowImplicitAuth: false,
       profile: args.profile,
       storageResolver,
-      allowedOrigins,
+      allowedOrigins: scope ? [scope.origin] : allowedOrigins,
+      interactiveReadOnly: Boolean(interactive),
+      verifiedSession,
     };
 
     let executionResult: ExecutionResult;
@@ -397,7 +440,7 @@ export class TestHandler implements IMcpToolHandler {
         runnerOptions
       );
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = interactive ? 'Ejecución interactiva interrumpida.' : err instanceof Error ? err.message : String(err);
       return result(
         {
           status: 'error',

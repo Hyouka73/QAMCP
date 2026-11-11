@@ -17,6 +17,11 @@ export interface DiscoveryAuthorizationRequest {
   readonly baseUrl: string;
   readonly targetUrl: string;
   readonly limits?: BlackBoxCrawlerInput['limits'];
+  readonly interactiveOperation?: {
+    operation: 'login' | 'test' | 'discovery_profile';
+    profile?: string;
+    details: string;
+  };
 }
 
 export type DiscoveryAuthorizationResult =
@@ -239,6 +244,12 @@ export class WindowsInteractiveDiscoveryAuthorizer implements IDiscoveryAuthoriz
           String(request.limits?.max_requests ?? 50),
           '-TimeoutSec',
           String(Math.ceil((request.limits?.total_timeout_ms ?? 60_000) / 1000)),
+          ...(request.interactiveOperation ? [
+            '-Operation', request.interactiveOperation.operation,
+            '-ProjectRoot', request.projectRoot,
+            '-Profile', request.interactiveOperation.profile ?? '(anónimo)',
+            '-ScopeDetails', Buffer.from(request.interactiveOperation.details, 'utf8').toString('base64'),
+          ] : []),
         ],
         { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: false },
       );
@@ -248,7 +259,7 @@ export class WindowsInteractiveDiscoveryAuthorizer implements IDiscoveryAuthoriz
         scriptPath: this.scriptPath,
         applicationId: request.applicationId,
         environmentId: request.environmentId,
-        targetUrl: request.targetUrl,
+        ...(request.interactiveOperation ? { operation: request.interactiveOperation.operation } : { targetUrl: request.targetUrl }),
       });
 
       let stdout = '';

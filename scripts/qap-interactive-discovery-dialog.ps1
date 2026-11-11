@@ -16,7 +16,12 @@
 
   [int]$MaxPages = 10,
   [int]$MaxRequests = 50,
-  [int]$TimeoutSec = 60
+  [int]$TimeoutSec = 60,
+  [ValidateSet('login', 'test', 'discovery_profile')]
+  [string]$Operation,
+  [string]$ProjectRoot,
+  [string]$Profile,
+  [string]$ScopeDetails
 )
 
 # Host-managed interactive discovery authorization dialog for QAP.
@@ -161,6 +166,44 @@ $notice.Font = New-Object System.Drawing.Font("Segoe UI", 8, [System.Drawing.Fon
 $notice.Location = New-Object System.Drawing.Point(20, 325)
 $notice.Size = New-Object System.Drawing.Size(540, 42)
 $form.Controls.Add($notice)
+
+if ($Operation) {
+  $form.Text = "QAP - Autorización del host"
+  $header.Text = switch ($Operation) {
+    'login' { 'Inicio de sesión manual (handoff)' }
+    'test' { 'Ejecución de pruebas funcionales' }
+    'discovery_profile' { 'Discovery con sesión autenticada' }
+  }
+  $sub.Text = "Perfil: $Profile"
+  $lblTarget.Text = 'URL solicitada y origen autorizado'
+  $details.Visible = $false
+
+  $scopeBox = New-Object System.Windows.Forms.TextBox
+  $scopeBox.ReadOnly = $true
+  $scopeBox.Multiline = $true
+  $scopeBox.ScrollBars = 'Vertical'
+  $scopeBox.Location = New-Object System.Drawing.Point(20, 140)
+  $scopeBox.Size = New-Object System.Drawing.Size(540, 174)
+  $scopeBox.Text = "Proyecto: $ProjectRoot`r`n" +
+    [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($ScopeDetails))
+  $form.Controls.Add($scopeBox)
+
+  $notice.Size = New-Object System.Drawing.Size(540, 115)
+  $notice.Text = switch ($Operation) {
+    'login' { 'Introduce tus credenciales directamente en Chromium. Esta aprobación permite iniciar sesión y verificarla dentro del origen indicado.' }
+    'test' { 'Autoriza una sola ejecución del conjunto indicado. Solo se permiten solicitudes GET y HEAD dentro del origen. Un GET puede tener efectos en el servidor.' }
+    'discovery_profile' { 'Autoriza una captura de solo lectura con el perfil indicado. El permiso de navegación de Discovery sigue siendo obligatorio.' }
+  }
+
+  $btnCancel = New-Object System.Windows.Forms.Button
+  $btnCancel.Text = 'Cancelar'
+  $btnCancel.Location = New-Object System.Drawing.Point(190, 470)
+  $btnCancel.Size = New-Object System.Drawing.Size(110, 34)
+  $btnCancel.Add_Click({ $form.Close() })
+  $form.Controls.Add($btnCancel)
+  $form.CancelButton = $btnCancel
+  $form.ActiveControl = $btnCancel
+}
 
 # Action Buttons
 $btnAuth = New-Object System.Windows.Forms.Button
