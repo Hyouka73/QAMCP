@@ -2,7 +2,7 @@ import { chromium, type Browser, type BrowserContext } from 'playwright-core';
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import type { AuthProfile } from '@qap/shared';
 
-import { executeAutoLogin } from '../modes/auto-login.js';
+import { executeAutoLogin, InteractiveLoginRequired } from '../modes/auto-login.js';
 
 import { startMockLoginServer, type MockLoginServer } from './mock-login-server.js';
 
@@ -97,4 +97,33 @@ describe('executeAutoLogin (S2-004)', () => {
       executeAutoLogin(profileSinRuta, { password: TEST_PASSWORD }, context)
     ).rejects.toThrow(/login_route/);
   });
+
+  it('no debe atribuir fallo de credenciales incorrectas a CAPTCHA sin evidencia de reto interactivo visible', async () => {
+    const profile: AuthProfile = {
+      id: 'perfil-cred-invalida',
+      env: 'local',
+      username: 'usuario-inexistente',
+      credential_source: 'keychain',
+      login_mode: 'auto',
+      login_route: `${mockServer.url}/login`,
+      post_login_condition: {
+        type: 'url_contains',
+        value: '/dashboard',
+      },
+    };
+
+    try {
+      await executeAutoLogin(
+        profile,
+        { username: 'usuario-inexistente', password: 'wrong-password' },
+        context,
+        { timeoutMs: 3000 }
+      );
+      expect.unreachable('Debió fallar el login con credenciales incorrectas');
+    } catch (err) {
+      if (err instanceof InteractiveLoginRequired) {
+        expect(err.reason).toBe('interactive_required');
+      }
+    }
+  }, 15000);
 });

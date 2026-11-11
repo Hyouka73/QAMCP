@@ -145,6 +145,7 @@ describe('real MCP client/server via linked transports', () => {
           properties: { ...tool.inputSchema.properties, profile: prior.inputSchema.properties?.profile } } };
       }
       if (tool.name === 'qap_auth_add') return oldTools.find(t => t.name === tool.name)!;
+      if (tool.name === 'qap_auth_list') return oldTools.find(t => t.name === tool.name)!;
       if (tool.name === 'qap_plan') {
         const properties = { ...tool.inputSchema.properties };
         delete properties.case_workflow;

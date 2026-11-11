@@ -299,8 +299,21 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
 
   dispatcher.register(new CleanHandler(dependencies));
   dispatcher.register(new ContextHandler(dependencies));
+  const authorizedProfilesPolicy = Array.from(
+    new Set([
+      ...(options.discoveryAuthorizations ?? []).flatMap((a) => a.authorizedProfiles ?? []),
+      ...(options.testAuthorizations ?? []).flatMap((a) => a.authorizedProfiles ?? []),
+    ])
+  );
   const interactiveAccess = options.workspaceBootstrap || options.interactiveAccessEnabled
-    ? new InteractiveAccess(dependencies, options.interactiveAccessAuthorizer) : undefined;
+    ? new InteractiveAccess(
+        dependencies,
+        options.interactiveAccessAuthorizer,
+        undefined,
+        undefined,
+        authorizedProfilesPolicy.length > 0 ? { authorizedProfiles: authorizedProfilesPolicy } : undefined
+      )
+    : undefined;
   dispatcher.register(new StatusHandler({ ...runtimeDependencies, interactiveAccess,
     browser: checkPlaywrightBrowser, view: buildViewDiscoveryContext }));
   dispatcher.register(new DiscoveryHandler(
@@ -769,7 +782,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
 
         case 'qap_auth_list': {
           const profiles = interactiveAccess
-            ? await interactiveAccess.profileStatuses(authorizedProjectRoot(args, dependencies, false)) : [];
+            ? await interactiveAccess.profileStatuses(authorizedProjectRoot(args, dependencies, false), args) : [];
           return canonicalResult({ status: 'success', count: profiles.length, profiles });
         }
 

@@ -1,4 +1,4 @@
-import { authBrowserDiagnosticsEnabled, executeAutoLogin, restrictChromiumPage, type AuthCredentials,
+import { authBrowserDiagnosticsEnabled, executeAutoLogin, InteractiveLoginRequired, restrictChromiumPage, type AuthCredentials,
   type StorageState } from '@qap/auth';
 import type { AuthProfile } from '@qap/shared';
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright-core';
@@ -11,7 +11,9 @@ export interface HandoffRequest {
   timeoutMs: number;
 }
 
-type CaptureResult = { state: StorageState; code?: never } | { state?: never; code: string };
+type CaptureResult =
+  | { state: StorageState; code?: never; challengeDetected?: never }
+  | { state?: never; code: string; challengeDetected?: boolean };
 
 function sameOrigin(value: string, origin: string): boolean {
   try {
@@ -94,8 +96,12 @@ async function withHeadlessBrowser(request: HandoffRequest, signal: AbortSignal,
     if (!browser) return { code: 'browser_not_available' };
     timer = setTimeout(abort, request.timeoutMs);
     return await operation(browser);
-  } catch {
-    return { code: signal.aborted ? 'authentication_authorization_cancelled' : 'authentication_required' };
+  } catch (error) {
+    if (signal.aborted) return { code: 'authentication_authorization_cancelled' };
+    if (error instanceof InteractiveLoginRequired && error.reason === 'challenge_detected') {
+      return { code: 'authentication_required', challengeDetected: true };
+    }
+    return { code: 'authentication_required', challengeDetected: false };
   } finally {
     clearTimeout(timer);
     signal.removeEventListener('abort', abort);
@@ -123,7 +129,7 @@ export function captureVerifiedAuto(request: HandoffRequest, profile: AuthProfil
       credentials, context, { origin: request.origin, timeoutMs: request.timeoutMs }), request.origin);
     await context.close();
     if ((!state.cookies.length && !state.origins.some(item => item.localStorage.length)) ||
-        !await verify(browser, request, state)) return { code: 'authentication_required' };
+        !await verify(browser, request, state)) return { code: 'authentication_required', challengeDetected: false };
     return { state };
   });
 }

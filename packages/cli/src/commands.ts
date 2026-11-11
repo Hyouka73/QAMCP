@@ -19,7 +19,7 @@ import type { Command } from 'commander';
 
 import { NotImplementedError } from './errors.js';
 import { handleClean } from './commands/clean.js';
-import { handleAuthAdd, handleAuthList, handleAuthSetSecret, handleAuthRemove, handleAuthTokenVariable } from './commands/auth/index.js';
+import { handleAuthAdd, handleAuthList, handleAuthSetSecret, handleAuthRemove, handleAuthTokenVariable, handleAuthImportInventory } from './commands/auth/index.js';
 import { handleRun } from './commands/runner/index.js';
 import { handleStatus } from './commands/status/index.js';
 import { handleContext } from './commands/context.js';
@@ -91,9 +91,36 @@ export function registerCommands(program: Command): void {
     .command('add [profile]')
     .description('Registra un nuevo perfil de autenticación')
     .option('-p, --profile <profile>', 'Nombre del perfil')
-    .action(async (profileArg?: string, options?: { profile?: string }) => {
+    .option('-u, --username <username>', 'Identificador de usuario (requerido para perfiles nuevos)')
+    .option('-e, --env <env>', 'Entorno del perfil', 'dev')
+    .option('-r, --role <role>', 'Rol asociado al perfil')
+    .option('--alias <alias>', 'Alias del perfil')
+    .option('--scenario <scenario>', 'Escenario de prueba del perfil')
+    .action(async (profileArg?: string, options?: { profile?: string; username?: string; env?: string; role?: string; alias?: string; scenario?: string }) => {
       const targetProfile = options?.profile || profileArg || 'default';
-      await handleAuthAdd(targetProfile);
+      await handleAuthAdd({
+        id: targetProfile,
+        ...(options?.username ? { username: options.username } : {}),
+        ...(options?.env ? { env: options.env } : {}),
+        ...(options?.role ? { role: options.role } : {}),
+        ...(options?.alias ? { alias: options.alias } : {}),
+        ...(options?.scenario ? { scenario: options.scenario } : {}),
+      });
+    });
+
+  authGroup
+    .command('import <file>')
+    .description('Importa un inventario local de cuentas QA (CSV, JSON o XLSX) autorizado por el operador')
+    .option('-e, --env <env>', 'Entorno por defecto', 'local')
+    .option('--import-passwords', 'Importa contraseñas presentes hacia el llavero seguro local')
+    .action(async (file: string, options?: { env?: string; importPasswords?: boolean }) => {
+      const res = await handleAuthImportInventory({
+        filePath: file,
+        operatorAuthorized: true,
+        defaults: { env: options?.env ?? 'local' },
+        importPasswordsLocally: Boolean(options?.importPasswords),
+      });
+      console.log(`✔ Perfiles importados: ${res.imported.length} (duplicados omitidos: ${res.skippedDuplicates.length})`);
     });
 
   authGroup

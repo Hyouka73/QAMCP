@@ -92,11 +92,27 @@ export class AuthManager {
     catch (error) { return { auth_profile_id: profileId, state: credentialState(error) }; }
   }
 
+  async getProfileCredentialStatus(profile: AuthProfile, scoped = false): Promise<{ auth_profile_id: string; state: CredentialState }> {
+    safeProfileId(profile.id);
+    try {
+      return {
+        auth_profile_id: profile.id,
+        state: (await this.getProfileCredentials(profile, scoped)) !== null ? 'available' : 'not_configured',
+      };
+    } catch (error) {
+      return { auth_profile_id: profile.id, state: credentialState(error) };
+    }
+  }
+
+  async deleteProfileSecret(profile: AuthProfile): Promise<boolean> {
+    if (profile.credential_source === 'env') throw new CredentialError('INVALID_INPUT');
+    return this.invoke(() => this.vault.provider(profile.credential_source as 'keychain' | 'vault' | 'ephemeral').delete(this.reference(profile)));
+  }
+
   async deleteSecret(profileId: string): Promise<boolean> {
     const profile = await this.profile(profileId);
     if (!profile) return false;
-    if (profile.credential_source === 'env') throw new CredentialError('INVALID_INPUT');
-    return this.invoke(() => this.vault.provider(profile.credential_source as 'keychain' | 'vault' | 'ephemeral').delete(this.reference(profile)));
+    return this.deleteProfileSecret(profile);
   }
   close(): void { this.vault.close(); }
 }

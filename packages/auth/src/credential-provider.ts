@@ -3,7 +3,8 @@ import type { AuthCredentials } from './types.js';
 export type CredentialState = 'available' | 'not_configured' | 'unlock_required' | 'unavailable' | 'invalid';
 export type CredentialErrorCode = 'INVALID_INPUT' | 'UNAVAILABLE' | 'LOCKED' | 'INVALID_VAULT' | 'UNSUPPORTED_VERSION' | 'UNSAFE_PATH' | 'BUSY' | 'IO_ERROR'
   | 'KEYCHAIN_MODULE_UNAVAILABLE' | 'DIALOG_DESKTOP_UNAVAILABLE' | 'DIALOG_START_FAILED'
-  | 'DIALOG_NOT_PRESENTED' | 'DIALOG_FAILED' | 'DIALOG_RESPONSE_TIMEOUT';
+  | 'DIALOG_NOT_PRESENTED' | 'DIALOG_FAILED' | 'DIALOG_RESPONSE_TIMEOUT'
+  | 'PROFILE_ALREADY_EXISTS' | 'PROFILE_NOT_FOUND' | 'PRIVILEGED_PROFILE_RESTRICTED';
 
 /** Errors deliberately contain neither backend errors nor user-controlled data. */
 export class CredentialError extends Error {

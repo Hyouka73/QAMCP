@@ -11,20 +11,30 @@ const CHALLENGE = [
 ].join(', ');
 
 export class InteractiveLoginRequired extends Error {
-  constructor() { super('Interactive authentication required'); }
+  constructor(public readonly reason: 'challenge_detected' | 'interactive_required' = 'interactive_required') {
+    super(reason === 'challenge_detected' ? 'Challenge detected during authentication' : 'Interactive authentication required');
+  }
 }
 
 export function authBrowserDiagnosticsEnabled(): boolean {
   return Boolean(process.env.DEBUG || process.env.PWDEBUG || process.env.PWDEBUGIMPL);
 }
 
-// Selectores estandar para inputs de login. La mayoria de formularios
-// de autenticacion usan estos atributos comunes (name/type/autocomplete).
+// Selectores estandar para inputs de login. Soportan tanto correos como
+// identificadores de usuario no email (username, user, login, identificador, text).
 const USERNAME_SELECTORS = [
   'input[name="username"]',
+  'input[name="user"]',
+  'input[name="login"]',
+  'input[name="usuario"]',
+  'input[name="identifier"]',
+  'input[name="identificador"]',
   'input[name="email"]',
   'input[type="email"]',
   'input[autocomplete="username"]',
+  'input[id*="user" i]',
+  'input[id*="login" i]',
+  'input[type="text"]',
 ].join(', ');
 
 const PASSWORD_SELECTORS = [
@@ -107,13 +117,15 @@ export async function executeAutoLogin(
     if (!credentials.password) throw new InteractiveLoginRequired();
     await restrictChromiumPage(page, origin);
     await page.goto(profile.login_route, { waitUntil: 'domcontentloaded', timeout });
-    if (new URL(page.url()).origin !== origin || await challenge.isVisible()) throw new InteractiveLoginRequired();
+    if (new URL(page.url()).origin !== origin) throw new InteractiveLoginRequired();
+    if (await challenge.isVisible()) throw new InteractiveLoginRequired('challenge_detected');
 
     const password = page.locator(profile.form_selectors?.password ?? PASSWORD_SELECTORS).first();
     await password.waitFor({ state: 'visible', timeout });
     const formOrigin = await password.evaluate((element: { type: string; form?: { action: string } }, base) =>
       element.type === 'password' ? new URL(element.form?.action || base, base).origin : null, page.url());
-    if (formOrigin !== origin || await challenge.isVisible()) throw new InteractiveLoginRequired();
+    if (formOrigin !== origin) throw new InteractiveLoginRequired();
+    if (await challenge.isVisible()) throw new InteractiveLoginRequired('challenge_detected');
 
     const username = credentials.username ?? profile.username;
     if (username) {
@@ -122,16 +134,17 @@ export async function executeAutoLogin(
     const submit = page.locator(profile.form_selectors?.submit ?? SUBMIT_SELECTORS).first();
     const submitAction = await submit.getAttribute('formaction', { timeout });
     const submitOrigin = new URL(submitAction || page.url(), page.url()).origin;
-    if (submitOrigin !== origin || await challenge.isVisible()) throw new InteractiveLoginRequired();
+    if (submitOrigin !== origin) throw new InteractiveLoginRequired();
+    if (await challenge.isVisible()) throw new InteractiveLoginRequired('challenge_detected');
     await password.fill(credentials.password, { timeout });
     await submit.click({ timeout });
     await Promise.race([
       waitForPostLoginCondition(page, profile, timeout),
       // The scoped caller performs the definitive probe on a separate protected route.
       ...(options ? [password.waitFor({ state: 'hidden', timeout })] : []),
-      challenge.waitFor({ state: 'visible', timeout }).then(() => { throw new InteractiveLoginRequired(); }),
+      challenge.waitFor({ state: 'visible', timeout }).then(() => { throw new InteractiveLoginRequired('challenge_detected'); }),
     ]);
-    if (await challenge.isVisible()) throw new InteractiveLoginRequired();
+    if (await challenge.isVisible()) throw new InteractiveLoginRequired('challenge_detected');
     return await browserContext.storageState();
   } finally {
     await page.close().catch(() => {});

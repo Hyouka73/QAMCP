@@ -29,6 +29,12 @@ export interface AuthProfile {
   handoff_timeout_ms?: number;
   handoff_message?: string;
   role?: string;
+  alias?: string;
+  aliases?: string[];
+  scenario?: string;
+  scenarios?: string[];
+  privileged?: boolean;
+  previous_accounts?: PreviousAccountReference[];
   verified?: boolean;
   verified_at?: string;
   verified_route?: string;
@@ -37,6 +43,12 @@ export interface AuthProfile {
     ttl_ms?: number;
   };
   post_login_condition?: PostLoginCondition;
+}
+
+export interface PreviousAccountReference {
+  username: string;
+  changed_at: string;
+  credential_handling: 'preserved' | 'revoked' | 'not_configured';
 }
 
 export interface PostLoginCondition {

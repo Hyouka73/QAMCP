@@ -1,8 +1,19 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { AuthManager, KeychainCredentialProvider, PortableCredentialVault, promptLocalSecret, readProfile,
-  TieredCredentialVault } from '@qap/auth';
+import {
+  AuthManager,
+  importAccountInventory,
+  isValidUsernameIdentifier,
+  KeychainCredentialProvider,
+  PortableCredentialVault,
+  promptLocalSecret,
+  readProfile,
+  TieredCredentialVault,
+  updateProfile,
+  type AccountInventoryImportOptions,
+  type AccountInventoryImportResult,
+} from '@qap/auth';
 import type { AuthProfile } from '@qap/shared';
 import { SchemaValidator } from '@qap/shared';
 
@@ -40,11 +51,27 @@ export function handleAuthAdd(
     const profileData = typeof profileInput === 'string' ? { id: profileInput } : profileInput;
     const profiles = loadProfiles();
     const existingIndex = profiles.findIndex((p) => p.id === profileData.id);
+    const existing = existingIndex >= 0 ? profiles[existingIndex] : undefined;
+    const resolvedUsername = profileData.username ?? existing?.username;
+
+    if (!isValidUsernameIdentifier(resolvedUsername)) {
+      console.error('✖ Se requiere un identificador de usuario (username) válido. No se asignan cuentas ni correos predeterminados.');
+      return Promise.resolve();
+    }
+
+    if (existing) {
+      updateProfile(profileData.id, {
+        ...profileData,
+        username: resolvedUsername,
+      });
+      console.log(`✔ Perfil '${profileData.id}' actualizado con éxito en .qa/project/auth/profiles.json.`);
+      return Promise.resolve();
+    }
 
     const newProfile: AuthProfile = {
       id: profileData.id,
       env: profileData.env || 'dev',
-      username: profileData.username || 'user',
+      username: resolvedUsername,
       login_mode: profileData.login_mode || 'auto',
       login_route: profileData.login_route || '/login',
       session_cache:
@@ -54,6 +81,11 @@ export function handleAuthAdd(
       post_login_condition: profileData.post_login_condition || { type: 'url_contains', value: '/dashboard' },
       handoff_timeout_ms: profileData.handoff_timeout_ms ?? 30000,
       credential_source: profileData.credential_source || 'keychain',
+      ...(profileData.role ? { role: profileData.role } : {}),
+      ...(profileData.alias ? { alias: profileData.alias } : {}),
+      ...(profileData.aliases ? { aliases: profileData.aliases } : {}),
+      ...(profileData.scenario ? { scenario: profileData.scenario } : {}),
+      ...(profileData.scenarios ? { scenarios: profileData.scenarios } : {}),
       ...(profileData.env_var ? { env_var: profileData.env_var } : {}),
       ...(profileData.application_id ? { application_id: profileData.application_id } : {}),
       ...(profileData.login_origin ? { login_origin: profileData.login_origin } : {}),
@@ -63,11 +95,7 @@ export function handleAuthAdd(
       ...(profileData.challenge_selector ? { challenge_selector: profileData.challenge_selector } : {}),
     };
 
-    if (existingIndex >= 0) {
-      profiles[existingIndex] = newProfile;
-    } else {
-      profiles.push(newProfile);
-    }
+    profiles.push(newProfile);
 
     const validationResult = validator.validateProfiles({
       _version: '1',
@@ -87,6 +115,12 @@ export function handleAuthAdd(
     console.error(`✖ Error al registrar el perfil:`, error);
     return Promise.resolve();
   }
+}
+
+export async function handleAuthImportInventory(
+  options: AccountInventoryImportOptions
+): Promise<AccountInventoryImportResult> {
+  return importAccountInventory(options);
 }
 
 /** Provision the locally selected account through the host's masked dialog. */
