@@ -1,7 +1,7 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 import { join } from 'node:path';
 
-import { AuthManager, authBrowserDiagnosticsEnabled, credentialState, EphemeralCredentialProvider, KeychainCredentialProvider,
+import { AuthManager, authBrowserDiagnosticsEnabled, CredentialError, credentialState, EphemeralCredentialProvider, KeychainCredentialProvider,
   PortableCredentialVault, promptLocalSecret, readProfile, readProfiles, SessionStore, TieredCredentialVault,
   type StorageState } from '@qap/auth';
 import { SchemaValidator } from '@qap/shared';
@@ -113,6 +113,13 @@ const RECOVERY: Record<string, string> = {
   credentials_not_configured: 'Aprovisiona el perfil en el host y vuelve a solicitar auto con su identificador.',
   vault_locked: 'Desbloquea el Vault en el diálogo local al volver a solicitar auto.',
   credential_provider_unavailable: 'Revisa el proveedor de credenciales del host.',
+  keychain_module_unavailable: 'Reinstala las dependencias del checkout de QAP con el lockfile y reinicia el MCP.',
+  credential_dialog_desktop_unavailable: 'Abre QAP en el escritorio interactivo de Windows.',
+  credential_dialog_start_failed: 'Verifica que Windows PowerShell pueda iniciar en el host.',
+  credential_dialog_not_presented: 'Abre QAP en el escritorio activo y vuelve a solicitar la operación.',
+  credential_dialog_failed: 'Revisa la ejecución local del diálogo de credenciales.',
+  credential_dialog_response_timeout: 'Vuelve a solicitar la operación y responde en el diálogo local.',
+  credential_dialog_cancelled: 'Vuelve a solicitar la operación cuando puedas confirmar en el escritorio.',
   session_expired: 'Solicita auto para renovar la sesión o handoff para iniciar sesión manualmente.',
   authentication_required: 'Revisa el flujo y, si requiere intervención, solicita handoff.',
   authentication_diagnostics_enabled: 'Desactiva la depuración de Playwright en el host y vuelve a conectar.',
@@ -262,13 +269,14 @@ export class InteractiveAccess {
     try {
       if (portable) {
         const passphrase = await this.prompt('Desbloquear Vault de QAP para ' + destination, signal);
-        if (!passphrase) return { code: 'vault_locked' };
+        if (!passphrase) return { code: 'credential_dialog_cancelled' };
         await portable.unlock(passphrase);
       }
       let credentials = await manager.getProfileCredentials(profile, true);
       if (!credentials && profile.credential_source === 'ephemeral') {
         const password = await this.prompt('Contraseña de pruebas para esta conexión de QAP: ' + destination, signal);
-        if (password && !signal.aborted && await stillAuthorized()) {
+        if (!password) return { code: 'credential_dialog_cancelled' };
+        if (!signal.aborted && await stillAuthorized()) {
           await manager.setProfileSecret(profile, password);
           credentials = await manager.getProfileCredentials(profile, true);
         }
@@ -277,6 +285,10 @@ export class InteractiveAccess {
       if (!await stillAuthorized()) return { code: 'authorization_context_mismatch' };
       return await captureVerifiedAuto(request, profile, credentials, signal);
     } catch (error) {
+      if (error instanceof CredentialError) {
+        if (error.code.startsWith('DIALOG_')) return { code: 'credential_' + error.code.toLowerCase() };
+        if (error.code === 'KEYCHAIN_MODULE_UNAVAILABLE') return { code: 'keychain_module_unavailable' };
+      }
       const state = credentialState(error);
       return { code: portable && state !== 'unavailable' ? 'vault_locked'
         : state === 'invalid' ? 'invalid_auth_context' : 'credential_provider_unavailable' };

@@ -26,9 +26,15 @@ export interface KeychainBackend {
 /** Deferred optional native addon: importing @qap/auth never requires keytar. */
 export class KeychainCredentialProvider implements ICredentialProvider {
   constructor(private readonly load: () => Promise<KeychainBackend> = async () => {
+    // ESM resolves from this artifact (auth, or the bundled CLI), never the project cwd or NODE_PATH.
     const module = await import('keytar');
     return module.default;
   }) {}
+
+  private async backend(): Promise<KeychainBackend> {
+    try { return await this.load(); }
+    catch { throw new CredentialError('KEYCHAIN_MODULE_UNAVAILABLE'); }
+  }
 
   private service(ref: CredentialReference): string {
     const digest = createHash('sha256').update(referenceKey(ref)).digest('hex');
@@ -37,8 +43,9 @@ export class KeychainCredentialProvider implements ICredentialProvider {
 
   async get(ref: CredentialReference): Promise<AuthCredentials | null> {
     const service = this.service(ref);
+    const backend = await this.backend();
     try {
-      const value = await (await this.load()).getPassword(service, ref.account);
+      const value = await backend.getPassword(service, ref.account);
       // The old password-only representation is retained for existing consumers.
       return value ? { password: value } : null;
     } catch { throw new CredentialError('UNAVAILABLE'); }
@@ -48,12 +55,14 @@ export class KeychainCredentialProvider implements ICredentialProvider {
     const credentials = validateCredentials(value);
     // Keychain's legacy API stores a password only; tokens belong to another provider.
     if (!credentials.password || credentials.token || credentials.username) throw new CredentialError('INVALID_INPUT');
-    try { await (await this.load()).setPassword(service, ref.account, credentials.password); }
+    const backend = await this.backend();
+    try { await backend.setPassword(service, ref.account, credentials.password); }
     catch { throw new CredentialError('UNAVAILABLE'); }
   }
   async delete(ref: CredentialReference): Promise<boolean> {
     const service = this.service(ref);
-    try { return await (await this.load()).deletePassword(service, ref.account); }
+    const backend = await this.backend();
+    try { return await backend.deletePassword(service, ref.account); }
     catch { throw new CredentialError('UNAVAILABLE'); }
   }
   close(): void { /* Native keychain owns its lifecycle. */ }

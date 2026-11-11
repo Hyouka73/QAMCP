@@ -21,8 +21,9 @@ try {
   assert.equal(await provider.delete(reference), false);
   console.log(JSON.stringify({ platform: process.platform, node: process.version, keychain: 'passed', checks: 6 }));
 } catch (error) {
-  console.log(JSON.stringify({ platform: process.platform, node: process.version,
-    keychain: error?.code === 'UNAVAILABLE' ? 'unavailable' : 'failed' }));
+  const keychain = error?.code === 'KEYCHAIN_MODULE_UNAVAILABLE' ? 'module_unavailable'
+    : error?.code === 'UNAVAILABLE' ? 'unavailable' : 'failed';
+  console.log(JSON.stringify({ platform: process.platform, node: process.version, keychain }));
   process.exitCode = 1;
 } finally {
   if (written) {

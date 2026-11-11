@@ -90,26 +90,39 @@ export function handleAuthAdd(
 }
 
 /** Provision the locally selected account through the host's masked dialog. */
-export async function handleAuthSetSecret(profileId: string, prompt = promptLocalSecret): Promise<void> {
+export async function handleAuthSetSecret(profileId: string, prompt = (label: string) => promptLocalSecret(label, undefined, () => {
+  console.log('Diálogo de credencial presentado en Windows.');
+})): Promise<void> {
   const root = process.cwd();
   const profile = await readProfile(profileId, root);
   if (!profile || !profile.application_id || !profile.login_origin ||
       !['keychain', 'vault'].includes(profile.credential_source)) {
     throw new Error('Configura localmente un perfil con aplicación, origen y proveedor keychain o vault.');
   }
-  const destination = [root, profile.application_id, profile.env, profile.id, profile.username, profile.login_origin].join(' / ');
+  const destination = [
+    `Workspace: ${root}`, `Aplicación: ${profile.application_id}`, `Entorno: ${profile.env}`,
+    `Perfil: ${profile.id}`, `Cuenta: ${profile.username}`, `Origen: ${profile.login_origin}`,
+  ].join('\n');
   const portable = profile.credential_source === 'vault' ? new PortableCredentialVault(root) : undefined;
   const manager = new AuthManager(root, { vault: new TieredCredentialVault({
     keychain: new KeychainCredentialProvider(), vault: portable,
   }) });
   try {
     if (portable) {
-      const passphrase = await prompt('Desbloquear Vault de QAP para ' + destination);
-      if (!passphrase) return;
+      const passphrase = await prompt('Desbloquear el Vault local de QAP.\n\n' + destination);
+      if (!passphrase) {
+        console.log('Operación cancelada.');
+        return;
+      }
       await portable.unlock(passphrase);
     }
-    const password = await prompt('Contraseña de pruebas para ' + destination);
-    if (!password) return;
+    const provider = portable ? 'Vault local de QAP' : 'Administrador de credenciales de Windows';
+    const password = await prompt(`Guardar la contraseña de prueba en el ${provider}.\n\n` + destination);
+    if (!password) {
+      console.log('Operación cancelada.');
+      return;
+    }
+    console.log('Contraseña aceptada. Guardando en el proveedor local.');
     await manager.setProfileSecret(profile, password);
     console.log('Secreto guardado correctamente para el perfil ' + profileId + '.');
   } finally { manager.close(); }
