@@ -289,6 +289,33 @@ describe('Lifecycle Transitions (E2 & Criterio 1)', () => {
       expect(res.faltantes.some((f) => f.campo === 'objective' && f.motivo.includes('20 caracteres'))).toBe(true);
     });
 
+    it('F10: canExitOnboarding debe fallar si el objetivo es un stub o placeholder inválido ("Documento vacío", "TODO", etc.)', () => {
+      const stubObjectives = [
+        'Documento vacío',
+        'documento vacio',
+        'sin objetivo',
+        'TODO',
+        'TBD',
+        'placeholder',
+        'none',
+        'null',
+        'n/a',
+      ];
+
+      for (const stub of stubObjectives) {
+        const stubCtx = {
+          ...validContext,
+          objective: stub,
+          objective_source: 'user' as const,
+        };
+        const res = canExitOnboarding(stubCtx, validEnv);
+        expect(res.passed).toBe(false);
+        const objFaltante = res.faltantes.find((f) => f.campo === 'objective');
+        expect(objFaltante).toBeDefined();
+        expect(objFaltante?.motivo).toBe('el objetivo es un marcador de posición o stub inválido');
+      }
+    });
+
     it('canExitOnboarding debe fallar si el objetivo es la descripción genérica de qap_init', () => {
       const genericContext = {
         ...validContext,

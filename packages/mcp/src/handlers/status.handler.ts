@@ -74,7 +74,8 @@ export class StatusHandler implements IMcpToolHandler {
     if (this.dependencies.prepareWorkspace && payload.fase === 'ONBOARDING') {
       const contextFile = join(rootDir, '.qa', 'project', 'context.yaml');
       const context = existsSync(contextFile) ? readContext(contextFile) : null;
-      const docs = (payload.scan as { documentos?: Array<{ path: string }> } | undefined)?.documentos ?? [];
+      const rawScanDocs = (payload.scan as { documentos?: Array<{ path: string; es_ingerible?: boolean; tamano_bytes?: number; categoria?: string }> } | undefined)?.documentos ?? [];
+      const docs = rawScanDocs.filter((d) => d && d.es_ingerible !== false && (typeof d.tamano_bytes !== 'number' || d.tamano_bytes > 0) && d.categoria !== 'placeholder' && d.categoria !== 'archivo_vacio');
       const service = payload.detectedService as { url?: string } | undefined;
       const bound = binding(rootDir, this.dependencies);
       const application = bound ? await bound.store.get(bound.applicationId, 'application', bound.applicationId) : undefined;

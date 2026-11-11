@@ -55,12 +55,24 @@ it('T02: repeated preparation preserves files and one durable Knowledge database
   expect(readdirSync(join(c.host, readdirSync(c.host)[0])).filter(p => p === 'knowledge.sqlite')).toHaveLength(1);
 });
 it('T04: existing Markdown is detected and read before asking for missing information', async () => {
-  const root = temp(); writeFileSync(join(root, 'README.md'), '# Example\nA documented system.');
+  const root = temp(); writeFileSync(join(root, 'README.md'), '# Example\nA documented system with functional specifications.');
   const c = await connect([root]), { data } = await c.call();
   expect(data.scan.documentos.some((d: { path: string }) => d.path === 'README.md')).toBe(true);
   expect(data.siguiente_accion.tipo).toBe('trabajo');
   expect(data.siguiente_accion.tool).toBe('qap_context_ingest');
   expect(data.siguiente_accion.pregunta).toBeUndefined();
+});
+it('T04b / F11: workspace with only empty PRD.md does not trigger qap_context_ingest and falls back gracefully', async () => {
+  const root = temp();
+  writeFileSync(join(root, 'PRD.md'), '');
+  const c = await connect([root]);
+  const { data } = await c.call('qap_status');
+  const prdScan = data.scan?.documentos?.find((d: { path: string }) => d.path === 'PRD.md');
+  expect(prdScan).toBeDefined();
+  expect(prdScan.es_ingerible).toBe(false);
+  expect(data.siguiente_accion.tool).not.toBe('qap_context_ingest');
+  expect(data.siguiente_accion.tipo).toBe('entrevista');
+  expect(data.siguiente_accion.pregunta?.id).toBe('onboarding.system_location');
 });
 it('T05: provisional scoping investigates before requesting modules', () => {
   const action = getPhaseGuidance('SCOPING', { investigateBeforeScoping: true }).siguiente_accion;
