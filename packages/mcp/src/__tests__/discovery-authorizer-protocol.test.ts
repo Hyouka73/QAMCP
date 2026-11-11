@@ -1,10 +1,16 @@
+import { spawnSync } from 'node:child_process';
 import { EventEmitter } from 'node:events';
+import { join } from 'node:path';
 import { PassThrough } from 'node:stream';
+import { fileURLToPath } from 'node:url';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const launch = vi.hoisted(() => vi.fn());
-vi.mock('node:child_process', () => ({ spawn: launch }));
+vi.mock('node:child_process', async importOriginal => ({
+  ...(await importOriginal<typeof import('node:child_process')>()),
+  spawn: launch,
+}));
 vi.mock('../authorization-diagnostics.js', () => ({ authorizationDiagnostic: () => 'synthetic-id' }));
 import { WindowsInteractiveDiscoveryAuthorizer } from '../discovery-authorizer.js';
 
@@ -102,5 +108,76 @@ describe.skipIf(process.platform !== 'win32')('Windows discovery child protocol 
     await vi.advanceTimersByTimeAsync(8000);
     await rejection;
     expect(unseen.child.kill).toHaveBeenCalledOnce();
+  });
+
+  it('lays out credential_provision controls without overlap across 100%, 125% and 150% DPI scaling', () => {
+    const powershell = join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
+    const scriptPath = fileURLToPath(new URL('../../../../scripts/qap-interactive-discovery-dialog.ps1', import.meta.url));
+    for (const scale of [1, 1.25, 1.5]) {
+      const check = spawnSync(powershell, [
+        '-NoProfile', '-NonInteractive', '-STA', '-ExecutionPolicy', 'Bypass', '-Command',
+        `
+        $scale = ${scale}
+        $raw = (Get-Content -Raw -LiteralPath '${scriptPath.replace(/'/g, "''")}') \`
+          -replace 'if \\(-not \\(Test-InputDesktop\\)\\) \\{ exit 3 \\}', '' \`
+          -replace '\\[void\\]\\$form\\.ShowDialog\\(\\)', 'return'
+        $sb = [ScriptBlock]::Create($raw)
+        $details = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes('Origen: https://qap-fixture.invalid'))
+        . $sb -ApplicationId 'test-app' -EnvironmentId 'local' -EnvironmentRevision 1 \`
+          -BaseUrl 'https://qap-fixture.invalid/' -TargetUrl 'https://qap-fixture.invalid/' \`
+          -Operation 'credential_provision' -ProjectRoot 'C:\\fixture' -Profile 'qap-mcp-p0-synthetic' -ScopeDetails $details
+        if ($scale -gt 1) {
+          foreach ($c in $form.Controls) {
+            if ($c.Font) { $c.Font = New-Object System.Drawing.Font($c.Font.FontFamily, [float]($c.Font.Size * $scale), $c.Font.Style) }
+          }
+          $notice.Size = New-Object System.Drawing.Size(540, [Math]::Max(48, [System.Windows.Forms.TextRenderer]::MeasureText($notice.Text, $notice.Font, (New-Object System.Drawing.Size(540, 0)), [System.Windows.Forms.TextFormatFlags]::WordBreak).Height + 8))
+          $passwordLabel.Location = New-Object System.Drawing.Point(20, ($notice.Bottom + 8))
+          $passwordLabel.Size = New-Object System.Drawing.Size(540, [Math]::Max(22, [System.Windows.Forms.TextRenderer]::MeasureText($passwordLabel.Text, $passwordLabel.Font).Height + 4))
+          $passwordBox.Location = New-Object System.Drawing.Point(20, ($passwordLabel.Bottom + 4))
+          $passwordBox.Size = New-Object System.Drawing.Size(540, [Math]::Max(26, $passwordBox.PreferredHeight))
+        }
+        $controls = @($header, $sub, $scopeLabel, $lblTarget, $targetBox, $scopeBox, $notice, $passwordLabel, $passwordBox, $btnCancel, $btnAuth)
+        $overlaps = @()
+        for ($i = 0; $i -lt $controls.Count; $i++) {
+          for ($j = $i + 1; $j -lt $controls.Count; $j++) {
+            if ($controls[$i].Bounds.IntersectsWith($controls[$j].Bounds)) {
+              $overlaps += "$($controls[$i].Text)->$($controls[$j].Text)"
+            }
+          }
+        }
+        $initialSave = $btnAuth.Enabled
+        $passwordBox.Text = 'synthetic'
+        $enabledSave = $btnAuth.Enabled
+        $passwordBox.Clear()
+        $clearedSave = $btnAuth.Enabled
+        $out = @{
+          overlaps = $overlaps
+          noticeBottom = $notice.Bottom
+          labelTop = $passwordLabel.Top
+          labelBottom = $passwordLabel.Bottom
+          passwordTop = $passwordBox.Top
+          passwordBottom = $passwordBox.Bottom
+          buttonsTop = $btnAuth.Top
+          rejectVisible = $btnReject.Visible
+          initialSave = $initialSave
+          enabledSave = $enabledSave
+          clearedSave = $clearedSave
+        } | ConvertTo-Json -Compress
+        $timer.Dispose()
+        $form.Dispose()
+        Write-Output $out
+        `,
+      ], { encoding: 'utf8' });
+      expect(check.status).toBe(0);
+      const layout = JSON.parse(check.stdout.trim());
+      expect(layout.overlaps).toEqual([]);
+      expect(layout.noticeBottom).toBeLessThan(layout.labelTop);
+      expect(layout.labelBottom).toBeLessThan(layout.passwordTop);
+      expect(layout.passwordBottom).toBeLessThan(layout.buttonsTop);
+      expect(layout.rejectVisible).toBe(false);
+      expect(layout.initialSave).toBe(false);
+      expect(layout.enabledSave).toBe(true);
+      expect(layout.clearedSave).toBe(false);
+    }
   });
 });

@@ -289,17 +289,28 @@ $form.Controls.Add($btnReject)
 
 if ($provision) {
   $form.Text = 'QAP - Guardar credencial de pruebas'
+  $scopeBox.Size = New-Object System.Drawing.Size(540, 152)
+  $notice.Location = New-Object System.Drawing.Point(20, 300)
+  $noticeHeight = [Math]::Max(48, [System.Windows.Forms.TextRenderer]::MeasureText(
+    $notice.Text, $notice.Font, (New-Object System.Drawing.Size(540, 0)),
+    [System.Windows.Forms.TextFormatFlags]::WordBreak).Height + 8)
+  $notice.Size = New-Object System.Drawing.Size(540, $noticeHeight)
+
   $passwordLabel = New-Object System.Windows.Forms.Label
   $passwordLabel.Text = 'Contraseña de pruebas'
-  $passwordLabel.Location = New-Object System.Drawing.Point(20, 386)
-  $passwordLabel.Size = New-Object System.Drawing.Size(540, 20)
+  $passwordLabel.Font = New-Object System.Drawing.Font("Segoe UI", 9)
+  $passwordLabelHeight = [Math]::Max(22, [System.Windows.Forms.TextRenderer]::MeasureText(
+    $passwordLabel.Text, $passwordLabel.Font).Height + 4)
+  $passwordLabel.Location = New-Object System.Drawing.Point(20, ($notice.Bottom + 8))
+  $passwordLabel.Size = New-Object System.Drawing.Size(540, $passwordLabelHeight)
   $form.Controls.Add($passwordLabel)
 
   $passwordBox = New-Object System.Windows.Forms.TextBox
+  $passwordBox.Font = New-Object System.Drawing.Font("Segoe UI", 9)
   $passwordBox.UseSystemPasswordChar = $true
   $passwordBox.MaxLength = 2048
-  $passwordBox.Location = New-Object System.Drawing.Point(20, 410)
-  $passwordBox.Size = New-Object System.Drawing.Size(540, 26)
+  $passwordBox.Location = New-Object System.Drawing.Point(20, ($passwordLabel.Bottom + 4))
+  $passwordBox.Size = New-Object System.Drawing.Size(540, [Math]::Max(26, $passwordBox.PreferredHeight))
   $form.Controls.Add($passwordBox)
   $form.ActiveControl = $passwordBox
   $btnAuth.Text = 'Guardar'
