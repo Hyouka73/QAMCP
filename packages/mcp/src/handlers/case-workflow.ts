@@ -34,7 +34,8 @@ export async function caseReviewRequest(root: string, module: string, cases: TCC
 
 /** For a canonical project every executable case requires an exact host receipt, including manually edited files. */
 export async function verifyCaseApproval(root: string, module: string, cases: TCCase[], deps: StateDependencies) {
-  if (!binding(root, deps)) return { allowed: true };
+  const bound = binding(root, deps);
+  if (!bound || (deps.prepareWorkspace && !bound.moduleBindings?.length && !bound.caseReviewGateway)) return { allowed: true };
   const value = await caseReviewRequest(root, module, cases, deps);
   if ('error' in value) return { allowed: false, code: value.error };
   if (!value.bound.caseReviewGateway) return { allowed: false, code: 'case_review_gateway_required' };

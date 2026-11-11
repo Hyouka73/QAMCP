@@ -1,4 +1,5 @@
-import { existsSync, lstatSync, readFileSync, realpathSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { randomBytes } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { dirname, isAbsolute, resolve } from 'node:path';
 import { URL } from 'node:url';
@@ -226,6 +227,28 @@ function testPolicy(input: unknown, projectRoot: string): TestNavigationAuthoriz
     ...(Array.isArray(input.authorizedProfiles) ? { authorizedProfiles: input.authorizedProfiles.map(value => requiredText(value, 'authorizedProfiles')) } : {}) };
 }
 
+function resolveOrProvisionHostSessionKey(directory: string, env: NodeJS.ProcessEnv): string | undefined {
+  if (/^[0-9a-fA-F]{64}$/.test(env.QAP_SESSION_KEY ?? '')) {
+    return env.QAP_SESSION_KEY;
+  }
+  if (env.QAP_DISABLE_SESSION_PERSISTENCE === '1' || env.NODE_ENV === 'test') {
+    return undefined;
+  }
+  try {
+    mkdirSync(directory, { recursive: true });
+    const keyFile = resolve(directory, 'host-session.key');
+    if (existsSync(keyFile)) {
+      const existing = readFileSync(keyFile, 'utf8').trim();
+      if (/^[0-9a-fA-F]{64}$/.test(existing)) return existing;
+    }
+    const generated = randomBytes(32).toString('hex');
+    writeFileSync(keyFile, generated + '\n', { encoding: 'utf8', mode: 0o600 });
+    return generated;
+  } catch {
+    return undefined;
+  }
+}
+
 /** No manifest enables root-authorized local bootstrap. Malformed opt-in fails closed. */
 export async function loadHostComposition(
   env: NodeJS.ProcessEnv = process.env
@@ -252,6 +275,11 @@ export async function loadHostComposition(
     const persistedDiscoveryAuthorizations = existsSync(discoveryRegistry)
       ? loadDiscoveryAuthorizationsFromDisk(discoveryRegistry)
       : [];
+    const sessionPersistenceKey = isWindowsInteractive
+      ? resolveOrProvisionHostSessionKey(directory, env)
+      : undefined;
+    const parsedTtl = env.QAP_SESSION_AUTH_TTL_MS ? Number(env.QAP_SESSION_AUTH_TTL_MS) : undefined;
+    const authorizationTtlMs = parsedTtl && Number.isInteger(parsedTtl) && parsedTtl > 0 ? parsedTtl : undefined;
     authorizationDiagnostic('host_composition', {
       build: process.env.QAP_BUILD_REVISION ?? 'development',
       authorizer: authorizer ? 'WindowsInteractiveWorkspaceAuthorizer' : 'unconfigured',
@@ -269,6 +297,8 @@ export async function loadHostComposition(
         interactiveAccessAuthorizer: discoveryAuthorizer,
         hostDiscoveryRegistryPath: discoveryRegistry,
         discoveryAuthorizations: persistedDiscoveryAuthorizations,
+        sessionPersistenceKey,
+        authorizationTtlMs,
       },
       close() { bootstrap.close(); },
     };

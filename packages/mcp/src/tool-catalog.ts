@@ -69,8 +69,8 @@ export const TOOLS: Tool[] = [
         profile: { type: 'string', description: 'Identificador del perfil de pruebas.' },
         action: {
           type: 'string',
-          enum: ['create', 'update', 'select', 'resolve', 'login'],
-          description: 'Operación de perfil o resolución previa al login.',
+          enum: ['create', 'update', 'select', 'resolve', 'revoke', 'login'],
+          description: 'Operación de perfil, revocación de autorización o resolución previa al login.',
         },
         env: { type: 'string', description: 'Entorno autorizado del perfil.' },
         username: { type: 'string', description: 'Identificador de usuario o cuenta de prueba (acepta usuarios no email).' },

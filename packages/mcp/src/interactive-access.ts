@@ -47,6 +47,21 @@ export interface InteractiveScope {
 
 export interface InteractivePolicyRestrictions {
   readonly authorizedProfiles?: readonly string[];
+  readonly authorizationTtlMs?: number;
+  readonly sessionPersistenceKey?: string;
+}
+
+export interface QaSessionAuthorizationGrant {
+  readonly projectRoot: string;
+  readonly applicationId: string;
+  readonly environmentId: string;
+  readonly environmentRevision: number;
+  readonly baseUrl: string;
+  readonly origin: string;
+  readonly profile: string;
+  readonly operations: readonly Operation[];
+  readonly grantedAt: number;
+  readonly expiresAt: number;
 }
 
 export interface ProfileStatusSummary {
@@ -113,7 +128,7 @@ async function configuredProfile(scope: InteractiveScope, idOrSelector: string):
 function validConfiguration(scope: InteractiveScope, profile: AuthProfile): boolean {
   if (!validInteractiveProfile(profile?.id) || !validator.validateProfiles({ _version: '1', profiles: [profile] }).valid) return false;
   if (profile.application_id !== scope.applicationId || profile.env !== scope.environmentId ||
-      profile.login_origin !== scope.origin || profile.login_mode !== 'auto' ||
+      profile.login_origin !== scope.origin || (profile.login_mode !== 'auto' && profile.login_mode !== 'handoff') ||
       !isValidUsernameIdentifier(profile.username) ||
       !route(profile.credential_source === 'env' ? profile.token_exchange_route : profile.login_route, scope) ||
       !route(profile.verification_route, scope) || profile.post_login_condition?.type !== 'selector_present' ||
@@ -123,9 +138,10 @@ function validConfiguration(scope: InteractiveScope, profile: AuthProfile): bool
   return origin.protocol === 'https:' || ['localhost', '127.0.0.1', '[::1]'].includes(origin.hostname);
 }
 
-function persistentStore(scope: InteractiveScope): SessionStore<PersistentSession> | undefined {
-  if (!/^[0-9a-fA-F]{64}$/.test(process.env.QAP_SESSION_KEY ?? '')) return;
-  return new SessionStore<PersistentSession>(join(scope.projectRoot, '.qa', 'cache', 'verified-sessions'), scope.projectRoot);
+function persistentStore(scope: InteractiveScope, explicitKeyHex?: string): SessionStore<PersistentSession> | undefined {
+  const keyHex = process.env.QAP_SESSION_KEY ?? explicitKeyHex ?? '';
+  if (!/^[0-9a-fA-F]{64}$/.test(keyHex)) return;
+  return new SessionStore<PersistentSession>(join(scope.projectRoot, '.qa', 'cache', 'verified-sessions'), scope.projectRoot, keyHex);
 }
 
 function persistentId(scope: InteractiveScope, profile: AuthProfile): string {
@@ -134,6 +150,7 @@ function persistentId(scope: InteractiveScope, profile: AuthProfile): string {
 
 const MAX_SESSIONS = 32;
 const SESSION_TTL = 60 * 60_000;
+const DEFAULT_QA_AUTH_TTL_MS = 4 * 60 * 60_000;
 export const validInteractiveProfile = (id: unknown): id is string =>
   typeof id === 'string' && /^[a-z0-9][a-z0-9_-]{0,63}$/i.test(id);
 
@@ -188,7 +205,13 @@ const RECOVERY: Record<string, string> = {
   credential_dialog_response_timeout: 'Vuelve a solicitar la operación y responde en el diálogo local.',
   credential_dialog_cancelled: 'Vuelve a solicitar la operación cuando puedas confirmar en el escritorio.',
   session_expired: 'Solicita auto para renovar la sesión o handoff para iniciar sesión manualmente.',
+  session_invalid: 'La ruta de verificación no protege el acceso o no devolvió una sesión autenticada válida; revisa verification_route y post_login_condition.',
   authentication_required: 'Verifica que el username y la credencial almacenada sean correctos o actualiza el perfil antes de reintentar.',
+  credentials_rejected: 'Las credenciales fueron rechazadas por el formulario de login; verifica el usuario y aprovisiona la contraseña correcta.',
+  login_form_not_found: 'No se encontró un formulario de inicio de sesión válido en login_route; revisa login_route y form_selectors.',
+  submit_button_disabled: 'El botón de envío del formulario permaneció deshabilitado; revisa los campos requeridos o form_selectors.',
+  login_navigation_failed: 'No se pudo cargar la ruta de login dentro del origen autorizado.',
+  post_login_verification_failed: 'El inicio de sesión no alcanzó una ruta protegida con el selector esperado.',
   challenge_detected: 'Se detectó un reto interactivo (MFA o CAPTCHA) en el formulario; solicita handoff para intervención humana.',
   authentication_diagnostics_enabled: 'Desactiva la depuración de Playwright en el host y vuelve a conectar.',
   profile_already_exists: 'El perfil ya existe; usa action: "update" para actualizarlo o selecciona otro identificador/alias.',
@@ -239,6 +262,7 @@ const ALLOWED_LOGIN_ARGS = new Set([
 export class InteractiveAccess {
   private readonly key = randomBytes(32);
   private readonly sessions = new Map<string, SealedSession>();
+  private readonly authorizations = new Map<string, QaSessionAuthorizationGrant>();
   private readonly logins = new Set<string>();
   private provisioning = false;
   private readonly ephemeral = new EphemeralCredentialProvider();
@@ -253,8 +277,91 @@ export class InteractiveAccess {
 
   close(): void {
     this.sessions.clear();
+    this.authorizations.clear();
     this.ephemeral.close();
     this.key.fill(0);
+  }
+
+  private getAuthorizationTtlMs(): number {
+    const envRaw = process.env.QAP_SESSION_AUTH_TTL_MS;
+    if (envRaw) {
+      const parsed = Number(envRaw);
+      if (Number.isInteger(parsed) && parsed > 0) return parsed;
+    }
+    const configured = this.policyRestrictions?.authorizationTtlMs;
+    if (typeof configured === 'number' && Number.isInteger(configured) && configured > 0) {
+      return configured;
+    }
+    return DEFAULT_QA_AUTH_TTL_MS;
+  }
+
+  private getSessionPersistenceKey(): string | undefined {
+    return this.policyRestrictions?.sessionPersistenceKey;
+  }
+
+  hasValidSessionAuthorization(
+    scope: InteractiveScope,
+    profile: string | undefined,
+    operation: Operation
+  ): boolean {
+    if (!profile) return false;
+    const key = sessionKey(scope, profile);
+    const grant = this.authorizations.get(key);
+    if (!grant) return false;
+    if (grant.expiresAt <= Date.now()) {
+      this.authorizations.delete(key);
+      return false;
+    }
+    if (
+      grant.projectRoot !== scope.projectRoot ||
+      grant.applicationId !== scope.applicationId ||
+      grant.environmentId !== scope.environmentId ||
+      grant.environmentRevision !== scope.environmentRevision ||
+      grant.baseUrl !== scope.baseUrl ||
+      grant.origin !== scope.origin ||
+      grant.profile !== profile
+    ) {
+      this.authorizations.delete(key);
+      return false;
+    }
+    return grant.operations.includes(operation);
+  }
+
+  getSessionAuthorization(
+    scope: InteractiveScope,
+    profile: string | undefined
+  ): QaSessionAuthorizationGrant | undefined {
+    if (!profile) return undefined;
+    const key = sessionKey(scope, profile);
+    const grant = this.authorizations.get(key);
+    if (!grant) return undefined;
+    if (grant.expiresAt <= Date.now()) {
+      this.authorizations.delete(key);
+      return undefined;
+    }
+    return grant;
+  }
+
+  revokeAuthorization(scope: InteractiveScope, profile?: string): number {
+    let revoked = 0;
+    if (profile) {
+      const key = sessionKey(scope, profile);
+      if (this.authorizations.delete(key)) revoked++;
+      this.sessions.delete(key);
+      return revoked;
+    }
+    for (const [key, grant] of this.authorizations.entries()) {
+      if (
+        grant.projectRoot === scope.projectRoot &&
+        grant.applicationId === scope.applicationId &&
+        grant.environmentId === scope.environmentId
+      ) {
+        this.authorizations.delete(key);
+        this.sessions.delete(key);
+        revoked++;
+      }
+    }
+    return revoked;
   }
 
   private isHostAuthorizedForPrivileged(_scope: InteractiveScope, profileId: string): boolean {
@@ -264,9 +371,10 @@ export class InteractiveAccess {
   }
 
   private invalidateProfileSessions(scope: InteractiveScope, profile: AuthProfile): void {
+    this.authorizations.delete(sessionKey(scope, profile.id));
     this.sessions.delete(sessionKey(scope, profile.id));
     try {
-      const store = persistentStore(scope);
+      const store = persistentStore(scope, this.getSessionPersistenceKey());
       if (store) {
         try {
           store.clearSession(persistentId(scope, profile));
@@ -354,10 +462,31 @@ export class InteractiveAccess {
   }
 
   async consent(operation: Operation, scope: InteractiveScope, profile: string | undefined,
-    targetUrl: string, details: string, signal: AbortSignal): Promise<string | undefined> {
+    targetUrl: string, details: string, signal: AbortSignal,
+    options?: { requireIndependentApproval?: boolean }): Promise<string | undefined> {
     const prefix = operation === 'login' ? 'authentication' : operation;
     if (signal.aborted) return prefix + '_authorization_cancelled';
     if (!this.authorizer) return prefix + '_authorization_required';
+
+    let targetOriginMatches = false;
+    try {
+      targetOriginMatches = new URL(targetUrl).origin === scope.origin;
+    } catch {
+      targetOriginMatches = false;
+    }
+
+    if (!options?.requireIndependentApproval && profile && targetOriginMatches) {
+      if (this.hasValidSessionAuthorization(scope, profile, operation)) {
+        authorizationDiagnostic('qa_session_authorization_reused', {
+          operation,
+          profile,
+          origin: scope.origin,
+          environment: scope.environmentId,
+        });
+        return undefined;
+      }
+    }
+
     const response = await this.authorizer.requestAuthorization({
       ...scope, targetUrl, interactiveOperation: { operation, profile, details: 'Origen: ' + scope.origin + '\n' + details },
     }, signal).catch(() => ({ decision: 'unavailable' as const }));
@@ -366,7 +495,35 @@ export class InteractiveAccess {
       (response.code === 'discovery_authorization_expired' ? '_authorization_expired' : '_authorization_cancelled');
     if (response.decision === 'rejected') return prefix + '_authorization_rejected';
     if (response.decision !== 'approved') return prefix + '_gui_unavailable';
-    return response.root !== scope.projectRoot || response.targetUrl !== targetUrl ? 'authorization_context_mismatch' : undefined;
+    if (response.root !== scope.projectRoot || response.targetUrl !== targetUrl) {
+      return 'authorization_context_mismatch';
+    }
+
+    if (!options?.requireIndependentApproval && profile && targetOriginMatches && !scope.isProduction) {
+      const ttlMs = this.getAuthorizationTtlMs();
+      const now = Date.now();
+      const grant: QaSessionAuthorizationGrant = {
+        projectRoot: scope.projectRoot,
+        applicationId: scope.applicationId,
+        environmentId: scope.environmentId,
+        environmentRevision: scope.environmentRevision,
+        baseUrl: scope.baseUrl,
+        origin: scope.origin,
+        profile,
+        operations: ['login', 'test', 'discovery_profile'],
+        grantedAt: now,
+        expiresAt: now + ttlMs,
+      };
+      this.authorizations.set(sessionKey(scope, profile), grant);
+      authorizationDiagnostic('qa_session_authorization_granted', {
+        operation,
+        profile,
+        origin: scope.origin,
+        environment: scope.environmentId,
+        ttlMs,
+      });
+    }
+    return undefined;
   }
 
   readSession(scope: InteractiveScope, profile: string): VerifiedSession | undefined {
@@ -408,7 +565,7 @@ export class InteractiveAccess {
       if (session) return { session, expires: targetSealed.expires, persistence: 'host_process' };
     }
     if (profile.session_cache?.enabled === false || profile.credential_source === 'ephemeral') return;
-    const store = persistentStore(scope);
+    const store = persistentStore(scope, this.getSessionPersistenceKey());
     if (!store) return;
     try {
       const cached = store.getValidSession(persistentId(scope, profile), true);
@@ -424,13 +581,23 @@ export class InteractiveAccess {
   async profiles(root: string): Promise<AuthProfile[]> {
     const scope = await interactiveScope(root, this.dependencies);
     if (!scope) return [];
-    const profiles: AuthProfile[] = [];
+    const byId = new Map<string, AuthProfile>();
     for (const [id, sealed] of this.sessions) {
       if (id === sessionKey(scope, sealed.profile.id) && await this.resolveSession(scope, sealed.profile.id)) {
-        profiles.push({ ...sealed.profile, verified: true });
+        byId.set(sealed.profile.id, { ...sealed.profile, verified: true });
       }
     }
-    return profiles;
+    try {
+      for (const stored of readProfiles(root)) {
+        if (byId.has(stored.id) || !validConfiguration(scope, stored)) continue;
+        if (await this.resolveSession(scope, stored.id)) {
+          byId.set(stored.id, { ...stored, verified: true });
+        }
+      }
+    } catch {
+      /* Ignore when profiles.json does not exist yet */
+    }
+    return [...byId.values()];
   }
 
   async profileStatuses(root: string, filterArgs?: Record<string, unknown>): Promise<ProfileStatusSummary[]> {
@@ -607,7 +774,8 @@ export class InteractiveAccess {
       targetProfile.id,
       scope.origin,
       `Control de perfil privilegiado (${classifyEnvironmentPolicy(scope.environmentId, scope.isProduction)})\n${operationDescription}`,
-      signal
+      signal,
+      { requireIndependentApproval: true }
     );
     return consentResult ? 'privileged_profile_authorization_required' : undefined;
   }
@@ -835,7 +1003,8 @@ export class InteractiveAccess {
               id,
               scope.origin,
               `Revocar credencial anterior de '${existing.username}' al actualizar el perfil '${id}' a '${patch.username}'.`,
-              signal
+              signal,
+              { requireIndependentApproval: true }
             );
             if (revokeConsent) return interactiveBlocked(revokeConsent);
           }
@@ -993,12 +1162,44 @@ export class InteractiveAccess {
     }
   }
 
+  private async handoffWithOptionalVault(
+    scope: InteractiveScope,
+    configured: AuthProfile | undefined,
+    request: HandoffRequest,
+    signal: AbortSignal
+  ): ReturnType<typeof captureVerifiedHandoff> {
+    if (!configured || configured.credential_source !== 'keychain') {
+      return await this.capture(request, signal);
+    }
+    let credentials;
+    const manager = new AuthManager(scope.projectRoot);
+    try {
+      credentials = await manager.getProfileCredentials(configured, true).catch(() => null);
+    } finally {
+      manager.close();
+    }
+    if (!credentials?.password) {
+      return await this.capture({ ...request, profile: configured }, signal);
+    }
+    return await this.capture(
+      {
+        ...request,
+        profile: configured,
+        credentials: {
+          username: credentials.username ?? configured.username,
+          password: credentials.password,
+        },
+      },
+      signal
+    );
+  }
+
   async login(args: Record<string, unknown>, signal: AbortSignal): Promise<CallToolResult> {
     if (Object.keys(args).some(key => !ALLOWED_LOGIN_ARGS.has(key))) {
       return interactiveBlocked('agent_auth_material_not_supported');
     }
     const action = args.action !== undefined ? String(args.action) : 'login';
-    if (!['create', 'update', 'select', 'resolve', 'login'].includes(action)) {
+    if (!['create', 'update', 'select', 'resolve', 'revoke', 'login'].includes(action)) {
       return interactiveBlocked('invalid_auth_method');
     }
 
@@ -1007,7 +1208,7 @@ export class InteractiveAccess {
     }
 
     const profileArg = args.profile;
-    if ((action !== 'select' && action !== 'resolve' && !validInteractiveProfile(profileArg)) ||
+    if ((action !== 'select' && action !== 'resolve' && action !== 'revoke' && !validInteractiveProfile(profileArg)) ||
         (typeof profileArg !== 'string' || !profileArg.trim()) ||
         (args.env !== undefined && typeof args.env !== 'string')) {
       return interactiveBlocked('invalid_auth_context');
@@ -1015,7 +1216,7 @@ export class InteractiveAccess {
 
     let root: string;
     try {
-      root = projectRoot(args, this.dependencies, action !== 'select' && action !== 'resolve');
+      root = projectRoot(args, this.dependencies, action !== 'select' && action !== 'resolve' && action !== 'revoke');
     } catch {
       return interactiveBlocked('workspace_authorization_required');
     }
@@ -1031,6 +1232,27 @@ export class InteractiveAccess {
     if (action === 'select' || action === 'resolve') {
       return await this.handleSelectOrResolveProfile(scope, args, action);
     }
+    if (action === 'revoke') {
+      const targetProfile = profileArg === '*' ? undefined : String(profileArg).trim();
+      if (targetProfile) {
+        const existing = await configuredProfile(scope, targetProfile);
+        if (existing) {
+          this.invalidateProfileSessions(scope, existing);
+        } else {
+          this.revokeAuthorization(scope, targetProfile);
+        }
+      } else {
+        this.revokeAuthorization(scope);
+      }
+      return result({
+        status: 'success',
+        code: 'authorization_revoked',
+        profile: targetProfile ?? '*',
+        environment: scope.environmentId,
+        origin: scope.origin,
+        session_invalidated: true,
+      });
+    }
 
     const method = args.method ?? args.login_mode ?? 'handoff';
     if ((method !== 'auto' && method !== 'handoff' && method !== 'reuse') ||
@@ -1042,25 +1264,23 @@ export class InteractiveAccess {
 
     // Permitir selección por alias, usuario, rol o escenario antes del login cuando se indica o coincide con un perfil registrado
     let resolvedProfileId = profileArg;
-    if (method !== 'handoff') {
-      const direct = await configuredProfile(scope, profileArg);
-      if (direct) {
-        resolvedProfileId = direct.id;
-      } else if (args.alias || args.username || args.role || args.scenario) {
-        const sel = selectProfile(
-          {
-            application_id: scope.applicationId,
-            env: scope.environmentId,
-            ...(typeof args.alias === 'string' ? { alias: args.alias } : {}),
-            ...(typeof args.username === 'string' ? { username: args.username } : {}),
-            ...(typeof args.role === 'string' ? { role: args.role } : {}),
-            ...(typeof args.scenario === 'string' ? { scenario: args.scenario } : {}),
-          },
-          root
-        );
-        if (sel.ambiguous) return interactiveBlocked('profile_selection_ambiguous');
-        if (sel.profile) resolvedProfileId = sel.profile.id;
-      }
+    const direct = await configuredProfile(scope, profileArg);
+    if (direct) {
+      resolvedProfileId = direct.id;
+    } else if (args.alias || args.username || args.role || args.scenario) {
+      const sel = selectProfile(
+        {
+          application_id: scope.applicationId,
+          env: scope.environmentId,
+          ...(typeof args.alias === 'string' ? { alias: args.alias } : {}),
+          ...(typeof args.username === 'string' ? { username: args.username } : {}),
+          ...(typeof args.role === 'string' ? { role: args.role } : {}),
+          ...(typeof args.scenario === 'string' ? { scenario: args.scenario } : {}),
+        },
+        root
+      );
+      if (sel.ambiguous) return interactiveBlocked('profile_selection_ambiguous');
+      if (sel.profile) resolvedProfileId = sel.profile.id;
     }
 
     const id = sessionKey(scope, resolvedProfileId);
@@ -1072,9 +1292,9 @@ export class InteractiveAccess {
         return interactiveBlocked('use_local_auth_profile');
       }
       if (authBrowserDiagnosticsEnabled()) return interactiveBlocked('authentication_diagnostics_enabled');
-      const configured = method === 'handoff' ? undefined : await configuredProfile(scope, resolvedProfileId);
+      const configured = await configuredProfile(scope, resolvedProfileId);
       if (method === 'auto' && !configured) return interactiveBlocked('credentials_not_configured');
-      const cached = method === 'handoff' ? undefined : await this.session(scope, resolvedProfileId, configured);
+      const cached = await this.session(scope, resolvedProfileId, configured);
       if (method === 'reuse' && !cached) return interactiveBlocked('session_expired');
 
       // Antes de pedir consentimiento o lanzar el navegador en auto, verificar si la credencial está ausente para solicitar aprovisionamiento seguro sin reintentos ciegos
@@ -1095,11 +1315,11 @@ export class InteractiveAccess {
         }
       }
 
-      const role = configured?.role ?? args.role;
+      const role = args.role ?? configured?.role;
       if (role !== undefined && (typeof role !== 'string' || !role.trim() || role.length > 128 || /\p{C}/u.test(role))) {
         return interactiveBlocked('invalid_auth_context');
       }
-      const condition = configured?.post_login_condition ?? args.post_login_condition;
+      const condition = args.post_login_condition ?? configured?.post_login_condition;
       if (method === 'handoff' && isObject(condition) && Object.keys(condition).some(key => key !== 'type' && key !== 'value')) {
         return interactiveBlocked('agent_auth_material_not_supported');
       }
@@ -1107,9 +1327,9 @@ export class InteractiveAccess {
         isObject(condition) && condition.type === 'selector_present' ? condition.value : undefined;
       if (!isSelector(selector)) return interactiveBlocked('invalid_post_login_condition');
       const verificationUrl = method === 'reuse' ? cached?.session.verificationUrl :
-        route(configured?.verification_route ?? args.verification_route, scope);
+        route(args.verification_route ?? configured?.verification_route, scope);
       const loginUrl = method === 'reuse' ? verificationUrl : route(configured?.credential_source === 'env'
-        ? configured.token_exchange_route : configured?.login_route ?? args.login_route ?? '/login', scope);
+        ? configured.token_exchange_route : args.login_route ?? configured?.login_route ?? '/login', scope);
       if (!loginUrl || !verificationUrl) return interactiveBlocked('invalid_auth_routes');
 
       const stillAuthorized = async () => sameInteractiveScope(scope, await interactiveScope(
@@ -1140,26 +1360,44 @@ export class InteractiveAccess {
       }
       if (method === 'reuse') return interactiveBlocked('session_expired');
 
-      const captured = configured
+      const captured = method === 'auto' && configured
         ? await this.automatic(scope, configured, request, signal, stillAuthorized)
-        : await this.capture(request, signal);
+        : await this.handoffWithOptionalVault(scope, configured, request, signal);
       const changed = await recheck();
       if (changed) return interactiveBlocked(changed);
       if (!captured.state) {
-        return interactiveBlocked(captured.code, {
+        const effectiveCode = captured.failureReason && [
+          'challenge_detected',
+          'credentials_rejected',
+          'login_form_not_found',
+          'submit_button_disabled',
+          'login_navigation_failed',
+          'post_login_verification_failed',
+        ].includes(String(captured.failureReason))
+          ? String(captured.failureReason)
+          : captured.code;
+        return interactiveBlocked(effectiveCode, {
+          ...(captured.failureReason !== undefined ? { failure_reason: captured.failureReason } : {}),
           ...(captured.challengeDetected !== undefined ? { challenge_detected: captured.challengeDetected } : {}),
           ...(captured.challengeDetected === true ? { intervention_reason: 'mfa_or_captcha_detected' } : {}),
         });
       }
 
       const expires = Date.now() + Math.min(SESSION_TTL, configured?.session_cache?.ttl_ms ?? SESSION_TTL);
-      this.remember(scope, configured ?? { id: resolvedProfileId, env: scope.environmentId, application_id: scope.applicationId,
-        username: '', role, login_mode: 'handoff', credential_source: 'ephemeral' },
-      { selector, verificationUrl, state: captured.state }, expires, configured);
+      const effectiveProfile: AuthProfile = configured ?? {
+        id: resolvedProfileId,
+        env: scope.environmentId,
+        application_id: scope.applicationId,
+        username: '',
+        role,
+        login_mode: 'handoff',
+        credential_source: 'ephemeral',
+      };
+      this.remember(scope, effectiveProfile, { selector, verificationUrl, state: captured.state }, expires, configured);
       let persistence = 'host_process';
       if (configured && configured.credential_source !== 'ephemeral' && configured.session_cache?.enabled !== false && expires > Date.now()) {
         try {
-          const store = persistentStore(scope);
+          const store = persistentStore(scope, this.getSessionPersistenceKey());
           if (store) {
             try {
               store.saveSession(persistentId(scope, configured), { ...captured.state, expires });

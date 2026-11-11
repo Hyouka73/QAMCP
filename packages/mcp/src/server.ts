@@ -247,6 +247,8 @@ export interface McpServerOptions extends StateDependencies {
   readonly interactiveAccessAuthorizer?: IDiscoveryAuthorizer;
   readonly interactiveAccessEnabled?: boolean;
   readonly hostDiscoveryRegistryPath?: string;
+  readonly sessionPersistenceKey?: string;
+  readonly authorizationTtlMs?: number;
 }
 
 export function createMcpServer(options: McpServerOptions = {}): Server {
@@ -305,13 +307,21 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
       ...(options.testAuthorizations ?? []).flatMap((a) => a.authorizedProfiles ?? []),
     ])
   );
+  const interactivePolicy =
+    authorizedProfilesPolicy.length > 0 || options.sessionPersistenceKey !== undefined || options.authorizationTtlMs !== undefined
+      ? {
+          ...(authorizedProfilesPolicy.length > 0 ? { authorizedProfiles: authorizedProfilesPolicy } : {}),
+          ...(options.sessionPersistenceKey !== undefined ? { sessionPersistenceKey: options.sessionPersistenceKey } : {}),
+          ...(options.authorizationTtlMs !== undefined ? { authorizationTtlMs: options.authorizationTtlMs } : {}),
+        }
+      : undefined;
   const interactiveAccess = options.workspaceBootstrap || options.interactiveAccessEnabled
     ? new InteractiveAccess(
         dependencies,
         options.interactiveAccessAuthorizer,
         undefined,
         undefined,
-        authorizedProfilesPolicy.length > 0 ? { authorizedProfiles: authorizedProfilesPolicy } : undefined
+        interactivePolicy
       )
     : undefined;
   dispatcher.register(new StatusHandler({ ...runtimeDependencies, interactiveAccess,
