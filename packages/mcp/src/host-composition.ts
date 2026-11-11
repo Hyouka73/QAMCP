@@ -296,6 +296,7 @@ export async function loadHostComposition(
         discoveryAuthorizer,
         interactiveAccessAuthorizer: discoveryAuthorizer,
         hostDiscoveryRegistryPath: discoveryRegistry,
+        authorizationPersistencePath: resolve(directory, 'qa-session-authorizations.enc'),
         discoveryAuthorizations: persistedDiscoveryAuthorizations,
         sessionPersistenceKey,
         authorizationTtlMs,

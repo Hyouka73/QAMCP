@@ -247,6 +247,7 @@ export interface McpServerOptions extends StateDependencies {
   readonly interactiveAccessAuthorizer?: IDiscoveryAuthorizer;
   readonly interactiveAccessEnabled?: boolean;
   readonly hostDiscoveryRegistryPath?: string;
+  readonly authorizationPersistencePath?: string;
   readonly sessionPersistenceKey?: string;
   readonly authorizationTtlMs?: number;
 }
@@ -308,11 +309,12 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
     ])
   );
   const interactivePolicy =
-    authorizedProfilesPolicy.length > 0 || options.sessionPersistenceKey !== undefined || options.authorizationTtlMs !== undefined
+    authorizedProfilesPolicy.length > 0 || options.sessionPersistenceKey !== undefined || options.authorizationTtlMs !== undefined || options.authorizationPersistencePath !== undefined
       ? {
           ...(authorizedProfilesPolicy.length > 0 ? { authorizedProfiles: authorizedProfilesPolicy } : {}),
           ...(options.sessionPersistenceKey !== undefined ? { sessionPersistenceKey: options.sessionPersistenceKey } : {}),
           ...(options.authorizationTtlMs !== undefined ? { authorizationTtlMs: options.authorizationTtlMs } : {}),
+          ...(options.authorizationPersistencePath !== undefined ? { authorizationPersistencePath: options.authorizationPersistencePath } : {}),
         }
       : undefined;
   const interactiveAccess = options.workspaceBootstrap || options.interactiveAccessEnabled

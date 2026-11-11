@@ -1,4 +1,6 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { dirname } from 'node:path';
 import { join } from 'node:path';
 
 import {
@@ -49,6 +51,7 @@ export interface InteractivePolicyRestrictions {
   readonly authorizedProfiles?: readonly string[];
   readonly authorizationTtlMs?: number;
   readonly sessionPersistenceKey?: string;
+  readonly authorizationPersistencePath?: string;
 }
 
 export interface QaSessionAuthorizationGrant {
@@ -59,6 +62,7 @@ export interface QaSessionAuthorizationGrant {
   readonly baseUrl: string;
   readonly origin: string;
   readonly profile: string;
+  readonly profileFingerprint: string;
   readonly operations: readonly Operation[];
   readonly grantedAt: number;
   readonly expiresAt: number;
@@ -151,6 +155,7 @@ function persistentId(scope: InteractiveScope, profile: AuthProfile): string {
 const MAX_SESSIONS = 32;
 const SESSION_TTL = 60 * 60_000;
 const DEFAULT_QA_AUTH_TTL_MS = 4 * 60 * 60_000;
+const MAX_QA_AUTH_TTL_MS = 30 * 24 * 60 * 60_000;
 export const validInteractiveProfile = (id: unknown): id is string =>
   typeof id === 'string' && /^[a-z0-9][a-z0-9_-]{0,63}$/i.test(id);
 
@@ -263,6 +268,7 @@ export class InteractiveAccess {
   private readonly key = randomBytes(32);
   private readonly sessions = new Map<string, SealedSession>();
   private readonly authorizations = new Map<string, QaSessionAuthorizationGrant>();
+  private authorizationsLoaded = false;
   private readonly logins = new Set<string>();
   private provisioning = false;
   private readonly ephemeral = new EphemeralCredentialProvider();
@@ -286,10 +292,10 @@ export class InteractiveAccess {
     const envRaw = process.env.QAP_SESSION_AUTH_TTL_MS;
     if (envRaw) {
       const parsed = Number(envRaw);
-      if (Number.isInteger(parsed) && parsed > 0) return parsed;
+      if (Number.isInteger(parsed) && parsed > 0 && parsed <= MAX_QA_AUTH_TTL_MS) return parsed;
     }
     const configured = this.policyRestrictions?.authorizationTtlMs;
-    if (typeof configured === 'number' && Number.isInteger(configured) && configured > 0) {
+    if (typeof configured === 'number' && Number.isInteger(configured) && configured > 0 && configured <= MAX_QA_AUTH_TTL_MS) {
       return configured;
     }
     return DEFAULT_QA_AUTH_TTL_MS;
@@ -299,17 +305,85 @@ export class InteractiveAccess {
     return this.policyRestrictions?.sessionPersistenceKey;
   }
 
+  private authorizationKey(): Buffer | undefined {
+    const value = this.getSessionPersistenceKey();
+    return value && /^[0-9a-fA-F]{64}$/.test(value) ? Buffer.from(value, 'hex') : undefined;
+  }
+
+  private authorizationPath(): string | undefined {
+    return this.policyRestrictions?.authorizationPersistencePath;
+  }
+
+  private loadAuthorizations(): void {
+    if (this.authorizationsLoaded) return;
+    this.authorizationsLoaded = true;
+    const path = this.authorizationPath();
+    const key = this.authorizationKey();
+    if (!path || !key || !existsSync(path)) { key?.fill(0); return; }
+    try {
+      const encoded = readFileSync(path, 'utf8');
+      if (encoded.length > 1_000_000) return;
+      const envelope = JSON.parse(encoded) as { iv?: string; tag?: string; data?: string };
+      if (![envelope.iv, envelope.tag, envelope.data].every(value => typeof value === 'string' && /^[0-9a-f]+$/i.test(value))) return;
+      const decipher = createDecipheriv('aes-256-gcm', key, Buffer.from(envelope.iv!, 'hex'));
+      decipher.setAAD(Buffer.from('qap-qa-authorizations-v1'));
+      decipher.setAuthTag(Buffer.from(envelope.tag!, 'hex'));
+      const clear = Buffer.concat([decipher.update(Buffer.from(envelope.data!, 'hex')), decipher.final()]);
+      try {
+        const grants: unknown = JSON.parse(clear.toString('utf8'));
+        if (!Array.isArray(grants)) return;
+        for (const value of grants) {
+          if (!value || typeof value !== 'object') continue;
+          const grant = value as QaSessionAuthorizationGrant;
+          if (typeof grant.projectRoot !== 'string' || typeof grant.applicationId !== 'string' ||
+              typeof grant.environmentId !== 'string' || !Number.isSafeInteger(grant.environmentRevision) ||
+              typeof grant.baseUrl !== 'string' || typeof grant.origin !== 'string' ||
+              typeof grant.profile !== 'string' || typeof grant.profileFingerprint !== 'string' ||
+              !Array.isArray(grant.operations) || grant.operations.some(op => op !== 'login' && op !== 'discovery_profile') ||
+              !Number.isFinite(grant.expiresAt) || grant.expiresAt <= Date.now()) continue;
+          this.authorizations.set(sessionKey({ ...grant, isProduction: false }, grant.profile), grant);
+        }
+      } finally { clear.fill(0); }
+    } catch { /* Corrupt or unauthenticated grants fail closed. */ }
+    finally { key.fill(0); }
+  }
+
+  private persistAuthorizations(): boolean {
+    const path = this.authorizationPath();
+    const key = this.authorizationKey();
+    if (!path || !key) return false;
+    const iv = randomBytes(12);
+    const cipher = createCipheriv('aes-256-gcm', key, iv);
+    cipher.setAAD(Buffer.from('qap-qa-authorizations-v1'));
+    const clear = Buffer.from(JSON.stringify([...this.authorizations.values()]));
+    try {
+      const data = Buffer.concat([cipher.update(clear), cipher.final()]);
+      const dir = dirname(path);
+      mkdirSync(dir, { recursive: true, mode: 0o700 });
+      const staging = `${path}.${randomBytes(8).toString('hex')}.tmp`;
+      writeFileSync(staging, JSON.stringify({ iv: iv.toString('hex'), tag: cipher.getAuthTag().toString('hex'), data: data.toString('hex') }), { flag: 'wx', mode: 0o600 });
+      renameSync(staging, path);
+      data.fill(0);
+      return true;
+    } catch { /* Persistence failure is fail closed on next process start. */ }
+    finally { clear.fill(0); key.fill(0); }
+    authorizationDiagnostic('qa_session_authorization_persist_failed');
+    return false;
+  }
+
   hasValidSessionAuthorization(
     scope: InteractiveScope,
     profile: string | undefined,
     operation: Operation
   ): boolean {
+    this.loadAuthorizations();
     if (!profile) return false;
     const key = sessionKey(scope, profile);
     const grant = this.authorizations.get(key);
     if (!grant) return false;
     if (grant.expiresAt <= Date.now()) {
       this.authorizations.delete(key);
+      this.persistAuthorizations();
       return false;
     }
     if (
@@ -322,6 +396,7 @@ export class InteractiveAccess {
       grant.profile !== profile
     ) {
       this.authorizations.delete(key);
+      this.persistAuthorizations();
       return false;
     }
     return grant.operations.includes(operation);
@@ -331,23 +406,27 @@ export class InteractiveAccess {
     scope: InteractiveScope,
     profile: string | undefined
   ): QaSessionAuthorizationGrant | undefined {
+    this.loadAuthorizations();
     if (!profile) return undefined;
     const key = sessionKey(scope, profile);
     const grant = this.authorizations.get(key);
     if (!grant) return undefined;
     if (grant.expiresAt <= Date.now()) {
       this.authorizations.delete(key);
+      this.persistAuthorizations();
       return undefined;
     }
     return grant;
   }
 
   revokeAuthorization(scope: InteractiveScope, profile?: string): number {
+    this.loadAuthorizations();
     let revoked = 0;
     if (profile) {
       const key = sessionKey(scope, profile);
       if (this.authorizations.delete(key)) revoked++;
       this.sessions.delete(key);
+      if (revoked) this.persistAuthorizations();
       return revoked;
     }
     for (const [key, grant] of this.authorizations.entries()) {
@@ -361,6 +440,7 @@ export class InteractiveAccess {
         revoked++;
       }
     }
+    if (revoked) this.persistAuthorizations();
     return revoked;
   }
 
@@ -371,7 +451,9 @@ export class InteractiveAccess {
   }
 
   private invalidateProfileSessions(scope: InteractiveScope, profile: AuthProfile): void {
+    this.loadAuthorizations();
     this.authorizations.delete(sessionKey(scope, profile.id));
+    this.persistAuthorizations();
     this.sessions.delete(sessionKey(scope, profile.id));
     try {
       const store = persistentStore(scope, this.getSessionPersistenceKey());
@@ -465,18 +547,24 @@ export class InteractiveAccess {
     targetUrl: string, details: string, signal: AbortSignal,
     options?: { requireIndependentApproval?: boolean }): Promise<string | undefined> {
     const prefix = operation === 'login' ? 'authentication' : operation;
+    this.loadAuthorizations();
     if (signal.aborted) return prefix + '_authorization_cancelled';
     if (!this.authorizer) return prefix + '_authorization_required';
 
-    let targetOriginMatches = false;
-    try {
-      targetOriginMatches = new URL(targetUrl).origin === scope.origin;
-    } catch {
-      targetOriginMatches = false;
-    }
+    const targetOriginMatches = (() => {
+      try { return new URL(targetUrl).origin === scope.origin; }
+      catch { return false; }
+    })();
 
+    const currentProfile = profile ? await configuredProfile(scope, profile) : undefined;
+    const currentFingerprint = currentProfile ? configuration(currentProfile) : undefined;
     if (!options?.requireIndependentApproval && profile && targetOriginMatches) {
-      if (this.hasValidSessionAuthorization(scope, profile, operation)) {
+      const grant = this.getSessionAuthorization(scope, profile);
+      if (grant && grant.profileFingerprint !== currentFingerprint) {
+        this.authorizations.delete(sessionKey(scope, profile));
+        this.persistAuthorizations();
+      }
+      if (grant?.profileFingerprint === currentFingerprint && this.hasValidSessionAuthorization(scope, profile, operation)) {
         authorizationDiagnostic('qa_session_authorization_reused', {
           operation,
           profile,
@@ -499,9 +587,16 @@ export class InteractiveAccess {
       return 'authorization_context_mismatch';
     }
 
-    if (!options?.requireIndependentApproval && profile && targetOriginMatches && !scope.isProduction) {
+    if (!options?.requireIndependentApproval && profile && targetOriginMatches && !scope.isProduction &&
+        (operation === 'login' || operation === 'discovery_profile') && currentFingerprint) {
       const ttlMs = this.getAuthorizationTtlMs();
       const now = Date.now();
+      const grantKey = sessionKey(scope, profile);
+      const existingGrant = this.authorizations.get(grantKey);
+      const retainedOperations = existingGrant && existingGrant.expiresAt > now &&
+        existingGrant.profileFingerprint === currentFingerprint
+        ? existingGrant.operations.filter((item): item is 'login' | 'discovery_profile' =>
+          item === 'login' || item === 'discovery_profile') : [];
       const grant: QaSessionAuthorizationGrant = {
         projectRoot: scope.projectRoot,
         applicationId: scope.applicationId,
@@ -510,17 +605,20 @@ export class InteractiveAccess {
         baseUrl: scope.baseUrl,
         origin: scope.origin,
         profile,
-        operations: ['login', 'test', 'discovery_profile'],
+        profileFingerprint: currentFingerprint,
+        operations: Array.from(new Set([...retainedOperations, operation])),
         grantedAt: now,
         expiresAt: now + ttlMs,
       };
-      this.authorizations.set(sessionKey(scope, profile), grant);
+      this.authorizations.set(grantKey, grant);
+      const persisted = this.persistAuthorizations();
       authorizationDiagnostic('qa_session_authorization_granted', {
         operation,
         profile,
         origin: scope.origin,
         environment: scope.environmentId,
         ttlMs,
+        persistence: persisted ? 'host_config_encrypted' : 'process_only',
       });
     }
     return undefined;

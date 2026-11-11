@@ -227,9 +227,9 @@ $form.Controls.Add($notice)
 if ($Operation) {
   $form.Text = "QAP - Autorización del host"
   $header.Text = switch ($Operation) {
-    'login' { 'Autorización de sesión QA (login y pruebas de lectura)' }
-    'test' { 'Autorización de sesión QA (pruebas funcionales de lectura)' }
-    'discovery_profile' { 'Autorización de sesión QA (Discovery con sesión autenticada)' }
+    'login' { 'Autorización QA para login de este perfil' }
+    'test' { 'Autorización QA para esta ejecución funcional' }
+    'discovery_profile' { 'Autorización QA para Discovery de lectura' }
     'credential_provision' { 'Guardar una credencial de pruebas' }
   }
   $sub.Text = "Perfil: $Profile"
@@ -248,9 +248,9 @@ if ($Operation) {
 
   $notice.Size = New-Object System.Drawing.Size(540, 115)
   $notice.Text = switch ($Operation) {
-    'login' { 'Concede autorización de sesión QA acotada a este proyecto, entorno, origen y perfil (vigencia predeterminada: 4 horas) para iniciar sesión y ejecutar pruebas o descubrimiento de lectura sin repetir ventanas. Revocable con action: "revoke".' }
-    'test' { 'Concede autorización de sesión QA acotada a este proyecto, entorno, origen y perfil para ejecutar pruebas y descubrimiento de lectura dentro del origen autorizado.' }
-    'discovery_profile' { 'Concede autorización de sesión QA acotada a este proyecto, entorno, origen y perfil para captura y pruebas de solo lectura.' }
+    'login' { 'Concede autorización solo para login del perfil indicado, vinculada a este proyecto, entorno, origen y revisión del perfil. Vigencia predeterminada: 4 horas (configurable hasta 30 días). Revocable con action: "revoke".' }
+    'test' { 'Autoriza esta ejecución funcional únicamente. No aprueba casos, requisitos ni ejecuciones futuras.' }
+    'discovery_profile' { 'Concede autorización solo para Discovery de lectura, vinculada a este proyecto, entorno, origen, revisión de entorno y perfil. Vigencia predeterminada: 4 horas (configurable hasta 30 días). Revocable con action: "revoke".' }
     'credential_provision' { 'Al pulsar Guardar autorizas a QAP a almacenar esta contraseña en el Administrador de credenciales de Windows. El inicio de sesión requiere su propia autorización.' }
   }
 

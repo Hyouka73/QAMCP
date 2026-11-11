@@ -1,13 +1,13 @@
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { afterEach, expect, it, vi } from 'vitest';
-import { AuthManager, CredentialError, KeychainCredentialProvider } from '@qap/auth';
+import { AuthManager, CredentialError, createProfile, KeychainCredentialProvider } from '@qap/auth';
 
 import type { DiscoveryAuthorizationRequest, DiscoveryAuthorizationResult } from '../discovery-authorizer.js';
 import { InteractiveAccess, interactiveScope } from '../interactive-access.js';
@@ -434,8 +434,11 @@ it('supports creating, querying, selecting and updating multi-role QA profiles w
   });
 });
 
-it('focal (1, 2, 3): reusable QA session authorization allows multiple operations in scope, invalidates on scope/account change or revocation, and never leaks to privileged/write operations', async () => {
+it('focal (1, 2, 3): authorization stays operation-specific and invalidates on scope/account change or revocation', async () => {
   const { root, bound, deps } = await fixture();
+  createProfile({ id: 'qa-viewer', application_id: bound.applicationId, env: bound.environmentId,
+    username: 'qa-viewer', credential_source: 'ephemeral', login_mode: 'auto', login_origin: origin,
+    login_route: '/login', verification_route: '/private', post_login_condition: { type: 'selector_present', value: '#signed-in' } }, { basePath: root });
   const requestAuthorization = vi.fn((request: DiscoveryAuthorizationRequest) => Promise.resolve(approved(request)));
   const access = new InteractiveAccess(deps, { requestAuthorization }, capture());
   const scope = (await interactiveScope(root, deps))!;
@@ -445,25 +448,25 @@ it('focal (1, 2, 3): reusable QA session authorization allows multiple operation
   expect(await access.consent('login', scope, 'qa-viewer', origin + '/login', 'Login inicial', sig)).toBeUndefined();
   expect(requestAuthorization).toHaveBeenCalledTimes(1);
   expect(access.hasValidSessionAuthorization(scope, 'qa-viewer', 'login')).toBe(true);
-  expect(access.hasValidSessionAuthorization(scope, 'qa-viewer', 'discovery_profile')).toBe(true);
-  expect(access.hasValidSessionAuthorization(scope, 'qa-viewer', 'test')).toBe(true);
+  expect(access.hasValidSessionAuthorization(scope, 'qa-viewer', 'discovery_profile')).toBe(false);
+  expect(access.hasValidSessionAuthorization(scope, 'qa-viewer', 'test')).toBe(false);
 
-  // Operaciones posteriores de lectura y login en el mismo alcance NO abren nuevos diálogos
+  // Discovery and test need independent approval; a repeat login reuses only its matching grant.
   expect(await access.consent('discovery_profile', scope, 'qa-viewer', origin + '/private', 'Discovery', sig)).toBeUndefined();
   expect(await access.consent('test', scope, 'qa-viewer', origin + '/private', 'Test read-only', sig)).toBeUndefined();
   expect(await access.consent('login', scope, 'qa-viewer', origin + '/login', 'Re-login', sig)).toBeUndefined();
-  expect(requestAuthorization).toHaveBeenCalledTimes(1);
+  expect(requestAuthorization).toHaveBeenCalledTimes(3);
 
   // 2. Cambios de proyecto, origen, entorno, revisión o perfil exigen nueva autorización
-  expect(access.hasValidSessionAuthorization({ ...scope, projectRoot: root + '-other' }, 'qa-viewer', 'test')).toBe(false);
-  expect(access.hasValidSessionAuthorization({ ...scope, origin: 'https://other.example.invalid' }, 'qa-viewer', 'test')).toBe(false);
-  expect(access.hasValidSessionAuthorization({ ...scope, environmentId: 'staging' }, 'qa-viewer', 'test')).toBe(false);
-  expect(access.hasValidSessionAuthorization({ ...scope, environmentRevision: scope.environmentRevision + 1 }, 'qa-viewer', 'test')).toBe(false);
+  expect(access.hasValidSessionAuthorization({ ...scope, projectRoot: root + '-other' }, 'qa-viewer', 'discovery_profile')).toBe(false);
+  expect(access.hasValidSessionAuthorization({ ...scope, origin: 'https://other.example.invalid' }, 'qa-viewer', 'discovery_profile')).toBe(false);
+  expect(access.hasValidSessionAuthorization({ ...scope, environmentId: 'staging' }, 'qa-viewer', 'discovery_profile')).toBe(false);
+  expect(access.hasValidSessionAuthorization({ ...scope, environmentRevision: scope.environmentRevision + 1 }, 'qa-viewer', 'discovery_profile')).toBe(false);
   expect(access.hasValidSessionAuthorization(scope, 'other-profile', 'test')).toBe(false);
 
   // Un perfil distinto exige ventana de autorización propia
   expect(await access.consent('login', scope, 'other-profile', origin + '/login', 'Otro perfil', sig)).toBeUndefined();
-  expect(requestAuthorization).toHaveBeenCalledTimes(2);
+  expect(requestAuthorization).toHaveBeenCalledTimes(4);
 
   // 3. Permisos privilegiados y revocación de credenciales tienen alcance independiente (requireIndependentApproval)
   expect(
@@ -471,13 +474,13 @@ it('focal (1, 2, 3): reusable QA session authorization allows multiple operation
       requireIndependentApproval: true,
     })
   ).toBeUndefined();
-  expect(requestAuthorization).toHaveBeenCalledTimes(3);
+  expect(requestAuthorization).toHaveBeenCalledTimes(5);
 
   // Entorno de producción nunca concede autorización reutilizable automática
   const prodScope = { ...scope, environmentId: 'production', isProduction: true };
   expect(await access.consent('login', prodScope, 'qa-viewer', origin + '/login', 'Login prod', sig)).toBeUndefined();
-  expect(access.hasValidSessionAuthorization(prodScope, 'qa-viewer', 'test')).toBe(false);
-  expect(requestAuthorization).toHaveBeenCalledTimes(4);
+  expect(access.hasValidSessionAuthorization(prodScope, 'qa-viewer', 'login')).toBe(false);
+  expect(requestAuthorization).toHaveBeenCalledTimes(6);
 
   // Revocación explícita por el operador invalida inmediatamente la autorización y la sesión
   const revokeRes = await access.login({ targetPath: root, profile: 'qa-viewer', action: 'revoke', env: bound.environmentId }, sig);
@@ -486,8 +489,51 @@ it('focal (1, 2, 3): reusable QA session authorization allows multiple operation
   expect(access.hasValidSessionAuthorization(scope, 'qa-viewer', 'test')).toBe(false);
 
   // Tras revocar, la siguiente operación vuelve a pedir autorización
-  expect(await access.consent('test', scope, 'qa-viewer', origin + '/private', 'Test tras revocación', sig)).toBeUndefined();
-  expect(requestAuthorization).toHaveBeenCalledTimes(5);
+  expect(await access.consent('login', scope, 'qa-viewer', origin + '/login', 'Login tras revocación', sig)).toBeUndefined();
+  expect(requestAuthorization).toHaveBeenCalledTimes(7);
+});
+
+it('recovers encrypted operation-specific authorizations after restart and revokes them durably', async () => {
+  const { root, bound, deps } = await fixture();
+  createProfile({ id: 'qa-viewer', application_id: bound.applicationId, env: bound.environmentId,
+    username: 'qa-viewer', credential_source: 'ephemeral', login_mode: 'auto', login_origin: origin,
+    login_route: '/login', verification_route: '/private', post_login_condition: { type: 'selector_present', value: '#signed-in' } }, { basePath: root });
+  const path = join(root, '..', 'host', 'qa-session-authorizations.enc');
+  const policy = { sessionPersistenceKey: 'b'.repeat(64), authorizationPersistencePath: path };
+  const authorizer = { requestAuthorization: vi.fn((request: DiscoveryAuthorizationRequest) => Promise.resolve(approved(request))) };
+  const scope = (await interactiveScope(root, deps))!;
+  const first = new InteractiveAccess(deps, authorizer, capture(), undefined, policy);
+  expect(await first.consent('login', scope, 'qa-viewer', origin + '/login', 'Login', signal())).toBeUndefined();
+  expect(first.hasValidSessionAuthorization(scope, 'qa-viewer', 'test')).toBe(false);
+  const ciphertext = readFileSync(path, 'utf8');
+  expect(ciphertext).not.toContain('qa-viewer');
+  expect(ciphertext).not.toContain('fixture.example.invalid');
+  first.close();
+
+  const restarted = new InteractiveAccess(deps, authorizer, capture(), undefined, policy);
+  expect(restarted.hasValidSessionAuthorization(scope, 'qa-viewer', 'login')).toBe(true);
+  expect(restarted.hasValidSessionAuthorization(scope, 'qa-viewer', 'test')).toBe(false);
+  expect(restarted.revokeAuthorization(scope, 'qa-viewer')).toBe(1);
+  restarted.close();
+  const afterRevoke = new InteractiveAccess(deps, authorizer, capture(), undefined, policy);
+  expect(afterRevoke.hasValidSessionAuthorization(scope, 'qa-viewer', 'login')).toBe(false);
+  afterRevoke.close();
+});
+
+it('expires persisted QA authorization before reuse', async () => {
+  const { root, bound, deps } = await fixture();
+  createProfile({ id: 'qa-viewer', application_id: bound.applicationId, env: bound.environmentId,
+    username: 'qa-viewer', credential_source: 'ephemeral', login_mode: 'auto', login_origin: origin,
+    login_route: '/login', verification_route: '/private', post_login_condition: { type: 'selector_present', value: '#signed-in' } }, { basePath: root });
+  const path = join(root, '..', 'host', 'qa-session-authorizations.enc');
+  const policy = { sessionPersistenceKey: 'c'.repeat(64), authorizationPersistencePath: path, authorizationTtlMs: 5 };
+  const requestAuthorization = vi.fn((request: DiscoveryAuthorizationRequest) => Promise.resolve(approved(request)));
+  const scope = (await interactiveScope(root, deps))!;
+  const access = new InteractiveAccess(deps, { requestAuthorization }, capture(), undefined, policy);
+  await access.consent('login', scope, 'qa-viewer', origin + '/login', 'Login', signal());
+  await new Promise(resolve => setTimeout(resolve, 10));
+  expect(access.hasValidSessionAuthorization(scope, 'qa-viewer', 'login')).toBe(false);
+  access.close();
 });
 
 it('focal (4, 5, 6, 7): auto uses Vault, handoff preserves configured profile association, reuse validates without password, and distinct errors return differentiated sanitized codes', async () => {
