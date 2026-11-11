@@ -76,9 +76,13 @@ export class FlowOrchestrator implements IFlowRunner {
     const baseContextData = (optsRecord.context_data as Record<string, unknown>) ?? {};
 
     // 1. Respaldo de sesiones cifradas antes del primer módulo
-    this.flowStore.backupSessions(flowName);
+        const existingState = this.flowStore.loadState(flowName);
 
-    const existingState = this.flowStore.loadState(flowName);
+    // 1. Respaldo de sesiones antes del primer módulo (no se pisa al reanudar)
+    if (!existingState || !this.flowStore.hasSessionBackup(flowName)) {
+      this.flowStore.backupSessions(flowName);
+    }
+    
     const sharedVariables: Record<string, string> = existingState?.shared_variables ?? {};
     const completedModules: string[] = existingState?.completed_modules ?? [];
 

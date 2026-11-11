@@ -1,6 +1,5 @@
 import { chromium, type Browser, type Page } from 'playwright-core';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-
 import type { TCStep } from '@qap/shared';
 
 import { executeCapture } from '../actions/capture.js';

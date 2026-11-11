@@ -331,14 +331,17 @@ export class PlaywrightRunner implements IRunner {
       case 'switch_auth':
         await executeSwitchAuth(page, step);
         break;
-      case 'evaluate':
+            case 'evaluate': {
+        const stepExt = step as unknown as {
+          sandbox?: boolean;
+          args?: Record<string, unknown>;
+        };
         await executeEvaluate(page, step, contextVariables, {
-          sandbox: (step as any).sandbox !== false,
-          args: (step as any).args as Record<string, unknown>,
+          sandbox: stepExt.sandbox !== false,
+          args: stepExt.args,
         });
         break;
-      default:
-        break;
+      }
     }
 
     return {

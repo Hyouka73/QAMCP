@@ -1,4 +1,6 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync } from 'node:fs';
+import {
+  existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync, renameSync, unlinkSync,
+} from 'node:fs';
 import { dirname, join } from 'node:path';
 
 export interface FlowState {
@@ -25,12 +27,15 @@ export class FlowContextStore {
     return join(this.cacheDir, `${flowName}.sessions.bak.json`);
   }
 
-  saveState(state: FlowState): void {
+     saveState(state: FlowState): void {
     const filePath = this.getStateFilePath(state.flow_name);
     if (!existsSync(dirname(filePath))) {
       mkdirSync(dirname(filePath), { recursive: true });
     }
-    writeFileSync(filePath, JSON.stringify(state, null, 2), 'utf-8');
+    // Escritura atómica: archivo temporal + rename
+    const tmpPath = `${filePath}.${process.pid}.tmp`;
+    writeFileSync(tmpPath, JSON.stringify(state, null, 2), 'utf-8');
+    renameSync(tmpPath, filePath);
   }
 
   loadState(flowName: string): FlowState | null {
@@ -45,7 +50,9 @@ export class FlowContextStore {
       return null;
     }
   }
-
+  hasSessionBackup(flowName: string): boolean {
+    return existsSync(this.getSessionBackupPath(flowName));
+  }
   backupSessions(flowName: string): void {
     if (!existsSync(this.cacheDir)) {
       mkdirSync(this.cacheDir, { recursive: true });
@@ -74,6 +81,13 @@ export class FlowContextStore {
       if (!existsSync(this.sessionsDir)) {
         mkdirSync(this.sessionsDir, { recursive: true });
       }
+           
+            for (const file of readdirSync(this.sessionsDir)) {
+        if (file.endsWith('.json') && !(file in sessionsBackup)) {
+          unlinkSync(join(this.sessionsDir, file));
+        }
+      }
+
       for (const [filename, fileContent] of Object.entries(sessionsBackup)) {
         writeFileSync(join(this.sessionsDir, filename), fileContent, 'utf-8');
       }

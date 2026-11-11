@@ -27,6 +27,11 @@ describe('S82-003: Rollback transaccional de sesiones y checkpoints', () => {
     const originalSessionContent = JSON.stringify({ token: 'encrypted_secret_123', expires: 99999 });
     fs.writeFileSync(sessionFile, originalSessionContent, 'utf-8');
 
+    const sessionFile2 = path.join(sessionsDir, 'admin_auth.json');
+    const original2 = Buffer.from(JSON.stringify({ token: 'admin_secret', expires: 12345 }), 'utf-8');
+    fs.writeFileSync(sessionFile2, original2);
+    const originalBuf1 = fs.readFileSync(sessionFile);
+
     const mockStorage = {
       getTestPlan: async (moduleName: string) => ({
         name: moduleName,
@@ -38,9 +43,11 @@ describe('S82-003: Rollback transaccional de sesiones y checkpoints', () => {
       execute: async (plan: any) => {
         if (plan.name === 'mod_2') {
           fs.writeFileSync(sessionFile, JSON.stringify({ token: 'corrupted_token' }), 'utf-8');
-          return { success: false, status: 'failed' };
+          fs.writeFileSync(sessionFile2, 'basura', 'utf-8');
+          fs.writeFileSync(path.join(sessionsDir, 'nueva.json'), '{}', 'utf-8');
+          return { result: 'failed' };
         }
-        return { success: true, status: 'passed' };
+        return { result: 'passed' };
       },
     };
 
@@ -72,5 +79,52 @@ const result = (await orchestrator.executeFlow(flowDefinition, {})) as unknown a
     const savedState = store.loadState('flow_with_rollback');
     expect(savedState).not.toBeNull();
     expect(savedState?.completed_modules).toEqual(['mod_1']);
+        // Restauración bit a bit
+    expect(fs.readFileSync(sessionFile).equals(originalBuf1)).toBe(true);
+    expect(fs.readFileSync(sessionFile2).equals(original2)).toBe(true);
+
+    // La sesión creada durante el flujo se eliminó
+    expect(fs.existsSync(path.join(sessionsDir, 'nueva.json'))).toBe(false);
+
+    // Existe el backup y el checkpoint quedó intacto
+    expect(fs.existsSync(path.join(statesDir, 'flow_with_rollback.sessions.bak.json'))).toBe(true);
+    expect(savedState?.shared_variables).toEqual({});
+
+    // El módulo 3 no corrió
+    expect(result.completed_modules).not.toContain('mod_3');
+  });
+
+    it('no sobrescribe el backup original al reanudar un flujo', async () => {
+    const sessionFile = path.join(sessionsDir, 'user_auth.json');
+    const original = JSON.stringify({ token: 'original' });
+    fs.writeFileSync(sessionFile, original, 'utf-8');
+
+    const store = new FlowContextStore(testDir);
+    store.backupSessions('flow_resume');
+    store.saveState({
+      flow_name: 'flow_resume',
+      started_at: new Date().toISOString(),
+      completed_modules: ['mod_1'],
+      shared_variables: {},
+    });
+
+    // Las sesiones cambian durante el flujo (después del backup)
+    fs.writeFileSync(sessionFile, JSON.stringify({ token: 'modificado' }), 'utf-8');
+
+    const mockStorage = {
+      getTestPlan: async (m: string) => ({ name: m, cases: [] }),
+    };
+    const mockRunner = { execute: async () => ({ result: 'passed' }) };
+    const orchestrator = new FlowOrchestrator(mockStorage as any, mockRunner as any, undefined, testDir);
+
+    await orchestrator.executeFlow(
+      { _version: '1.0', name: 'flow_resume', modules: [{ module: 'mod_1' }, { module: 'mod_2' }] } as any,
+      {}
+    );
+
+    const bak = JSON.parse(
+      fs.readFileSync(path.join(statesDir, 'flow_resume.sessions.bak.json'), 'utf-8')
+    ) as Record<string, string>;
+    expect(bak['user_auth.json']).toBe(original);
   });
 });
