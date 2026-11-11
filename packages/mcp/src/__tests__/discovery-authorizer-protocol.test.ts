@@ -11,18 +11,20 @@ import { WindowsInteractiveDiscoveryAuthorizer } from '../discovery-authorizer.j
 afterEach(() => { vi.useRealTimers(); launch.mockReset(); });
 
 describe.skipIf(process.platform !== 'win32')('Windows discovery child protocol (synthetic, not GUI evidence)', () => {
-  function start(signal?: AbortSignal) {
+  function start(signal?: AbortSignal, provision = false) {
     const child = Object.assign(new EventEmitter(), { stdout: new PassThrough(), stderr: new PassThrough(), pid: 123, kill: vi.fn() });
     launch.mockReturnValue(child);
     const authorizer = new WindowsInteractiveDiscoveryAuthorizer(new URL('../../../../scripts/qap-interactive-discovery-dialog.ps1', import.meta.url).pathname.replace(/^\//, ''));
-    const result = authorizer.requestAuthorization({
+    const request = {
       projectRoot: 'C:\\fixture',
       applicationId: 'test-app',
       environmentId: 'staging',
       environmentRevision: 1,
       baseUrl: 'https://staging.test.invalid/',
       targetUrl: 'https://staging.test.invalid/',
-    }, signal);
+    };
+    const result = provision ? authorizer.requestCredential(request, 'fixture', 'Synthetic scope', signal ?? new AbortController().signal)
+      : authorizer.requestAuthorization(request, signal);
     return { child, result };
   }
 
@@ -62,5 +64,43 @@ describe.skipIf(process.platform !== 'win32')('Windows discovery child protocol 
     vi.useFakeTimers(); const { child, result } = start(); await vi.advanceTimersByTimeAsync(125_000);
     expect(await result).toMatchObject({ decision: 'cancelled', code: 'discovery_authorization_expired' });
     expect(child.kill).toHaveBeenCalledOnce();
+  });
+
+  it('requires a visible HWND marker from a started process before accepting private pipe bytes', async () => {
+    const { child, result } = start(undefined, true);
+    child.emit('spawn');
+    child.stderr.write('QAP_DIALOG_SHOWN\nQAP_CREDENTIAL_WINDOW 123 0 0\n');
+    child.stdout.write('synthetic');
+    child.emit('close', 0);
+    await expect(result).rejects.toMatchObject({ code: 'DIALOG_NOT_PRESENTED' });
+  });
+
+  it('preserves the password bytes only on confirmed acceptance and distinguishes cancellation', async () => {
+    const accepted = start(undefined, true);
+    accepted.child.emit('spawn');
+    accepted.child.stderr.write('QAP_CREDENTIAL_WIN');
+    accepted.child.stderr.write('DOW 123 1 0\r\n');
+    accepted.child.stdout.write(Buffer.from('  sintetíco  ', 'utf8'));
+    accepted.child.emit('close', 0);
+    await expect(accepted.result).resolves.toBe('  sintetíco  ');
+    const cancelled = start(undefined, true);
+    cancelled.child.emit('spawn');
+    cancelled.child.stderr.write('QAP_CREDENTIAL_WINDOW 123 1 1\n');
+    cancelled.child.emit('close', 2);
+    await expect(cancelled.result).resolves.toBeUndefined();
+  });
+
+  it('fails promptly without the input desktop or a visible window', async () => {
+    vi.useFakeTimers();
+    const desktop = start(undefined, true);
+    desktop.child.emit('spawn');
+    desktop.child.emit('close', 3);
+    await expect(desktop.result).rejects.toMatchObject({ code: 'DIALOG_DESKTOP_UNAVAILABLE' });
+    const unseen = start(undefined, true);
+    const rejection = expect(unseen.result).rejects.toMatchObject({ code: 'DIALOG_NOT_PRESENTED' });
+    unseen.child.emit('spawn');
+    await vi.advanceTimersByTimeAsync(8000);
+    await rejection;
+    expect(unseen.child.kill).toHaveBeenCalledOnce();
   });
 });

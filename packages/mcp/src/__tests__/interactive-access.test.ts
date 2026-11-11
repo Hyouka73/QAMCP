@@ -1,10 +1,11 @@
-import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { afterEach, expect, it, vi } from 'vitest';
+import { AuthManager, CredentialError, KeychainCredentialProvider } from '@qap/auth';
 
 import type { DiscoveryAuthorizationRequest, DiscoveryAuthorizationResult } from '../discovery-authorizer.js';
 import { InteractiveAccess, interactiveScope } from '../interactive-access.js';
@@ -12,7 +13,10 @@ import { createMcpServer } from '../server.js';
 import { WorkspaceBootstrap } from '../workspace-bootstrap.js';
 
 const cleanup: Array<() => void | Promise<void>> = [];
-afterEach(async () => { for (const close of cleanup.splice(0).reverse()) await close(); });
+afterEach(async () => {
+  for (const close of cleanup.splice(0).reverse()) await close();
+  vi.restoreAllMocks();
+});
 
 const origin = 'https://fixture.example.invalid';
 const args = { profile: 'qa-viewer', role: 'operador', env: 'local', method: 'handoff', verification_route: '/private',
@@ -140,4 +144,78 @@ it('rejects authentication material and agent consent on a server without intera
   }
   expect(JSON.stringify(await call({}))).toContain('authentication_authorization_required');
   expect(existsSync(join(root, '.qa', 'project', 'auth', 'profiles.json'))).toBe(false);
+});
+
+it('provisions through MCP using scoped local consent, without creating a login or overwriting a stored secret', async () => {
+  const { root, bootstrap, bound, deps } = await fixture();
+  const profile = { id: 'synthetic', env: bound.environmentId, application_id: bound.applicationId,
+    username: 'fixture-operator', credential_source: 'keychain', login_mode: 'auto', login_origin: origin,
+    login_route: '/login', verification_route: '/private', post_login_condition: { type: 'selector_present', value: '#ok' } };
+  const directory = join(root, '.qa', 'project', 'auth');
+  const file = join(directory, 'profiles.json');
+  mkdirSync(directory, { recursive: true });
+  const configure = (overrides = {}) => writeFileSync(file, JSON.stringify({ _version: '1', profiles: [{ ...profile, ...overrides }] }));
+  configure();
+  const entries = new Map<string, string>();
+  const read = vi.spyOn(KeychainCredentialProvider.prototype, 'get').mockImplementation(async ref => {
+    const password = entries.get(JSON.stringify(ref));
+    return password ? { password } : null;
+  });
+  const save = vi.spyOn(KeychainCredentialProvider.prototype, 'set').mockImplementation(async (ref, credentials) => {
+    entries.set(JSON.stringify(ref), credentials.password!);
+  });
+  vi.spyOn(KeychainCredentialProvider.prototype, 'delete').mockImplementation(async ref => entries.delete(JSON.stringify(ref)));
+  const requestAuthorization = vi.fn((request: DiscoveryAuthorizationRequest) => Promise.resolve(approved(request)));
+  const requestCredential = vi.fn(async (_request: DiscoveryAuthorizationRequest, _id: string, _details: string) =>
+    undefined as string | undefined);
+  const workspaceAuthorizer = { requestAuthorization: vi.fn() };
+  const server = createMcpServer({ ...deps, workspaceBootstrap: bootstrap, workspaceAuthorizer,
+    interactiveAccessAuthorizer: { requestAuthorization, requestCredential } });
+  const client = new Client({ name: 'credential-provision-fixture', version: '1.0' });
+  const [transport, host] = InMemoryTransport.createLinkedPair();
+  await server.connect(host);
+  await client.connect(transport);
+  cleanup.push(async () => { await client.close(); await server.close(); });
+  const input = { targetPath: root, profile: profile.id, env: profile.env };
+  const call = async (extra: Record<string, unknown> = {}) => JSON.stringify(await client.callTool({
+    name: 'qap_auth_provision', arguments: { ...input, ...extra },
+  }));
+  const password = 'synthetic-pipe-only';
+  expect(await call({ password })).not.toContain(password);
+  expect(await call({ user_confirmed: true })).toContain('invalid_provision_arguments');
+  expect(await call({ targetPath: join(root, '..') })).toContain('workspace_authorization_required');
+  expect(await call({ env: 'wrong' })).toContain('auth_context_mismatch');
+  configure({ login_origin: 'https://other.invalid' });
+  expect(await call()).toContain('invalid_auth_context');
+  configure({ credential_source: 'ephemeral' });
+  expect(await call()).toContain('credential_provision_provider_unsupported');
+  configure();
+  expect(requestCredential).not.toHaveBeenCalled();
+  expect(workspaceAuthorizer.requestAuthorization).not.toHaveBeenCalled();
+
+  requestCredential.mockRejectedValueOnce(new CredentialError('DIALOG_DESKTOP_UNAVAILABLE'));
+  expect(await call()).toContain('credential_dialog_desktop_unavailable');
+  expect(await call()).toContain('credential_provision_cancelled');
+  requestCredential.mockImplementationOnce(async () => { configure({ username: 'changed' }); return password; });
+  expect(await call()).toContain('authorization_context_mismatch');
+  expect(save).not.toHaveBeenCalled();
+  configure();
+
+  requestCredential.mockResolvedValueOnce(password);
+  const response = await call();
+  expect(response).toContain('credential_saved');
+  expect(response).toContain('available');
+  expect(response).not.toContain(password);
+  expect(requestCredential.mock.calls.at(-1)?.[2]).toContain('fixture-operator');
+  expect(read.mock.calls.at(-1)?.[0]).toMatchObject({ auth_profile_id: profile.id, account: profile.username });
+  expect(await call()).toContain('credential_already_configured');
+  expect(requestCredential).toHaveBeenCalledTimes(4);
+  expect(save).toHaveBeenCalledOnce();
+  expect(requestAuthorization).not.toHaveBeenCalled();
+  const manager = new AuthManager(root);
+  expect(await manager.getCredentialStatus(profile.id)).toMatchObject({ state: 'available' });
+  expect((await manager.getCredentials(profile.id))?.password === password).toBe(true);
+  expect(await manager.deleteSecret(profile.id)).toBe(true);
+  expect(await manager.getCredentialStatus(profile.id)).toMatchObject({ state: 'not_configured' });
+  manager.close();
 });

@@ -419,6 +419,10 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
     if (options.hostRegistryPath) {
       syncAuthorizedRootsFromDisk(options.hostRegistryPath, authorizedRoots);
     }
+    if (name === 'qap_auth_provision') {
+      if (!interactiveAccess) return canonicalResult({ status: 'blocked', code: 'credential_dialog_host_unavailable' }, true);
+      return await interactiveAccess.provision(rawArgs ?? {}, context.signal);
+    }
     if (options.workspaceBootstrap) {
       const candidate = rawArgs?.targetPath;
       let targetPath = typeof candidate === 'string' ? candidate : authorizedRoots.length === 1 ? authorizedRoots[0] : undefined;

@@ -84,8 +84,8 @@ describe('real MCP client/server via linked transports', () => {
     const handler = synthetic();
     const client = await connect({ handlers: [handler] });
     const catalog = await client.listTools();
-    expect(catalog.tools).toHaveLength(19);
-    expect(new Set(catalog.tools.map(tool => tool.name)).size).toBe(19);
+    expect(catalog.tools).toHaveLength(20);
+    expect(new Set(catalog.tools.map(tool => tool.name)).size).toBe(20);
     expect(catalog.tools.at(-1)).toEqual(handler.definition);
     const result = await client.callTool({ name: 'test_synthetic', arguments: { value: 'hello' } });
     expect(result.content).toEqual([{ type: 'text', text: JSON.stringify({ args: { value: 'hello' }, hasSignal: true }) }]);
@@ -95,8 +95,8 @@ describe('real MCP client/server via linked transports', () => {
   it('isolates registries and preserves unknown-tool legacy errors', async () => {
     const extended = await connect({ handlers: [synthetic()] });
     const production = await connect();
-    expect((await extended.listTools()).tools).toHaveLength(19);
-    expect((await production.listTools()).tools).toHaveLength(18);
+    expect((await extended.listTools()).tools).toHaveLength(20);
+    expect((await production.listTools()).tools).toHaveLength(19);
     expect(await production.callTool({ name: 'test_synthetic' })).toEqual({
       isError: true, content: [{ type: 'text', text: 'Tool no reconocida: test_synthetic' }],
     });
@@ -135,7 +135,10 @@ describe('real MCP client/server via linked transports', () => {
     for (const key of ['password', 'secret', 'token', 'cookies', 'storageState', 'user_confirmed']) {
       expect(auth.properties).not.toHaveProperty(key);
     }
-    expect({ tools: tools.map(tool => {
+    const provision = tools.find(t => t.name === 'qap_auth_provision')!.inputSchema;
+    expect(provision).toMatchObject({ additionalProperties: false, required: ['targetPath', 'env', 'profile'] });
+    expect(Object.keys(provision.properties!).sort()).toEqual(['env', 'profile', 'targetPath']);
+    expect({ tools: tools.filter(tool => tool.name !== 'qap_auth_provision').map(tool => {
       if (tool.name === 'qap_discover') {
         const prior = oldTools.find(t => t.name === tool.name)!;
         return { ...tool, description: prior.description, inputSchema: { ...tool.inputSchema,

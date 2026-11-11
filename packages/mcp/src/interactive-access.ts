@@ -9,7 +9,8 @@ import type { AuthProfile } from '@qap/shared';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
 import type { IDiscoveryAuthorizer } from './discovery-authorizer.js';
-import { binding, isObject, projectRoot, result, type StateDependencies } from './handlers/state-services.js';
+import { authorizationDiagnostic } from './authorization-diagnostics.js';
+import { binding, isObject, projectRoot, result, validateBase, type StateDependencies } from './handlers/state-services.js';
 import { captureVerifiedAuto, captureVerifiedHandoff, verifyStoredSession, type HandoffRequest } from './verified-handoff.js';
 
 export interface InteractiveScope {
@@ -136,6 +137,7 @@ export class InteractiveAccess {
   private readonly key = randomBytes(32);
   private readonly sessions = new Map<string, SealedSession>();
   private readonly logins = new Set<string>();
+  private provisioning = false;
   private readonly ephemeral = new EphemeralCredentialProvider();
 
   constructor(
@@ -149,6 +151,70 @@ export class InteractiveAccess {
     this.sessions.clear();
     this.ephemeral.close();
     this.key.fill(0);
+  }
+
+  async provision(args: Record<string, unknown>, signal: AbortSignal): Promise<CallToolResult> {
+    const { profile: id, env, targetPath } = args;
+    if (!validateBase(args, ['targetPath', 'env', 'profile']) || !targetPath ||
+      !validInteractiveProfile(id) || typeof env !== 'string' || !/^[A-Za-z0-9_.:-]{1,128}$/.test(env)) {
+      return result({ status: 'blocked', code: 'invalid_provision_arguments' }, true);
+    }
+    const respond = (status: 'success' | 'cancelled' | 'blocked', code: string, available = false) =>
+      result({ status, code, profile: id, ...(available ? { credential_state: 'available', provider: 'keychain' } : {}) },
+        status === 'blocked');
+    const authorizeRoot = () => {
+      try { return projectRoot(args, this.dependencies, true); }
+      catch { return undefined; }
+    };
+    const root = authorizeRoot();
+    if (!root) return respond('blocked', 'workspace_authorization_required');
+    if (!this.authorizer?.requestCredential) return respond('blocked', 'credential_dialog_host_unavailable');
+    if (this.provisioning) return respond('blocked', 'credential_provision_in_progress');
+    this.provisioning = true;
+    let manager: AuthManager | undefined;
+    let saved = false;
+    try {
+      const scope = await interactiveScope(root, this.dependencies, env);
+      if (!scope) return respond('blocked', 'auth_context_mismatch');
+      const profile = await configuredProfile(scope, id);
+      if (!profile) return respond('blocked', 'invalid_auth_context');
+      if (profile.credential_source !== 'keychain') return respond('blocked', 'credential_provision_provider_unsupported');
+      const stillAuthorized = async () => authorizeRoot() === root &&
+        sameInteractiveScope(scope, await interactiveScope(root, this.dependencies, env)) &&
+        JSON.stringify(await configuredProfile(scope, id)) === JSON.stringify(profile);
+      manager = new AuthManager(root);
+      if (await manager.getProfileCredentials(profile, true)) return respond('success', 'credential_already_configured', true);
+      if (!await stillAuthorized()) return respond('blocked', 'authorization_context_mismatch');
+      if (signal.aborted) return respond('cancelled', 'credential_provision_cancelled');
+
+      const password = await this.authorizer.requestCredential({ ...scope, targetUrl: scope.origin },
+        id, ['Origen: ' + scope.origin, 'Cuenta: ' + profile.username, 'Proveedor: Windows Credential Manager (keychain)'].join('\n'),
+        signal);
+      if (password === undefined || signal.aborted) return respond('cancelled', 'credential_provision_cancelled');
+      if (!await stillAuthorized()) return respond('blocked', 'authorization_context_mismatch');
+      if (await manager.getProfileCredentials(profile, true)) return respond('success', 'credential_already_configured', true);
+      if (!await stillAuthorized()) return respond('blocked', 'authorization_context_mismatch');
+      if (signal.aborted) return respond('cancelled', 'credential_provision_cancelled');
+      await manager.setProfileSecret(profile, password);
+      saved = true;
+      authorizationDiagnostic('credential_provision_saved', { profile: id });
+      if ((await manager.getProfileCredentials(profile, true))?.password !== password) {
+        return respond('blocked', 'credential_saved_unverified');
+      }
+      authorizationDiagnostic('credential_provision_readback_verified', { profile: id });
+      return respond('success', 'credential_saved', true);
+    } catch (error) {
+      if (saved) return respond('blocked', 'credential_saved_unverified');
+      if (error instanceof CredentialError) {
+        if (error.code.startsWith('DIALOG_')) return respond('blocked', 'credential_' + error.code.toLowerCase());
+        if (error.code === 'KEYCHAIN_MODULE_UNAVAILABLE') return respond('blocked', 'keychain_module_unavailable');
+        if (error.code === 'UNAVAILABLE') return respond('blocked', 'credential_provider_unavailable');
+      }
+      return respond('blocked', 'credential_provision_failed');
+    } finally {
+      manager?.close();
+      this.provisioning = false;
+    }
   }
 
   async consent(operation: Operation, scope: InteractiveScope, profile: string | undefined,

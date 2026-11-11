@@ -82,6 +82,20 @@ export const TOOLS: Tool[] = [
     },
   },
   {
+    name: 'qap_auth_provision',
+    description: 'Guarda una contraseña de pruebas para un perfil local keychain en una raíz ya autorizada. El operador escribe y consiente únicamente en el diálogo del host de Windows. Envía solo ruta, entorno y perfil. Tras un fallo de escritorio o presentación, detente y consulta al operador antes de volver a solicitar el diálogo. El inicio de sesión se autoriza por separado.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        targetPath: { type: 'string', description: 'Ruta absoluta del workspace ya autorizado por el host.' },
+        profile: { type: 'string', description: 'Identificador del perfil local keychain.' },
+        env: { type: 'string', description: 'Entorno vinculado al workspace.' },
+      },
+      required: ['targetPath', 'env', 'profile'],
+    },
+  },
+  {
     name: 'qap_auth_list',
     description: `Lista todos los perfiles de autenticación registrados en el proyecto sin exponer secretos. ${UX_DIRECTIVE}`,
     inputSchema: {

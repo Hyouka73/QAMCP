@@ -78,11 +78,12 @@ it.skipIf(process.env.QAP_INTERACTIVE_BROWSER_FIXTURE !== '1').each(['handoff', 
       review: 'reviewed' as const, evidence_refs: [] };
     const prompts: DiscoveryAuthorizationRequest[] = [];
     let rejectTest = true;
+    let approveProvision = false;
     const authorizer: IDiscoveryAuthorizer = { requestAuthorization: request => {
       prompts.push(request);
       if (request.interactiveOperation?.operation === 'test' && rejectTest) return Promise.resolve({ decision: 'rejected' });
       return Promise.resolve({ decision: 'approved', root: request.projectRoot, targetUrl: request.targetUrl });
-    } };
+    }, requestCredential: async () => approveProvision ? password : undefined };
     const createServerForFixture = () => createMcpServer({ projectRoots: [root], interactiveAccessEnabled: true, interactiveAccessAuthorizer: authorizer,
       knowledgeBindings: [{ ...scope, store: db, caseReviewGateway: reviews,
         moduleBindings: [{ plannedName: 'smoke', moduleId: 'mod-fixture', moduleKey: 'smoke', provenance: 'host_declared',
@@ -160,8 +161,16 @@ it.skipIf(process.env.QAP_INTERACTIVE_BROWSER_FIXTURE !== '1').each(['handoff', 
         if (method === 'token') {
           vi.stubEnv(manager.scopedTokenVariable(config), password);
         } else {
-          await manager.setSecret('tester', password);
+          const provision = { profile: 'tester', env: 'local' };
+          expect(await call('qap_auth_provision', provision)).toMatchObject({ status: 'cancelled' });
+          expect(await manager.getCredentialStatus(config.id)).toMatchObject({ state: 'not_configured' });
+          approveProvision = true;
           provisioned = true;
+          expect(await call('qap_auth_provision', provision)).toMatchObject({
+            code: 'credential_saved', credential_state: 'available', provider: 'keychain',
+          });
+          expect(await manager.getCredentialStatus(config.id)).toMatchObject({ state: 'available' });
+          expect((await manager.getCredentials(config.id))?.password === password).toBe(true);
           expect(await manager.getProfileCredentials({ ...config, env: 'staging' }, true)).toBeNull();
           expect(await manager.getProfileCredentials({ ...config, id: 'someone-else' }, true)).toBeNull();
           expect(await manager.getProfileCredentials({ ...config, username: 'other-user' }, true)).toBeNull();
@@ -237,6 +246,11 @@ it.skipIf(process.env.QAP_INTERACTIVE_BROWSER_FIXTURE !== '1').each(['handoff', 
       expect(existsSync(join(root, '.qa/cache/sessions'))).toBe(false);
       expect(prompts.map(p => p.interactiveOperation?.operation).slice(-3)).toEqual(['discovery_profile', 'test', 'test']);
       if (method !== 'handoff') expect(successfulLogins).toBe(2);
+      if (provisioned) {
+        expect(await manager.deleteSecret(config.id)).toBe(true);
+        provisioned = false;
+        expect(await manager.getCredentialStatus(config.id)).toMatchObject({ state: 'not_configured' });
+      }
     } finally {
       if (provisioned) await manager.deleteSecret(config.id);
       manager.close();
