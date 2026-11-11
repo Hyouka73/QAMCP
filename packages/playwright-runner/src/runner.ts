@@ -393,9 +393,9 @@ export class PlaywrightRunner implements IRunner {
           const { verificationUrl, selector } = options.verifiedSession;
           if (new URL(verificationUrl).origin !== origin) throw new Error('Origen de sesión incompatible.');
           const response = await page.goto(verificationUrl, { waitUntil: 'domcontentloaded' });
-          if (!response?.ok() || page.url() !== verificationUrl) throw new Error('Sesión no válida.');
+          if (!response?.ok() || new URL(page.url()).origin !== origin) throw new Error('Sesión no válida.');
           await page.locator(selector).first().waitFor({ state: 'visible' });
-          if (page.url() !== verificationUrl || await page.locator('input[type="password"]:visible').count()) {
+          if (new URL(page.url()).origin !== origin || await page.locator('input[type="password"]:visible').count()) {
             throw new Error('Sesión no válida.');
           }
         }
