@@ -63,12 +63,13 @@ export function registerCommands(program: Command): void {
       await handleInitCommand(options);
     });
 
-  // 1b. Subcomando 'plan'
+   // 1b. Subcomando 'plan'
   program
     .command('plan <module>')
-    .description('Genera la matriz de pruebas del módulo calculando checksum de configuración.')
-    .action(async (moduleName: string) => {
-      await handlePlan(moduleName);
+    .description('Genera la matriz de pruebas del módulo (happy path, BVA y RBAC) con checksum de configuración.')
+    .option('--preview', 'Muestra los casos planificados sin escribir archivos')
+    .action(async (moduleName: string, options: { preview?: boolean }) => {
+      await handlePlan(moduleName, options);
     });
 
   // 1.1 Registrar comando `clean` (con alias `reset`)

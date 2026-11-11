@@ -14,3 +14,4 @@ export * from './utils/index.js';
 export * from './validator/schema-validator.js';
 export * from './constants/auth-patterns.js';
 export * from './constants/rules-constants.js';
+export * from './utils/normalize-tc.js';

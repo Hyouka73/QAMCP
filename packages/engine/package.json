@@ -11,9 +11,11 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@qap/shared": "workspace:*"
+    "@qap/shared": "workspace:*",
+    "@qap/knowledge": "workspace:*"
   },
   "devDependencies": {
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.11",
+    "@types/node": "^20.0.0"
   }
 }

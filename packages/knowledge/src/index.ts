@@ -28,3 +28,4 @@ export * from './candidate-generator.js';
 export * from './storage/lock-manager.js';
 export * from './plan/bva-generator.js';
 export * from './plan/rbac-generator.js';
+export * from './storage/flow-state-store.js';

@@ -56,22 +56,25 @@ function classifyError(error: unknown): { category: FailureType; message: string
 
 export interface PlaywrightRunnerOptions extends TestOptions {
   fail_fast?: boolean;
-  /** Override opcional para purebas: si se pasa, se usa en una vez de cargar vií FileSystemStorage. */
   storageResolver?: (moduleName: string, caseId: string) => Promise<TCCase>;
   screenshotsDir?: string;
   storageStatePath?: string; 
-  /** Raíz del proyecto para FileSystemStorage: por defecto process.cwd().*/
   projectRoot?: string;
 }
 
-export class PlaywrightRunner implements IRunner{
+export class PlaywrightRunner implements IRunner {
+  private currentCaseId?: string;
+  private currentOptions?: PlaywrightRunnerOptions;
+
   public async execute(
     plan: TestPlan,
     options: PlaywrightRunnerOptions = {}
   ): Promise<ExecutionResult> {
     const startedAt = new Date().toISOString();
-    const projectRoot = process.cwd();
-    const storage = new FileSystemStorage ({ rootDir: projectRoot });
+    const projectRoot = options.projectRoot ?? process.cwd();
+    const storage = new FileSystemStorage({ rootDir: projectRoot });
+
+    this.currentOptions = options;
 
     const isHeadless = options.headless ?? true;
     const timeout = options.timeout_ms ?? plan.timeout_ms ?? 30000;
@@ -83,10 +86,7 @@ export class PlaywrightRunner implements IRunner{
       ? Object.fromEntries(Object.entries(options.context_data).map(([k, v]) => [k, String(v)]))
       : {};
 
-    // Carga un caso: usa el resolver Inyectado si se pasó (test/overrides),
-    // o FileSystemStorage directamente (S75-00BB, uso real via CLI).
-
-  const loadCase = options.storageResolver ?? ((mod: string, caseId: string) => storage.getTestCase(mod, caseId));
+    const loadCase = options.storageResolver ?? ((mod: string, caseId: string) => storage.getTestCase(mod, caseId));
 
     let browser: Browser | null = null;
     let context: BrowserContext | null = null;
@@ -99,25 +99,18 @@ export class PlaywrightRunner implements IRunner{
     const casesResult: ExecutedCase[] = [];
     let timedOut = false;
 
-    // Rutina de limpieza ante señales del sistema (S75-006B)
     const cleanup = async () => {
       if (context) await context.close().catch(() => {});
       if (browser) await browser.close().catch(() => {});
       if (releaseLock) {
         try {
           releaseLock();
-        } catch {
-          // Ignorar si ya fue liberado
-        }
+        } catch {}
       }
     };
 
-    const sigintHandler = () => {
-      cleanup().finally(() => process.exit(130));
-    };
-    const sigtermHandler = () => {
-      cleanup().finally(() => process.exit(143));
-    };
+    const sigintHandler = () => { cleanup().finally(() => process.exit(130)); };
+    const sigtermHandler = () => { cleanup().finally(() => process.exit(143)); };
     const uncaughtHandler = (err: unknown) => {
       console.error('[PlaywrightRunner] Uncaught Exception:', err);
       cleanup().finally(() => process.exit(1));
@@ -128,14 +121,12 @@ export class PlaywrightRunner implements IRunner{
     process.once('uncaughtException', uncaughtHandler);
 
     try {
-      // 1. Adquirir lock con LockManager.acquireModuleLock() (S75-006B / S75-005A)
       if (moduleName) {
-        const lockManager = new LockManager({ rootDir: projectRoot});
+        const lockManager = new LockManager({ rootDir: projectRoot });
         releaseLock = await lockManager.acquireModuleLock(moduleName);
       }
 
-      // 2. Resolver sesión autenticada con resolveModuleSession() (S75-006A)[cite: 3, 4]
-       let storageState: any = undefined;
+      let storageState: any = undefined;
       if (moduleName) {
         try {
           storageState = await resolveModuleSession(projectRoot, moduleName);
@@ -149,14 +140,14 @@ export class PlaywrightRunner implements IRunner{
         slowMo: options.slow_mo ?? 0,
       });
 
-     context = await browser.newContext(storageState ? { storageState } : undefined);
+      context = await browser.newContext(storageState ? { storageState } : undefined);
       
       const page = await context.newPage();
       page.setDefaultTimeout(timeout);
 
       let caseIds = plan.cases ?? [];
 
-     if (moduleName && caseIds.length > 0) {
+      if (moduleName && caseIds.length > 0) {
         try {
           const loadedCases: Array<{ id: string; depends_on?: string[]; tc: TCCase }> = [];
           for (const cId of caseIds) {
@@ -174,8 +165,8 @@ export class PlaywrightRunner implements IRunner{
         }
       }
 
-      // 3. Cargar casos y ordenarlos con DependencyGraphResolver.resolveOrder() de @qap/knowledge[cite: 4]
       for (const caseId of caseIds) {
+        this.currentCaseId = caseId;
         const caseStartMs = Date.now();
         const contextVariables: Record<string, string> = {};
         let caseResult: CaseResult = 'passed';
@@ -183,6 +174,7 @@ export class PlaywrightRunner implements IRunner{
         let failureType: FailureType = 'assertion_failed';
         let caseTitle = caseId;
         let failureScreenshotPath: string | undefined;
+        const executedSteps: Array<{ action: string; status: string; message?: string; screenshot_path?: string }> = [];
 
         try {
           if (!moduleName) {
@@ -196,10 +188,11 @@ export class PlaywrightRunner implements IRunner{
 
           caseTitle = testCase.name || caseId;
           const steps = testCase.steps || [];
-            for (const rawStep of steps) {
-              const step = interpolateStep(rawStep, contextVariables, flowVariables);
-              await this.executeStep(page, step, screenshotsDir, contextVariables);
-            }
+          for (const rawStep of steps) {
+            const step = interpolateStep(rawStep, contextVariables, flowVariables);
+            const stepRes = await this.executeStep(page, step, screenshotsDir, contextVariables);
+            executedSteps.push(stepRes);
+          }
           
           totalPassed++;
         } catch (err: unknown) {
@@ -213,9 +206,7 @@ export class PlaywrightRunner implements IRunner{
               { type: 'screenshot', filename: `failure_${caseId}_${Date.now()}.png` },
               screenshotsDir
             );
-          } catch {
-            // Ignorar fallos al tomar captura
-          }
+          } catch {}
 
           const classified = classifyError(err);
           failureType = classified.category;
@@ -224,6 +215,13 @@ export class PlaywrightRunner implements IRunner{
             timedOut = true;
           }
 
+          executedSteps.push({
+            action: 'execute',
+            status: 'failed',
+            message: errorMessage,
+            ...(failureScreenshotPath ? { screenshot_path: failureScreenshotPath } : {}),
+          });
+
           if (failFast) {
             const failFastCase: ExecutedCase = {
               id: caseId,
@@ -231,6 +229,7 @@ export class PlaywrightRunner implements IRunner{
               result: caseResult,
               failure_type: failureType,
               duration_ms: Date.now() - caseStartMs,
+              steps: executedSteps,
             };
             casesResult.push(failFastCase);
             break;
@@ -242,17 +241,10 @@ export class PlaywrightRunner implements IRunner{
               title: caseTitle,
               result: caseResult,
               duration_ms: Date.now() - caseStartMs,
+              steps: executedSteps,
               ...(errorMessage
                 ? {
                     failure_type: failureType,
-                    steps: [
-                      {
-                        action: 'execute',
-                        status: 'failed',
-                        message: errorMessage,
-                        ...(failureScreenshotPath ? { screenshot_path: failureScreenshotPath } : {}),
-                      },
-                    ],
                   }
                 : {}),
             };
@@ -303,7 +295,9 @@ export class PlaywrightRunner implements IRunner{
     step: TCStep,
     screenshotsDir: string = '.qa/reports/screenshots',
     contextVariables: Record<string, string> = {}
-  ): Promise<void> {
+  ): Promise<{ action: string; status: string; message?: string }> {
+    let stepMsg: string | undefined;
+
     switch (step.type) {
       case 'navigate':
         await executeNavigate(page, step);
@@ -323,17 +317,34 @@ export class PlaywrightRunner implements IRunner{
       case 'screenshot':
         await executeScreenshot(page, step, screenshotsDir);
         break;
-      case 'capture':
-        await executeCapture(page, step, contextVariables);
+      case 'capture': {
+        const capturedVal = await executeCapture(page, step, contextVariables, {
+          caseId: this.currentCaseId,
+          context_data: this.currentOptions?.context_data,
+        });
+        stepMsg = JSON.stringify({
+          captured_as: step.capture_as,
+          value: capturedVal,
+        });
         break;
+      }
       case 'switch_auth':
         await executeSwitchAuth(page, step);
         break;
       case 'evaluate':
-        await executeEvaluate(page, step, contextVariables);
+        await executeEvaluate(page, step, contextVariables, {
+          sandbox: (step as any).sandbox !== false,
+          args: (step as any).args as Record<string, unknown>,
+        });
         break;
       default:
         break;
     }
+
+    return {
+      action: step.type,
+      status: 'passed',
+      ...(stepMsg ? { message: stepMsg } : {}),
+    };
   }
 }

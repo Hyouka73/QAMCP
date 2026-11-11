@@ -37,8 +37,13 @@ export class LockManager {
     }
 
     try {
+      // AQUÍ SE REEMPLAZÓ `retries: 0` POR LA CONFIGURACIÓN DE REINTENTOS:
       const release = await lockfile.lock(targetPath, {
-        retries: 0,
+        retries: {
+          retries: 5,
+          minTimeout: 100,
+          maxTimeout: 1000,
+        },
         stale: 30000,
         update: 5000,
         lockfilePath,
@@ -89,6 +94,30 @@ export class LockManager {
       }
     } catch {
       // Ignorar errores de limpieza forzada
+    }
+  }
+  
+  /**
+   * Adquiere locks para múltiples módulos en orden alfabético ascendente y los libera en orden inverso (S82-001).
+   */
+  async withModulesLock<T>(moduleNames: string[], fn: () => Promise<T>): Promise<T> {
+    const uniqueModules = Array.from(new Set(moduleNames)).sort((a, b) => a.localeCompare(b));
+    const releaseFunctions: Array<() => Promise<void>> = [];
+
+    try {
+      for (const moduleName of uniqueModules) {
+        const release = await this.acquireModuleLock(moduleName);
+        releaseFunctions.push(release);
+      }
+      return await fn();
+    } finally {
+      for (let i = releaseFunctions.length - 1; i >= 0; i--) {
+        try {
+          await releaseFunctions[i]();
+        } catch {
+          // Ignorar errores al liberar en bloque
+        }
+      }
     }
   }
 }
