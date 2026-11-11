@@ -3,7 +3,7 @@
 11 de noviembre de 2026 · `feat/qap-vnext-architecture`
 
 - Base comprobada y limpia `8e0c27247caa9059149076061843f3f81b9e4fd1`.
-- Implementación `75af570cc378f00ee154f4e23a80e71e2706fbdb`. El commit de esta nota completa la entrega.
+- Implementación `75af570cc378f00ee154f4e23a80e71e2706fbdb`.
 
 ## Cambios
 

@@ -139,7 +139,9 @@ describe('real MCP client/server via linked transports', () => {
         const properties = { ...tool.inputSchema.properties }; delete properties.case_workflow; delete properties.post_login_condition;
         if (tool.name === 'qap_auth_add') {
           expect(properties.storageState).toBeUndefined();
-          properties.storageState = oldTools.find(t => t.name === tool.name)!.inputSchema.properties?.storageState;
+          const legacyStorageState = oldTools.find(t => t.name === tool.name)?.inputSchema.properties?.storageState;
+          if (!legacyStorageState) throw new Error('Missing legacy storageState fixture');
+          properties.storageState = legacyStorageState;
         }
         return { ...tool, description: oldTools.find(t => t.name === tool.name)!.description, inputSchema: { ...tool.inputSchema, properties } };
       }
