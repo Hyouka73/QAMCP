@@ -257,10 +257,13 @@ export interface McpServerOptions extends StateDependencies {
 export function createMcpServer(options: McpServerOptions = {}): Server {
   const serverRef: { current?: Server } = {};
   const serverProvider = () => serverRef.current;
-  const workspaceAuthorizer = new ClientElicitationWorkspaceAuthorizer(serverProvider, options.workspaceAuthorizer);
-  const discoveryAuthorizer = new ClientElicitationDiscoveryAuthorizer(serverProvider, options.discoveryAuthorizer);
+  const qapEventLog = new QapEventLog(options.workspaceBootstrap?.directory);
+  const authorizationDiagnosticSink = (diagnostic: Parameters<QapEventLog['recordNativeAuthorization']>[0], workspace?: string) =>
+    qapEventLog.recordNativeAuthorization(diagnostic, workspace);
+  const workspaceAuthorizer = new ClientElicitationWorkspaceAuthorizer(serverProvider, options.workspaceAuthorizer, authorizationDiagnosticSink);
+  const discoveryAuthorizer = new ClientElicitationDiscoveryAuthorizer(serverProvider, options.discoveryAuthorizer, authorizationDiagnosticSink);
   const interactiveAccessAuthorizer = options.interactiveAccessAuthorizer
-    ? new ClientElicitationDiscoveryAuthorizer(serverProvider, options.interactiveAccessAuthorizer)
+    ? new ClientElicitationDiscoveryAuthorizer(serverProvider, options.interactiveAccessAuthorizer, authorizationDiagnosticSink)
     : undefined;
   const preparationCommand = `"${process.execPath}" "${fileURLToPath(new URL('../../../scripts/qap-authorize-workspace.mjs', import.meta.url))}" <workspace-absoluto>`;
   const authorizedRoots = [...(options.projectRoots ?? [process.cwd()])];
@@ -379,7 +382,6 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
     }
   );
   serverRef.current = server;
-  const qapEventLog = new QapEventLog(options.workspaceBootstrap?.directory);
 
 
   // Manejador de lista de tools

@@ -120,6 +120,28 @@ function writeSummary(jsonl: string, summary: string): void {
 export class QapEventLog {
   constructor(private readonly hostDirectory?: string) {}
 
+  /** Records a safe classification of a native authorization response without its message or form contents. */
+  recordNativeAuthorization(diagnostic: {
+    readonly feature: 'workspace' | 'discovery';
+    readonly outcome: 'approved' | 'rejected' | 'cancelled' | 'unavailable';
+    readonly clientAction?: 'accept' | 'decline' | 'cancel';
+    readonly reason: 'accepted' | 'explicit_decline' | 'negative_answer' | 'user_cancelled' |
+      'request_cancelled' | 'incomplete_response' | 'client_error' | 'invalid_response';
+    readonly clientErrorName?: string;
+    readonly clientErrorCode?: number;
+    readonly durationMs: number;
+  }, workspace?: string): void {
+    const status = diagnostic.outcome === 'approved' ? 'success' : diagnostic.outcome;
+    this.record({ workspace, requestId: `authorization-${randomUUID()}`, tool: 'native_authorization',
+      args: { mechanism: 'mcp_elicitation', feature: diagnostic.feature,
+        ...(diagnostic.clientAction ? { client_action: diagnostic.clientAction } : {}),
+        ...(diagnostic.clientErrorName ? { client_error_name: diagnostic.clientErrorName } : {}),
+        ...(typeof diagnostic.clientErrorCode === 'number' ? { client_error_code: diagnostic.clientErrorCode } : {}) },
+      result: { content: [{ type: 'text', text: JSON.stringify({ status,
+        code: `native_elicitation_${diagnostic.reason}`, authorization: { state: diagnostic.outcome } }) }] },
+      durationMs: diagnostic.durationMs });
+  }
+
   record(input: QapEventInput): void {
     try {
       const paths = eventPaths(input.workspace, this.hostDirectory);
@@ -130,6 +152,9 @@ export class QapEventLog {
       const previous = latestPhase.get(paths.correlation) ?? lastPhase(paths.jsonl);
       const code = typeof result.code === 'string' ? result.code : input.errorCode;
       const authorization = result.authorization_state === 'single_use_approved' ? 'granted'
+        : result.authorization_state === 'rejected' ? 'rejected'
+          : result.authorization_state === 'cancelled' ? 'cancelled'
+            : result.authorization_state === 'unavailable' ? 'unavailable'
         : /revok/i.test(code ?? '') ? 'revoked'
           : /expir/i.test(code ?? '') ? 'expired'
             : /reject|declin/i.test(code ?? '') ? 'rejected'
