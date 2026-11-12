@@ -536,6 +536,60 @@ it('expires persisted QA authorization before reuse', async () => {
   access.close();
 });
 
+it('associates an existing keychain profile across authorized workspaces only after single-use consent', async () => {
+  const { root: sourceRoot, bound, bootstrap } = await fixture();
+  const destinationRoot = join(sourceRoot, '..', 'destination');
+  mkdirSync(destinationRoot);
+  const destinationBound = await bootstrap.prepare(destinationRoot, origin);
+  expect(destinationBound).toBeDefined();
+  const deps = { projectRoots: [sourceRoot, destinationRoot], knowledgeBindings: [bound, destinationBound!] };
+  const entries = new Map<string, string>();
+  vi.spyOn(KeychainCredentialProvider.prototype, 'get').mockImplementation(async ref => {
+    const password = entries.get(JSON.stringify(ref));
+    return password ? { password } : null;
+  });
+  vi.spyOn(KeychainCredentialProvider.prototype, 'set').mockImplementation(async (ref, credentials) => {
+    entries.set(JSON.stringify(ref), credentials.password!);
+  });
+  let allowAssociation = false;
+  const ask = vi.fn((request: DiscoveryAuthorizationRequest) => Promise.resolve(allowAssociation
+    ? approved(request) : { decision: 'rejected' as const }));
+  const access = new InteractiveAccess(deps, { requestAuthorization: ask });
+  const profile = (root: string, id: string) => access.login({
+    targetPath: root, action: 'create', profile: id, username: 'same-qa-account',
+    application_id: root === sourceRoot ? bound.applicationId : destinationBound!.applicationId,
+    env: bound.environmentId, login_origin: origin,
+    login_route: '/login', verification_route: '/private',
+    post_login_condition: { type: 'selector_present', value: '#signed-in' },
+  }, signal());
+  createProfile({ id: 'source-account', env: bound.environmentId, username: 'same-qa-account',
+    application_id: bound.applicationId, credential_source: 'keychain', login_mode: 'auto', login_origin: origin,
+    login_route: '/login', verification_route: '/private',
+    post_login_condition: { type: 'selector_present', value: '#signed-in' } }, { basePath: sourceRoot });
+  await profile(destinationRoot, 'destination-account');
+  const sourceManager = new AuthManager(sourceRoot);
+  await sourceManager.setSecret('source-account', 'association-secret-never-returned');
+  sourceManager.close();
+
+  const associationArgs = { targetPath: destinationRoot, profile: 'destination-account', action: 'associate',
+    source_targetPath: sourceRoot, source_profile: 'source-account' };
+  const rejected = await access.login(associationArgs, signal());
+  expect(JSON.stringify(rejected)).toContain('credential_association_rejected');
+  const beforeConsent = new AuthManager(destinationRoot);
+  expect(await beforeConsent.getCredentialStatus('destination-account')).toMatchObject({ state: 'not_configured' });
+  beforeConsent.close();
+  allowAssociation = true;
+  const response = await access.login(associationArgs, signal());
+  const responseText = JSON.stringify(response);
+  expect(responseText).toContain('credential_associated');
+  expect(responseText).not.toContain('association-secret-never-returned');
+  expect(ask).toHaveBeenCalledTimes(2);
+  expect(ask.mock.calls[0][0].interactiveOperation?.operation).toBe('credential_association');
+  const destinationManager = new AuthManager(destinationRoot);
+  expect(await destinationManager.getCredentialStatus('destination-account')).toMatchObject({ state: 'available' });
+  destinationManager.close();
+});
+
 it('focal (4, 5, 6, 7): auto uses Vault, handoff preserves configured profile association, reuse validates without password, and distinct errors return differentiated sanitized codes', async () => {
   const { root, bound, deps } = await fixture();
   const entries = new Map<string, string>();

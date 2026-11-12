@@ -129,9 +129,9 @@ async function configuredProfile(scope: InteractiveScope, idOrSelector: string):
   return undefined;
 }
 
-function validConfiguration(scope: InteractiveScope, profile: AuthProfile): boolean {
+function validConfiguration(scope: InteractiveScope, profile: AuthProfile, expectedApplicationId = scope.applicationId): boolean {
   if (!validInteractiveProfile(profile?.id) || !validator.validateProfiles({ _version: '1', profiles: [profile] }).valid) return false;
-  if (profile.application_id !== scope.applicationId || profile.env !== scope.environmentId ||
+  if (profile.application_id !== expectedApplicationId || profile.env !== scope.environmentId ||
       profile.login_origin !== scope.origin || (profile.login_mode !== 'auto' && profile.login_mode !== 'handoff') ||
       !isValidUsernameIdentifier(profile.username) ||
       !route(profile.credential_source === 'env' ? profile.token_exchange_route : profile.login_route, scope) ||
@@ -261,6 +261,8 @@ const ALLOWED_LOGIN_ARGS = new Set([
   'timeout_ms',
   'post_login_condition',
   'role',
+  'source_targetPath',
+  'source_profile',
 ]);
 
 /** One-shot consent and encrypted sessions owned by this MCP host process. */
@@ -1292,12 +1294,84 @@ export class InteractiveAccess {
     );
   }
 
+  private async associateCredential(scope: InteractiveScope, destinationId: string,
+    args: Record<string, unknown>, signal: AbortSignal): Promise<CallToolResult> {
+    const sourcePath = args.source_targetPath;
+    const sourceId = args.source_profile;
+    if (typeof sourcePath !== 'string' || !validInteractiveProfile(sourceId)) {
+      return interactiveBlocked('credential_association_context_invalid');
+    }
+    let sourceRoot: string;
+    try { sourceRoot = projectRoot({ targetPath: sourcePath }, this.dependencies, true); }
+    catch { return interactiveBlocked('credential_association_source_not_authorized'); }
+    const sourceProfile = await readProfile(sourceId, sourceRoot).catch(() => null);
+    const destinationProfile = await configuredProfile(scope, destinationId);
+    if (!sourceProfile || !destinationProfile || typeof sourceProfile.application_id !== 'string' ||
+        sourceRoot === scope.projectRoot ||
+        !validConfiguration(scope, sourceProfile, sourceProfile.application_id) ||
+        sourceProfile.credential_source !== 'keychain' || destinationProfile.credential_source !== 'keychain' ||
+        sourceProfile.env !== destinationProfile.env || sourceProfile.username !== destinationProfile.username ||
+        sourceProfile.login_origin !== destinationProfile.login_origin) {
+      return interactiveBlocked('credential_association_scope_mismatch');
+    }
+
+    const destinationManager = new AuthManager(scope.projectRoot);
+    try {
+      if (await destinationManager.getProfileCredentials(destinationProfile, true)) {
+        return result({ status: 'success', code: 'credential_already_configured', profile: destinationId });
+      }
+    } finally { destinationManager.close(); }
+    if (!this.authorizer) return interactiveBlocked('credential_association_authorization_required');
+    if (signal.aborted) return interactiveBlocked('credential_association_cancelled');
+
+    const details = [
+      'Acción: copiar una referencia de credencial entre dos workspaces ya autorizados.',
+      'Origen: ' + sourceRoot + ' / aplicación ' + sourceProfile.application_id + ' / perfil ' + sourceProfile.id,
+      'Destino: ' + scope.projectRoot + ' / aplicación ' + destinationProfile.application_id + ' / perfil ' + destinationProfile.id,
+      'Cuenta: ' + destinationProfile.username,
+      'Alcance de la autorización: una asociación. No autoriza inicio de sesión ni navegación.',
+    ].join('\n');
+    const decision = await this.authorizer.requestAuthorization({
+      ...scope,
+      targetUrl: scope.origin,
+      interactiveOperation: { operation: 'credential_association', profile: destinationId, details },
+    }, signal).catch(() => ({ decision: 'unavailable' as const }));
+    if (signal.aborted || decision.decision === 'cancelled') return interactiveBlocked('credential_association_cancelled');
+    if (decision.decision === 'rejected') return interactiveBlocked('credential_association_rejected');
+    if (decision.decision !== 'approved') return interactiveBlocked('credential_association_authorizer_unavailable');
+    if (decision.root !== scope.projectRoot || decision.targetUrl !== scope.origin ||
+        projectRoot({ targetPath: sourcePath }, this.dependencies, true) !== sourceRoot ||
+        JSON.stringify(await readProfile(sourceId, sourceRoot)) !== JSON.stringify(sourceProfile) ||
+        JSON.stringify(await configuredProfile(scope, destinationId)) !== JSON.stringify(destinationProfile)) {
+      return interactiveBlocked('credential_association_scope_changed');
+    }
+
+    let sourceManager: AuthManager | undefined;
+    let targetManager: AuthManager | undefined;
+    try {
+      sourceManager = new AuthManager(sourceRoot);
+      targetManager = new AuthManager(scope.projectRoot);
+      const credentials = await sourceManager.getProfileCredentials(sourceProfile, true);
+      if (!credentials?.password || credentials.token) return interactiveBlocked('credential_association_source_unavailable');
+      await targetManager.setSecret(destinationProfile.id, credentials.password);
+      const readback = await targetManager.getProfileCredentials(destinationProfile, true);
+      if (readback?.password !== credentials.password) return interactiveBlocked('credential_association_readback_failed');
+      return result({ status: 'success', code: 'credential_associated', profile: destinationId,
+        source_profile: sourceId, authorization: 'single_use_approved' });
+    } catch (error) {
+      if (error instanceof CredentialError && error.code === 'KEYCHAIN_MODULE_UNAVAILABLE') {
+        return interactiveBlocked('keychain_module_unavailable');
+      }
+      return interactiveBlocked('credential_association_provider_failed');
+    } finally { sourceManager?.close(); targetManager?.close(); }
+  }
+
   async login(args: Record<string, unknown>, signal: AbortSignal): Promise<CallToolResult> {
     if (Object.keys(args).some(key => !ALLOWED_LOGIN_ARGS.has(key))) {
       return interactiveBlocked('agent_auth_material_not_supported');
     }
     const action = args.action !== undefined ? String(args.action) : 'login';
-    if (!['create', 'update', 'select', 'resolve', 'revoke', 'login'].includes(action)) {
+    if (!['create', 'update', 'select', 'resolve', 'revoke', 'login', 'associate'].includes(action)) {
       return interactiveBlocked('invalid_auth_method');
     }
 
@@ -1326,6 +1400,9 @@ export class InteractiveAccess {
     }
     if (action === 'update') {
       return await this.handleUpdateProfile(scope, args, signal);
+    }
+    if (action === 'associate') {
+      return await this.associateCredential(scope, String(profileArg), args, signal);
     }
     if (action === 'select' || action === 'resolve') {
       return await this.handleSelectOrResolveProfile(scope, args, action);

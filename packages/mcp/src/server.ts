@@ -113,6 +113,7 @@ import { ReportHandler } from './handlers/report.handler.js';
 import { checkPlaywrightBrowser, PLAYWRIGHT_INSTALL_COMMAND, detectarSubcarpetaWorkspace } from './handlers/state-runtime.js';
 import type { StateDependencies } from './handlers/state-services.js';
 import { ClientElicitationDiscoveryAuthorizer, ClientElicitationWorkspaceAuthorizer } from './client-elicitation-authorizers.js';
+import { QapEventLog } from './qap-event-log.js';
 export { checkPlaywrightBrowser, PLAYWRIGHT_INSTALL_COMMAND } from './handlers/state-runtime.js';
 
 let activeViewerServer: ViewerServerInstance | null = null;
@@ -378,6 +379,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
     }
   );
   serverRef.current = server;
+  const qapEventLog = new QapEventLog(options.workspaceBootstrap?.directory);
 
 
   // Manejador de lista de tools
@@ -429,6 +431,8 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
     if (closing) return { isError: true, content: [{ type: 'text', text: JSON.stringify({ code: 'cancelled' }) }] };
     const controller = new AbortController();
     const context = { ...sdkContext, signal: AbortSignal.any([controller.signal, ...(sdkContext.signal ? [sdkContext.signal] : [])]) };
+    let eventWorkspace: string | undefined;
+    const eventStartedAt = Date.now();
     const operation = (async (): Promise<CallToolResult> => {
     const { name, arguments: rawArgs } = request.params;
     if (name === 'qap_auth_add' && Object.keys(rawArgs ?? {}).some(key => !Object.hasOwn(authInputProperties, key))) {
@@ -458,6 +462,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
       if (options.workspaceBootstrap && typeof rawArgs?.targetPath === 'string') {
         try {
           const authRoot = authorizedProjectRoot({ targetPath: rawArgs.targetPath }, dependencies, true);
+          eventWorkspace = authRoot;
           await dependencies.prepareWorkspace!(authRoot);
         } catch {
           // Provision handler will enforce workspace authorization and return blocked
@@ -530,6 +535,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
             });
           }
       }
+      eventWorkspace = targetPath;
       request.params.arguments = { ...rawArgs, targetPath };
       if (['qap_status', 'qap_init', 'qap_context_set', 'qap_auth_add', 'qap_auth_list', 'qap_discover', 'qap_plan', 'qap_test', 'qap_session_plan'].includes(name)) {
         try {
@@ -572,7 +578,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
     // Provisioned hosts keep their existing composition, but legacy writers must
     // obey the same root boundary as migrated handlers. No tool argument grants it.
     if (!options.workspaceBootstrap && options.projectRoots !== undefined) {
-      try { authorizedProjectRoot(request.params.arguments, dependencies, true); }
+      try { eventWorkspace = authorizedProjectRoot(request.params.arguments, dependencies, true); }
       catch { return canonicalResult({ status: 'blocked', category: 'human_authorization', code: 'workspace_authorization_required',
         desbloquear_con: { mecanismo: 'local_host', descripcion: 'Selecciona una raíz autorizada por este host. No se amplían los permisos del manifiesto desde argumentos MCP.' } }); }
     }
@@ -580,6 +586,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
     /* eslint-disable @typescript-eslint/no-base-to-string, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any, @typescript-eslint/require-await, @typescript-eslint/no-unnecessary-type-assertion, @typescript-eslint/no-unsafe-return */
     const args = (request.params.arguments || {}) as Record<string, unknown>;
     const rootDir = args.targetPath ? resolve(String(args.targetPath)) : process.cwd();
+    eventWorkspace ??= rootDir;
 
     try {
       switch (name) {
@@ -3583,7 +3590,17 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         ],
       };
     }
-    })();
+    })().then(result => {
+      qapEventLog.record({ workspace: eventWorkspace, requestId: String(context.requestId),
+        tool: request.params.name, args: request.params.arguments, result, durationMs: Date.now() - eventStartedAt });
+      return result;
+    }, error => {
+      qapEventLog.record({ workspace: eventWorkspace, requestId: String(context.requestId),
+        tool: request.params.name, args: request.params.arguments,
+        errorCode: error instanceof McpToolError ? error.code : error instanceof Error ? error.name : 'unknown_error',
+        durationMs: Date.now() - eventStartedAt });
+      throw error;
+    });
     activeCalls.set(controller, operation);
     try { return await operation; }
     finally { activeCalls.delete(controller); }

@@ -19,7 +19,7 @@ export interface DiscoveryAuthorizationRequest {
   readonly targetUrl: string;
   readonly limits?: BlackBoxCrawlerInput['limits'];
   readonly interactiveOperation?: {
-    operation: 'login' | 'test' | 'discovery_profile';
+    operation: 'login' | 'test' | 'discovery_profile' | 'credential_association';
     profile?: string;
     details: string;
   };

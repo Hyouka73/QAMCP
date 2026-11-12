@@ -61,7 +61,7 @@ export class ClientElicitationDiscoveryAuthorizer implements IDiscoveryAuthorize
     const limits = request.limits;
     const operation = request.interactiveOperation?.operation;
     const message = operation
-      ? `Autorizar la operación ${operation} sobre ${request.targetUrl}. No se solicitarán ni enviarán credenciales mediante este formulario.`
+      ? `Autorizar la operación ${operation} sobre ${request.targetUrl}. No se solicitarán ni enviarán credenciales mediante este formulario.\n\n${request.interactiveOperation?.details ?? ''}`
       : `Autorizar navegación HTTP GET de solo lectura a ${request.targetUrl}. ` +
         `Límites: ${limits?.max_pages ?? 10} páginas, ${limits?.max_requests ?? 50} solicitudes, ` +
         `${limits?.max_redirects ?? 5} redirecciones; cada destino debe seguir dentro del alcance autorizado.`;

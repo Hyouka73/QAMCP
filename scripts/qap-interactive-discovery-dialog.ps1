@@ -17,7 +17,7 @@
   [int]$MaxPages = 10,
   [int]$MaxRequests = 50,
   [int]$TimeoutSec = 60,
-  [ValidateSet('login', 'test', 'discovery_profile', 'credential_provision')]
+  [ValidateSet('login', 'test', 'discovery_profile', 'credential_provision', 'credential_association')]
   [string]$Operation,
   [string]$ProjectRoot,
   [string]$Profile,
@@ -231,6 +231,7 @@ if ($Operation) {
     'test' { 'Autorización QA para esta ejecución funcional' }
     'discovery_profile' { 'Autorización QA para Discovery de lectura' }
     'credential_provision' { 'Guardar una credencial de pruebas' }
+    'credential_association' { 'Asociar una credencial de pruebas existente' }
   }
   $sub.Text = "Perfil: $Profile"
   $lblTarget.Text = 'URL solicitada y origen autorizado'
@@ -252,6 +253,7 @@ if ($Operation) {
     'test' { 'Autoriza esta ejecución funcional únicamente. No aprueba casos, requisitos ni ejecuciones futuras.' }
     'discovery_profile' { 'Concede autorización solo para Discovery de lectura, vinculada a este proyecto, entorno, origen, revisión de entorno y perfil. Vigencia predeterminada: 4 horas (configurable hasta 30 días). Revocable con action: "revoke".' }
     'credential_provision' { 'Al pulsar Guardar autorizas a QAP a almacenar esta contraseña en el Administrador de credenciales de Windows. El inicio de sesión requiere su propia autorización.' }
+    'credential_association' { 'Autoriza una sola transferencia entre referencias del Administrador de credenciales de Windows. No se muestra ni devuelve la contraseña y esta autorización no se conserva.' }
   }
 
   $btnCancel = New-Object System.Windows.Forms.Button

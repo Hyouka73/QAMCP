@@ -69,9 +69,11 @@ export const TOOLS: Tool[] = [
         profile: { type: 'string', description: 'Identificador del perfil de pruebas.' },
         action: {
           type: 'string',
-          enum: ['create', 'update', 'select', 'resolve', 'revoke', 'login'],
-          description: 'Operación de perfil, revocación de autorización o resolución previa al login.',
+          enum: ['create', 'update', 'select', 'resolve', 'revoke', 'login', 'associate'],
+          description: 'Operación de perfil, revocación, resolución previa al login o asociación consentida de una referencia de credencial existente.',
         },
+        source_targetPath: { type: 'string', description: 'Workspace origen ya autorizado por el host para asociar una referencia existente.' },
+        source_profile: { type: 'string', description: 'Perfil de origen cuya cuenta debe coincidir con el perfil destino.' },
         env: { type: 'string', description: 'Entorno autorizado del perfil.' },
         username: { type: 'string', description: 'Identificador de usuario o cuenta de prueba (acepta usuarios no email).' },
         application_id: { type: 'string', description: 'Identificador de la aplicación objetivo.' },
