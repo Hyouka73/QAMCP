@@ -32,6 +32,8 @@ export type DiscoveryAuthorizationResult =
   | { readonly decision: 'unavailable'; readonly reason: string; readonly code?: 'discovery_gui_unavailable' | 'discovery_dialog_start_failed' };
 
 export interface IDiscoveryAuthorizer {
+  /** Optional capability probe; unavailable clients must retain the prior host authorization behavior. */
+  isAvailable?(): boolean;
   requestAuthorization(
     request: DiscoveryAuthorizationRequest,
     signal?: AbortSignal,

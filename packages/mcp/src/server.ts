@@ -112,6 +112,7 @@ import { TestHandler, type TestNavigationAuthorization } from './handlers/test.h
 import { ReportHandler } from './handlers/report.handler.js';
 import { checkPlaywrightBrowser, PLAYWRIGHT_INSTALL_COMMAND, detectarSubcarpetaWorkspace } from './handlers/state-runtime.js';
 import type { StateDependencies } from './handlers/state-services.js';
+import { ClientElicitationDiscoveryAuthorizer, ClientElicitationWorkspaceAuthorizer } from './client-elicitation-authorizers.js';
 export { checkPlaywrightBrowser, PLAYWRIGHT_INSTALL_COMMAND } from './handlers/state-runtime.js';
 
 let activeViewerServer: ViewerServerInstance | null = null;
@@ -253,6 +254,13 @@ export interface McpServerOptions extends StateDependencies {
 }
 
 export function createMcpServer(options: McpServerOptions = {}): Server {
+  const serverRef: { current?: Server } = {};
+  const serverProvider = () => serverRef.current;
+  const workspaceAuthorizer = new ClientElicitationWorkspaceAuthorizer(serverProvider, options.workspaceAuthorizer);
+  const discoveryAuthorizer = new ClientElicitationDiscoveryAuthorizer(serverProvider, options.discoveryAuthorizer);
+  const interactiveAccessAuthorizer = options.interactiveAccessAuthorizer
+    ? new ClientElicitationDiscoveryAuthorizer(serverProvider, options.interactiveAccessAuthorizer)
+    : undefined;
   const preparationCommand = `"${process.execPath}" "${fileURLToPath(new URL('../../../scripts/qap-authorize-workspace.mjs', import.meta.url))}" <workspace-absoluto>`;
   const authorizedRoots = [...(options.projectRoots ?? [process.cwd()])];
   const workspaceBindings = [...(options.knowledgeBindings ?? [])];
@@ -320,7 +328,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
   const interactiveAccess = options.workspaceBootstrap || options.interactiveAccessEnabled
     ? new InteractiveAccess(
         dependencies,
-        options.interactiveAccessAuthorizer,
+        interactiveAccessAuthorizer ?? discoveryAuthorizer,
         undefined,
         undefined,
         interactivePolicy
@@ -331,7 +339,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
   dispatcher.register(new DiscoveryHandler(
     dependencies,
     options.discoveryAuthorizations,
-    options.discoveryAuthorizer,
+    discoveryAuthorizer,
     options.hostDiscoveryRegistryPath,
     interactiveAccess,
   ));
@@ -369,6 +377,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
 11. Al cerrar la sesión, presenta al usuario el resumen del reporte de brechas generado.`,
     }
   );
+  serverRef.current = server;
 
 
   // Manejador de lista de tools
@@ -480,8 +489,11 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
           return canonicalResult({ status: 'blocked', category: 'human_authorization', code: 'workspace_path_invalid', diagnostic_id: diagnosticId,
             desbloquear_con: { mecanismo: 'workspace_selection', descripcion: 'Selecciona una carpeta física existente y admitida, con ruta absoluta, fuera de directorios del sistema y del almacenamiento del host.' } });
         }
-        if (options.workspaceAuthorizer) {
-          const authResult = await options.workspaceAuthorizer.requestAuthorization(
+        if (!workspaceAuthorizer.isAvailable()) {
+          return canonicalResult({ status: 'blocked', category: 'human_authorization', code: 'workspace_authorizer_not_configured',
+            desbloquear_con: { mecanismo: 'local_host', comando: preparationCommand, descripcion: 'El host no configuró un autorizador interactivo. Revisa su configuración o autoriza localmente mediante el mecanismo administrativo del host; reintenta sin reiniciar.' } });
+        }
+        const authResult = await workspaceAuthorizer.requestAuthorization(
             { requestedPath: targetPath, canonicalPath: canonicalTarget },
             context.signal
           ).catch(() => ({ decision: 'unavailable' as const, code: 'workspace_dialog_start_failed' as const, reason: 'Dialog launch failed.' }));
@@ -517,10 +529,6 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
                 : 'El host no pudo mostrar el diálogo. Revisa la sesión de escritorio y los diagnósticos locales antes de reintentar.' },
             });
           }
-        } else {
-          return canonicalResult({ status: 'blocked', category: 'human_authorization', code: 'workspace_authorizer_not_configured',
-            desbloquear_con: { mecanismo: 'local_host', comando: preparationCommand, descripcion: 'El host no configuró un autorizador interactivo. Revisa su configuración o autoriza localmente mediante el mecanismo administrativo del host; reintenta sin reiniciar.' } });
-        }
       }
       request.params.arguments = { ...rawArgs, targetPath };
       if (['qap_status', 'qap_init', 'qap_context_set', 'qap_auth_add', 'qap_auth_list', 'qap_discover', 'qap_plan', 'qap_test', 'qap_session_plan'].includes(name)) {

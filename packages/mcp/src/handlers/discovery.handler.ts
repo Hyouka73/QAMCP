@@ -135,7 +135,7 @@ export class DiscoveryHandler implements IMcpToolHandler {
             if (this.hostDiscoveryRegistryPath) {
               atomicRecordDiscoveryAuthorization(this.hostDiscoveryRegistryPath, config);
             }
-          } else if (!this.authorizer) {
+          } else if (!this.authorizer || this.authorizer.isAvailable?.() === false) {
             return blocked('url_not_authorized');
           } else {
             // Dynamic prompt for new URL within existing authorized context
@@ -248,7 +248,7 @@ export class DiscoveryHandler implements IMcpToolHandler {
           if (this.hostDiscoveryRegistryPath) {
             atomicRecordDiscoveryAuthorization(this.hostDiscoveryRegistryPath, newAuth);
           }
-        } else if (this.authorizer) {
+        } else if (this.authorizer && this.authorizer.isAvailable?.() !== false) {
           const authResult = await this.authorizer.requestAuthorization({
             projectRoot: root,
             applicationId: bound.applicationId,
@@ -419,17 +419,18 @@ export class DiscoveryHandler implements IMcpToolHandler {
       }
       const receipt: AssociationReceipt | undefined = identity.status === 'resolved' && 'fingerprint' in identity && output.observations.length
         ? { version: 1, binding: identity.fingerprint, execution: output.execution_id, observations: output.observations.map(o => o.id).sort() } : undefined;
-      const association = receipt ? await bridge.associate(args.name as string, receipt) : {
+      const associationResult = receipt ? await bridge.associate(args.name as string, receipt) : {
         association_status: output.observations.length ? 'blocked' : 'not_attempted',
         code: identity.status === 'resolved' ? 'context_changed_or_no_observations' : identity.status,
         associated_observations: 0, confirmed_relations: 0, coverage: 'partial',
       };
+      const { code: association_code, ...association } = associationResult;
       // Positive selection: no DOM text, labels, selectors, URLs, payloads or arbitrary errors.
       return result({ status: output.status, application_id: bound.applicationId, environment_id: bound.environmentId,
         status_scope: 'acquisition',
         requested_module: args.name, execution_id: output.execution_id, mode: output.mode,
         acquisition_status: output.status, acquisition_persistence: output.observations.length ? 'committed' : 'not_attempted',
-        module_identity_status: identity.status, ...association, association_receipt: receipt,
+        module_identity_status: identity.status, ...association, association_code, association_receipt: receipt,
         association_next_safe_action: association.association_status === 'confirmed'
           ? 'Revisión humana de observaciones; cobertura parcial.'
           : receipt ? 'El host debe conservar y reintentar el mismo recibo solo con el contexto autorizado vigente.'
@@ -439,7 +440,8 @@ export class DiscoveryHandler implements IMcpToolHandler {
           blocked_routes: output.routes.filter(r => r.state === 'blocked').length, views: output.views.length,
           controls: output.views.reduce((n, v) => n + v.controls.length, 0),
           forms: output.views.reduce((n, v) => n + v.forms.length, 0), relations: output.relations.length },
-        routes: output.routes.map(r => ({ reference: r.route, state: r.state, depth: r.depth, http_status: r.http_status })),
+        routes: output.routes.map(r => ({ reference: r.route, state: r.state, depth: r.depth, http_status: r.http_status,
+          ...(r.reason ? { reason: r.reason } : {}) })),
         views: output.views.map(v => ({ reference: v.id, route: v.route, state: v.state,
           controls: v.controls.length, forms: v.forms.length, truncated: v.truncated })),
         relations: output.relations.map(r => ({ from: r.from, to: r.to, kind: r.kind })),
