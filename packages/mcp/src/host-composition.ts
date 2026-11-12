@@ -260,11 +260,9 @@ export async function loadHostComposition(
     const bootstrap = new WorkspaceBootstrap(directory);
     const registry = resolve(directory, 'authorized-roots.json');
     const discoveryRegistry = resolve(directory, 'discovery-authorizations.json');
-    const roots: string[] = [];
     if (existsSync(registry)) {
       const values: unknown = JSON.parse(readFileSync(existingFile(registry, 'workspace registry'), 'utf8'));
       if (!Array.isArray(values) || values.some(value => typeof value !== 'string' || !isAbsolute(value) || realpathSync(value) !== value)) throw new Error('Invalid workspace registry');
-      roots.push(...values as string[]);
     }
     const authorizer = isWindowsInteractive
       ? new WindowsInteractiveWorkspaceAuthorizer()
@@ -288,7 +286,7 @@ export async function loadHostComposition(
     });
     return {
       options: {
-        projectRoots: roots,
+        projectRoots: [],
         workspaceBootstrap: bootstrap,
         clientWorkspaceRoots: true,
         workspaceAuthorizer: authorizer,

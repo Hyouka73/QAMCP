@@ -14,12 +14,33 @@
  * del CLI se limita a lanzar errores.
  */
 
-import { handleFatalError } from './errors.js';
+import { realpathSync } from 'node:fs';
+
+import { acknowledgeProjectInitialization, acquireProjectOperation, readProjectResetState, resetHostDirectory } from '@qap/mcp';
+
+import { CliError, handleFatalError } from './errors.js';
 import { createProgram } from './program.js';
 
 async function main(): Promise<void> {
   const program = createProgram();
-  await program.parseAsync(process.argv);
+  let release: (() => void) | undefined;
+  let initialized: (() => void) | undefined;
+  program.hook('preAction', (_program, command) => {
+    if (['mcp', 'clean', 'register'].includes(command.name())) return;
+    const host = resetHostDirectory();
+    release = acquireProjectOperation(host);
+    const root = realpathSync(process.cwd());
+    const state = readProjectResetState(host, root);
+    if (state?.state === 'pending') throw new CliError('project_reset_incomplete');
+    if (state?.state === 'complete') {
+      if (command.name() === 'init') initialized = () => acknowledgeProjectInitialization(host, root, state);
+      else if (command.name() !== 'status') throw new CliError('project_not_initialized');
+    }
+  });
+  try {
+    await program.parseAsync(process.argv);
+    initialized?.();
+  } finally { release?.(); }
 }
 
 main().catch(handleFatalError);

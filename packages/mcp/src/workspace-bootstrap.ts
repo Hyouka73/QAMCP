@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import { existsSync, lstatSync, mkdirSync, realpathSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { basename, join, parse, resolve } from 'node:path';
 
@@ -6,15 +5,17 @@ import { SqliteKnowledgeAdapter } from '@qap/knowledge';
 import YAML from 'yaml';
 
 import type { ProjectKnowledgeBinding } from './handlers/state-services.js';
+import { workspaceStorageKey } from './project-reset.js';
 
 /** Host-owned capability. Never constructed from tool arguments or project files.
  * No review keys/gateways or navigation policies are created by this component. */
 export class WorkspaceBootstrap {
   private readonly stores = new Map<string, SqliteKnowledgeAdapter>();
-  constructor(readonly directory: string) {}
+  readonly directory: string;
+  constructor(directory: string) { this.directory = resolve(directory); }
 
   async prepare(root: string, url?: string): Promise<ProjectKnowledgeBinding | undefined> {
-    const key = createHash('sha256').update(process.platform === 'win32' ? root.toLowerCase() : root).digest('hex');
+    const key = workspaceStorageKey(root);
     const host = join(resolve(this.directory), key);
     // Check every existing ancestor before mkdir/open, including host and DB links.
     const safe = (path: string) => {
@@ -79,5 +80,7 @@ export class WorkspaceBootstrap {
     if (!existing && !url) return undefined;
     return { projectRoot: root, applicationId: app, environmentId, store, moduleBindings: [] };
   }
-  close(): void { for (const store of this.stores.values()) store.close(); this.stores.clear(); }
+  hasKnowledge(root: string): boolean { return existsSync(join(this.directory, workspaceStorageKey(root), 'knowledge.sqlite')); }
+  release(root: string): void { this.stores.get(root)?.close(); this.stores.delete(root); }
+  close(): void { for (const root of this.stores.keys()) this.release(root); }
 }

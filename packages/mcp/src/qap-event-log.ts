@@ -120,6 +120,10 @@ function writeSummary(jsonl: string, summary: string): void {
 export class QapEventLog {
   constructor(private readonly hostDirectory?: string) {}
 
+  forgetWorkspace(workspace: string): void {
+    latestPhase.delete(eventPaths(workspace, this.hostDirectory).correlation);
+  }
+
   /** Records a safe classification of a native authorization response without its message or form contents. */
   recordNativeAuthorization(diagnostic: {
     readonly feature: 'workspace' | 'discovery';

@@ -75,10 +75,9 @@ export function registerCommands(program: Command): void {
   program
     .command('clean')
     .alias('reset')
-    .description('Elimina de forma segura todo el árbol .qa/ del proyecto actual y limpia locks remanentes')
-    .option('-y, --yes', 'Confirma la eliminación sin solicitar confirmación interactiva')
-    .option('-f, --force', 'Fuerza la eliminación inmediata de .qa/ y locks remanentes')
-    .action(async (options: { yes?: boolean; force?: boolean }) => {
+    .description('Restablece el proyecto QAP con autorización humana local')
+    .option('--preview', 'Muestra el inventario sin borrar')
+    .action(async (options: { preview?: boolean }) => {
       await handleClean(options);
     });
 

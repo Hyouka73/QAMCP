@@ -46,6 +46,12 @@ function resolveTarget(path: string, base: string): string | undefined {
 export class DiscoveryHandler implements IMcpToolHandler {
   readonly definition = definition('qap_discover');
   private readonly authorizations: DiscoveryAuthorization[];
+
+  forgetProject(root: string): void {
+    for (let i = this.authorizations.length - 1; i >= 0; i--) {
+      if (this.authorizations[i].projectRoot === root) this.authorizations.splice(i, 1);
+    }
+  }
   private readonly authorizer?: IDiscoveryAuthorizer;
   private readonly hostDiscoveryRegistryPath?: string;
 

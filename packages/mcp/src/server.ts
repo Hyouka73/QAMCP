@@ -113,6 +113,8 @@ import { ReportHandler } from './handlers/report.handler.js';
 import { checkPlaywrightBrowser, PLAYWRIGHT_INSTALL_COMMAND, detectarSubcarpetaWorkspace } from './handlers/state-runtime.js';
 import type { StateDependencies } from './handlers/state-services.js';
 import { ClientElicitationDiscoveryAuthorizer, ClientElicitationWorkspaceAuthorizer } from './client-elicitation-authorizers.js';
+import { acknowledgeProjectInitialization, acquireProjectOperation, ProjectReset, readProjectResetState, type ResetAuthorizer } from './project-reset.js';
+import { windowsProjectResetAuthorizer } from './project-reset-dialog.js';
 import { QapEventLog } from './qap-event-log.js';
 export { checkPlaywrightBrowser, PLAYWRIGHT_INSTALL_COMMAND } from './handlers/state-runtime.js';
 
@@ -252,6 +254,7 @@ export interface McpServerOptions extends StateDependencies {
   readonly authorizationPersistencePath?: string;
   readonly sessionPersistenceKey?: string;
   readonly authorizationTtlMs?: number;
+  readonly projectResetAuthorizer?: ResetAuthorizer;
 }
 
 export function createMcpServer(options: McpServerOptions = {}): Server {
@@ -340,13 +343,29 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
     : undefined;
   dispatcher.register(new StatusHandler({ ...runtimeDependencies, interactiveAccess,
     browser: checkPlaywrightBrowser, view: buildViewDiscoveryContext }));
-  dispatcher.register(new DiscoveryHandler(
+  const discoveryHandler = new DiscoveryHandler(
     dependencies,
     options.discoveryAuthorizations,
     discoveryAuthorizer,
     options.hostDiscoveryRegistryPath,
     interactiveAccess,
-  ));
+  );
+  dispatcher.register(discoveryHandler);
+  const reset = options.workspaceBootstrap && !options.knowledgeBindings?.length ? new ProjectReset({
+    directory: options.workspaceBootstrap.directory,
+    rootsPath: options.hostRegistryPath,
+    discoveryPath: options.hostDiscoveryRegistryPath,
+    grantsPath: options.authorizationPersistencePath,
+    key: options.sessionPersistenceKey,
+  }, options.projectResetAuthorizer ?? windowsProjectResetAuthorizer) : undefined;
+  const seenResets = new Map<string, string>();
+  const forgetBootstrapBinding = (root: string) => {
+    if (options.knowledgeBindings?.some(binding => binding.projectRoot === root)) return;
+    options.workspaceBootstrap?.release(root);
+    const index = workspaceBindings.findIndex(binding => binding.projectRoot === root);
+    if (index >= 0) workspaceBindings.splice(index, 1);
+    interviews.delete(root);
+  };
   dispatcher.register(new PlanHandler(dependencies));
   dispatcher.register(new TestHandler(dependencies, {
     testAuthorizations: options.testAuthorizations,
@@ -434,11 +453,51 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
     const controller = new AbortController();
     const context = { ...sdkContext, signal: AbortSignal.any([controller.signal, ...(sdkContext.signal ? [sdkContext.signal] : [])]) };
     let eventWorkspace: string | undefined;
+    let releaseStorage: (() => void) | undefined;
+    let resetState: ReturnType<typeof readProjectResetState>;
+    let guardedRoot: string | undefined;
     const eventStartedAt = Date.now();
     const operation = (async (): Promise<CallToolResult> => {
     const { name, arguments: rawArgs } = request.params;
+    if (name === 'qap_project_reset') {
+      const { targetPath, phase, reset_id } = rawArgs ?? {};
+      if (typeof targetPath !== 'string' || (phase !== 'preview' && phase !== 'confirm') ||
+          Object.keys(rawArgs ?? {}).some(key => !['targetPath', 'phase', 'reset_id'].includes(key)) ||
+          (phase === 'preview' ? reset_id !== undefined : typeof reset_id !== 'string')) {
+        return canonicalResult({ status: 'blocked', code: 'invalid_reset_arguments' }, true);
+      }
+      if (!reset) return canonicalResult({ status: 'blocked', code: 'reset_host_ownership_unavailable',
+        retained: ['Knowledge SQL del manifiesto o adaptador externo', 'borradores, cierres y revisiones del host', 'Credential Vault global'] }, true);
+      try {
+        const roots = [...(options.projectRoots ?? [])];
+        syncAuthorizedRootsFromDisk(options.hostRegistryPath, roots);
+        if (options.clientWorkspaceRoots && server.getClientCapabilities()?.roots) {
+          for (const entry of (await server.listRoots()).roots) {
+            const url = new URL(entry.uri);
+            if (url.protocol !== 'file:' || (url.hostname && url.hostname !== 'localhost')) continue;
+            roots.push(validateCandidateWorkspace(fileURLToPath(url), options.workspaceBootstrap!.directory));
+          }
+        }
+        authorizedProjectRoot({ targetPath }, { projectRoots: roots }, true);
+      }
+      catch {
+        // A pending reset may already have removed its own root authorization.
+        try {
+          const root = validateCandidateWorkspace(targetPath, options.workspaceBootstrap!.directory);
+          if (readProjectResetState(options.workspaceBootstrap!.directory, root)?.state !== 'pending') throw new Error();
+        } catch { return canonicalResult({ status: 'blocked', code: 'workspace_authorization_required' }, true); }
+      }
+      const outcome = phase === 'preview' ? reset.preview(targetPath) : await reset.confirm(targetPath, String(reset_id), context.signal);
+      return canonicalResult(outcome, outcome.status !== 'preview' && outcome.status !== 'success');
+    }
     if (name === 'qap_auth_add' && Object.keys(rawArgs ?? {}).some(key => !Object.hasOwn(authInputProperties, key))) {
       return interactiveBlocked('agent_auth_material_not_supported');
+    }
+    if (options.workspaceBootstrap) {
+      try { releaseStorage = acquireProjectOperation(options.workspaceBootstrap.directory); }
+      catch { return canonicalResult({ status: 'blocked', code: 'project_storage_busy_or_unavailable' }, true); }
+      interactiveAccess?.refreshPersistedAuthorizations();
+      if (options.hostRegistryPath) authorizedRoots.splice(0, authorizedRoots.length, ...(options.projectRoots ?? []));
     }
     if (options.clientWorkspaceRoots) {
       // Roots are an out-of-band client capability, never supplied as tool arguments.
@@ -456,8 +515,32 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         }
       } catch { return canonicalResult({ status: 'blocked', category: 'technical_error', code: 'workspace_roots_unavailable', retryable: true }); }
     }
-    if (options.hostRegistryPath) {
-      syncAuthorizedRootsFromDisk(options.hostRegistryPath, authorizedRoots);
+    if (options.hostRegistryPath) syncAuthorizedRootsFromDisk(options.hostRegistryPath, authorizedRoots);
+    if (options.workspaceBootstrap) {
+      const host = options.workspaceBootstrap.directory;
+      const candidate = typeof rawArgs?.targetPath === 'string' ? rawArgs.targetPath : authorizedRoots.length === 1 ? authorizedRoots[0] : undefined;
+      if (typeof candidate === 'string') {
+        try { guardedRoot = validateCandidateWorkspace(candidate, host); } catch { /* Existing workspace checks classify invalid targets. */ }
+        if (guardedRoot) {
+          try { resetState = readProjectResetState(host, guardedRoot); }
+          catch { return canonicalResult({ status: 'blocked', code: 'reset_state_unavailable' }, true); }
+          if (resetState && seenResets.get(guardedRoot) !== resetState.id) {
+            seenResets.set(guardedRoot, resetState.id);
+            forgetBootstrapBinding(guardedRoot);
+            interactiveAccess?.forgetProject(guardedRoot);
+            discoveryHandler.forgetProject(guardedRoot);
+            qapEventLog.forgetWorkspace(guardedRoot);
+          }
+          if (resetState?.state === 'pending') return canonicalResult({ status: 'blocked', code: 'project_reset_incomplete',
+            receipt_id: resetState.id }, true);
+          if (resetState?.state === 'complete' && name !== 'qap_init') {
+            return name === 'qap_status'
+              ? canonicalResult({ status: 'success', initialized: false, fase: 'ONBOARDING',
+                siguiente_accion: { tool: 'qap_init', argumentos: { targetPath: guardedRoot }, descripcion: 'Inicializa un proyecto nuevo.' } })
+              : canonicalResult({ status: 'blocked', code: 'project_not_initialized' }, true);
+          }
+        }
+      }
     }
     if (name === 'qap_auth_provision') {
       if (!interactiveAccess) return canonicalResult({ status: 'blocked', code: 'credential_dialog_host_unavailable' }, true);
@@ -539,7 +622,8 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
       }
       eventWorkspace = targetPath;
       request.params.arguments = { ...rawArgs, targetPath };
-      if (['qap_status', 'qap_init', 'qap_context_set', 'qap_auth_add', 'qap_auth_list', 'qap_discover', 'qap_plan', 'qap_test', 'qap_session_plan'].includes(name)) {
+      if (['qap_status', 'qap_init', 'qap_context_set', 'qap_auth_add', 'qap_auth_list', 'qap_discover', 'qap_plan', 'qap_test', 'qap_session_plan'].includes(name) ||
+          (options.workspaceBootstrap.hasKnowledge(realpathSync(targetPath)) && existsSync(join(targetPath, '.qa')))) {
         try {
           const suppliedUrl = rawArgs?.base_url ?? rawArgs?.environments;
           const url = name === 'qap_context_set' && typeof suppliedUrl === 'string' ? suppliedUrl : undefined;
@@ -3593,10 +3677,15 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
       };
     }
     })().then(result => {
+      if (request.params.name === 'qap_project_reset') return result;
+      if (request.params.name === 'qap_init' && !result.isError && resetState?.state === 'complete' && guardedRoot && options.workspaceBootstrap) {
+        acknowledgeProjectInitialization(options.workspaceBootstrap.directory, guardedRoot, resetState);
+      }
       qapEventLog.record({ workspace: eventWorkspace, requestId: String(context.requestId),
         tool: request.params.name, args: request.params.arguments, result, durationMs: Date.now() - eventStartedAt });
       return result;
     }, error => {
+      if (request.params.name === 'qap_project_reset') throw error;
       qapEventLog.record({ workspace: eventWorkspace, requestId: String(context.requestId),
         tool: request.params.name, args: request.params.arguments,
         errorCode: error instanceof McpToolError ? error.code : error instanceof Error ? error.name : 'unknown_error',
@@ -3605,7 +3694,10 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
     });
     activeCalls.set(controller, operation);
     try { return await operation; }
-    finally { activeCalls.delete(controller); }
+    finally {
+      try { if (releaseStorage && guardedRoot) forgetBootstrapBinding(guardedRoot); }
+      finally { releaseStorage?.(); activeCalls.delete(controller); }
+    }
   });
 
   /* eslint-enable */

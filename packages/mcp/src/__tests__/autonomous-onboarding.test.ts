@@ -51,8 +51,9 @@ it('T02: repeated preparation preserves files and one durable Knowledge database
   const path = join(root, '.qa/project/context.yaml'), original = readFileSync(path, 'utf8');
   await Promise.all([c.call(), c.call()]);
   expect(readFileSync(path, 'utf8')).toBe(original);
-  expect(readdirSync(c.host)).toHaveLength(1);
-  expect(readdirSync(join(c.host, readdirSync(c.host)[0])).filter(p => p === 'knowledge.sqlite')).toHaveLength(1);
+  const stores = readdirSync(c.host).filter(name => /^[0-9a-f]{64}$/.test(name));
+  expect(stores).toHaveLength(1);
+  expect(readdirSync(join(c.host, stores[0])).filter(p => p === 'knowledge.sqlite')).toHaveLength(1);
 });
 it('T04: existing Markdown is detected and read before asking for missing information', async () => {
   const root = temp(); writeFileSync(join(root, 'README.md'), '# Example\nA documented system with functional specifications.');
@@ -113,7 +114,7 @@ it('T08: two workspaces have isolated state, Knowledge identities and no inherit
   await c.call('qap_context_set', { targetPath: a, base_url: 'https://example.invalid' });
   expect((await c.call('qap_status', { targetPath: a })).data.knowledge.state).toBe('available');
   expect((await c.call('qap_status', { targetPath: b })).data.knowledge.state).toBe('prepared');
-  expect(readdirSync(c.host)).toHaveLength(2);
+  expect(readdirSync(c.host).filter(name => /^[0-9a-f]{64}$/.test(name))).toHaveLength(2);
 });
 it('T06: authentication and simulated human approval remain unavailable in autonomous mode', async () => {
   const root = temp(), c = await connect([root]);

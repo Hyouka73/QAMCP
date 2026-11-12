@@ -15,6 +15,6 @@ export class CleanHandler implements IMcpToolHandler {
     projectRoot(args, this.dependencies, true);
     return result({ status: 'blocked', code: 'persistent_memory_reset_not_authorized',
       message: 'El contrato solicita un reseteo general de .qa/. No puede distinguirse de la eliminación de memoria, perfiles o sesiones. force no autoriza ese borrado.',
-      removed: [], desbloquear_con: 'No hay reseteo general autorizado en VNEXT-012. La limpieza selectiva requiere un contrato y un inventario de recursos temporales propios.' }, true);
+      removed: [], desbloquear_con: 'Usa qap_project_reset con phase preview; confirm requiere autorización humana en el host.' }, true);
   }
 }

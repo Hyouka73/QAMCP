@@ -20,3 +20,5 @@ export { SqliteModuleClosureStore } from './handlers/module-closure-store.js';
 
 export * from './workspace-authorizer.js';
 export * from './discovery-authorizer.js';
+export { acknowledgeProjectInitialization, acquireProjectOperation, localProjectResetOptions, ProjectReset, readProjectResetState, resetHostDirectory } from './project-reset.js';
+export { windowsProjectResetAuthorizer } from './project-reset-dialog.js';

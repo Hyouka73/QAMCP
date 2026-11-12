@@ -92,6 +92,7 @@ export interface ProfileStatusSummary {
 
 type Operation = 'login' | 'test' | 'discovery_profile';
 type SealedSession = {
+  projectRoot: string;
   iv: Buffer;
   tag: Buffer;
   data: Buffer;
@@ -290,6 +291,22 @@ export class InteractiveAccess {
     this.key.fill(0);
   }
 
+  forgetProject(root: string): void {
+    for (const [id, session] of this.sessions) {
+      if (session.projectRoot === root) this.sessions.delete(id);
+    }
+    for (const [id, grant] of this.authorizations) {
+      if (grant.projectRoot === root) this.authorizations.delete(id);
+    }
+  }
+
+  refreshPersistedAuthorizations(): void {
+    if (this.authorizationPath() && this.getSessionPersistenceKey()) {
+      this.authorizations.clear();
+      this.authorizationsLoaded = false;
+    }
+  }
+
   private getAuthorizationTtlMs(): number {
     const envRaw = process.env.QAP_SESSION_AUTH_TTL_MS;
     if (envRaw) {
@@ -317,10 +334,10 @@ export class InteractiveAccess {
   }
 
   private loadAuthorizations(): void {
-    if (this.authorizationsLoaded) return;
-    this.authorizationsLoaded = true;
     const path = this.authorizationPath();
     const key = this.authorizationKey();
+    if (this.authorizationsLoaded) { key?.fill(0); return; }
+    this.authorizationsLoaded = true;
     if (!path || !key || !existsSync(path)) { key?.fill(0); return; }
     try {
       const encoded = readFileSync(path, 'utf8');
@@ -810,7 +827,7 @@ export class InteractiveAccess {
     cipher.setAAD(Buffer.from(id));
     const data = Buffer.concat([cipher.update(JSON.stringify(session.state), 'utf8'), cipher.final()]);
     this.sessions.delete(id);
-    this.sessions.set(id, { iv, tag: cipher.getAuthTag(), data, selector: session.selector,
+    this.sessions.set(id, { projectRoot: scope.projectRoot, iv, tag: cipher.getAuthTag(), data, selector: session.selector,
       verificationUrl: session.verificationUrl, expires, profile,
       configuration: configured && configuration(configured) });
     const oldest = this.sessions.keys().next();

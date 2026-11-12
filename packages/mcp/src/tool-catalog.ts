@@ -45,15 +45,14 @@ export const TOOLS: Tool[] = [
   },
   {
     name: 'qap_clean',
-    description: `Ejecuta el reseteo completo del proyecto (.qa/ y locks remanentes) para una inicialización limpia desde cero. ${UX_DIRECTIVE}`,
+    description: 'Contrato histórico bloqueado. Para un borrado definitivo, usa qap_project_reset con autorización local.',
     inputSchema: {
       type: 'object',
       properties: {
         targetPath: TARGET_PATH_PROP,
         force: {
           type: 'boolean',
-          description: 'Fuerza la eliminación inmediata sin interactividad (por defecto: true)',
-          default: true,
+          description: 'Parámetro histórico; no autoriza ninguna eliminación.',
         },
       },
     },
@@ -642,6 +641,19 @@ export const TOOLS: Tool[] = [
       type: 'object',
       properties: {
         targetPath: TARGET_PATH_PROP,
+      },
+    },
+  },
+  {
+    name: 'qap_project_reset',
+    description: 'Borrado definitivo de un proyecto QAP. preview inventaría sin borrar. confirm requiere el reset_id del inventario y una decisión humana en el host local.',
+    inputSchema: {
+      type: 'object', additionalProperties: false,
+      required: ['targetPath', 'phase'],
+      properties: {
+        targetPath: TARGET_PATH_PROP,
+        phase: { type: 'string', enum: ['preview', 'confirm'] },
+        reset_id: { type: 'string', description: 'Identificador de preview, obligatorio solo para confirm.' },
       },
     },
   },

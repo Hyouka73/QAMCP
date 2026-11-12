@@ -195,7 +195,7 @@ describe('VNEXT-013 real MCP black-box acquisition', () => {
   it('owns exactly one route, preserves order, rejects collisions, and never falls back', async () => {
     const f = await fixture(); const spy = vi.spyOn(DiscoveryHandler.prototype, 'execute');
     const client = await connect(f.options); const tools = (await client.listTools()).tools;
-    expect(tools).toHaveLength(19); expect(tools.filter(t => t.name === 'qap_discover')).toHaveLength(1);
+    expect(tools).toHaveLength(20); expect(tools.filter(t => t.name === 'qap_discover')).toHaveLength(1);
     expect(tools.findIndex(t => t.name === 'qap_discover')).toBe(9);
     expect(() => createMcpServer({ handlers: [new DiscoveryHandler({})] })).toThrow();
     spy.mockRejectedValueOnce(new Error(canary));
