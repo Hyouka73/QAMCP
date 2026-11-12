@@ -9,6 +9,7 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { getPhaseGuidance, buildInterviewNextAction, type SiguienteAccion } from '../guidance.js';
 import type { IMcpToolHandler } from '../dispatcher.js';
 import type { InteractiveAccess } from '../interactive-access.js';
+import { getVersionDiagnostic } from '../version-diagnostic.js';
 
 import { binding, definition, validateBase, projectRoot, readContext, readEnvironment, isObject, type StateDependencies, type LegacyEnvironment, knowledgeStatus, result, safeDocument, assertProjectSegment } from './state-services.js';
 import { ModuleObservationBridge } from './module-observation-bridge.js';
@@ -72,6 +73,11 @@ export class StatusHandler implements IMcpToolHandler {
     const text = legacy.content[0];
     if (text.type !== 'text') return legacy;
     const payload = JSON.parse(text.text) as Record<string, unknown>;
+    // Version diagnosis is independent from Knowledge and lifecycle so it is
+    // present even for a fresh workspace in ONBOARDING.
+    payload.version_diagnostic = getVersionDiagnostic({
+      logPath: join(rootDir, '.qa', 'runtime', 'qap-version-diagnostics.jsonl'),
+    });
     if (this.dependencies.prepareWorkspace && payload.fase === 'ONBOARDING') {
       const contextFile = join(rootDir, '.qa', 'project', 'context.yaml');
       const context = existsSync(contextFile) ? readContext(contextFile) : null;

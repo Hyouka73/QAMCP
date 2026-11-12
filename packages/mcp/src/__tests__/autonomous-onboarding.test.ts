@@ -40,6 +40,8 @@ it('T01/T03: empty authorized workspace prepares locally and asks one natural qu
   expect(response.error).toBeFalsy();
   expect(response.data.initialized).toBe(true);
   expect(response.data.knowledge.state).toBe('prepared');
+  expect(response.data.version_diagnostic).toMatchObject({ status: 'unknown', action: 'review_configuration' });
+  expect(response.data.version_diagnostic.active).toMatchObject({ pid: expect.any(Number), startedAt: expect.any(String), serverPath: expect.any(String) });
   expect(response.data.siguiente_accion.pregunta.texto).toBe('¿Dónde está el sistema que quieres probar? Puedes proporcionarme su URL o indicarme un proyecto local');
   expect(response.data.siguiente_accion.pregunta.opciones).toEqual([]);
   expect(response.data.stats.modules).toBe(0);
