@@ -75,7 +75,7 @@ export class StatusHandler implements IMcpToolHandler {
     const payload = JSON.parse(text.text) as Record<string, unknown>;
     // Version diagnosis is independent from Knowledge and lifecycle so it is
     // present even for a fresh workspace in ONBOARDING.
-    payload.version_diagnostic = getVersionDiagnostic({
+    payload.version_diagnostic = await getVersionDiagnostic({
       logPath: join(rootDir, '.qa', 'runtime', 'qap-version-diagnostics.jsonl'),
     });
     if (this.dependencies.prepareWorkspace && payload.fase === 'ONBOARDING') {

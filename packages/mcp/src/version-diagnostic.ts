@@ -1,8 +1,12 @@
-import { execFileSync } from 'node:child_process';
+import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync } from 'node:fs';
+import { existsSync, realpathSync } from 'node:fs';
+import { appendFile, mkdir, readFile, readdir } from 'node:fs/promises';
 import { dirname, join, parse } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
+
+const execFileAsync = promisify(execFile);
 
 const PROCESS_STARTED_AT = new Date().toISOString();
 
@@ -51,7 +55,7 @@ const isMetadata = (value: unknown): value is BuildMetadata => {
     && typeof meta.builtAt === 'string';
 };
 
-function findRepositoryRoot(serverPath: string): string | null {
+async function findRepositoryRoot(serverPath: string): Promise<string | null> {
   let current = dirname(serverPath);
   while (true) {
     if (existsSync(join(current, 'pnpm-workspace.yaml'))) return current;
@@ -59,33 +63,33 @@ function findRepositoryRoot(serverPath: string): string | null {
     if (parent === current || current === parse(current).root) break;
     current = parent;
   }
-  try { return execFileSync('git', ['-C', dirname(serverPath), 'rev-parse', '--show-toplevel'], { encoding: 'utf8', timeout: 1500 }).trim() || null; }
+  try { return (await execFileAsync('git', ['-C', dirname(serverPath), 'rev-parse', '--show-toplevel'], { encoding: 'utf8', timeout: 1500 })).stdout.trim() || null; }
   catch { return null; }
 }
 
-function readRepositoryHead(root: string): string | null {
-  try { return execFileSync('git', ['-C', root, 'rev-parse', 'HEAD'], { encoding: 'utf8', timeout: 1500 }).trim() || null; }
+async function readRepositoryHead(root: string): Promise<string | null> {
+  try { return (await execFileAsync('git', ['-C', root, 'rev-parse', 'HEAD'], { encoding: 'utf8', timeout: 1500 })).stdout.trim() || null; }
   catch { return null; }
 }
 
-function recordIfChanged(logPath: string, diagnostic: VersionDiagnostic): void {
+async function recordIfChanged(logPath: string, diagnostic: VersionDiagnostic): Promise<void> {
   const signature = JSON.stringify({ status: diagnostic.status, activeSha: diagnostic.active.sha, diskSha: diagnostic.disk.sha, activeFingerprint: diagnostic.active.fingerprint, diskFingerprint: diagnostic.disk.fingerprint, repositoryHead: diagnostic.repository.head });
   try {
-    mkdirSync(dirname(logPath), { recursive: true });
+    await mkdir(dirname(logPath), { recursive: true });
     let previous: { signature?: string } | undefined;
-    if (existsSync(logPath)) {
-      const lines = readFileSync(logPath, 'utf8').trimEnd().split(/\r?\n/);
+    try {
+      const lines = (await readFile(logPath, 'utf8')).trimEnd().split(/\r?\n/);
       for (let i = lines.length - 1; i >= 0; i--) {
         try { previous = JSON.parse(lines[i]) as { signature?: string }; break; } catch { /* skip a partial or invalid trailing record */ }
       }
-    }
+    } catch { /* first diagnostic record */ }
     if (previous?.signature === signature) return;
-    appendFileSync(logPath, JSON.stringify({ timestamp: new Date().toISOString(), signature, status: diagnostic.status,
+    await appendFile(logPath, JSON.stringify({ timestamp: new Date().toISOString(), signature, status: diagnostic.status,
       activeSha: diagnostic.active.sha, diskSha: diagnostic.disk.sha, repositoryHead: diagnostic.repository.head }) + '\n', 'utf8');
   } catch { /* Diagnostics must never block qap_status. */ }
 }
 
-export function getVersionDiagnostic(options: DiagnosticOptions = {}): VersionDiagnostic {
+export async function getVersionDiagnostic(options: DiagnosticOptions = {}): Promise<VersionDiagnostic> {
   let serverPath = options.serverPath;
   if (!serverPath) {
     const argvPath = process.argv[1];
@@ -97,14 +101,16 @@ export function getVersionDiagnostic(options: DiagnosticOptions = {}): VersionDi
   const activeSha = options.activeSha === undefined ? (process.env.QAP_BUILD_REVISION || null) : options.activeSha;
   const activeFingerprint = options.activeFingerprint === undefined ? (process.env.QAP_BUILD_FINGERPRINT || null) : options.activeFingerprint;
   const version = options.version ?? process.env.QAP_MCP_VERSION ?? 'unknown';
-  const repositoryRoot = findRepositoryRoot(serverPath);
-  const repositoryHead = repositoryRoot ? (options.readHead ?? readRepositoryHead)(repositoryRoot) : null;
+  const repositoryRoot = await findRepositoryRoot(serverPath);
+  const repositoryHead = repositoryRoot
+    ? (options.readHead ? options.readHead(repositoryRoot) : await readRepositoryHead(repositoryRoot))
+    : null;
   let metadata: BuildMetadata | null = null;
   const metadataExists = existsSync(metadataPath);
   let metadataInvalid = false;
   if (metadataExists) {
     try {
-      const value: unknown = JSON.parse(readFileSync(metadataPath, 'utf8'));
+      const value: unknown = JSON.parse(await readFile(metadataPath, 'utf8'));
       if (isMetadata(value)) metadata = value;
       else metadataInvalid = true;
     } catch { metadataInvalid = true; }
@@ -114,8 +120,8 @@ export function getVersionDiagnostic(options: DiagnosticOptions = {}): VersionDi
   if (metadata && existsSync(join(dirname(metadataPath), 'server.js'))) {
     try {
       const bundleHash = createHash('sha256');
-      for (const name of readdirSync(dirname(metadataPath)).filter((entry) => entry.endsWith('.js')).sort()) {
-        bundleHash.update(name + '\0').update(readFileSync(join(dirname(metadataPath), name)));
+      for (const name of (await readdir(dirname(metadataPath))).filter((entry) => entry.endsWith('.js')).sort()) {
+        bundleHash.update(name + '\0').update(await readFile(join(dirname(metadataPath), name)));
       }
       bundleMatchesMetadata = bundleHash.digest('hex') === metadata.bundleSha256;
     }
@@ -159,6 +165,6 @@ export function getVersionDiagnostic(options: DiagnosticOptions = {}): VersionDi
       comparison: !repositoryHead || !metadata?.repositoryHead ? 'unavailable' : repositoryHead === metadata.repositoryHead ? 'matched' : 'outdated' },
     logPath,
   };
-  if (options.log !== false) recordIfChanged(logPath, diagnostic);
+  if (options.log !== false) await recordIfChanged(logPath, diagnostic);
   return diagnostic;
 }

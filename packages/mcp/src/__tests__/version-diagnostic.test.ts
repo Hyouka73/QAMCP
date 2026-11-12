@@ -47,46 +47,46 @@ afterEach(() => {
 });
 
 describe('QAP build version diagnosis', () => {
-  it('detects an old process after a new bundle was written to disk', () => {
+  it('detects an old process after a new bundle was written to disk', async () => {
     const f = makeFixture();
     f.writeBuild('b'.repeat(64));
-    expect(f.diagnose('c'.repeat(64), '9'.repeat(40))).toMatchObject({ status: 'stale_process', action: 'reconnect_mcp' });
+    expect(await f.diagnose('c'.repeat(64), '9'.repeat(40))).toMatchObject({ status: 'stale_process', action: 'reconnect_mcp' });
   });
 
-  it('detects a repository update that has not been compiled', () => {
+  it('detects a repository update that has not been compiled', async () => {
     const f = makeFixture();
     f.writeBuild('b'.repeat(64));
-    expect(f.diagnose('b'.repeat(64), 'a'.repeat(40), 'c'.repeat(40))).toMatchObject({ status: 'build_outdated', action: 'recompile' });
+    expect(await f.diagnose('b'.repeat(64), 'a'.repeat(40), 'c'.repeat(40))).toMatchObject({ status: 'build_outdated', action: 'recompile' });
   });
 
-  it('compares HEAD from the server checkout, independently from the target workspace checkout', () => {
+  it('compares HEAD from the server checkout, independently from the target workspace checkout', async () => {
     const f = makeFixture();
     f.writeBuild('b'.repeat(64));
-    const result = f.diagnose('b'.repeat(64), 'a'.repeat(40), 'a'.repeat(40));
+    const result = await f.diagnose('b'.repeat(64), 'a'.repeat(40), 'a'.repeat(40));
     expect(result).toMatchObject({ status: 'current', repository: { root: f.root, head: 'a'.repeat(40), comparison: 'matched' } });
   });
 
-  it('reports current when process, artifact and repository are synchronized and avoids repeated log lines', () => {
+  it('reports current when process, artifact and repository are synchronized and avoids repeated log lines', async () => {
     const f = makeFixture();
     f.writeBuild('b'.repeat(64));
-    const result = f.diagnose('b'.repeat(64));
-    f.diagnose('b'.repeat(64));
+    const result = await f.diagnose('b'.repeat(64));
+    await f.diagnose('b'.repeat(64));
     expect(result).toMatchObject({ status: 'current', action: 'continue', active: { pid: 1234, startedAt: '2026-11-12T12:00:00.000Z' } });
     expect(readFileSync(f.logPath, 'utf8').trim().split(/\r?\n/)).toHaveLength(1);
   });
 
-  it('works without Git when the bundle metadata is verifiable and returns unknown without metadata', () => {
+  it('works without Git when the bundle metadata is verifiable and returns unknown without metadata', async () => {
     const f = makeFixture();
     f.writeBuild('b'.repeat(64));
-    expect(f.diagnose('b'.repeat(64), 'a'.repeat(40), null)).toMatchObject({ status: 'current', repository: { comparison: 'unavailable' } });
+    expect(await f.diagnose('b'.repeat(64), 'a'.repeat(40), null)).toMatchObject({ status: 'current', repository: { comparison: 'unavailable' } });
     rmSync(f.metadataPath);
-    expect(f.diagnose('b'.repeat(64), 'a'.repeat(40), null)).toMatchObject({ status: 'unknown', action: 'review_configuration' });
+    expect(await f.diagnose('b'.repeat(64), 'a'.repeat(40), null)).toMatchObject({ status: 'unknown', action: 'review_configuration' });
   });
 
-  it('marks a bundle that fails its recorded digest as incompatible', () => {
+  it('marks a bundle that fails its recorded digest as incompatible', async () => {
     const f = makeFixture();
     f.writeBuild('b'.repeat(64));
     writeFileSync(f.bundlePath, 'tampered');
-    expect(f.diagnose('b'.repeat(64))).toMatchObject({ status: 'incompatible', action: 'review_configuration' });
+    expect(await f.diagnose('b'.repeat(64))).toMatchObject({ status: 'incompatible', action: 'review_configuration' });
   });
 });
