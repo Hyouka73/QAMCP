@@ -2295,6 +2295,39 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
                 : extLower === '.markdown'
                   ? 'markdown'
                   : 'md';
+            const docVersion = typeof args.doc_version === 'string' && args.doc_version.trim()
+              ? args.doc_version.trim()
+              : undefined;
+            const rawScopeArg = args.scope && typeof args.scope === 'object' ? args.scope as Record<string, unknown> : undefined;
+            const defaultDocScope = rawScopeArg ? {
+              ...(typeof rawScopeArg.environment === 'string' ? { environment: rawScopeArg.environment } : {}),
+              ...(typeof rawScopeArg.tenant_id === 'string' ? { tenant_id: rawScopeArg.tenant_id } : {}),
+              ...(typeof rawScopeArg.role === 'string' ? { role: rawScopeArg.role } : {}),
+              ...(typeof rawScopeArg.module_key === 'string' ? { module_key: rawScopeArg.module_key } : {}),
+              ...(typeof rawScopeArg.route_pathname === 'string' ? { route_pathname: rawScopeArg.route_pathname } : {}),
+            } : undefined;
+            const explicitDocRules = Array.isArray(args.business_rules)
+              ? args.business_rules
+                  .filter((r: unknown): r is Record<string, unknown> => Boolean(r && typeof r === 'object'))
+                  .filter((r: Record<string, unknown>) => typeof r.expected_outcome === 'string' && r.expected_outcome.trim().length > 0)
+                  .map((r: Record<string, unknown>) => ({
+                    ...(typeof r.rule_id === 'string' ? { rule_id: r.rule_id } : {}),
+                    ...(typeof r.rule_key === 'string' ? { rule_key: r.rule_key } : {}),
+                    ...(typeof r.title === 'string' ? { title: r.title } : {}),
+                    expected_outcome: String(r.expected_outcome),
+                    ...(typeof r.route_pathname === 'string' ? { route_pathname: r.route_pathname } : {}),
+                    ...(typeof r.module_key === 'string' ? { module_key: r.module_key } : {}),
+                    ...(typeof r.environment === 'string' ? { environment: r.environment } : {}),
+                    ...(typeof r.tenant_id === 'string' ? { tenant_id: r.tenant_id } : {}),
+                    ...(typeof r.role === 'string' ? { role: r.role } : {}),
+                    ...(typeof r.version === 'string' ? { version: r.version } : {}),
+                    ...(r.authority_status === 'accredited' || r.authority_status === 'unaccredited'
+                      ? { authority_status: r.authority_status as 'accredited' | 'unaccredited' }
+                      : {}),
+                    ...(typeof r.assert_selector === 'string' ? { assert_selector: r.assert_selector } : {}),
+                    ...(typeof r.assert_type === 'string' ? { assert_type: r.assert_type as 'contains' | 'visible' | 'equals' | 'exists' | 'text' | 'count' } : {}),
+                  }))
+              : undefined;
             ingestedDocRecord = applicationService.saveIngestedDocument({
               projectId: activeProject.project_id,
               sourceRef: docSourceLabel,
@@ -2308,6 +2341,9 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
                 critical_flows: (currentContext.critical_flows || []).map((f: { name?: string }) => String(f.name || '')).filter(Boolean),
               },
               discrepancies: detectedDiscrepancies,
+              ...(docVersion ? { docVersion } : {}),
+              ...(defaultDocScope ? { defaultScope: defaultDocScope } : {}),
+              ...(explicitDocRules && explicitDocRules.length > 0 ? { businessRules: explicitDocRules } : {}),
             });
             for (const cand of candidateGenResult?.candidatesFile?.candidates ?? []) {
               applicationService.upsertModuleCandidate({
@@ -2373,6 +2409,12 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
                       sha256: ingestedDocRecord.sha256,
                       analyzed_by: ingestedDocRecord.analyzed_by,
                       ingested_at: ingestedDocRecord.ingested_at,
+                      scoped_rules_count: activeProject && applicationService
+                        ? applicationService.listScopedBusinessRules(activeProject.project_id, {
+                            sourceKind: 'ingested_doc',
+                            sourceId: ingestedDocRecord.doc_id,
+                          }).length
+                        : 0,
                     } : undefined,
                     discrepancies: pendingDiscrepancies,
                     modulos_sugeridos_para_plan: suggestedModules,

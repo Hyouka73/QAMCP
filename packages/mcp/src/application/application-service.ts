@@ -55,6 +55,15 @@ import {
   type OracleDecisionInput,
   type ProposeCaseInput,
 } from './block3-execution-repo.js';
+import {
+  buildDiscoveryRevisionId,
+  computeDossierContentHash,
+  computeScopeHash,
+  sanitizeTargetPathname,
+  type DiscoveryDossierCanonical,
+  type DiscoveryDossierScope,
+  type DiscoveryRevisionRecord,
+} from './discovery-dossier.js';
 import { LegacyQaImporter } from './legacy-qa-importer.js';
 import { ManagedArtifactStore, type ManagedArtifactCategory, type StoredArtifactReceipt } from './managed-artifacts.js';
 import { PermissionAuthority } from './permission-authority.js';
@@ -66,6 +75,17 @@ import {
   listSafeFiles,
   safeDeleteOwnedPath,
 } from './safe-storage.js';
+import {
+  normalizeRuleKey,
+  normalizeRuleRoute,
+  normalizeScopeToken,
+  parseScopedRulesFromDocument,
+  type RuleAssertType,
+  type RuleAuthorityStatus,
+  type RuleScopeDeclaration,
+  type ScopedBusinessRuleRecord,
+  type UpsertScopedBusinessRuleInput,
+} from './scoped-rule-resolver.js';
 
 export class ApplicationServiceError extends Error {
   constructor(
@@ -587,10 +607,10 @@ export class QapApplicationService {
     const campaign = campRow ? parseCampaignRow(campRow) : null;
 
     const modules = this.store
-      .all<Record<string, unknown>>('SELECT * FROM modules WHERE project_id = ? ORDER BY created_at ASC', projectId)
+      .all<Record<string, unknown>>('SELECT * FROM modules WHERE project_id = ? ORDER BY created_at ASC, rowid ASC', projectId)
       .map(parseModuleRow);
     const profiles = this.store
-      .all<Record<string, unknown>>('SELECT * FROM profiles WHERE project_id = ? ORDER BY created_at ASC', projectId)
+      .all<Record<string, unknown>>('SELECT * FROM profiles WHERE project_id = ? ORDER BY created_at ASC, rowid ASC', projectId)
       .map(parseProfileRow);
     const tasks = this.store
       .all<Record<string, unknown>>('SELECT * FROM tasks WHERE project_id = ? ORDER BY updated_at DESC, rowid DESC', projectId)
@@ -1221,9 +1241,9 @@ export class QapApplicationService {
       version: 1,
       exported_at: now,
       project,
-      environments: this.store.all<Record<string, unknown>>('SELECT * FROM environments WHERE project_id = ?', projectId).map(parseEnvironmentRow),
-      modules: this.store.all<Record<string, unknown>>('SELECT * FROM modules WHERE project_id = ?', projectId).map(parseModuleRow),
-      profiles: this.store.all<Record<string, unknown>>('SELECT * FROM profiles WHERE project_id = ?', projectId).map(parseProfileRow),
+      environments: this.store.all<Record<string, unknown>>('SELECT * FROM environments WHERE project_id = ? ORDER BY created_at ASC, rowid ASC', projectId).map(parseEnvironmentRow),
+      modules: this.store.all<Record<string, unknown>>('SELECT * FROM modules WHERE project_id = ? ORDER BY created_at ASC, rowid ASC', projectId).map(parseModuleRow),
+      profiles: this.store.all<Record<string, unknown>>('SELECT * FROM profiles WHERE project_id = ? ORDER BY created_at ASC, rowid ASC', projectId).map(parseProfileRow),
       campaigns: this.store.all<Record<string, unknown>>('SELECT * FROM campaigns WHERE project_id = ?', projectId).map(parseCampaignRow),
     };
     const recoveryBundle = this.artifacts.writeRecoveryBundle(projectId, recoveryPayload);
@@ -1472,39 +1492,93 @@ export class QapApplicationService {
     };
   }
 
+  resolveProfileAlias(
+    projectId: string,
+    profileRef: string,
+    envId?: string,
+  ):
+    | { readonly status: 'matched'; readonly profile: AuthProfileRecord }
+    | { readonly status: 'ambiguous'; readonly candidates: AuthProfileRecord[] }
+    | { readonly status: 'not_found' } {
+    this.assertActiveProject(projectId);
+    const trimmed = profileRef.trim();
+    if (!trimmed) return { status: 'not_found' };
+    const allProfiles = this.store
+      .all<Record<string, unknown>>('SELECT * FROM profiles WHERE project_id = ? ORDER BY created_at ASC, rowid ASC', projectId)
+      .map(parseProfileRow);
+    const scoped = envId ? allProfiles.filter((p) => p.env_id === envId) : allProfiles;
+    const pool = envId ? scoped : allProfiles;
+
+    const byId = pool.find((p) => p.profile_id === trimmed);
+    if (byId) return { status: 'matched', profile: byId };
+
+    const byExactLabel = pool.filter((p) => p.label === trimmed);
+    if (byExactLabel.length === 1) return { status: 'matched', profile: byExactLabel[0] };
+    if (byExactLabel.length > 1) return { status: 'ambiguous', candidates: byExactLabel };
+
+    const lower = trimmed.toLowerCase();
+    const byCaseLabel = pool.filter((p) => p.label.toLowerCase() === lower);
+    if (byCaseLabel.length === 1) return { status: 'matched', profile: byCaseLabel[0] };
+    if (byCaseLabel.length > 1) return { status: 'ambiguous', candidates: byCaseLabel };
+
+    const slug = normalizeSlug(trimmed);
+    if (slug) {
+      const bySlug = pool.filter((p) => normalizeSlug(p.label) === slug);
+      if (bySlug.length === 1) return { status: 'matched', profile: bySlug[0] };
+      if (bySlug.length > 1) return { status: 'ambiguous', candidates: bySlug };
+    }
+    return { status: 'not_found' };
+  }
+
   validateTenantScope(
     projectId: string,
     requestedTenant?: string,
     profileId?: string,
+    envId?: string,
   ): { ok: true; tenant_id?: string } | { ok: false; code: 'ambiguous_tenant_scope' | 'tenant_mismatch'; reason: string } {
     const project = this.assertActiveProject(projectId);
-    const envRow = project.active_env_id
-      ? this.store.get<Record<string, unknown>>('SELECT * FROM environments WHERE env_id = ? AND project_id = ?', project.active_env_id, projectId)
-      : this.store.get<Record<string, unknown>>('SELECT * FROM environments WHERE project_id = ? ORDER BY created_at ASC LIMIT 1', projectId);
+    const targetEnvRef = envId?.trim() || project.active_env_id || undefined;
+    const envRow = targetEnvRef
+      ? this.store.get<Record<string, unknown>>(
+          'SELECT * FROM environments WHERE project_id = ? AND (env_id = ? OR name = ?) LIMIT 1',
+          projectId,
+          targetEnvRef,
+          targetEnvRef,
+        )
+      : this.store.get<Record<string, unknown>>('SELECT * FROM environments WHERE project_id = ? ORDER BY created_at ASC, rowid ASC LIMIT 1', projectId);
     const env = envRow ? parseEnvironmentRow(envRow) : null;
-    const profiles = this.store
-      .all<Record<string, unknown>>('SELECT * FROM profiles WHERE project_id = ?', projectId)
+    const allProfiles = this.store
+      .all<Record<string, unknown>>('SELECT * FROM profiles WHERE project_id = ? ORDER BY created_at ASC, rowid ASC', projectId)
       .map(parseProfileRow);
-    const selectedProfile = profileId
-      ? profiles.find((p) => p.profile_id === profileId || p.label === profileId)
-      : undefined;
-    const distinctProfileTenants = [...new Set(profiles.map((p) => p.tenant_id).filter((t): t is string => Boolean(t)))];
+    const profiles = env ? allProfiles.filter((p) => p.env_id === env.env_id) : allProfiles;
+    const activeProfiles = profiles.filter((p) => p.status !== 'revoked');
+    const resolvedAlias = profileId ? this.resolveProfileAlias(projectId, profileId, env?.env_id) : null;
+    const selectedProfile = resolvedAlias?.status === 'matched' ? resolvedAlias.profile : undefined;
+    const distinctProfileTenants = [...new Set(activeProfiles.map((p) => p.tenant_id).filter((t): t is string => Boolean(t)))];
     const reqTenant = requestedTenant?.trim() || undefined;
 
+    if (reqTenant && selectedProfile?.tenant_id && reqTenant !== selectedProfile.tenant_id) {
+      return {
+        ok: false,
+        code: 'tenant_mismatch',
+        reason: `El tenant solicitado '${reqTenant}' no coincide con el perfil seleccionado '${selectedProfile.tenant_id}'.`,
+      };
+    }
+
     if (env?.tenant_mode === 'multi_tenant') {
+      if (!reqTenant && !selectedProfile && distinctProfileTenants.length > 1) {
+        return {
+          ok: false,
+          code: 'ambiguous_tenant_scope',
+          reason: 'Existen múltiples tenants asociados a perfiles activos; indica explícitamente qué perfil o tenant utilizar.',
+        };
+      }
       const effectiveTenant = reqTenant ?? selectedProfile?.tenant_id ?? env.default_tenant;
       if (!effectiveTenant) {
         return {
           ok: false,
           code: 'ambiguous_tenant_scope',
           reason: 'El entorno es multi-tenant y no se ha indicado ni seleccionado un tenant explícito.',
-        };
-      }
-      if (reqTenant && selectedProfile?.tenant_id && reqTenant !== selectedProfile.tenant_id) {
-        return {
-          ok: false,
-          code: 'tenant_mismatch',
-          reason: `El tenant solicitado '${reqTenant}' no coincide con el perfil seleccionado '${selectedProfile.tenant_id}'.`,
         };
       }
       return { ok: true, tenant_id: effectiveTenant };
@@ -1525,6 +1599,312 @@ export class QapApplicationService {
       };
     }
     return { ok: true, tenant_id: reqTenant ?? selectedProfile?.tenant_id ?? env?.default_tenant };
+  }
+
+  resolveEffectiveScope(input: {
+    readonly projectId: string;
+    readonly moduleName: string;
+    readonly environment?: string;
+    readonly tenantId?: string;
+    readonly profile?: string;
+  }):
+    | {
+        readonly ok: true;
+        readonly scope: {
+          readonly project_id: string;
+          readonly application_id: string;
+          readonly environment_id: string;
+          readonly environment_name: string;
+          readonly tenant_mode: 'single' | 'multi_tenant';
+          readonly tenant_id: string | null;
+          readonly profile_id: string | null;
+          readonly profile_label: string | null;
+          readonly role: string | null;
+          readonly module_key: string;
+          readonly module_title: string;
+          readonly base_url: string;
+        };
+      }
+    | {
+        readonly ok: false;
+        readonly code:
+          | 'environment_out_of_scope'
+          | 'ambiguous_environment_scope'
+          | 'profile_not_found'
+          | 'auth_session_revoked'
+          | 'ambiguous_auth_profile'
+          | 'ambiguous_tenant_scope'
+          | 'tenant_mismatch';
+        readonly reason: string;
+        readonly question: string;
+        readonly field: 'environment' | 'tenant_id' | 'profile';
+        readonly options?: readonly string[];
+      } {
+    const project = this.assertActiveProject(input.projectId);
+    const envs = this.store
+      .all<Record<string, unknown>>('SELECT * FROM environments WHERE project_id = ? ORDER BY created_at ASC, rowid ASC', input.projectId)
+      .map(parseEnvironmentRow);
+    const modules = this.store
+      .all<Record<string, unknown>>('SELECT * FROM modules WHERE project_id = ? ORDER BY created_at ASC, rowid ASC', input.projectId)
+      .map(parseModuleRow);
+    const allProfiles = this.store
+      .all<Record<string, unknown>>('SELECT * FROM profiles WHERE project_id = ? ORDER BY created_at ASC, rowid ASC', input.projectId)
+      .map(parseProfileRow);
+
+    const requestedEnv = input.environment?.trim() || undefined;
+    let effectiveEnv: EnvironmentRecord | null = null;
+    if (requestedEnv) {
+      effectiveEnv = envs.find((e) => e.name === requestedEnv || e.env_id === requestedEnv) ?? null;
+      if (!effectiveEnv) {
+        const availableEnvs = envs.map((e) => e.name);
+        return {
+          ok: false,
+          code: 'environment_out_of_scope',
+          reason: `El entorno '${requestedEnv}' no está registrado en este proyecto.`,
+          question: availableEnvs.length > 0
+            ? `¿En qué entorno registrado deseas planificar (${availableEnvs.join(', ')})?`
+            : 'Registra el entorno destino en el proyecto antes de planificar.',
+          field: 'environment',
+          ...(availableEnvs.length > 0 ? { options: availableEnvs } : {}),
+        };
+      }
+    } else if (envs.length === 1) {
+      effectiveEnv = envs[0];
+    } else if (envs.length > 1) {
+      effectiveEnv = (project.active_env_id ? envs.find((e) => e.env_id === project.active_env_id) : undefined) ?? null;
+      if (!effectiveEnv) {
+        const availableEnvs = envs.map((e) => e.name);
+        return {
+          ok: false,
+          code: 'ambiguous_environment_scope',
+          reason: 'Existen múltiples entornos registrados y ninguno está fijado como activo.',
+          question: `¿Para qué entorno deseas planificar (${availableEnvs.join(', ')})?`,
+          field: 'environment',
+          options: availableEnvs,
+        };
+      }
+    }
+
+    const envId = effectiveEnv?.env_id ?? 'local';
+    const envName = effectiveEnv?.name ?? 'local';
+    const tenantMode = effectiveEnv?.tenant_mode ?? 'single';
+    const baseUrl = effectiveEnv?.base_url ?? 'http://127.0.0.1';
+
+    const rawMod = input.moduleName.trim();
+    const matchedMod =
+      modules.find((m) => m.key === rawMod) ??
+      modules.find((m) => m.title.toLowerCase() === rawMod.toLowerCase()) ??
+      modules.find((m) => m.key === normalizeSlug(rawMod));
+    const moduleKey = matchedMod ? matchedMod.key : normalizeSlug(rawMod);
+    const moduleTitle = matchedMod ? matchedMod.title : rawMod;
+
+    const envProfiles = effectiveEnv ? allProfiles.filter((p) => p.env_id === effectiveEnv.env_id) : allProfiles;
+    const activeEnvProfiles = envProfiles.filter((p) => p.status !== 'revoked');
+    const requestedProfile = input.profile?.trim() || undefined;
+    const requestedTenant = input.tenantId?.trim() || undefined;
+
+    let selectedProfile: AuthProfileRecord | null = null;
+    if (requestedProfile) {
+      const aliasRes = this.resolveProfileAlias(input.projectId, requestedProfile, effectiveEnv?.env_id);
+      if (aliasRes.status === 'ambiguous') {
+        const opts = aliasRes.candidates.map((c) => c.label);
+        return {
+          ok: false,
+          code: 'ambiguous_auth_profile',
+          reason: `El alias '${requestedProfile}' coincide con múltiples perfiles.`,
+          question: `¿Cuál de estos perfiles deseas usar (${opts.join(', ')})?`,
+          field: 'profile',
+          options: opts,
+        };
+      }
+      if (aliasRes.status === 'not_found') {
+        const opts = activeEnvProfiles.map((p) => p.label);
+        return {
+          ok: false,
+          code: 'profile_not_found',
+          reason: `El perfil '${requestedProfile}' no pertenece al alcance del entorno '${envName}'.`,
+          question: opts.length > 0
+            ? `¿Qué perfil registrado deseas utilizar (${opts.join(', ')})?`
+            : 'No hay perfiles registrados para este entorno; agrega uno o omite el perfil si la vista es pública.',
+          field: 'profile',
+          ...(opts.length > 0 ? { options: opts } : {}),
+        };
+      }
+      if (aliasRes.profile.status === 'revoked') {
+        return {
+          ok: false,
+          code: 'auth_session_revoked',
+          reason: `El perfil '${aliasRes.profile.label}' fue revocado y no puede utilizarse.`,
+          question: '¿Deseas autorizar un nuevo perfil vigente con qap_auth_add?',
+          field: 'profile',
+        };
+      }
+      selectedProfile = aliasRes.profile;
+    }
+
+    if (requestedTenant && tenantMode === 'single' && effectiveEnv?.default_tenant && requestedTenant !== effectiveEnv.default_tenant) {
+      return {
+        ok: false,
+        code: 'tenant_mismatch',
+        reason: `El entorno está configurado en modo single-tenant ('${effectiveEnv.default_tenant}') y no admite el tenant '${requestedTenant}'.`,
+        question: `Confirma si deseas operar en el tenant '${effectiveEnv.default_tenant}'.`,
+        field: 'tenant_id',
+        options: [effectiveEnv.default_tenant],
+      };
+    }
+
+    let effectiveTenant: string | null = null;
+    if (selectedProfile) {
+      if (requestedTenant && selectedProfile.tenant_id && requestedTenant !== selectedProfile.tenant_id) {
+        return {
+          ok: false,
+          code: 'tenant_mismatch',
+          reason: `El tenant solicitado '${requestedTenant}' no coincide con el tenant '${selectedProfile.tenant_id}' del perfil '${selectedProfile.label}'.`,
+          question: `¿Deseas usar el tenant '${selectedProfile.tenant_id}' del perfil '${selectedProfile.label}' u otro perfil?`,
+          field: 'tenant_id',
+          options: [selectedProfile.tenant_id],
+        };
+      }
+      if (requestedTenant) {
+        effectiveTenant = requestedTenant;
+      } else if (selectedProfile.tenant_id) {
+        effectiveTenant = selectedProfile.tenant_id;
+      } else if (tenantMode === 'multi_tenant') {
+        if (effectiveEnv?.default_tenant) {
+          effectiveTenant = effectiveEnv.default_tenant;
+        } else {
+          return {
+            ok: false,
+            code: 'ambiguous_tenant_scope',
+            reason: `El entorno '${envName}' es multi-tenant y el perfil '${selectedProfile.label}' no tiene tenant asignado.`,
+            question: '¿Para qué tenant deseas continuar?',
+            field: 'tenant_id',
+          };
+        }
+      } else {
+        effectiveTenant = effectiveEnv?.default_tenant ?? null;
+      }
+    } else if (requestedTenant) {
+      effectiveTenant = requestedTenant;
+      if (activeEnvProfiles.length > 0) {
+        const compatible = tenantMode === 'multi_tenant'
+          ? activeEnvProfiles.filter((p) => p.tenant_id === requestedTenant)
+          : activeEnvProfiles.filter((p) => !p.tenant_id || p.tenant_id === requestedTenant);
+        if (compatible.length === 1) {
+          selectedProfile = compatible[0];
+        } else if (compatible.length > 1) {
+          const opts = compatible.map((p) => p.label);
+          return {
+            ok: false,
+            code: 'ambiguous_auth_profile',
+            reason: `Existen múltiples perfiles activos para el tenant '${requestedTenant}'.`,
+            question: `¿Con qué perfil de '${requestedTenant}' deseas continuar (${opts.join(', ')})?`,
+            field: 'profile',
+            options: opts,
+          };
+        } else {
+          const availableTenants = [...new Set(activeEnvProfiles.map((p) => p.tenant_id).filter((t): t is string => Boolean(t)))];
+          return {
+            ok: false,
+            code: 'tenant_mismatch',
+            reason: `No hay ningún perfil activo compatible con el tenant '${requestedTenant}' en el entorno '${envName}'.`,
+            question: availableTenants.length > 0
+              ? `¿Para qué tenant con perfil activo deseas continuar (${availableTenants.join(', ')})?`
+              : `Registra o autoriza un perfil para el tenant '${requestedTenant}' con qap_auth_add.`,
+            field: 'tenant_id',
+            ...(availableTenants.length > 0 ? { options: availableTenants } : {}),
+          };
+        }
+      } else if (envProfiles.some((p) => p.status === 'revoked')) {
+        return {
+          ok: false,
+          code: 'auth_session_revoked',
+          reason: 'Todos los perfiles del entorno están revocados; vuelve a autorizar una sesión.',
+          question: 'Autoriza un perfil vigente con qap_auth_add antes de continuar.',
+          field: 'profile',
+        };
+      }
+    } else {
+      // Neither profile nor tenant_id was supplied: derive ONLY if unambiguous.
+      if (activeEnvProfiles.length === 0) {
+        if (envProfiles.some((p) => p.status === 'revoked')) {
+          return {
+            ok: false,
+            code: 'auth_session_revoked',
+            reason: 'Todos los perfiles del entorno están revocados; vuelve a autorizar una sesión.',
+            question: 'Autoriza un perfil vigente con qap_auth_add antes de continuar.',
+            field: 'profile',
+          };
+        }
+        if (tenantMode === 'multi_tenant') {
+          if (effectiveEnv?.default_tenant) {
+            effectiveTenant = effectiveEnv.default_tenant;
+          } else {
+            return {
+              ok: false,
+              code: 'ambiguous_tenant_scope',
+              reason: `El entorno '${envName}' es multi-tenant y no se indicó tenant ni perfil.`,
+              question: '¿Para qué tenant deseas continuar?',
+              field: 'tenant_id',
+            };
+          }
+        } else {
+          effectiveTenant = effectiveEnv?.default_tenant ?? null;
+        }
+      } else if (activeEnvProfiles.length === 1) {
+        const sole = activeEnvProfiles[0];
+        if (tenantMode === 'multi_tenant' && !sole.tenant_id && !effectiveEnv?.default_tenant) {
+          return {
+            ok: false,
+            code: 'ambiguous_tenant_scope',
+            reason: `El entorno '${envName}' es multi-tenant y el único perfil '${sole.label}' no fija tenant.`,
+            question: '¿Para qué tenant deseas continuar?',
+            field: 'tenant_id',
+          };
+        }
+        selectedProfile = sole;
+        effectiveTenant = sole.tenant_id ?? effectiveEnv?.default_tenant ?? null;
+      } else {
+        const distinctTenants = [...new Set(activeEnvProfiles.map((p) => p.tenant_id).filter((t): t is string => Boolean(t)))];
+        if (distinctTenants.length > 1) {
+          return {
+            ok: false,
+            code: 'ambiguous_tenant_scope',
+            reason: 'Existen múltiples tenants y perfiles activos; no puede seleccionarse un alcance implícito.',
+            question: `¿Para qué tenant deseas continuar (${distinctTenants.join(', ')})?`,
+            field: 'tenant_id',
+            options: distinctTenants,
+          };
+        }
+        const opts = activeEnvProfiles.map((p) => p.label);
+        return {
+          ok: false,
+          code: 'ambiguous_auth_profile',
+          reason: 'Existen múltiples perfiles activos en el entorno; selecciona uno explícitamente.',
+          question: `¿Qué perfil deseas utilizar (${opts.join(', ')})?`,
+          field: 'profile',
+          options: opts,
+        };
+      }
+    }
+
+    return {
+      ok: true,
+      scope: {
+        project_id: project.project_id,
+        application_id: project.application_id,
+        environment_id: envId,
+        environment_name: envName,
+        tenant_mode: tenantMode,
+        tenant_id: effectiveTenant,
+        profile_id: selectedProfile ? selectedProfile.profile_id : null,
+        profile_label: selectedProfile ? selectedProfile.label : null,
+        role: selectedProfile?.role_name ?? null,
+        module_key: moduleKey,
+        module_title: moduleTitle,
+        base_url: baseUrl,
+      },
+    };
   }
 
   saveProfileSession(
@@ -1651,12 +2031,44 @@ export class QapApplicationService {
     readonly analyzedBy: 'agent' | 'heuristic';
     readonly extracted: IngestedDocumentRecord['extracted'];
     readonly discrepancies?: ReadonlyArray<Omit<ContextDiscrepancy, 'discrepancy_id'>>;
+    readonly docVersion?: string;
+    readonly defaultScope?: {
+      readonly environment?: string;
+      readonly tenant_id?: string;
+      readonly role?: string;
+      readonly module_key?: string;
+      readonly route_pathname?: string;
+    };
+    readonly businessRules?: ReadonlyArray<{
+      readonly rule_id?: string;
+      readonly rule_key?: string;
+      readonly title?: string;
+      readonly expected_outcome: string;
+      readonly route_pathname?: string;
+      readonly module_key?: string;
+      readonly environment?: string;
+      readonly tenant_id?: string;
+      readonly role?: string;
+      readonly version?: string;
+      readonly authority_status?: RuleAuthorityStatus;
+      readonly assert_selector?: string;
+      readonly assert_type?: RuleAssertType;
+    }>;
   }): IngestedDocumentRecord {
     this.assertActiveProject(input.projectId);
     const now = new Date().toISOString();
-    const docId = `doc-${randomUUID().slice(0, 8)}`;
+    const candidateDocId = `doc-${randomUUID().slice(0, 8)}`;
     const sha256 = createHash('sha256').update(input.rawContent, 'utf8').digest('hex');
     const byteLength = Buffer.byteLength(input.rawContent, 'utf8');
+    let persistedDocId = candidateDocId;
+
+    const parsedDocRules = parseScopedRulesFromDocument({
+      rawContent: input.rawContent,
+      sourceRef: input.sourceRef,
+      ...(input.docVersion ? { docVersion: input.docVersion } : {}),
+      ...(input.defaultScope ? { defaultScope: input.defaultScope } : {}),
+      ...(input.businessRules ? { explicitRules: input.businessRules } : {}),
+    });
 
     const storedDiscrepancies: ContextDiscrepancy[] = [];
     this.store.transaction('IMMEDIATE', () => {
@@ -1666,12 +2078,14 @@ export class QapApplicationService {
         input.sourceRef,
         sha256,
       );
-      if (!existing) {
+      if (existing) {
+        persistedDocId = existing.doc_id;
+      } else {
         this.store.run(
           `INSERT INTO ingested_documents
             (doc_id, project_id, source_ref, format, sha256, byte_length, analyzed_by, extracted_json, ingested_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          docId,
+          persistedDocId,
           input.projectId,
           input.sourceRef,
           input.format,
@@ -1681,6 +2095,32 @@ export class QapApplicationService {
           JSON.stringify(input.extracted),
           now,
         );
+      }
+
+      const existingRuleCountRow = this.store.get<{ cnt: number }>(
+        "SELECT COUNT(*) AS cnt FROM scoped_business_rules WHERE project_id = ? AND source_kind = 'ingested_doc' AND source_id = ?",
+        input.projectId,
+        persistedDocId,
+      );
+      if ((existingRuleCountRow?.cnt ?? 0) === 0 || (input.businessRules?.length ?? 0) > 0) {
+        for (let idx = 0; idx < parsedDocRules.rules.length; idx += 1) {
+          const parsedRule = parsedDocRules.rules[idx]!;
+          const deterministicRuleId =
+            parsedRule.ruleId ??
+            `srule-${createHash('sha256')
+              .update(`${persistedDocId}|${idx}|${parsedRule.ruleKey}|${parsedRule.routePathname ?? '*'}|${parsedRule.environmentName ?? ''}|${parsedRule.tenantId ?? ''}|${parsedRule.role ?? ''}`)
+              .digest('hex')
+              .slice(0, 12)}`;
+          this.writeScopedBusinessRuleRow({
+            ...parsedRule,
+            ruleId: deterministicRuleId,
+            projectId: input.projectId,
+            sourceKind: 'ingested_doc',
+            sourceId: persistedDocId,
+            sourceRef: input.sourceRef,
+            sourceDigest: sha256,
+          }, now);
+        }
       }
 
       for (const d of input.discrepancies ?? []) {
@@ -1715,7 +2155,7 @@ export class QapApplicationService {
     });
 
     return {
-      doc_id: docId,
+      doc_id: persistedDocId,
       project_id: input.projectId,
       source_ref: input.sourceRef,
       format: input.format,
@@ -1997,9 +2437,189 @@ export class QapApplicationService {
       }));
   }
 
-  upsertServiceRequirement(params: Parameters<Block3ExecutionRepo['upsertRequirement']>[0]): ServiceRequirementRecord {
+  private writeScopedBusinessRuleRow(input: UpsertScopedBusinessRuleInput, now = new Date().toISOString()): ScopedBusinessRuleRecord {
+    const envName = normalizeScopeToken(input.environmentName);
+    const tenantId = normalizeScopeToken(input.tenantId);
+    const role = normalizeScopeToken(input.role);
+    const scopeDeclaration: RuleScopeDeclaration =
+      input.scopeDeclaration ??
+      (envName && tenantId && role
+        ? envName === '*' || tenantId === '*' || role === '*'
+          ? 'general_compatible'
+          : 'exact'
+        : 'unscoped_legacy');
+    const ruleId =
+      input.ruleId?.trim() ||
+      `srule-${createHash('sha256')
+        .update(`${input.projectId}|${input.sourceKind}|${input.sourceId}|${normalizeRuleKey(input.ruleKey ?? input.title)}|${normalizeRuleRoute(input.routePathname)}|${envName ?? ''}|${tenantId ?? ''}|${role ?? ''}`)
+        .digest('hex')
+        .slice(0, 12)}`;
+    const moduleKey = normalizeScopeToken(input.moduleKey) ?? '*';
+    const routePathname = normalizeRuleRoute(input.routePathname);
+    const ruleKey = normalizeRuleKey(input.ruleKey ?? input.title);
+
+    this.store.run(
+      `INSERT INTO scoped_business_rules (
+        rule_id, project_id, source_kind, source_id, source_ref, source_version, source_digest,
+        module_key, route_pathname, environment_name, tenant_id, role,
+        scope_declaration, authority_status, rule_key, title, expected_outcome,
+        assert_selector, assert_type, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(rule_id) DO UPDATE SET
+        source_ref = excluded.source_ref,
+        source_version = excluded.source_version,
+        source_digest = excluded.source_digest,
+        module_key = excluded.module_key,
+        route_pathname = excluded.route_pathname,
+        environment_name = excluded.environment_name,
+        tenant_id = excluded.tenant_id,
+        role = excluded.role,
+        scope_declaration = excluded.scope_declaration,
+        authority_status = excluded.authority_status,
+        rule_key = excluded.rule_key,
+        title = excluded.title,
+        expected_outcome = excluded.expected_outcome,
+        assert_selector = excluded.assert_selector,
+        assert_type = excluded.assert_type,
+        updated_at = excluded.updated_at`,
+      ruleId,
+      input.projectId,
+      input.sourceKind,
+      input.sourceId,
+      input.sourceRef,
+      input.sourceVersion,
+      input.sourceDigest ?? null,
+      moduleKey,
+      routePathname,
+      envName,
+      tenantId,
+      role,
+      scopeDeclaration,
+      input.authorityStatus,
+      ruleKey,
+      input.title.trim(),
+      input.expectedOutcome.trim(),
+      input.assertSelector ?? null,
+      input.assertType ?? null,
+      now,
+      now,
+    );
+    const saved = this.store.get<Record<string, unknown>>(
+      'SELECT * FROM scoped_business_rules WHERE rule_id = ?',
+      ruleId,
+    )!;
+    return this.mapScopedBusinessRuleRow(saved);
+  }
+
+  private mapScopedBusinessRuleRow(row: Record<string, unknown>): ScopedBusinessRuleRecord {
+    return {
+      rule_id: rowStr(row.rule_id),
+      project_id: rowStr(row.project_id),
+      source_kind: row.source_kind as ScopedBusinessRuleRecord['source_kind'],
+      source_id: rowStr(row.source_id),
+      source_ref: rowStr(row.source_ref),
+      source_version: rowStr(row.source_version),
+      source_digest: rowOptStr(row.source_digest) ?? null,
+      module_key: rowStr(row.module_key),
+      route_pathname: rowStr(row.route_pathname),
+      environment_name: rowOptStr(row.environment_name) ?? null,
+      tenant_id: rowOptStr(row.tenant_id) ?? null,
+      role: rowOptStr(row.role) ?? null,
+      scope_declaration: row.scope_declaration as ScopedBusinessRuleRecord['scope_declaration'],
+      authority_status: row.authority_status as ScopedBusinessRuleRecord['authority_status'],
+      rule_key: rowStr(row.rule_key),
+      title: rowStr(row.title),
+      expected_outcome: rowStr(row.expected_outcome),
+      assert_selector: rowOptStr(row.assert_selector) ?? null,
+      assert_type: (rowOptStr(row.assert_type) as RuleAssertType | null) ?? null,
+      created_at: rowStr(row.created_at),
+      updated_at: rowStr(row.updated_at),
+    };
+  }
+
+  upsertScopedBusinessRule(input: UpsertScopedBusinessRuleInput): ScopedBusinessRuleRecord {
+    this.assertActiveProject(input.projectId);
+    return this.store.transaction('IMMEDIATE', () => this.writeScopedBusinessRuleRow(input));
+  }
+
+  listScopedBusinessRules(
+    projectId: string,
+    filters?: { readonly moduleKey?: string; readonly sourceKind?: 'confirmed_requirement' | 'ingested_doc'; readonly sourceId?: string },
+  ): ScopedBusinessRuleRecord[] {
+    this.assertActiveProject(projectId);
+    const clauses = ['project_id = ?'];
+    const params: Array<string> = [projectId];
+    if (filters?.moduleKey) {
+      clauses.push('(module_key = ? OR module_key = ?)');
+      params.push(filters.moduleKey, '*');
+    }
+    if (filters?.sourceKind) {
+      clauses.push('source_kind = ?');
+      params.push(filters.sourceKind);
+    }
+    if (filters?.sourceId) {
+      clauses.push('source_id = ?');
+      params.push(filters.sourceId);
+    }
+    const rows = this.store.all<Record<string, unknown>>(
+      `SELECT * FROM scoped_business_rules WHERE ${clauses.join(' AND ')} ORDER BY updated_at DESC, rule_id ASC`,
+      ...params,
+    );
+    return rows.map((row) => this.mapScopedBusinessRuleRow(row));
+  }
+
+  upsertServiceRequirement(
+    params: Parameters<Block3ExecutionRepo['upsertRequirement']>[0] & {
+      readonly scope?: {
+        readonly environment_name?: string | null;
+        readonly tenant_id?: string | null;
+        readonly role?: string | null;
+        readonly route_pathname?: string | null;
+        readonly scope_declaration?: RuleScopeDeclaration;
+      };
+      readonly provenance?: {
+        readonly source_ref?: string;
+        readonly source_version?: string;
+        readonly rule_key?: string;
+        readonly authority_status?: RuleAuthorityStatus;
+        readonly assert_selector?: string | null;
+        readonly assert_type?: RuleAssertType | null;
+      };
+    },
+  ): ServiceRequirementRecord {
     this.assertActiveProject(params.projectId);
-    return this.block3.upsertRequirement(params);
+    const req = this.block3.upsertRequirement(params);
+    const envName = normalizeScopeToken(params.scope?.environment_name);
+    const tenantId = normalizeScopeToken(params.scope?.tenant_id);
+    const role = normalizeScopeToken(params.scope?.role);
+    if (envName && tenantId && role) {
+      const outcome = req.acceptance_criteria[0]?.trim() || req.description.trim();
+      if (outcome) {
+        this.upsertScopedBusinessRule({
+          ruleId: `sreq-${req.requirement_id}`,
+          projectId: params.projectId,
+          sourceKind: 'confirmed_requirement',
+          sourceId: req.requirement_id,
+          sourceRef: params.provenance?.source_ref ?? `requirement:${req.requirement_id}`,
+          sourceVersion: params.provenance?.source_version ?? `rev:${req.revision}`,
+          moduleKey: req.module_key,
+          routePathname: normalizeRuleRoute(params.scope?.route_pathname ?? '*'),
+          environmentName: envName,
+          tenantId,
+          role,
+          ...(params.scope?.scope_declaration ? { scopeDeclaration: params.scope.scope_declaration } : {}),
+          authorityStatus:
+            params.provenance?.authority_status ??
+            (req.validation_status === 'confirmed' ? 'accredited' : 'unaccredited'),
+          ruleKey: params.provenance?.rule_key ?? normalizeRuleKey(req.title),
+          title: req.title,
+          expectedOutcome: outcome,
+          assertSelector: params.provenance?.assert_selector ?? null,
+          assertType: params.provenance?.assert_type ?? null,
+        });
+      }
+    }
+    return req;
   }
 
   listServiceRequirements(projectId: string, moduleKey?: string): ServiceRequirementRecord[] {
@@ -2270,6 +2890,310 @@ export class QapApplicationService {
     const campaignId = project.active_campaign_id;
     if (!campaignId) return null;
     return this.updateCampaignPhase(campaignId, 'WRAP_UP', 'completed');
+  }
+
+  private parseDiscoveryRevisionRow(row: Record<string, unknown>): DiscoveryRevisionRecord {
+    return {
+      revision_id: rowStr(row.revision_id),
+      project_id: rowStr(row.project_id),
+      application_id: rowStr(row.application_id),
+      environment_id: rowStr(row.environment_id),
+      environment_name: rowStr(row.environment_name),
+      tenant_id: row.tenant_id == null ? null : rowStr(row.tenant_id),
+      profile_id: row.profile_id == null ? null : rowStr(row.profile_id),
+      role: row.role == null ? null : rowStr(row.role),
+      module_key: rowStr(row.module_key),
+      module_title: rowStr(row.module_title),
+      target_url: rowStr(row.target_url),
+      execution_id: rowStr(row.execution_id),
+      inventory_id: row.inventory_id == null ? null : rowStr(row.inventory_id),
+      content_hash: rowStr(row.content_hash),
+      scope_hash: rowStr(row.scope_hash),
+      dossier: JSON.parse(rowStr(row.dossier_json)) as DiscoveryDossierCanonical,
+      created_at: rowStr(row.created_at),
+    };
+  }
+
+  saveDiscoveryRevision(input: {
+    readonly dossier: DiscoveryDossierCanonical;
+    readonly targetUrl: string;
+    readonly executionId: string;
+    readonly inventoryId?: string | null;
+  }): { readonly revision: DiscoveryRevisionRecord; readonly reused: boolean } {
+    const { scope } = input.dossier;
+    this.assertActiveProject(scope.project_id);
+    const moduleKey = normalizeSlug(scope.module_key);
+    const scopeHash = computeScopeHash(scope);
+    const contentHash = computeDossierContentHash(input.dossier);
+    const now = new Date().toISOString();
+
+    return this.store.transaction('IMMEDIATE', () => {
+      const existing = this.store.get<Record<string, unknown>>(
+        `SELECT * FROM discovery_revisions
+         WHERE project_id = ? AND module_key = ? AND scope_hash = ? AND content_hash = ?`,
+        scope.project_id,
+        moduleKey,
+        scopeHash,
+        contentHash,
+      );
+
+      let revision: DiscoveryRevisionRecord;
+      let reused = false;
+
+      if (existing) {
+        revision = this.parseDiscoveryRevisionRow(existing);
+        reused = true;
+      } else {
+        const revisionId = buildDiscoveryRevisionId(scopeHash, contentHash);
+        this.store.run(
+          `INSERT INTO discovery_revisions (
+            revision_id, project_id, application_id, environment_id, environment_name,
+            tenant_id, profile_id, role, module_key, module_title,
+            target_url, execution_id, inventory_id, content_hash, scope_hash, dossier_json, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          revisionId,
+          scope.project_id,
+          scope.application_id,
+          scope.environment_id,
+          scope.environment_name,
+          scope.tenant_id,
+          scope.profile_id,
+          scope.role,
+          moduleKey,
+          scope.module_title,
+          sanitizeTargetPathname(input.targetUrl),
+          input.executionId,
+          input.inventoryId ?? null,
+          contentHash,
+          scopeHash,
+          JSON.stringify(input.dossier),
+          now,
+        );
+        const inserted = this.store.get<Record<string, unknown>>(
+          'SELECT * FROM discovery_revisions WHERE revision_id = ?',
+          revisionId,
+        );
+        if (!inserted) {
+          throw new ApplicationServiceError('discovery_revision_persist_failed', 'No se pudo persistir la revisión del expediente.');
+        }
+        revision = this.parseDiscoveryRevisionRow(inserted);
+      }
+
+      this.store.run(
+        `INSERT INTO discovery_scope_heads (project_id, scope_hash, module_key, active_revision_id, updated_at)
+         VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT(project_id, scope_hash) DO UPDATE SET
+           module_key = excluded.module_key,
+           active_revision_id = excluded.active_revision_id,
+           updated_at = excluded.updated_at`,
+        scope.project_id,
+        scopeHash,
+        moduleKey,
+        revision.revision_id,
+        now,
+      );
+
+      return { revision, reused };
+    });
+  }
+
+  getDiscoveryRevision(revisionId: string): DiscoveryRevisionRecord | null {
+    const row = this.store.get<Record<string, unknown>>(
+      'SELECT * FROM discovery_revisions WHERE revision_id = ?',
+      revisionId,
+    );
+    return row ? this.parseDiscoveryRevisionRow(row) : null;
+  }
+
+  listDiscoveryRevisions(projectId: string, moduleKey?: string): DiscoveryRevisionRecord[] {
+    this.assertActiveProject(projectId);
+    const rows = moduleKey
+      ? this.store.all<Record<string, unknown>>(
+          `SELECT * FROM discovery_revisions
+           WHERE project_id = ? AND module_key = ?
+           ORDER BY created_at DESC, rowid DESC LIMIT 200`,
+          projectId,
+          normalizeSlug(moduleKey),
+        )
+      : this.store.all<Record<string, unknown>>(
+          `SELECT * FROM discovery_revisions
+           WHERE project_id = ?
+           ORDER BY created_at DESC, rowid DESC LIMIT 200`,
+          projectId,
+        );
+    return rows.map((r) => this.parseDiscoveryRevisionRow(r));
+  }
+
+  listLatestDiscoveryRevisionsByScope(projectId: string): DiscoveryRevisionRecord[] {
+    this.assertActiveProject(projectId);
+    const headRows = this.store.all<Record<string, unknown>>(
+      `SELECT dr.*
+       FROM discovery_scope_heads dsh
+       JOIN discovery_revisions dr ON dr.revision_id = dsh.active_revision_id
+       WHERE dsh.project_id = ?
+       ORDER BY dsh.updated_at DESC, dsh.rowid DESC`,
+      projectId,
+    );
+    const seen = new Set<string>();
+    const latest: DiscoveryRevisionRecord[] = [];
+    for (const row of headRows) {
+      const rev = this.parseDiscoveryRevisionRow(row);
+      if (seen.has(rev.scope_hash)) continue;
+      seen.add(rev.scope_hash);
+      latest.push(rev);
+    }
+
+    const fallbackRows = this.store.all<Record<string, unknown>>(
+      `SELECT * FROM discovery_revisions
+       WHERE project_id = ?
+       ORDER BY created_at DESC, rowid DESC`,
+      projectId,
+    );
+    for (const row of fallbackRows) {
+      const rev = this.parseDiscoveryRevisionRow(row);
+      if (seen.has(rev.scope_hash)) continue;
+      seen.add(rev.scope_hash);
+      latest.push(rev);
+    }
+    return latest;
+  }
+
+  listLatestDiscoveryRevisionsByModule(projectId: string): DiscoveryRevisionRecord[] {
+    const all = this.listLatestDiscoveryRevisionsByScope(projectId);
+    const seen = new Set<string>();
+    const latest: DiscoveryRevisionRecord[] = [];
+    for (const rev of all) {
+      if (seen.has(rev.module_key)) continue;
+      seen.add(rev.module_key);
+      latest.push(rev);
+    }
+    return latest;
+  }
+
+  findLatestDiscoveryRevisionForScope(scope: DiscoveryDossierScope): DiscoveryRevisionRecord | null {
+    this.assertActiveProject(scope.project_id);
+    const moduleKey = normalizeSlug(scope.module_key);
+    const scopeHash = computeScopeHash(scope);
+    const headRow = this.store.get<Record<string, unknown>>(
+      `SELECT dr.*
+       FROM discovery_scope_heads dsh
+       JOIN discovery_revisions dr ON dr.revision_id = dsh.active_revision_id
+       WHERE dsh.project_id = ? AND dsh.module_key = ? AND dsh.scope_hash = ?
+       LIMIT 1`,
+      scope.project_id,
+      moduleKey,
+      scopeHash,
+    );
+    if (headRow) {
+      return this.parseDiscoveryRevisionRow(headRow);
+    }
+
+    const fallbackRow = this.store.get<Record<string, unknown>>(
+      `SELECT * FROM discovery_revisions
+       WHERE project_id = ? AND module_key = ? AND scope_hash = ?
+       ORDER BY created_at DESC, rowid DESC LIMIT 1`,
+      scope.project_id,
+      moduleKey,
+      scopeHash,
+    );
+    return fallbackRow ? this.parseDiscoveryRevisionRow(fallbackRow) : null;
+  }
+
+  validateDiscoveryRevisionScope(
+    revisionId: string,
+    expected: {
+      readonly projectId: string;
+      readonly applicationId?: string;
+      readonly moduleKey?: string;
+      readonly environmentId?: string;
+      readonly environmentName?: string;
+      readonly tenantId?: string | null;
+      readonly checkTenant?: boolean;
+      readonly profileId?: string | null;
+      readonly checkProfile?: boolean;
+      readonly role?: string | null;
+      readonly checkRole?: boolean;
+    },
+  ):
+    | { readonly ok: true; readonly revision: DiscoveryRevisionRecord }
+    | { readonly ok: false; readonly code: 'discovery_revision_not_found' | 'discovery_revision_out_of_scope'; readonly reason: string } {
+    const revision = this.getDiscoveryRevision(revisionId);
+    if (!revision) {
+      return {
+        ok: false,
+        code: 'discovery_revision_not_found',
+        reason: `No existe la revisión de Discovery '${revisionId}'.`,
+      };
+    }
+    if (revision.project_id !== expected.projectId) {
+      return {
+        ok: false,
+        code: 'discovery_revision_out_of_scope',
+        reason: `La revisión '${revisionId}' pertenece a otro proyecto y no puede usarse en este alcance.`,
+      };
+    }
+    if (expected.applicationId && revision.application_id !== expected.applicationId) {
+      return {
+        ok: false,
+        code: 'discovery_revision_out_of_scope',
+        reason: `La revisión '${revisionId}' pertenece a la aplicación '${revision.application_id}', distinta de '${expected.applicationId}'.`,
+      };
+    }
+    if (expected.moduleKey && normalizeSlug(revision.module_key) !== normalizeSlug(expected.moduleKey)) {
+      return {
+        ok: false,
+        code: 'discovery_revision_out_of_scope',
+        reason: `La revisión '${revisionId}' pertenece al módulo '${revision.module_key}', no a '${expected.moduleKey}'.`,
+      };
+    }
+    if (expected.environmentId && revision.environment_id !== expected.environmentId) {
+      return {
+        ok: false,
+        code: 'discovery_revision_out_of_scope',
+        reason: `La revisión '${revisionId}' pertenece al entorno '${revision.environment_name}' y no al entorno activo.`,
+      };
+    }
+    if (
+      expected.environmentName &&
+      revision.environment_name !== expected.environmentName &&
+      revision.environment_id !== expected.environmentName
+    ) {
+      return {
+        ok: false,
+        code: 'discovery_revision_out_of_scope',
+        reason: `La revisión '${revisionId}' pertenece al entorno '${revision.environment_name}', no a '${expected.environmentName}'.`,
+      };
+    }
+    if ((expected.checkTenant || expected.tenantId !== undefined) && (revision.tenant_id ?? null) !== (expected.tenantId ?? null)) {
+      return {
+        ok: false,
+        code: 'discovery_revision_out_of_scope',
+        reason: `La revisión '${revisionId}' corresponde al tenant '${revision.tenant_id ?? 'ninguno'}', distinto del alcance actual '${expected.tenantId ?? 'ninguno'}'.`,
+      };
+    }
+    if (expected.checkProfile || expected.profileId !== undefined) {
+      let resolvedExpectedProfile: string | null = null;
+      if (typeof expected.profileId === 'string' && expected.profileId.trim()) {
+        const aliasRes = this.resolveProfileAlias(expected.projectId, expected.profileId, expected.environmentId);
+        resolvedExpectedProfile =
+          aliasRes.status === 'matched' ? aliasRes.profile.profile_id : expected.profileId.trim();
+      }
+      if ((revision.profile_id ?? null) !== resolvedExpectedProfile) {
+        return {
+          ok: false,
+          code: 'discovery_revision_out_of_scope',
+          reason: `La revisión '${revisionId}' corresponde al perfil '${revision.profile_id ?? 'anónimo'}', distinto de '${resolvedExpectedProfile ?? 'anónimo'}'.`,
+        };
+      }
+    }
+    if ((expected.checkRole || expected.role !== undefined) && (revision.role ?? null) !== (expected.role ?? null)) {
+      return {
+        ok: false,
+        code: 'discovery_revision_out_of_scope',
+        reason: `La revisión '${revisionId}' corresponde al rol '${revision.role ?? 'ninguno'}', distinto de '${expected.role ?? 'ninguno'}'.`,
+      };
+    }
+    return { ok: true, revision };
   }
 
   close(): void {

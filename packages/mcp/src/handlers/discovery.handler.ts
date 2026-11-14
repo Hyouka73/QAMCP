@@ -2,11 +2,23 @@ import { realpathSync } from 'node:fs';
 
 import { SessionStore, readProfile } from '@qap/auth';
 import { FileSystemStorage } from '@qap/knowledge';
-import { normalizeSlug } from '@qap/shared';
+import { normalizeSlug, type AuthProfileRecord } from '@qap/shared';
 import { BlackBoxCrawler, BlackBoxCrawlerError, type BlackBoxCrawlerInput, type CrawlerDependencies } from '@qap/playwright-adapter';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
 import { McpToolError, type IMcpToolHandler, type McpInvocationContext } from '../dispatcher.js';
+import {
+  sanitizeDossierText,
+  sanitizeTargetPathname,
+  writeDiscoveryMarkdownFiles,
+  type DiscoveryDossierCanonical,
+  type DiscoveryDossierGap,
+  type DiscoveryDossierRelation,
+  type DiscoveryDossierRoute,
+  type DiscoveryDossierSourceRef,
+  type DiscoveryDossierView,
+} from '../application/discovery-dossier.js';
+import { resolveScopedBusinessRules } from '../application/scoped-rule-resolver.js';
 import {
   type IDiscoveryAuthorizer,
   syncDiscoveryAuthorizationsFromDisk,
@@ -97,7 +109,7 @@ export class DiscoveryHandler implements IMcpToolHandler {
 
   validateArguments(args: unknown): boolean {
     if (!isObject(args) || !validateBase(args, ['targetPath', 'name', 'path', 'description', 'tags', 'headed',
-      'credentials', 'profile', 'profileId', 'storageState', 'cookies', 'session', 'auth', 'allow_spa', 'tenant_id'])) return false;
+      'credentials', 'profile', 'profileId', 'storageState', 'cookies', 'session', 'auth', 'allow_spa', 'tenant_id', 'environment'])) return false;
     if (typeof args.name !== 'string' || !args.name.trim() || args.name.length > 128 || [...args.name].some(c => c.charCodeAt(0) < 32) ||
       typeof args.path !== 'string' || !args.path || args.path.length > 2048) return false;
     if (args.description !== undefined && (typeof args.description !== 'string' || args.description.length > 4000)) return false;
@@ -105,6 +117,7 @@ export class DiscoveryHandler implements IMcpToolHandler {
       args.tags.some((tag: unknown) => typeof tag !== 'string' || tag.length > 100))) return false;
     if (args.allow_spa !== undefined && typeof args.allow_spa !== 'boolean') return false;
     if (args.tenant_id !== undefined && (typeof args.tenant_id !== 'string' || !args.tenant_id.trim() || args.tenant_id.length > 128)) return false;
+    if (args.environment !== undefined && (typeof args.environment !== 'string' || !args.environment.trim() || args.environment.length > 128)) return false;
     return args.headed === undefined || typeof args.headed === 'boolean';
   }
 
@@ -155,12 +168,63 @@ export class DiscoveryHandler implements IMcpToolHandler {
       let config: DiscoveryAuthorization | undefined = current[0];
       const appService = this.dependencies.applicationService;
       const appProject = appService ? appService.findActiveProjectByRoot(root) : null;
+      const requestedTenant = typeof args.tenant_id === 'string' && args.tenant_id.trim() ? args.tenant_id.trim() : undefined;
+      const requestedProfileRaw = typeof args.profile === 'string' && args.profile.trim() ? args.profile.trim() : undefined;
+      const requestedEnvironment = typeof args.environment === 'string' && args.environment.trim() ? args.environment.trim() : undefined;
+      const initialProjectSnap = appService && appProject ? appService.resumeProject(appProject.project_id) : null;
+      const effectiveActiveEnv = initialProjectSnap?.environment ?? null;
+      const effectiveActiveEnvId = effectiveActiveEnv?.env_id ?? appProject?.active_env_id ?? undefined;
+      if (requestedEnvironment) {
+        const activeEnvName = effectiveActiveEnv?.name ?? env.entity.name;
+        const activeEnvKey = effectiveActiveEnv?.env_id ?? env.entity.environment_id;
+        if (requestedEnvironment !== activeEnvName && requestedEnvironment !== activeEnvKey) {
+          return blocked(
+            'discovery_environment_not_active',
+            `Discovery solo puede operar sobre el entorno activo ('${activeEnvName}'). Cambia el entorno activo o selecciona '${activeEnvName}' antes de explorar '${requestedEnvironment}'.`,
+            {
+              requested_environment: requestedEnvironment,
+              active_environment: activeEnvName,
+              question: `Discovery solo opera sobre el entorno activo '${activeEnvName}'. ¿Deseas explorar '${activeEnvName}' o cambiar primero el entorno activo a '${requestedEnvironment}'?`,
+              field: 'environment',
+              options: [activeEnvName, requestedEnvironment],
+              downgraded_to_anonymous: false,
+              desbloquear_con: {
+                tool: 'qap_context_set',
+                descripcion: `Activa el entorno '${requestedEnvironment}' antes de ejecutar Discovery sobre él.`,
+              },
+            },
+          );
+        }
+      }
+      let resolvedTenantId: string | undefined;
       if (appService && appProject) {
-        const tenantCheck = appService.validateTenantScope(appProject.project_id,
-          typeof args.tenant_id === 'string' ? args.tenant_id : undefined,
-          typeof args.profile === 'string' ? args.profile : undefined);
+        let initialProfileRef = requestedProfileRaw;
+        if (requestedProfileRaw) {
+          const aliasCheck = appService.resolveProfileAlias(
+            appProject.project_id,
+            requestedProfileRaw,
+            effectiveActiveEnvId,
+          );
+          if (aliasCheck.status === 'ambiguous') {
+            return blocked(
+              'ambiguous_auth_profile',
+              `El alias '${requestedProfileRaw}' coincide con múltiples perfiles; indica el perfil exacto.`,
+              { downgraded_to_anonymous: false },
+            );
+          }
+          if (aliasCheck.status === 'matched') {
+            initialProfileRef = aliasCheck.profile.profile_id;
+          }
+        }
+        const tenantCheck = appService.validateTenantScope(
+          appProject.project_id,
+          requestedTenant,
+          initialProfileRef,
+          effectiveActiveEnvId,
+        );
         if (!tenantCheck.ok) return blocked(tenantCheck.code, tenantCheck.reason, { downgraded_to_anonymous: false });
-        const observeScope = { origin: baseOrigin, ...(appProject.active_env_id ? { env_id: appProject.active_env_id } : {}) };
+        resolvedTenantId = tenantCheck.tenant_id;
+        const observeScope = { origin: baseOrigin, ...(effectiveActiveEnvId ? { env_id: effectiveActiveEnvId } : {}) };
         const activeObserve = appService.authority.check(appProject.project_id, 'observe', observeScope);
         const revokedObserve = appService.authority.listGrants(appProject.project_id, true)
           .some(g => g.capability === 'observe' && g.status === 'revoked');
@@ -347,43 +411,109 @@ export class DiscoveryHandler implements IMcpToolHandler {
       }
 
       let authenticated_session: BlackBoxCrawlerInput['authenticated_session'];
-      let resolvedProfileName: string | undefined = typeof args.profile === 'string' ? args.profile : undefined;
+      let resolvedProfileName: string | undefined = requestedProfileRaw;
+      let resolvedProfileRecord: AuthProfileRecord | undefined;
       let sessionHasOrigins = false;
-      const projectProfiles = appService && appProject ? appService.resumeProject(appProject.project_id).profiles : [];
+      const projectSnapForAuth = initialProjectSnap ?? (appService && appProject ? appService.resumeProject(appProject.project_id) : null);
+      const projectProfiles = projectSnapForAuth ? projectSnapForAuth.profiles : [];
+      const activeEnvId = effectiveActiveEnvId ?? projectSnapForAuth?.environment?.env_id ?? appProject?.active_env_id ?? undefined;
+      const envScopedProfiles = activeEnvId
+        ? projectProfiles.filter((p) => p.env_id === activeEnvId)
+        : projectProfiles;
+      const effectiveProfilesPool = activeEnvId ? envScopedProfiles : projectProfiles;
       const protectedProjectHasProfiles = Boolean(
-        appService && appProject && projectProfiles.some((p) => p.status === 'verified' || p.status === 'expired' || p.status === 'revoked'),
+        appService && appProject && effectiveProfilesPool.some((p) => p.status === 'verified' || p.status === 'expired' || p.status === 'revoked'),
       );
-      const authRequired = args.profile !== undefined || Boolean(lifecycle.session?.auth?.required) || protectedProjectHasProfiles;
+      const authRequired = requestedProfileRaw !== undefined || Boolean(lifecycle.session?.auth?.required) || protectedProjectHasProfiles;
 
       if (authRequired) {
-        if (!resolvedProfileName && appService && appProject) {
-          const candidates = projectProfiles.filter((p) => p.status !== 'revoked');
-          if (candidates.length === 0) {
-            return blocked('auth_required', 'Se requiere iniciar sesión antes de explorar vistas protegidas.', { downgraded_to_anonymous: false });
+        if (appService && appProject) {
+          if (resolvedProfileName) {
+            const aliasRes = appService.resolveProfileAlias(appProject.project_id, resolvedProfileName, activeEnvId);
+            if (aliasRes.status === 'ambiguous') {
+              return blocked(
+                'ambiguous_auth_profile',
+                `El alias '${resolvedProfileName}' coincide con múltiples perfiles; indica cuál deseas usar.`,
+                { downgraded_to_anonymous: false },
+              );
+            }
+            if (aliasRes.status === 'matched') {
+              resolvedProfileRecord = aliasRes.profile;
+              resolvedProfileName = aliasRes.profile.label;
+            } else {
+              const belongsToAnotherEnv = Boolean(
+                activeEnvId && appService.resolveProfileAlias(appProject.project_id, resolvedProfileName).status !== 'not_found',
+              );
+              if (belongsToAnotherEnv || effectiveProfilesPool.length > 0) {
+                return blocked(
+                  'profile_not_found',
+                  `El perfil '${resolvedProfileName}' no pertenece al alcance del entorno activo.`,
+                  { downgraded_to_anonymous: false },
+                );
+              }
+            }
+          } else {
+            let candidates = effectiveProfilesPool.filter((p) => p.status !== 'revoked');
+            if (candidates.length === 0) {
+              return blocked('auth_required', 'Se requiere iniciar sesión antes de explorar vistas protegidas.', { downgraded_to_anonymous: false });
+            }
+            if (requestedTenant) {
+              const tenantMode = projectSnapForAuth?.environment?.tenant_mode ?? 'single';
+              candidates = candidates.filter((p) =>
+                tenantMode === 'multi_tenant'
+                  ? p.tenant_id === requestedTenant
+                  : (!p.tenant_id || p.tenant_id === requestedTenant),
+              );
+              if (candidates.length === 0) {
+                return blocked(
+                  'tenant_mismatch',
+                  `El tenant '${requestedTenant}' no es compatible con ningún perfil activo disponible.`,
+                  { downgraded_to_anonymous: false },
+                );
+              }
+            }
+            if (candidates.length > 1) {
+              return blocked('ambiguous_auth_profile', 'Existen múltiples perfiles disponibles; selecciona explícitamente cuál utilizar.', { downgraded_to_anonymous: false });
+            }
+            resolvedProfileRecord = candidates[0];
+            resolvedProfileName = candidates[0].label;
           }
-          if (candidates.length > 1) {
-            return blocked('ambiguous_auth_profile', 'Existen múltiples perfiles disponibles; selecciona explícitamente cuál utilizar.', { downgraded_to_anonymous: false });
-          }
-          resolvedProfileName = candidates[0].label;
         }
         if (!resolvedProfileName) {
           return blocked('unauthorized_profile', 'Indica el perfil autorizado para explorar vistas protegidas.', { downgraded_to_anonymous: false });
         }
 
         if (appService && appProject) {
+          const postTenantCheck = appService.validateTenantScope(
+            appProject.project_id,
+            requestedTenant,
+            resolvedProfileRecord?.profile_id ?? resolvedProfileName,
+            activeEnvId,
+          );
+          if (!postTenantCheck.ok) {
+            return blocked(postTenantCheck.code, postTenantCheck.reason, { downgraded_to_anonymous: false });
+          }
+          resolvedTenantId = postTenantCheck.tenant_id;
+
           const hostProfile = appService.readProfileSession<{ cookies: BlackBoxCrawlerInput['authenticated_session'] extends infer T ? T extends { cookies: infer C } ? C : never : never; origins?: Array<{ origin: string; localStorage: Array<{ name: string; value: string }> }> }>(
             appProject.project_id,
-            resolvedProfileName,
+            resolvedProfileRecord?.profile_id ?? resolvedProfileName,
           );
           const loginCap = appService.authority.check(appProject.project_id, 'login', { origin: new URL(env.entity.base_url).origin });
           if (hostProfile) {
+            resolvedProfileRecord = hostProfile.profile;
+            resolvedProfileName = hostProfile.profile.label;
             if (hostProfile.revoked || (!loginCap.allowed && (loginCap.reason === 'revoked' || hostProfile.profile.status !== 'verified'))) {
               return blocked('auth_session_revoked', 'El acceso autenticado fue revocado; vuelve a iniciar sesión con autorización.', { downgraded_to_anonymous: false });
             }
             if (hostProfile.expired || (!loginCap.allowed && loginCap.reason === 'expired') || !hostProfile.session) {
               return blocked('auth_session_expired', 'La sesión expiró o dejó de ser válida; renueva el acceso sin degradar a modo anónimo.', { downgraded_to_anonymous: false });
             }
-            if (config.authorizedProfiles && !config.authorizedProfiles.includes(resolvedProfileName)) {
+            if (
+              config.authorizedProfiles &&
+              !config.authorizedProfiles.includes(hostProfile.profile.label) &&
+              !config.authorizedProfiles.includes(hostProfile.profile.profile_id)
+            ) {
               return blocked('unauthorized_profile', 'Perfil no autorizado en la configuración del host.', { downgraded_to_anonymous: false });
             }
             sessionHasOrigins = Boolean(hostProfile.session.origins?.some((o) => o.localStorage?.length));
@@ -474,6 +604,9 @@ export class DiscoveryHandler implements IMcpToolHandler {
       const { code: association_code, ...association } = associationResult;
       const persistedCandidates: unknown[] = [];
       let persistedInventoryId: string | undefined;
+      let discoveryRevisionId: string | undefined;
+      let discoveryReused: boolean | undefined;
+      let discoveryDossierSummary: Record<string, unknown> | undefined;
       if (appService && appProject && (output.observations.length > 0 || output.routes.length > 0)) {
         const evidenceIds = output.evidence.map((e) => e.id);
         const routePath = (() => {
@@ -514,6 +647,284 @@ export class DiscoveryHandler implements IMcpToolHandler {
           candidateKeys,
         });
         persistedInventoryId = inv.inventory_id;
+
+        const safeName = typeof args.name === 'string' ? args.name : 'inventario';
+        const dossierBaseKey = safeName === 'inventario-provisional'
+          ? (routePath.replace(/^\/+|\/+$/g, '').split('/')[0] || 'inicio')
+          : safeName;
+        const dossierModuleKey = normalizeSlug(appServiceMod?.key ?? dossierBaseKey);
+        const dossierModuleTitle = appServiceMod?.title ??
+          (typeof args.description === 'string' && args.description.trim()
+            ? args.description.trim()
+            : (typeof args.name === 'string' && args.name.trim() ? args.name.trim() : dossierModuleKey));
+        const projectSnap = appService.resumeProject(appProject.project_id);
+        const activeProfile = resolvedProfileRecord ?? (resolvedProfileName
+          ? projectProfiles.find((p) => p.label === resolvedProfileName || p.profile_id === resolvedProfileName)
+          : undefined);
+        const resolvedDurableProfileId = activeProfile?.profile_id ?? (resolvedProfileName && projectProfiles.length === 0 ? resolvedProfileName : null);
+
+        const routeIndexMap = new Map<string, number>();
+        output.routes.forEach((r, idx) => {
+          routeIndexMap.set(r.route, idx);
+        });
+
+        const dossierRoutes: DiscoveryDossierRoute[] = output.routes.map((r) => {
+          const authorizedUrl = r.authorized_index !== undefined
+            ? navigationAuthorization.navigation_urls[r.authorized_index]
+            : undefined;
+          const sanitizedPath = authorizedUrl ? sanitizeTargetPathname(authorizedUrl) : undefined;
+          return {
+            reference: r.route,
+            state: r.state,
+            depth: r.depth,
+            ...(r.http_status !== undefined ? { http_status: r.http_status } : {}),
+            ...(sanitizeDossierText(r.reason, 120) ? { reason: sanitizeDossierText(r.reason, 120) } : {}),
+            ...(r.view_id ? { view_id: r.view_id } : {}),
+            ...(sanitizedPath ? { authorized_pathname: sanitizedPath } : {}),
+          };
+        });
+
+        const dossierRelations: DiscoveryDossierRelation[] = output.relations
+          .map((rel) => {
+            const fromIdx = routeIndexMap.get(rel.from) ?? -1;
+            const toIdx = routeIndexMap.get(rel.to) ?? -1;
+            return {
+              from_route_index: fromIdx,
+              to_route_index: toIdx,
+              kind: rel.kind,
+            };
+          })
+          .filter((rel) => rel.from_route_index >= 0 && rel.to_route_index >= 0);
+
+        const dossierViews: DiscoveryDossierView[] = [];
+        for (const v of output.views) {
+          let headings: string[] = [];
+          try {
+            const evRecord = await bound.store.get(bound.applicationId, 'evidence', v.evidence_id);
+            const rawHeadings = (evRecord?.entity.metadata as { view?: { headings?: unknown[] } } | undefined)?.view?.headings;
+            if (Array.isArray(rawHeadings)) {
+              headings = rawHeadings
+                .map((h) => sanitizeDossierText(h, 120))
+                .filter((h): h is string => Boolean(h));
+            }
+          } catch {
+            // Best-effort heading enrichment from Knowledge evidence
+          }
+          const viewRouteIndex = routeIndexMap.get(v.route);
+          dossierViews.push({
+            view_id: v.id,
+            route: v.route,
+            ...(viewRouteIndex !== undefined ? { route_index: viewRouteIndex } : {}),
+            state: v.state,
+            evidence_id: v.evidence_id,
+            headings,
+            controls: v.controls.map((c) => ({
+              tag: c.tag,
+              ...(c.role ? { role: c.role } : {}),
+              ...(c.input_type ? { input_type: c.input_type } : {}),
+              ...(sanitizeDossierText(c.label, 120) ? { label: sanitizeDossierText(c.label, 120) } : {}),
+              visibility: c.visibility,
+              disabled: c.disabled,
+              required_in_dom: c.required_in_dom,
+              selector_candidates: c.selector_candidates
+                .map((s) => sanitizeDossierText(s, 120))
+                .filter((s): s is string => Boolean(s))
+                .slice(0, 5),
+              selector_stability: c.selector_stability,
+            })),
+            menus: v.menus,
+            forms: v.forms.map((f) => ({
+              action_kind: f.submit_indices.length > 0 ? 'submit' : 'fields_only',
+              method: f.method,
+              field_count: f.field_indices.length,
+            })),
+            links: v.links.map((l) => ({
+              target_route_index: routeIndexMap.get(l.target) ?? -1,
+              control_index: l.control_index,
+              authorized: l.authorized,
+              ...(sanitizeDossierText(l.label, 120) ? { label: sanitizeDossierText(l.label, 120) } : {}),
+            })),
+            forms_count: v.forms.length,
+            links_count: v.links.length,
+            truncated: v.truncated,
+          });
+        }
+
+        const ingestedDocs = appService
+          .listIngestedDocuments(appProject.project_id)
+          .sort((a, b) => a.doc_id.localeCompare(b.doc_id));
+        const dossierScope = {
+          project_id: appProject.project_id,
+          application_id: appProject.application_id,
+          environment_id: projectSnap.environment?.env_id ?? bound.environmentId,
+          environment_name: projectSnap.environment?.name ?? env.entity.name,
+          tenant_id: resolvedTenantId ?? null,
+          profile_id: resolvedDurableProfileId,
+          role: activeProfile?.role_name ?? null,
+          module_key: dossierModuleKey,
+          module_title: dossierModuleTitle,
+        };
+        const targetPathname = sanitizeTargetPathname(target);
+        const confirmedReqs = appService
+          .listServiceRequirements(appProject.project_id, dossierModuleKey)
+          .filter((r) => r.validation_status === 'confirmed');
+        const allScopedRules = appService.listScopedBusinessRules(appProject.project_id);
+        const ruleResolution = resolveScopedBusinessRules({
+          scope: dossierScope,
+          targetPathname,
+          discoveredRoutes: dossierRoutes
+            .map((r) => r.authorized_pathname)
+            .filter((p): p is string => Boolean(p))
+            .map((pathname) => ({ pathname })),
+          views: dossierViews,
+          scopedRules: allScopedRules,
+          ingestedDocs,
+          legacyRequirements: confirmedReqs,
+        });
+
+        const accreditedReqRefs: DiscoveryDossierSourceRef[] = ruleResolution.decisions
+          .filter((d) => d.decision_status === 'accredited' && d.source_kind === 'confirmed_requirement' && d.source_id)
+          .map((d) => ({
+            kind: 'confirmed_requirement' as const,
+            ref_id: d.source_id!,
+            label: sanitizeDossierText(`${d.source_ref} (${d.source_version ?? 'rev:1'})`, 120),
+          }))
+          .sort((a, b) => a.ref_id.localeCompare(b.ref_id));
+
+        const sourceRefs: DiscoveryDossierSourceRef[] = [
+          ...[...output.evidence]
+            .sort((a, b) => a.id.localeCompare(b.id))
+            .map((e) => ({ kind: 'knowledge_evidence' as const, ref_id: e.id })),
+          ...[...output.observations]
+            .sort((a, b) => a.id.localeCompare(b.id))
+            .map((o) => ({ kind: 'knowledge_observation' as const, ref_id: o.id })),
+          ...ingestedDocs
+            .map((d) => ({ kind: 'ingested_doc' as const, ref_id: d.doc_id, label: sanitizeDossierText(d.source_ref, 120) })),
+          ...accreditedReqRefs,
+        ];
+
+        const visitedCount = output.routes.filter((r) => r.state === 'visited').length;
+        const candidateCount = output.routes.filter((r) => r.state === 'candidate').length;
+        const blockedCount = output.routes.filter((r) => r.state === 'blocked').length;
+        const pendingDiscrepancies = appService.listDiscrepancies(appProject.project_id, true);
+
+        const gaps: DiscoveryDossierGap[] = [];
+        if (ruleResolution.summary.accredited_count === 0) {
+          gaps.push({
+            code: 'missing_business_rules',
+            description: 'No hay reglas de negocio acreditadas para este módulo y alcance; las observaciones DOM no acreditan comportamiento esperado.',
+            severity: 'warning',
+          });
+        }
+        if (ruleResolution.summary.pending_contradiction_count > 0) {
+          gaps.push({
+            code: 'rule_contradiction',
+            description: `${ruleResolution.summary.pending_contradiction_count} contradicción(es) de igual autoridad pendiente(s) de aclaración; no se generan oráculos ejecutables para esas reglas.`,
+            severity: 'blocking',
+          });
+        }
+        if (ruleResolution.summary.unaccredited_pending_count > 0) {
+          gaps.push({
+            code: 'unaccredited_expectations',
+            description: `${ruleResolution.summary.unaccredited_pending_count} expectativa(s) sin acreditar permanecen pendientes sin oráculo.`,
+            severity: 'warning',
+          });
+        }
+        if (ruleResolution.summary.legacy_pending_count > 0) {
+          gaps.push({
+            code: 'legacy_unscoped_requirements',
+            description: `${ruleResolution.summary.legacy_pending_count} requisito(s) histórico(s) sin alcance explícito no promovido(s) automáticamente.`,
+            severity: 'warning',
+          });
+        }
+        if (blockedCount > 0) {
+          gaps.push({
+            code: 'blocked_routes_present',
+            description: `${blockedCount} ruta(s) bloqueada(s) durante el recorrido.`,
+            severity: 'warning',
+          });
+        }
+        if (candidateCount > 0) {
+          gaps.push({
+            code: 'candidate_routes_unexplored',
+            description: `${candidateCount} ruta(s) candidata(s) detectada(s) sin explorar en este recorrido.`,
+            severity: 'info',
+          });
+        }
+        if (output.views.length === 0) {
+          gaps.push({
+            code: 'no_views_observed',
+            description: 'No se observaron vistas renderizadas en este recorrido.',
+            severity: 'warning',
+          });
+        }
+        if (output.status === 'partial' || dossierViews.some((v) => v.truncated)) {
+          gaps.push({
+            code: 'partial_coverage',
+            description: 'Cobertura parcial: algunas vistas o enlaces excedieron los límites del recorrido.',
+            severity: 'info',
+          });
+        }
+        if (pendingDiscrepancies.length > 0) {
+          gaps.push({
+            code: 'pending_context_discrepancies',
+            description: `${pendingDiscrepancies.length} discrepancia(s) de contexto pendiente(s) de decisión.`,
+            severity: 'warning',
+          });
+        }
+
+        const sanitizedLimitations = output.warnings
+          .map((w) => sanitizeDossierText(w, 160))
+          .filter((w): w is string => Boolean(w))
+          .sort();
+
+        const canonicalDossier: DiscoveryDossierCanonical = {
+          schema_version: '1',
+          scope: dossierScope,
+          target_pathname: targetPathname,
+          mode: output.mode,
+          acquisition_status: output.status,
+          routes: dossierRoutes,
+          relations: dossierRelations,
+          route_counts: {
+            visited: visitedCount,
+            candidate: candidateCount,
+            blocked: blockedCount,
+          },
+          views: dossierViews,
+          source_refs: sourceRefs,
+          gaps,
+          limitations: sanitizedLimitations,
+          rule_resolution: ruleResolution,
+        };
+
+        const savedRevision = appService.saveDiscoveryRevision({
+          dossier: canonicalDossier,
+          targetUrl: sanitizeTargetPathname(target),
+          executionId: output.execution_id,
+          inventoryId: inv.inventory_id,
+        });
+        discoveryRevisionId = savedRevision.revision.revision_id;
+        discoveryReused = savedRevision.reused;
+        const latestByScope = appService.listLatestDiscoveryRevisionsByScope(appProject.project_id);
+        const mdFiles = writeDiscoveryMarkdownFiles(
+          root,
+          appProject.project_id,
+          latestByScope,
+          { updatedPublishedRevision: savedRevision.revision },
+        );
+        discoveryDossierSummary = {
+          revision_id: savedRevision.revision.revision_id,
+          reused: savedRevision.reused,
+          module_key: dossierModuleKey,
+          index_path: mdFiles.index_path,
+          module_doc_path: mdFiles.module_doc_path,
+          scope: canonicalDossier.scope,
+          gaps_count: gaps.length,
+          rule_summary: ruleResolution.summary,
+        };
+
+        const firstBlockingAmbiguity = ruleResolution.ambiguities.find((a) => a.severity === 'blocking');
         const activeCamp = appService.resumeProject(appProject.project_id).campaign;
         if (activeCamp) {
           const taskId = `task-disc-${inv.inventory_id}`;
@@ -533,6 +944,14 @@ export class DiscoveryHandler implements IMcpToolHandler {
                 decision_id: `review-cand-${inv.inventory_id}`,
                 kind: 'human_review',
                 prompt: 'Revisa los módulos candidatos detectados y selecciona cuáles deseas aprobar para el alcance.',
+                blocking: true,
+              },
+            } : firstBlockingAmbiguity ? {
+              pendingDecision: {
+                decision_id: firstBlockingAmbiguity.ambiguity_id,
+                kind: 'human_review',
+                prompt: firstBlockingAmbiguity.question,
+                options: firstBlockingAmbiguity.options,
                 blocking: true,
               },
             } : {}),
@@ -561,6 +980,7 @@ export class DiscoveryHandler implements IMcpToolHandler {
           : identity.status,
         ...association, association_code, association_receipt: receipt,
         ...(persistedInventoryId ? { partial_inventory_id: persistedInventoryId, reviewable_candidates: persistedCandidates } : {}),
+        ...(discoveryRevisionId ? { discovery_revision_id: discoveryRevisionId, discovery_reused: discoveryReused, discovery_dossier: discoveryDossierSummary } : {}),
         ...(appServiceMod ? { service_module: { module_id: appServiceMod.module_id, key: appServiceMod.key, status: appServiceMod.status } } : {}),
         association_next_safe_action: isPlannedModule
           ? 'El módulo ya está en el alcance. Consulta qap_status para continuar en el orden del plan.'

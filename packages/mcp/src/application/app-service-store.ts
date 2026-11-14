@@ -390,6 +390,78 @@ CREATE TABLE IF NOT EXISTS report_publications (
 CREATE INDEX IF NOT EXISTS idx_report_publications_project_exec ON report_publications(project_id, execution_id, updated_at DESC);
 `;
 
+const SCHEMA_V4_SQL = `
+CREATE TABLE IF NOT EXISTS discovery_revisions (
+  revision_id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(project_id) ON DELETE CASCADE,
+  application_id TEXT NOT NULL,
+  environment_id TEXT NOT NULL,
+  environment_name TEXT NOT NULL,
+  tenant_id TEXT,
+  profile_id TEXT,
+  role TEXT,
+  module_key TEXT NOT NULL,
+  module_title TEXT NOT NULL,
+  target_url TEXT NOT NULL,
+  execution_id TEXT NOT NULL,
+  inventory_id TEXT,
+  content_hash TEXT NOT NULL,
+  scope_hash TEXT NOT NULL,
+  dossier_json TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  UNIQUE(project_id, module_key, scope_hash, content_hash)
+);
+
+CREATE INDEX IF NOT EXISTS idx_discovery_revisions_project_mod
+  ON discovery_revisions(project_id, module_key, created_at DESC);
+`;
+
+const SCHEMA_V5_SQL = `
+CREATE TABLE IF NOT EXISTS discovery_scope_heads (
+  project_id TEXT NOT NULL REFERENCES projects(project_id) ON DELETE CASCADE,
+  scope_hash TEXT NOT NULL,
+  module_key TEXT NOT NULL,
+  active_revision_id TEXT NOT NULL REFERENCES discovery_revisions(revision_id) ON DELETE CASCADE,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (project_id, scope_hash)
+);
+
+CREATE INDEX IF NOT EXISTS idx_discovery_scope_heads_project_updated
+  ON discovery_scope_heads(project_id, updated_at DESC);
+`;
+
+const SCHEMA_V6_SQL = `
+CREATE TABLE IF NOT EXISTS scoped_business_rules (
+  rule_id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(project_id) ON DELETE CASCADE,
+  source_kind TEXT NOT NULL CHECK(source_kind IN ('confirmed_requirement','ingested_doc')),
+  source_id TEXT NOT NULL,
+  source_ref TEXT NOT NULL,
+  source_version TEXT NOT NULL,
+  source_digest TEXT,
+  module_key TEXT NOT NULL,
+  route_pathname TEXT NOT NULL,
+  environment_name TEXT,
+  tenant_id TEXT,
+  role TEXT,
+  scope_declaration TEXT NOT NULL CHECK(scope_declaration IN ('exact','general_compatible','unscoped_legacy')),
+  authority_status TEXT NOT NULL CHECK(authority_status IN ('accredited','unaccredited')),
+  rule_key TEXT NOT NULL,
+  title TEXT NOT NULL,
+  expected_outcome TEXT NOT NULL,
+  assert_selector TEXT,
+  assert_type TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_scoped_business_rules_project_scope
+  ON scoped_business_rules(project_id, module_key, environment_name, tenant_id, role, authority_status);
+
+CREATE INDEX IF NOT EXISTS idx_scoped_business_rules_source
+  ON scoped_business_rules(project_id, source_kind, source_id);
+`;
+
 export class AppServiceSqliteStore {
   readonly db: DatabaseSync;
   readonly dbPath: string;
@@ -430,6 +502,9 @@ export class AppServiceSqliteStore {
       this.applySchemaStep(1, SCHEMA_SQL);
       this.applySchemaStep(2, SCHEMA_V2_SQL);
       this.applySchemaStep(3, SCHEMA_V3_SQL);
+      this.applySchemaStep(4, SCHEMA_V4_SQL);
+      this.applySchemaStep(5, SCHEMA_V5_SQL);
+      this.applySchemaStep(6, SCHEMA_V6_SQL);
     });
   }
 

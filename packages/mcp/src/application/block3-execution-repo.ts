@@ -41,6 +41,14 @@ export interface ProposeCaseInput {
   readonly requirement_id?: string;
   readonly expected_outcome?: string | null;
   readonly oracle_source?: 'user' | 'ingested_doc' | 'missing';
+  readonly business_risk_question?: string;
+  readonly expectation_metadata?: {
+    readonly rule_id?: string;
+    readonly decision_status?: string;
+    readonly source_ref?: string;
+    readonly source_version?: string;
+    readonly scope_match?: string;
+  };
   readonly risk_level?: 'low' | 'medium' | 'high' | 'critical';
   readonly risk_accepted?: boolean;
   readonly observation?: Partial<ServiceTestCaseRecord['observation']>;
@@ -342,15 +350,18 @@ export class Block3ExecutionRepo {
           step_count: steps.length,
           proposed_by: item.inference?.proposed_by ?? 'qap',
         };
-        const expectation: ServiceTestCaseRecord['expectation'] = {
+        const expectation: ServiceTestCaseRecord['expectation'] & {
+          metadata?: ProposeCaseInput['expectation_metadata'];
+        } = {
           oracle_status: hasOracle ? 'accredited' : 'missing',
           expected_outcome: expectedOutcome,
           source: oracleSource,
           business_risk_question: !hasOracle
-            ? `¿Cuál es el resultado de negocio esperado para "${item.title}"?`
+            ? (item.business_risk_question ?? `¿Cuál es el resultado de negocio esperado para "${item.title}"?`)
             : needsRiskDecision && riskDecision === 'pending'
               ? `Caso de riesgo ${riskLevel}: ¿confirmas ejecutarlo en el entorno actual?`
               : undefined,
+          ...(item.expectation_metadata ? { metadata: item.expectation_metadata } : {}),
         };
 
         const version = existing

@@ -1,12 +1,18 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { randomUUID } from 'node:crypto';
 
+export interface ProtectedSpaStagingOptions {
+  readonly includeExternalLink?: boolean;
+  readonly secondaryOrdersPage?: boolean;
+}
+
 export interface ProtectedSpaStagingController {
   readonly origin: string;
   readonly mutatingRequests: Array<{ method: string; url: string }>;
   readonly visitedRequests: Array<{ method: string; url: string; tenant?: string }>;
   setSessionExpired(expired: boolean): void;
   setRequireTenant(requireTenant: boolean, validTenants?: readonly string[]): void;
+  setOrdersVariant(variant: 'v1' | 'v2' | 'missing'): void;
   close(): Promise<void>;
 }
 
@@ -41,11 +47,14 @@ function sendJson(res: ServerResponse, status: number, payload: unknown): void {
   res.end(JSON.stringify(payload));
 }
 
-export async function startProtectedSpaStaging(): Promise<ProtectedSpaStagingController> {
-  const activeTokens = new Set<string>();
+export async function startProtectedSpaStaging(
+  options: ProtectedSpaStagingOptions = {},
+): Promise<ProtectedSpaStagingController> {
+  const activeTokens = new Map<string, string>();
   let sessionExpired = false;
   let requireTenant = false;
-  let allowedTenants = new Set<string>(['tenant-acme', 'tenant-beta']);
+  let allowedTenants = new Set<string>(['tenant-acme', 'tenant-beta', 'tenant-a', 'tenant-b']);
+  let ordersVariant: 'v1' | 'v2' | 'missing' = 'v1';
   const mutatingRequests: Array<{ method: string; url: string }> = [];
   const visitedRequests: Array<{ method: string; url: string; tenant?: string }> = [];
 
@@ -54,7 +63,10 @@ export async function startProtectedSpaStaging(): Promise<ProtectedSpaStagingCon
     const cookies = parseCookies(req);
     const token = cookies.qap_session;
     if (!token || !activeTokens.has(token)) return { ok: false };
-    const tenantHeader = typeof req.headers['x-tenant-id'] === 'string' ? req.headers['x-tenant-id'] : cookies.qap_tenant;
+    const tokenTenant = activeTokens.get(token);
+    const tenantHeader = typeof req.headers['x-tenant-id'] === 'string'
+      ? req.headers['x-tenant-id']
+      : (cookies.qap_tenant ?? tokenTenant);
     if (requireTenant && (!tenantHeader || !allowedTenants.has(tenantHeader))) {
       return { ok: false };
     }
@@ -130,14 +142,24 @@ export async function startProtectedSpaStaging(): Promise<ProtectedSpaStagingCon
         tenant = params.get('tenant') ?? tenant;
       }
 
-      if (username === 'qa.operator' && password === 'StagingPass#2026') {
+      const resolvedLoginTenant =
+        username === 'qa.tenant_a'
+          ? 'tenant-a'
+          : username === 'qa.tenant_b'
+            ? 'tenant-b'
+            : tenant;
+      const validCredentials =
+        (username === 'qa.operator' && password === 'StagingPass#2026') ||
+        (username === 'qa.tenant_a' && (password === 'TenantAPass#2026' || password === 'StagingPass#2026')) ||
+        (username === 'qa.tenant_b' && (password === 'TenantBPass#2026' || password === 'StagingPass#2026'));
+      if (validCredentials) {
         const token = `tok_${randomUUID()}`;
-        activeTokens.add(token);
+        activeTokens.set(token, resolvedLoginTenant);
         sessionExpired = false;
         res.writeHead(302, {
           'Set-Cookie': [
             `qap_session=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax`,
-            `qap_tenant=${encodeURIComponent(tenant)}; Path=/; SameSite=Lax`,
+            `qap_tenant=${encodeURIComponent(resolvedLoginTenant)}; Path=/; SameSite=Lax`,
           ],
           Location: '/app',
         });
@@ -154,8 +176,31 @@ export async function startProtectedSpaStaging(): Promise<ProtectedSpaStagingCon
         sendJson(res, 401, { error: 'auth_session_invalid' });
         return;
       }
+      const effectiveTenant = session.tenant ?? 'tenant-acme';
+      if (effectiveTenant === 'tenant-a') {
+        sendJson(res, 200, {
+          tenant: 'tenant-a',
+          actionLabel: 'Exportar tenant A',
+          structuralControlTag: 'help-link',
+          orders: [
+            { id: 'ORD-A-101', customer: 'Alpha Corp', status: 'pendiente' },
+          ],
+        });
+        return;
+      }
+      if (effectiveTenant === 'tenant-b') {
+        sendJson(res, 200, {
+          tenant: 'tenant-b',
+          actionLabel: 'Auditar tenant B',
+          structuralControlTag: 'audit-form',
+          orders: [
+            { id: 'ORD-B-202', customer: 'Beta SA', status: 'auditado' },
+          ],
+        });
+        return;
+      }
       sendJson(res, 200, {
-        tenant: session.tenant ?? 'tenant-acme',
+        tenant: effectiveTenant,
         orders: [
           { id: 'ORD-101', customer: 'Norte SA', status: 'pendiente' },
           { id: 'ORD-102', customer: 'Sur Ltda', status: 'aprobado' },
@@ -174,12 +219,48 @@ export async function startProtectedSpaStaging(): Promise<ProtectedSpaStagingCon
       return;
     }
 
+    if (options.secondaryOrdersPage && pathname === '/app/orders') {
+      const session = isAuthorizedSession(req);
+      if (!session.ok) {
+        sendJson(res, 401, { error: 'session_expired_or_missing' });
+        return;
+      }
+      if (ordersVariant === 'missing') {
+        sendHtml(res, 404, '<html><body><h1>Pedidos no disponibles</h1></body></html>');
+        return;
+      }
+      const variantHeading = ordersVariant === 'v2' ? 'Detalle de Pedidos V2' : 'Detalle de Pedidos V1';
+      const variantButton = ordersVariant === 'v2' ? 'Recalcular lotes' : 'Ver historial';
+      const variantExtraForm = ordersVariant === 'v2'
+        ? '\n    <form id="orders-v2-form" action="/api/orders" method="GET"><input id="orders-v2-q" type="search" required aria-label="buscar" /><button type="submit" aria-label="buscar">Buscar</button></form>'
+        : '';
+      sendHtml(
+        res,
+        200,
+        `<!doctype html>
+<html lang="es">
+<head><meta charset="utf-8"><title>Pedidos SPA</title></head>
+<body>
+  <nav><a href="/app">Resumen</a></nav>
+  <main id="orders-detail">
+    <h1>${variantHeading} (${session.tenant ?? 'tenant-acme'})</h1>
+    <button type="button" id="orders-variant-btn">${variantButton}</button>${variantExtraForm}
+  </main>
+</body>
+</html>`,
+      );
+      return;
+    }
+
     if (pathname === '/app' || pathname === '/app/orders' || pathname === '/dashboard') {
       const session = isAuthorizedSession(req);
       if (!session.ok) {
         sendJson(res, 401, { error: 'session_expired_or_missing' });
         return;
       }
+      const externalNav = options.includeExternalLink
+        ? '\n    <a href="https://external-forbidden.invalid/callback?token=secret-123">Ayuda externa</a>'
+        : '';
       sendHtml(
         res,
         200,
@@ -189,7 +270,7 @@ export async function startProtectedSpaStaging(): Promise<ProtectedSpaStagingCon
 <body>
   <nav>
     <a href="/app">Resumen</a>
-    <a href="/app/orders">Pedidos</a>
+    <a href="/app/orders">Pedidos</a>${externalNav}
   </nav>
   <main id="spa-root">Cargando shell SPA...</main>
   <script>
@@ -201,6 +282,12 @@ export async function startProtectedSpaStaging(): Promise<ProtectedSpaStagingCon
         return;
       }
       const data = await resp.json();
+      const extraBtn = data.actionLabel ? ('  <button type="button" id="tenant-action-btn">' + data.actionLabel + '</button>') : '';
+      const extraTenantDom = data.structuralControlTag === 'audit-form'
+        ? '  <form id="tenant-audit-form" action="/api/orders" method="GET"><input id="audit-note" type="text" required /><button type="submit" aria-label="contact">Contacto Auditoría</button></form>'
+        : (data.structuralControlTag === 'help-link'
+          ? '  <a href="/app/orders" aria-label="help">Ayuda Tenant A</a>'
+          : '');
       root.innerHTML = [
         '<section id="spa-shell" data-spa-ready="true">',
         '  <h1>Panel de Pedidos (' + data.tenant + ')</h1>',
@@ -209,6 +296,8 @@ export async function startProtectedSpaStaging(): Promise<ProtectedSpaStagingCon
         '    <input id="order-search" name="q" type="search" required placeholder="ORD-101" />',
         '    <button type="submit">Filtrar</button>',
         '  </form>',
+        extraBtn,
+        extraTenantDom,
         '  <ul id="orders-list">' + data.orders.map(function (o) {
           return '<li>' + o.id + ' - ' + o.customer + '</li>';
         }).join('') + '</ul>',
@@ -249,6 +338,9 @@ export async function startProtectedSpaStaging(): Promise<ProtectedSpaStagingCon
       if (validTenants) {
         allowedTenants = new Set(validTenants);
       }
+    },
+    setOrdersVariant(variant: 'v1' | 'v2' | 'missing') {
+      ordersVariant = variant;
     },
     close() {
       return new Promise<void>((resolve) => server.close(() => resolve()));

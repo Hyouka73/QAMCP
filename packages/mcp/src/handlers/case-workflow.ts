@@ -6,6 +6,8 @@ import { SchemaValidator, validateExpectedRequirement, type TCCase } from '@qap/
 
 import { reviewDigest } from '../host-review.js';
 
+import type { DiscoveryDossierScope } from '../application/discovery-dossier.js';
+
 import { runConversationalCaseWorkflow } from './conversational-case-workflow.js';
 import { ModuleObservationBridge } from './module-observation-bridge.js';
 import { binding, isObject, type StateDependencies } from './state-services.js';
@@ -77,14 +79,20 @@ export async function verifyCaseApproval(root: string, module: string, cases: TC
     : { allowed: false, code: 'case_approval_required', review_request_digest: value.request.requestDigest };
 }
 
-export async function caseWorkflow(root: string, module: string, command: unknown, deps: StateDependencies) {
+export async function caseWorkflow(
+  root: string,
+  module: string,
+  command: unknown,
+  deps: StateDependencies,
+  options?: { discoveryRevisionId?: string; effectiveScope?: DiscoveryDossierScope & { readonly base_url?: string } },
+) {
   const bound = binding(root, deps);
   if (
     isObject(command) &&
     !bound?.moduleBindings?.length &&
     deps.applicationService?.findActiveProjectByRoot(root)
   ) {
-    return runConversationalCaseWorkflow(root, module, command, deps);
+    return runConversationalCaseWorkflow(root, module, command, deps, options);
   }
   if (!isObject(command) || !['generate','review'].includes(String(command.action)) || Object.keys(command).some(k => !['action','proposals'].includes(k))) return blocked('invalid_case_command');
   if (!bound) return blocked('knowledge_unbound');

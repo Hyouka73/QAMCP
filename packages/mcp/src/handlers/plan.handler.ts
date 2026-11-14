@@ -9,9 +9,11 @@ import {
   SemanticHasher,
   type TestNode,
 } from '@qap/knowledge';
+import { normalizeSlug } from '@qap/shared';
 import type { TestCase } from '@qap/engine';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
+import type { DiscoveryDossierScope } from '../application/discovery-dossier.js';
 import {
   McpToolError,
   type IMcpToolHandler,
@@ -33,6 +35,9 @@ export interface PlanArguments {
   module: string;
   environment?: string;
   case_workflow?: unknown;
+  discovery_revision_id?: string;
+  tenant_id?: string;
+  profile?: string;
 }
 
 export interface PlanMatrixPersisted {
@@ -517,7 +522,7 @@ export class PlanHandler implements IMcpToolHandler {
 
   validateArguments(args: unknown): boolean {
     if (!isObject(args)) return false;
-    if (!validateBase(args, ['targetPath', 'module', 'environment', 'case_workflow'])) return false;
+    if (!validateBase(args, ['targetPath', 'module', 'environment', 'case_workflow', 'discovery_revision_id', 'tenant_id', 'profile'])) return false;
     if (
       typeof args.module !== 'string' ||
       !args.module.trim() ||
@@ -532,6 +537,24 @@ export class PlanHandler implements IMcpToolHandler {
     if (
       args.environment !== undefined &&
       (typeof args.environment !== 'string' || !args.environment.trim() || args.environment.length > 64)
+    ) {
+      return false;
+    }
+    if (
+      args.discovery_revision_id !== undefined &&
+      (typeof args.discovery_revision_id !== 'string' || !args.discovery_revision_id.trim() || args.discovery_revision_id.length > 128)
+    ) {
+      return false;
+    }
+    if (
+      args.tenant_id !== undefined &&
+      (typeof args.tenant_id !== 'string' || !args.tenant_id.trim() || args.tenant_id.length > 128)
+    ) {
+      return false;
+    }
+    if (
+      args.profile !== undefined &&
+      (typeof args.profile !== 'string' || !args.profile.trim() || args.profile.length > 128)
     ) {
       return false;
     }
@@ -558,13 +581,95 @@ export class PlanHandler implements IMcpToolHandler {
     }
 
     const moduleName = args.module.trim();
-    const environment =
+    const explicitEnvironment =
       typeof args.environment === 'string' && args.environment.trim()
         ? args.environment.trim()
-        : 'local';
+        : undefined;
+    let environment = explicitEnvironment ?? 'local';
+
+    const appService = this.dependencies.applicationService;
+    const appProject = appService ? appService.findActiveProjectByRoot(rootDir) : null;
+    if (args.discovery_revision_id !== undefined) {
+      if (!appService) {
+        return result({ status: 'blocked', code: 'application_service_unavailable', module: moduleName }, true);
+      }
+      if (!appProject) {
+        return result({ status: 'blocked', code: 'project_not_found', module: moduleName }, true);
+      }
+    }
+
+    let effectiveScope: (DiscoveryDossierScope & { readonly base_url?: string }) | undefined;
+    let validatedDiscoveryRevisionId: string | undefined;
+    if (appService && appProject) {
+      const requestedProfile = typeof args.profile === 'string' && args.profile.trim() ? args.profile.trim() : undefined;
+      const requestedTenant = typeof args.tenant_id === 'string' && args.tenant_id.trim() ? args.tenant_id.trim() : undefined;
+      const scopeRes = appService.resolveEffectiveScope({
+        projectId: appProject.project_id,
+        moduleName,
+        environment: explicitEnvironment,
+        tenantId: requestedTenant,
+        profile: requestedProfile,
+      });
+      if (!scopeRes.ok) {
+        return result(
+          {
+            status: 'blocked',
+            code: scopeRes.code,
+            module: moduleName,
+            message: scopeRes.reason,
+            question: scopeRes.question,
+            field: scopeRes.field,
+            ...(scopeRes.options ? { options: scopeRes.options } : {}),
+          },
+          true,
+        );
+      }
+      effectiveScope = scopeRes.scope;
+      environment = scopeRes.scope.environment_name;
+
+      if (args.discovery_revision_id !== undefined) {
+        const scopeCheck = appService.validateDiscoveryRevisionScope(args.discovery_revision_id.trim(), {
+          projectId: effectiveScope.project_id,
+          applicationId: effectiveScope.application_id,
+          moduleKey: effectiveScope.module_key,
+          environmentId: effectiveScope.environment_id,
+          environmentName: effectiveScope.environment_name,
+          tenantId: effectiveScope.tenant_id,
+          checkTenant: true,
+          profileId: effectiveScope.profile_id,
+          checkProfile: true,
+          role: effectiveScope.role,
+          checkRole: true,
+        });
+        if (!scopeCheck.ok) {
+          return result(
+            {
+              status: 'blocked',
+              code: scopeCheck.code,
+              module: moduleName,
+              discovery_revision_id: args.discovery_revision_id.trim(),
+              message: scopeCheck.reason,
+            },
+            true,
+          );
+        }
+        validatedDiscoveryRevisionId = scopeCheck.revision.revision_id;
+      }
+    }
 
     if (args.case_workflow !== undefined) {
-      const value = await caseWorkflow(rootDir, moduleName, args.case_workflow, this.dependencies);
+      const value = await caseWorkflow(
+        rootDir,
+        moduleName,
+        args.case_workflow,
+        this.dependencies,
+        validatedDiscoveryRevisionId || effectiveScope
+          ? {
+              ...(validatedDiscoveryRevisionId ? { discoveryRevisionId: validatedDiscoveryRevisionId } : {}),
+              ...(effectiveScope ? { effectiveScope } : {}),
+            }
+          : undefined,
+      );
       return result(value, value.status === 'blocked');
     }
     const storage = new FileSystemStorage({ rootDir });

@@ -8,6 +8,14 @@ import {
   type QapCapability,
 } from '@qap/shared';
 
+import {
+  buildPublishedModuleDocRepoPath,
+  renderDiscoveryIndexMarkdown,
+  renderModuleDossierMarkdown,
+  writeDiscoveryMarkdownFiles,
+  type DiscoveryRevisionRecord,
+} from '../application/discovery-dossier.js';
+import { normalizePathKey } from '../application/safe-storage.js';
 import { ApplicationServiceError, type QapApplicationService } from '../application/application-service.js';
 import type { IMcpToolHandler } from '../dispatcher.js';
 
@@ -30,6 +38,8 @@ const PROJECT_ACTIONS = [
   'promote_candidates',
   'discrepancies',
   'resolve_discrepancy',
+  'discovery_dossier',
+  'discovery_dossier_regenerate',
 ] as const;
 
 type ProjectAction = (typeof PROJECT_ACTIONS)[number];
@@ -61,6 +71,8 @@ const ALLOWED_KEYS = new Set([
   'selected_candidates',
   'discrepancy_id',
   'discrepancy_choice',
+  'module_key',
+  'revision_id',
 ]);
 
 const VALID_MODES = new Set<CampaignMode>([
@@ -184,6 +196,14 @@ export class ProjectHandler implements IMcpToolHandler {
       case 'candidates':
       case 'discrepancies':
         return isNonEmptyString(args.project_id, 128);
+      case 'discovery_dossier':
+        return (
+          isOptionalString(args.project_id, 128) &&
+          isOptionalString(args.module_key, 128) &&
+          isOptionalString(args.revision_id, 128)
+        );
+      case 'discovery_dossier_regenerate':
+        return isOptionalString(args.project_id, 128);
       case 'review_candidate':
         return (
           isNonEmptyString(args.project_id, 128) &&
@@ -220,9 +240,138 @@ export class ProjectHandler implements IMcpToolHandler {
   private assertAuthorizedWorkspace(candidatePath: string): boolean {
     const roots = this.dependencies.projectRoots;
     if (!roots || roots.length === 0) return false;
-    const norm = (value: string) => (process.platform === 'win32' ? resolve(value).toLowerCase() : resolve(value));
-    const target = norm(candidatePath);
-    return roots.some((root) => norm(root) === target);
+    const target = normalizePathKey(resolve(candidatePath));
+    return roots.some((root) => normalizePathKey(resolve(root)) === target);
+  }
+
+  private resolveAuthorizedDossierProject(
+    service: QapApplicationService,
+    args: Record<string, unknown>,
+  ):
+    | { readonly ok: true; readonly project: ReturnType<QapApplicationService['resumeProject']>['project'] }
+    | { readonly ok: false; readonly response: CallToolResult } {
+    const explicitProjectId = isNonEmptyString(args.project_id, 128) ? args.project_id.trim() : undefined;
+    const rootHint = isNonEmptyString(args.targetPath, 1024) ? args.targetPath.trim() : undefined;
+    const authorizedRoots = this.dependencies.projectRoots;
+
+    if (rootHint && authorizedRoots && !this.assertAuthorizedWorkspace(rootHint)) {
+      return {
+        ok: false,
+        response: blocked(
+          'workspace_authorization_required',
+          'La carpeta seleccionada no está autorizada por el host.',
+          'Autoriza el workspace mediante el host o indica una raíz autorizada.',
+        ),
+      };
+    }
+
+    if (explicitProjectId && rootHint) {
+      const targetNorm = normalizePathKey(resolve(rootHint));
+      const projectById = service.resumeProject(explicitProjectId).project;
+      const projectRootNorm = normalizePathKey(resolve(projectById.canonical_root));
+      const projectByRoot = service.findActiveProjectByRoot(rootHint);
+      if (projectRootNorm !== targetNorm || (projectByRoot && projectByRoot.project_id !== projectById.project_id)) {
+        return {
+          ok: false,
+          response: blocked(
+            'project_root_mismatch',
+            `La ruta '${rootHint}' no coincide con la raíz autorizada del proyecto '${explicitProjectId}'.`,
+            'Envía targetPath y project_id del mismo proyecto antes de consultar o regenerar el expediente.',
+            { project_id: explicitProjectId, targetPath: rootHint },
+          ),
+        };
+      }
+      if (authorizedRoots && !this.assertAuthorizedWorkspace(projectById.canonical_root)) {
+        return {
+          ok: false,
+          response: blocked(
+            'workspace_authorization_required',
+            'El proyecto solicitado no pertenece a la raíz autorizada por el host.',
+            'Autoriza el workspace antes de operar sobre el expediente.',
+          ),
+        };
+      }
+      return { ok: true, project: projectById };
+    }
+
+    if (explicitProjectId) {
+      const projectById = service.resumeProject(explicitProjectId).project;
+      if (authorizedRoots && !this.assertAuthorizedWorkspace(projectById.canonical_root)) {
+        return {
+          ok: false,
+          response: blocked(
+            'workspace_authorization_required',
+            `El proyecto '${explicitProjectId}' no pertenece a la raíz efectiva autorizada por el host.`,
+            'Selecciona un proyecto dentro del workspace autorizado.',
+          ),
+        };
+      }
+      return { ok: true, project: projectById };
+    }
+
+    if (rootHint) {
+      const projectByRoot = service.findActiveProjectByRoot(rootHint);
+      if (!projectByRoot) {
+        return {
+          ok: false,
+          response: blocked(
+            'project_not_found',
+            `No existe un proyecto activo registrado para la ruta '${rootHint}'.`,
+            'Crea o selecciona el proyecto para esa ruta antes de consultar el expediente.',
+          ),
+        };
+      }
+      return { ok: true, project: projectByRoot };
+    }
+
+    if (authorizedRoots && authorizedRoots.length > 0) {
+      if (authorizedRoots.length === 1) {
+        const matched = service.findActiveProjectByRoot(authorizedRoots[0]);
+        if (!matched) {
+          return {
+            ok: false,
+            response: blocked(
+              'project_not_found',
+              'No se encontró un proyecto activo para la raíz autorizada por el host.',
+              'Crea o registra el proyecto antes de consultar el expediente de Discovery.',
+            ),
+          };
+        }
+        return { ok: true, project: matched };
+      }
+      const listed = service.listProjects();
+      const active = listed.active_project_id
+        ? listed.projects.find((p) => p.project_id === listed.active_project_id)
+        : undefined;
+      if (active && this.assertAuthorizedWorkspace(active.canonical_root)) {
+        return { ok: true, project: active };
+      }
+      return {
+        ok: false,
+        response: blocked(
+          'ambiguous_workspace_root',
+          'Hay múltiples raíces autorizadas; indica targetPath o project_id explícitamente.',
+          'Especifica targetPath del proyecto a consultar o regenerar.',
+        ),
+      };
+    }
+
+    const listed = service.listProjects();
+    const fallbackProject =
+      (listed.active_project_id ? listed.projects.find((p) => p.project_id === listed.active_project_id) : undefined) ??
+      listed.projects[0] ??
+      null;
+    if (!fallbackProject) {
+      return {
+        ok: false,
+        response: blocked(
+          'project_not_found',
+          'No se encontró un proyecto activo para consultar el expediente de Discovery.',
+          'Indica project_id o targetPath de un proyecto registrado.',
+        ),
+      };
+    }
+    return { ok: true, project: fallbackProject };
   }
 
   async execute(rawArgs: unknown): Promise<CallToolResult> {
@@ -442,6 +591,110 @@ export class ProjectHandler implements IMcpToolHandler {
             status: 'success',
             project_id: projectId,
             discrepancy: resolved,
+          });
+        }
+
+        case 'discovery_dossier': {
+          const resolved = this.resolveAuthorizedDossierProject(service, args);
+          if (!resolved.ok) return resolved.response;
+
+          const projectId = resolved.project.project_id;
+          const moduleKey = isNonEmptyString(args.module_key, 128) ? args.module_key.trim() : undefined;
+          const revisionId = isNonEmptyString(args.revision_id, 128) ? args.revision_id.trim() : undefined;
+
+          let selectedRevision: DiscoveryRevisionRecord | undefined;
+          if (revisionId) {
+            const scopeCheck = service.validateDiscoveryRevisionScope(revisionId, {
+              projectId,
+              ...(moduleKey ? { moduleKey } : {}),
+            });
+            if (!scopeCheck.ok) {
+              return blocked(
+                scopeCheck.code,
+                scopeCheck.reason,
+                'Selecciona una revisión que pertenezca al proyecto y módulo vigentes.',
+                { project_id: projectId, revision_id: revisionId },
+              );
+            }
+            selectedRevision = scopeCheck.revision;
+          }
+
+          const revisions = service.listDiscoveryRevisions(projectId, moduleKey);
+          const latestByScope = service.listLatestDiscoveryRevisionsByScope(projectId);
+          if (!selectedRevision) {
+            selectedRevision = revisions[0];
+          }
+
+          const indexMarkdown = renderDiscoveryIndexMarkdown(projectId, latestByScope);
+          const moduleMarkdown = selectedRevision ? renderModuleDossierMarkdown(selectedRevision) : undefined;
+          const moduleDocPath = selectedRevision ? buildPublishedModuleDocRepoPath(selectedRevision) : undefined;
+
+          return result({
+            status: 'success',
+            read_only: true,
+            project_id: projectId,
+            index_path: '.qa/discovery/INDEX.md',
+            index_markdown: indexMarkdown,
+            published_revisions: latestByScope.map((r) => ({
+              revision_id: r.revision_id,
+              module_key: r.module_key,
+              module_title: r.module_title,
+              environment_name: r.environment_name,
+              tenant_id: r.tenant_id,
+              profile_id: r.profile_id,
+              role: r.role,
+              doc_path: buildPublishedModuleDocRepoPath(r),
+              created_at: r.created_at,
+            })),
+            ...(selectedRevision ? { selected_revision: selectedRevision, module_doc_path: moduleDocPath, module_markdown: moduleMarkdown } : {}),
+            revisions: revisions.map((r) => ({
+              revision_id: r.revision_id,
+              module_key: r.module_key,
+              module_title: r.module_title,
+              environment_name: r.environment_name,
+              tenant_id: r.tenant_id,
+              profile_id: r.profile_id,
+              role: r.role,
+              created_at: r.created_at,
+            })),
+          });
+        }
+
+        case 'discovery_dossier_regenerate': {
+          const resolved = this.resolveAuthorizedDossierProject(service, args);
+          if (!resolved.ok) return resolved.response;
+
+          const projectId = resolved.project.project_id;
+          if (!existsSync(resolved.project.canonical_root)) {
+            return blocked(
+              'project_root_missing',
+              `La ruta raíz del proyecto '${resolved.project.canonical_root}' no existe en disco.`,
+              'Verifica que el workspace autorizado siga disponible antes de regenerar.',
+            );
+          }
+
+          const latestByScope = service.listLatestDiscoveryRevisionsByScope(projectId);
+          const written = writeDiscoveryMarkdownFiles(
+            resolved.project.canonical_root,
+            projectId,
+            latestByScope,
+            { regenerateAll: true },
+          );
+
+          return result({
+            status: 'success',
+            regenerated: true,
+            project_id: projectId,
+            index_path: written.index_path,
+            written_paths: written.written_paths,
+            published_count: latestByScope.length,
+            published_revisions: latestByScope.map((r) => ({
+              revision_id: r.revision_id,
+              module_key: r.module_key,
+              tenant_id: r.tenant_id,
+              profile_id: r.profile_id,
+              doc_path: buildPublishedModuleDocRepoPath(r),
+            })),
           });
         }
       }

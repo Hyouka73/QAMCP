@@ -262,8 +262,10 @@ describe('Bloque 2 — Entrada conversacional, autenticación duradera, ingesta 
     });
     expect(planRes.isError).toBe(false);
     expect(planRes.data.fase).toBe('WORKING');
-    expect(planRes.data.modules_registered.length).toBeGreaterThanOrEqual(1);
-    expect(planRes.data.modules_registered[0].key).toBe(cand.key);
+    expect(planRes.data.modules_registered.length).toBeGreaterThanOrEqual(2);
+    expect(planRes.data.modules_registered.map((m: { key: string }) => m.key)).toEqual(
+      expect.arrayContaining([cand.key, 'pedidos']),
+    );
 
     const nextRoute = await session3.call('qap_status');
     expect(nextRoute.data.siguiente_accion).toMatchObject({

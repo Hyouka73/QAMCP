@@ -8,6 +8,12 @@ import type {
   OracleDecisionInput,
   ProposeCaseInput,
 } from '../application/block3-execution-repo.js';
+import type { DiscoveryDossierScope } from '../application/discovery-dossier.js';
+import {
+  resolveScopedBusinessRules,
+  type DiscoveryDossierRuleResolution,
+  type DossierRuleAmbiguity,
+} from '../application/scoped-rule-resolver.js';
 
 import { binding, isObject, type StateDependencies } from './state-services.js';
 
@@ -47,6 +53,7 @@ function normalizeStepsForProposal(
   rawSteps: readonly Record<string, unknown>[] | undefined,
   routeUrl: string,
   expectedOutcome?: string | null,
+  assertHint?: { readonly selector?: string | null; readonly assertion_type?: string | null },
 ): Record<string, unknown>[] {
   if (rawSteps && rawSteps.length > 0) {
     const out: Record<string, unknown>[] = [];
@@ -64,14 +71,101 @@ function normalizeStepsForProposal(
     { type: 'waitFor', selector: 'body' },
   ];
   if (expectedOutcome && expectedOutcome.trim().length > 0) {
+    const allowedType =
+      assertHint?.assertion_type === 'visible' ||
+      assertHint?.assertion_type === 'exists' ||
+      assertHint?.assertion_type === 'contains' ||
+      assertHint?.assertion_type === 'equals'
+        ? assertHint.assertion_type
+        : 'contains';
     steps.push({
       type: 'assert',
-      selector: 'body',
-      assertion_type: 'contains',
+      selector: assertHint?.selector?.trim() || 'body',
+      assertion_type: allowedType,
       expected: expectedOutcome.trim(),
     });
   }
   return steps;
+}
+
+function buildProposalsFromResolution(params: {
+  readonly resolution: DiscoveryDossierRuleResolution;
+  readonly baseUrl: string;
+  readonly fallbackRouteHint: string;
+  readonly sourceKind: 'observed_dom' | 'spa_dom';
+  readonly observedControls: readonly string[];
+  readonly observedHeadings: readonly string[];
+  readonly evidenceRefs: readonly string[];
+}): ProposeCaseInput[] {
+  const out: ProposeCaseInput[] = [];
+  for (const dec of params.resolution.decisions) {
+    const decRoute = dec.route_pathname === '*' ? params.fallbackRouteHint : dec.route_pathname;
+    const decUrl = resolveAbsoluteRouteUrl(params.baseUrl, decRoute);
+    if (dec.decision_status === 'accredited' && dec.expected_outcome) {
+      out.push({
+        title: `Verificar ${dec.title}`,
+        ...(dec.source_kind === 'confirmed_requirement' && dec.source_id ? { requirement_id: dec.source_id } : {}),
+        expected_outcome: dec.expected_outcome,
+        oracle_source: dec.source_kind === 'confirmed_requirement' ? 'user' : 'ingested_doc',
+        expectation_metadata: {
+          rule_id: dec.decision_id,
+          decision_status: dec.decision_status,
+          ...(dec.source_ref ? { source_ref: dec.source_ref } : {}),
+          ...(dec.source_version ? { source_version: dec.source_version } : {}),
+          ...(dec.scope_match ? { scope_match: dec.scope_match } : {}),
+        },
+        observation: {
+          source_kind: params.sourceKind,
+          route: decRoute,
+          observed_controls: params.observedControls.slice(0, 10),
+          observed_headings: params.observedHeadings.slice(0, 10),
+          evidence_refs: params.evidenceRefs.slice(0, 5),
+        },
+        inference: {
+          rationale: dec.decision_reason,
+          proposed_flow: `Navegar a ${decRoute} y validar '${dec.expected_outcome}' (${dec.source_ref ?? dec.source_kind ?? 'regla'} v${dec.source_version ?? '1'}).`,
+          proposed_by: 'qap',
+        },
+        steps: normalizeStepsForProposal(undefined, decUrl, dec.expected_outcome, {
+          selector: dec.assert_selector,
+          assertion_type: dec.assert_type,
+        }),
+      });
+      continue;
+    }
+
+    const matchingAmbiguity = params.resolution.ambiguities.find(
+      (a) => a.rule_key === dec.rule_key && a.route_pathname === dec.route_pathname,
+    );
+    const firstCand = dec.candidates[0];
+    out.push({
+      title: `Aclarar ${dec.title} (${dec.decision_status})`,
+      expected_outcome: null,
+      oracle_source: 'missing',
+      business_risk_question: matchingAmbiguity?.question ?? dec.decision_reason,
+      expectation_metadata: {
+        rule_id: dec.decision_id,
+        decision_status: dec.decision_status,
+        ...(firstCand?.source_ref ? { source_ref: firstCand.source_ref } : {}),
+        ...(firstCand?.source_version ? { source_version: firstCand.source_version } : {}),
+      },
+      observation: {
+        source_kind: params.sourceKind,
+        route: decRoute,
+        observed_controls: params.observedControls.slice(0, 10),
+        observed_headings: params.observedHeadings.slice(0, 10),
+        evidence_refs: params.evidenceRefs.slice(0, 5),
+      },
+      inference: {
+        rationale: dec.decision_reason,
+        proposed_flow: `Pendiente de resolución en ${decRoute} antes de emitir oráculo ejecutable.`,
+        proposed_by: 'qap',
+      },
+      // Strictly NO assert step for contradictions, unaccredited expectations, or legacy unscoped entries
+      steps: normalizeStepsForProposal(undefined, decUrl, null),
+    });
+  }
+  return out;
 }
 
 async function synthesizeProposalsFromProjectState(
@@ -80,13 +174,25 @@ async function synthesizeProposalsFromProjectState(
   baseUrl: string,
   routeHint: string | null,
   deps: StateDependencies,
-): Promise<ProposeCaseInput[]> {
+  options?: { discoveryRevisionId?: string; effectiveScope?: DiscoveryDossierScope & { readonly base_url?: string } },
+): Promise<{
+  proposals: ProposeCaseInput[];
+  discoveryRevisionId?: string;
+  ruleResolutionSummary?: DiscoveryDossierRuleResolution['summary'];
+  ruleAmbiguities?: readonly DossierRuleAmbiguity[];
+}> {
   const appService = deps.applicationService!;
   const project = appService.findActiveProjectByRoot(root)!;
   const bound = binding(root, deps);
-  const targetUrl = resolveAbsoluteRouteUrl(baseUrl, routeHint);
+  const effectiveScope = options?.effectiveScope;
+  const revision = options?.discoveryRevisionId
+    ? appService.getDiscoveryRevision(options.discoveryRevisionId)
+    : effectiveScope
+      ? appService.findLatestDiscoveryRevisionForScope(effectiveScope)
+      : null;
+  const effectiveRouteHint = revision?.dossier.target_pathname ?? routeHint ?? '/';
+  const targetUrl = resolveAbsoluteRouteUrl(baseUrl, effectiveRouteHint);
 
-  const reqs = appService.listServiceRequirements(project.project_id, moduleKey);
   const inventories = appService.listPartialInventories(project.project_id);
   const latestInv = inventories.find(inventory => inventory.target_url === targetUrl &&
     inventory.views_count > 0 && inventory.candidate_keys.includes(moduleKey));
@@ -95,7 +201,17 @@ async function synthesizeProposalsFromProjectState(
   const observedHeadings: string[] = [];
   const evidenceRefs: string[] = [];
 
-  if (bound && latestInv) {
+  if (revision) {
+    for (const v of revision.dossier.views) {
+      if (v.evidence_id) evidenceRefs.push(v.evidence_id);
+      for (const h of v.headings) {
+        if (typeof h === 'string' && h.trim()) observedHeadings.push(h.trim());
+      }
+      for (const c of v.controls) {
+        if (typeof c.label === 'string' && c.label.trim()) observedControls.push(c.label.trim());
+      }
+    }
+  } else if (bound && latestInv && appService.listDiscoveryRevisions(project.project_id, moduleKey).length === 0) {
     try {
       const candidate = appService.listModuleCandidates(project.project_id).find(c => c.key === moduleKey);
       const observations = await Promise.all((candidate?.evidence_refs ?? [])
@@ -120,32 +236,46 @@ async function synthesizeProposalsFromProjectState(
     }
   }
 
-  const proposals: ProposeCaseInput[] = [];
-  const confirmedReqs = reqs.filter((r) => r.validation_status === 'confirmed' && r.acceptance_criteria.length > 0);
-  for (const r of confirmedReqs) {
-    const criterion = r.acceptance_criteria[0];
-    proposals.push({
-      title: `Verificar ${r.title}`,
-      requirement_id: r.requirement_id,
-      expected_outcome: criterion,
-      oracle_source: r.source === 'ingested_doc' ? 'ingested_doc' : 'user',
-      risk_level: r.risk_level,
-      risk_accepted: r.risk_decision === 'accepted_by_qa',
-      observation: {
-        source_kind: latestInv?.mode?.includes('spa') ? 'spa_dom' : 'observed_dom',
-        route: routeHint ?? '/',
-        observed_controls: observedControls.slice(0, 10),
-        observed_headings: observedHeadings.slice(0, 10),
-        evidence_refs: evidenceRefs.slice(0, 5),
+  const sourceKind = revision
+    ? (revision.dossier.mode.includes('spa') ? 'spa_dom' : 'observed_dom')
+    : (latestInv?.mode?.includes('spa') ? 'spa_dom' : 'observed_dom');
+
+  let activeResolution: DiscoveryDossierRuleResolution | undefined;
+  if (revision) {
+    // Frozen snapshot semantics: plan consumes ONLY the selected revision's persisted
+    // rule resolutions, never mixing newer or unscoped live service_requirements.
+    activeResolution = revision.dossier.rule_resolution;
+  } else if (effectiveScope) {
+    const confirmedReqs = appService
+      .listServiceRequirements(project.project_id, moduleKey)
+      .filter((r) => r.validation_status === 'confirmed');
+    activeResolution = resolveScopedBusinessRules({
+      scope: {
+        environment_name: effectiveScope.environment_name,
+        tenant_id: effectiveScope.tenant_id ?? 'default',
+        role: effectiveScope.role,
+        module_key: moduleKey,
       },
-      inference: {
-        rationale: 'Propuesta derivada de requisito acreditado y observaciones capturadas.',
-        proposed_flow: `Navegar a ${routeHint ?? '/'} y validar expectativa de negocio.`,
-        proposed_by: 'qap',
-      },
-      steps: normalizeStepsForProposal(undefined, targetUrl, criterion),
+      targetPathname: effectiveRouteHint,
+      discoveredRoutes: [{ pathname: effectiveRouteHint }],
+      views: [],
+      scopedRules: appService.listScopedBusinessRules(project.project_id),
+      ingestedDocs: appService.listIngestedDocuments(project.project_id),
+      legacyRequirements: confirmedReqs,
     });
   }
+
+  const proposals: ProposeCaseInput[] = activeResolution
+    ? buildProposalsFromResolution({
+        resolution: activeResolution,
+        baseUrl,
+        fallbackRouteHint: effectiveRouteHint,
+        sourceKind,
+        observedControls,
+        observedHeadings,
+        evidenceRefs,
+      })
+    : [];
 
   if (proposals.length === 0) {
     const primaryLabel = observedControls[0] ?? observedHeadings[0] ?? moduleKey;
@@ -154,22 +284,29 @@ async function synthesizeProposalsFromProjectState(
       expected_outcome: null,
       oracle_source: 'missing',
       observation: {
-        source_kind: latestInv?.mode?.includes('spa') ? 'spa_dom' : 'observed_dom',
-        route: routeHint ?? '/',
+        source_kind: sourceKind,
+        route: effectiveRouteHint,
         observed_controls: observedControls.slice(0, 10),
         observed_headings: observedHeadings.slice(0, 10),
         evidence_refs: evidenceRefs.slice(0, 5),
       },
       inference: {
-        rationale: 'Falta un criterio de negocio verificable para este módulo.',
-        proposed_flow: `Verificar el comportamiento esperado en ${routeHint ?? '/'}.`,
+        rationale: 'Falta un criterio de negocio acreditado para este alcance; las observaciones DOM son solo descriptivas.',
+        proposed_flow: `Verificar el comportamiento esperado en ${effectiveRouteHint}.`,
         proposed_by: 'qap',
       },
       steps: normalizeStepsForProposal(undefined, targetUrl, null),
     });
   }
 
-  return proposals;
+  return {
+    proposals,
+    ...(revision ? { discoveryRevisionId: revision.revision_id } : {}),
+    ...(activeResolution ? {
+      ruleResolutionSummary: activeResolution.summary,
+      ruleAmbiguities: activeResolution.ambiguities,
+    } : {}),
+  };
 }
 
 export async function runConversationalCaseWorkflow(
@@ -177,6 +314,7 @@ export async function runConversationalCaseWorkflow(
   moduleName: string,
   command: Record<string, unknown>,
   deps: StateDependencies,
+  options?: { discoveryRevisionId?: string; effectiveScope?: DiscoveryDossierScope & { readonly base_url?: string } },
 ): Promise<Record<string, unknown>> {
   const action = typeof command.action === 'string' ? command.action : '';
   if (!ALLOWED_ACTIONS.has(action) || Object.keys(command).some((k) => !ALLOWED_COMMAND_KEYS.has(k))) {
@@ -197,7 +335,7 @@ export async function runConversationalCaseWorkflow(
     snapshot.modules.find((m) => m.key === normalizeSlug(moduleName)) ??
     appService.upsertModule({ projectId: project.project_id, key: moduleName, title: moduleName });
 
-  const baseUrl = snapshot.environment?.base_url ?? 'http://127.0.0.1';
+  const baseUrl = options?.effectiveScope?.base_url ?? snapshot.environment?.base_url ?? 'http://127.0.0.1';
   const routeUrl = resolveAbsoluteRouteUrl(baseUrl, serviceMod.route_hint ?? '/');
   const storage = new FileSystemStorage({ rootDir: root });
   const modDir = join(root, '.qa', 'modules', moduleName);
@@ -205,6 +343,9 @@ export async function runConversationalCaseWorkflow(
 
   if (action === 'propose_from_observations' || action === 'generate') {
     let inputs: ProposeCaseInput[];
+    let usedDiscoveryRevisionId: string | undefined;
+    let ruleResolutionSummary: DiscoveryDossierRuleResolution['summary'] | undefined;
+    let ruleAmbiguities: readonly DossierRuleAmbiguity[] | undefined;
     if (Array.isArray(command.proposals)) {
       inputs = [];
       for (const rawItem of command.proposals) {
@@ -263,13 +404,18 @@ export async function runConversationalCaseWorkflow(
         });
       }
     } else {
-      inputs = await synthesizeProposalsFromProjectState(
+      const synthesized = await synthesizeProposalsFromProjectState(
         root,
-        serviceMod.key,
+        options?.effectiveScope?.module_key ?? serviceMod.key,
         baseUrl,
         serviceMod.route_hint ?? '/',
         deps,
+        options,
       );
+      inputs = synthesized.proposals;
+      usedDiscoveryRevisionId = synthesized.discoveryRevisionId;
+      ruleResolutionSummary = synthesized.ruleResolutionSummary;
+      ruleAmbiguities = synthesized.ruleAmbiguities;
     }
 
     const proposalRes = appService.proposeModuleCases({
@@ -303,6 +449,9 @@ export async function runConversationalCaseWorkflow(
       status: 'proposed',
       epistemic_separation: true,
       module: moduleName,
+      ...(usedDiscoveryRevisionId ? { discovery_revision_id: usedDiscoveryRevisionId } : {}),
+      ...(ruleResolutionSummary ? { rule_resolution_summary: ruleResolutionSummary } : {}),
+      ...(ruleAmbiguities && ruleAmbiguities.length > 0 ? { rule_ambiguities: ruleAmbiguities } : {}),
       proposed_cases: proposalRes.proposed,
       pending_oracle_cases: proposalRes.pending_oracle,
       non_blocking_pending_oracles: proposalRes.pending_oracle.length > 0,
