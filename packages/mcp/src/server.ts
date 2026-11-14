@@ -419,7 +419,11 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
           ...(options.authorizationPersistencePath !== undefined ? { authorizationPersistencePath: options.authorizationPersistencePath } : {}),
         }
       : undefined;
-  const interactiveAccess = options.interactiveAccessEnabled
+  const interactiveAuthMode = Boolean(
+    options.interactiveAccessEnabled ||
+    (options.interactiveAccessAuthorizer && !options.authAuthorizer && !options.silentBoundScope)
+  );
+  const interactiveAccess = interactiveAuthMode
     ? new InteractiveAccess(
         dependencies,
         provisionAuthorizer ?? discoveryAuthorizer,
@@ -428,6 +432,12 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         interactivePolicy
       )
     : undefined;
+  const unauthenticatedInteractiveAccess = !interactiveAccess &&
+    !options.authAuthorizer &&
+    !options.silentBoundScope &&
+    Boolean(options.knowledgeBindings?.length)
+      ? new InteractiveAccess(dependencies, undefined, undefined, undefined, interactivePolicy)
+      : undefined;
   const provisionAccess = provisionAuthorizer
     ? new InteractiveAccess(
         dependencies,
@@ -566,6 +576,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
     // server handlers. Keep stores/roots alive until browser work and locks drain.
     closeOperation = Promise.allSettled([...activeCalls.values()]).then(() => {
       interactiveAccess?.close();
+      unauthenticatedInteractiveAccess?.close();
       provisionAccess?.close();
       return closeTransport();
     });
@@ -1374,6 +1385,10 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         }
 
         case 'qap_auth_add': {
+          const authAccess = interactiveAccess ?? unauthenticatedInteractiveAccess;
+          if (authAccess) {
+            return await authAccess.login(rawArgs ?? {}, context.signal);
+          }
           const profileId = String(args.profile || args.id || 'default').trim();
           const env = String(args.env || 'local').trim();
           const username = String(args.username || 'user').trim();
@@ -2023,6 +2038,15 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         }
 
         case 'qap_auth_list': {
+          if (interactiveAccess) {
+            const list = await interactiveAccess.profileStatuses(rootDir, args);
+            return canonicalResult({
+              status: 'success',
+              directorio_objetivo: rootDir,
+              count: list.length,
+              profiles: list,
+            });
+          }
           const authDir = resolve(rootDir, '.qa', 'project', 'auth');
           const profilesPath = join(authDir, 'profiles.json');
           let profiles: AuthProfile[] = [];
