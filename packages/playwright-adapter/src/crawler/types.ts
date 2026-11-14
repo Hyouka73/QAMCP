@@ -45,6 +45,8 @@ export interface BlackBoxCrawlerInput {
 }
 export interface CrawlerDependencies {
   resolver?: ReconResolver;
+  /** Host-approved bootstrap navigation can include the exact canonical base origin. */
+  allowCanonicalOrigin?: boolean;
   /** Trusted executable selection only; no arbitrary launch arguments or user profiles. */
   browser?: { channel?: 'chrome' | 'msedge'; executable_path?: string };
 }

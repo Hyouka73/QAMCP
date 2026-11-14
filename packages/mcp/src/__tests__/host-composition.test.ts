@@ -80,6 +80,19 @@ describe('VNEXT-014 host-owned Stdio composition', () => {
     composed.close();
   });
 
+  it('keeps the interactive manifest opt-in separate from existing host policy', async () => {
+    const fixture = await provision();
+    writeFileSync(fixture.manifestPath, JSON.stringify({ ...fixture.manifest, interactiveAccess: true }));
+    const composed = await loadHostComposition({ ...fixture.env, QAP_DISABLE_INTERACTIVE_AUTH: '1' });
+    try {
+      expect(composed.options.interactiveAccessEnabled).toBe(true);
+      expect(composed.options.interactiveAccessAuthorizer).toBeUndefined();
+      expect(composed.options.knowledgeBindings?.[0].moduleBindings).toHaveLength(1);
+    } finally { composed.close(); }
+    writeFileSync(fixture.manifestPath, JSON.stringify({ ...fixture.manifest, interactiveAccess: 'true' }));
+    await expect(loadHostComposition(fixture.env)).rejects.toThrow('Invalid host interactiveAccess setting');
+  });
+
   it('rejects an explicitly configured nonexistent manifest rather than falling back', async () => {
     await expect(loadHostComposition({ QAP_MCP_HOST_CONFIG_PATH: join(tmpdir(), 'qap-nonexistent-manifest-014.json') }))
       .rejects.toThrow();

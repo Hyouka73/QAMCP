@@ -104,6 +104,7 @@ import {
   loadTestAuthorizationsFromDisk,
   type ITestAuthorizer,
 } from './test-authorizer.js';
+import { InteractiveAccess, interactiveBlocked } from './interactive-access.js';
 import { loadHostComposition } from './host-composition.js';
 import { resolveHelperScriptPath } from './dialog-script-path.js';
 import { authorizationDiagnostic } from './authorization-diagnostics.js';
@@ -127,6 +128,10 @@ import { TestHandler, type TestNavigationAuthorization } from './handlers/test.h
 import { ReportHandler } from './handlers/report.handler.js';
 import { checkPlaywrightBrowser, PLAYWRIGHT_INSTALL_COMMAND, detectarSubcarpetaWorkspace } from './handlers/state-runtime.js';
 import type { StateDependencies } from './handlers/state-services.js';
+import { ClientElicitationDiscoveryAuthorizer } from './client-elicitation-authorizers.js';
+import { acknowledgeProjectInitialization, acquireProjectOperation, ProjectReset, readProjectResetState, type ResetAuthorizer } from './project-reset.js';
+import { windowsProjectResetAuthorizer } from './project-reset-dialog.js';
+import { QapEventLog } from './qap-event-log.js';
 export { checkPlaywrightBrowser, PLAYWRIGHT_INSTALL_COMMAND } from './handlers/state-runtime.js';
 
 let activeViewerServer: ViewerServerInstance | null = null;
@@ -301,14 +306,31 @@ export interface McpServerOptions extends StateDependencies {
   readonly workspaceAuthorizer?: IWorkspaceAuthorizer;
   readonly hostRegistryPath?: string;
   readonly discoveryAuthorizer?: IDiscoveryAuthorizer;
+  readonly interactiveAccessAuthorizer?: IDiscoveryAuthorizer;
+  readonly interactiveAccessEnabled?: boolean;
   readonly hostDiscoveryRegistryPath?: string;
   readonly authAuthorizer?: IAuthAuthorizer;
   readonly hostAuthRegistryPath?: string;
   readonly authAuthorizations?: readonly PersistedAuthAuthorization[];
   readonly allowSpaReadOnly?: boolean;
+  readonly authorizationPersistencePath?: string;
+  readonly sessionPersistenceKey?: string;
+  readonly authorizationTtlMs?: number;
+  readonly projectResetAuthorizer?: ResetAuthorizer;
 }
 
 export function createMcpServer(options: McpServerOptions = {}): Server {
+  const serverRef: { current?: Server } = {};
+  const serverProvider = () => serverRef.current;
+  const qapEventLog = new QapEventLog(options.workspaceBootstrap?.directory);
+  const authorizationDiagnosticSink = (diagnostic: Parameters<QapEventLog['recordNativeAuthorization']>[0], workspace?: string) =>
+    qapEventLog.recordNativeAuthorization(diagnostic, workspace);
+  const discoveryAuthorizer = options.discoveryAuthorizer
+    ? new ClientElicitationDiscoveryAuthorizer(serverProvider, options.discoveryAuthorizer, authorizationDiagnosticSink)
+    : undefined;
+  const provisionAuthorizer = options.interactiveAccessAuthorizer || options.discoveryAuthorizer || options.interactiveAccessEnabled
+    ? new ClientElicitationDiscoveryAuthorizer(serverProvider, options.interactiveAccessAuthorizer ?? options.discoveryAuthorizer, authorizationDiagnosticSink)
+    : undefined;
   const preparationCommand = `"${process.execPath}" "${resolveHelperScriptPath('qap-authorize-workspace.mjs')}" <workspace-absoluto>`;
   const authorizedRoots = [...(options.projectRoots ?? [process.cwd()])];
   const authorizedAuths: PersistedAuthAuthorization[] = [
@@ -367,15 +389,66 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
 
   const migrated = new Set(['qap_status', 'qap_project', 'qap_context_set', 'qap_discover', 'qap_plan', 'qap_test', 'qap_report']);
   const dispatcher = new ToolDispatcher(TOOLS.filter(tool => !migrated.has(tool.name)).map(tool => tool.name));
-  dispatcher.register(new StatusHandler({ ...runtimeDependencies, browser: checkPlaywrightBrowser, view: buildViewDiscoveryContext }));
   dispatcher.register(new ProjectHandler(dependencies));
   dispatcher.register(new ContextHandler(dependencies));
-  dispatcher.register(new DiscoveryHandler(
+  const authorizedProfilesPolicy = Array.from(
+    new Set([
+      ...(options.discoveryAuthorizations ?? []).flatMap((a) => a.authorizedProfiles ?? []),
+      ...(options.testAuthorizations ?? []).flatMap((a) => a.authorizedProfiles ?? []),
+    ])
+  );
+  const interactivePolicy =
+    authorizedProfilesPolicy.length > 0 || options.sessionPersistenceKey !== undefined || options.authorizationTtlMs !== undefined || options.authorizationPersistencePath !== undefined
+      ? {
+          ...(authorizedProfilesPolicy.length > 0 ? { authorizedProfiles: authorizedProfilesPolicy } : {}),
+          ...(options.sessionPersistenceKey !== undefined ? { sessionPersistenceKey: options.sessionPersistenceKey } : {}),
+          ...(options.authorizationTtlMs !== undefined ? { authorizationTtlMs: options.authorizationTtlMs } : {}),
+          ...(options.authorizationPersistencePath !== undefined ? { authorizationPersistencePath: options.authorizationPersistencePath } : {}),
+        }
+      : undefined;
+  const interactiveAccess = options.interactiveAccessEnabled
+    ? new InteractiveAccess(
+        dependencies,
+        provisionAuthorizer ?? discoveryAuthorizer,
+        undefined,
+        undefined,
+        interactivePolicy
+      )
+    : undefined;
+  const provisionAccess = provisionAuthorizer
+    ? new InteractiveAccess(
+        dependencies,
+        provisionAuthorizer,
+        undefined,
+        undefined,
+        interactivePolicy
+      )
+    : undefined;
+  dispatcher.register(new StatusHandler({ ...runtimeDependencies, ...(interactiveAccess ? { interactiveAccess } : {}),
+    browser: checkPlaywrightBrowser, view: buildViewDiscoveryContext }));
+  const discoveryHandler = new DiscoveryHandler(
     dependencies,
     options.discoveryAuthorizations,
-    options.discoveryAuthorizer,
+    discoveryAuthorizer,
     options.hostDiscoveryRegistryPath,
-  ));
+    interactiveAccess,
+  );
+  dispatcher.register(discoveryHandler);
+  const reset = options.workspaceBootstrap && !options.knowledgeBindings?.length ? new ProjectReset({
+    directory: options.workspaceBootstrap.directory,
+    rootsPath: options.hostRegistryPath,
+    discoveryPath: options.hostDiscoveryRegistryPath,
+    grantsPath: options.authorizationPersistencePath,
+    key: options.sessionPersistenceKey,
+  }, options.projectResetAuthorizer ?? windowsProjectResetAuthorizer) : undefined;
+  const seenResets = new Map<string, string>();
+  const forgetBootstrapBinding = (root: string) => {
+    if (options.knowledgeBindings?.some(binding => binding.projectRoot === root)) return;
+    options.workspaceBootstrap?.release(root);
+    const index = workspaceBindings.findIndex(binding => binding.projectRoot === root);
+    if (index >= 0) workspaceBindings.splice(index, 1);
+    interviews.delete(root);
+  };
   dispatcher.register(new PlanHandler(dependencies));
   dispatcher.register(new TestHandler(dependencies, {
     testAuthorizations: authorizedTestAuths,
@@ -412,9 +485,11 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
 12. Un plan vigente ya fija los módulos y su prioridad. Explora sus rutas y propone casos siguiendo siguiente_accion sin volver a pedir que el usuario elija o autorice cada ruta. Conserva las preguntas para decisiones de alcance nuevas, expectativas de negocio y aprobaciones explícitas requeridas por el servidor.`,
     }
   );
+  serverRef.current = server;
 
 
   // Manejador de lista de tools
+  const authInputProperties = TOOLS.find(tool => tool.name === 'qap_auth_add')?.inputSchema.properties ?? {};
   server.setRequestHandler(ListToolsRequestSchema, () =>
     Promise.resolve({ tools: [...TOOLS, ...dispatcher.listTools().filter(tool => !migrated.has(tool.name))] }));
 
@@ -452,15 +527,84 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
     for (const controller of activeCalls.keys()) controller.abort();
     // Transport closure alone rejects client promises, but does not await the
     // server handlers. Keep stores/roots alive until browser work and locks drain.
-    closeOperation = Promise.allSettled([...activeCalls.values()]).then(() => closeTransport());
+    closeOperation = Promise.allSettled([...activeCalls.values()]).then(() => {
+      interactiveAccess?.close();
+      provisionAccess?.close();
+      return closeTransport();
+    });
     return closeOperation;
   };
   server.setRequestHandler(CallToolRequestSchema, async (request, sdkContext) => {
     if (closing) return { isError: true, content: [{ type: 'text', text: JSON.stringify({ code: 'cancelled' }) }] };
     const controller = new AbortController();
     const context = { ...sdkContext, signal: AbortSignal.any([controller.signal, ...(sdkContext.signal ? [sdkContext.signal] : [])]) };
+    let eventWorkspace: string | undefined;
+    let releaseStorage: (() => void) | undefined;
+    let resetState: ReturnType<typeof readProjectResetState>;
+    let guardedRoot: string | undefined;
+    const eventStartedAt = Date.now();
     const operation = (async (): Promise<CallToolResult> => {
     const { name, arguments: rawArgs } = request.params;
+    if (name === 'qap_project_reset') {
+      const { targetPath, phase, reset_id } = rawArgs ?? {};
+      if (typeof targetPath !== 'string' || (phase !== 'preview' && phase !== 'confirm') ||
+          Object.keys(rawArgs ?? {}).some(key => !['targetPath', 'phase', 'reset_id'].includes(key)) ||
+          (phase === 'preview' ? reset_id !== undefined : typeof reset_id !== 'string')) {
+        return canonicalResult({ status: 'blocked', code: 'invalid_reset_arguments' }, true);
+      }
+      if (!reset) return canonicalResult({ status: 'blocked', code: 'reset_host_ownership_unavailable',
+        retained: ['Knowledge SQL del manifiesto o adaptador externo', 'borradores, cierres y revisiones del host', 'Credential Vault global'] }, true);
+      try {
+        const roots = [...(options.projectRoots ?? [])];
+        syncAuthorizedRootsFromDisk(options.hostRegistryPath, roots);
+        if (options.clientWorkspaceRoots && server.getClientCapabilities()?.roots) {
+          for (const entry of (await server.listRoots()).roots) {
+            const url = new URL(entry.uri);
+            if (url.protocol !== 'file:' || (url.hostname && url.hostname !== 'localhost')) continue;
+            roots.push(validateCandidateWorkspace(fileURLToPath(url), options.workspaceBootstrap!.directory));
+          }
+        }
+        authorizedProjectRoot({ targetPath }, { projectRoots: roots }, true);
+      }
+      catch {
+        // A pending reset may already have removed its own root authorization.
+        try {
+          const root = validateCandidateWorkspace(targetPath, options.workspaceBootstrap!.directory);
+          if (readProjectResetState(options.workspaceBootstrap!.directory, root)?.state !== 'pending') throw new Error();
+        } catch { return canonicalResult({ status: 'blocked', code: 'workspace_authorization_required' }, true); }
+      }
+      const outcome = phase === 'preview' ? reset.preview(targetPath) : await reset.confirm(targetPath, String(reset_id), context.signal);
+      if (phase === 'preview' && outcome.status === 'preview' && applicationService) {
+        const activeProject = applicationService.findActiveProjectByRoot(targetPath);
+        if (activeProject) {
+          return canonicalResult({ ...outcome, application_project_id: activeProject.project_id }, false);
+        }
+      }
+      if (phase === 'confirm' && outcome.status === 'success' && applicationService) {
+        const activeProject = applicationService.findActiveProjectByRoot(targetPath);
+        if (activeProject) {
+          const delPreview = applicationService.previewDelete(activeProject.project_id);
+          await applicationService.confirmDelete(
+            activeProject.project_id,
+            delPreview.confirmation_token,
+            'confirm_delete',
+            { purgeWorkspaceQa: false },
+          );
+          applicationService.clearResetTombstone(activeProject.canonical_root);
+        }
+      }
+      return canonicalResult(outcome, outcome.status !== 'preview' && outcome.status !== 'success');
+    }
+    if (!options.silentBoundScope && !options.authAuthorizer && name === 'qap_auth_add' &&
+        Object.keys(rawArgs ?? {}).some(key => !Object.hasOwn(authInputProperties, key))) {
+      return interactiveBlocked('agent_auth_material_not_supported');
+    }
+    if (options.workspaceBootstrap) {
+      try { releaseStorage = acquireProjectOperation(options.workspaceBootstrap.directory); }
+      catch { return canonicalResult({ status: 'blocked', code: 'project_storage_busy_or_unavailable' }, true); }
+      interactiveAccess?.refreshPersistedAuthorizations();
+      if (options.hostRegistryPath) authorizedRoots.splice(0, authorizedRoots.length, ...(options.projectRoots ?? []));
+    }
     if (options.clientWorkspaceRoots) {
       // Roots are an out-of-band client capability, never supplied as tool arguments.
       try {
@@ -477,8 +621,45 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         }
       } catch { return canonicalResult({ status: 'blocked', category: 'technical_error', code: 'workspace_roots_unavailable', retryable: true }); }
     }
-    if (options.hostRegistryPath) {
-      syncAuthorizedRootsFromDisk(options.hostRegistryPath, authorizedRoots);
+    if (options.hostRegistryPath) syncAuthorizedRootsFromDisk(options.hostRegistryPath, authorizedRoots);
+    if (options.workspaceBootstrap) {
+      const host = options.workspaceBootstrap.directory;
+      const candidate = typeof rawArgs?.targetPath === 'string' ? rawArgs.targetPath : authorizedRoots.length === 1 ? authorizedRoots[0] : undefined;
+      if (typeof candidate === 'string') {
+        try { guardedRoot = validateCandidateWorkspace(candidate, host); } catch { /* Existing workspace checks classify invalid targets. */ }
+        if (guardedRoot) {
+          try { resetState = readProjectResetState(host, guardedRoot); }
+          catch { return canonicalResult({ status: 'blocked', code: 'reset_state_unavailable' }, true); }
+          if (resetState && seenResets.get(guardedRoot) !== resetState.id) {
+            seenResets.set(guardedRoot, resetState.id);
+            forgetBootstrapBinding(guardedRoot);
+            interactiveAccess?.forgetProject(guardedRoot);
+            discoveryHandler.forgetProject(guardedRoot);
+            qapEventLog.forgetWorkspace(guardedRoot);
+          }
+          if (resetState?.state === 'pending') return canonicalResult({ status: 'blocked', code: 'project_reset_incomplete',
+            receipt_id: resetState.id }, true);
+          if (resetState?.state === 'complete' && name !== 'qap_init') {
+            return name === 'qap_status'
+              ? canonicalResult({ status: 'success', initialized: false, fase: 'ONBOARDING',
+                siguiente_accion: { tool: 'qap_init', argumentos: { targetPath: guardedRoot }, descripcion: 'Inicializa un proyecto nuevo.' } })
+              : canonicalResult({ status: 'blocked', code: 'project_not_initialized' }, true);
+          }
+        }
+      }
+    }
+    if (name === 'qap_auth_provision') {
+      if (!provisionAccess) return canonicalResult({ status: 'blocked', code: 'credential_dialog_host_unavailable' }, true);
+      if (options.workspaceBootstrap && typeof rawArgs?.targetPath === 'string') {
+        try {
+          const authRoot = authorizedProjectRoot({ targetPath: rawArgs.targetPath }, dependencies, true);
+          eventWorkspace = authRoot;
+          await dependencies.prepareWorkspace!(authRoot);
+        } catch {
+          // Provision handler will enforce workspace authorization and return blocked
+        }
+      }
+      return await provisionAccess.provision(rawArgs ?? {}, context.signal);
     }
     if (options.workspaceBootstrap) {
       const idScopedProjectActions = new Set([
@@ -675,7 +856,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
     // Provisioned hosts keep their existing composition, but legacy writers must
     // obey the same root boundary as migrated handlers. No tool argument grants it.
     if (!options.workspaceBootstrap && options.projectRoots !== undefined) {
-      try { authorizedProjectRoot(request.params.arguments, dependencies, true); }
+      try { eventWorkspace = authorizedProjectRoot(request.params.arguments, dependencies, true); }
       catch { return canonicalResult({ status: 'blocked', category: 'human_authorization', code: 'workspace_authorization_required',
         desbloquear_con: { mecanismo: 'local_host', descripcion: 'Selecciona una raíz autorizada por este host. No se amplían los permisos del manifiesto desde argumentos MCP.' } }); }
     }
@@ -683,6 +864,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
     /* eslint-disable @typescript-eslint/no-base-to-string, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any, @typescript-eslint/require-await, @typescript-eslint/no-unnecessary-type-assertion, @typescript-eslint/no-unsafe-return */
     const args = (request.params.arguments || {}) as Record<string, unknown>;
     const rootDir = args.targetPath ? resolve(String(args.targetPath)) : process.cwd();
+    eventWorkspace ??= rootDir;
 
     try {
       switch (name) {
@@ -1076,7 +1258,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
                     mecanismo: 'local_host',
                     descripcion: 'El host debe autorizar explícitamente la autenticación antes de iniciar sesión en el sistema.',
                   },
-                });
+                }, true);
               } else {
               const authResult = await options.authAuthorizer.requestAuthorization(
                 {
@@ -2544,8 +2726,9 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
           }
 
           const profilesPath = join(qaDir, 'project', 'auth', 'profiles.json');
-          let allProfiles: AuthProfile[] = [];
-          if (existsSync(profilesPath)) {
+          let allProfiles: AuthProfile[] = interactiveAccess
+            ? await interactiveAccess.profiles(authorizedProjectRoot(args, dependencies, true)) : [];
+          if (!interactiveAccess && existsSync(profilesPath)) {
             try {
               const parsed = JSON.parse(readFileSync(profilesPath, 'utf-8'));
               allProfiles = parsed.profiles || [];
@@ -4782,10 +4965,28 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         ],
       };
     }
-    })();
+    })().then(result => {
+      if (request.params.name === 'qap_project_reset') return result;
+      if (request.params.name === 'qap_init' && !result.isError && resetState?.state === 'complete' && guardedRoot && options.workspaceBootstrap) {
+        acknowledgeProjectInitialization(options.workspaceBootstrap.directory, guardedRoot, resetState);
+      }
+      if (options.workspaceBootstrap) qapEventLog.record({ workspace: eventWorkspace, requestId: String(context.requestId),
+        tool: request.params.name, args: request.params.arguments, result, durationMs: Date.now() - eventStartedAt });
+      return result;
+    }, error => {
+      if (request.params.name === 'qap_project_reset') throw error;
+      if (options.workspaceBootstrap) qapEventLog.record({ workspace: eventWorkspace, requestId: String(context.requestId),
+        tool: request.params.name, args: request.params.arguments,
+        errorCode: error instanceof McpToolError ? error.code : error instanceof Error ? error.name : 'unknown_error',
+        durationMs: Date.now() - eventStartedAt });
+      throw error;
+    });
     activeCalls.set(controller, operation);
     try { return await operation; }
-    finally { activeCalls.delete(controller); }
+    finally {
+      try { if (releaseStorage && guardedRoot) forgetBootstrapBinding(guardedRoot); }
+      finally { releaseStorage?.(); activeCalls.delete(controller); }
+    }
   });
 
   /* eslint-enable */
@@ -4847,6 +5048,7 @@ export async function startMcpServer(options?: McpServerOptions): Promise<void> 
       build: process.env.QAP_BUILD_REVISION ?? 'development',
       interactive_authorizer: Boolean(composition.options.workspaceAuthorizer),
       interactive_discovery_authorizer: Boolean(composition.options.discoveryAuthorizer),
+      interactive_access_authorizer: Boolean(composition.options.interactiveAccessAuthorizer),
     });
   } catch (error) {
     composition.close();

@@ -47,6 +47,20 @@
             "enum": ["auto", "handoff"],
             "description": "Login mode - auto for automated login, handoff for manual intervention"
           },
+          "login_origin": { "type": "string", "minLength": 1, "maxLength": 1024 },
+          "verification_route": { "type": "string", "minLength": 1, "maxLength": 1024 },
+          "token_exchange_route": { "type": "string", "minLength": 1, "maxLength": 1024 },
+          "challenge_selector": { "type": "string", "minLength": 1, "maxLength": 500 },
+          "form_selectors": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["username", "password", "submit"],
+            "properties": {
+              "username": { "type": "string", "minLength": 1, "maxLength": 500 },
+              "password": { "type": "string", "minLength": 1, "maxLength": 500 },
+              "submit": { "type": "string", "minLength": 1, "maxLength": 500 }
+            }
+          },
           "login_route": {
             "type": "string",
             "description": "Route or path for the login page",
@@ -64,6 +78,66 @@
           "role": {
             "type": "string",
             "description": "Rol asociado al perfil"
+          },
+          "alias": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Alias principal para seleccionar el perfil"
+          },
+          "aliases": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "maxItems": 16,
+            "description": "Lista de alias adicionales para resolver el perfil"
+          },
+          "scenario": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "description": "Escenario de prueba asociado al perfil"
+          },
+          "scenarios": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "maxItems": 32,
+            "description": "Escenarios de prueba asociados al perfil"
+          },
+          "privileged": {
+            "type": "boolean",
+            "description": "Indica si el perfil corresponde a una cuenta privilegiada sujeta a controles del host"
+          },
+          "previous_accounts": {
+            "type": "array",
+            "maxItems": 32,
+            "description": "Historial seguro de identificadores anteriores tras actualizaciones de username",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["username", "changed_at", "credential_handling"],
+              "properties": {
+                "username": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 256
+                },
+                "changed_at": {
+                  "type": "string"
+                },
+                "credential_handling": {
+                  "type": "string",
+                  "enum": ["preserved", "revoked", "not_configured"]
+                }
+              }
+            }
           },
           "verified": {
             "type": "boolean",

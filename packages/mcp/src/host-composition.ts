@@ -1,4 +1,5 @@
-import { existsSync, lstatSync, readFileSync, realpathSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { randomBytes } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { URL } from 'node:url';
@@ -18,6 +19,7 @@ import type { McpServerOptions } from './server.js';
 import { WorkspaceBootstrap } from './workspace-bootstrap.js';
 import {
   loadDiscoveryAuthorizationsFromDisk,
+  WindowsInteractiveDiscoveryAuthorizer,
 } from './discovery-authorizer.js';
 import {
   loadAuthAuthorizationsFromDisk,
@@ -232,11 +234,34 @@ function testPolicy(input: unknown, projectRoot: string): TestNavigationAuthoriz
     ...(Array.isArray(input.authorizedProfiles) ? { authorizedProfiles: input.authorizedProfiles.map(value => requiredText(value, 'authorizedProfiles')) } : {}) };
 }
 
+function resolveOrProvisionHostSessionKey(directory: string, env: NodeJS.ProcessEnv): string | undefined {
+  if (/^[0-9a-fA-F]{64}$/.test(env.QAP_SESSION_KEY ?? '')) {
+    return env.QAP_SESSION_KEY;
+  }
+  if (env.QAP_DISABLE_SESSION_PERSISTENCE === '1' || env.NODE_ENV === 'test') {
+    return undefined;
+  }
+  try {
+    mkdirSync(directory, { recursive: true });
+    const keyFile = resolve(directory, 'host-session.key');
+    if (existsSync(keyFile)) {
+      const existing = readFileSync(keyFile, 'utf8').trim();
+      if (/^[0-9a-fA-F]{64}$/.test(existing)) return existing;
+    }
+    const generated = randomBytes(32).toString('hex');
+    writeFileSync(keyFile, generated + '\n', { encoding: 'utf8', mode: 0o600 });
+    return generated;
+  } catch {
+    return undefined;
+  }
+}
+
 /** No manifest enables root-authorized local bootstrap. Malformed opt-in fails closed. */
 export async function loadHostComposition(
   env: NodeJS.ProcessEnv = process.env
 ): Promise<HostComposition> {
   const manifestPath = env.QAP_MCP_HOST_CONFIG_PATH;
+  const isWindowsInteractive = process.platform === 'win32' && !env.QAP_DISABLE_INTERACTIVE_AUTH && env.NODE_ENV !== 'test';
   if (manifestPath === undefined) {
     const defaultQapHome = resolve(env.QAP_MCP_HOST_DATA_DIR ?? resolve(homedir(), '.qap'));
     const directory = resolve(env.QAP_MCP_WORKSPACE_HOST_DIR ?? join(defaultQapHome, 'workspaces'));
@@ -294,11 +319,9 @@ export async function loadHostComposition(
       },
     });
     const bootstrap = new WorkspaceBootstrap(directory, applicationService);
-    const roots: string[] = [];
     if (existsSync(registry)) {
       const values: unknown = JSON.parse(readFileSync(existingFile(registry, 'workspace registry'), 'utf8'));
       if (!Array.isArray(values) || values.some(value => typeof value !== 'string' || !isAbsolute(value) || realpathSync(value) !== value)) throw new Error('Invalid workspace registry');
-      roots.push(...values as string[]);
     }
     const persistedDiscoveryAuthorizations = existsSync(discoveryRegistry)
       ? loadDiscoveryAuthorizationsFromDisk(discoveryRegistry)
@@ -309,6 +332,11 @@ export async function loadHostComposition(
     const persistedTestAuthorizations = existsSync(testRegistry)
       ? loadTestAuthorizationsFromDisk(testRegistry)
       : [];
+    const sessionPersistenceKey = isWindowsInteractive
+      ? resolveOrProvisionHostSessionKey(directory, env)
+      : undefined;
+    const parsedTtl = env.QAP_SESSION_AUTH_TTL_MS ? Number(env.QAP_SESSION_AUTH_TTL_MS) : undefined;
+    const authorizationTtlMs = parsedTtl && Number.isInteger(parsedTtl) && parsedTtl > 0 ? parsedTtl : undefined;
     authorizationDiagnostic('host_composition', {
       build: process.env.QAP_BUILD_REVISION ?? 'development',
       authorizer: 'host_bound_scope_only',
@@ -319,19 +347,23 @@ export async function loadHostComposition(
     });
     return {
       options: {
-        projectRoots: roots,
+        projectRoots: [],
         workspaceBootstrap: bootstrap,
         applicationService,
         allowSpaReadOnly: true,
         silentBoundScope: true,
+        interactiveAccessAuthorizer: isWindowsInteractive ? new WindowsInteractiveDiscoveryAuthorizer() : undefined,
         clientWorkspaceRoots: true,
         hostRegistryPath: registry,
         hostDiscoveryRegistryPath: discoveryRegistry,
+        authorizationPersistencePath: resolve(directory, 'qa-session-authorizations.enc'),
         discoveryAuthorizations: persistedDiscoveryAuthorizations,
         hostAuthRegistryPath: authRegistry,
         authAuthorizations: persistedAuthAuthorizations,
         hostTestRegistryPath: testRegistry,
         testAuthorizations: persistedTestAuthorizations,
+        sessionPersistenceKey,
+        authorizationTtlMs,
       },
       close() {
         bootstrap.close();
@@ -351,6 +383,9 @@ export async function loadHostComposition(
   const app = requiredText(payload.applicationId, 'applicationId');
   const environment = requiredText(payload.environmentId, 'environmentId');
   const modules = declaredModules(payload.moduleBindings);
+  if (payload.interactiveAccess !== undefined && typeof payload.interactiveAccess !== 'boolean') {
+    throw new Error('Invalid host interactiveAccess setting.');
+  }
   const testAuthorization = testPolicy(payload.testAuthorization, root);
   const dbPath = existingFile(payload.knowledgeDbPath, 'knowledgeDbPath');
 
@@ -427,6 +462,9 @@ export async function loadHostComposition(
       options: {
         projectRoots: [root],
         provisionalInventory: modules.length === 0,
+        interactiveAccessEnabled: payload.interactiveAccess === true,
+        interactiveAccessAuthorizer: payload.interactiveAccess === true && isWindowsInteractive
+          ? new WindowsInteractiveDiscoveryAuthorizer() : undefined,
         ...(testAuthorization ? { testAuthorizations: [testAuthorization] } : {}),
         knowledgeBindings: [{
           ...scope, store, moduleBindings: modules, interviewDraftStore, moduleClosureStore,

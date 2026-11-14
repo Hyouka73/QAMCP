@@ -8,6 +8,8 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
 import { getPhaseGuidance, buildInterviewNextAction, type SiguienteAccion } from '../guidance.js';
 import type { IMcpToolHandler } from '../dispatcher.js';
+import type { InteractiveAccess } from '../interactive-access.js';
+import { getVersionDiagnostic } from '../version-diagnostic.js';
 
 import { binding, definition, validateBase, projectRoot, readContext, readEnvironment, isObject, type StateDependencies, type LegacyEnvironment, knowledgeStatus, result, safeDocument, assertProjectSegment } from './state-services.js';
 import { ModuleObservationBridge } from './module-observation-bridge.js';
@@ -16,7 +18,7 @@ import { discoveryIntegration, hasLegacyViewContext, legacyInterviewBlocked } fr
 
 export class StatusHandler implements IMcpToolHandler {
   readonly definition = definition('qap_status');
-  constructor(private readonly dependencies: StateDependencies & { browser: () => Promise<{ disponible: boolean }>; view: (root: string, module: string, view: string, route: string) => ViewDiscoveryContext }) {}
+  constructor(private readonly dependencies: StateDependencies & { interactiveAccess?: InteractiveAccess; browser: () => Promise<{ disponible: boolean }>; view: (root: string, module: string, view: string, route: string) => ViewDiscoveryContext }) {}
   validateArguments(args: unknown): boolean { return validateBase(args, ['targetPath']); }
   async execute(raw: unknown): Promise<CallToolResult> {
     const rootDir = projectRoot(raw, this.dependencies, false);
@@ -94,6 +96,12 @@ export class StatusHandler implements IMcpToolHandler {
     const text = legacy.content[0];
     if (text.type !== 'text') return legacy;
     const payload = JSON.parse(text.text) as Record<string, unknown>;
+    // Version diagnosis is independent from Knowledge and lifecycle so it is
+    // present even for a fresh workspace in ONBOARDING.
+    payload.version_diagnostic = await getVersionDiagnostic({
+      logPath: join(rootDir, '.qa', 'runtime', 'qap-version-diagnostics.jsonl'),
+      log: Boolean(this.dependencies.prepareWorkspace && existsSync(join(rootDir, '.qa'))),
+    });
     if (this.dependencies.prepareWorkspace && payload.fase === 'ONBOARDING') {
       const contextFile = join(rootDir, '.qa', 'project', 'context.yaml');
       const context = existsSync(contextFile) ? readContext(contextFile) : null;
@@ -233,7 +241,10 @@ export class StatusHandler implements IMcpToolHandler {
       }
 
       const profilesFile = join(qaDir, 'project', 'auth', 'profiles.json');
-      if (existsSync(profilesFile)) {
+      if (this.dependencies.interactiveAccess) {
+        profilesList = await this.dependencies.interactiveAccess.profiles(rootDir);
+        profileCount = profilesList.length;
+      } else if (existsSync(profilesFile)) {
         try {
           const parsed: unknown = JSON.parse(readFileSync(profilesFile, 'utf-8'));
           profilesList = isObject(parsed) && Array.isArray(parsed.profiles) ? parsed.profiles as AuthProfile[] : [];

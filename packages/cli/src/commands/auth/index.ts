@@ -1,7 +1,19 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { AuthManager } from '@qap/auth';
+import {
+  AuthManager,
+  importAccountInventory,
+  isValidUsernameIdentifier,
+  KeychainCredentialProvider,
+  PortableCredentialVault,
+  promptLocalSecret,
+  readProfile,
+  TieredCredentialVault,
+  updateProfile,
+  type AccountInventoryImportOptions,
+  type AccountInventoryImportResult,
+} from '@qap/auth';
 import type { AuthProfile } from '@qap/shared';
 import { SchemaValidator } from '@qap/shared';
 
@@ -39,11 +51,27 @@ export function handleAuthAdd(
     const profileData = typeof profileInput === 'string' ? { id: profileInput } : profileInput;
     const profiles = loadProfiles();
     const existingIndex = profiles.findIndex((p) => p.id === profileData.id);
+    const existing = existingIndex >= 0 ? profiles[existingIndex] : undefined;
+    const resolvedUsername = profileData.username ?? existing?.username;
+
+    if (!isValidUsernameIdentifier(resolvedUsername)) {
+      console.error('✖ Se requiere un identificador de usuario (username) válido. No se asignan cuentas ni correos predeterminados.');
+      return Promise.resolve();
+    }
+
+    if (existing) {
+      updateProfile(profileData.id, {
+        ...profileData,
+        username: resolvedUsername,
+      });
+      console.log(`✔ Perfil '${profileData.id}' actualizado con éxito en .qa/project/auth/profiles.json.`);
+      return Promise.resolve();
+    }
 
     const newProfile: AuthProfile = {
       id: profileData.id,
       env: profileData.env || 'dev',
-      username: profileData.username || 'user',
+      username: resolvedUsername,
       login_mode: profileData.login_mode || 'auto',
       login_route: profileData.login_route || '/login',
       session_cache:
@@ -53,15 +81,21 @@ export function handleAuthAdd(
       post_login_condition: profileData.post_login_condition || { type: 'url_contains', value: '/dashboard' },
       handoff_timeout_ms: profileData.handoff_timeout_ms ?? 30000,
       credential_source: profileData.credential_source || 'keychain',
+      ...(profileData.role ? { role: profileData.role } : {}),
+      ...(profileData.alias ? { alias: profileData.alias } : {}),
+      ...(profileData.aliases ? { aliases: profileData.aliases } : {}),
+      ...(profileData.scenario ? { scenario: profileData.scenario } : {}),
+      ...(profileData.scenarios ? { scenarios: profileData.scenarios } : {}),
       ...(profileData.env_var ? { env_var: profileData.env_var } : {}),
       ...(profileData.application_id ? { application_id: profileData.application_id } : {}),
+      ...(profileData.login_origin ? { login_origin: profileData.login_origin } : {}),
+      ...(profileData.verification_route ? { verification_route: profileData.verification_route } : {}),
+      ...(profileData.form_selectors ? { form_selectors: profileData.form_selectors } : {}),
+      ...(profileData.token_exchange_route ? { token_exchange_route: profileData.token_exchange_route } : {}),
+      ...(profileData.challenge_selector ? { challenge_selector: profileData.challenge_selector } : {}),
     };
 
-    if (existingIndex >= 0) {
-      profiles[existingIndex] = newProfile;
-    } else {
-      profiles.push(newProfile);
-    }
+    profiles.push(newProfile);
 
     const validationResult = validator.validateProfiles({
       _version: '1',
@@ -83,20 +117,56 @@ export function handleAuthAdd(
   }
 }
 
-/**
- * 2) qap auth set-secret <profile-id>: Solicita contraseña y guarda en keychain
- */
-export async function handleAuthSetSecret(profileId: string, secret: string): Promise<void> {
+export async function handleAuthImportInventory(
+  options: AccountInventoryImportOptions
+): Promise<AccountInventoryImportResult> {
+  return importAccountInventory(options);
+}
+
+/** Provision the locally selected account through the host's masked dialog. */
+export async function handleAuthSetSecret(profileId: string, prompt = (label: string) => promptLocalSecret(label, undefined, () => {
+  console.log('Diálogo de credencial presentado en Windows.');
+})): Promise<void> {
+  const root = process.cwd();
+  const profile = await readProfile(profileId, root);
+  if (!profile || !profile.application_id || !profile.login_origin ||
+      !['keychain', 'vault'].includes(profile.credential_source)) {
+    throw new Error('Configura localmente un perfil con aplicación, origen y proveedor keychain o vault.');
+  }
+  const destination = [
+    `Workspace: ${root}`, `Aplicación: ${profile.application_id}`, `Entorno: ${profile.env}`,
+    `Perfil: ${profile.id}`, `Cuenta: ${profile.username}`, `Origen: ${profile.login_origin}`,
+  ].join('\n');
+  const portable = profile.credential_source === 'vault' ? new PortableCredentialVault(root) : undefined;
+  const manager = new AuthManager(root, { vault: new TieredCredentialVault({
+    keychain: new KeychainCredentialProvider(), vault: portable,
+  }) });
   try {
-    if (!secret || secret.trim() === '') {
-      console.error(`✖ Error: El secreto para '${profileId}' no puede estar vacío.`);
+    if (portable) {
+      const passphrase = await prompt('Desbloquear el Vault local de QAP.\n\n' + destination);
+      if (!passphrase) {
+        console.log('Operación cancelada.');
+        return;
+      }
+      await portable.unlock(passphrase);
+    }
+    const provider = portable ? 'Vault local de QAP' : 'Administrador de credenciales de Windows';
+    const password = await prompt(`Guardar la contraseña de prueba en el ${provider}.\n\n` + destination);
+    if (!password) {
+      console.log('Operación cancelada.');
       return;
     }
-    await authManager.setSecret(profileId, secret);
-    console.log(`✔ Secreto guardado correctamente para el perfil '${profileId}'.`);
-  } catch (error) {
-    console.error(`✖ Error al actualizar el secreto para el perfil '${profileId}':`, error);
-  }
+    console.log('Contraseña aceptada. Guardando en el proveedor local.');
+    await manager.setProfileSecret(profile, password);
+    console.log('Secreto guardado correctamente para el perfil ' + profileId + '.');
+  } finally { manager.close(); }
+}
+
+export async function handleAuthTokenVariable(profileId: string): Promise<void> {
+  const profile = await readProfile(profileId);
+  if (!profile || profile.credential_source !== 'env' || !profile.application_id ||
+      !profile.login_origin || !profile.token_exchange_route) throw new Error('Configura el perfil de intercambio de token.');
+  console.log(authManager.scopedTokenVariable(profile));
 }
 
 /**
@@ -119,7 +189,8 @@ export async function handleAuthList(): Promise<void> {
     for (const p of profiles) {
       let status = 'sin credencial';
       if (p.credential_source === 'env') {
-        const val = p.env_var ? process.env[p.env_var] : undefined;
+        const variable = p.login_origin ? authManager.scopedTokenVariable(p) : p.env_var;
+        const val = variable ? process.env[variable] : undefined;
         status = val ? 'variable env (ok)' : 'variable env (no definida)';
       } else {
         const result = await authManager.getCredentialStatus(p.id);

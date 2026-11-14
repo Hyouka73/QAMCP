@@ -41,6 +41,7 @@ El CLI ofrece `qap --help` para el catálogo completo y `qap help <comando>` par
 | `qap_context_set` | Registra ubicación, objetivo y demás contexto del sistema. |
 | `qap_context_ingest` | Extrae propuestas de contexto desde un documento y conserva su procedencia. |
 | `qap_auth_add` | Configura un perfil e intenta establecer una sesión verificable. |
+| `qap_auth_provision` | Aprovisiona en el host una credencial para un perfil local. |
 | `qap_auth_list` | Lista perfiles y su estado. |
 | `qap_session_plan` | Registra los módulos y prioridades de la campaña. |
 | `qap_discover` | Observa una ruta, detecta vistas y controles, y registra el inventario y su evidencia. |
@@ -53,6 +54,7 @@ El CLI ofrece `qap --help` para el catálogo completo y `qap help <comando>` par
 | `qap_session_close` | Consolida el estado de la campaña, genera su reporte y tramita su cierre. |
 | `qap_server` | Gestiona el visor local de resultados y memoria. |
 | `qap_prune` | Limpia artefactos temporales o antiguos según las opciones de retención. |
+| `qap_project_reset` | Inventaría los recursos de un proyecto y tramita su eliminación explícita. |
 
 ## Orden de trabajo y aceptación
 

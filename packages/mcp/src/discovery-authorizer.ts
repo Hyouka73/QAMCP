@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
+import { CredentialError } from '@qap/auth';
 import type { BlackBoxCrawlerInput } from '@qap/playwright-adapter';
 
 import { authorizationDiagnostic } from './authorization-diagnostics.js';
@@ -17,6 +18,11 @@ export interface DiscoveryAuthorizationRequest {
   readonly baseUrl: string;
   readonly targetUrl: string;
   readonly limits?: BlackBoxCrawlerInput['limits'];
+  readonly interactiveOperation?: {
+    operation: 'login' | 'test' | 'discovery_profile' | 'credential_association';
+    profile?: string;
+    details: string;
+  };
 }
 
 export type DiscoveryAuthorizationResult =
@@ -26,10 +32,15 @@ export type DiscoveryAuthorizationResult =
   | { readonly decision: 'unavailable'; readonly reason: string; readonly code?: 'discovery_gui_unavailable' | 'discovery_dialog_start_failed' };
 
 export interface IDiscoveryAuthorizer {
+  /** Optional capability probe; unavailable clients must retain the prior host authorization behavior. */
+  isAvailable?(): boolean;
   requestAuthorization(
     request: DiscoveryAuthorizationRequest,
     signal?: AbortSignal,
   ): Promise<DiscoveryAuthorizationResult>;
+  /** Separate operator decision; the value stays inside the host. */
+  requestCredential?(request: DiscoveryAuthorizationRequest, profile: string, details: string,
+    signal: AbortSignal): Promise<string | undefined>;
 }
 
 export interface PersistedDiscoveryAuthorization {
@@ -204,6 +215,108 @@ export class WindowsInteractiveDiscoveryAuthorizer implements IDiscoveryAuthoriz
       : resolveDialogScriptPath('qap-interactive-discovery-dialog.ps1');
   }
 
+  private launchDialog(request: DiscoveryAuthorizationRequest, operation?: string, profile?: string, details?: string) {
+    const powershellExe = join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
+    return spawn(powershellExe, [
+      '-NoProfile', '-NonInteractive', '-STA', '-ExecutionPolicy', 'Bypass', '-File', this.scriptPath,
+      '-ApplicationId', request.applicationId, '-EnvironmentId', request.environmentId,
+      '-EnvironmentRevision', String(request.environmentRevision), '-BaseUrl', request.baseUrl,
+      '-TargetUrl', request.targetUrl, '-MaxPages', String(request.limits?.max_pages ?? 10),
+      '-MaxRequests', String(request.limits?.max_requests ?? 50),
+      '-TimeoutSec', String(Math.ceil((request.limits?.total_timeout_ms ?? 60_000) / 1000)),
+      ...(operation ? ['-Operation', operation, '-ProjectRoot', request.projectRoot,
+        '-Profile', profile ?? '(anónimo)', '-ScopeDetails', Buffer.from(details ?? '', 'utf8').toString('base64')] : []),
+    ], { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: false });
+  }
+
+  async requestCredential(request: DiscoveryAuthorizationRequest, profile: string, details: string,
+    signal: AbortSignal): Promise<string | undefined> {
+    if (signal.aborted) return;
+    if (process.platform !== 'win32') throw new CredentialError('DIALOG_DESKTOP_UNAVAILABLE');
+    if (!existsSync(this.scriptPath)) throw new CredentialError('DIALOG_START_FAILED');
+
+    return new Promise((resolve, reject) => {
+      const child = this.launchDialog(request, 'credential_provision', profile, details);
+      const secret = Buffer.alloc(8192);
+      let length = 0;
+      let control = '';
+      let started = false;
+      let shown = false;
+      let settled = false;
+      let timer = setTimeout(() => finish(new CredentialError(started ? 'DIALOG_NOT_PRESENTED' : 'DIALOG_START_FAILED')), 8_000);
+
+      function finish(error?: CredentialError, password?: string): void {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        signal.removeEventListener('abort', abort);
+        secret.fill(0);
+        if (error) {
+          child.kill();
+          authorizationDiagnostic('credential_dialog_error', { childPid: child.pid, code: error.code, started, shown });
+          reject(error);
+        } else {
+          authorizationDiagnostic(password === undefined ? 'credential_dialog_cancelled' : 'credential_dialog_accepted',
+            { childPid: child.pid, shown });
+          resolve(password);
+        }
+      }
+
+      function abort(): void {
+        finish();
+        child.kill();
+      }
+
+      child.once('spawn', () => {
+        if (settled) return;
+        started = true;
+        authorizationDiagnostic('credential_dialog_started', { childPid: child.pid });
+      });
+      child.once('error', () => finish(new CredentialError(started ? 'DIALOG_FAILED' : 'DIALOG_START_FAILED')));
+      child.stderr.on('data', (chunk: Buffer) => {
+        if (settled) return;
+        const lines = (control + chunk.toString('utf8')).split('\n');
+        control = lines.pop()!.slice(-256);
+        for (const line of lines) {
+          const context = /^QAP_CREDENTIAL_DESKTOP (\d+) ([\w.-]+) ([\w.-]+) ([\w.-]+) (-?\d+)\r?$/.exec(line);
+          if (context) {
+            authorizationDiagnostic('credential_dialog_desktop', { childPid: child.pid, session: Number(context[1]),
+              station: context[2], desktop: context[3], inputDesktop: context[4], connection: Number(context[5]) });
+          }
+          const window = /^QAP_CREDENTIAL_WINDOW (\d+) ([01]) ([01])\r?$/.exec(line);
+          if (!window) continue;
+          authorizationDiagnostic('credential_dialog_window', { childPid: child.pid, hwnd: window[1],
+            visible: window[2] === '1', foreground: window[3] === '1' });
+          if (started && !shown && window[1] !== '0' && window[2] === '1') {
+            shown = true;
+            clearTimeout(timer);
+            timer = setTimeout(() => finish(new CredentialError('DIALOG_RESPONSE_TIMEOUT')), 45_000);
+          }
+        }
+      });
+      child.stdout.on('data', (chunk: Buffer) => {
+        if (!settled) {
+          if (length + chunk.length > secret.length) finish(new CredentialError('DIALOG_FAILED'));
+          else {
+            chunk.copy(secret, length);
+            length += chunk.length;
+          }
+        }
+        chunk.fill(0);
+      });
+      child.once('close', code => {
+        if (settled) return;
+        if (code === 3 && length === 0) finish(new CredentialError('DIALOG_DESKTOP_UNAVAILABLE'));
+        else if (code === 2 && shown && length === 0) finish();
+        else if (code === 5 && shown && length === 0) finish(new CredentialError('DIALOG_RESPONSE_TIMEOUT'));
+        else if (code === 0 && shown && length > 0) finish(undefined, secret.toString('utf8', 0, length));
+        else finish(new CredentialError(shown || code === 4 ? 'DIALOG_FAILED' : 'DIALOG_NOT_PRESENTED'));
+      });
+      signal.addEventListener('abort', abort, { once: true });
+      if (signal.aborted) abort();
+    });
+  }
+
   async requestAuthorization(
     request: DiscoveryAuthorizationRequest,
     signal?: AbortSignal,
@@ -221,46 +334,15 @@ export class WindowsInteractiveDiscoveryAuthorizer implements IDiscoveryAuthoriz
 
     return new Promise((resolveResult) => {
       let settled = false;
-      const powershellExe = process.env.SystemRoot
-        ? join(process.env.SystemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
-        : 'powershell.exe';
-
-      const child = spawn(
-        powershellExe,
-        [
-          '-NoProfile',
-          '-NonInteractive',
-          '-STA',
-          '-ExecutionPolicy',
-          'Bypass',
-          '-File',
-          this.scriptPath,
-          '-ApplicationId',
-          request.applicationId,
-          '-EnvironmentId',
-          request.environmentId,
-          '-EnvironmentRevision',
-          String(request.environmentRevision),
-          '-BaseUrl',
-          request.baseUrl,
-          '-TargetUrl',
-          request.targetUrl,
-          '-MaxPages',
-          String(request.limits?.max_pages ?? 10),
-          '-MaxRequests',
-          String(request.limits?.max_requests ?? 50),
-          '-TimeoutSec',
-          String(Math.ceil((request.limits?.total_timeout_ms ?? 60_000) / 1000)),
-        ],
-        { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: false },
-      );
+      const { operation, profile, details } = request.interactiveOperation ?? {};
+      const child = this.launchDialog(request, operation, profile, details);
 
       authorizationDiagnostic('discovery_dialog_spawn', {
         childPid: child.pid,
         scriptPath: this.scriptPath,
         applicationId: request.applicationId,
         environmentId: request.environmentId,
-        targetUrl: request.targetUrl,
+        ...(request.interactiveOperation ? { operation: request.interactiveOperation.operation } : { targetUrl: request.targetUrl }),
       });
 
       let stdout = '';

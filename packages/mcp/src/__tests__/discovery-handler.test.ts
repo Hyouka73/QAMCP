@@ -195,8 +195,8 @@ describe('VNEXT-013 real MCP black-box acquisition', () => {
   it('owns exactly one route, preserves order, rejects collisions, and never falls back', async () => {
     const f = await fixture(); const spy = vi.spyOn(DiscoveryHandler.prototype, 'execute');
     const client = await connect(f.options); const tools = (await client.listTools()).tools;
-    expect(tools).toHaveLength(18); expect(tools.filter(t => t.name === 'qap_discover')).toHaveLength(1);
-    expect(tools.findIndex(t => t.name === 'qap_discover')).toBe(8);
+    expect(tools).toHaveLength(20); expect(tools.filter(t => t.name === 'qap_discover')).toHaveLength(1);
+    expect(tools.findIndex(t => t.name === 'qap_discover')).toBe(9);
     expect(() => createMcpServer({ handlers: [new DiscoveryHandler({})] })).toThrow();
     spy.mockRejectedValueOnce(new Error(canary));
     expect(await call(client, f.root)).toMatchObject({ code: 'execution_failed' });
@@ -358,6 +358,9 @@ describe('VNEXT-013 real MCP black-box acquisition', () => {
     const client = await connect(f.options); const data = await call(client, f.root, { path: mode === 'redirect' ? '/redirect' : '/' });
     expect(data.status).not.toBe('completed');
     expect(f.hits).not.toContain('/forbidden');
+    if (mode === 'redirect') {
+      expect(data.routes).toContainEqual(expect.objectContaining({ state: 'blocked', reason: 'SCOPE_BLOCKED' }));
+    }
     if (['private', 'dns', 'browser'].includes(mode)) { expect(f.hits).toEqual([]); expect(data.persistence).toBe('not_attempted'); }
     if (mode === 'page') expect(data).toMatchObject({ counts: { visited_routes: 1, candidate_routes: 2 }, persistence: 'committed' });
   }, 30000);

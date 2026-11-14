@@ -483,31 +483,20 @@ export function getPhaseGuidance(
               descripcion: `Inicia sesión en la ventana del navegador que se abrirá llamando a qap_auth_add con method handoff para el rol '${pendingRole}'.`,
               tool: 'qap_auth_add',
               parametros: {
-                role: pendingRole,
+                profile: pendingRole,
                 method: 'handoff',
               },
             },
           };
         }
 
-        let capturePregunta: Pregunta = {
-          id: `scoping.capturar_perfil_credentials_${pendingRole}`,
-          texto: `Indica el usuario y contraseña de prueba para el rol '${pendingRole}' (por ejemplo: tester_${pendingRole}, clave_segura):`,
-          formato: 'abierta',
-          opciones: [],
-          permite_otra: false,
-          registrar_con: { tool: 'qap_auth_add', campo: 'credentials' },
-        };
-        capturePregunta.render_texto = generarRenderTexto(capturePregunta);
-        capturePregunta = guardPregunta(capturePregunta) as Pregunta;
-
         return {
           fase: 'SCOPING',
           siguiente_accion: {
-            tipo: 'decision',
-            descripcion: `Captura y verifica el perfil con credenciales para el rol '${pendingRole}'.`,
+            tipo: 'trabajo',
+            descripcion: `Solicita qap_auth_add con method auto y el identificador del perfil local para el rol '${pendingRole}'. Si falta el perfil, indica al operador que lo aprovisione en el host.`,
             tool: 'qap_auth_add',
-            pregunta: capturePregunta,
+            parametros: { profile: pendingRole, method: 'auto' },
           },
         };
       }

@@ -202,7 +202,7 @@ describe('VNEXT-014-D declarative ReportHandler — persisted evidence only', ()
     expect(parse(response).code).toBe('invalid_execution_evidence');
   });
 
-  it('D-R11: exposes exactly 18 tools and invokes the migrated report via MCP transport', async () => {
+  it('D-R11: exposes exactly 20 tools and invokes the migrated report via MCP transport', async () => {
     const root = workspace();
     const storage = new FileSystemStorage({ rootDir: root });
     await storage.saveExecutionResult('exec_mcp_report', evidence('exec_mcp_report'));
@@ -213,7 +213,7 @@ describe('VNEXT-014-D declarative ReportHandler — persisted evidence only', ()
       await server.connect(serverTransport);
       await client.connect(clientTransport);
       const tools = await client.listTools();
-      expect(tools.tools).toHaveLength(18);
+      expect(tools.tools).toHaveLength(20);
       expect(tools.tools.map(tool => tool.name)).toContain('qap_report');
       const response = await client.callTool({
         name: 'qap_report',

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 
+import { restrictChromiumPage, type StorageState } from '@qap/auth';
 import type { IRunner } from '@qap/engine';
 import { FileSystemStorage, LockManager, DependencyGraphResolver } from '@qap/knowledge';
 import type {
@@ -96,6 +97,9 @@ export interface PlaywrightRunnerOptions extends TestOptions {
   allowImplicitAuth?: boolean;
   profile?: string;
   allowedOrigins?: string[];
+  /** Trusted MCP host options for a single-origin, read-only execution. */
+  interactiveReadOnly?: boolean;
+  verifiedSession?: { state: StorageState; verificationUrl: string; selector: string };
   contextSetup?: (context: BrowserContext) => Promise<void> | void;
 }
 
@@ -246,8 +250,8 @@ export class PlaywrightRunner implements IRunner {
 
       // 2. Resolver sesión autenticada con resolveModuleSession() o storageState inyectado por el host
       type BrowserContextOptions = NonNullable<Parameters<Browser['newContext']>[0]>;
-      let storageState: BrowserContextOptions['storageState'] = options.storageState;
-      const shouldResolveSession =
+      let storageState: BrowserContextOptions['storageState'] = options.verifiedSession?.state ?? options.storageState;
+      const shouldResolveSession = !options.interactiveReadOnly &&
         !storageState && (options.profile !== undefined || (Boolean(moduleName) && options.allowImplicitAuth !== false));
       if (shouldResolveSession && moduleName) {
         try {
@@ -268,6 +272,9 @@ export class PlaywrightRunner implements IRunner {
         }
       }
 
+      if (options.interactiveReadOnly && options.profile && !options.verifiedSession) {
+        throw new Error('Falta una sesión verificada por el host.');
+      }
       checkCancellation();
       // 3. Inicializar navegador Chromium con aislamiento de errores de infraestructura
       let isInfrastructureError = false;
@@ -276,10 +283,16 @@ export class PlaywrightRunner implements IRunner {
       try {
         const { chromium } = await import('playwright-core');
         checkCancellation();
-        browser = await chromium.launch({
-          headless: isHeadless,
-          slowMo: options.slow_mo ?? 0,
-        });
+        const channels = options.interactiveReadOnly ? [undefined, 'chrome', 'msedge'] : [undefined];
+        for (const channel of channels) {
+          checkCancellation();
+          try {
+            browser = await chromium.launch({ channel, headless: isHeadless, slowMo: options.slow_mo ?? 0 });
+            break;
+          } catch (error) {
+            if (channel === channels.at(-1)) throw error;
+          }
+        }
       } catch (launchErr: unknown) {
         isInfrastructureError = true;
         infrastructureErrorMessage = launchErr instanceof Error ? launchErr.message : String(launchErr);
@@ -319,6 +332,7 @@ export class PlaywrightRunner implements IRunner {
       const newContextOpts: BrowserContextOptions = {
         ...(storageState ? { storageState } : {}),
         ...(options.extraHTTPHeaders ? { extraHTTPHeaders: options.extraHTTPHeaders } : {}),
+        ...(options.interactiveReadOnly ? { serviceWorkers: 'block', acceptDownloads: false } : {}),
       };
       context = await browser!.newContext(Object.keys(newContextOpts).length > 0 ? newContextOpts : undefined);
       checkCancellation();
@@ -328,7 +342,7 @@ export class PlaywrightRunner implements IRunner {
       }
       checkCancellation();
 
-      if (options.allowedOrigins && options.allowedOrigins.length > 0) {
+      if (!options.interactiveReadOnly && options.allowedOrigins && options.allowedOrigins.length > 0) {
         const allowedPatterns = options.allowedOrigins;
         await context.route('**/*', async (route) => {
           const reqUrl = route.request().url();
@@ -375,6 +389,21 @@ export class PlaywrightRunner implements IRunner {
 
       const page = await context.newPage();
       page.setDefaultTimeout(timeout);
+      if (options.interactiveReadOnly) {
+        const [origin] = options.allowedOrigins ?? [];
+        if (!origin || options.allowedOrigins?.length !== 1) throw new Error('Falta el origen autorizado.');
+        await restrictChromiumPage(page, origin, true);
+        if (options.verifiedSession) {
+          const { verificationUrl, selector } = options.verifiedSession;
+          if (new URL(verificationUrl).origin !== origin) throw new Error('Origen de sesión incompatible.');
+          const response = await page.goto(verificationUrl, { waitUntil: 'domcontentloaded' });
+          if (!response?.ok() || new URL(page.url()).origin !== origin) throw new Error('Sesión no válida.');
+          await page.locator(selector).first().waitFor({ state: 'visible' });
+          if (new URL(page.url()).origin !== origin || await page.locator('input[type="password"]:visible').count()) {
+            throw new Error('Sesión no válida.');
+          }
+        }
+      }
 
       let caseIds = [...initialCaseIds];
 
@@ -504,15 +533,17 @@ export class PlaywrightRunner implements IRunner {
           caseResult = 'failed';
           totalFailed++;
           executedStatuses.set(caseId, 'failed');
-          errorMessage = err instanceof Error ? err.message : String(err);
+          errorMessage = options.interactiveReadOnly ? 'El paso no se completó.' : err instanceof Error ? err.message : String(err);
 
           try {
-            const absShot = await executeScreenshot(
-              page,
-              { type: 'screenshot', filename: `failure_${caseId}_${Date.now()}.png` },
-              screenshotsDir
-            );
-            failureScreenshotPath = absShot ? path.relative(projectRoot, absShot).replace(/\\/g, '/') : undefined;
+            if (!options.interactiveReadOnly) {
+              const absShot = await executeScreenshot(
+                page,
+                { type: 'screenshot', filename: `failure_${caseId}_${Date.now()}.png` },
+                screenshotsDir
+              );
+              failureScreenshotPath = absShot ? path.relative(projectRoot, absShot).replace(/\\/g, '/') : undefined;
+            }
           } catch {
             // Ignorar fallos al tomar captura
           }
@@ -573,7 +604,7 @@ export class PlaywrightRunner implements IRunner {
       }
     } catch (err: unknown) {
       unexpectedlyInterrupted = true;
-      console.error('[PlaywrightRunner] Error crítico durante la ejecución:', err);
+      if (!options.interactiveReadOnly) console.error('[PlaywrightRunner] Error crítico durante la ejecución:', err);
       // Preserve all planned cases, even if browser context creation or case
       // loading failed outside the individual step handlers. Never fabricate a
       // failing assertion or silently omit the unexecuted cases.

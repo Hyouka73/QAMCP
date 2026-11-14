@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import { CallToolResultSchema, type CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+import { CallToolResultSchema, type CallToolResult, type Tool } from '@modelcontextprotocol/sdk/types.js';
 import { LockManager } from '@qap/knowledge';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -84,8 +84,8 @@ describe('real MCP client/server via linked transports', () => {
     const handler = synthetic();
     const client = await connect({ handlers: [handler] });
     const catalog = await client.listTools();
-    expect(catalog.tools).toHaveLength(19);
-    expect(new Set(catalog.tools.map(tool => tool.name)).size).toBe(19);
+    expect(catalog.tools).toHaveLength(21);
+    expect(new Set(catalog.tools.map(tool => tool.name)).size).toBe(21);
     expect(catalog.tools.at(-1)).toEqual(handler.definition);
     const result = await client.callTool({ name: 'test_synthetic', arguments: { value: 'hello' } });
     expect(result.content).toEqual([{ type: 'text', text: JSON.stringify({ args: { value: 'hello' }, hasSignal: true }) }]);
@@ -95,8 +95,8 @@ describe('real MCP client/server via linked transports', () => {
   it('isolates registries and preserves unknown-tool legacy errors', async () => {
     const extended = await connect({ handlers: [synthetic()] });
     const production = await connect();
-    expect((await extended.listTools()).tools).toHaveLength(19);
-    expect((await production.listTools()).tools).toHaveLength(18);
+    expect((await extended.listTools()).tools).toHaveLength(21);
+    expect((await production.listTools()).tools).toHaveLength(20);
     expect(await production.callTool({ name: 'test_synthetic' })).toEqual({
       isError: true, content: [{ type: 'text', text: 'Tool no reconocida: test_synthetic' }],
     });
@@ -113,7 +113,7 @@ describe('real MCP client/server via linked transports', () => {
     const baseline = JSON.parse(readFileSync(new URL('./fixtures/mcp-catalog-vnext010.json', import.meta.url), 'utf8'));
     const client = await connect();
     const tools = (await client.listTools()).tools;
-    const oldTools = baseline.tools as Array<{ name: string; description: string }>;
+    const oldTools = baseline.tools as Tool[];
     const changed = tools.find(tool => tool.name === 'qap_discover')!;
     expect(changed.description).not.toBe(oldTools.find(tool => tool.name === 'qap_discover')!.description);
     // qap_report was intentionally extended in VNEXT-014-D. Assert its
@@ -134,14 +134,27 @@ describe('real MCP client/server via linked transports', () => {
         },
       },
     });
-    expect(tools.find(t => t.name === 'qap_auth_add')!.inputSchema.properties?.post_login_condition).toMatchObject({
+    const auth = tools.find(t => t.name === 'qap_auth_add')!.inputSchema;
+    expect(auth).toMatchObject({ additionalProperties: false, required: ['profile'] });
+    expect(auth.properties?.post_login_condition).toMatchObject({
       type: 'object', required: ['type','value'], properties: { type: { enum: ['selector_present'] } } });
+    expect(auth.properties?.method).toMatchObject({ enum: ['auto', 'reuse', 'handoff'] });
+    for (const key of ['password', 'secret', 'token', 'cookies', 'storageState', 'user_confirmed']) {
+      expect(auth.properties).not.toHaveProperty(key);
+    }
+    const provision = tools.find(t => t.name === 'qap_auth_provision')!.inputSchema;
+    expect(provision).toMatchObject({ additionalProperties: false, required: ['targetPath', 'env', 'profile'] });
+    expect(Object.keys(provision.properties!).sort()).toEqual(['env', 'profile', 'targetPath']);
+    expect(tools.find(t => t.name === 'qap_project_reset')!.inputSchema).toMatchObject({
+      additionalProperties: false, required: ['targetPath', 'phase'], properties: { phase: { enum: ['preview', 'confirm'] } },
+    });
+    expect(tools).toHaveLength(20);
     // Block 1 retired contradictory qap_clean in favor of qap_project.
     expect(tools.find(t => t.name === 'qap_clean')).toBeUndefined();
     const projectTool = tools.find(t => t.name === 'qap_project')!;
     expect(projectTool).toBeDefined();
     expect(projectTool.inputSchema.required).toEqual(['action']);
-    expect({ tools: tools.map(tool => {
+    expect({ tools: tools.filter(tool => !['qap_auth_provision', 'qap_project_reset'].includes(tool.name)).map(tool => {
       if (tool.name === 'qap_project') {
         return oldTools.find(t => t.name === 'qap_clean')!;
       }
@@ -152,13 +165,11 @@ describe('real MCP client/server via linked transports', () => {
         delete properties.tenant_id;
         return { ...tool, description: prior.description, inputSchema: { ...tool.inputSchema, properties } };
       }
-      if (tool.name === 'qap_plan' || tool.name === 'qap_auth_add') {
+      if (tool.name === 'qap_plan' || tool.name === 'qap_auth_add' || tool.name === 'qap_auth_list') {
         const prior = oldTools.find(t => t.name === tool.name)!;
-        const properties = {
-          ...tool.inputSchema.properties,
-          ...(tool.name === 'qap_auth_add' ? { storageState: prior.inputSchema.properties?.storageState } : {}),
-        };
-        delete properties.case_workflow; delete properties.post_login_condition; delete properties.tenant_id;
+        if (tool.name === 'qap_auth_add' || tool.name === 'qap_auth_list') return prior;
+        const properties = { ...tool.inputSchema.properties };
+        delete properties.case_workflow;
         return { ...tool, description: prior.description, inputSchema: { ...tool.inputSchema, properties } };
       }
       if (tool.name === 'qap_module_close') {

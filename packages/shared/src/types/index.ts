@@ -25,7 +25,7 @@ export type {
 } from './module-context.type.js';
 
 // Auth Profiles
-export type { AuthProfiles, AuthProfile, PostLoginCondition } from './auth-profiles.type.js';
+export type { AuthProfiles, AuthProfile, PostLoginCondition, PreviousAccountReference } from './auth-profiles.type.js';
 
 // Prerequisites
 export type { Prereqs, Requirements, AuthRequirements, StatePrerequisite, Teardown } from './prereqs.type.js';

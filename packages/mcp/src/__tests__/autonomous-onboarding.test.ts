@@ -40,6 +40,8 @@ it('T01/T03: empty authorized workspace prepares locally and asks one natural qu
   expect(response.error).toBeFalsy();
   expect(response.data.initialized).toBe(true);
   expect(response.data.knowledge.state).toBe('prepared');
+  expect(response.data.version_diagnostic).toMatchObject({ status: 'unknown', action: 'review_configuration' });
+  expect(response.data.version_diagnostic.active).toMatchObject({ pid: expect.any(Number), startedAt: expect.any(String), serverPath: expect.any(String) });
   expect(response.data.siguiente_accion.pregunta.texto).toBe('¿Dónde está el sistema que quieres probar? Puedes proporcionarme su URL o indicarme un proyecto local');
   expect(response.data.siguiente_accion.pregunta.opciones).toEqual([]);
   expect(response.data.stats.modules).toBe(0);
@@ -51,8 +53,9 @@ it('T02: repeated preparation preserves files and one durable Knowledge database
   const path = join(root, '.qa/project/context.yaml'), original = readFileSync(path, 'utf8');
   await Promise.all([c.call(), c.call()]);
   expect(readFileSync(path, 'utf8')).toBe(original);
-  expect(readdirSync(c.host)).toHaveLength(1);
-  expect(readdirSync(join(c.host, readdirSync(c.host)[0])).filter(p => p === 'knowledge.sqlite')).toHaveLength(1);
+  const stores = readdirSync(c.host).filter(name => /^[0-9a-f]{64}$/.test(name));
+  expect(stores).toHaveLength(1);
+  expect(readdirSync(join(c.host, stores[0])).filter(p => p === 'knowledge.sqlite')).toHaveLength(1);
 });
 it('T04: existing Markdown is detected and read before asking for missing information', async () => {
   const root = temp(); writeFileSync(join(root, 'README.md'), '# Example\nA documented system with functional specifications.');
@@ -113,13 +116,15 @@ it('T08: two workspaces have isolated state, Knowledge identities and no inherit
   await c.call('qap_context_set', { targetPath: a, base_url: 'https://example.invalid' });
   expect((await c.call('qap_status', { targetPath: a })).data.knowledge.state).toBe('available');
   expect((await c.call('qap_status', { targetPath: b })).data.knowledge.state).toBe('prepared');
-  expect(readdirSync(c.host)).toHaveLength(2);
+  expect(readdirSync(c.host).filter(name => /^[0-9a-f]{64}$/.test(name))).toHaveLength(2);
 });
 it('T06: authentication and simulated human approval remain unavailable in autonomous mode', async () => {
   const root = temp(), c = await connect([root]);
   await c.call();
   const auth = await c.call('qap_auth_add', { profile: 'admin', user_confirmed: true });
-  expect(auth.data.code).toBe('authentication_authorization_required');
+  expect(auth.data.code).toBe('agent_auth_material_not_supported');
+  const withoutConsent = await c.call('qap_auth_add', { profile: 'admin', method: 'auto' });
+  expect(withoutConsent.data.code).toBe('authentication_authorization_required');
   expect(existsSync(join(root, '.qa/project/auth'))).toBe(false);
   const approval = await c.call('qap_rules_set', { module: 'invented', canonical_interview: { action: 'review', question_id: 'invented', version: 1 }, user_confirmed: true });
   expect(approval.data.status).not.toBe('success');

@@ -12,6 +12,7 @@ import {
   syncDiscoveryAuthorizationsFromDisk,
   atomicRecordDiscoveryAuthorization,
 } from '../discovery-authorizer.js';
+import type { InteractiveAccess } from '../interactive-access.js';
 
 import { binding, definition, isObject, projectRoot, result, validateBase, type StateDependencies } from './state-services.js';
 import { discoveryIntegration } from './legacy-discovery-contract.js';
@@ -70,6 +71,12 @@ function resolveTarget(path: string, base: string): string | undefined {
 export class DiscoveryHandler implements IMcpToolHandler {
   readonly definition = definition('qap_discover');
   private readonly authorizations: DiscoveryAuthorization[];
+
+  forgetProject(root: string): void {
+    for (let i = this.authorizations.length - 1; i >= 0; i--) {
+      if (this.authorizations[i].projectRoot === root) this.authorizations.splice(i, 1);
+    }
+  }
   private readonly authorizer?: IDiscoveryAuthorizer;
   private readonly hostDiscoveryRegistryPath?: string;
 
@@ -78,6 +85,7 @@ export class DiscoveryHandler implements IMcpToolHandler {
     authorizations: readonly DiscoveryAuthorization[] = [],
     authorizer?: IDiscoveryAuthorizer,
     hostDiscoveryRegistryPath?: string,
+    _interactiveAccess?: InteractiveAccess,
   ) {
     this.authorizer = authorizer;
     this.hostDiscoveryRegistryPath = hostDiscoveryRegistryPath;
@@ -432,9 +440,12 @@ export class DiscoveryHandler implements IMcpToolHandler {
       const currentEnvironment = await bound.store.get(bound.applicationId, 'environment', bound.environmentId);
       if (!currentEnvironment || currentEnvironment.revision !== env.revision) return blocked('authorization_context_mismatch');
       if (context.signal.aborted) return blocked('cancelled');
-      const output = await new BlackBoxCrawler(bound.store, config.dependencies).run({
+      const bootstrap = Boolean(this.dependencies.prepareWorkspace);
+      const limits = bootstrap && config.limits?.max_bytes
+        ? { ...config.limits, max_bytes: Math.min(config.limits.max_bytes, 1_048_576) } : config.limits;
+      const output = await new BlackBoxCrawler(bound.store, { ...config.dependencies, allowCanonicalOrigin: bootstrap }).run({
         application_id: bound.applicationId, environment: env.entity, target_url: target,
-        authorization: navigationAuthorization, limits: config.limits, signal: context.signal,
+        authorization: navigationAuthorization, limits, signal: context.signal,
         isolation, authenticated_session,
       });
       if (authenticated_session && !output.observations.length && (output.warnings.includes('AUTH_SESSION_INVALID') ||
@@ -455,12 +466,12 @@ export class DiscoveryHandler implements IMcpToolHandler {
       }
       const receipt: AssociationReceipt | undefined = identity.status === 'resolved' && 'fingerprint' in identity && output.observations.length
         ? { version: 1, binding: identity.fingerprint, execution: output.execution_id, observations: output.observations.map(o => o.id).sort() } : undefined;
-      const association = receipt ? await bridge.associate(args.name as string, receipt) : {
+      const associationResult = receipt ? await bridge.associate(args.name as string, receipt) : {
         association_status: output.observations.length ? 'blocked' : 'not_attempted',
         code: identity.status === 'resolved' ? 'context_changed_or_no_observations' : identity.status,
         associated_observations: 0, confirmed_relations: 0, coverage: 'partial',
       };
-
+      const { code: association_code, ...association } = associationResult;
       const persistedCandidates: unknown[] = [];
       let persistedInventoryId: string | undefined;
       if (appService && appProject && (output.observations.length > 0 || output.routes.length > 0)) {
@@ -548,7 +559,7 @@ export class DiscoveryHandler implements IMcpToolHandler {
         module_identity_status: persistedCandidates.length > 0 && identity.status === 'plan_ambiguous_or_missing'
           ? 'candidate_persisted'
           : identity.status,
-        ...association, association_receipt: receipt,
+        ...association, association_code, association_receipt: receipt,
         ...(persistedInventoryId ? { partial_inventory_id: persistedInventoryId, reviewable_candidates: persistedCandidates } : {}),
         ...(appServiceMod ? { service_module: { module_id: appServiceMod.module_id, key: appServiceMod.key, status: appServiceMod.status } } : {}),
         association_next_safe_action: isPlannedModule
@@ -564,7 +575,8 @@ export class DiscoveryHandler implements IMcpToolHandler {
           blocked_routes: output.routes.filter(r => r.state === 'blocked').length, views: output.views.length,
           controls: output.views.reduce((n, v) => n + v.controls.length, 0),
           forms: output.views.reduce((n, v) => n + v.forms.length, 0), relations: output.relations.length },
-        routes: output.routes.map(r => ({ reference: r.route, state: r.state, depth: r.depth, http_status: r.http_status })),
+        routes: output.routes.map(r => ({ reference: r.route, state: r.state, depth: r.depth, http_status: r.http_status,
+          ...(r.reason ? { reason: r.reason } : {}) })),
         views: output.views.map(v => ({ reference: v.id, route: v.route, state: v.state,
           controls: v.controls.length, forms: v.forms.length, truncated: v.truncated })),
         relations: output.relations.map(r => ({ from: r.from, to: r.to, kind: r.kind })),

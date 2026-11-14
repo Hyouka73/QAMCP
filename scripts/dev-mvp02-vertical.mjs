@@ -16,6 +16,7 @@ const { SqliteInterviewDraftStore, SqliteModuleClosureStore } = await load('pack
 const { chromium } = await load('packages/mcp/node_modules/playwright-core/index.mjs');
 const { default: YAML } = await load('packages/mcp/node_modules/yaml/dist/index.js');
 const { SqliteKnowledgeAdapter } = await load('packages/knowledge/dist/index.js');
+const { SessionStore } = await load('packages/auth/dist/index.js');
 
 mkdirSync(output, { recursive: true });
 const root = join(output, 'project');
@@ -109,8 +110,32 @@ try {
   for (const channel of ['chrome', 'msedge', undefined]) { try { browser = await chromium.launch({ headless: true, ...(channel ? { channel } : {}) }); break; } catch { /* Try the next supported local Chromium installation. */ } }
   assert(browser);
   let storageState;
-  try { const ctx = await browser.newContext(); const login = await ctx.request.post(origin + '/login'); assert.equal(login.status(), 200); storageState = await ctx.storageState(); } finally { await browser.close(); }
-  await call('qap_auth_add', { profile: 'technical-profile', env: 'local', role: 'tester', storageState, post_login_condition: { type: 'selector_present', value: '#authenticated' } });
+  try {
+    const ctx = await browser.newContext();
+    const login = await ctx.request.post(origin + '/login');
+    assert.equal(login.status(), 200);
+    const page = await ctx.newPage();
+    assert((await page.goto(origin + '/smoke')).ok());
+    assert(await page.locator('#authenticated').isVisible());
+    storageState = await ctx.storageState();
+  } finally { await browser.close(); }
+  // Seed the explicit host's test fixture locally. MCP calls cannot submit session material.
+  const sessionKey = process.env.QAP_SESSION_KEY;
+  try {
+    process.env.QAP_SESSION_KEY = keys.QAP_SESSION_KEY;
+    new SessionStore(undefined, root).saveSession('technical-profile', storageState);
+  } finally {
+    if (sessionKey === undefined) delete process.env.QAP_SESSION_KEY;
+    else process.env.QAP_SESSION_KEY = sessionKey;
+  }
+  const authDirectory = join(root, '.qa/project/auth');
+  mkdirSync(authDirectory, { recursive: true });
+  writeFileSync(join(authDirectory, 'profiles.json'), JSON.stringify({ profiles: [{
+    id: 'technical-profile', env: 'local', application_id: 'app-r5', role: 'tester', username: 'fixture',
+    credential_source: 'ephemeral', login_mode: 'handoff', verified: true,
+    post_login_condition: { type: 'selector_present', value: '#authenticated' },
+  }] }));
+  await call('qap_session_plan', { modules: [{ module: 'smoke', path: '/smoke', priority: 'high' }] });
   const forbidden = await call('qap_discover', { name: 'smoke', path: '/smoke', profile: 'unauthorized' }, true);
   assert.equal(forbidden.code, 'unauthorized_profile');
   const discovery = await call('qap_discover', { name: 'smoke', path: '/smoke', profile: 'technical-profile' });

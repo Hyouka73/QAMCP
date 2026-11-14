@@ -185,9 +185,9 @@ describe('providers, references and AuthManager compatibility', () => {
   it('keychain loader absence/failure is sanitized and never falls back', async () => {
     const load = vi.fn(async () => { throw new Error(secret); });
     const keychain = new KeychainCredentialProvider(load);
-    await expect(keychain.get(ref)).rejects.toMatchObject({ code: 'UNAVAILABLE', message: 'Credential operation failed: UNAVAILABLE' });
-    await expect(keychain.set(ref, { password: secret })).rejects.toMatchObject({ code: 'UNAVAILABLE' });
-    await expect(keychain.delete(ref)).rejects.toMatchObject({ code: 'UNAVAILABLE' });
+    await expect(keychain.get(ref)).rejects.toMatchObject({ code: 'KEYCHAIN_MODULE_UNAVAILABLE', message: 'Credential operation failed: KEYCHAIN_MODULE_UNAVAILABLE' });
+    await expect(keychain.set(ref, { password: secret })).rejects.toMatchObject({ code: 'KEYCHAIN_MODULE_UNAVAILABLE' });
+    await expect(keychain.delete(ref)).rejects.toMatchObject({ code: 'KEYCHAIN_MODULE_UNAVAILABLE' });
     profiles('keychain');
     const manager = new AuthManager(root, { vault: new TieredCredentialVault({ keychain }) });
     expect(await manager.getCredentialStatus('admin')).toEqual({ auth_profile_id: 'admin', state: 'unavailable' });

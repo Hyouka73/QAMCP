@@ -68,6 +68,7 @@ export async function verifyCaseApproval(root: string, module: string, cases: TC
       requirements: reqs,
     };
   }
+  if (deps.prepareWorkspace && !bound.moduleBindings?.length && !bound.caseReviewGateway) return { allowed: true };
   const value = await caseReviewRequest(root, module, cases, deps);
   if ('error' in value) return { allowed: false, code: value.error };
   if (!value.bound.caseReviewGateway) return { allowed: false, code: 'case_review_gateway_required' };

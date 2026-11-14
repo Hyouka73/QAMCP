@@ -388,6 +388,12 @@ export class QapApplicationService {
     return this.getTombstoneByRoot(canonicalRoot) !== null;
   }
 
+  /** Clears a root tombstone after an explicit host-confirmed qap_project_reset so qap_init can reinitialize. */
+  clearResetTombstone(canonicalRoot: string): void {
+    const rootHash = hashCanonicalRoot(assertSafeHostPath(canonicalRoot));
+    this.store.run('DELETE FROM deletion_tombstones WHERE root_hash = ?', rootHash);
+  }
+
   findActiveProjectByRoot(canonicalRoot: string): ProjectRecord | null {
     const rootHash = hashCanonicalRoot(assertSafeHostPath(canonicalRoot));
     const row = this.store.get<Record<string, unknown>>(

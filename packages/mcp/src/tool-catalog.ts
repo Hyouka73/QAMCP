@@ -123,69 +123,53 @@ export const TOOLS: Tool[] = [
   },
   {
     name: 'qap_auth_add',
-    description: `Registra y verifica una sesión o perfil de acceso controlado en el host (modo seguro automático o inicio de sesión en ventana interactiva). Guarda credenciales únicamente en almacenamiento protegido del host y verifica el acceso real contra la aplicación. ${UX_DIRECTIVE}`,
+    description: 'Gestiona perfiles de autenticación QA (crear, actualizar, seleccionar o resolver antes del login) y solicita autorización local para verificar una sesión. Usa auto con un perfil aprovisionado, reuse para comprobar una sesión existente, o handoff para iniciar sesión en el navegador. El username acepta cualquier identificador válido (no solo correos). Conserva toda credencial en el proveedor seguro del host.',
     inputSchema: {
       type: 'object',
+      additionalProperties: false,
       properties: {
         targetPath: TARGET_PATH_PROP,
-        profile: {
+        profile: { type: 'string', description: 'Identificador del perfil de pruebas.' },
+        action: {
           type: 'string',
-          description: 'Identificador del perfil de autenticación (ej: "admin", "tester")',
+          enum: ['create', 'update', 'select', 'resolve', 'revoke', 'login', 'associate'],
+          description: 'Operación de perfil, revocación, resolución previa al login o asociación consentida de una referencia de credencial existente.',
         },
-        id: {
-          type: 'string',
-          description: 'Alias de profile',
+        source_targetPath: { type: 'string', description: 'Workspace origen ya autorizado por el host para asociar una referencia existente.' },
+        source_profile: { type: 'string', description: 'Perfil de origen cuya cuenta debe coincidir con el perfil destino.' },
+        env: { type: 'string', description: 'Entorno autorizado del perfil.' },
+        username: { type: 'string', description: 'Identificador de usuario o cuenta de prueba (acepta usuarios no email).' },
+        application_id: { type: 'string', description: 'Identificador de la aplicación objetivo.' },
+        login_origin: { type: 'string', description: 'Origen HTTP/HTTPS autorizado del inicio de sesión.' },
+        alias: { type: 'string', description: 'Alias para seleccionar el perfil.' },
+        aliases: { type: 'array', items: { type: 'string' }, description: 'Lista de alias asociados al perfil.' },
+        scenario: { type: 'string', description: 'Escenario de prueba asociado al perfil.' },
+        scenarios: { type: 'array', items: { type: 'string' }, description: 'Escenarios de prueba asociados al perfil.' },
+        credential_source: { type: 'string', enum: ['keychain', 'env', 'vault', 'ephemeral'], description: 'Proveedor seguro de credenciales en el host.' },
+        form_selectors: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            username: { type: 'string', minLength: 1, maxLength: 500 },
+            password: { type: 'string', minLength: 1, maxLength: 500 },
+            submit: { type: 'string', minLength: 1, maxLength: 500 },
+          },
+          required: ['username', 'password', 'submit'],
+          description: 'Selectores del formulario de inicio de sesión.',
         },
-        env: {
-          type: 'string',
-          description: 'Entorno asignado al perfil (ej: "local", "dev", "staging")',
-          default: 'local',
+        revoke_previous_credential: {
+          type: 'boolean',
+          description: 'Si cambia el username, revoca explícitamente la referencia anterior en el proveedor seguro con autorización del host.',
         },
-        username: {
-          type: 'string',
-          description: 'Nombre de usuario asociado al perfil',
-          default: 'user',
-        },
-        password: {
-          type: 'string',
-          description: 'Contraseña o credencial de PRUEBA a almacenar de forma segura en llavero',
-        },
-        secret: {
-          type: 'string',
-          description: 'Alias de password para compatibilidad',
-        },
-        method: {
-          type: 'string',
-          enum: ['credentials', 'handoff'],
-          description: 'Método de inicio de sesión: credentials (auto-login con llavero) o handoff (asistido en ventana)',
-          default: 'credentials',
-        },
-        login_mode: {
-          type: 'string',
-          enum: ['auto', 'handoff'],
-          description: 'Modo de inicio de sesión (auto = credentials)',
-          default: 'auto',
-        },
-        role: {
-          type: 'string',
-          description: 'Rol de negocio asociado al perfil (ej: "admin", "cliente", "operador")',
-        },
-        login_route: {
-          type: 'string',
-          description: 'Ruta de inicio de sesión',
-          default: '/login',
-        },
-        timeout_ms: {
-          type: 'number',
-          description: 'Tiempo límite de espera en milisegundos',
-        },
+        method: { type: 'string', enum: ['auto', 'reuse', 'handoff'] },
+        login_mode: { type: 'string', enum: ['auto', 'reuse', 'handoff'] },
+        role: { type: 'string', description: 'Rol asociado al perfil o para el handoff.' },
+        login_route: { type: 'string', description: 'Ruta de inicio de sesión.' },
+        verification_route: { type: 'string', description: 'Ruta protegida del mismo origen para verificar la sesión.' },
+        timeout_ms: { type: 'number', description: 'Tiempo máximo de la operación en milisegundos.' },
         post_login_condition: { type: 'object', additionalProperties: false, properties: {
           type: { type: 'string', enum: ['selector_present'] }, value: { type: 'string', minLength: 1, maxLength: 500 },
-        }, required: ['type', 'value'], description: 'Marcador explícito de sesión válida, verificado de nuevo en cada captura autenticada.' },
-        storageState: {
-          type: 'object',
-          description: 'Estado de sesión gestionado por el host',
-        },
+        }, required: ['type', 'value'], description: 'Selector visible de autenticación.' },
         tenant_id: {
           type: 'string',
           description: 'Identificador explícito del tenant cuando el entorno es multi-tenant',
@@ -195,12 +179,34 @@ export const TOOLS: Tool[] = [
     },
   },
   {
-    name: 'qap_auth_list',
-    description: `Lista todos los perfiles de autenticación registrados en el proyecto sin exponer secretos. ${UX_DIRECTIVE}`,
+    name: 'qap_auth_provision',
+    description: 'Guarda una contraseña de pruebas para un perfil local keychain en una raíz ya autorizada. El operador escribe y consiente únicamente en el diálogo del host de Windows. Envía solo ruta, entorno y perfil. Tras un fallo de escritorio o presentación, detente y consulta al operador antes de volver a solicitar el diálogo. El inicio de sesión se autoriza por separado.',
     inputSchema: {
       type: 'object',
+      additionalProperties: false,
+      properties: {
+        targetPath: { type: 'string', description: 'Ruta absoluta del workspace ya autorizado por el host.' },
+        profile: { type: 'string', description: 'Identificador del perfil local keychain.' },
+        env: { type: 'string', description: 'Entorno vinculado al workspace.' },
+      },
+      required: ['targetPath', 'env', 'profile'],
+    },
+  },
+  {
+    name: 'qap_auth_list',
+    description: `Lista, consulta o filtra los perfiles de autenticación registrados en el proyecto por entorno, aplicación, alias, usuario, rol o escenario sin exponer secretos. ${UX_DIRECTIVE}`,
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
       properties: {
         targetPath: TARGET_PATH_PROP,
+        env: { type: 'string', description: 'Filtro opcional por entorno.' },
+        application_id: { type: 'string', description: 'Filtro opcional por aplicación.' },
+        profile: { type: 'string', description: 'Filtro opcional por identificador de perfil.' },
+        alias: { type: 'string', description: 'Filtro opcional por alias.' },
+        username: { type: 'string', description: 'Filtro opcional por identificador de usuario.' },
+        role: { type: 'string', description: 'Filtro opcional por rol.' },
+        scenario: { type: 'string', description: 'Filtro opcional por escenario.' },
       },
     },
   },
@@ -785,6 +791,19 @@ export const TOOLS: Tool[] = [
       type: 'object',
       properties: {
         targetPath: TARGET_PATH_PROP,
+      },
+    },
+  },
+  {
+    name: 'qap_project_reset',
+    description: 'Borrado definitivo de un proyecto QAP. preview inventaría sin borrar. confirm requiere el reset_id del inventario y una decisión humana en el host local.',
+    inputSchema: {
+      type: 'object', additionalProperties: false,
+      required: ['targetPath', 'phase'],
+      properties: {
+        targetPath: TARGET_PATH_PROP,
+        phase: { type: 'string', enum: ['preview', 'confirm'] },
+        reset_id: { type: 'string', description: 'Identificador de preview, obligatorio solo para confirm.' },
       },
     },
   },
