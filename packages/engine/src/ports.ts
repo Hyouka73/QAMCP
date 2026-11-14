@@ -186,6 +186,15 @@ export interface IFlowRunner {
 }
 
 /**
+ * FlowLockProvider Port (S82-001)
+ *
+ * Provides module locking capabilities for multi-module flows to prevent race conditions and deadlocks.
+ */
+export interface IFlowLockProvider {
+  withModulesLock<T>(moduleNames: string[], fn: () => Promise<T>): Promise<T>;
+}
+
+/**
  * Storage Port  (S3-001 — QAP v2.1)
  *
  * Defines the complete abstract contract for reading/writing to the .qa/ tree.

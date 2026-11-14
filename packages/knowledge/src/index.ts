@@ -34,3 +34,4 @@ export * from './impact/flow-impact.js';
 
 export * from './plan/bva-generator.js';
 export * from './plan/rbac-generator.js';
+export * from './storage/flow-state-store.js';

@@ -39,6 +39,7 @@ import type {
   ModuleStateInfo,
 } from '@qap/shared';
 import { normalizeToPosix, normalizeSlug } from '@qap/shared';
+import { normalizeTcCase } from '@qap/shared';
 import lockfile from 'proper-lockfile';
 import YAML from 'yaml';
 
@@ -564,26 +565,75 @@ export class FileSystemStorage implements IStorage {
     await this.writeYaml(join('.qa/modules', moduleName, 'tests', 'plan.yaml'), plan);
   }
 
-  async listTestCases(moduleName: string): Promise<string[]> {
-    const files = await this.list(join('.qa/modules', moduleName, 'tests'));
-    return files
-      .filter((f) => f.startsWith('TC-') && (f.endsWith('.yaml') || f.endsWith('.yml')))
+    async listTestCases(moduleName: string): Promise<string[]> {
+    const testsDir = join('.qa/modules', moduleName, 'tests');
+    const casesDir = join(testsDir, 'cases');
+
+    // Formato clásico: tests/TC-*.yaml (se devuelve el id sin extensión)
+    const classicFiles = await this.list(testsDir).catch(() => []);
+    const classicCases = classicFiles
+      .filter((f) => f.startsWith('TC-') && /\.ya?ml$/.test(f))
       .map((f) => f.replace(/\.ya?ml$/, ''));
+
+    // Formato nuevo: tests/cases/<slug>-<hash6>.yaml
+    const caseFiles = await this.list(casesDir).catch(() => []);
+    const newCases = caseFiles
+      .filter((f) => /\.ya?ml$/.test(f))
+      .map((f) => f.replace(/\.ya?ml$/, ''));
+
+    return [...classicCases, ...newCases];
   }
 
   async getTestCase(moduleName: string, caseId: string): Promise<TestCase> {
-    const fileId = !caseId.startsWith('TC-') && !await this.exists(join('.qa/modules', moduleName, 'tests', caseId + '.yaml')) && await this.exists(join('.qa/modules', moduleName, 'tests', 'TC-' + caseId + '.yaml'))
-      ? 'TC-' + caseId : caseId;
-    return this.readYaml<TestCase>(join('.qa/modules', moduleName, 'tests', fileId + '.yaml'));
+    const classicPath = join('.qa/modules', moduleName, 'tests', `${caseId}.yaml`);
+    if (existsSync(resolve(this.rootDir, classicPath))) {
+      const raw = await this.readYaml<TestCase>(classicPath);
+      return normalizeTcCase(raw as unknown as Parameters<typeof normalizeTcCase>[0]) as unknown as TestCase;
+    }
+    if (!caseId.startsWith('TC-')) {
+      const tcPrefixedPath = join('.qa/modules', moduleName, 'tests', `TC-${caseId}.yaml`);
+      if (existsSync(resolve(this.rootDir, tcPrefixedPath))) {
+        const raw = await this.readYaml<TestCase>(tcPrefixedPath);
+        return normalizeTcCase(raw as unknown as Parameters<typeof normalizeTcCase>[0]) as unknown as TestCase;
+      }
+    }
+    const newPath = join('.qa/modules', moduleName, 'tests', 'cases', `${caseId}.yaml`);
+    const raw = await this.readYaml<TestCase>(newPath);
+    return normalizeTcCase(raw as unknown as Parameters<typeof normalizeTcCase>[0]) as unknown as TestCase;
   }
 
-  async saveTestCase(moduleName: string, testCase: TestCase, fileId = testCase.id): Promise<void> {
-    // Canonical generators keep UUID identity while the legacy planner enumerates TC-* filenames.
-    if (fileId !== testCase.id && fileId !== 'TC-' + testCase.id) throw new Error('Invalid case filename identity');
-    await this.writeYaml(
-      join('.qa/modules', moduleName, 'tests', `${fileId}.yaml`),
-      testCase
-    );
+  async saveTestCase(moduleName: string, testCase: TestCase, fileId?: string): Promise<void> {
+    if (fileId !== undefined) {
+      // Canonical generators keep UUID identity while the legacy planner enumerates TC-* filenames.
+      if (fileId !== testCase.id && fileId !== 'TC-' + testCase.id) {
+        throw new Error('Invalid case filename identity');
+      }
+      await this.writeYaml(
+        join('.qa/modules', moduleName, 'tests', `${fileId}.yaml`),
+        testCase
+      );
+      return;
+    }
+
+    const isClassic = Boolean(testCase.id?.startsWith('TC-'));
+    const targetDir = isClassic
+      ? join('.qa/modules', moduleName, 'tests')
+      : join('.qa/modules', moduleName, 'tests', 'cases');
+
+    await this.writeYaml(join(targetDir, `${this.testCaseFileName(testCase, isClassic)}.yaml`), testCase);
+  }
+
+  /**
+   * Nombre de archivo de un caso. Formato clásico: <id>. Formato nuevo: <slug>-<hash6>,
+   * donde el hash sale del id (determinista), de modo que el id interno conserva su UUID.
+   */
+  private testCaseFileName(testCase: TestCase, isClassic: boolean): string {
+    if (isClassic || !testCase.name) {
+      return testCase.id;
+    }
+    const slug = normalizeSlug(testCase.name) || 'caso';
+    const hash6 = createHash('sha256').update(testCase.id).digest('hex').slice(0, 6);
+    return `${slug}-${hash6}`;
   }
 
   // ---------------------------------------------------------------------

@@ -104,6 +104,8 @@ export interface PlaywrightRunnerOptions extends TestOptions {
 }
 
 export class PlaywrightRunner implements IRunner {
+  private currentCaseId?: string;
+  private currentOptions?: PlaywrightRunnerOptions;
   public async execute(
     plan: TestPlan,
     options: PlaywrightRunnerOptions = {}
@@ -113,6 +115,7 @@ export class PlaywrightRunner implements IRunner {
     const executionId = `exec_${Date.now()}_${randomUUID().replace(/-/g, '')}`;
     const projectRoot = options.projectRoot ? path.resolve(options.projectRoot) : process.cwd();
     const storage = new FileSystemStorage({ rootDir: projectRoot });
+    this.currentOptions = options;
 
     const isHeadless = options.headless ?? true;
     const timeout = options.timeout_ms ?? plan.timeout_ms ?? 30000;
@@ -430,6 +433,7 @@ export class PlaywrightRunner implements IRunner {
 
       for (let i = 0; i < caseIds.length; i++) {
         const caseId = caseIds[i];
+        this.currentCaseId = caseId;
 
         if (options.signal?.aborted) {
           for (let j = i; j < caseIds.length; j++) {
@@ -495,7 +499,6 @@ export class PlaywrightRunner implements IRunner {
           });
           continue;
         }
-
         const caseStartMs = Date.now();
         const contextVariables: Record<string, string> = {};
         let caseResult: CaseResult = 'passed';
@@ -519,14 +522,14 @@ export class PlaywrightRunner implements IRunner {
             const step = interpolateStep(rawStep, contextVariables, flowVariables);
             activeStepType = step.type;
             const stepStarted = Date.now();
-            await this.executeStep(page, step, screenshotsDir, contextVariables);
+            const stepRes = await this.executeStep(page, step, screenshotsDir, contextVariables);
             stepTrace.push({
-              action: step.type,
-              status: 'passed',
+              action: stepRes?.action ?? step.type,
+              status: stepRes?.status ?? 'passed',
               duration_ms: Date.now() - stepStarted,
+              ...(stepRes?.message ? { message: stepRes.message } : {}),
             });
           }
-
           totalPassed++;
           executedStatuses.set(caseId, 'passed');
         } catch (err: unknown) {
@@ -673,7 +676,9 @@ export class PlaywrightRunner implements IRunner {
     step: TCStep,
     screenshotsDir: string = '.qa/reports/screenshots',
     contextVariables: Record<string, string> = {}
-  ): Promise<void> {
+  ): Promise<{ action: string; status: string; message?: string }> {
+    let stepMsg: string | undefined;
+
     switch (step.type) {
       case 'navigate':
         await executeNavigate(page, step);
@@ -693,19 +698,41 @@ export class PlaywrightRunner implements IRunner {
       case 'screenshot':
         await executeScreenshot(page, step, screenshotsDir);
         break;
-      case 'capture':
-        await executeCapture(page, step, contextVariables);
+      case 'capture': {
+        const capturedVal = await executeCapture(page, step, contextVariables, {
+          caseId: this.currentCaseId,
+          context_data: this.currentOptions?.context_data,
+        });
+        stepMsg = JSON.stringify({
+          captured_as: step.capture_as,
+          value: capturedVal,
+        });
         break;
+      }
       case 'switch_auth':
         await executeSwitchAuth(page, step);
         break;
-      case 'evaluate':
-        await executeEvaluate(page, step, contextVariables);
+      case 'evaluate': {
+        const stepExt = step as unknown as {
+          sandbox?: boolean;
+          args?: Record<string, unknown>;
+        };
+        await executeEvaluate(page, step, contextVariables, {
+          sandbox: stepExt.sandbox !== false,
+          args: stepExt.args,
+        });
         break;
+      }
       default: {
         const unknownType = (step as { type?: string })?.type ?? 'desconocido';
         throw new Error(`Acción o tipo de paso no soportado o desconocido: '${unknownType}'`);
       }
     }
+
+    return {
+      action: step.type,
+      status: 'passed',
+      ...(stepMsg ? { message: stepMsg } : {}),
+    };
   }
 }
