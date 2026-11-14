@@ -1,0 +1,50 @@
+{
+  "baseline": "794dc0d2fe1fb85dd1f9fb0c211b9b35346ac747",
+  "tsc": {
+    "baseline": 124,
+    "current": 121,
+    "added": [],
+    "removed": [
+      {
+        "file": "packages/mcp/src/__tests__/lifecycle-v3-e2e.test.ts",
+        "code": 6133,
+        "message": "'mkdirSync' is declared but its value is never read."
+      },
+      {
+        "file": "packages/mcp/src/__tests__/lifecycle-v3-e2e.test.ts",
+        "code": 2578,
+        "message": "Unused '@ts-expect-error' directive."
+      },
+      {
+        "file": "packages/mcp/src/__tests__/lifecycle-v3-e2e.test.ts",
+        "code": 6133,
+        "message": "'discRes' is declared but its value is never read."
+      }
+    ]
+  },
+  "eslint": {
+    "baseline": 62,
+    "current": 59,
+    "added": [],
+    "removed": [
+      {
+        "file": "packages/mcp/src/__tests__/lifecycle-v3-e2e.test.ts",
+        "rule": null,
+        "severity": 1,
+        "message": "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
+      },
+      {
+        "file": "packages/mcp/src/__tests__/lifecycle-v3-e2e.test.ts",
+        "rule": null,
+        "severity": 1,
+        "message": "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-unsafe-argument')."
+      },
+      {
+        "file": "packages/mcp/src/__tests__/lifecycle-v3-e2e.test.ts",
+        "rule": null,
+        "severity": 1,
+        "message": "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-unsafe-return')."
+      }
+    ]
+  }
+}

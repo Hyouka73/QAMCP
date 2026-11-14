@@ -1,0 +1,72 @@
+[
+  {
+    "exit_code": 1,
+    "started_at": "2026-11-06T21:24:28.5149689Z",
+    "name": "p3-canonical-discovery",
+    "command": "pnpm --filter @qap/mcp exec vitest run src/__tests__/p3-canonical-discovery.test.ts --reporter=verbose --reporter=json --outputFile.json=C:\\Users\\Judirico\\Documents\\QAMCP\\QAMCP\\docs\\vnext\\implementaciones\\VNEXT-014-TEST-MODERNIZATION\\evidencia\\r1-2026-11-06/p3-canonical-discovery.json",
+    "elapsed_ms": 15680.3442
+  },
+  {
+    "exit_code": 1,
+    "started_at": "2026-11-06T21:24:44.2605785Z",
+    "name": "p4-2-canonical-contract",
+    "command": "pnpm --filter @qap/mcp exec vitest run src/__tests__/p4-2-canonical-contract.test.ts --reporter=verbose --reporter=json --outputFile.json=C:\\Users\\Judirico\\Documents\\QAMCP\\QAMCP\\docs\\vnext\\implementaciones\\VNEXT-014-TEST-MODERNIZATION\\evidencia\\r1-2026-11-06/p4-2-canonical-contract.json",
+    "elapsed_ms": 7027.5101
+  },
+  {
+    "exit_code": 0,
+    "started_at": "2026-11-06T21:24:51.2933973Z",
+    "name": "p4-5a-canonical-integrity",
+    "command": "pnpm --filter @qap/mcp exec vitest run src/__tests__/p4-5a-canonical-integrity.test.ts --reporter=verbose --reporter=json --outputFile.json=C:\\Users\\Judirico\\Documents\\QAMCP\\QAMCP\\docs\\vnext\\implementaciones\\VNEXT-014-TEST-MODERNIZATION\\evidencia\\r1-2026-11-06/p4-5a-canonical-integrity.json",
+    "elapsed_ms": 9642.1845
+  },
+  {
+    "exit_code": 0,
+    "started_at": "2026-11-06T21:25:00.9388632Z",
+    "name": "p4-5a2-canonical-integrity",
+    "command": "pnpm --filter @qap/mcp exec vitest run src/__tests__/p4-5a2-canonical-integrity.test.ts --reporter=verbose --reporter=json --outputFile.json=C:\\Users\\Judirico\\Documents\\QAMCP\\QAMCP\\docs\\vnext\\implementaciones\\VNEXT-014-TEST-MODERNIZATION\\evidencia\\r1-2026-11-06/p4-5a2-canonical-integrity.json",
+    "elapsed_ms": 12435.2578
+  },
+  {
+    "exit_code": 0,
+    "started_at": "2026-11-06T21:25:13.3785741Z",
+    "name": "server-canonical-discovery",
+    "command": "pnpm --filter @qap/mcp exec vitest run src/__tests__/server-canonical-discovery.test.ts --reporter=verbose --reporter=json --outputFile.json=C:\\Users\\Judirico\\Documents\\QAMCP\\QAMCP\\docs\\vnext\\implementaciones\\VNEXT-014-TEST-MODERNIZATION\\evidencia\\r1-2026-11-06/server-canonical-discovery.json",
+    "elapsed_ms": 8097.0786
+  },
+  {
+    "exit_code": 0,
+    "started_at": "2026-11-06T21:25:21.4786920Z",
+    "name": "lifecycle-v3-e2e",
+    "command": "pnpm --filter @qap/mcp exec vitest run src/__tests__/lifecycle-v3-e2e.test.ts --reporter=verbose --reporter=json --outputFile.json=C:\\Users\\Judirico\\Documents\\QAMCP\\QAMCP\\docs\\vnext\\implementaciones\\VNEXT-014-TEST-MODERNIZATION\\evidencia\\r1-2026-11-06/lifecycle-v3-e2e.json",
+    "elapsed_ms": 18847.8039
+  },
+  {
+    "exit_code": 1,
+    "started_at": "2026-11-06T21:25:40.3295316Z",
+    "name": "serial",
+    "command": "pnpm --filter @qap/mcp exec vitest run --no-file-parallelism --reporter=default --reporter=json --outputFile.json=C:\\Users\\Judirico\\Documents\\QAMCP\\QAMCP\\docs\\vnext\\implementaciones\\VNEXT-014-TEST-MODERNIZATION\\evidencia\\r1-2026-11-06/serial.json",
+    "elapsed_ms": 211457.0898
+  },
+  {
+    "exit_code": 1,
+    "started_at": "2026-11-06T21:29:11.7907147Z",
+    "name": "parallel",
+    "command": "pnpm --filter @qap/mcp exec vitest run --reporter=default --reporter=json --outputFile.json=C:\\Users\\Judirico\\Documents\\QAMCP\\QAMCP\\docs\\vnext\\implementaciones\\VNEXT-014-TEST-MODERNIZATION\\evidencia\\r1-2026-11-06/parallel.json",
+    "elapsed_ms": 57271.0616
+  },
+  {
+    "exit_code": 1,
+    "started_at": "2026-11-06T21:30:09.0649498Z",
+    "name": "typecheck",
+    "command": "pnpm --filter @qap/mcp exec tsc --noEmit",
+    "elapsed_ms": 7543.4025
+  },
+  {
+    "exit_code": 1,
+    "started_at": "2026-11-06T21:30:16.6114627Z",
+    "name": "lint",
+    "command": "pnpm lint --format json --output-file C:\\Users\\Judirico\\Documents\\QAMCP\\QAMCP\\docs\\vnext\\implementaciones\\VNEXT-014-TEST-MODERNIZATION\\evidencia\\r1-2026-11-06/lint.json",
+    "elapsed_ms": 69388.9619
+  }
+]

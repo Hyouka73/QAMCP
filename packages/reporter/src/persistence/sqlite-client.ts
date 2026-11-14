@@ -19,7 +19,7 @@ export interface DatabaseSyncInstance {
   close(): void;
 }
 
-export type DatabaseSyncConstructor = new (path: string) => DatabaseSyncInstance;
+export type DatabaseSyncConstructor = new (path: string, options?: { readOnly?: boolean }) => DatabaseSyncInstance;
 
 interface NodeSqliteModule {
   DatabaseSync: DatabaseSyncConstructor;
@@ -82,9 +82,18 @@ export class QapDatabase {
   private db: DatabaseSyncInstance;
   private runtimeDir: string;
   private dbPath: string;
+  private readonly auditReadOnly: boolean;
 
-  constructor(runtimeDir: string, memoryOnly = false) {
+  constructor(runtimeDir: string, memoryOnly = false, options: { readOnly?: boolean } = {}) {
     this.runtimeDir = runtimeDir;
+    this.auditReadOnly = Boolean(options.readOnly);
+    if (options.readOnly) {
+      if (memoryOnly) throw new Error('A read-only database cannot be memory-only.');
+      this.dbPath = path.join(runtimeDir, 'qap.sqlite');
+      // No mkdir, DDL, migration or journal-mode PRAGMA in audit mode.
+      this.db = new DatabaseSync(this.dbPath, { readOnly: true });
+      return;
+    }
     if (memoryOnly) {
       this.dbPath = ':memory:';
       this.db = new DatabaseSync(':memory:');
@@ -112,6 +121,7 @@ export class QapDatabase {
    * Persistencia dual: guarda primero en run.json y luego en SQLite bajo transacción.
    */
   saveRun(run: RunRecord): void {
+    this.assertWritable();
     // 1. Escritura en filesystem si no es solo memoria
     if (this.dbPath !== ':memory:') {
       const runDir = path.join(this.runtimeDir, 'runs', run.runId);
@@ -284,6 +294,7 @@ export class QapDatabase {
   }
 
   deleteRun(runId: string): boolean {
+    this.assertWritable();
     const row = this.getRunRow(runId);
     const runDir = path.join(this.runtimeDir, 'runs', runId);
     const dirExists = this.dbPath !== ':memory:' && fs.existsSync(runDir);
@@ -309,6 +320,7 @@ export class QapDatabase {
   }
 
   pinRun(runId: string, pinned: boolean): boolean {
+    this.assertWritable();
     const row = this.getRunRow(runId);
     if (!row) {
       return false;
@@ -339,6 +351,7 @@ export class QapDatabase {
    * Regla 10: run.json como respaldo reconstruible.
    */
   reindex(): number {
+    this.assertWritable();
     if (this.dbPath === ':memory:') {
       return 0;
     }
@@ -367,6 +380,10 @@ export class QapDatabase {
     }
 
     return count;
+  }
+
+  private assertWritable(): void {
+    if (this.auditReadOnly) throw new Error('Read-only audit database cannot be modified.');
   }
 
   close(): void {

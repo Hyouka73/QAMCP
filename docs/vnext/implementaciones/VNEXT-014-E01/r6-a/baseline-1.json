@@ -1,0 +1,1240 @@
+{
+  "physical_memory_bytes": 14870306816,
+  "suites_running_by_this_campaign": 0,
+  "exclusive_reservation": false,
+  "samples": [
+    {
+      "committed_bytes": 31647006720,
+      "available_mb": 2404,
+      "cpu_percent": 8,
+      "finished_at": "2026-11-07T00:20:29.1356837Z",
+      "pages_input_per_sec": 0,
+      "disk_queue": 0,
+      "pages_output_per_sec": 0,
+      "commit_limit_bytes": 49581215744,
+      "groups": [
+        {
+          "category": "node",
+          "count": 24,
+          "working_set_private_bytes": 27353088.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "chromium",
+          "count": 20,
+          "working_set_private_bytes": 900055040.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 1446.0
+        },
+        {
+          "category": "observer",
+          "count": 1,
+          "working_set_private_bytes": 23871488.0,
+          "cpu_percent_logical_capacity": 1.75,
+          "page_faults_per_sec": 2362.0
+        },
+        {
+          "category": "other",
+          "count": 371,
+          "working_set_private_bytes": 6956699648.0,
+          "cpu_percent_logical_capacity": 4.9375,
+          "page_faults_per_sec": 1077.0
+        }
+      ],
+      "started_at": "2026-11-07T00:20:27.4433738Z"
+    },
+    {
+      "committed_bytes": 31712776192,
+      "available_mb": 2364,
+      "cpu_percent": 1,
+      "finished_at": "2026-11-07T00:20:31.6671504Z",
+      "pages_input_per_sec": 43,
+      "disk_queue": 0,
+      "pages_output_per_sec": 0,
+      "commit_limit_bytes": 49581215744,
+      "groups": [
+        {
+          "category": "node",
+          "count": 24,
+          "working_set_private_bytes": 27353088.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "chromium",
+          "count": 20,
+          "working_set_private_bytes": 900071424.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "observer",
+          "count": 1,
+          "working_set_private_bytes": 38133760.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "other",
+          "count": 371,
+          "working_set_private_bytes": 6955253760.0,
+          "cpu_percent_logical_capacity": 3.375,
+          "page_faults_per_sec": 1538.0
+        }
+      ],
+      "started_at": "2026-11-07T00:20:30.1577202Z"
+    },
+    {
+      "committed_bytes": 31707549696,
+      "available_mb": 2356,
+      "cpu_percent": 2,
+      "finished_at": "2026-11-07T00:20:34.1530711Z",
+      "pages_input_per_sec": 0,
+      "disk_queue": 0,
+      "pages_output_per_sec": 0,
+      "commit_limit_bytes": 49581215744,
+      "groups": [
+        {
+          "category": "node",
+          "count": 24,
+          "working_set_private_bytes": 27353088.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "chromium",
+          "count": 20,
+          "working_set_private_bytes": 901124096.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 1822.0
+        },
+        {
+          "category": "observer",
+          "count": 1,
+          "working_set_private_bytes": 42254336.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "other",
+          "count": 371,
+          "working_set_private_bytes": 6961557504.0,
+          "cpu_percent_logical_capacity": 1.75,
+          "page_faults_per_sec": 583.0
+        }
+      ],
+      "started_at": "2026-11-07T00:20:32.6674062Z"
+    },
+    {
+      "committed_bytes": 31693074432,
+      "available_mb": 2356,
+      "cpu_percent": 6,
+      "finished_at": "2026-11-07T00:20:36.6089883Z",
+      "pages_input_per_sec": 272,
+      "disk_queue": 0,
+      "pages_output_per_sec": 0,
+      "commit_limit_bytes": 49581215744,
+      "groups": [
+        {
+          "category": "node",
+          "count": 24,
+          "working_set_private_bytes": 27353088.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "chromium",
+          "count": 20,
+          "working_set_private_bytes": 902385664.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "observer",
+          "count": 1,
+          "working_set_private_bytes": 44601344.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "other",
+          "count": 371,
+          "working_set_private_bytes": 6961238016.0,
+          "cpu_percent_logical_capacity": 4.1875,
+          "page_faults_per_sec": 2932.0
+        }
+      ],
+      "started_at": "2026-11-07T00:20:35.1573772Z"
+    },
+    {
+      "committed_bytes": 31699464192,
+      "available_mb": 2346,
+      "cpu_percent": 0,
+      "finished_at": "2026-11-07T00:20:39.0851724Z",
+      "pages_input_per_sec": 0,
+      "disk_queue": 0,
+      "pages_output_per_sec": 0,
+      "commit_limit_bytes": 49581215744,
+      "groups": [
+        {
+          "category": "node",
+          "count": 24,
+          "working_set_private_bytes": 27353088.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "chromium",
+          "count": 20,
+          "working_set_private_bytes": 903659520.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 2208.0
+        },
+        {
+          "category": "observer",
+          "count": 1,
+          "working_set_private_bytes": 46518272.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "other",
+          "count": 371,
+          "working_set_private_bytes": 6956421120.0,
+          "cpu_percent_logical_capacity": 10.5625,
+          "page_faults_per_sec": 1240.0
+        }
+      ],
+      "started_at": "2026-11-07T00:20:37.6238829Z"
+    },
+    {
+      "committed_bytes": 31696437248,
+      "available_mb": 2346,
+      "cpu_percent": 0,
+      "finished_at": "2026-11-07T00:20:41.5290775Z",
+      "pages_input_per_sec": 0,
+      "disk_queue": 0,
+      "pages_output_per_sec": 0,
+      "commit_limit_bytes": 49581215744,
+      "groups": [
+        {
+          "category": "node",
+          "count": 24,
+          "working_set_private_bytes": 27353088.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "chromium",
+          "count": 20,
+          "working_set_private_bytes": 898539520.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "observer",
+          "count": 1,
+          "working_set_private_bytes": 46231552.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "other",
+          "count": 371,
+          "working_set_private_bytes": 6948827136.0,
+          "cpu_percent_logical_capacity": 4.1875,
+          "page_faults_per_sec": 6137.0
+        }
+      ],
+      "started_at": "2026-11-07T00:20:40.0894543Z"
+    },
+    {
+      "committed_bytes": 31686717440,
+      "available_mb": 2356,
+      "cpu_percent": 0,
+      "finished_at": "2026-11-07T00:20:44.0266389Z",
+      "pages_input_per_sec": 0,
+      "disk_queue": 0,
+      "pages_output_per_sec": 0,
+      "commit_limit_bytes": 49581215744,
+      "groups": [
+        {
+          "category": "node",
+          "count": 24,
+          "working_set_private_bytes": 27353088.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "chromium",
+          "count": 20,
+          "working_set_private_bytes": 898527232.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 1378.0
+        },
+        {
+          "category": "observer",
+          "count": 1,
+          "working_set_private_bytes": 46333952.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "other",
+          "count": 371,
+          "working_set_private_bytes": 6945239040.0,
+          "cpu_percent_logical_capacity": 8.3125,
+          "page_faults_per_sec": 632.0
+        }
+      ],
+      "started_at": "2026-11-07T00:20:42.5391941Z"
+    },
+    {
+      "committed_bytes": 31688314880,
+      "available_mb": 2357,
+      "cpu_percent": 6,
+      "finished_at": "2026-11-07T00:20:46.5140181Z",
+      "pages_input_per_sec": 0,
+      "disk_queue": 0,
+      "pages_output_per_sec": 0,
+      "commit_limit_bytes": 49581215744,
+      "groups": [
+        {
+          "category": "node",
+          "count": 24,
+          "working_set_private_bytes": 27353088.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "chromium",
+          "count": 20,
+          "working_set_private_bytes": 898068480.0,
+          "cpu_percent_logical_capacity": 0.3125,
+          "page_faults_per_sec": 16.0
+        },
+        {
+          "category": "observer",
+          "count": 1,
+          "working_set_private_bytes": 51929088.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "other",
+          "count": 374,
+          "working_set_private_bytes": 6974742528.0,
+          "cpu_percent_logical_capacity": 27.8125,
+          "page_faults_per_sec": 22937.0
+        }
+      ],
+      "started_at": "2026-11-07T00:20:45.0401755Z"
+    },
+    {
+      "committed_bytes": 31781838848,
+      "available_mb": 2319,
+      "cpu_percent": 0,
+      "finished_at": "2026-11-07T00:20:48.9672611Z",
+      "pages_input_per_sec": 0,
+      "disk_queue": 0,
+      "pages_output_per_sec": 0,
+      "commit_limit_bytes": 49581215744,
+      "groups": [
+        {
+          "category": "node",
+          "count": 24,
+          "working_set_private_bytes": 27353088.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "chromium",
+          "count": 20,
+          "working_set_private_bytes": 899596288.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "observer",
+          "count": 1,
+          "working_set_private_bytes": 51494912.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "other",
+          "count": 371,
+          "working_set_private_bytes": 6985814016.0,
+          "cpu_percent_logical_capacity": 7.125,
+          "page_faults_per_sec": 1463.0
+        }
+      ],
+      "started_at": "2026-11-07T00:20:47.5147503Z"
+    },
+    {
+      "committed_bytes": 31786586112,
+      "available_mb": 2326,
+      "cpu_percent": 13,
+      "finished_at": "2026-11-07T00:20:51.4553234Z",
+      "pages_input_per_sec": 0,
+      "disk_queue": 0,
+      "pages_output_per_sec": 0,
+      "commit_limit_bytes": 49581215744,
+      "groups": [
+        {
+          "category": "node",
+          "count": 24,
+          "working_set_private_bytes": 27377664.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "chromium",
+          "count": 20,
+          "working_set_private_bytes": 901115904.0,
+          "cpu_percent_logical_capacity": 0.25,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "observer",
+          "count": 1,
+          "working_set_private_bytes": 42995712.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "other",
+          "count": 371,
+          "working_set_private_bytes": 7020216320.0,
+          "cpu_percent_logical_capacity": 20.1875,
+          "page_faults_per_sec": 42284.0
+        }
+      ],
+      "started_at": "2026-11-07T00:20:49.9744886Z"
+    },
+    {
+      "committed_bytes": 31894372352,
+      "available_mb": 2469,
+      "cpu_percent": 32,
+      "finished_at": "2026-11-07T00:20:53.9456113Z",
+      "pages_input_per_sec": 131,
+      "disk_queue": 0,
+      "pages_output_per_sec": 0,
+      "commit_limit_bytes": 49581215744,
+      "groups": [
+        {
+          "category": "node",
+          "count": 24,
+          "working_set_private_bytes": 27377664.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "chromium",
+          "count": 20,
+          "working_set_private_bytes": 902135808.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "observer",
+          "count": 1,
+          "working_set_private_bytes": 44941312.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "other",
+          "count": 372,
+          "working_set_private_bytes": 6874304512.0,
+          "cpu_percent_logical_capacity": 27.25,
+          "page_faults_per_sec": 10318.0
+        }
+      ],
+      "started_at": "2026-11-07T00:20:52.4694593Z"
+    },
+    {
+      "committed_bytes": 32121835520,
+      "available_mb": 2401,
+      "cpu_percent": 34,
+      "finished_at": "2026-11-07T00:20:56.4091609Z",
+      "pages_input_per_sec": 34,
+      "disk_queue": 0,
+      "pages_output_per_sec": 0,
+      "commit_limit_bytes": 49581215744,
+      "groups": [
+        {
+          "category": "node",
+          "count": 24,
+          "working_set_private_bytes": 27377664.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "chromium",
+          "count": 20,
+          "working_set_private_bytes": 903720960.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "observer",
+          "count": 1,
+          "working_set_private_bytes": 45613056.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "other",
+          "count": 373,
+          "working_set_private_bytes": 6881464320.0,
+          "cpu_percent_logical_capacity": 28.0,
+          "page_faults_per_sec": 2457.0
+        }
+      ],
+      "started_at": "2026-11-07T00:20:54.9590534Z"
+    },
+    {
+      "committed_bytes": 31984476160,
+      "available_mb": 2354,
+      "cpu_percent": 36,
+      "finished_at": "2026-11-07T00:20:58.9288985Z",
+      "pages_input_per_sec": 20621,
+      "disk_queue": 0,
+      "pages_output_per_sec": 0,
+      "commit_limit_bytes": 49581215744,
+      "groups": [
+        {
+          "category": "node",
+          "count": 24,
+          "working_set_private_bytes": 27377664.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "chromium",
+          "count": 20,
+          "working_set_private_bytes": 904257536.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "observer",
+          "count": 1,
+          "working_set_private_bytes": 50196480.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "other",
+          "count": 373,
+          "working_set_private_bytes": 7104655360.0,
+          "cpu_percent_logical_capacity": 13.8125,
+          "page_faults_per_sec": 10744.0
+        }
+      ],
+      "started_at": "2026-11-07T00:20:57.4115643Z"
+    },
+    {
+      "committed_bytes": 32011898880,
+      "available_mb": 2155,
+      "cpu_percent": 12,
+      "finished_at": "2026-11-07T00:21:01.4012646Z",
+      "pages_input_per_sec": 1015,
+      "disk_queue": 0,
+      "pages_output_per_sec": 0,
+      "commit_limit_bytes": 49581215744,
+      "groups": [
+        {
+          "category": "node",
+          "count": 24,
+          "working_set_private_bytes": 27377664.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "chromium",
+          "count": 20,
+          "working_set_private_bytes": 906276864.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 1890.0
+        },
+        {
+          "category": "observer",
+          "count": 1,
+          "working_set_private_bytes": 50360320.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 56.0
+        },
+        {
+          "category": "other",
+          "count": 373,
+          "working_set_private_bytes": 7126409216.0,
+          "cpu_percent_logical_capacity": 3.875,
+          "page_faults_per_sec": 1569.0
+        }
+      ],
+      "started_at": "2026-11-07T00:20:59.9380488Z"
+    },
+    {
+      "committed_bytes": 31714234368,
+      "available_mb": 2191,
+      "cpu_percent": 7,
+      "finished_at": "2026-11-07T00:21:03.8513094Z",
+      "pages_input_per_sec": 23,
+      "disk_queue": 0,
+      "pages_output_per_sec": 0,
+      "commit_limit_bytes": 49581215744,
+      "groups": [
+        {
+          "category": "node",
+          "count": 24,
+          "working_set_private_bytes": 27377664.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "chromium",
+          "count": 20,
+          "working_set_private_bytes": 907284480.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "observer",
+          "count": 1,
+          "working_set_private_bytes": 50753536.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "other",
+          "count": 373,
+          "working_set_private_bytes": 7106277376.0,
+          "cpu_percent_logical_capacity": 8.8125,
+          "page_faults_per_sec": 30021.0
+        }
+      ],
+      "started_at": "2026-11-07T00:21:02.4100321Z"
+    },
+    {
+      "committed_bytes": 31725441024,
+      "available_mb": 2181,
+      "cpu_percent": 21,
+      "finished_at": "2026-11-07T00:21:06.3476227Z",
+      "pages_input_per_sec": 2307,
+      "disk_queue": 0,
+      "pages_output_per_sec": 0,
+      "commit_limit_bytes": 49581215744,
+      "groups": [
+        {
+          "category": "node",
+          "count": 24,
+          "working_set_private_bytes": 27377664.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "chromium",
+          "count": 20,
+          "working_set_private_bytes": 910102528.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 2946.0
+        },
+        {
+          "category": "observer",
+          "count": 1,
+          "working_set_private_bytes": 53596160.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "other",
+          "count": 373,
+          "working_set_private_bytes": 7123894272.0,
+          "cpu_percent_logical_capacity": 5.375,
+          "page_faults_per_sec": 1874.0
+        }
+      ],
+      "started_at": "2026-11-07T00:21:04.8589906Z"
+    },
+    {
+      "committed_bytes": 31732314112,
+      "available_mb": 2167,
+      "cpu_percent": 27,
+      "finished_at": "2026-11-07T00:21:08.8432564Z",
+      "pages_input_per_sec": 0,
+      "disk_queue": 0,
+      "pages_output_per_sec": 0,
+      "commit_limit_bytes": 49581215744,
+      "groups": [
+        {
+          "category": "node",
+          "count": 24,
+          "working_set_private_bytes": 28151808.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "chromium",
+          "count": 20,
+          "working_set_private_bytes": 911462400.0,
+          "cpu_percent_logical_capacity": 0.25,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "observer",
+          "count": 1,
+          "working_set_private_bytes": 55074816.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "other",
+          "count": 373,
+          "working_set_private_bytes": 7124271104.0,
+          "cpu_percent_logical_capacity": 6.0,
+          "page_faults_per_sec": 2525.0
+        }
+      ],
+      "started_at": "2026-11-07T00:21:07.3565506Z"
+    },
+    {
+      "committed_bytes": 31791931392,
+      "available_mb": 2110,
+      "cpu_percent": 5,
+      "finished_at": "2026-11-07T00:21:11.2997139Z",
+      "pages_input_per_sec": 0,
+      "disk_queue": 0,
+      "pages_output_per_sec": 0,
+      "commit_limit_bytes": 49581215744,
+      "groups": [
+        {
+          "category": "node",
+          "count": 24,
+          "working_set_private_bytes": 28151808.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "chromium",
+          "count": 20,
+          "working_set_private_bytes": 912904192.0,
+          "cpu_percent_logical_capacity": 0.5625,
+          "page_faults_per_sec": 2191.0
+        },
+        {
+          "category": "observer",
+          "count": 1,
+          "working_set_private_bytes": 55930880.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "other",
+          "count": 373,
+          "working_set_private_bytes": 7112433664.0,
+          "cpu_percent_logical_capacity": 7.375,
+          "page_faults_per_sec": 1442.0
+        }
+      ],
+      "started_at": "2026-11-07T00:21:09.8539216Z"
+    },
+    {
+      "committed_bytes": 31766294528,
+      "available_mb": 2121,
+      "cpu_percent": 7,
+      "finished_at": "2026-11-07T00:21:13.7838319Z",
+      "pages_input_per_sec": 0,
+      "disk_queue": 0,
+      "pages_output_per_sec": 0,
+      "commit_limit_bytes": 49581215744,
+      "groups": [
+        {
+          "category": "node",
+          "count": 24,
+          "working_set_private_bytes": 28151808.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "chromium",
+          "count": 20,
+          "working_set_private_bytes": 914231296.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 39.0
+        },
+        {
+          "category": "observer",
+          "count": 1,
+          "working_set_private_bytes": 46989312.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "other",
+          "count": 373,
+          "working_set_private_bytes": 7121084416.0,
+          "cpu_percent_logical_capacity": 21.625,
+          "page_faults_per_sec": 9519.0
+        }
+      ],
+      "started_at": "2026-11-07T00:21:12.3074470Z"
+    },
+    {
+      "committed_bytes": 31778918400,
+      "available_mb": 2105,
+      "cpu_percent": 3,
+      "finished_at": "2026-11-07T00:21:16.2442724Z",
+      "pages_input_per_sec": 0,
+      "disk_queue": 0,
+      "pages_output_per_sec": 0,
+      "commit_limit_bytes": 49581215744,
+      "groups": [
+        {
+          "category": "node",
+          "count": 24,
+          "working_set_private_bytes": 28151808.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "chromium",
+          "count": 20,
+          "working_set_private_bytes": 900292608.0,
+          "cpu_percent_logical_capacity": 0.25,
+          "page_faults_per_sec": 1511.0
+        },
+        {
+          "category": "observer",
+          "count": 1,
+          "working_set_private_bytes": 52633600.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "other",
+          "count": 373,
+          "working_set_private_bytes": 7135059968.0,
+          "cpu_percent_logical_capacity": 15.0625,
+          "page_faults_per_sec": 3993.0
+        }
+      ],
+      "started_at": "2026-11-07T00:21:14.7850447Z"
+    },
+    {
+      "committed_bytes": 31796662272,
+      "available_mb": 2104,
+      "cpu_percent": 5,
+      "finished_at": "2026-11-07T00:21:18.6958696Z",
+      "pages_input_per_sec": 0,
+      "disk_queue": 0,
+      "pages_output_per_sec": 0,
+      "commit_limit_bytes": 49581215744,
+      "groups": [
+        {
+          "category": "node",
+          "count": 24,
+          "working_set_private_bytes": 28155904.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "chromium",
+          "count": 20,
+          "working_set_private_bytes": 886001664.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "observer",
+          "count": 1,
+          "working_set_private_bytes": 49688576.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 98.0
+        },
+        {
+          "category": "other",
+          "count": 373,
+          "working_set_private_bytes": 7056154624.0,
+          "cpu_percent_logical_capacity": 11.9375,
+          "page_faults_per_sec": 6095.0
+        }
+      ],
+      "started_at": "2026-11-07T00:21:17.2498729Z"
+    },
+    {
+      "committed_bytes": 31760961536,
+      "available_mb": 2130,
+      "cpu_percent": 22,
+      "finished_at": "2026-11-07T00:21:21.1680650Z",
+      "pages_input_per_sec": 653,
+      "disk_queue": 0,
+      "pages_output_per_sec": 6807,
+      "commit_limit_bytes": 49581215744,
+      "groups": [
+        {
+          "category": "node",
+          "count": 24,
+          "working_set_private_bytes": 26492928.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "chromium",
+          "count": 20,
+          "working_set_private_bytes": 851914752.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "observer",
+          "count": 1,
+          "working_set_private_bytes": 50954240.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "other",
+          "count": 373,
+          "working_set_private_bytes": 7056543744.0,
+          "cpu_percent_logical_capacity": 30.125,
+          "page_faults_per_sec": 6018.0
+        }
+      ],
+      "started_at": "2026-11-07T00:21:19.7092495Z"
+    },
+    {
+      "committed_bytes": 31795314688,
+      "available_mb": 2232,
+      "cpu_percent": 16,
+      "finished_at": "2026-11-07T00:21:23.6554222Z",
+      "pages_input_per_sec": 3,
+      "disk_queue": 0,
+      "pages_output_per_sec": 0,
+      "commit_limit_bytes": 49581215744,
+      "groups": [
+        {
+          "category": "node",
+          "count": 24,
+          "working_set_private_bytes": 26492928.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "chromium",
+          "count": 20,
+          "working_set_private_bytes": 853381120.0,
+          "cpu_percent_logical_capacity": 2.375,
+          "page_faults_per_sec": 2199.0
+        },
+        {
+          "category": "observer",
+          "count": 1,
+          "working_set_private_bytes": 49156096.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "other",
+          "count": 373,
+          "working_set_private_bytes": 7074172928.0,
+          "cpu_percent_logical_capacity": 4.875,
+          "page_faults_per_sec": 2921.0
+        }
+      ],
+      "started_at": "2026-11-07T00:21:22.1739736Z"
+    },
+    {
+      "committed_bytes": 31979413504,
+      "available_mb": 2028,
+      "cpu_percent": 66,
+      "finished_at": "2026-11-07T00:21:26.4863772Z",
+      "pages_input_per_sec": 2305,
+      "disk_queue": 0,
+      "pages_output_per_sec": 0,
+      "commit_limit_bytes": 49581215744,
+      "groups": [
+        {
+          "category": "node",
+          "count": 24,
+          "working_set_private_bytes": 28188672.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "chromium",
+          "count": 20,
+          "working_set_private_bytes": 857939968.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "observer",
+          "count": 1,
+          "working_set_private_bytes": 51228672.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "other",
+          "count": 377,
+          "working_set_private_bytes": 7307788288.0,
+          "cpu_percent_logical_capacity": 22.1875,
+          "page_faults_per_sec": 53351.0
+        }
+      ],
+      "started_at": "2026-11-07T00:21:24.6558946Z"
+    },
+    {
+      "committed_bytes": 32404905984,
+      "available_mb": 1780,
+      "cpu_percent": 25,
+      "finished_at": "2026-11-07T03:21:29.6841782Z",
+      "pages_input_per_sec": 4476,
+      "disk_queue": 65,
+      "pages_output_per_sec": 0,
+      "commit_limit_bytes": 49581215744,
+      "groups": [
+        {
+          "category": "node",
+          "count": 24,
+          "working_set_private_bytes": 28155904.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "chromium",
+          "count": 20,
+          "working_set_private_bytes": 860819456.0,
+          "cpu_percent_logical_capacity": 0.75,
+          "page_faults_per_sec": 26.0
+        },
+        {
+          "category": "observer",
+          "count": 1,
+          "working_set_private_bytes": 40456192.0,
+          "cpu_percent_logical_capacity": 0.5,
+          "page_faults_per_sec": 13.0
+        },
+        {
+          "category": "other",
+          "count": 389,
+          "working_set_private_bytes": 7757488128.0,
+          "cpu_percent_logical_capacity": 93.875,
+          "page_faults_per_sec": 152975.0
+        }
+      ],
+      "started_at": "2026-11-07T03:21:25.7679007Z"
+    },
+    {
+      "committed_bytes": 33221713920,
+      "available_mb": 1191,
+      "cpu_percent": 36,
+      "finished_at": "2026-11-07T03:21:32.1128508Z",
+      "pages_input_per_sec": 29012,
+      "disk_queue": 12,
+      "pages_output_per_sec": 4117,
+      "commit_limit_bytes": 49581215744,
+      "groups": [
+        {
+          "category": "node",
+          "count": 24,
+          "working_set_private_bytes": 28155904.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "chromium",
+          "count": 20,
+          "working_set_private_bytes": 861245440.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "observer",
+          "count": 1,
+          "working_set_private_bytes": 41512960.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "other",
+          "count": 393,
+          "working_set_private_bytes": 7891439616.0,
+          "cpu_percent_logical_capacity": 8.875,
+          "page_faults_per_sec": 61019.0
+        }
+      ],
+      "started_at": "2026-11-07T03:21:30.6888832Z"
+    },
+    {
+      "committed_bytes": 33159090176,
+      "available_mb": 725,
+      "cpu_percent": 30,
+      "finished_at": "2026-11-07T15:43:49.5499277Z",
+      "pages_input_per_sec": 11578,
+      "disk_queue": 1,
+      "pages_output_per_sec": 0,
+      "commit_limit_bytes": 49581215744,
+      "groups": [
+        {
+          "category": "node",
+          "count": 24,
+          "working_set_private_bytes": 28155904.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "chromium",
+          "count": 20,
+          "working_set_private_bytes": 916262912.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "observer",
+          "count": 1,
+          "working_set_private_bytes": 40493056.0,
+          "cpu_percent_logical_capacity": 0.25,
+          "page_faults_per_sec": 77.0
+        },
+        {
+          "category": "other",
+          "count": 396,
+          "working_set_private_bytes": 7997624320.0,
+          "cpu_percent_logical_capacity": 29.9375,
+          "page_faults_per_sec": 135350.0
+        }
+      ],
+      "started_at": "2026-11-07T03:21:33.1075173Z"
+    },
+    {
+      "committed_bytes": 33132523520,
+      "available_mb": 486,
+      "cpu_percent": 100,
+      "finished_at": "2026-11-07T15:43:54.2345190Z",
+      "pages_input_per_sec": 0,
+      "disk_queue": 44,
+      "pages_output_per_sec": 0,
+      "commit_limit_bytes": 49581215744,
+      "groups": [
+        {
+          "category": "node",
+          "count": 16,
+          "working_set_private_bytes": 22716416.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "chromium",
+          "count": 20,
+          "working_set_private_bytes": 884445184.0,
+          "cpu_percent_logical_capacity": 0.5,
+          "page_faults_per_sec": 15.0
+        },
+        {
+          "category": "observer",
+          "count": 1,
+          "working_set_private_bytes": 39485440.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "other",
+          "count": 392,
+          "working_set_private_bytes": 8167051264.0,
+          "cpu_percent_logical_capacity": 87.4375,
+          "page_faults_per_sec": 123420.0
+        }
+      ],
+      "started_at": "2026-11-07T15:43:50.5511707Z"
+    },
+    {
+      "committed_bytes": 32950706176,
+      "available_mb": 601,
+      "cpu_percent": 100,
+      "finished_at": "2026-11-07T15:43:57.6852497Z",
+      "pages_input_per_sec": 102627,
+      "disk_queue": 32,
+      "pages_output_per_sec": 0,
+      "commit_limit_bytes": 49581215744,
+      "groups": [
+        {
+          "category": "node",
+          "count": 16,
+          "working_set_private_bytes": 26120192.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "chromium",
+          "count": 22,
+          "working_set_private_bytes": 872763392.0,
+          "cpu_percent_logical_capacity": 2.75,
+          "page_faults_per_sec": 3382.0
+        },
+        {
+          "category": "observer",
+          "count": 1,
+          "working_set_private_bytes": 39256064.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "other",
+          "count": 399,
+          "working_set_private_bytes": 7918407680.0,
+          "cpu_percent_logical_capacity": 95.75,
+          "page_faults_per_sec": 143736.0
+        }
+      ],
+      "started_at": "2026-11-07T15:43:55.2483147Z"
+    },
+    {
+      "committed_bytes": 33044992000,
+      "available_mb": 626,
+      "cpu_percent": 100,
+      "finished_at": "2026-11-07T15:44:00.6421408Z",
+      "pages_input_per_sec": 117775,
+      "disk_queue": 37,
+      "pages_output_per_sec": 0,
+      "commit_limit_bytes": 49581215744,
+      "groups": [
+        {
+          "category": "node",
+          "count": 16,
+          "working_set_private_bytes": 26120192.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "chromium",
+          "count": 23,
+          "working_set_private_bytes": 908795904.0,
+          "cpu_percent_logical_capacity": 3.9375,
+          "page_faults_per_sec": 19984.0
+        },
+        {
+          "category": "observer",
+          "count": 1,
+          "working_set_private_bytes": 40357888.0,
+          "cpu_percent_logical_capacity": 0.0,
+          "page_faults_per_sec": 0.0
+        },
+        {
+          "category": "other",
+          "count": 395,
+          "working_set_private_bytes": 8202280960.0,
+          "cpu_percent_logical_capacity": 87.5625,
+          "page_faults_per_sec": 56214.0
+        }
+      ],
+      "started_at": "2026-11-07T15:43:58.6982857Z"
+    }
+  ],
+  "name": "baseline-1",
+  "sha": "9974555e8b2c64c5c187a7a21427d8f5b9c0c1b8",
+  "logical_processors": 16
+}

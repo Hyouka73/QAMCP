@@ -34,6 +34,8 @@ import type {
   LifecycleState,
 } from '@qap/shared';
 
+export * from './knowledge-store.port.js';
+
 // ---------------------------------------------------------------------------
 // Auxiliary type aliases — bridge between plan naming and @qap/shared types
 // These keep the IStorage contract readable while reusing shared schemas.
@@ -190,6 +192,29 @@ export interface IFlowRunner {
  */
 export interface IFlowLockProvider {
   withModulesLock<T>(moduleNames: string[], fn: () => Promise<T>): Promise<T>;
+}
+
+/**
+ * Persisted state snapshot for resumable multi-module flows.
+ */
+export interface IFlowState {
+  flow_name: string;
+  started_at: string;
+  completed_modules: string[];
+  shared_variables: Record<string, string>;
+}
+
+/**
+ * FlowStateStore Port
+ *
+ * Abstracts flow checkpoint persistence and session backup/restore for rollback.
+ */
+export interface IFlowStateStore {
+  loadState(flowName: string): IFlowState | null;
+  saveState(state: IFlowState): void;
+  hasSessionBackup(flowName: string): boolean;
+  backupSessions(flowName: string): void;
+  restoreSessions(flowName: string): boolean;
 }
 
 /**

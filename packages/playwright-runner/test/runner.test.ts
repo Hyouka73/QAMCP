@@ -21,8 +21,8 @@ describe('PlaywrightRunner (S7-001)', () => {
     expect(result.summary).toBeDefined();
     expect(Array.isArray(result.cases)).toBe(true);
 
-    // Sin casos en el plan, debe considerarse "passed" (0 fallos)
-    expect(result.result).toBe('passed');
+    // Sin casos en el plan, debe considerarse "failed" (0 casos jamás produce passed por mandato de honestidad)
+    expect(result.result).toBe('failed');
     expect(result.summary.total).toBe(0);
   }, 15000);
 

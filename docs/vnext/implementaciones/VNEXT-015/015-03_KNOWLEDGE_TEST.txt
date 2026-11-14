@@ -1,0 +1,352 @@
+
+ RUN  v4.1.11 C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/knowledge
+
+ ✓ src/__tests__/lock-manager.test.ts > LockManager (S75-005A) > debe adquirir y liberar un lock de módulo exitosamente 60ms
+ ✓ src/__tests__/module-backup-manager.test.ts > ModuleBackupManager (S7-008) > devuelve null si el módulo no tiene carpeta existente 11ms
+ ✓ src/__tests__/module-backup-manager.test.ts > ModuleBackupManager (S7-008) > devuelve null si la carpeta del módulo existe pero no tiene archivos respaldables 15ms
+ ✓ src/__tests__/module-backup-manager.test.ts > ModuleBackupManager (S7-008) > copia context.yaml a .qa/cache/backups/<modulo>/<timestamp>/ 64ms
+ ✓ src/__tests__/module-backup-manager.test.ts > ModuleBackupManager (S7-008) > listBackups devuelve los backups más recientes primero 47ms
+ ✓ src/__tests__/lock-manager.test.ts > LockManager (S75-005A) > debe lanzar error "lock_timeout" si se intenta bloquear concurrentemente el mismo módulo 91ms
+ ✓ src/__tests__/lock-manager.test.ts > LockManager (S75-005A) > debe permitir forceUnlock para limpiar locks forzadamente 48ms
+ ✓ src/__tests__/lock-manager.test.ts > LockManager (S75-005A) > forceUnlock () sin argumento  debe liberar todos los locks activos 59ms
+ ✓ src/__tests__/document-detector.test.ts > E2a: detectarDocumentosProyecto (Criterio 3) > detecta README y PRD, y no devuelve el contenido del archivo 30ms
+ ✓ src/__tests__/document-detector.test.ts > E2a: detectarDocumentosProyecto (Criterio 3) > ignora directorios node_modules, .git, .qa, dist, build 36ms
+ ✓ src/__tests__/document-detector.test.ts > E2a: detectarDocumentosProyecto (Criterio 3) > detecta documentos dentro de docs/ que contengan spec, requisitos o alcance 28ms
+ ✓ src/__tests__/lifecycle-storage.test.ts > FileSystemStorage - Ciclo de vida y retrocompatibilidad (E3, E4, Criterio 2) > debe derivar retrocompatiblemente phase ONBOARDING cuando lifecycle.json no existe y no hay módulos (E4) 20ms
+ ✓ src/__tests__/route-scanner.test.ts > C3: scanProjectRoutes (Repo-map ligero de rutas) > normaliza rutas y parámetros correctamente 8ms
+ ✓ src/__tests__/route-scanner.test.ts > C3: scanProjectRoutes (Repo-map ligero de rutas) > ausencia de front o proyecto vacío devuelve rutas vacías sin fallar 12ms
+ ✓ src/__tests__/route-scanner.test.ts > C3: scanProjectRoutes (Repo-map ligero de rutas) > extrae rutas de React Router con elementos <Route> y detecta AuthGuard 44ms
+ ✓ src/__tests__/route-scanner.test.ts > C3: scanProjectRoutes (Repo-map ligero de rutas) > extrae rutas de React Router con createBrowserRouter (objetos con path) 14ms
+ ✓ src/__tests__/file-storage.test.ts > FileSystemStorage (S3-002) > debe escribir y leer un archivo de texto correctamente 78ms
+ ✓ src/__tests__/document-detector.test.ts > E2a: detectarDocumentosProyecto (Criterio 3) > marca openapi y swagger como no ingeribles si no son .md/.markdown/.txt 47ms
+ ✓ src/__tests__/document-detector.test.ts > E2a: detectarDocumentosProyecto (Criterio 3) > descarta symlinks que escapan fuera del workspace 14ms
+ ✓ src/__tests__/document-detector.test.ts > E2a: detectarDocumentosProyecto (Criterio 3) > sanitiza nombres de archivo con caracteres de control, markdown o instrucciones 64ms
+ ✓ src/__tests__/file-storage.test.ts > FileSystemStorage (S3-002) > debe escribir y leer JSON correctamente 36ms
+ ✓ src/__tests__/file-storage.test.ts > FileSystemStorage (S3-002) > debe confirmar existencia de archivos y directorios 53ms
+ ✓ src/__tests__/lifecycle-storage.test.ts > FileSystemStorage - Ciclo de vida y retrocompatibilidad (E3, E4, Criterio 2) > debe derivar retrocompatiblemente phase WORKING con cada módulo en observed cuando no existe lifecycle.json pero hay módulos (E4) 128ms
+ ✓ src/__tests__/lifecycle-storage.test.ts > FileSystemStorage - Ciclo de vida y retrocompatibilidad (E3, E4, Criterio 2) > debe escribir atómicamente y persistir el estado con saveLifecycleState (E3) 57ms
+ ✓ src/__tests__/route-scanner.test.ts > C3: scanProjectRoutes (Repo-map ligero de rutas) > extrae rutas de Next.js App Router normalizando parámetros y route groups 42ms
+ ✓ src/__tests__/route-scanner.test.ts > C3: scanProjectRoutes (Repo-map ligero de rutas) > extrae rutas de Next.js Pages Router ignorando archivos especiales 63ms
+ ✓ src/__tests__/document-detector.test.ts > E2a: detectarDocumentosProyecto (Criterio 3) > P4.3 / Criterio 2: Suite completa del detector y escaneo > fixture del escenario real: PRD_diff.md en raíz, front/, back/, docs/ 87ms
+ ✓ src/__tests__/document-detector.test.ts > E2a: detectarDocumentosProyecto (Criterio 3) > P4.3 / Criterio 2: Suite completa del detector y escaneo > ranking determinista: prd > spec > requisit > alcance > funcional > readme > diff y raíz > docs > subproyecto 68ms
+ ✓ src/__tests__/file-storage.test.ts > FileSystemStorage (S3-002) > debe listar el contenido de un directorio 55ms
+ ✓ src/__tests__/file-storage.test.ts > FileSystemStorage (S3-002) > debe leer archivos binarios (PNG) sin corromper los bytes con readBuffer (S5-003) 16ms
+ ✓ src/__tests__/file-storage.test.ts > FileSystemStorage (S3-002) > debe eliminar archivos 34ms
+ ✓ src/__tests__/file-storage.test.ts > FileSystemStorage (S3-002) > debe crear directorios con mkdir 11ms
+ ✓ src/__tests__/route-scanner.test.ts > C3: scanProjectRoutes (Repo-map ligero de rutas) > extrae rutas de Vue Router 95ms
+ ✓ src/__tests__/route-scanner.test.ts > C3: scanProjectRoutes (Repo-map ligero de rutas) > ignora directorios excluidos (node_modules, dist, .next, .git) y archivos .env* 27ms
+ ✓ src/__tests__/route-scanner.test.ts > C3: scanProjectRoutes (Repo-map ligero de rutas) > omite archivos mayores a 200 KB 14ms
+ ✓ src/__tests__/route-scanner.test.ts > C3: scanProjectRoutes (Repo-map ligero de rutas) > demuestra que archivos .env* con rutas parseables no aparecen en repo-map y que no hay rastro del contenido 26ms
+ ✓ src/__tests__/document-detector.test.ts > E2a: detectarDocumentosProyecto (Criterio 3) > P4.3 / Criterio 2: Suite completa del detector y escaneo > excluye CHANGELOG, LICENSE, CONTRIBUTING, CODE_OF_CONDUCT y carpeta coverage 41ms
+ ✓ src/__tests__/route-scanner.test.ts > C3: scanProjectRoutes (Repo-map ligero de rutas) > D3: rutas contiguas en React Router no contagian guards a rutas hermanas 38ms
+ ✓ src/__tests__/route-scanner.test.ts > C3: scanProjectRoutes (Repo-map ligero de rutas) > D3: rutas contiguas en Vue Router acotan guard al objeto sin afectar rutas vecinas 17ms
+ ✓ src/__tests__/route-scanner.test.ts > C3: scanProjectRoutes (Repo-map ligero de rutas) > D3: Next.js route groups como (auth) no fabrican guard; layouts ancestros con guard si 49ms
+ ✓ src/__tests__/file-storage.test.ts > FileSystemStorage (S3-002) > nunca debe dejar un archivo .tmp huerfano tras una escritura exitosa (atomic write) 55ms
+ ✓ src/__tests__/file-storage.test.ts > FileSystemStorage (S3-002) > debe crear el directorio de locks bajo .qa/cache/locks al escribir 38ms
+ ✓ src/__tests__/document-detector.test.ts > E2a: detectarDocumentosProyecto (Criterio 3) > P4.3 / Criterio 2: Suite completa del detector y escaneo > resolverDocumento: resuelve nombre exacto, sin extensión, libre, inexistente y fuera de workspace 124ms
+ ✓ src/__tests__/document-detector.test.ts > E2a: detectarDocumentosProyecto (Criterio 3) > P4.3 / Criterio 2: Suite completa del detector y escaneo > ausencia de puerto por defecto cuando no hay evidencia de servicios 23ms
+ ✓ src/__tests__/document-detector.test.ts > E2a: detectarDocumentosProyecto (Criterio 3) > P4.3 / Criterio 2: Suite completa del detector y escaneo > detecta URLs con evidencia en .env.example y docker-compose 44ms
+ ✓ src/__tests__/prd-bootstrap.test.ts > PRD Bootstrap (S4-005) > parsePrdContent > debe parsear un documento Markdown con secciones en español 16ms
+ ✓ src/__tests__/prd-bootstrap.test.ts > PRD Bootstrap (S4-005) > parsePrdContent > debe parsear un documento con encabezados en inglés 6ms
+ ✓ src/__tests__/prd-bootstrap.test.ts > PRD Bootstrap (S4-005) > buildModuleContext > debe generar un esqueleto de ModuleContext válido con manually_edited: false 5ms
+ ✓ src/__tests__/prd-bootstrap.test.ts > PRD Bootstrap (S4-005) > buildModuleContext > debe usar fallback si no se especifican campos 4ms
+ ✓ src/__tests__/prd-bootstrap.test.ts > PRD Bootstrap (S4-005) > buildRepoMap > debe generar RepoMap con _version: "1" y rutas normalizadas a POSIX 3ms
+ ✓ src/__tests__/document-detector.test.ts > E2a: detectarDocumentosProyecto (Criterio 3) > P4.3 / Criterio 2: Suite completa del detector y escaneo > B5: nunca lee .env ni .env.local y no filtra credenciales ni secretos en salida ni scan 51ms
+ ✓ src/__tests__/document-detector.test.ts > E2a: detectarDocumentosProyecto (Criterio 3) > P4.3 / Criterio 2: Suite completa del detector y escaneo > C2: Ranking de documentos con penalización y bonificación exacta > PRD.md aparece antes que PRD_diff.md y el documento penalizado sigue como opción 35ms
+ ✓ src/__tests__/document-detector.test.ts > E2a: detectarDocumentosProyecto (Criterio 3) > P4.3 / Criterio 2: Suite completa del detector y escaneo > C2: Ranking de documentos con penalización y bonificación exacta > con solo PRD_diff.md aparece primero igualmente 18ms
+ ✓ src/__tests__/document-detector.test.ts > E2a: detectarDocumentosProyecto (Criterio 3) > P4.3 / Criterio 2: Suite completa del detector y escaneo > C2: Ranking de documentos con penalización y bonificación exacta > sin falsos positivos en penalización de tokens (difficult, different, backend, bakery, oldest, copyright, draftsman) 9ms
+ ✓ src/__tests__/document-detector.test.ts > E2a: detectarDocumentosProyecto (Criterio 3) > P4.3 / Criterio 2: Suite completa del detector y escaneo > C2: Ranking de documentos con penalización y bonificación exacta > aplica penalización a nombres que contienen backup, copy, draft, old, diff, bak y tmp como token 6ms
+ ✓ src/__tests__/document-detector.test.ts > E2a: detectarDocumentosProyecto (Criterio 3) > P4.3 / Criterio 2: Suite completa del detector y escaneo > C2: Ranking de documentos con penalización y bonificación exacta > expone factores detallados de puntuación y ranking 7ms
+ ✓ src/__tests__/prd-bootstrap.test.ts > PRD Bootstrap (S4-005) > bootstrapModule (persistencia) > debe persistir context.yaml y repo-map.json en storage 174ms
+ ✓ src/__tests__/lifecycle-storage.test.ts > FileSystemStorage - Ciclo de vida y retrocompatibilidad (E3, E4, Criterio 2) > debe soportar escrituras concurrentes atómicas con locking sin corrupción 542ms
+ ✓ test/inference-engine.test.ts > VNEXT-009 deterministic confidence > is bounded, corroboration increases strength and contradictions reduce it 14ms
+ ✓ test/sqlite-knowledge-adapter.test.ts > IKnowledgeStore contract — physical SQLite files > exports the versioned Engine port and typed errors 161ms
+ ✓ test/sqlite-knowledge-adapter.test.ts > IKnowledgeStore contract — physical SQLite files > registers and retrieves a reproducible observation with evidence and provenance 74ms
+ ✓ test/action-target-search.test.ts > Action target lexical retrieval > finds labels, natural prose, accents, CSS identifiers, XPath and fallback selectors 235ms
+ ✓ test/action-target-search.test.ts > Action target lexical retrieval > handles Unicode and decomposed accents without claiming stemming or selector interpretation 67ms
+ ✓ test/inference-engine.test.ts > VNEXT-009 physical SQLite and persisted acquisition schemas > generates canonical topology, controls, flow and a multi-signal module hypothesis with pinned history and isolation 284ms
+ ✓ test/sqlite-knowledge-adapter.test.ts > IKnowledgeStore contract — physical SQLite files > retrieves inferences linked to observations without promoting them 61ms
+ ✓ test/sqlite-knowledge-adapter.test.ts > IKnowledgeStore contract — physical SQLite files > queries expected requirements independently of observed behavior 59ms
+ ✓ test/inference-engine.test.ts > VNEXT-009 physical SQLite and persisted acquisition schemas > deduplicates reruns and recalculates comparable newly captured targets with CAS history 111ms
+ ✓ test/action-target-search.test.ts > Action target lexical retrieval > weights labels above selectors, sorts by score then deterministic ID and limits results 61ms
+ ✓ test/action-target-search.test.ts > Action target lexical retrieval > isolates applications even with identical target/view IDs and hostile scope strings 68ms
+ ✓ test/sqlite-knowledge-adapter.test.ts > IKnowledgeStore contract — physical SQLite files > rejects empirical confirmation even when envelope review says reviewed 67ms
+ ✓ test/sqlite-knowledge-adapter.test.ts > IKnowledgeStore contract — physical SQLite files > isolates same IDs in separate applications for reads, queries and history 55ms
+ ✓ test/action-target-search.test.ts > Action target lexical retrieval > filters by view, pinned module relationship and actual trace context 73ms
+ ✓ test/action-target-search.test.ts > Action target lexical retrieval > treats hostile MATCH/SQL input as bounded literal words: " OR * NOT ( 56ms
+ ✓ test/inference-engine.test.ts > VNEXT-009 physical SQLite and persisted acquisition schemas > does not inflate confidence for repeated requests in one window and keeps opaque runs separate 108ms
+ ✓ test/inference-engine.test.ts > VNEXT-009 physical SQLite and persisted acquisition schemas > abstains from contradictory comparable DOM control attributes without treating absence as refutation 68ms
+ ✓ test/sqlite-knowledge-adapter.test.ts > IKnowledgeStore contract — physical SQLite files > rejects cross-application entity writes and references 53ms
+ ✓ test/sqlite-knowledge-adapter.test.ts > IKnowledgeStore contract — physical SQLite files > retrieves explicit relations and pinned references 51ms
+ ✓ test/inference-engine.test.ts > VNEXT-009 physical SQLite and persisted acquisition schemas > respects partial coverage, script dependencies and unauthorized links 66ms
+ ✓ test/action-target-search.test.ts > Action target lexical retrieval > treats hostile MATCH/SQL input as bounded literal words: "; DROP TABLE knowledge_revisions; -- 49ms
+ ✓ test/action-target-search.test.ts > Action target lexical retrieval > treats hostile MATCH/SQL input as bounded literal words: NEAR(credito, 3) 52ms
+ ✓ test/sqlite-knowledge-adapter.test.ts > IKnowledgeStore contract — physical SQLite files > records conformity without changing a requirement or observation 76ms
+ ✓ test/sqlite-knowledge-adapter.test.ts > IKnowledgeStore contract — physical SQLite files > rejects invalid confidence and indeterminate assessments missing a reason 46ms
+ ✓ test/action-target-search.test.ts > Action target lexical retrieval > treats hostile MATCH/SQL input as bounded literal words: selector:credito OR {fallback_selectors}:* 54ms
+ ✓ test/action-target-search.test.ts > Action target lexical retrieval > treats hostile MATCH/SQL input as bounded literal words:  
+[]()^+-* 64ms
+ ✓ src/__tests__/definitions-loader.test.ts > Loader y Validador de Definiciones Estáticas (.qa/definitions/) > valida exitosamente módulos y flujos sintáctica y semánticamente correctos 778ms
+ ✓ test/inference-engine.test.ts > VNEXT-009 physical SQLite and persisted acquisition schemas > distinguishes Fetch 200, XHR 503, gateway blocks, inconclusive requests and safe endpoint patterns 94ms
+ ✓ test/inference-engine.test.ts > VNEXT-009 physical SQLite and persisted acquisition schemas > consumes the reconnaissance schema without promoting technology signals 67ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > exhausts an empty inventory without asserting snapshot consistency 180ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > reads current revisions, keeps strict application isolation and delegates depth and diagnostics 87ms
+ ✓ test/impact-analyzer.test.ts > VNEXT-015-02 pure inverse module impact > accepts an empty graph and no seeds without asserting storage coherence 8ms
+ ✓ test/impact-analyzer.test.ts > VNEXT-015-02 pure inverse module impact > includes an isolated active seed at depth zero 2ms
+ ✓ test/impact-analyzer.test.ts > VNEXT-015-02 pure inverse module impact > propagates a chain inversely without affecting prerequisites of the seed 4ms
+ ✓ test/impact-analyzer.test.ts > VNEXT-015-02 pure inverse module impact > deduplicates a diamond and selects the ordinal first shortest causal path 2ms
+ ✓ test/impact-analyzer.test.ts > VNEXT-015-02 pure inverse module impact > resolves ID/key dependency aliases to a single real node 1ms
+ ✓ test/impact-analyzer.test.ts > VNEXT-015-02 pure inverse module impact > deduplicates multiple seed aliases and retains one path per distinct seed 2ms
+ ✓ test/impact-analyzer.test.ts > VNEXT-015-02 pure inverse module impact > supports independent roots with a shared dependent 1ms
+ ✓ test/impact-analyzer.test.ts > VNEXT-015-02 pure inverse module impact > applies max_depth=0 and reports actual truncation 4ms
+ ✓ test/impact-analyzer.test.ts > VNEXT-015-02 pure inverse module impact > applies max_depth=1 and reports actual truncation 2ms
+ ✓ test/impact-analyzer.test.ts > VNEXT-015-02 pure inverse module impact > applies max_depth=2 and reports actual truncation 3ms
+ ✓ test/impact-analyzer.test.ts > VNEXT-015-02 pure inverse module impact > does not mark a fully covered frontier as truncated 1ms
+ ✓ test/impact-analyzer.test.ts > VNEXT-015-02 pure inverse module impact > rejects invalid max_depth=-1 1ms
+ ✓ test/impact-analyzer.test.ts > VNEXT-015-02 pure inverse module impact > rejects invalid max_depth=1.5 1ms
+ ✓ test/impact-analyzer.test.ts > VNEXT-015-02 pure inverse module impact > rejects invalid max_depth=NaN 1ms
+ ✓ test/impact-analyzer.test.ts > VNEXT-015-02 pure inverse module impact > rejects invalid max_depth=Infinity 1ms
+ ✓ test/impact-analyzer.test.ts > VNEXT-015-02 pure inverse module impact > rejects invalid max_depth=9007199254740992 1ms
+ ✓ test/impact-analyzer.test.ts > VNEXT-015-02 pure inverse module impact > rejects invalid application, version and empty seed values 1ms
+ ✓ test/impact-analyzer.test.ts > VNEXT-015-02 pure inverse module impact > rejects unknown id seeds without fabricating nodes 1ms
+ ✓ test/impact-analyzer.test.ts > VNEXT-015-02 pure inverse module impact > rejects unknown key seeds without fabricating nodes 1ms
+ ✓ test/impact-analyzer.test.ts > VNEXT-015-02 pure inverse module impact > distinguishes a missing dependency even in an unselected component 1ms
+ ✓ test/impact-analyzer.test.ts > VNEXT-015-02 pure inverse module impact > rejects duplicate keys even without seeds 1ms
+ ✓ test/impact-analyzer.test.ts > VNEXT-015-02 pure inverse module impact > rejects ID/key collisions in untyped dependencies without preferring either 1ms
+ ✓ test/impact-analyzer.test.ts > VNEXT-015-02 pure inverse module impact > honors explicit seed namespaces in an otherwise valid ID/key collision 1ms
+ ✓ test/impact-analyzer.test.ts > VNEXT-015-02 pure inverse module impact > rejects duplicate IDs instead of overwriting an identity 1ms
+ ✓ test/impact-analyzer.test.ts > VNEXT-015-02 pure inverse module impact > rejects foreign application modules instead of using their keys 1ms
+ ✓ test/impact-analyzer.test.ts > VNEXT-015-02 pure inverse module impact > rejects cycles with a closed causal trace 1ms
+ ✓ test/impact-analyzer.test.ts > VNEXT-015-02 pure inverse module impact > rejects cycles with a closed causal trace 0ms
+ ✓ test/impact-analyzer.test.ts > VNEXT-015-02 pure inverse module impact > traverses inactive intermediates but excludes them from affected modules 0ms
+ ✓ test/impact-analyzer.test.ts > VNEXT-015-02 pure inverse module impact > rejects inactive seeds and never substitutes their successor 0ms
+ ✓ test/impact-analyzer.test.ts > VNEXT-015-02 pure inverse module impact > validates broken references and cycles of inactive modules 0ms
+ ✓ test/impact-analyzer.test.ts > VNEXT-015-02 pure inverse module impact > is invariant under inventory, dependencies and seed ordering 1ms
+ ✓ test/impact-analyzer.test.ts > VNEXT-015-02 pure inverse module impact > does not mutate frozen inputs and detaches returned paths and seed diagnostics 1ms
+ ✓ src/__tests__/guardrails-loader.test.ts > Loader y Validador de Guardrails e Invariantes (.qa/definitions/guardrails/) > carga exitosamente definiciones de guardrails válidas desde archivo YAML con envoltorio guardrails 805ms
+ ✓ test/sqlite-knowledge-adapter.test.ts > IKnowledgeStore contract — physical SQLite files > rejects missing parents and rolls back an entire batch 53ms
+ ✓ test/sqlite-knowledge-adapter.test.ts > IKnowledgeStore contract — physical SQLite files > preserves historical revisions and provenance through updates 58ms
+ ✓ src/__tests__/update-guard.test.ts > Suite S6-003: UpdateGuard - Salvaguarda manually_edited > debe detectar que un contenido YAML con manually_edited: true está protegido 47ms
+ ✓ src/__tests__/update-guard.test.ts > Suite S6-003: UpdateGuard - Salvaguarda manually_edited > debe permitir sobreescribir YAML que NO contiene manually_edited o donde es false 5ms
+ ✓ src/__tests__/update-guard.test.ts > Suite S6-003: UpdateGuard - Salvaguarda manually_edited > debe detectar la protección desde un objeto JavaScript 2ms
+ ✓ src/__tests__/update-guard.test.ts > Suite S6-003: UpdateGuard - Salvaguarda manually_edited > debe verificar la protección leyendo directamente un archivo YAML en el sistema de archivos 30ms
+ ✓ src/__tests__/update-guard.test.ts > Suite S6-003: UpdateGuard - Salvaguarda manually_edited > debe validar con la función auxiliar isProtected 3ms
+ ✓ src/__tests__/lifecycle-storage.test.ts > FileSystemStorage - Ciclo de vida y retrocompatibilidad (E3, E4, Criterio 2) > updateLifecycleState debe ejecutar lectura-modificación-escritura atómica bajo lock sin perder actualizaciones concurrentes (E2) 968ms
+ ✓ test/action-target-search.test.ts > Action target lexical retrieval > treats hostile MATCH/SQL input as bounded literal words: x' UNION SELECT * -- 55ms
+ ✓ test/action-target-search.test.ts > Action target lexical retrieval > rejects malformed, excessive and invalid runtime requests with sanitized errors 77ms
+ ✓ test/sqlite-knowledge-adapter.test.ts > IKnowledgeStore contract — physical SQLite files > allows one concurrent CAS writer and rejects stale/create conflicts 79ms
+ ✓ test/sqlite-knowledge-adapter.test.ts > IKnowledgeStore contract — physical SQLite files > prevents overwriting observations and assessments 51ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > exhausts 205 modules at page size 1, with deterministic results 536ms
+ ✓ test/sqlite-knowledge-adapter.test.ts > IKnowledgeStore contract — physical SQLite files > requires local successors when retiring historical entities 51ms
+ ✓ test/sqlite-knowledge-adapter.test.ts > IKnowledgeStore contract — physical SQLite files > rejects nested credential/header material and preserves external profile pointers 51ms
+ ✓ test/action-target-search.test.ts > Action target lexical retrieval > updates the current projection atomically, excludes old text and preserves history across connections/reopen 88ms
+ ✓ test/action-target-search.test.ts > Action target lexical retrieval > excludes inactive current revisions by default and supports reactivation 63ms
+ ✓ test/sqlite-knowledge-adapter.test.ts > IKnowledgeStore contract — physical SQLite files > rejects unmasked evidence and non-JSON values 45ms
+ ✓ test/sqlite-knowledge-adapter.test.ts > IKnowledgeStore contract — physical SQLite files > returns detached values and does not retain mutable inputs 47ms
+ ✓ test/action-target-search.test.ts > Action target lexical retrieval > leaves the index intact on stale CAS, rejected batch and physical failure after indexing 91ms
+ ✓ test/action-target-search.test.ts > Action target lexical retrieval > readers see confirmed data while another writer has an indexed but uncommitted revision 65ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > exhausts 205 modules at page size 37, with deterministic results 162ms
+ ✓ src/__tests__/guardrails-loader.test.ts > Loader y Validador de Guardrails e Invariantes (.qa/definitions/guardrails/) > falla con mensaje descriptivo si un guardrail incumple el JSON Schema (falta remediation o severidad inválida) 453ms
+ ✓ src/__tests__/definitions-loader.test.ts > Loader y Validador de Definiciones Estáticas (.qa/definitions/) > falla con mensajes descriptivos ante violaciones de JSON Schema 488ms
+ ✓ test/sqlite-knowledge-adapter.test.ts > IKnowledgeStore contract — physical SQLite files > paginates queries/history and rejects cross-query, stale and malformed cursors 64ms
+ ✓ test/sqlite-knowledge-adapter.test.ts > IKnowledgeStore contract — physical SQLite files > rejects duplicate writes and cyclic module or explicit dependencies atomically 52ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > exhausts 205 modules at page size 100, with deterministic results 269ms
+ ✓ test/inference-engine.test.ts > VNEXT-009 physical SQLite and persisted acquisition schemas > never consumes unpersisted input, mismatched provenance or another environment 67ms
+ ✓ test/inference-engine.test.ts > VNEXT-009 physical SQLite and persisted acquisition schemas > rejects invalid historical evidence references supplied by a broken port 90ms
+ ✓ test/action-target-search.test.ts > Explicit v1 -> v2 migration > initializes new files through both migrations and verifies FTS5 availability 45ms
+ ✓ test/action-target-search.test.ts > Explicit v1 -> v2 migration > backfills only latest targets from real populated v1, preserving revisions, links, trace and cursor key 96ms
+ ✓ test/sqlite-knowledge-adapter.test.ts > IKnowledgeStore contract — physical SQLite files > stores roles, views, interaction targets and flows with canonical links 59ms
+ ✓ test/sqlite-knowledge-adapter.test.ts > IKnowledgeStore contract — physical SQLite files > queries canonical module dependencies and rejects missing module keys 45ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > preserves inactive traversal, exclusion, seed rejection and no successor substitution 82ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > physically invalidates a cursor after another connection commits, discards all old pages and restarts 80ms
+ ✓ test/sqlite-knowledge-adapter.test.ts > IKnowledgeStore contract — physical SQLite files > keeps legacy manual edits reviewable rather than infallible 53ms
+ ✓ test/sqlite-knowledge-adapter.test.ts > IKnowledgeStore contract — physical SQLite files > rejects cyclic payloads and invalid batch sizes without changing history 50ms
+ ✓ test/inference-engine.test.ts > VNEXT-009 physical SQLite and persisted acquisition schemas > rejects an invalidated page without committing a mixed snapshot 481ms
+ ✓ test/inference-engine.test.ts > VNEXT-009 physical SQLite and persisted acquisition schemas > enforces observation, candidate and complexity limits 66ms
+ ✓ src/__tests__/candidate-generator.test.ts > C4: generateModuleCandidates (Generador de Módulos Candidatos) > procesa candidato válido con ruta_hint exacta y le asigna confianza alta y fuentes doc+repo 30ms
+ ✓ src/__tests__/candidate-generator.test.ts > C4: generateModuleCandidates (Generador de Módulos Candidatos) > asocia ruta por solapamiento de vocabulario >= 60% y asigna confianza media 3ms
+ ✓ src/__tests__/candidate-generator.test.ts > C4: generateModuleCandidates (Generador de Módulos Candidatos) > asigna ruta null cuando no hay coincidencia de ruta y NUNCA inventa una ruta desde el nombre 3ms
+ ✓ src/__tests__/candidate-generator.test.ts > C4: generateModuleCandidates (Generador de Módulos Candidatos) > rechaza candidato con evidencia inexistente en el documento con razón descriptiva (M23) 2ms
+ ✓ src/__tests__/candidate-generator.test.ts > C4: generateModuleCandidates (Generador de Módulos Candidatos) > descarta flujos inexistentes en criticalFlows conservando sólo los válidos (M25) 3ms
+ ✓ src/__tests__/candidate-generator.test.ts > C4: generateModuleCandidates (Generador de Módulos Candidatos) > incorpora rutas repo-only y limita el total a un máximo de 12 candidatos ordenados por cobertura y confianza 2ms
+ ✓ src/__tests__/candidate-generator.test.ts > C4: generateModuleCandidates (Generador de Módulos Candidatos) > D8: ordena estrictamente por flujos de prioridad alta, luego flujos totales, luego confianza, luego nombre 1ms
+ ✓ src/__tests__/candidate-generator.test.ts > C4: generateModuleCandidates (Generador de Módulos Candidatos) > C4: excluye rutas del repo con parámetros, comodines o patrones de acceso, login y 404 2ms
+ ✓ src/__tests__/candidate-generator.test.ts > C4: generateModuleCandidates (Generador de Módulos Candidatos) > C4: ausencia total de fuentes devuelve lista vacía sin fallar 2ms
+ ✓ test/action-target-search.test.ts > Explicit v1 -> v2 migration > preserves existing v1 signed cursors without invalidation 75ms
+ ✓ test/action-target-search.test.ts > Explicit v1 -> v2 migration > rolls back DDL/backfill/version after an injected migration failure and can retry safely 90ms
+ ✓ src/__tests__/guardrails-loader.test.ts > Loader y Validador de Guardrails e Invariantes (.qa/definitions/guardrails/) > detecta guardrails duplicados entre múltiples archivos y reporta el origen 420ms
+ ✓ test/sqlite-knowledge-adapter.test.ts > SqliteKnowledgeAdapter physical guarantees > persists revisions, provenance, pinned historical links and pagination across reopen 62ms
+ ✓ test/sqlite-knowledge-adapter.test.ts > SqliteKnowledgeAdapter physical guarantees > serializes independent connections, rejects stale revisions and invalidates other-connection cursors 72ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > fails closed after 1 attempts invalidated by real writes from another connection 73ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > fails closed after 3 attempts invalidated by real writes from another connection 81ms
+ ✓ test/inference-engine.test.ts > VNEXT-009 physical SQLite and persisted acquisition schemas > rolls back the entire inference batch on SQLite failure and leaves no orphan links 88ms
+ ✓ test/inference-engine.test.ts > VNEXT-009 physical SQLite and persisted acquisition schemas > does not overwrite concurrent creation from a second physical SQLite connection 83ms
+ ✓ src/__tests__/definitions-loader.test.ts > Loader y Validador de Definiciones Estáticas (.qa/definitions/) > detecta referencias a capacidades inexistentes tanto en requisitos como en flujos 477ms
+ ✓ test/action-target-search.test.ts > Explicit v1 -> v2 migration > rejects unknown v1 structures before migration and detects damaged FTS content on reopen 115ms
+ ✓ src/__tests__/definitions-loader.test.ts > Loader y Validador de Definiciones Estáticas (.qa/definitions/) > detecta ciclos y formatea la traza al cargar definiciones 439ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > does not restart when a different application is concurrently updated 92ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > reports exhaustion without snapshot verification when a writer commits after the terminal page 69ms
+ ✓ src/__tests__/file-storage.test.ts > FileSystemStorage (S3-002) > debe serializar escrituras concurrentes al mismo archivo sin corromper el contenido (control de concurrencia) 2141ms
+ ✓ src/__tests__/file-storage.test.ts > FileSystemStorage (S3-002) > Configuracion global del proyecto > debe reportar isInitialized false si no existe .qa/ 4ms
+ ✓ src/__tests__/file-storage.test.ts > FileSystemStorage (S3-002) > Configuracion global del proyecto > debe reportar isInitialized true tras crear .qa/ 15ms
+ ✓ test/reconnaissance-sqlite.test.ts > VNEXT-006 reconnaissance through IKnowledgeStore to physical SQLite > round-trips masked facts and evidence, pins links, isolates applications and preserves repeated runs 453ms
+ ✓ test/inference-engine.test.ts > VNEXT-009 physical SQLite and persisted acquisition schemas > rejects context changes before commit 88ms
+ ✓ test/sqlite-knowledge-adapter.test.ts > SqliteKnowledgeAdapter physical guarantees > rolls back actual SQL writes and scope version when an injected second insert fails 87ms
+ ✓ test/sqlite-knowledge-adapter.test.ts > SqliteKnowledgeAdapter physical guarantees > enforces physical immutable history and foreign keys for historical targets 68ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > bounds progressing unique cursors and accepts a terminal page exactly at the limit 58ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > rejects a repeated cursor before allowing an endless loop 49ms
+ ✓ src/__tests__/file-storage.test.ts > FileSystemStorage (S3-002) > Configuracion global del proyecto > debe guardar y leer environments.yaml 127ms
+ ✓ test/reconnaissance-sqlite.test.ts > VNEXT-006 reconnaissance through IKnowledgeStore to physical SQLite > rolls back evidence and observations together when a real SQL insert fails 178ms
+ ✓ src/__tests__/guardrails-loader.test.ts > Loader y Validador de Guardrails e Invariantes (.qa/definitions/guardrails/) > integra guardrails en validateDefinitions() y valida integridad referencial hacia capacidades 367ms
+ ✓ src/__tests__/guardrails-loader.test.ts > Loader y Validador de Guardrails e Invariantes (.qa/definitions/guardrails/) > falla en validateDefinitions() si un guardrail apunta a una capacidad inexistente (integridad referencial rota) 364ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > bounds retries when a defective opaque cursor is rejected by physical SQLite 52ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > rejects an empty final continuation instead of treating an inconsistent inventory as complete 57ms
+ ✓ test/inference-engine.test.ts > VNEXT-009 physical SQLite and persisted acquisition schemas > never copies hostile payloads into inference results or output SQLite/WAL/SHM or logs 153ms
+ ✓ test/inference-engine.test.ts > VNEXT-009 physical SQLite and persisted acquisition schemas > preserves historical evidence revisions after evidence metadata evolves 82ms
+ ✓ src/__tests__/file-storage.test.ts > FileSystemStorage (S3-002) > Configuracion global del proyecto > debe guardar y leer context.yaml del proyecto 87ms
+ ✓ src/__tests__/file-storage.test.ts > FileSystemStorage (S3-002) > Configuracion global del proyecto > debe devolver null si system-prompt.yaml no existe 10ms
+ ✓ src/__tests__/file-storage.test.ts > FileSystemStorage (S3-002) > Dominio de modulos > debe listar modulos existentes 49ms
+ ✓ src/__tests__/file-storage.test.ts > FileSystemStorage (S3-002) > Dominio de modulos > debe confirmar si un modulo existe con hasModule 24ms
+ ✓ test/reconnaissance-sqlite.test.ts > VNEXT-006 reconnaissance through IKnowledgeStore to physical SQLite > rejects missing or cross-application context without making HTTP requests 62ms
+ ✓ test/reconnaissance-sqlite.test.ts > VNEXT-006 reconnaissance through IKnowledgeStore to physical SQLite > refuses persistence if the contextual revision changes during acquisition 88ms
+ ✓ src/__tests__/replace-gate.test.ts > FileSystemStorage same-process reader/replacement coordination > write() never fails with a concurrent same-process reader and never exposes partial content 2843ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > fails closed on a defective response: null page 53ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > fails closed on a defective response: missing items 51ms
+ ✓ test/inference-engine.test.ts > VNEXT-009 physical SQLite and persisted acquisition schemas > does not shrink existing support when processing a partial selection 93ms
+ ✓ test/inference-engine.test.ts > VNEXT-009 physical SQLite and persisted acquisition schemas > abstains cleanly for an empty store and skips excessive hostile nesting 61ms
+ ✓ test/inference-engine.test.ts > VNEXT-009 physical SQLite and persisted acquisition schemas > rejects mixed blocked/HTTP-response events instead of assigning remote semantics 62ms
+ ✓ src/__tests__/file-storage.test.ts > FileSystemStorage (S3-002) > Dominio de modulos > debe guardar y leer context.yaml de un modulo 97ms
+ ✓ src/__tests__/file-storage.test.ts > FileSystemStorage (S3-002) > Dominio de modulos > debe devolver null si rules.yaml de un modulo no existe 7ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > fails closed on a defective response: oversized page 53ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > fails closed on a defective response: empty continuation 49ms
+ ✓ src/__tests__/file-storage.test.ts > FileSystemStorage (S3-002) > Dominio de modulos > debe guardar y leer selectors.json de un modulo 44ms
+ ✓ src/__tests__/file-storage.test.ts > FileSystemStorage (S3-002) > Dominio de modulos > debe devolver null si semantic-hash.json de un modulo no existe 5ms
+ ✓ src/__tests__/file-storage.test.ts > FileSystemStorage (S3-002) > Dominio de modulos > debe devolver null si repo-map.json de un modulo no existe 14ms
+ ✓ src/__tests__/file-storage.test.ts > FileSystemStorage (S3-002) > Dominio de modulos > debe guardar y leer repo-map.json forzando la normalizacion POSIX 72ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > fails closed on a defective response: blank cursor 49ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > fails closed on a defective response: non-string cursor 48ms
+ ✓ src/__tests__/file-storage.test.ts > FileSystemStorage (S3-002) > Planes y casos de prueba > debe listar solo archivos TC-*.yaml como test cases 87ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > fails closed on a defective response: foreign envelope 55ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > fails closed on a defective response: foreign entity 52ms
+ ✓ src/__tests__/file-storage.test.ts > FileSystemStorage (S3-002) > Planes y casos de prueba > debe guardar un test case usando su id como nombre de archivo 74ms
+ ✓ src/__tests__/file-storage.test.ts > FileSystemStorage (S3-002) > Resultados de ejecucion e historial > debe guardar y leer un resultado de ejecucion 88ms
+ ✓ src/__tests__/error-translator.spec.ts > ErrorTranslator > debe devolver arreglo vacio si no hay errores 7ms
+ ✓ src/__tests__/error-translator.spec.ts > ErrorTranslator > debe traducir error de tipo "additionalProperties" a mensaje legible 4ms
+ ✓ src/__tests__/error-translator.spec.ts > ErrorTranslator > debe traducir error de tipo "required" a mensaje legible 1ms
+ ✓ src/__tests__/error-translator.spec.ts > ErrorTranslator > debe traducir error de tipo "type" a mensaje legible 2ms
+ ✓ src/__tests__/error-translator.spec.ts > ErrorTranslator > debe traducir error de tipo "enum" listando los valores permitidos 1ms
+ ✓ src/__tests__/error-translator.spec.ts > ErrorTranslator > debe traducir error de tipo "const" a mensaje legible 1ms
+ ✓ src/__tests__/error-translator.spec.ts > ErrorTranslator > debe traducir error de tipo "minimum" a mensaje legible 1ms
+ ✓ src/__tests__/error-translator.spec.ts > ErrorTranslator > debe manejar un error desconocido usando el mensaje generico de AJV 1ms
+ ✓ src/__tests__/error-translator.spec.ts > ErrorTranslator > debe usar "(root)" como campo cuando instancePath esta vacio 1ms
+ ✓ src/__tests__/error-translator.spec.ts > ErrorTranslator > debe traducir multiples errores en un solo llamado, manteniendo el orden 2ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > fails closed on a defective response: wrong kind 51ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > fails closed on a defective response: identity mismatch 49ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > fails closed on a defective response: invalid revision 49ms
+ ✓ test/sqlite-knowledge-adapter.test.ts > SqliteKnowledgeAdapter physical guarantees > configures WAL, foreign keys and bounded busy handling without losing the winning write 119ms
+ ✓ src/__tests__/cycle-detector.test.ts > Detector de Ciclos y Grafo de Dependencias (DFS 3-Colores) > valida exitosamente un grafo de dependencias acíclico 7ms
+ ✓ src/__tests__/cycle-detector.test.ts > Detector de Ciclos y Grafo de Dependencias (DFS 3-Colores) > detecta un ciclo directo (A → B → A) con ruta visual legible (Checklist Gate) 2ms
+ ✓ src/__tests__/cycle-detector.test.ts > Detector de Ciclos y Grafo de Dependencias (DFS 3-Colores) > detecta un ciclo indirecto de 4+ nodos (A → B → C → D → A) con ruta legible (Checklist Gate) 1ms
+ ✓ src/__tests__/cycle-detector.test.ts > Detector de Ciclos y Grafo de Dependencias (DFS 3-Colores) > identifica y reporta referencias a capabilityId inexistentes de forma descriptiva (Checklist Gate) 3ms
+ ✓ src/__tests__/history-manager.test.ts > HistoryManager (S3-007) > debe registrar una ejecucion y poder leerla despues 16ms
+ ✓ src/__tests__/history-manager.test.ts > HistoryManager (S3-007) > debe devolver un arreglo vacio si el modulo no tiene historial aun 3ms
+ ✓ src/__tests__/history-manager.test.ts > HistoryManager (S3-007) > debe acumular multiples entradas en orden 2ms
+ ✓ src/__tests__/history-manager.test.ts > HistoryManager (S3-007) > debe podar automaticamente las entradas mas antiguas al superar max_entries 3ms
+ ✓ src/__tests__/history-manager.test.ts > HistoryManager (S3-007) > debe crear un backup en .qa/cache/backups/ antes de podar 2ms
+ ✓ src/__tests__/history-manager.test.ts > HistoryManager (S3-007) > el backup debe contener el historial completo previo a la poda (sin perder datos) 1ms
+ ✓ src/__tests__/history-manager.test.ts > HistoryManager (S3-007) > no debe crear backup si nunca se supera max_entries 1ms
+ ✓ src/__tests__/history-manager.test.ts > HistoryManager (S3-007) > debe exponer el max_entries configurado 1ms
+ ✓ src/__tests__/history-manager.test.ts > HistoryManager (S3-007) > debe usar el valor por defecto de max_entries si no se especifica 1ms
+ ✓ src/__tests__/file-storage.test.ts > FileSystemStorage (S3-002) > Resultados de ejecucion e historial > debe devolver null si el resultado de ejecucion no existe 26ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > fails closed on a defective response: invalid dependencies 50ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > fails closed on a defective response: sparse dependencies 53ms
+ ✓ test/sqlite-knowledge-adapter.test.ts > SqliteKnowledgeAdapter physical guarantees > rejects future versions without altering file contents or journal mode 712ms
+ ✓ test/sqlite-knowledge-adapter.test.ts > SqliteKnowledgeAdapter physical guarantees > refuses unmarked existing Reporter data and unknown unversioned schemas 83ms
+{"runtime":"v24.15.0","sqlite":"3.51.3","fts5":1,"outcome":"v2 ready"}
+ ✓ test/sqlite-fts-capability.test.ts > probes the actual builtin and refuses unsupported builds without changing a populated v1 file 60ms
+ ✓ src/__tests__/file-storage.test.ts > FileSystemStorage (S3-002) > Resultados de ejecucion e historial > debe anexar entradas al historial en formato JSONL 152ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > rejects duplicate identities across pages, even when their revision changes 50ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > rejects duplicate IDs within a page and unordered unique inventories 51ms
+{"runtime":"v24.15.0","catalog":1200,"samples":15,"timings":[{"query":"autorizar credito","count":10,"first":["target-0000","target-0004","target-0008"],"median_ms":4.198,"p95_ms":11.972},{"query":"tasa de interes","count":10,"first":["target-0001","target-0005","target-0009"],"median_ms":6.079,"p95_ms":17.977},{"query":"#control-731","count":10,"first":["target-0731","target-0000","target-0002"],"median_ms":10.796,"p95_ms":19.233},{"query":"nonexistent","count":0,"first":[],"median_ms":0.771,"p95_ms":7.993}]}
+ ✓ test/action-target-search.test.ts > Explicit v1 -> v2 migration > rejects a self-consistent FTS projection that no longer contains the current revision 114ms
+ ✓ test/sqlite-knowledge-adapter.test.ts > SqliteKnowledgeAdapter physical guarantees > detects missing physical immutability triggers 56ms
+ ✓ test/sqlite-knowledge-adapter.test.ts > SqliteKnowledgeAdapter physical guarantees > records v1 migration integrity and rejects an altered migration checksum 60ms
+ ✓ test/action-target-search.test.ts > measures reproducible local lexical retrieval over 1200 targets without absolute timing gates 1121ms
+ ✓ src/__tests__/file-storage.test.ts > FileSystemStorage (S3-002) > Flows multi-modulo > debe listar flows existentes 58ms
+ ✓ src/__tests__/file-storage.test.ts > FileSystemStorage (S3-002) > Flows multi-modulo > debe guardar y leer un flow 51ms
+ ✓ src/__tests__/file-storage.test.ts > FileSystemStorage (S3-002) > Diagnostico y estado del proyecto > debe reportar estado no inicializado si no existe .qa/ 12ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > keeps graph inconsistency diagnostics in the pure analyzer after pagination exhausts 53ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > interrupts without retrying or exposing payloads on non-cursor failure 0 54ms
+ ✓ test/sqlite-knowledge-adapter.test.ts > SqliteKnowledgeAdapter physical guarantees > uses bound SQL parameters for hostile IDs and leaves unrelated entities intact 56ms
+ ✓ test/sqlite-knowledge-adapter.test.ts > SqliteKnowledgeAdapter physical guarantees > preserves knowledge when isolated browser temporary storage is removed 61ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > interrupts without retrying or exposing payloads on non-cursor failure 1 50ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > rejects invalid bounds before I/O: {"page_size":0} 42ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > rejects invalid bounds before I/O: {"page_size":101} 29ms
+ ✓ src/__tests__/file-storage.test.ts > FileSystemStorage (S3-002) > Diagnostico y estado del proyecto > debe reportar modulos descubiertos y ambiente configurado tras inicializar 115ms
+ ✓ test/sqlite-knowledge-adapter.test.ts > SqliteKnowledgeAdapter physical guarantees > rejects malformed runtime entities, secret keys, binary values and unknown kinds atomically 65ms
+ ✓ test/sqlite-knowledge-adapter.test.ts > SqliteKnowledgeAdapter physical guarantees > sorts UTF-16 IDs consistently and binds cursors to database, query and application 95ms
+ ✓ test/sqlite-knowledge-adapter.test.ts > SqliteKnowledgeAdapter physical guarantees > sanitizes unavailable errors, rejects closed use and permits idempotent close 35ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > rejects invalid bounds before I/O: {"page_size":1.5} 35ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > rejects invalid bounds before I/O: {"page_size":null} 34ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > rejects invalid bounds before I/O: {"max_pages":0} 28ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > rejects invalid bounds before I/O: {"max_pages":10001} 29ms
+ ✓ src/__tests__/file-storage.test.ts > FileSystemStorage (S3-002) > updateModuleRules (P3 E1) > debe crear rules.yaml si no existe y aplicar el mutator 80ms
+ ✓ src/__tests__/case-generator.test.ts > Suite S6-002: CaseGenerator > debe generar un UUID determinista idéntico para la misma semilla 8ms
+ ✓ src/__tests__/case-generator.test.ts > Suite S6-002: CaseGenerator > debe generar un TestCase válido con abstracciones base del runner 2ms
+ ✓ src/__tests__/case-generator.test.ts > Suite S6-002: CaseGenerator > debe permitir incluir la bandera manually_edited opcional 1ms
+ ✓ src/__tests__/semantic-hasher.test.ts > SemanticHasher (S3-006) > debe ser determinista: el mismo input produce siempre el mismo hash 7ms
+ ✓ src/__tests__/semantic-hasher.test.ts > SemanticHasher (S3-006) > debe ser idempotente ante distinto orden de claves en selectors 1ms
+ ✓ src/__tests__/semantic-hasher.test.ts > SemanticHasher (S3-006) > debe ser indempotente ante distinto orden en el array de routes 1ms
+ ✓ src/__tests__/semantic-hasher.test.ts > SemanticHasher (S3-006) > debe producir un hash SHA-256 valido (64 caracteres hexadecimales) 1ms
+ ✓ src/__tests__/semantic-hasher.test.ts > SemanticHasher (S3-006) > debe producir un hash distinto si cambia una ruta 2ms
+ ✓ src/__tests__/semantic-hasher.test.ts > SemanticHasher (S3-006) > debe gemerar un objeto SemanticHash completo con generate() 5ms
+ ✓ src/__tests__/semantic-hasher.test.ts > SemanticHasher (S3-006) > hasChanged debe devolver true si no hay hash previo 1ms
+ ✓ src/__tests__/semantic-hasher.test.ts > SemanticHasher (S3-006) > hasChanged debe devolver false si el input no cambio respecto al hash previo 1ms
+ ✓ src/__tests__/semantic-hasher.test.ts > SemanticHasher (S3-006) > hasChanged debe devolver true si el input combio respecto al hash previo 2ms
+ ✓ src/__tests__/prerequisite-evaluator.test.ts > Evaluador Booleano de Prerrequisitos (QAP v3.0) > retorna true cuando la lista de grupos está vacía 6ms
+ ✓ src/__tests__/prerequisite-evaluator.test.ts > Evaluador Booleano de Prerrequisitos (QAP v3.0) > Modo ALL (Conjunción dentro del grupo) > retorna true cuando todos los requisitos obligatorios están satisfechos 1ms
+ ✓ src/__tests__/prerequisite-evaluator.test.ts > Evaluador Booleano de Prerrequisitos (QAP v3.0) > Modo ALL (Conjunción dentro del grupo) > retorna false si al menos un requisito obligatorio no está satisfecho 1ms
+ ✓ src/__tests__/prerequisite-evaluator.test.ts > Evaluador Booleano de Prerrequisitos (QAP v3.0) > Modo ALL (Conjunción dentro del grupo) > no bloquea la evaluación si un requisito con isOptional: true no está presente o es false 1ms
+ ✓ src/__tests__/prerequisite-evaluator.test.ts > Evaluador Booleano de Prerrequisitos (QAP v3.0) > Modo ANY (Disyunción dentro del grupo) > retorna true si al menos un requisito está satisfecho 1ms
+ ✓ src/__tests__/prerequisite-evaluator.test.ts > Evaluador Booleano de Prerrequisitos (QAP v3.0) > Modo ANY (Disyunción dentro del grupo) > retorna false si ninguno de los requisitos está satisfecho 1ms
+ ✓ src/__tests__/prerequisite-evaluator.test.ts > Evaluador Booleano de Prerrequisitos (QAP v3.0) > Equivalencia de grupo ANY unitario con grupo ALL unitario (Checklist Gate) > evalúa idéntico para ANY vs ALL con 1 requisito (requisito presente y true) 1ms
+ ✓ src/__tests__/prerequisite-evaluator.test.ts > Evaluador Booleano de Prerrequisitos (QAP v3.0) > Equivalencia de grupo ANY unitario con grupo ALL unitario (Checklist Gate) > evalúa idéntico para ANY vs ALL con 1 requisito (requisito presente y false) 1ms
+ ✓ src/__tests__/prerequisite-evaluator.test.ts > Evaluador Booleano de Prerrequisitos (QAP v3.0) > Equivalencia de grupo ANY unitario con grupo ALL unitario (Checklist Gate) > evalúa idéntico para ANY vs ALL con 1 requisito (requisito ausente de runtimeState) 1ms
+ ✓ src/__tests__/prerequisite-evaluator.test.ts > Evaluador Booleano de Prerrequisitos (QAP v3.0) > Equivalencia de grupo ANY unitario con grupo ALL unitario (Checklist Gate) > evalúa idéntico para ANY vs ALL con 1 requisito (requisito opcional y ausente) 1ms
+ ✓ src/__tests__/prerequisite-evaluator.test.ts > Evaluador Booleano de Prerrequisitos (QAP v3.0) > Equivalencia de grupo ANY unitario con grupo ALL unitario (Checklist Gate) > evalúa idéntico para ANY vs ALL con 1 requisito (requisito opcional y true) 2ms
+ ✓ src/__tests__/prerequisite-evaluator.test.ts > Evaluador Booleano de Prerrequisitos (QAP v3.0) > Equivalencia de grupo ANY unitario con grupo ALL unitario (Checklist Gate) > evalúa idéntico para ANY vs ALL con 1 requisito (requisito opcional y false) 0ms
+ ✓ src/__tests__/prerequisite-evaluator.test.ts > Evaluador Booleano de Prerrequisitos (QAP v3.0) > Evaluación Multinivel Acotada (AND entre grupos) > retorna true solo si todos los grupos (AND entre grupos) se satisfacen 1ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > rejects invalid bounds before I/O: {"max_pages":null} 33ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > rejects invalid bounds before I/O: {"max_attempts":0} 29ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > rejects invalid bounds before I/O: {"max_attempts":11} 31ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > rejects invalid bounds before I/O: {"max_attempts":1.5} 32ms
+ ✓ src/__tests__/file-storage.test.ts > FileSystemStorage (S3-002) > updateModuleRules (P3 E1) > debe mutar reglas y category_waivers atómicamente en archivo existente 163ms
+ ✓ src/__tests__/file-storage.test.ts > FileSystemStorage (S3-002) > updateModuleRules (P3 E1) > dos llamadas concurrentes no pierden actualizaciones gracias al lock 124ms
+ ✓ src/__tests__/index-manager.test.ts > IndexManager (S3-005) > debe registrar y resolver módulos en O(1) por ID y Nombre 7ms
+ ✓ src/__tests__/index-manager.test.ts > IndexManager (S3-005) > debe resolver módulos por Tag en O(1) 3ms
+ ✓ src/__tests__/index-manager.test.ts > IndexManager (S3-005) > debe gestionar alias de rutas correctamente 1ms
+ ✓ src/__tests__/index-manager.test.ts > IndexManager (S3-005) > debe persistir y recuperar index.json y aliases.json mediante IStorage 1ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > rejects a mismatched explicit scope before I/O 37ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > rejects a sparse runtime seed array before I/O 33ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > copies caller inputs before awaiting and accepts frozen store-owned values 54ms
+ ✓ src/__tests__/dependency-graph.test.ts > Suite S6-004: DependencyGraphResolver - Resolutor de Grafo de Dependencias > debe ordenar topológicamente los nodos respetando las dependencias declaradas 4ms
+ ✓ src/__tests__/dependency-graph.test.ts > Suite S6-004: DependencyGraphResolver - Resolutor de Grafo de Dependencias > debe marcar como not_run los nodos dependientes cuando el nodo padre falla 1ms
+ ✓ src/__tests__/dependency-graph.test.ts > Suite S6-004: DependencyGraphResolver - Resolutor de Grafo de Dependencias > debe detectar ciclos en el grafo de dependencias 1ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > detaches accepted page entities and dependencies before the next query 57ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > leaves all physical data, revisions, schema, scope versions and bytes unchanged (failure=false) 71ms
+ ✓ test/knowledge-impact-reader.test.ts > VNEXT-015-03 read-only impact over physical SQLite > leaves all physical data, revisions, schema, scope versions and bytes unchanged (failure=true) 67ms
+ ✓ src/__tests__/replace-gate.test.ts > FileSystemStorage same-process reader/replacement coordination > updateLifecycleState() never fails with a concurrent same-process reader 1863ms
+ ✓ src/__tests__/ajv-compiler.spec.ts > AjvCompiler > debe compilar todos los schemas de @qap/shared sin lanzar error 4ms
+ ✓ src/__tests__/ajv-compiler.spec.ts > AjvCompiler > debe aceptar un archivo auth-profiles.json bien formado 2ms
+ ✓ src/__tests__/ajv-compiler.spec.ts > AjvCompiler > debe RECHAZAR un archivo auth-profiles.json malformado (campo extra no permitido) 1ms
+ ✓ src/__tests__/ajv-compiler.spec.ts > AjvCompiler > debe RECHAZAR un archivo malformado por valor fuera del enum permitido 0ms
+ ✓ src/__tests__/ajv-compiler.spec.ts > AjvCompiler > debe RECHAZAR datos que no cumplen el _version requerido 0ms
+ ✓ src/__tests__/ajv-compiler.spec.ts > AjvCompiler > debe devolver un error controlado si se pide un schema inexistente 0ms
+ ✓ src/__tests__/route-scanner.test.ts > C3: scanProjectRoutes (Repo-map ligero de rutas) > extrae rutas correctamente en subproyectos anidados 54ms
+ ✓ src/__tests__/route-scanner.test.ts > C3: scanProjectRoutes (Repo-map ligero de rutas) > emite advertencia y se detiene cuando se excede el limite de 2000 archivos 4850ms
+ ✓ src/__tests__/route-scanner.test.ts > C3: scanProjectRoutes (Repo-map ligero de rutas) > emite advertencia de tiempo_limite_excedido cuando Date.now excede los 3 segundos 5ms
+
+ Test Files  28 passed (28)
+      Tests  341 passed (341)
+   Start at  17:03:06
+   Duration  7.25s (transform 5.89s, setup 0ms, import 22.75s, tests 34.84s, environment 10ms)

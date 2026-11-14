@@ -19,6 +19,15 @@ describe('FileSystemStorage (S3-002)', () => {
     rmSync(tempDir, { recursive: true, force: true });
   });
 
+  it('preserves UUID identity and resolves TC-prefixed generator files through the public storage API', async () => {
+    const tc = { _version: '1', id: 'f9e4bc2d-a3e1-4f59-a14b-eaab15acd975', name: 'Canonical proposal', steps: [] };
+    await storage.saveTestCase('catalog', tc, 'TC-' + tc.id);
+    expect(await storage.listTestCases('catalog')).toEqual(['TC-' + tc.id]);
+    expect(await storage.getTestCase('catalog', tc.id)).toEqual(tc);
+    expect(await storage.getTestCase('catalog', 'TC-' + tc.id)).toEqual(tc);
+    await expect(storage.saveTestCase('catalog', tc, 'other-identity')).rejects.toThrow('filename identity');
+  });
+
   it('debe escribir y leer un archivo de texto correctamente', async () => {
     await storage.write('data/note.txt', 'hola mundo');
     const content = await storage.read('data/note.txt');
@@ -320,8 +329,6 @@ describe('FileSystemStorage (S3-002)', () => {
             category: 'sensibilidad',
             view: 'default',
             reason: 'Sin datos personales',
-            waived_at: new Date().toISOString(),
-            waived_by: 'user',
           },
         ];
         return curr;

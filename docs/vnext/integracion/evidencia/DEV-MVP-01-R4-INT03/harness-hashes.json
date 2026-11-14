@@ -1,0 +1,17 @@
+[
+  {
+    "script": "DEV-MVP-01-R3\\exact-verification.mjs",
+    "sha256": "9893E2AE6CEDF1987C79E19509E066A4180E4B7B82D1B20240A15552D3DEB377",
+    "unchanged": true
+  },
+  {
+    "script": "DEV-MVP-01-R3\\browser-r3.mjs",
+    "sha256": "58D4694ADE2513C680884EAF1F9A097BC04CA6DFC6208C3A70A43C568003A206",
+    "unchanged": true
+  },
+  {
+    "script": "DEV-MVP-01\\reproduce.mjs",
+    "sha256": "86E5722FE551705EEE7A903B0710FE3A17A4182E125C3A39135832E6FC6709AB",
+    "unchanged": true
+  }
+]

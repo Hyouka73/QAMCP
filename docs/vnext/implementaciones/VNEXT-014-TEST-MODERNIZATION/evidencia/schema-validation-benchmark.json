@@ -1,0 +1,9 @@
+{
+  "scope": "Isolated fixture validation experiment; not an E01 root-cause certification",
+  "date_local": "2026-11-06",
+  "calls": 30,
+  "fresh_validator_ms": 928.8805,
+  "reused_validator_ms": 0.049999999999954525,
+  "change": "One SchemaValidator per lifecycle fixture; all post-call validations retained",
+  "timeout_ms_unchanged": 5000
+}

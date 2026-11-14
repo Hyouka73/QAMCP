@@ -1,0 +1,434 @@
+[
+  {
+    "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audit-r4-r10",
+    "origin": "https://github.com/Hyouka73/QAMCP.git",
+    "head": "7cfdefca9482b59d0c5606fb70d23903483373f3",
+    "common_dir": {
+      "code": 0,
+      "stdout": "C:/Users/Judirico/Documents/QAMCP/QAMCP/.git",
+      "stderr": ""
+    },
+    "branches": {
+      "code": 0,
+      "stdout": "* (HEAD detached from e71818a)               7cfdefc docs(vnext): publish independent rescue acceptance audit and reproductions\n+ codex/consolidacion-vnext-20261110         90f7660 (C:/Users/Judirico/.codex/worktrees/mvp-integral/QAMCP) merge(mvp): reconcile DEV-MVP-02 and R5 with published operational contract\n  develop                                    b9d5b50 [origin/develop: behind 6] TAREA S75-016 & S75-015: Comando rollback y update con validaci\u00f3n, backups y arquitectura est\u00e1ndar\n+ feat/qap-vnext-architecture                dda870e (C:/Users/Judirico/Documents/QAMCP/QAMCP) [origin/feat/qap-vnext-architecture: behind 1] fix(r7): remediacion integral R7-R2 de los seis hallazgos de reauditoria Codex\n+ feat/qap-vnext-architecture-work           6f4f55c (C:/Users/Judirico/Documents/QAMCP/vnext014-conv) [origin/feat/qap-vnext-architecture: behind 124] docs(vnext-014): convergence report, STATE/WBS addenda, VNEXT-015 preparation and audit prompts\n  main                                       fa6a527 [origin/main] docs: add AGENTS.md with local MCP setup guide for AI agents\n  remotes/origin/HEAD                        -> origin/main\n  remotes/origin/develop                     b50453f Merge branch 'S81-002' into develop\n  remotes/origin/feat/qap-vnext-architecture 08a34bb docs(vnext): especificar UX discovery-first, ingesta y aislamiento QA MVP\n  remotes/origin/main                        fa6a527 docs: add AGENTS.md with local MCP setup guide for AI agents",
+      "stderr": ""
+    },
+    "worktrees": {
+      "code": 0,
+      "stdout": "worktree C:/Users/Judirico/Documents/QAMCP/QAMCP\nHEAD dda870e4695a8a27db07ea32b81c1efbbf6ba39e\nbranch refs/heads/feat/qap-vnext-architecture\n\nworktree C:/Users/Judirico/.codex/worktrees/dev-mvp-02/QAMCP\nHEAD a64a90aa39374772fc756032b291688496e6a73c\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int-03-r5/QAMCP\nHEAD 7a3d6dd6c189feb85d8097792ef1f0c2915e5c65\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int01-mvp-lab/QAMCP\nHEAD 4d2b5ee81d7bf86425950db73a4a980d6e934ef0\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int03-mvp-fixes/QAMCP\nHEAD e27544a98854d1b527e734a675409fbdb9709313\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int03-qa-r1/QAMCP\nHEAD 18199e0c036ab53c6d0f7af0a9f65740eb0aec89\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int03-r4-consolidated/mvp01-bva-rbac\nHEAD df107c3117b23558c6988d5e2e38c2d6bc181945\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/mvp-integral/QAMCP\nHEAD 90f7660d60c1a6c41bbab7953691bee25679d63e\nbranch refs/heads/codex/consolidacion-vnext-20261110\n\nworktree C:/Users/Judirico/.codex/worktrees/vnext-015-04/QAMCP\nHEAD 7149c030eb814e759bc824b1106c8bf3d77e1d11\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r10\nHEAD 7cfdefca9482b59d0c5606fb70d23903483373f3\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r10-docs\nHEAD 0e5825cfd256065e532f45a171f9a0dc74116615\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r8\nHEAD 4829a7d4af869f29f1d4c9b2d2d4124a3796b2ca\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r9\nHEAD 05c0253b90c179612a166f1d98702efd14f99be7\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/vnext014-conv\nHEAD 6f4f55c41d5ed340d85a8f38174868ac8741387f\nbranch refs/heads/feat/qap-vnext-architecture-work\n\nworktree C:/Users/Judirico/Documents/QAMCP/worktrees/mvp01-bva-rbac\nHEAD d49297a36f0340d46108553bb1e7989c66549eb1\ndetached",
+      "stderr": ""
+    },
+    "status": {
+      "code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    "head_known_to_candidate_repo": true,
+    "head_already_ancestor": true
+  },
+  {
+    "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audit-r4-r10-docs",
+    "origin": "https://github.com/Hyouka73/QAMCP.git",
+    "head": "0e5825cfd256065e532f45a171f9a0dc74116615",
+    "common_dir": {
+      "code": 0,
+      "stdout": "C:/Users/Judirico/Documents/QAMCP/QAMCP/.git",
+      "stderr": ""
+    },
+    "branches": {
+      "code": 0,
+      "stdout": "* (no branch)                                0e5825c docs(vnext): publish independent R4-R10 audit on develop\n+ codex/consolidacion-vnext-20261110         90f7660 (C:/Users/Judirico/.codex/worktrees/mvp-integral/QAMCP) merge(mvp): reconcile DEV-MVP-02 and R5 with published operational contract\n  develop                                    b9d5b50 [origin/develop: behind 6] TAREA S75-016 & S75-015: Comando rollback y update con validaci\u00f3n, backups y arquitectura est\u00e1ndar\n+ feat/qap-vnext-architecture                dda870e (C:/Users/Judirico/Documents/QAMCP/QAMCP) [origin/feat/qap-vnext-architecture: behind 1] fix(r7): remediacion integral R7-R2 de los seis hallazgos de reauditoria Codex\n+ feat/qap-vnext-architecture-work           6f4f55c (C:/Users/Judirico/Documents/QAMCP/vnext014-conv) [origin/feat/qap-vnext-architecture: behind 124] docs(vnext-014): convergence report, STATE/WBS addenda, VNEXT-015 preparation and audit prompts\n  main                                       fa6a527 [origin/main] docs: add AGENTS.md with local MCP setup guide for AI agents\n  remotes/origin/HEAD                        -> origin/main\n  remotes/origin/develop                     b50453f Merge branch 'S81-002' into develop\n  remotes/origin/feat/qap-vnext-architecture 08a34bb docs(vnext): especificar UX discovery-first, ingesta y aislamiento QA MVP\n  remotes/origin/main                        fa6a527 docs: add AGENTS.md with local MCP setup guide for AI agents",
+      "stderr": ""
+    },
+    "worktrees": {
+      "code": 0,
+      "stdout": "worktree C:/Users/Judirico/Documents/QAMCP/QAMCP\nHEAD dda870e4695a8a27db07ea32b81c1efbbf6ba39e\nbranch refs/heads/feat/qap-vnext-architecture\n\nworktree C:/Users/Judirico/.codex/worktrees/dev-mvp-02/QAMCP\nHEAD a64a90aa39374772fc756032b291688496e6a73c\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int-03-r5/QAMCP\nHEAD 7a3d6dd6c189feb85d8097792ef1f0c2915e5c65\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int01-mvp-lab/QAMCP\nHEAD 4d2b5ee81d7bf86425950db73a4a980d6e934ef0\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int03-mvp-fixes/QAMCP\nHEAD e27544a98854d1b527e734a675409fbdb9709313\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int03-qa-r1/QAMCP\nHEAD 18199e0c036ab53c6d0f7af0a9f65740eb0aec89\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int03-r4-consolidated/mvp01-bva-rbac\nHEAD df107c3117b23558c6988d5e2e38c2d6bc181945\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/mvp-integral/QAMCP\nHEAD 90f7660d60c1a6c41bbab7953691bee25679d63e\nbranch refs/heads/codex/consolidacion-vnext-20261110\n\nworktree C:/Users/Judirico/.codex/worktrees/vnext-015-04/QAMCP\nHEAD 7149c030eb814e759bc824b1106c8bf3d77e1d11\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r10\nHEAD 7cfdefca9482b59d0c5606fb70d23903483373f3\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r10-docs\nHEAD 0e5825cfd256065e532f45a171f9a0dc74116615\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r8\nHEAD 4829a7d4af869f29f1d4c9b2d2d4124a3796b2ca\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r9\nHEAD 05c0253b90c179612a166f1d98702efd14f99be7\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/vnext014-conv\nHEAD 6f4f55c41d5ed340d85a8f38174868ac8741387f\nbranch refs/heads/feat/qap-vnext-architecture-work\n\nworktree C:/Users/Judirico/Documents/QAMCP/worktrees/mvp01-bva-rbac\nHEAD d49297a36f0340d46108553bb1e7989c66549eb1\ndetached",
+      "stderr": ""
+    },
+    "status": {
+      "code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    "head_known_to_candidate_repo": true,
+    "head_already_ancestor": true
+  },
+  {
+    "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audit-r4-r8",
+    "origin": "https://github.com/Hyouka73/QAMCP.git",
+    "head": "4829a7d4af869f29f1d4c9b2d2d4124a3796b2ca",
+    "common_dir": {
+      "code": 0,
+      "stdout": "C:/Users/Judirico/Documents/QAMCP/QAMCP/.git",
+      "stderr": ""
+    },
+    "branches": {
+      "code": 0,
+      "stdout": "* (no branch)                                4829a7d docs(vnext): audit R4-R8 deferred approvals and residual race\n+ codex/consolidacion-vnext-20261110         90f7660 (C:/Users/Judirico/.codex/worktrees/mvp-integral/QAMCP) merge(mvp): reconcile DEV-MVP-02 and R5 with published operational contract\n  develop                                    b9d5b50 [origin/develop: behind 6] TAREA S75-016 & S75-015: Comando rollback y update con validaci\u00f3n, backups y arquitectura est\u00e1ndar\n+ feat/qap-vnext-architecture                dda870e (C:/Users/Judirico/Documents/QAMCP/QAMCP) [origin/feat/qap-vnext-architecture: behind 1] fix(r7): remediacion integral R7-R2 de los seis hallazgos de reauditoria Codex\n+ feat/qap-vnext-architecture-work           6f4f55c (C:/Users/Judirico/Documents/QAMCP/vnext014-conv) [origin/feat/qap-vnext-architecture: behind 124] docs(vnext-014): convergence report, STATE/WBS addenda, VNEXT-015 preparation and audit prompts\n  main                                       fa6a527 [origin/main] docs: add AGENTS.md with local MCP setup guide for AI agents\n  remotes/origin/HEAD                        -> origin/main\n  remotes/origin/develop                     b50453f Merge branch 'S81-002' into develop\n  remotes/origin/feat/qap-vnext-architecture 08a34bb docs(vnext): especificar UX discovery-first, ingesta y aislamiento QA MVP\n  remotes/origin/main                        fa6a527 docs: add AGENTS.md with local MCP setup guide for AI agents",
+      "stderr": ""
+    },
+    "worktrees": {
+      "code": 0,
+      "stdout": "worktree C:/Users/Judirico/Documents/QAMCP/QAMCP\nHEAD dda870e4695a8a27db07ea32b81c1efbbf6ba39e\nbranch refs/heads/feat/qap-vnext-architecture\n\nworktree C:/Users/Judirico/.codex/worktrees/dev-mvp-02/QAMCP\nHEAD a64a90aa39374772fc756032b291688496e6a73c\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int-03-r5/QAMCP\nHEAD 7a3d6dd6c189feb85d8097792ef1f0c2915e5c65\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int01-mvp-lab/QAMCP\nHEAD 4d2b5ee81d7bf86425950db73a4a980d6e934ef0\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int03-mvp-fixes/QAMCP\nHEAD e27544a98854d1b527e734a675409fbdb9709313\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int03-qa-r1/QAMCP\nHEAD 18199e0c036ab53c6d0f7af0a9f65740eb0aec89\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int03-r4-consolidated/mvp01-bva-rbac\nHEAD df107c3117b23558c6988d5e2e38c2d6bc181945\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/mvp-integral/QAMCP\nHEAD 90f7660d60c1a6c41bbab7953691bee25679d63e\nbranch refs/heads/codex/consolidacion-vnext-20261110\n\nworktree C:/Users/Judirico/.codex/worktrees/vnext-015-04/QAMCP\nHEAD 7149c030eb814e759bc824b1106c8bf3d77e1d11\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r10\nHEAD 7cfdefca9482b59d0c5606fb70d23903483373f3\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r10-docs\nHEAD 0e5825cfd256065e532f45a171f9a0dc74116615\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r8\nHEAD 4829a7d4af869f29f1d4c9b2d2d4124a3796b2ca\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r9\nHEAD 05c0253b90c179612a166f1d98702efd14f99be7\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/vnext014-conv\nHEAD 6f4f55c41d5ed340d85a8f38174868ac8741387f\nbranch refs/heads/feat/qap-vnext-architecture-work\n\nworktree C:/Users/Judirico/Documents/QAMCP/worktrees/mvp01-bva-rbac\nHEAD d49297a36f0340d46108553bb1e7989c66549eb1\ndetached",
+      "stderr": ""
+    },
+    "status": {
+      "code": 0,
+      "stdout": "?? .audit-r8/exits.txt\n?? .audit-r8/fixture.mjs.txt\n?? .audit-r8/generate.mjs\n?? .audit-r8/mcp.json\n?? .audit-r8/old-coverage.mjs.txt\n?? .audit-r8/prepare.mjs.txt\n?? .audit-r8/probe.mjs.txt\n?? .audit-r8/run.ps1\n?? .audit-r8/stdio-fixture/cli/.qa/.gitignore\n?? .audit-r8/stdio-fixture/cli/.qa/project/context.yaml\n?? .audit-r8/stdio-fixture/cli/.qa/project/environments.yaml\n?? .audit-r8/stdio-fixture/cli/.qa/project/lifecycle.json\n?? .audit-r8/stdio-fixture/cli/.qa/project/repo-map.json\n?? .audit-r8/stdio-fixture/cli/.qa/project/scan.json\n?? .audit-r8/stdio-fixture/server/.qa/.gitignore\n?? .audit-r8/stdio-fixture/server/.qa/project/context.yaml\n?? .audit-r8/stdio-fixture/server/.qa/project/environments.yaml\n?? .audit-r8/stdio-fixture/server/.qa/project/lifecycle.json\n?? .audit-r8/stdio-fixture/server/.qa/project/repo-map.json\n?? .audit-r8/stdio-fixture/server/.qa/project/scan.json\n?? .audit-r8/stdio.mjs.txt\n?? packages/mcp/.audit-r8/fixture.mjs.txt\n?? packages/mcp/.audit-r8/old-closure.mjs.txt\n?? packages/mcp/.audit-r8/old-coverage.mjs.txt",
+      "stderr": ""
+    },
+    "head_known_to_candidate_repo": true,
+    "head_already_ancestor": true
+  },
+  {
+    "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audit-r4-r9",
+    "origin": "https://github.com/Hyouka73/QAMCP.git",
+    "head": "05c0253b90c179612a166f1d98702efd14f99be7",
+    "common_dir": {
+      "code": 0,
+      "stdout": "C:/Users/Judirico/Documents/QAMCP/QAMCP/.git",
+      "stderr": ""
+    },
+    "branches": {
+      "code": 0,
+      "stdout": "* (no branch)                                05c0253 docs(vnext): publish independent R4-R9 audit and conditional NO-GO\n+ codex/consolidacion-vnext-20261110         90f7660 (C:/Users/Judirico/.codex/worktrees/mvp-integral/QAMCP) merge(mvp): reconcile DEV-MVP-02 and R5 with published operational contract\n  develop                                    b9d5b50 [origin/develop: behind 6] TAREA S75-016 & S75-015: Comando rollback y update con validaci\u00f3n, backups y arquitectura est\u00e1ndar\n+ feat/qap-vnext-architecture                dda870e (C:/Users/Judirico/Documents/QAMCP/QAMCP) [origin/feat/qap-vnext-architecture: behind 1] fix(r7): remediacion integral R7-R2 de los seis hallazgos de reauditoria Codex\n+ feat/qap-vnext-architecture-work           6f4f55c (C:/Users/Judirico/Documents/QAMCP/vnext014-conv) [origin/feat/qap-vnext-architecture: behind 124] docs(vnext-014): convergence report, STATE/WBS addenda, VNEXT-015 preparation and audit prompts\n  main                                       fa6a527 [origin/main] docs: add AGENTS.md with local MCP setup guide for AI agents\n  remotes/origin/HEAD                        -> origin/main\n  remotes/origin/develop                     b50453f Merge branch 'S81-002' into develop\n  remotes/origin/feat/qap-vnext-architecture 08a34bb docs(vnext): especificar UX discovery-first, ingesta y aislamiento QA MVP\n  remotes/origin/main                        fa6a527 docs: add AGENTS.md with local MCP setup guide for AI agents",
+      "stderr": ""
+    },
+    "worktrees": {
+      "code": 0,
+      "stdout": "worktree C:/Users/Judirico/Documents/QAMCP/QAMCP\nHEAD dda870e4695a8a27db07ea32b81c1efbbf6ba39e\nbranch refs/heads/feat/qap-vnext-architecture\n\nworktree C:/Users/Judirico/.codex/worktrees/dev-mvp-02/QAMCP\nHEAD a64a90aa39374772fc756032b291688496e6a73c\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int-03-r5/QAMCP\nHEAD 7a3d6dd6c189feb85d8097792ef1f0c2915e5c65\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int01-mvp-lab/QAMCP\nHEAD 4d2b5ee81d7bf86425950db73a4a980d6e934ef0\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int03-mvp-fixes/QAMCP\nHEAD e27544a98854d1b527e734a675409fbdb9709313\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int03-qa-r1/QAMCP\nHEAD 18199e0c036ab53c6d0f7af0a9f65740eb0aec89\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int03-r4-consolidated/mvp01-bva-rbac\nHEAD df107c3117b23558c6988d5e2e38c2d6bc181945\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/mvp-integral/QAMCP\nHEAD 90f7660d60c1a6c41bbab7953691bee25679d63e\nbranch refs/heads/codex/consolidacion-vnext-20261110\n\nworktree C:/Users/Judirico/.codex/worktrees/vnext-015-04/QAMCP\nHEAD 7149c030eb814e759bc824b1106c8bf3d77e1d11\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r10\nHEAD 7cfdefca9482b59d0c5606fb70d23903483373f3\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r10-docs\nHEAD 0e5825cfd256065e532f45a171f9a0dc74116615\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r8\nHEAD 4829a7d4af869f29f1d4c9b2d2d4124a3796b2ca\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r9\nHEAD 05c0253b90c179612a166f1d98702efd14f99be7\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/vnext014-conv\nHEAD 6f4f55c41d5ed340d85a8f38174868ac8741387f\nbranch refs/heads/feat/qap-vnext-architecture-work\n\nworktree C:/Users/Judirico/Documents/QAMCP/worktrees/mvp01-bva-rbac\nHEAD d49297a36f0340d46108553bb1e7989c66549eb1\ndetached",
+      "stderr": ""
+    },
+    "status": {
+      "code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    "head_known_to_candidate_repo": true,
+    "head_already_ancestor": true
+  },
+  {
+    "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\QAMCP",
+    "origin": "https://github.com/Hyouka73/QAMCP.git",
+    "head": "dda870e4695a8a27db07ea32b81c1efbbf6ba39e",
+    "common_dir": {
+      "code": 0,
+      "stdout": ".git",
+      "stderr": ""
+    },
+    "branches": {
+      "code": 0,
+      "stdout": "+ codex/consolidacion-vnext-20261110         90f7660 (C:/Users/Judirico/.codex/worktrees/mvp-integral/QAMCP) merge(mvp): reconcile DEV-MVP-02 and R5 with published operational contract\n  develop                                    b9d5b50 [origin/develop: behind 6] TAREA S75-016 & S75-015: Comando rollback y update con validaci\u00f3n, backups y arquitectura est\u00e1ndar\n* feat/qap-vnext-architecture                dda870e [origin/feat/qap-vnext-architecture: behind 1] fix(r7): remediacion integral R7-R2 de los seis hallazgos de reauditoria Codex\n+ feat/qap-vnext-architecture-work           6f4f55c (C:/Users/Judirico/Documents/QAMCP/vnext014-conv) [origin/feat/qap-vnext-architecture: behind 124] docs(vnext-014): convergence report, STATE/WBS addenda, VNEXT-015 preparation and audit prompts\n  main                                       fa6a527 [origin/main] docs: add AGENTS.md with local MCP setup guide for AI agents\n  remotes/origin/HEAD                        -> origin/main\n  remotes/origin/develop                     b50453f Merge branch 'S81-002' into develop\n  remotes/origin/feat/qap-vnext-architecture 08a34bb docs(vnext): especificar UX discovery-first, ingesta y aislamiento QA MVP\n  remotes/origin/main                        fa6a527 docs: add AGENTS.md with local MCP setup guide for AI agents",
+      "stderr": ""
+    },
+    "worktrees": {
+      "code": 0,
+      "stdout": "worktree C:/Users/Judirico/Documents/QAMCP/QAMCP\nHEAD dda870e4695a8a27db07ea32b81c1efbbf6ba39e\nbranch refs/heads/feat/qap-vnext-architecture\n\nworktree C:/Users/Judirico/.codex/worktrees/dev-mvp-02/QAMCP\nHEAD a64a90aa39374772fc756032b291688496e6a73c\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int-03-r5/QAMCP\nHEAD 7a3d6dd6c189feb85d8097792ef1f0c2915e5c65\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int01-mvp-lab/QAMCP\nHEAD 4d2b5ee81d7bf86425950db73a4a980d6e934ef0\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int03-mvp-fixes/QAMCP\nHEAD e27544a98854d1b527e734a675409fbdb9709313\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int03-qa-r1/QAMCP\nHEAD 18199e0c036ab53c6d0f7af0a9f65740eb0aec89\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int03-r4-consolidated/mvp01-bva-rbac\nHEAD df107c3117b23558c6988d5e2e38c2d6bc181945\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/mvp-integral/QAMCP\nHEAD 90f7660d60c1a6c41bbab7953691bee25679d63e\nbranch refs/heads/codex/consolidacion-vnext-20261110\n\nworktree C:/Users/Judirico/.codex/worktrees/vnext-015-04/QAMCP\nHEAD 7149c030eb814e759bc824b1106c8bf3d77e1d11\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r10\nHEAD 7cfdefca9482b59d0c5606fb70d23903483373f3\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r10-docs\nHEAD 0e5825cfd256065e532f45a171f9a0dc74116615\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r8\nHEAD 4829a7d4af869f29f1d4c9b2d2d4124a3796b2ca\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r9\nHEAD 05c0253b90c179612a166f1d98702efd14f99be7\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/vnext014-conv\nHEAD 6f4f55c41d5ed340d85a8f38174868ac8741387f\nbranch refs/heads/feat/qap-vnext-architecture-work\n\nworktree C:/Users/Judirico/Documents/QAMCP/worktrees/mvp01-bva-rbac\nHEAD d49297a36f0340d46108553bb1e7989c66549eb1\ndetached",
+      "stderr": ""
+    },
+    "status": {
+      "code": 0,
+      "stdout": "M packages/playwright-runner/.qa/cache/sessions/admin-user.json\n?? docs/vnext/implementaciones/VNEXT-014-E01/r7/AUDITORIA_CODEX_2026-11-07.md\n?? docs/vnext/implementaciones/VNEXT-014-E01/r7/REAUDITORIA_CODEX_2026-11-07.md",
+      "stderr": ""
+    },
+    "head_known_to_candidate_repo": true,
+    "head_already_ancestor": true
+  },
+  {
+    "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\vnext014-conv",
+    "origin": "https://github.com/Hyouka73/QAMCP.git",
+    "head": "6f4f55c41d5ed340d85a8f38174868ac8741387f",
+    "common_dir": {
+      "code": 0,
+      "stdout": "C:/Users/Judirico/Documents/QAMCP/QAMCP/.git",
+      "stderr": ""
+    },
+    "branches": {
+      "code": 0,
+      "stdout": "+ codex/consolidacion-vnext-20261110         90f7660 (C:/Users/Judirico/.codex/worktrees/mvp-integral/QAMCP) merge(mvp): reconcile DEV-MVP-02 and R5 with published operational contract\n  develop                                    b9d5b50 [origin/develop: behind 6] TAREA S75-016 & S75-015: Comando rollback y update con validaci\u00f3n, backups y arquitectura est\u00e1ndar\n+ feat/qap-vnext-architecture                dda870e (C:/Users/Judirico/Documents/QAMCP/QAMCP) [origin/feat/qap-vnext-architecture: behind 1] fix(r7): remediacion integral R7-R2 de los seis hallazgos de reauditoria Codex\n* feat/qap-vnext-architecture-work           6f4f55c [origin/feat/qap-vnext-architecture: behind 124] docs(vnext-014): convergence report, STATE/WBS addenda, VNEXT-015 preparation and audit prompts\n  main                                       fa6a527 [origin/main] docs: add AGENTS.md with local MCP setup guide for AI agents\n  remotes/origin/HEAD                        -> origin/main\n  remotes/origin/develop                     b50453f Merge branch 'S81-002' into develop\n  remotes/origin/feat/qap-vnext-architecture 08a34bb docs(vnext): especificar UX discovery-first, ingesta y aislamiento QA MVP\n  remotes/origin/main                        fa6a527 docs: add AGENTS.md with local MCP setup guide for AI agents",
+      "stderr": ""
+    },
+    "worktrees": {
+      "code": 0,
+      "stdout": "worktree C:/Users/Judirico/Documents/QAMCP/QAMCP\nHEAD dda870e4695a8a27db07ea32b81c1efbbf6ba39e\nbranch refs/heads/feat/qap-vnext-architecture\n\nworktree C:/Users/Judirico/.codex/worktrees/dev-mvp-02/QAMCP\nHEAD a64a90aa39374772fc756032b291688496e6a73c\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int-03-r5/QAMCP\nHEAD 7a3d6dd6c189feb85d8097792ef1f0c2915e5c65\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int01-mvp-lab/QAMCP\nHEAD 4d2b5ee81d7bf86425950db73a4a980d6e934ef0\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int03-mvp-fixes/QAMCP\nHEAD e27544a98854d1b527e734a675409fbdb9709313\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int03-qa-r1/QAMCP\nHEAD 18199e0c036ab53c6d0f7af0a9f65740eb0aec89\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int03-r4-consolidated/mvp01-bva-rbac\nHEAD df107c3117b23558c6988d5e2e38c2d6bc181945\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/mvp-integral/QAMCP\nHEAD 90f7660d60c1a6c41bbab7953691bee25679d63e\nbranch refs/heads/codex/consolidacion-vnext-20261110\n\nworktree C:/Users/Judirico/.codex/worktrees/vnext-015-04/QAMCP\nHEAD 7149c030eb814e759bc824b1106c8bf3d77e1d11\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r10\nHEAD 7cfdefca9482b59d0c5606fb70d23903483373f3\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r10-docs\nHEAD 0e5825cfd256065e532f45a171f9a0dc74116615\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r8\nHEAD 4829a7d4af869f29f1d4c9b2d2d4124a3796b2ca\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r9\nHEAD 05c0253b90c179612a166f1d98702efd14f99be7\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/vnext014-conv\nHEAD 6f4f55c41d5ed340d85a8f38174868ac8741387f\nbranch refs/heads/feat/qap-vnext-architecture-work\n\nworktree C:/Users/Judirico/Documents/QAMCP/worktrees/mvp01-bva-rbac\nHEAD d49297a36f0340d46108553bb1e7989c66549eb1\ndetached",
+      "stderr": ""
+    },
+    "status": {
+      "code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    "head_known_to_candidate_repo": true,
+    "head_already_ancestor": true
+  },
+  {
+    "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\vnext014-reparacion-audit",
+    "origin": "C:\\Users\\Judirico\\Documents\\QAMCP\\QAMCP",
+    "head": "3fe4fec91843943c7b901974b7c0a4ef5540e0eb",
+    "common_dir": {
+      "code": 0,
+      "stdout": ".git",
+      "stderr": ""
+    },
+    "branches": {
+      "code": 0,
+      "stdout": "audit/vnext014-reparacion                  541c925 docs(vnext-014): record published audit evidence commit\n  feat/qap-vnext-architecture                ed2955f [origin/feat/qap-vnext-architecture] docs(vnext): include R4 waiver receipt and physical report evidence assertions\n* fix/vnext-014-cierre-controlado            3fe4fec docs(vnext-014): publish independent physical closure audit and four no-go gates\n  remotes/origin/HEAD                        -> origin/feat/qap-vnext-architecture\n  remotes/origin/develop                     b9d5b50 TAREA S75-016 & S75-015: Comando rollback y update con validaci\u00f3n, backups y arquitectura est\u00e1ndar\n  remotes/origin/feat/qap-vnext-architecture ed2955f docs(vnext): include R4 waiver receipt and physical report evidence assertions\n  remotes/origin/main                        fa6a527 docs: add AGENTS.md with local MCP setup guide for AI agents",
+      "stderr": ""
+    },
+    "worktrees": {
+      "code": 0,
+      "stdout": "worktree C:/Users/Judirico/Documents/QAMCP/vnext014-reparacion-audit\nHEAD 3fe4fec91843943c7b901974b7c0a4ef5540e0eb\nbranch refs/heads/fix/vnext-014-cierre-controlado",
+      "stderr": ""
+    },
+    "status": {
+      "code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    "head_known_to_candidate_repo": true,
+    "head_already_ancestor": true
+  },
+  {
+    "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\worktrees\\mvp01-bva-rbac",
+    "origin": "https://github.com/Hyouka73/QAMCP.git",
+    "head": "d49297a36f0340d46108553bb1e7989c66549eb1",
+    "common_dir": {
+      "code": 0,
+      "stdout": "C:/Users/Judirico/Documents/QAMCP/QAMCP/.git",
+      "stderr": ""
+    },
+    "branches": {
+      "code": 0,
+      "stdout": "* (no branch)                                d49297a fix(knowledge): resolver falso positivo P1 en tokenizador BVA (DEV-MVP-01-R4)\n+ codex/consolidacion-vnext-20261110         90f7660 (C:/Users/Judirico/.codex/worktrees/mvp-integral/QAMCP) merge(mvp): reconcile DEV-MVP-02 and R5 with published operational contract\n  develop                                    b9d5b50 [origin/develop: behind 6] TAREA S75-016 & S75-015: Comando rollback y update con validaci\u00f3n, backups y arquitectura est\u00e1ndar\n+ feat/qap-vnext-architecture                dda870e (C:/Users/Judirico/Documents/QAMCP/QAMCP) [origin/feat/qap-vnext-architecture: behind 1] fix(r7): remediacion integral R7-R2 de los seis hallazgos de reauditoria Codex\n+ feat/qap-vnext-architecture-work           6f4f55c (C:/Users/Judirico/Documents/QAMCP/vnext014-conv) [origin/feat/qap-vnext-architecture: behind 124] docs(vnext-014): convergence report, STATE/WBS addenda, VNEXT-015 preparation and audit prompts\n  main                                       fa6a527 [origin/main] docs: add AGENTS.md with local MCP setup guide for AI agents\n  remotes/origin/HEAD                        -> origin/main\n  remotes/origin/develop                     b50453f Merge branch 'S81-002' into develop\n  remotes/origin/feat/qap-vnext-architecture 08a34bb docs(vnext): especificar UX discovery-first, ingesta y aislamiento QA MVP\n  remotes/origin/main                        fa6a527 docs: add AGENTS.md with local MCP setup guide for AI agents",
+      "stderr": ""
+    },
+    "worktrees": {
+      "code": 0,
+      "stdout": "worktree C:/Users/Judirico/Documents/QAMCP/QAMCP\nHEAD dda870e4695a8a27db07ea32b81c1efbbf6ba39e\nbranch refs/heads/feat/qap-vnext-architecture\n\nworktree C:/Users/Judirico/.codex/worktrees/dev-mvp-02/QAMCP\nHEAD a64a90aa39374772fc756032b291688496e6a73c\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int-03-r5/QAMCP\nHEAD 7a3d6dd6c189feb85d8097792ef1f0c2915e5c65\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int01-mvp-lab/QAMCP\nHEAD 4d2b5ee81d7bf86425950db73a4a980d6e934ef0\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int03-mvp-fixes/QAMCP\nHEAD e27544a98854d1b527e734a675409fbdb9709313\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int03-qa-r1/QAMCP\nHEAD 18199e0c036ab53c6d0f7af0a9f65740eb0aec89\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int03-r4-consolidated/mvp01-bva-rbac\nHEAD df107c3117b23558c6988d5e2e38c2d6bc181945\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/mvp-integral/QAMCP\nHEAD 90f7660d60c1a6c41bbab7953691bee25679d63e\nbranch refs/heads/codex/consolidacion-vnext-20261110\n\nworktree C:/Users/Judirico/.codex/worktrees/vnext-015-04/QAMCP\nHEAD 7149c030eb814e759bc824b1106c8bf3d77e1d11\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r10\nHEAD 7cfdefca9482b59d0c5606fb70d23903483373f3\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r10-docs\nHEAD 0e5825cfd256065e532f45a171f9a0dc74116615\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r8\nHEAD 4829a7d4af869f29f1d4c9b2d2d4124a3796b2ca\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r9\nHEAD 05c0253b90c179612a166f1d98702efd14f99be7\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/vnext014-conv\nHEAD 6f4f55c41d5ed340d85a8f38174868ac8741387f\nbranch refs/heads/feat/qap-vnext-architecture-work\n\nworktree C:/Users/Judirico/Documents/QAMCP/worktrees/mvp01-bva-rbac\nHEAD d49297a36f0340d46108553bb1e7989c66549eb1\ndetached",
+      "stderr": ""
+    },
+    "status": {
+      "code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    "head_known_to_candidate_repo": true,
+    "head_already_ancestor": true
+  },
+  {
+    "path": "C:\\Users\\Judirico\\.codex\\worktrees\\dev-mvp-02\\QAMCP",
+    "origin": "https://github.com/Hyouka73/QAMCP.git",
+    "head": "a64a90aa39374772fc756032b291688496e6a73c",
+    "common_dir": {
+      "code": 0,
+      "stdout": "C:/Users/Judirico/Documents/QAMCP/QAMCP/.git",
+      "stderr": ""
+    },
+    "branches": {
+      "code": 0,
+      "stdout": "* (no branch)                                a64a90a feat(mcp): connect authenticated MVP flow and independent host approvals\n+ codex/consolidacion-vnext-20261110         90f7660 (C:/Users/Judirico/.codex/worktrees/mvp-integral/QAMCP) merge(mvp): reconcile DEV-MVP-02 and R5 with published operational contract\n  develop                                    b9d5b50 [origin/develop: behind 6] TAREA S75-016 & S75-015: Comando rollback y update con validaci\u00f3n, backups y arquitectura est\u00e1ndar\n+ feat/qap-vnext-architecture                dda870e (C:/Users/Judirico/Documents/QAMCP/QAMCP) [origin/feat/qap-vnext-architecture: behind 1] fix(r7): remediacion integral R7-R2 de los seis hallazgos de reauditoria Codex\n+ feat/qap-vnext-architecture-work           6f4f55c (C:/Users/Judirico/Documents/QAMCP/vnext014-conv) [origin/feat/qap-vnext-architecture: behind 124] docs(vnext-014): convergence report, STATE/WBS addenda, VNEXT-015 preparation and audit prompts\n  main                                       fa6a527 [origin/main] docs: add AGENTS.md with local MCP setup guide for AI agents\n  remotes/origin/HEAD                        -> origin/main\n  remotes/origin/develop                     b50453f Merge branch 'S81-002' into develop\n  remotes/origin/feat/qap-vnext-architecture 08a34bb docs(vnext): especificar UX discovery-first, ingesta y aislamiento QA MVP\n  remotes/origin/main                        fa6a527 docs: add AGENTS.md with local MCP setup guide for AI agents",
+      "stderr": ""
+    },
+    "worktrees": {
+      "code": 0,
+      "stdout": "worktree C:/Users/Judirico/Documents/QAMCP/QAMCP\nHEAD dda870e4695a8a27db07ea32b81c1efbbf6ba39e\nbranch refs/heads/feat/qap-vnext-architecture\n\nworktree C:/Users/Judirico/.codex/worktrees/dev-mvp-02/QAMCP\nHEAD a64a90aa39374772fc756032b291688496e6a73c\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int-03-r5/QAMCP\nHEAD 7a3d6dd6c189feb85d8097792ef1f0c2915e5c65\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int01-mvp-lab/QAMCP\nHEAD 4d2b5ee81d7bf86425950db73a4a980d6e934ef0\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int03-mvp-fixes/QAMCP\nHEAD e27544a98854d1b527e734a675409fbdb9709313\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int03-qa-r1/QAMCP\nHEAD 18199e0c036ab53c6d0f7af0a9f65740eb0aec89\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int03-r4-consolidated/mvp01-bva-rbac\nHEAD df107c3117b23558c6988d5e2e38c2d6bc181945\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/mvp-integral/QAMCP\nHEAD 90f7660d60c1a6c41bbab7953691bee25679d63e\nbranch refs/heads/codex/consolidacion-vnext-20261110\n\nworktree C:/Users/Judirico/.codex/worktrees/vnext-015-04/QAMCP\nHEAD 7149c030eb814e759bc824b1106c8bf3d77e1d11\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r10\nHEAD 7cfdefca9482b59d0c5606fb70d23903483373f3\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r10-docs\nHEAD 0e5825cfd256065e532f45a171f9a0dc74116615\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r8\nHEAD 4829a7d4af869f29f1d4c9b2d2d4124a3796b2ca\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r9\nHEAD 05c0253b90c179612a166f1d98702efd14f99be7\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/vnext014-conv\nHEAD 6f4f55c41d5ed340d85a8f38174868ac8741387f\nbranch refs/heads/feat/qap-vnext-architecture-work\n\nworktree C:/Users/Judirico/Documents/QAMCP/worktrees/mvp01-bva-rbac\nHEAD d49297a36f0340d46108553bb1e7989c66549eb1\ndetached",
+      "stderr": ""
+    },
+    "status": {
+      "code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    "head_known_to_candidate_repo": true,
+    "head_already_ancestor": true
+  },
+  {
+    "path": "C:\\Users\\Judirico\\.codex\\worktrees\\int-03-r5\\QAMCP",
+    "origin": "https://github.com/Hyouka73/QAMCP.git",
+    "head": "7a3d6dd6c189feb85d8097792ef1f0c2915e5c65",
+    "common_dir": {
+      "code": 0,
+      "stdout": "C:/Users/Judirico/Documents/QAMCP/QAMCP/.git",
+      "stderr": ""
+    },
+    "branches": {
+      "code": 0,
+      "stdout": "* (no branch)                                7a3d6dd fix(int03-r5): connect host-authorized MCP execution and honor SPA capture mode\n+ codex/consolidacion-vnext-20261110         90f7660 (C:/Users/Judirico/.codex/worktrees/mvp-integral/QAMCP) merge(mvp): reconcile DEV-MVP-02 and R5 with published operational contract\n  develop                                    b9d5b50 [origin/develop: behind 6] TAREA S75-016 & S75-015: Comando rollback y update con validaci\u00f3n, backups y arquitectura est\u00e1ndar\n+ feat/qap-vnext-architecture                dda870e (C:/Users/Judirico/Documents/QAMCP/QAMCP) [origin/feat/qap-vnext-architecture: behind 1] fix(r7): remediacion integral R7-R2 de los seis hallazgos de reauditoria Codex\n+ feat/qap-vnext-architecture-work           6f4f55c (C:/Users/Judirico/Documents/QAMCP/vnext014-conv) [origin/feat/qap-vnext-architecture: behind 124] docs(vnext-014): convergence report, STATE/WBS addenda, VNEXT-015 preparation and audit prompts\n  main                                       fa6a527 [origin/main] docs: add AGENTS.md with local MCP setup guide for AI agents\n  remotes/origin/HEAD                        -> origin/main\n  remotes/origin/develop                     b50453f Merge branch 'S81-002' into develop\n  remotes/origin/feat/qap-vnext-architecture 08a34bb docs(vnext): especificar UX discovery-first, ingesta y aislamiento QA MVP\n  remotes/origin/main                        fa6a527 docs: add AGENTS.md with local MCP setup guide for AI agents",
+      "stderr": ""
+    },
+    "worktrees": {
+      "code": 0,
+      "stdout": "worktree C:/Users/Judirico/Documents/QAMCP/QAMCP\nHEAD dda870e4695a8a27db07ea32b81c1efbbf6ba39e\nbranch refs/heads/feat/qap-vnext-architecture\n\nworktree C:/Users/Judirico/.codex/worktrees/dev-mvp-02/QAMCP\nHEAD a64a90aa39374772fc756032b291688496e6a73c\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int-03-r5/QAMCP\nHEAD 7a3d6dd6c189feb85d8097792ef1f0c2915e5c65\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int01-mvp-lab/QAMCP\nHEAD 4d2b5ee81d7bf86425950db73a4a980d6e934ef0\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int03-mvp-fixes/QAMCP\nHEAD e27544a98854d1b527e734a675409fbdb9709313\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int03-qa-r1/QAMCP\nHEAD 18199e0c036ab53c6d0f7af0a9f65740eb0aec89\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int03-r4-consolidated/mvp01-bva-rbac\nHEAD df107c3117b23558c6988d5e2e38c2d6bc181945\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/mvp-integral/QAMCP\nHEAD 90f7660d60c1a6c41bbab7953691bee25679d63e\nbranch refs/heads/codex/consolidacion-vnext-20261110\n\nworktree C:/Users/Judirico/.codex/worktrees/vnext-015-04/QAMCP\nHEAD 7149c030eb814e759bc824b1106c8bf3d77e1d11\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r10\nHEAD 7cfdefca9482b59d0c5606fb70d23903483373f3\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r10-docs\nHEAD 0e5825cfd256065e532f45a171f9a0dc74116615\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r8\nHEAD 4829a7d4af869f29f1d4c9b2d2d4124a3796b2ca\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r9\nHEAD 05c0253b90c179612a166f1d98702efd14f99be7\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/vnext014-conv\nHEAD 6f4f55c41d5ed340d85a8f38174868ac8741387f\nbranch refs/heads/feat/qap-vnext-architecture-work\n\nworktree C:/Users/Judirico/Documents/QAMCP/worktrees/mvp01-bva-rbac\nHEAD d49297a36f0340d46108553bb1e7989c66549eb1\ndetached",
+      "stderr": ""
+    },
+    "status": {
+      "code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    "head_known_to_candidate_repo": true,
+    "head_already_ancestor": true
+  },
+  {
+    "path": "C:\\Users\\Judirico\\.codex\\worktrees\\int01-mvp-lab\\QAMCP",
+    "origin": "https://github.com/Hyouka73/QAMCP.git",
+    "head": "4d2b5ee81d7bf86425950db73a4a980d6e934ef0",
+    "common_dir": {
+      "code": 0,
+      "stdout": "C:/Users/Judirico/Documents/QAMCP/QAMCP/.git",
+      "stderr": ""
+    },
+    "branches": {
+      "code": 0,
+      "stdout": "* (no branch)                                4d2b5ee INT-01E: refresh isolated candidate with published R7-R2 delta (audit pending)\n+ codex/consolidacion-vnext-20261110         90f7660 (C:/Users/Judirico/.codex/worktrees/mvp-integral/QAMCP) merge(mvp): reconcile DEV-MVP-02 and R5 with published operational contract\n  develop                                    b9d5b50 [origin/develop: behind 6] TAREA S75-016 & S75-015: Comando rollback y update con validaci\u00f3n, backups y arquitectura est\u00e1ndar\n+ feat/qap-vnext-architecture                dda870e (C:/Users/Judirico/Documents/QAMCP/QAMCP) [origin/feat/qap-vnext-architecture: behind 1] fix(r7): remediacion integral R7-R2 de los seis hallazgos de reauditoria Codex\n+ feat/qap-vnext-architecture-work           6f4f55c (C:/Users/Judirico/Documents/QAMCP/vnext014-conv) [origin/feat/qap-vnext-architecture: behind 124] docs(vnext-014): convergence report, STATE/WBS addenda, VNEXT-015 preparation and audit prompts\n  main                                       fa6a527 [origin/main] docs: add AGENTS.md with local MCP setup guide for AI agents\n  remotes/origin/HEAD                        -> origin/main\n  remotes/origin/develop                     b50453f Merge branch 'S81-002' into develop\n  remotes/origin/feat/qap-vnext-architecture 08a34bb docs(vnext): especificar UX discovery-first, ingesta y aislamiento QA MVP\n  remotes/origin/main                        fa6a527 docs: add AGENTS.md with local MCP setup guide for AI agents",
+      "stderr": ""
+    },
+    "worktrees": {
+      "code": 0,
+      "stdout": "worktree C:/Users/Judirico/Documents/QAMCP/QAMCP\nHEAD dda870e4695a8a27db07ea32b81c1efbbf6ba39e\nbranch refs/heads/feat/qap-vnext-architecture\n\nworktree C:/Users/Judirico/.codex/worktrees/dev-mvp-02/QAMCP\nHEAD a64a90aa39374772fc756032b291688496e6a73c\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int-03-r5/QAMCP\nHEAD 7a3d6dd6c189feb85d8097792ef1f0c2915e5c65\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int01-mvp-lab/QAMCP\nHEAD 4d2b5ee81d7bf86425950db73a4a980d6e934ef0\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int03-mvp-fixes/QAMCP\nHEAD e27544a98854d1b527e734a675409fbdb9709313\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int03-qa-r1/QAMCP\nHEAD 18199e0c036ab53c6d0f7af0a9f65740eb0aec89\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int03-r4-consolidated/mvp01-bva-rbac\nHEAD df107c3117b23558c6988d5e2e38c2d6bc181945\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/mvp-integral/QAMCP\nHEAD 90f7660d60c1a6c41bbab7953691bee25679d63e\nbranch refs/heads/codex/consolidacion-vnext-20261110\n\nworktree C:/Users/Judirico/.codex/worktrees/vnext-015-04/QAMCP\nHEAD 7149c030eb814e759bc824b1106c8bf3d77e1d11\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r10\nHEAD 7cfdefca9482b59d0c5606fb70d23903483373f3\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r10-docs\nHEAD 0e5825cfd256065e532f45a171f9a0dc74116615\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r8\nHEAD 4829a7d4af869f29f1d4c9b2d2d4124a3796b2ca\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r9\nHEAD 05c0253b90c179612a166f1d98702efd14f99be7\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/vnext014-conv\nHEAD 6f4f55c41d5ed340d85a8f38174868ac8741387f\nbranch refs/heads/feat/qap-vnext-architecture-work\n\nworktree C:/Users/Judirico/Documents/QAMCP/worktrees/mvp01-bva-rbac\nHEAD d49297a36f0340d46108553bb1e7989c66549eb1\ndetached",
+      "stderr": ""
+    },
+    "status": {
+      "code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    "head_known_to_candidate_repo": true,
+    "head_already_ancestor": true
+  },
+  {
+    "path": "C:\\Users\\Judirico\\.codex\\worktrees\\int03-mvp-fixes\\QAMCP",
+    "origin": "https://github.com/Hyouka73/QAMCP.git",
+    "head": "e27544a98854d1b527e734a675409fbdb9709313",
+    "common_dir": {
+      "code": 0,
+      "stdout": "C:/Users/Judirico/Documents/QAMCP/QAMCP/.git",
+      "stderr": ""
+    },
+    "branches": {
+      "code": 0,
+      "stdout": "* (no branch)                                e27544a docs(integration): record updated candidate evidence and physical certification blockers\n+ codex/consolidacion-vnext-20261110         90f7660 (C:/Users/Judirico/.codex/worktrees/mvp-integral/QAMCP) merge(mvp): reconcile DEV-MVP-02 and R5 with published operational contract\n  develop                                    b9d5b50 [origin/develop: behind 6] TAREA S75-016 & S75-015: Comando rollback y update con validaci\u00f3n, backups y arquitectura est\u00e1ndar\n+ feat/qap-vnext-architecture                dda870e (C:/Users/Judirico/Documents/QAMCP/QAMCP) [origin/feat/qap-vnext-architecture: behind 1] fix(r7): remediacion integral R7-R2 de los seis hallazgos de reauditoria Codex\n+ feat/qap-vnext-architecture-work           6f4f55c (C:/Users/Judirico/Documents/QAMCP/vnext014-conv) [origin/feat/qap-vnext-architecture: behind 124] docs(vnext-014): convergence report, STATE/WBS addenda, VNEXT-015 preparation and audit prompts\n  main                                       fa6a527 [origin/main] docs: add AGENTS.md with local MCP setup guide for AI agents\n  remotes/origin/HEAD                        -> origin/main\n  remotes/origin/develop                     b50453f Merge branch 'S81-002' into develop\n  remotes/origin/feat/qap-vnext-architecture 08a34bb docs(vnext): especificar UX discovery-first, ingesta y aislamiento QA MVP\n  remotes/origin/main                        fa6a527 docs: add AGENTS.md with local MCP setup guide for AI agents",
+      "stderr": ""
+    },
+    "worktrees": {
+      "code": 0,
+      "stdout": "worktree C:/Users/Judirico/Documents/QAMCP/QAMCP\nHEAD dda870e4695a8a27db07ea32b81c1efbbf6ba39e\nbranch refs/heads/feat/qap-vnext-architecture\n\nworktree C:/Users/Judirico/.codex/worktrees/dev-mvp-02/QAMCP\nHEAD a64a90aa39374772fc756032b291688496e6a73c\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int-03-r5/QAMCP\nHEAD 7a3d6dd6c189feb85d8097792ef1f0c2915e5c65\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int01-mvp-lab/QAMCP\nHEAD 4d2b5ee81d7bf86425950db73a4a980d6e934ef0\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int03-mvp-fixes/QAMCP\nHEAD e27544a98854d1b527e734a675409fbdb9709313\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int03-qa-r1/QAMCP\nHEAD 18199e0c036ab53c6d0f7af0a9f65740eb0aec89\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int03-r4-consolidated/mvp01-bva-rbac\nHEAD df107c3117b23558c6988d5e2e38c2d6bc181945\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/mvp-integral/QAMCP\nHEAD 90f7660d60c1a6c41bbab7953691bee25679d63e\nbranch refs/heads/codex/consolidacion-vnext-20261110\n\nworktree C:/Users/Judirico/.codex/worktrees/vnext-015-04/QAMCP\nHEAD 7149c030eb814e759bc824b1106c8bf3d77e1d11\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r10\nHEAD 7cfdefca9482b59d0c5606fb70d23903483373f3\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r10-docs\nHEAD 0e5825cfd256065e532f45a171f9a0dc74116615\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r8\nHEAD 4829a7d4af869f29f1d4c9b2d2d4124a3796b2ca\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r9\nHEAD 05c0253b90c179612a166f1d98702efd14f99be7\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/vnext014-conv\nHEAD 6f4f55c41d5ed340d85a8f38174868ac8741387f\nbranch refs/heads/feat/qap-vnext-architecture-work\n\nworktree C:/Users/Judirico/Documents/QAMCP/worktrees/mvp01-bva-rbac\nHEAD d49297a36f0340d46108553bb1e7989c66549eb1\ndetached",
+      "stderr": ""
+    },
+    "status": {
+      "code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    "head_known_to_candidate_repo": true,
+    "head_already_ancestor": true
+  },
+  {
+    "path": "C:\\Users\\Judirico\\.codex\\worktrees\\int03-qa-r1\\QAMCP",
+    "origin": "https://github.com/Hyouka73/QAMCP.git",
+    "head": "18199e0c036ab53c6d0f7af0a9f65740eb0aec89",
+    "common_dir": {
+      "code": 0,
+      "stdout": "C:/Users/Judirico/Documents/QAMCP/QAMCP/.git",
+      "stderr": ""
+    },
+    "branches": {
+      "code": 0,
+      "stdout": "* (no branch)                                18199e0 fix(int03): restore runner coverage and clear focal QA gates\n+ codex/consolidacion-vnext-20261110         90f7660 (C:/Users/Judirico/.codex/worktrees/mvp-integral/QAMCP) merge(mvp): reconcile DEV-MVP-02 and R5 with published operational contract\n  develop                                    b9d5b50 [origin/develop: behind 6] TAREA S75-016 & S75-015: Comando rollback y update con validaci\u00f3n, backups y arquitectura est\u00e1ndar\n+ feat/qap-vnext-architecture                dda870e (C:/Users/Judirico/Documents/QAMCP/QAMCP) [origin/feat/qap-vnext-architecture: behind 1] fix(r7): remediacion integral R7-R2 de los seis hallazgos de reauditoria Codex\n+ feat/qap-vnext-architecture-work           6f4f55c (C:/Users/Judirico/Documents/QAMCP/vnext014-conv) [origin/feat/qap-vnext-architecture: behind 124] docs(vnext-014): convergence report, STATE/WBS addenda, VNEXT-015 preparation and audit prompts\n  main                                       fa6a527 [origin/main] docs: add AGENTS.md with local MCP setup guide for AI agents\n  remotes/origin/HEAD                        -> origin/main\n  remotes/origin/develop                     b50453f Merge branch 'S81-002' into develop\n  remotes/origin/feat/qap-vnext-architecture 08a34bb docs(vnext): especificar UX discovery-first, ingesta y aislamiento QA MVP\n  remotes/origin/main                        fa6a527 docs: add AGENTS.md with local MCP setup guide for AI agents",
+      "stderr": ""
+    },
+    "worktrees": {
+      "code": 0,
+      "stdout": "worktree C:/Users/Judirico/Documents/QAMCP/QAMCP\nHEAD dda870e4695a8a27db07ea32b81c1efbbf6ba39e\nbranch refs/heads/feat/qap-vnext-architecture\n\nworktree C:/Users/Judirico/.codex/worktrees/dev-mvp-02/QAMCP\nHEAD a64a90aa39374772fc756032b291688496e6a73c\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int-03-r5/QAMCP\nHEAD 7a3d6dd6c189feb85d8097792ef1f0c2915e5c65\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int01-mvp-lab/QAMCP\nHEAD 4d2b5ee81d7bf86425950db73a4a980d6e934ef0\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int03-mvp-fixes/QAMCP\nHEAD e27544a98854d1b527e734a675409fbdb9709313\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int03-qa-r1/QAMCP\nHEAD 18199e0c036ab53c6d0f7af0a9f65740eb0aec89\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int03-r4-consolidated/mvp01-bva-rbac\nHEAD df107c3117b23558c6988d5e2e38c2d6bc181945\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/mvp-integral/QAMCP\nHEAD 90f7660d60c1a6c41bbab7953691bee25679d63e\nbranch refs/heads/codex/consolidacion-vnext-20261110\n\nworktree C:/Users/Judirico/.codex/worktrees/vnext-015-04/QAMCP\nHEAD 7149c030eb814e759bc824b1106c8bf3d77e1d11\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r10\nHEAD 7cfdefca9482b59d0c5606fb70d23903483373f3\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r10-docs\nHEAD 0e5825cfd256065e532f45a171f9a0dc74116615\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r8\nHEAD 4829a7d4af869f29f1d4c9b2d2d4124a3796b2ca\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r9\nHEAD 05c0253b90c179612a166f1d98702efd14f99be7\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/vnext014-conv\nHEAD 6f4f55c41d5ed340d85a8f38174868ac8741387f\nbranch refs/heads/feat/qap-vnext-architecture-work\n\nworktree C:/Users/Judirico/Documents/QAMCP/worktrees/mvp01-bva-rbac\nHEAD d49297a36f0340d46108553bb1e7989c66549eb1\ndetached",
+      "stderr": ""
+    },
+    "status": {
+      "code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    "head_known_to_candidate_repo": true,
+    "head_already_ancestor": true
+  },
+  {
+    "path": "C:\\Users\\Judirico\\.codex\\worktrees\\int03-r4-consolidated\\mvp01-bva-rbac",
+    "origin": "https://github.com/Hyouka73/QAMCP.git",
+    "head": "df107c3117b23558c6988d5e2e38c2d6bc181945",
+    "common_dir": {
+      "code": 0,
+      "stdout": "C:/Users/Judirico/Documents/QAMCP/QAMCP/.git",
+      "stderr": ""
+    },
+    "branches": {
+      "code": 0,
+      "stdout": "* (no branch)                                df107c3 Merge DEV-MVP-01-R4 into isolated INT-03 candidate; record NO-GO gates\n+ codex/consolidacion-vnext-20261110         90f7660 (C:/Users/Judirico/.codex/worktrees/mvp-integral/QAMCP) merge(mvp): reconcile DEV-MVP-02 and R5 with published operational contract\n  develop                                    b9d5b50 [origin/develop: behind 6] TAREA S75-016 & S75-015: Comando rollback y update con validaci\u00f3n, backups y arquitectura est\u00e1ndar\n+ feat/qap-vnext-architecture                dda870e (C:/Users/Judirico/Documents/QAMCP/QAMCP) [origin/feat/qap-vnext-architecture: behind 1] fix(r7): remediacion integral R7-R2 de los seis hallazgos de reauditoria Codex\n+ feat/qap-vnext-architecture-work           6f4f55c (C:/Users/Judirico/Documents/QAMCP/vnext014-conv) [origin/feat/qap-vnext-architecture: behind 124] docs(vnext-014): convergence report, STATE/WBS addenda, VNEXT-015 preparation and audit prompts\n  main                                       fa6a527 [origin/main] docs: add AGENTS.md with local MCP setup guide for AI agents\n  remotes/origin/HEAD                        -> origin/main\n  remotes/origin/develop                     b50453f Merge branch 'S81-002' into develop\n  remotes/origin/feat/qap-vnext-architecture 08a34bb docs(vnext): especificar UX discovery-first, ingesta y aislamiento QA MVP\n  remotes/origin/main                        fa6a527 docs: add AGENTS.md with local MCP setup guide for AI agents",
+      "stderr": ""
+    },
+    "worktrees": {
+      "code": 0,
+      "stdout": "worktree C:/Users/Judirico/Documents/QAMCP/QAMCP\nHEAD dda870e4695a8a27db07ea32b81c1efbbf6ba39e\nbranch refs/heads/feat/qap-vnext-architecture\n\nworktree C:/Users/Judirico/.codex/worktrees/dev-mvp-02/QAMCP\nHEAD a64a90aa39374772fc756032b291688496e6a73c\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int-03-r5/QAMCP\nHEAD 7a3d6dd6c189feb85d8097792ef1f0c2915e5c65\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int01-mvp-lab/QAMCP\nHEAD 4d2b5ee81d7bf86425950db73a4a980d6e934ef0\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int03-mvp-fixes/QAMCP\nHEAD e27544a98854d1b527e734a675409fbdb9709313\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int03-qa-r1/QAMCP\nHEAD 18199e0c036ab53c6d0f7af0a9f65740eb0aec89\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int03-r4-consolidated/mvp01-bva-rbac\nHEAD df107c3117b23558c6988d5e2e38c2d6bc181945\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/mvp-integral/QAMCP\nHEAD 90f7660d60c1a6c41bbab7953691bee25679d63e\nbranch refs/heads/codex/consolidacion-vnext-20261110\n\nworktree C:/Users/Judirico/.codex/worktrees/vnext-015-04/QAMCP\nHEAD 7149c030eb814e759bc824b1106c8bf3d77e1d11\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r10\nHEAD 7cfdefca9482b59d0c5606fb70d23903483373f3\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r10-docs\nHEAD 0e5825cfd256065e532f45a171f9a0dc74116615\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r8\nHEAD 4829a7d4af869f29f1d4c9b2d2d4124a3796b2ca\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r9\nHEAD 05c0253b90c179612a166f1d98702efd14f99be7\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/vnext014-conv\nHEAD 6f4f55c41d5ed340d85a8f38174868ac8741387f\nbranch refs/heads/feat/qap-vnext-architecture-work\n\nworktree C:/Users/Judirico/Documents/QAMCP/worktrees/mvp01-bva-rbac\nHEAD d49297a36f0340d46108553bb1e7989c66549eb1\ndetached",
+      "stderr": ""
+    },
+    "status": {
+      "code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    "head_known_to_candidate_repo": true,
+    "head_already_ancestor": true
+  },
+  {
+    "path": "C:\\Users\\Judirico\\.codex\\worktrees\\mvp-integral\\QAMCP",
+    "origin": "https://github.com/Hyouka73/QAMCP.git",
+    "head": "90f7660d60c1a6c41bbab7953691bee25679d63e",
+    "common_dir": {
+      "code": 0,
+      "stdout": "C:/Users/Judirico/Documents/QAMCP/QAMCP/.git",
+      "stderr": ""
+    },
+    "branches": {
+      "code": 0,
+      "stdout": "* codex/consolidacion-vnext-20261110         90f7660 merge(mvp): reconcile DEV-MVP-02 and R5 with published operational contract\n  develop                                    b9d5b50 [origin/develop: behind 6] TAREA S75-016 & S75-015: Comando rollback y update con validaci\u00f3n, backups y arquitectura est\u00e1ndar\n+ feat/qap-vnext-architecture                dda870e (C:/Users/Judirico/Documents/QAMCP/QAMCP) [origin/feat/qap-vnext-architecture: behind 1] fix(r7): remediacion integral R7-R2 de los seis hallazgos de reauditoria Codex\n+ feat/qap-vnext-architecture-work           6f4f55c (C:/Users/Judirico/Documents/QAMCP/vnext014-conv) [origin/feat/qap-vnext-architecture: behind 124] docs(vnext-014): convergence report, STATE/WBS addenda, VNEXT-015 preparation and audit prompts\n  main                                       fa6a527 [origin/main] docs: add AGENTS.md with local MCP setup guide for AI agents\n  remotes/origin/HEAD                        -> origin/main\n  remotes/origin/develop                     b50453f Merge branch 'S81-002' into develop\n  remotes/origin/feat/qap-vnext-architecture 08a34bb docs(vnext): especificar UX discovery-first, ingesta y aislamiento QA MVP\n  remotes/origin/main                        fa6a527 docs: add AGENTS.md with local MCP setup guide for AI agents",
+      "stderr": ""
+    },
+    "worktrees": {
+      "code": 0,
+      "stdout": "worktree C:/Users/Judirico/Documents/QAMCP/QAMCP\nHEAD dda870e4695a8a27db07ea32b81c1efbbf6ba39e\nbranch refs/heads/feat/qap-vnext-architecture\n\nworktree C:/Users/Judirico/.codex/worktrees/dev-mvp-02/QAMCP\nHEAD a64a90aa39374772fc756032b291688496e6a73c\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int-03-r5/QAMCP\nHEAD 7a3d6dd6c189feb85d8097792ef1f0c2915e5c65\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int01-mvp-lab/QAMCP\nHEAD 4d2b5ee81d7bf86425950db73a4a980d6e934ef0\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int03-mvp-fixes/QAMCP\nHEAD e27544a98854d1b527e734a675409fbdb9709313\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int03-qa-r1/QAMCP\nHEAD 18199e0c036ab53c6d0f7af0a9f65740eb0aec89\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int03-r4-consolidated/mvp01-bva-rbac\nHEAD df107c3117b23558c6988d5e2e38c2d6bc181945\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/mvp-integral/QAMCP\nHEAD 90f7660d60c1a6c41bbab7953691bee25679d63e\nbranch refs/heads/codex/consolidacion-vnext-20261110\n\nworktree C:/Users/Judirico/.codex/worktrees/vnext-015-04/QAMCP\nHEAD 7149c030eb814e759bc824b1106c8bf3d77e1d11\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r10\nHEAD 7cfdefca9482b59d0c5606fb70d23903483373f3\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r10-docs\nHEAD 0e5825cfd256065e532f45a171f9a0dc74116615\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r8\nHEAD 4829a7d4af869f29f1d4c9b2d2d4124a3796b2ca\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r9\nHEAD 05c0253b90c179612a166f1d98702efd14f99be7\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/vnext014-conv\nHEAD 6f4f55c41d5ed340d85a8f38174868ac8741387f\nbranch refs/heads/feat/qap-vnext-architecture-work\n\nworktree C:/Users/Judirico/Documents/QAMCP/worktrees/mvp01-bva-rbac\nHEAD d49297a36f0340d46108553bb1e7989c66549eb1\ndetached",
+      "stderr": ""
+    },
+    "status": {
+      "code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    "head_known_to_candidate_repo": true,
+    "head_already_ancestor": true
+  },
+  {
+    "path": "C:\\Users\\Judirico\\.codex\\worktrees\\vnext-015-04\\QAMCP",
+    "origin": "https://github.com/Hyouka73/QAMCP.git",
+    "head": "7149c030eb814e759bc824b1106c8bf3d77e1d11",
+    "common_dir": {
+      "code": 0,
+      "stdout": "C:/Users/Judirico/Documents/QAMCP/QAMCP/.git",
+      "stderr": ""
+    },
+    "branches": {
+      "code": 0,
+      "stdout": "* (no branch)                                7149c03 docs(vnext): record 015-04 delivery and deferred certification\n+ codex/consolidacion-vnext-20261110         90f7660 (C:/Users/Judirico/.codex/worktrees/mvp-integral/QAMCP) merge(mvp): reconcile DEV-MVP-02 and R5 with published operational contract\n  develop                                    b9d5b50 [origin/develop: behind 6] TAREA S75-016 & S75-015: Comando rollback y update con validaci\u00f3n, backups y arquitectura est\u00e1ndar\n+ feat/qap-vnext-architecture                dda870e (C:/Users/Judirico/Documents/QAMCP/QAMCP) [origin/feat/qap-vnext-architecture: behind 1] fix(r7): remediacion integral R7-R2 de los seis hallazgos de reauditoria Codex\n+ feat/qap-vnext-architecture-work           6f4f55c (C:/Users/Judirico/Documents/QAMCP/vnext014-conv) [origin/feat/qap-vnext-architecture: behind 124] docs(vnext-014): convergence report, STATE/WBS addenda, VNEXT-015 preparation and audit prompts\n  main                                       fa6a527 [origin/main] docs: add AGENTS.md with local MCP setup guide for AI agents\n  remotes/origin/HEAD                        -> origin/main\n  remotes/origin/develop                     b50453f Merge branch 'S81-002' into develop\n  remotes/origin/feat/qap-vnext-architecture 08a34bb docs(vnext): especificar UX discovery-first, ingesta y aislamiento QA MVP\n  remotes/origin/main                        fa6a527 docs: add AGENTS.md with local MCP setup guide for AI agents",
+      "stderr": ""
+    },
+    "worktrees": {
+      "code": 0,
+      "stdout": "worktree C:/Users/Judirico/Documents/QAMCP/QAMCP\nHEAD dda870e4695a8a27db07ea32b81c1efbbf6ba39e\nbranch refs/heads/feat/qap-vnext-architecture\n\nworktree C:/Users/Judirico/.codex/worktrees/dev-mvp-02/QAMCP\nHEAD a64a90aa39374772fc756032b291688496e6a73c\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int-03-r5/QAMCP\nHEAD 7a3d6dd6c189feb85d8097792ef1f0c2915e5c65\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int01-mvp-lab/QAMCP\nHEAD 4d2b5ee81d7bf86425950db73a4a980d6e934ef0\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int03-mvp-fixes/QAMCP\nHEAD e27544a98854d1b527e734a675409fbdb9709313\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int03-qa-r1/QAMCP\nHEAD 18199e0c036ab53c6d0f7af0a9f65740eb0aec89\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/int03-r4-consolidated/mvp01-bva-rbac\nHEAD df107c3117b23558c6988d5e2e38c2d6bc181945\ndetached\n\nworktree C:/Users/Judirico/.codex/worktrees/mvp-integral/QAMCP\nHEAD 90f7660d60c1a6c41bbab7953691bee25679d63e\nbranch refs/heads/codex/consolidacion-vnext-20261110\n\nworktree C:/Users/Judirico/.codex/worktrees/vnext-015-04/QAMCP\nHEAD 7149c030eb814e759bc824b1106c8bf3d77e1d11\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r10\nHEAD 7cfdefca9482b59d0c5606fb70d23903483373f3\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r10-docs\nHEAD 0e5825cfd256065e532f45a171f9a0dc74116615\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r8\nHEAD 4829a7d4af869f29f1d4c9b2d2d4124a3796b2ca\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/audit-r4-r9\nHEAD 05c0253b90c179612a166f1d98702efd14f99be7\ndetached\n\nworktree C:/Users/Judirico/Documents/QAMCP/vnext014-conv\nHEAD 6f4f55c41d5ed340d85a8f38174868ac8741387f\nbranch refs/heads/feat/qap-vnext-architecture-work\n\nworktree C:/Users/Judirico/Documents/QAMCP/worktrees/mvp01-bva-rbac\nHEAD d49297a36f0340d46108553bb1e7989c66549eb1\ndetached",
+      "stderr": ""
+    },
+    "status": {
+      "code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    "head_known_to_candidate_repo": true,
+    "head_already_ancestor": false
+  }
+]

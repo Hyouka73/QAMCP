@@ -1,0 +1,19 @@
+{
+  "started_at": "2026-11-06T18:00:11.0683469Z",
+  "exit_code": 0,
+  "arguments": [
+    "--filter",
+    "@qap/mcp",
+    "exec",
+    "vitest",
+    "run",
+    "lifecycle-v3-e2e",
+    "--config",
+    "../../docs/vnext/implementaciones/VNEXT-014-E01/evidencia/diagnostic.config.ts",
+    "--reporter=default",
+    "--reporter=json",
+    "--outputFile=../../docs/vnext/implementaciones/VNEXT-014-E01/evidencia/after-isolated.json"
+  ],
+  "finished_at": "2026-11-06T18:00:29.0512565Z",
+  "name": "after-isolated"
+}

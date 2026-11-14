@@ -1,0 +1,347 @@
+{
+  "sha": "c947d5347505283befc9cc2cc8b366f05b55c576",
+  "baseline": "6ce7472bc1cef8d252434a3d71a0a614ed06a390",
+  "merge_parents": [
+    "46b1177110312797bab02a6f5a8ef228d79d367e",
+    "3fe4fec91843943c7b901974b7c0a4ef5540e0eb"
+  ],
+  "runs": [
+    {
+      "name": "baseline-physical-mcp",
+      "pass": 439,
+      "fail": 59,
+      "total": 498,
+      "unhandled": [],
+      "empty_failed_suites": 0
+    },
+    {
+      "name": "final-serial",
+      "pass": 447,
+      "fail": 55,
+      "total": 502,
+      "unhandled": [],
+      "empty_failed_suites": 0
+    },
+    {
+      "name": "final-parallel-a",
+      "pass": 431,
+      "fail": 71,
+      "total": 502,
+      "unhandled": [],
+      "empty_failed_suites": 0
+    },
+    {
+      "name": "final-parallel-b",
+      "pass": 429,
+      "fail": 73,
+      "total": 502,
+      "unhandled": [],
+      "empty_failed_suites": 0
+    }
+  ],
+  "control_runs": [
+    {
+      "name": "final-solo-a",
+      "sha": "c947d5347505283befc9cc2cc8b366f05b55c576",
+      "pass": 445,
+      "fail": 57,
+      "total": 502,
+      "unhandled": []
+    },
+    {
+      "name": "final-solo-b",
+      "sha": "c947d5347505283befc9cc2cc8b366f05b55c576",
+      "pass": 443,
+      "fail": 59,
+      "total": 502,
+      "unhandled": []
+    }
+  ],
+  "intermediate_runs": [
+    {
+      "name": "before-drain-fix-serial",
+      "sha": "c9e58ceaa145965db96dbc1951a2ca36ecfbb7e5",
+      "pass": 446,
+      "fail": 55,
+      "total": 501,
+      "unhandled": []
+    },
+    {
+      "name": "before-drain-fix-parallel-a",
+      "sha": "c9e58ceaa145965db96dbc1951a2ca36ecfbb7e5",
+      "pass": 423,
+      "fail": 78,
+      "total": 501,
+      "unhandled": []
+    },
+    {
+      "name": "before-drain-fix-parallel-b",
+      "sha": "c9e58ceaa145965db96dbc1951a2ca36ecfbb7e5",
+      "pass": 428,
+      "fail": 73,
+      "total": 501,
+      "unhandled": [
+        "⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯\r",
+        "Vitest caught 2 unhandled errors during the test run.\r",
+        "⎯⎯⎯⎯⎯ Uncaught Exception ⎯⎯⎯⎯⎯\r",
+        "Serialized Error: { errno: -4058, code: 'ECOMPROMISED', syscall: 'stat', path: 'C:\\Users\\Judirico\\Documents\\QAMCP\\rescate-evidence\\20261105-integracion\\tmp-parallel-b\\project-root-cswdjy2\\.qa\\cache\\locks\\orders.lock' }\r",
+        "⎯⎯⎯⎯⎯ Uncaught Exception ⎯⎯⎯⎯⎯\r",
+        "Serialized Error: { errno: -4058, code: 'ECOMPROMISED', syscall: 'stat', path: 'C:\\Users\\Judirico\\Documents\\QAMCP\\rescate-evidence\\20261105-integracion\\tmp-parallel-b\\project-root-b5ccbop\\.qa\\cache\\locks\\redirect-mod.lock' }\r"
+      ]
+    }
+  ],
+  "comparison": {
+    "baseline_to_serial": {
+      "preserved_pass": 439,
+      "recovered": 4,
+      "remaining_fail": 55,
+      "regressions": 0,
+      "added": 4,
+      "removed": 0
+    },
+    "serial_to_parallel_a": {
+      "preserved_pass": 431,
+      "recovered": 0,
+      "remaining_fail": 55,
+      "regressions": 16,
+      "added": 0,
+      "removed": 0
+    },
+    "serial_to_parallel_b": {
+      "preserved_pass": 429,
+      "recovered": 0,
+      "remaining_fail": 55,
+      "regressions": 18,
+      "added": 0,
+      "removed": 0
+    },
+    "serial_to_final-solo-a": {
+      "preserved_pass": 445,
+      "recovered": 0,
+      "remaining_fail": 55,
+      "regressions": 2,
+      "added": 0,
+      "removed": 0
+    },
+    "serial_to_final-solo-b": {
+      "preserved_pass": 443,
+      "recovered": 0,
+      "remaining_fail": 55,
+      "regressions": 4,
+      "added": 0,
+      "removed": 0
+    }
+  },
+  "commands": [
+    {
+      "artifact": "before-drain-fix-parallel-a.command.json",
+      "duration_s": 126.1675583,
+      "name": "final-parallel-a",
+      "exit": 1,
+      "start": "2026-11-06T16:21:08.7021590Z",
+      "args": [
+        "--filter",
+        "@qap/mcp",
+        "exec",
+        "vitest",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile=C:\\Users\\Judirico\\Documents\\QAMCP\\rescate-evidence\\20261105-integracion/final-parallel-a.json"
+      ]
+    },
+    {
+      "artifact": "before-drain-fix-parallel-b.command.json",
+      "name": "final-parallel-b",
+      "start": "2026-11-06T16:21:09.3997903Z",
+      "exit": 1,
+      "args": [
+        "--filter",
+        "@qap/mcp",
+        "exec",
+        "vitest",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile=C:\\Users\\Judirico\\Documents\\QAMCP\\rescate-evidence\\20261105-integracion/final-parallel-b.json"
+      ],
+      "duration_s": 125.608674
+    },
+    {
+      "artifact": "before-drain-fix-serial.command.json",
+      "name": "final-serial",
+      "duration_s": 173.325764,
+      "exit": 1,
+      "args": [
+        "--filter",
+        "@qap/mcp",
+        "exec",
+        "vitest",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile=C:\\Users\\Judirico\\Documents\\QAMCP\\rescate-evidence\\20261105-integracion/final-serial.json",
+        "--no-file-parallelism"
+      ],
+      "start": "2026-11-05T23:55:59.5038647Z"
+    },
+    {
+      "artifact": "final-cli.command.json",
+      "name": "final-cli",
+      "duration_s": 18.363652,
+      "exit": 0,
+      "args": [
+        "--filter",
+        "@hyouka73/qap-cli",
+        "exec",
+        "vitest",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile=C:\\Users\\Judirico\\Documents\\QAMCP\\rescate-evidence\\20261105-integracion/final-cli.json"
+      ],
+      "start": "2026-11-05T23:55:41.1139612Z"
+    },
+    {
+      "artifact": "final-engine.command.json",
+      "name": "final-engine",
+      "duration_s": 2.2035132,
+      "exit": 0,
+      "args": [
+        "--filter",
+        "@qap/engine",
+        "exec",
+        "vitest",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile=C:\\Users\\Judirico\\Documents\\QAMCP\\rescate-evidence\\20261105-integracion/final-engine.json"
+      ],
+      "start": "2026-11-05T23:55:30.6934871Z"
+    },
+    {
+      "artifact": "final-knowledge.command.json",
+      "name": "final-knowledge",
+      "duration_s": 8.1643988,
+      "exit": 0,
+      "args": [
+        "--filter",
+        "@qap/knowledge",
+        "exec",
+        "vitest",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile=C:\\Users\\Judirico\\Documents\\QAMCP\\rescate-evidence\\20261105-integracion/final-knowledge.json"
+      ],
+      "start": "2026-11-05T23:55:32.9456146Z"
+    },
+    {
+      "artifact": "final-parallel-a.command.json",
+      "start": "2026-11-06T16:32:06.2536536Z",
+      "name": "final-parallel-a",
+      "duration_s": 120.6214633,
+      "args": [
+        "--filter",
+        "@qap/mcp",
+        "exec",
+        "vitest",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile=C:\\Users\\Judirico\\Documents\\QAMCP\\rescate-evidence\\20261105-integracion/final-parallel-a.json"
+      ],
+      "exit": 1
+    },
+    {
+      "artifact": "final-parallel-b.command.json",
+      "duration_s": 119.3249458,
+      "exit": 1,
+      "name": "final-parallel-b",
+      "args": [
+        "--filter",
+        "@qap/mcp",
+        "exec",
+        "vitest",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile=C:\\Users\\Judirico\\Documents\\QAMCP\\rescate-evidence\\20261105-integracion/final-parallel-b.json"
+      ],
+      "start": "2026-11-06T16:32:09.7154126Z"
+    },
+    {
+      "artifact": "final-serial.command.json",
+      "name": "final-serial",
+      "duration_s": 199.452519,
+      "start": "2026-11-06T16:27:36.5702572Z",
+      "exit": 1,
+      "args": [
+        "--filter",
+        "@qap/mcp",
+        "exec",
+        "vitest",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile=C:\\Users\\Judirico\\Documents\\QAMCP\\rescate-evidence\\20261105-integracion/final-serial.json",
+        "--no-file-parallelism"
+      ]
+    },
+    {
+      "artifact": "final-solo-a.command.json",
+      "name": "final-solo-a",
+      "duration_s": 58.9049159,
+      "args": [
+        "--filter",
+        "@qap/mcp",
+        "exec",
+        "vitest",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile=C:\\Users\\Judirico\\Documents\\QAMCP\\rescate-evidence\\20261105-integracion/final-solo-a.json"
+      ],
+      "start": "2026-11-06T16:34:56.7668373Z",
+      "exit": 1
+    },
+    {
+      "artifact": "final-solo-b.command.json",
+      "name": "final-solo-b",
+      "duration_s": 63.9259023,
+      "args": [
+        "--filter",
+        "@qap/mcp",
+        "exec",
+        "vitest",
+        "run",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile=C:\\Users\\Judirico\\Documents\\QAMCP\\rescate-evidence\\20261105-integracion/final-solo-b.json"
+      ],
+      "start": "2026-11-06T16:35:55.8082416Z",
+      "exit": 1
+    }
+  ],
+  "differential": {
+    "baseline": "6ce7472bc1cef8d252434a3d71a0a614ed06a390",
+    "tsc": {
+      "baseline": 125,
+      "current": 124,
+      "added": [],
+      "removed": [
+        {
+          "file": "packages/mcp/src/__tests__/adversarial-r5-guarantees.test.ts",
+          "code": 2820,
+          "message": "Type '\"unconfirmed\"' is not assignable to type 'CertaintyState'. Did you mean '\"confirmed\"'?"
+        }
+      ]
+    },
+    "eslint": {
+      "baseline": 62,
+      "current": 62,
+      "added": [],
+      "removed": []
+    }
+  }
+}

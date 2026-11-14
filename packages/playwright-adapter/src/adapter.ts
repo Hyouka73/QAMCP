@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 
-import { chromium, type Browser, type BrowserContext, type BrowserContextOptions, type Page } from 'playwright-core';
+import type { Browser, BrowserContext, BrowserContextOptions, Page } from 'playwright-core';
 import type { IDiscoverer } from '@qap/engine';
 import { isAuthPath } from '@qap/shared';
 import type { ModuleSpec, Module } from '@qap/shared';
@@ -29,6 +29,8 @@ export interface PlaywrightAdapterOptions {
   storageState?: string | Record<string, unknown> | object;
   /** Credenciales explícitas para autenticarse si la pantalla es de login */
   credentials?: AuthCredentials;
+  /** Host hook to scope the isolated page before its first request. */
+  preparePage?: (page: Page) => Promise<void>;
   /** Si es true, omite la espera de asentamiento del DOM (para pruebas comparativas en SPAs con skeleton). */
   skipDomSettling?: boolean;
   /** Ventana de estabilidad de URL configurable (por defecto URL_STABILITY_WINDOW_MS = 500 ms). */
@@ -206,6 +208,7 @@ export interface DiscoveredForm {
  *    y lanza una excepción clara indicando que no se encontró un navegador compatible en el sistema.
  */
 export async function launchBrowser(options: LaunchBrowserOptions = {}): Promise<Browser> {
+  const { chromium } = await import('playwright-core');
   const isHeadless = !options.headed;
 
   // 1. Intentar Chrome del sistema
@@ -411,7 +414,7 @@ export class PlaywrightAdapter implements IDiscoverer {
 
     try {
       // 1. Inicializar contexto con storageState si existe sesión previa
-      const contextOptions: BrowserContextOptions = {};
+      const contextOptions: BrowserContextOptions = this.options.preparePage ? { serviceWorkers: 'block' } : {};
       const sessionTarget = options?.storageState ?? this.options.storageState ?? this.options.sessionPath;
       if (sessionTarget) {
         if (typeof sessionTarget === 'string' && existsSync(sessionTarget)) {
@@ -422,19 +425,24 @@ export class PlaywrightAdapter implements IDiscoverer {
       }
       context = await browser.newContext(contextOptions);
       const page = await context.newPage();
+      await this.options.preparePage?.(page);
 
       let httpStatus: number | null = null;
       try {
         const response = await page.goto(targetUrl, { waitUntil: 'load', timeout: 30000 });
         httpStatus = response ? response.status() : null;
         // C3a: Esperar networkidle con tope máximo para que llamadas asíncronas de sesión se completen
-        await page.waitForLoadState('networkidle', { timeout: URL_NETWORKIDLE_MAX_TIMEOUT_MS }).catch(() => {});
+        if (!this.options.skipDomSettling) {
+          await page.waitForLoadState('networkidle', { timeout: URL_NETWORKIDLE_MAX_TIMEOUT_MS }).catch(() => {});
+        }
       } catch {
         // Si falló por abort o navegación inmediata
       }
 
       // Esperar a que React monte componentes en el root o DOM
-      await page.waitForSelector('#root > *, main, form, input, button, a[href]', { timeout: 10000 }).catch(() => {});
+      if (!this.options.skipDomSettling) {
+        await page.waitForSelector('#root > *, main, form, input, button, a[href]', { timeout: 10000 }).catch(() => {});
+      }
       if (!this.options.skipDomSettling && (this.options.urlStabilityWindowMs ?? URL_STABILITY_WINDOW_MS) >= 300) {
         await page.waitForTimeout(300);
       }
@@ -472,7 +480,8 @@ export class PlaywrightAdapter implements IDiscoverer {
       let sessionSaved = false;
       if (
         (pageKind === 'login' || pageKind === 'auth_wall' || isAuthPath(normRequested.pathname)) &&
-        this.options.credentials
+        this.options.credentials &&
+        (!this.options.preparePage || normFinal.origin === normRequested.origin)
       ) {
         const { username, password } = this.options.credentials;
         const usernameInput = await page.$(

@@ -5,6 +5,8 @@ import {
   writeFileSync,
   appendFileSync,
   renameSync,
+  realpathSync,
+  rmSync,
 } from 'node:fs';
 import {
   readFile,
@@ -42,6 +44,56 @@ import lockfile from 'proper-lockfile';
 import YAML from 'yaml';
 
 const LOCKS_DIR = '.qa/cache/locks';
+
+/**
+ * In-process coordination between lock-free readers and atomic replacements.
+ *
+ * Verified cause (see VNEXT-014-CONVERGENCIA/E01): on Windows, renameSync()
+ * replacing a destination that has ANY open handle (including a concurrent
+ * fs.promises.readFile in the same process) fails with EPERM. Readers do not
+ * take the cross-process lock, so a writer can lose to an unrelated read.
+ * This gate makes same-process readers drain before a replacement and holds
+ * new readers back while it runs. It is NOT a retry: no operation is repeated.
+ * Readers in OTHER processes remain outside this guarantee.
+ */
+class ReplaceGate {
+  private static readonly gates = new Map<string, ReplaceGate>();
+  private readers = 0;
+  private replacing = 0;
+  private waiters: Array<() => void> = [];
+
+  static for(physicalKey: string): ReplaceGate {
+    let gate = ReplaceGate.gates.get(physicalKey);
+    if (!gate) { gate = new ReplaceGate(); ReplaceGate.gates.set(physicalKey, gate); }
+    return gate;
+  }
+
+  private wake(): void {
+    const pending = this.waiters;
+    this.waiters = [];
+    for (const resume of pending) resume();
+  }
+
+  async read<T>(operation: () => Promise<T>): Promise<T> {
+    while (this.replacing > 0) await new Promise<void>(resolve => this.waiters.push(resolve));
+    this.readers++;
+    try { return await operation(); } finally {
+      this.readers--;
+      if (this.readers === 0) this.wake();
+    }
+  }
+
+  async replace<T>(operation: () => T): Promise<T> {
+    this.replacing++;
+    try {
+      while (this.readers > 0) await new Promise<void>(resolve => this.waiters.push(resolve));
+      return operation();
+    } finally {
+      this.replacing--;
+      if (this.replacing === 0) this.wake();
+    }
+  }
+}
 
 export interface FileSystemStorageOptions {
   /** Directorio raiz del proyecto (donde vive .qa/). Por defecto, process.cwd(). */
@@ -86,10 +138,19 @@ export class FileSystemStorage implements IStorage {
       writeFileSync(targetPath, '', 'utf-8');
     }
 
+    // All host writers to the same physical file must use the same lock,
+    // including Windows path-case aliases and directory junction aliases.
+    // Hash the canonical pathname, never the caller's spelling or a mutable
+    // file inode (the lifecycle file is atomically replaced by rename).
+    // On case-sensitive POSIX filesystems, retain the original case.
+    const physicalPath = realpathSync.native(targetPath);
+    const lockIdentity = process.platform === 'win32'
+      ? physicalPath.replaceAll('\\', '/').toLowerCase()
+      : physicalPath;
     const release = await lockfile.lock(targetPath, {
       retries: { retries: 10, minTimeout: 50, maxTimeout: 500 },
       stale: 10000,
-      lockfilePath: join(this.getLockDir(), `${createHash('sha256').update(targetPath).digest('hex')}.lock`),
+      lockfilePath: join(this.getLockDir(), `${createHash('sha256').update(lockIdentity).digest('hex')}.lock`),
     });
 
     try {
@@ -99,8 +160,16 @@ export class FileSystemStorage implements IStorage {
     }
   }
 
+  private gateFor(fullPath: string): ReplaceGate {
+    const key = process.platform === 'win32'
+      ? fullPath.replaceAll('\\', '/').toLowerCase()
+      : fullPath;
+    return ReplaceGate.for(key);
+  }
+
   async read(path: string): Promise<string> {
-    return await readFile(this.resolvePath(path), 'utf-8');
+    const fullPath = this.resolvePath(path);
+    return this.gateFor(fullPath).read(() => readFile(fullPath, 'utf-8'));
   }
   
    /**
@@ -109,19 +178,23 @@ export class FileSystemStorage implements IStorage {
    */
 
    async readBuffer(path: string): Promise<Buffer> {
-    return await readFile(this.resolvePath(path));
+    const fullPath = this.resolvePath(path);
+    return this.gateFor(fullPath).read(() => readFile(fullPath));
   }
 
   async write(path: string, content: string): Promise<void> {
     const fullPath = this.resolvePath(path);
     mkdirSync(dirname(fullPath), { recursive: true });
 
-    await this.withLock(fullPath, () => {
+    await this.withLock(fullPath, () => this.gateFor(fullPath).replace(() => {
       const tempPath = `${fullPath}.${randomBytes(6).toString('hex')}.tmp`;
-      writeFileSync(tempPath, content, 'utf-8');
-      renameSync(tempPath, fullPath);
-      return Promise.resolve();
-    });
+      try {
+        writeFileSync(tempPath, content, 'utf-8');
+        renameSync(tempPath, fullPath);
+      } finally {
+        rmSync(tempPath, { force: true });
+      }
+    }));
   }
 
   async exists(path: string): Promise<boolean> {
@@ -214,6 +287,18 @@ export class FileSystemStorage implements IStorage {
    * - Sin módulos registrados -> phase ONBOARDING.
    * - Con módulos registrados -> phase WORKING y cada módulo en estado 'observed'.
    */
+  /**
+   * Coordinate canonical consent with every FileSystemStorage lifecycle writer.
+   * Lock order: lifecycle file -> Knowledge SQLite -> ClosureStore SQLite.
+   * No locks are held during independent human review. External raw filesystem
+   * writers that bypass FileSystemStorage are outside this host contract.
+   */
+  async withLifecycleFence<T>(operation: () => Promise<T>): Promise<T> {
+    const path = this.resolvePath('.qa/project/lifecycle.json');
+    if (!existsSync(path)) throw new Error('lifecycle_context_missing');
+    return this.withLock(path, operation);
+  }
+
   async getLifecycleState(): Promise<LifecycleState> {
     const lifecyclePath = '.qa/project/lifecycle.json';
     if (await this.exists(lifecyclePath)) {
@@ -279,10 +364,48 @@ export class FileSystemStorage implements IStorage {
       const current = await this.getLifecycleState();
       const updated = await mutator(current);
       const content = JSON.stringify(updated, null, 2);
-      const tempPath = `${fullPath}.${randomBytes(6).toString('hex')}.tmp`;
-      writeFileSync(tempPath, content, 'utf-8');
-      renameSync(tempPath, fullPath);
+      await this.gateFor(fullPath).replace(() => {
+        const tempPath = `${fullPath}.${randomBytes(6).toString('hex')}.tmp`;
+        try {
+          writeFileSync(tempPath, content, 'utf-8');
+          renameSync(tempPath, fullPath);
+        } finally {
+          rmSync(tempPath, { force: true });
+        }
+      });
       return updated;
+    });
+  }
+
+  /**
+   * A synchronous commit inside the lifecycle lock for cross-store finalization.
+   * The caller may hold the Knowledge write fence while calling commit(), so
+   * there is no release gap between receipt validation and lifecycle persistence.
+   *
+   * Lock order: lifecycle -> Knowledge -> Closure (read only). Do not call
+   * saveLifecycleState/updateLifecycleState from this transaction (reentrant lock).
+   * A rejected transaction never invokes commit and leaves lifecycle unchanged.
+   */
+  async commitLifecycleStateWithFence<T>(
+    transaction: (current: LifecycleState, commit: (next: LifecycleState) => void) => Promise<T>
+  ): Promise<T> {
+    const fullPath = this.resolvePath('.qa/project/lifecycle.json');
+    mkdirSync(dirname(fullPath), { recursive: true });
+    return this.withLock(fullPath, async () => {
+      const current = await this.getLifecycleState();
+      let committed = false;
+      const commit = (next: LifecycleState): void => {
+        if (committed) throw new Error('lifecycle_commit_already_performed');
+        const tempPath = `${fullPath}.${randomBytes(6).toString('hex')}.tmp`;
+        try {
+          writeFileSync(tempPath, JSON.stringify(next, null, 2), 'utf-8');
+          renameSync(tempPath, fullPath);
+          committed = true;
+        } finally {
+          rmSync(tempPath, { force: true });
+        }
+      };
+      return transaction(current, commit);
     });
   }
 
@@ -366,9 +489,15 @@ export class FileSystemStorage implements IStorage {
 
       const updated = await mutator(current);
       const content = YAML.stringify(updated);
-      const tempPath = `${fullPath}.${randomBytes(6).toString('hex')}.tmp`;
-      writeFileSync(tempPath, content, 'utf-8');
-      renameSync(tempPath, fullPath);
+      await this.gateFor(fullPath).replace(() => {
+        const tempPath = `${fullPath}.${randomBytes(6).toString('hex')}.tmp`;
+        try {
+          writeFileSync(tempPath, content, 'utf-8');
+          renameSync(tempPath, fullPath);
+        } finally {
+          rmSync(tempPath, { force: true });
+        }
+      });
       return updated;
     });
   }
@@ -455,19 +584,38 @@ export class FileSystemStorage implements IStorage {
     return [...classicCases, ...newCases];
   }
 
-    async getTestCase(moduleName: string, caseId: string): Promise<TestCase> {
+  async getTestCase(moduleName: string, caseId: string): Promise<TestCase> {
     const classicPath = join('.qa/modules', moduleName, 'tests', `${caseId}.yaml`);
     if (existsSync(resolve(this.rootDir, classicPath))) {
       const raw = await this.readYaml<TestCase>(classicPath);
       return normalizeTcCase(raw as unknown as Parameters<typeof normalizeTcCase>[0]) as unknown as TestCase;
+    }
+    if (!caseId.startsWith('TC-')) {
+      const tcPrefixedPath = join('.qa/modules', moduleName, 'tests', `TC-${caseId}.yaml`);
+      if (existsSync(resolve(this.rootDir, tcPrefixedPath))) {
+        const raw = await this.readYaml<TestCase>(tcPrefixedPath);
+        return normalizeTcCase(raw as unknown as Parameters<typeof normalizeTcCase>[0]) as unknown as TestCase;
+      }
     }
     const newPath = join('.qa/modules', moduleName, 'tests', 'cases', `${caseId}.yaml`);
     const raw = await this.readYaml<TestCase>(newPath);
     return normalizeTcCase(raw as unknown as Parameters<typeof normalizeTcCase>[0]) as unknown as TestCase;
   }
 
-    async saveTestCase(moduleName: string, testCase: TestCase): Promise<void> {
-    const isClassic = testCase.id?.startsWith('TC-');
+  async saveTestCase(moduleName: string, testCase: TestCase, fileId?: string): Promise<void> {
+    if (fileId !== undefined) {
+      // Canonical generators keep UUID identity while the legacy planner enumerates TC-* filenames.
+      if (fileId !== testCase.id && fileId !== 'TC-' + testCase.id) {
+        throw new Error('Invalid case filename identity');
+      }
+      await this.writeYaml(
+        join('.qa/modules', moduleName, 'tests', `${fileId}.yaml`),
+        testCase
+      );
+      return;
+    }
+
+    const isClassic = Boolean(testCase.id?.startsWith('TC-'));
     const targetDir = isClassic
       ? join('.qa/modules', moduleName, 'tests')
       : join('.qa/modules', moduleName, 'tests', 'cases');
@@ -487,7 +635,7 @@ export class FileSystemStorage implements IStorage {
     const hash6 = createHash('sha256').update(testCase.id).digest('hex').slice(0, 6);
     return `${slug}-${hash6}`;
   }
-  
+
   // ---------------------------------------------------------------------
   // Resultados de ejecucion e historial
   // ---------------------------------------------------------------------

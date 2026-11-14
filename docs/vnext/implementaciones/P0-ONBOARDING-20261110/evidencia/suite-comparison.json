@@ -1,0 +1,18 @@
+{
+  "baseline_sha": "d3190dfc5edaac7f3f8ad7b35d9d9799150b9a69",
+  "baseline_total": 518,
+  "baseline_passed": 506,
+  "baseline_failed": 12,
+  "final_total": 532,
+  "final_passed": 517,
+  "final_failed": 15,
+  "final_pending": 0,
+  "aggregation": "Raw full suite emitted Vitest internal running-tests warning. Replaced only the affected suite with its complete focused rerun; raw reports retained.",
+  "new_failures": [
+    "P4.5-S1: Preflight browser, Module Candidates, and Session Plan C1: directivas contienen la indicación de preflight, exploracion y longitud <= 600",
+    "P4.5-S1: Preflight browser, Module Candidates, and Session Plan C1: status/init conservan la frase histórica y discover declara persistencia canónica estática",
+    "real MCP client/server via linked transports preserves 16 definitions, order, prompts and legacy rules schema; adds explicit canonical interview operations"
+  ],
+  "baseline_failures_not_reproduced": [],
+  "acceptance": "NO_GO_T09_not_accredited_and_metadata_contract_failures_open"
+}

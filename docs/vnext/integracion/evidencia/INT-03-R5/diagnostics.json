@@ -1,0 +1,74 @@
+{
+  "method": "Multisets of file/code/message, ignoring shifted lines and normalizing absolute checkout prefixes inside TS6059. No diagnostics suppressed.",
+  "MCP_vs_INT03": {
+    "baseline": 116,
+    "R5": 116,
+    "retained": 116,
+    "added": [],
+    "resolved": []
+  },
+  "root_vs_candidate": {
+    "baseline": 1923,
+    "R5": 1917,
+    "retained": 1916,
+    "added": [
+      {
+        "file": "packages/mcp/src/host-composition.ts",
+        "code": "TS2307",
+        "message": "Cannot find module 'node:url' or its corresponding type declarations.",
+        "count": 1
+      }
+    ],
+    "resolved": [
+      {
+        "file": "packages/mcp/src/host-composition.ts",
+        "code": "TS2339",
+        "message": "Property 'hash' does not exist on type 'URL'.",
+        "count": 1
+      },
+      {
+        "file": "packages/mcp/src/host-composition.ts",
+        "code": "TS2339",
+        "message": "Property 'hostname' does not exist on type 'URL'.",
+        "count": 1
+      },
+      {
+        "file": "packages/mcp/src/host-composition.ts",
+        "code": "TS2339",
+        "message": "Property 'href' does not exist on type 'URL'.",
+        "count": 1
+      },
+      {
+        "file": "packages/mcp/src/host-composition.ts",
+        "code": "TS2339",
+        "message": "Property 'password' does not exist on type 'URL'.",
+        "count": 1
+      },
+      {
+        "file": "packages/mcp/src/host-composition.ts",
+        "code": "TS2339",
+        "message": "Property 'protocol' does not exist on type 'URL'.",
+        "count": 1
+      },
+      {
+        "file": "packages/mcp/src/host-composition.ts",
+        "code": "TS2339",
+        "message": "Property 'username' does not exist on type 'URL'.",
+        "count": 1
+      },
+      {
+        "file": "packages/mcp/src/host-composition.ts",
+        "code": "TS2693",
+        "message": "'URL' only refers to a type, but is being used as a value here.",
+        "count": 1
+      }
+    ]
+  },
+  "five_additional_vs_INT03": {
+    "performance_TS2304": 2,
+    "node_imports_TS2307": 3,
+    "knowledge_package_diagnostics": 0,
+    "runner_package_diagnostics": 0,
+    "build": "PASS"
+  }
+}

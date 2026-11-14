@@ -6,7 +6,7 @@ import { generateModuleCandidates } from '../candidate-generator.js';
 describe('C4: generateModuleCandidates (Generador de Módulos Candidatos)', () => {
   // Mock o validador temporal si SchemaValidator requiere ajuste
   const validator = {
-    validateModuleCandidates: (_candidatesFile: any) => ({ valid: true })
+    validateModuleCandidates: (candidatesFile: unknown) => ({ valid: candidatesFile !== undefined })
   };
 
   const docText = `

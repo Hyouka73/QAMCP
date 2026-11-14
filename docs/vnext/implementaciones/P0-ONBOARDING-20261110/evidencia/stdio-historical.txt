@@ -1,0 +1,107 @@
+====================================================
+     Probando Servidor MCP QAP vía StdioTransport   
+====================================================
+
+Modo de ejecución: node C:\Users\Judirico\Documents\QAMCP\qap-vnext-runtime\packages\cli\dist\entrypoint.js mcp
+[QAP MCP Server] Servidor iniciado correctamente en transporte Stdio.
+✔ Conexión Stdio establecida con éxito con QAP MCP Server.
+
+--- 1. Consultando herramientas disponibles (tools/list) ---
+Herramientas encontradas (18):
+  🔧 qap_status: PUNTO DE ENTRADA OBLIGATORIO para «Quiero probar un sistema», probar una aplicación o empezar QA, incluso desde una carpeta vacía. Invócala inmediatamente sin exigir qap_start ni configuración técnica al usuario. Resuelve raíces autorizadas, prepara estructuras locales seguras, inspecciona documentos y devuelve una única siguiente acción. Información faltante y trabajo local no son errores terminales. No autoriza navegación, login, instalación, ejecución ni aprobación humana.
+
+DIRECTIVAS OBLIGATORIAS:
+1. Sigue estrictamente la siguiente_accion indicada por el servidor.
+2. Investiga el workspace antes de preguntar: lee documentos, README y package.json.
+3. No pidas al usuario lo que un documento ya especifica.
+4. Pasos de tipo "trabajo" son autónomos: ejecútalos directamente sin consultar al usuario; las acciones que requieren confirmación nunca vienen como trabajo.
+5. Máximo una sola pregunta estructurada al usuario por turno.
+6. Navegación, autenticación, instalación y ejecución requieren su autorización correspondiente. Explora solo con qap_discover.
+  🔧 qap_init: Inicialización compatible de .qa/ dentro de un workspace autorizado. El punto de entrada natural es qap_status, que prepara automáticamente los recursos locales seguros. No otorga permisos para instalación, navegación, login ni ejecución. DIRECTIVA DE UX ESTRICTA: Guía al usuario paso a paso interactivo. Si tu entorno dispone de herramienta para hacer preguntas interactivas con opciones (como ask_question), ÚSALA OBLIGATORIAMENTE para cada decisión. Si no, formula la pregunta directa con sus opciones. PROHIBIDO mostrar listas de pasos futuros (1, 2, 3...), tutoriales o pedir comandos de terminal.
+
+DIRECTIVAS OBLIGATORIAS:
+1. Sigue estrictamente la siguiente_accion indicada por el servidor.
+2. Investiga el workspace antes de preguntar: lee documentos, README y package.json.
+3. No pidas al usuario lo que un documento ya especifica.
+4. Pasos de tipo "trabajo" son autónomos: ejecútalos directamente sin consultar al usuario; las acciones que requieren confirmación nunca vienen como trabajo.
+5. Máximo una sola pregunta estructurada al usuario por turno.
+6. Navegación, autenticación, instalación y ejecución requieren su autorización correspondiente. Explora solo con qap_discover.
+  🔧 qap_clean: Ejecuta el reseteo completo del proyecto (.qa/ y locks remanentes) para una inicialización limpia desde cero. DIRECTIVA DE UX ESTRICTA: Guía al usuario paso a paso interactivo. Si tu entorno dispone de herramienta para hacer preguntas interactivas con opciones (como ask_question), ÚSALA OBLIGATORIAMENTE para cada decisión. Si no, formula la pregunta directa con sus opciones. PROHIBIDO mostrar listas de pasos futuros (1, 2, 3...), tutoriales o pedir comandos de terminal.
+  🔧 qap_auth_add: Registra y verifica un perfil de autenticación en .qa/project/auth/profiles.json. Permite método 'credentials' (almacenando únicamente credenciales de PRUEBA en llavero seguro keytar sin texto plano) o 'handoff' (login manual asistido en navegador). Tras capturar la sesión, ejecuta verificación automática contra el primer módulo protegido del plan y guarda el storageState. DIRECTIVA DE UX ESTRICTA: Guía al usuario paso a paso interactivo. Si tu entorno dispone de herramienta para hacer preguntas interactivas con opciones (como ask_question), ÚSALA OBLIGATORIAMENTE para cada decisión. Si no, formula la pregunta directa con sus opciones. PROHIBIDO mostrar listas de pasos futuros (1, 2, 3...), tutoriales o pedir comandos de terminal.
+  🔧 qap_auth_list: Lista todos los perfiles de autenticación registrados en el proyecto sin exponer secretos. DIRECTIVA DE UX ESTRICTA: Guía al usuario paso a paso interactivo. Si tu entorno dispone de herramienta para hacer preguntas interactivas con opciones (como ask_question), ÚSALA OBLIGATORIAMENTE para cada decisión. Si no, formula la pregunta directa con sus opciones. PROHIBIDO mostrar listas de pasos futuros (1, 2, 3...), tutoriales o pedir comandos de terminal.
+  🔧 qap_context_set: Actualiza parcial e incrementalmente el contexto de negocio en .qa/project/context.yaml. Evalúa la compuerta de ONBOARDING. DIRECTIVA DE UX ESTRICTA: Guía al usuario paso a paso interactivo. Si tu entorno dispone de herramienta para hacer preguntas interactivas con opciones (como ask_question), ÚSALA OBLIGATORIAMENTE para cada decisión. Si no, formula la pregunta directa con sus opciones. PROHIBIDO mostrar listas de pasos futuros (1, 2, 3...), tutoriales o pedir comandos de terminal.
+
+DIRECTIVAS OBLIGATORIAS:
+1. Sigue estrictamente la siguiente_accion indicada por el servidor.
+2. Investiga el workspace antes de preguntar: lee documentos, README y package.json.
+3. No pidas al usuario lo que un documento ya especifica.
+4. Pasos de tipo "trabajo" son autónomos: ejecútalos directamente sin consultar al usuario; las acciones que requieren confirmación nunca vienen como trabajo.
+5. Máximo una sola pregunta estructurada al usuario por turno.
+6. Navegación, autenticación, instalación y ejecución requieren su autorización correspondiente. Explora solo con qap_discover.
+  🔧 qap_context_ingest: Ingesta y procesa un documento de requerimientos (PRD, README, spec) para extraer propuestas de contexto y plan sugerido. DIRECTIVA DE UX ESTRICTA: Guía al usuario paso a paso interactivo. Si tu entorno dispone de herramienta para hacer preguntas interactivas con opciones (como ask_question), ÚSALA OBLIGATORIAMENTE para cada decisión. Si no, formula la pregunta directa con sus opciones. PROHIBIDO mostrar listas de pasos futuros (1, 2, 3...), tutoriales o pedir comandos de terminal.
+
+DIRECTIVAS OBLIGATORIAS:
+1. Sigue estrictamente la siguiente_accion indicada por el servidor.
+2. Investiga el workspace antes de preguntar: lee documentos, README y package.json.
+3. No pidas al usuario lo que un documento ya especifica.
+4. Pasos de tipo "trabajo" son autónomos: ejecútalos directamente sin consultar al usuario; las acciones que requieren confirmación nunca vienen como trabajo.
+5. Máximo una sola pregunta estructurada al usuario por turno.
+6. Navegación, autenticación, instalación y ejecución requieren su autorización correspondiente. Explora solo con qap_discover.
+  🔧 qap_session_plan: Define o amplía el plan de sesión y la decisión de autenticación. Admite desde_candidatos (referenciando module-candidates.json) y adicionales. Transiciona a WORKING cuando el plan es válido. DIRECTIVA DE UX ESTRICTA: Guía al usuario paso a paso interactivo. Si tu entorno dispone de herramienta para hacer preguntas interactivas con opciones (como ask_question), ÚSALA OBLIGATORIAMENTE para cada decisión. Si no, formula la pregunta directa con sus opciones. PROHIBIDO mostrar listas de pasos futuros (1, 2, 3...), tutoriales o pedir comandos de terminal.
+
+DIRECTIVAS OBLIGATORIAS:
+1. Sigue estrictamente la siguiente_accion indicada por el servidor.
+2. Investiga el workspace antes de preguntar: lee documentos, README y package.json.
+3. No pidas al usuario lo que un documento ya especifica.
+4. Pasos de tipo "trabajo" son autónomos: ejecútalos directamente sin consultar al usuario; las acciones que requieren confirmación nunca vienen como trabajo.
+5. Máximo una sola pregunta estructurada al usuario por turno.
+6. Navegación, autenticación, instalación y ejecución requieren su autorización correspondiente. Explora solo con qap_discover.
+  🔧 qap_discover: Observa una MPA mediante BlackBoxCrawler real y estático, con JavaScript deshabilitado; admite un perfil de sesión de cookies verificado si el host lo autoriza. Requiere binding canónico y autorización explícita del host para cada URL GET e IP/red; GET no garantiza inocuidad semántica. Persiste observaciones y evidencias en IKnowledgeStore, sin escribir .qa/modules/ ni avanzar lifecycle. Solo profile selecciona una sesión de cookies autorizada y verificada; no admite credentials, profileId, sesiones aportadas ni headed=true. Cobertura parcial y vistas dependientes de JavaScript se declaran como tales. DIRECTIVA DE UX ESTRICTA: Guía al usuario paso a paso interactivo. Si tu entorno dispone de herramienta para hacer preguntas interactivas con opciones (como ask_question), ÚSALA OBLIGATORIAMENTE para cada decisión. Si no, formula la pregunta directa con sus opciones. PROHIBIDO mostrar listas de pasos futuros (1, 2, 3...), tutoriales o pedir comandos de terminal.
+
+DIRECTIVAS OBLIGATORIAS:
+1. Sigue estrictamente la siguiente_accion indicada por el servidor.
+2. Investiga el workspace antes de preguntar: lee documentos, README y package.json.
+3. No pidas al usuario lo que un documento ya especifica.
+4. Pasos de tipo "trabajo" son autónomos: ejecútalos directamente sin consultar al usuario; las acciones que requieren confirmación nunca vienen como trabajo.
+5. Máximo una sola pregunta estructurada al usuario por turno.
+6. Navegación, autenticación, instalación y ejecución requieren su autorización correspondiente. Explora solo con qap_discover.
+  🔧 qap_plan: Planifica casos existentes. case_workflow genera propuestas desde requisitos confirmados y solicita su aprobación independiente; nunca confirma requisitos ni aprueba por argumentos MCP. DIRECTIVA DE UX ESTRICTA: Guía al usuario paso a paso interactivo. Si tu entorno dispone de herramienta para hacer preguntas interactivas con opciones (como ask_question), ÚSALA OBLIGATORIAMENTE para cada decisión. Si no, formula la pregunta directa con sus opciones. PROHIBIDO mostrar listas de pasos futuros (1, 2, 3...), tutoriales o pedir comandos de terminal.
+  🔧 qap_validate: Valida estáticamente las definiciones, schemas y ausencia de ciclos en el DAG de dependencias. DIRECTIVA DE UX ESTRICTA: Guía al usuario paso a paso interactivo. Si tu entorno dispone de herramienta para hacer preguntas interactivas con opciones (como ask_question), ÚSALA OBLIGATORIAMENTE para cada decisión. Si no, formula la pregunta directa con sus opciones. PROHIBIDO mostrar listas de pasos futuros (1, 2, 3...), tutoriales o pedir comandos de terminal.
+  🔧 qap_test: Ejecuta el plan de pruebas de un módulo o la suite completa (en desarrollo para Sprint 7). DIRECTIVA DE UX ESTRICTA: Guía al usuario paso a paso interactivo. Si tu entorno dispone de herramienta para hacer preguntas interactivas con opciones (como ask_question), ÚSALA OBLIGATORIAMENTE para cada decisión. Si no, formula la pregunta directa con sus opciones. PROHIBIDO mostrar listas de pasos futuros (1, 2, 3...), tutoriales o pedir comandos de terminal.
+  🔧 qap_report: Genera reportes de ejecución en HTML interactivo, Markdown, JUnit y JSON para una corrida o módulo. DIRECTIVA DE UX ESTRICTA: Guía al usuario paso a paso interactivo. Si tu entorno dispone de herramienta para hacer preguntas interactivas con opciones (como ask_question), ÚSALA OBLIGATORIAMENTE para cada decisión. Si no, formula la pregunta directa con sus opciones. PROHIBIDO mostrar listas de pasos futuros (1, 2, 3...), tutoriales o pedir comandos de terminal.
+  🔧 qap_server: Inicia el servidor web interactivo del Knowledge Graph 2D y telemetría en http://localhost:9280 (ruta /graph-view). DIRECTIVA DE UX ESTRICTA: Guía al usuario paso a paso interactivo. Si tu entorno dispone de herramienta para hacer preguntas interactivas con opciones (como ask_question), ÚSALA OBLIGATORIAMENTE para cada decisión. Si no, formula la pregunta directa con sus opciones. PROHIBIDO mostrar listas de pasos futuros (1, 2, 3...), tutoriales o pedir comandos de terminal.
+  🔧 qap_prune: Poda y limpia la telemetría histórica, capturas de pantalla y artefactos antiguos para optimizar espacio. DIRECTIVA DE UX ESTRICTA: Guía al usuario paso a paso interactivo. Si tu entorno dispone de herramienta para hacer preguntas interactivas con opciones (como ask_question), ÚSALA OBLIGATORIAMENTE para cada decisión. Si no, formula la pregunta directa con sus opciones. PROHIBIDO mostrar listas de pasos futuros (1, 2, 3...), tutoriales o pedir comandos de terminal.
+  🔧 qap_rules_set: Ruta legacy: persiste reglas y waivers en rules.yaml con contexto legacy válido. Ruta explícita canonical_interview: entrevista canónica y propuestas; confirmar ExpectedRequirement exige un gateway de revisión humana inyectado por el host. Los argumentos MCP no acreditan autorización humana. Sin dual-write. DIRECTIVA DE UX ESTRICTA: Guía al usuario paso a paso interactivo. Si tu entorno dispone de herramienta para hacer preguntas interactivas con opciones (como ask_question), ÚSALA OBLIGATORIAMENTE para cada decisión. Si no, formula la pregunta directa con sus opciones. PROHIBIDO mostrar listas de pasos futuros (1, 2, 3...), tutoriales o pedir comandos de terminal.
+  🔧 qap_module_close: Cierra formalmente un módulo consolidado (action: "close") o renuncia a él con justificación (action: "waive"). Requiere confirmación explícita del usuario (user_confirmed: true).
+  🔧 qap_session_close: Cierra la sesión de trabajo activa cuando todos sus módulos están closed o waived, genera el reporte de brechas (.qa/project/sessions/<session_id>.report.md) y transiciona el proyecto a WRAP_UP.
+
+--- 2. Probando invocación de herramienta: qap_status ---
+Respuesta recibida del MCP Server:
+{
+  "status": "blocked",
+  "category": "human_authorization",
+  "code": "workspace_selection_required",
+  "desbloquear_con": {
+    "mecanismo": "local_host",
+    "comando": "\"C:\\Program Files\\nodejs\\node.exe\" \"C:\\Users\\Judirico\\Documents\\QAMCP\\qap-vnext-runtime\\scripts\\qap-authorize-workspace.mjs\" <workspace-absoluto>",
+    "descripcion": "El host debe seleccionar la carpeta autorizada; reintenta qap_status tras reconectar el MCP."
+  }
+}
+
+--- 3. Probando invocación de herramienta: qap_init ---
+Respuesta recibida del MCP Server:
+{
+  "status": "blocked",
+  "category": "human_authorization",
+  "code": "workspace_selection_required",
+  "desbloquear_con": {
+    "mecanismo": "local_host",
+    "comando": "\"C:\\Program Files\\nodejs\\node.exe\" \"C:\\Users\\Judirico\\Documents\\QAMCP\\qap-vnext-runtime\\scripts\\qap-authorize-workspace.mjs\" <workspace-absoluto>",
+    "descripcion": "El host debe seleccionar la carpeta autorizada; reintenta qap_status tras reconectar el MCP."
+  }
+}
+
+====================================================
+  ✔ SERVIDOR MCP FUNCIONANDO AL 100% SOBRE STDIO!   
+====================================================
+

@@ -1,6 +1,26 @@
 // @qap/mcp - MCP Server & Tool Provider
 export * from './server.js';
+export * from './dispatcher.js';
+export type { StateDependencies, ProjectKnowledgeBinding } from './handlers/state-services.js';
 export { registerMcpProject } from './register.js';
 export type { RegisterMcpOptions } from './register.js';
 export { handleInterviewTools } from './tools/interview-tools.js';
 export { handleGapReportTools } from './tools/gap-report-tools.js';
+
+export { DiscoveryHandler, type DiscoveryAuthorization } from './handlers/discovery.handler.js';
+export { ModuleObservationBridge, type ModuleBinding, type AssociationReceipt } from './handlers/module-observation-bridge.js';
+export { CanonicalInterviewService, INTERVIEW_CATEGORY_MAPPING, type IHumanReviewGateway,
+  type HumanReviewRequest, type HumanReviewDecision, type RequirementProposal } from './handlers/canonical-interview-service.js';
+export { SqliteInterviewDraftStore, InterviewDraftError, type IInterviewDraftStore,
+  type SqliteInterviewDraftOptions, type InterviewScope, type InterviewDraftSnapshot } from './handlers/interview-draft-store.js';
+
+export { HostReviewQueue } from './host-review.js';
+
+export { SqliteModuleClosureStore } from './handlers/module-closure-store.js';
+
+export * from './workspace-authorizer.js';
+export * from './discovery-authorizer.js';
+export * from './application/index.js';
+export { ProjectHandler } from './handlers/project.handler.js';
+export { acknowledgeProjectInitialization, acquireProjectOperation, localProjectResetOptions, ProjectReset, readProjectResetState, resetHostDirectory } from './project-reset.js';
+export { windowsProjectResetAuthorizer } from './project-reset-dialog.js';

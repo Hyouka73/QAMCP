@@ -59,7 +59,7 @@ describe('S82-002: Integración de Flujo A -> B (Captura e Interpolación)', () 
       },
     };
 
-    const orchestrator = new FlowOrchestrator(mockStorage as any, mockRunner as any, undefined, testDir);
+    const orchestrator = new FlowOrchestrator(mockStorage as any, mockRunner as any);
 
     const flowDefinition = {
       _version: '1.0',
@@ -74,5 +74,92 @@ describe('S82-002: Integración de Flujo A -> B (Captura e Interpolación)', () 
 
     expect(result.status).toBe('passed');
     expect(result.completed_modules).toEqual(['mod_a', 'mod_b']);
+  });
+
+  it('mantiene TestPlan.cases como IDs, delega lock_owned_by_caller y ejecuta estado/backup/checkpoint bajo el lock', async () => {
+    const events: string[] = [];
+
+    const mockStorage = {
+      getTestPlan: async (moduleName: string) => ({
+        modules: [moduleName],
+        cases: [`TC-${moduleName}-1`],
+      }),
+    };
+
+    const receivedPlans: Array<{ cases?: unknown; lock_owned_by_caller?: boolean }> = [];
+    const mockRunner = {
+      execute: async (plan: any, options: any) => {
+        events.push(`runner:${plan.modules[0]}`);
+        receivedPlans.push({
+          cases: plan.cases,
+          lock_owned_by_caller: options.lock_owned_by_caller,
+        });
+        if (plan.modules[0] === 'mod_a') {
+          options.context_data._capturedBuffer['TC-mod_a-1'] = { RAW_ID: 'SYNTH-42' };
+        }
+        return { result: 'passed' };
+      },
+    };
+
+    const mockLockProvider = {
+      withModulesLock: async <T>(modules: string[], fn: () => Promise<T>): Promise<T> => {
+        events.push(`lock_enter:${modules.join(',')}`);
+        const res = await fn();
+        events.push('lock_exit');
+        return res;
+      },
+    };
+
+    const mockFlowStore = {
+      loadState: () => {
+        events.push('loadState');
+        return null;
+      },
+      hasSessionBackup: () => {
+        events.push('hasSessionBackup');
+        return false;
+      },
+      backupSessions: () => {
+        events.push('backupSessions');
+      },
+      saveState: (state: any) => {
+        events.push(`saveState:${state.completed_modules.join(',')}`);
+      },
+      restoreSessions: () => true,
+    };
+
+    const orchestrator = new FlowOrchestrator(
+      mockStorage as any,
+      mockRunner as any,
+      mockLockProvider,
+      mockFlowStore
+    );
+
+    const result = (await orchestrator.executeFlow(
+      {
+        name: 'flow_lock_order',
+        modules: [{ module: 'mod_a' }, { module: 'mod_b' }],
+        context_sharing: [
+          { capture: 'RAW_ID', from_module: 'mod_a', from_case: 'TC-mod_a-1', as: 'ALIASED_ID' },
+        ],
+      },
+      {}
+    )) as unknown as Record<string, unknown>;
+
+    expect(result.status).toBe('passed');
+    expect(receivedPlans).toEqual([
+      { cases: ['TC-mod_a-1'], lock_owned_by_caller: true },
+      { cases: ['TC-mod_b-1'], lock_owned_by_caller: true },
+    ]);
+    expect(events).toEqual([
+      'lock_enter:mod_a,mod_b',
+      'loadState',
+      'backupSessions',
+      'runner:mod_a',
+      'saveState:mod_a',
+      'runner:mod_b',
+      'saveState:mod_a,mod_b',
+      'lock_exit',
+    ]);
   });
 });

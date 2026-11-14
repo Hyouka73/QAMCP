@@ -16,6 +16,10 @@ import {
   MODULE_TRANSITIONS,
 } from '../lifecycle.js';
 
+function assertState(condition: unknown): asserts condition {
+  if (!condition) throw new Error('Expected a transition state');
+}
+
 describe('Lifecycle Transitions (E2 & Criterio 1)', () => {
   const initialLifecycleState: LifecycleState = {
     _version: '1',
@@ -61,6 +65,7 @@ describe('Lifecycle Transitions (E2 & Criterio 1)', () => {
       // ONBOARDING -> SCOPING
       const step1 = transition(state, 'SCOPING');
       expect(step1.success).toBe(true);
+      assertState(step1.state && typeof step1.state === 'object');
       expect(step1.state.phase).toBe('SCOPING');
       expect(step1.state.history).toHaveLength(1);
       expect(step1.state.history[0]?.from).toBe('ONBOARDING');
@@ -70,18 +75,21 @@ describe('Lifecycle Transitions (E2 & Criterio 1)', () => {
       // SCOPING -> WORKING
       const step2 = transition(state, 'WORKING');
       expect(step2.success).toBe(true);
+      assertState(step2.state && typeof step2.state === 'object');
       expect(step2.state.phase).toBe('WORKING');
       state = step2.state;
 
       // WORKING -> WRAP_UP
       const step3 = transition(state, 'WRAP_UP');
       expect(step3.success).toBe(true);
+      assertState(step3.state && typeof step3.state === 'object');
       expect(step3.state.phase).toBe('WRAP_UP');
       state = step3.state;
 
       // WRAP_UP -> SCOPING (nueva sesión)
       const step4 = transition(state, 'SCOPING');
       expect(step4.success).toBe(true);
+      assertState(step4.state && typeof step4.state === 'object');
       expect(step4.state.phase).toBe('SCOPING');
       expect(step4.state.history).toHaveLength(4);
     });
@@ -160,6 +168,7 @@ describe('Lifecycle Transitions (E2 & Criterio 1)', () => {
       const state = initialLifecycleState;
       const res = transitionModule(state, 'checkout', 'observed');
       expect(res.success).toBe(true);
+      assertState(res.state && typeof res.state === 'object');
       expect(res.state.modules['checkout']?.state).toBe('observed');
       expect(res.state.history).toHaveLength(1);
       expect(res.state.history[0]?.from).toBe('checkout:planned');
@@ -219,6 +228,7 @@ describe('Lifecycle Transitions (E2 & Criterio 1)', () => {
         };
         const res = transitionProject(state, targetPhase, `Paso ${i}`);
         expect(res.success).toBe(true);
+        assertState(res.state);
         state = res.state;
       }
 
@@ -277,6 +287,33 @@ describe('Lifecycle Transitions (E2 & Criterio 1)', () => {
       const res = canExitOnboarding(shortObjectiveContext, validEnv);
       expect(res.passed).toBe(false);
       expect(res.faltantes.some((f) => f.campo === 'objective' && f.motivo.includes('20 caracteres'))).toBe(true);
+    });
+
+    it('F10: canExitOnboarding debe fallar si el objetivo es un stub o placeholder inválido ("Documento vacío", "TODO", etc.)', () => {
+      const stubObjectives = [
+        'Documento vacío',
+        'documento vacio',
+        'sin objetivo',
+        'TODO',
+        'TBD',
+        'placeholder',
+        'none',
+        'null',
+        'n/a',
+      ];
+
+      for (const stub of stubObjectives) {
+        const stubCtx = {
+          ...validContext,
+          objective: stub,
+          objective_source: 'user' as const,
+        };
+        const res = canExitOnboarding(stubCtx, validEnv);
+        expect(res.passed).toBe(false);
+        const objFaltante = res.faltantes.find((f) => f.campo === 'objective');
+        expect(objFaltante).toBeDefined();
+        expect(objFaltante?.motivo).toBe('el objetivo es un marcador de posición o stub inválido');
+      }
     });
 
     it('canExitOnboarding debe fallar si el objetivo es la descripción genérica de qap_init', () => {
@@ -483,6 +520,7 @@ describe('Lifecycle Transitions (E2 & Criterio 1)', () => {
         environments: validEnv,
       });
       expect(passed.success).toBe(true);
+      assertState(passed.state && typeof passed.state === 'object');
       expect(passed.state.phase).toBe('SCOPING');
     });
   });

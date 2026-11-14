@@ -1,0 +1,16 @@
+{
+  "packages/mcp/src/tool-catalog.ts": "b65d43c27fb51a6248888ec232bad4abea3dedc382be0eed5cf757ce8f7eae43",
+  "packages/mcp/src/__tests__/autonomous-onboarding.test.ts": "d8dcf066d16d43640b992a88e3f9781ba69b8c1176049d564a35322af8e3c963",
+  "packages/mcp/src/__tests__/discovery-handler.test.ts": "cb0c732bbe0e6df581ba6d047beabc908cb86d236ce08fa34b80e5f4d4482a24",
+  "scripts/qap-authorize-workspace.mjs": "2be3a7f57ca86c64777f478acfd9e508aaf3764b2b7be38ddbad28272396840c",
+  "scripts/test-onboarding-stdio.mjs": "b0b0aee9af3557e7a8fe11aa59a217f53c4ead26e92b74573ea56ad45e8d8384",
+  "packages/mcp/src/handlers/discovery.handler.ts": "81874da7d6508ab353884b508e29edc665130f3114b58c227678ec508479c9b9",
+  "packages/mcp/src/host-composition.ts": "07ccf53ccdb03dcf57f724369d35e33f35809b12ae40cf60f5caac847624cf1a",
+  "packages/mcp/src/workspace-bootstrap.ts": "7672495f94bcad9bf376562957787386954d39f23aa96051a25bc8e96392819e",
+  "packages/mcp/src/handlers/status.handler.ts": "b2f25f7a083da35a179fffd76feb1f38c973041034c5861de03ba86e0954e1a4",
+  "scripts/qap-provision-host.mjs": "edfd0336047a9a39b91c8adac5088581a6851532225ca7f2cb6f3ca9dc45c505",
+  "packages/mcp/src/handlers/state-services.ts": "638a896f11be9f9e9a2c2b8494f2db27e9f9852d9b0ec9b394f9fe289e7be9b1",
+  "packages/mcp/src/server.ts": "93f7dec249a7287563be4a21d89648ee608e262f3f73141019aa145db62cdf20",
+  "packages/mcp/src/guidance.ts": "307d1403902846df4f58a9cc29e22f20f68e6880ac34c02129185124f80c8a48",
+  "packages/mcp/src/handlers/context.handler.ts": "680338395c434aa27871b301d6212abe49f6a7d6ae7e213f6663060ca03d0637"
+}

@@ -1,0 +1,88 @@
+{
+  "numTotalTestSuites": 2,
+  "numPassedTestSuites": 2,
+  "numFailedTestSuites": 0,
+  "numPendingTestSuites": 0,
+  "numTotalTests": 4,
+  "numPassedTests": 4,
+  "numFailedTests": 0,
+  "numPendingTests": 0,
+  "numTodoTests": 0,
+  "snapshot": {
+    "added": 0,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0,
+    "didUpdate": false
+  },
+  "startTime": 1794008843492,
+  "success": true,
+  "testResults": [
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "Suite MCP Server QAP v2.1 / v2.1.2"
+          ],
+          "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 el contexto de vista generado por qap_discover debe validar contra module-view.schema.json (Criterio 4)",
+          "status": "passed",
+          "title": "el contexto de vista generado por qap_discover debe validar contra module-view.schema.json (Criterio 4)",
+          "duration": 1576.2776999999999,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Suite MCP Server QAP v2.1 / v2.1.2"
+          ],
+          "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 qap_discover con contexto de vista inválido no debe escribir archivos y debe retornar error (Criterio 4)",
+          "status": "passed",
+          "title": "qap_discover con contexto de vista inválido no debe escribir archivos y debe retornar error (Criterio 4)",
+          "duration": 1195.5267,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Suite MCP Server QAP v2.1 / v2.1.2"
+          ],
+          "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 E0a: qap_discover valida contra module-view.schema.json en camino de fallo de Playwright",
+          "status": "passed",
+          "title": "E0a: qap_discover valida contra module-view.schema.json en camino de fallo de Playwright",
+          "duration": 266.41859999999997,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Suite MCP Server QAP v2.1 / v2.1.2"
+          ],
+          "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 E0c: qap_discover valida contra module-view.schema.json en vista con routes_found vacio",
+          "status": "passed",
+          "title": "E0c: qap_discover valida contra module-view.schema.json en vista con routes_found vacio",
+          "duration": 1104.9366,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        }
+      ],
+      "startTime": 1794008845296,
+      "endTime": 1794008849439.9365,
+      "status": "passed",
+      "message": "",
+      "name": "<repo>/packages/mcp/src/__tests__/server-canonical-discovery.test.ts"
+    }
+  ]
+}

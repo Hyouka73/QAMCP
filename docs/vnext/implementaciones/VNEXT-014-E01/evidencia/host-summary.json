@@ -1,0 +1,30 @@
+{
+  "after-full-host.json": {
+    "samples": 10,
+    "min_available_mb": 535,
+    "max_cpu_percent": 100,
+    "max_pages_input_per_sec": 269019,
+    "max_disk_queue": 93
+  },
+  "before-full-host.json": {
+    "samples": 10,
+    "min_available_mb": 11,
+    "max_cpu_percent": 100,
+    "max_pages_input_per_sec": 64185,
+    "max_disk_queue": 58
+  },
+  "final-parallel-1-host.json": {
+    "samples": 12,
+    "min_available_mb": 1569,
+    "max_cpu_percent": 100,
+    "max_pages_input_per_sec": 1175,
+    "max_disk_queue": 2
+  },
+  "final-stages-host.json": {
+    "samples": 10,
+    "min_available_mb": 2005,
+    "max_cpu_percent": 100,
+    "max_pages_input_per_sec": 732,
+    "max_disk_queue": 1
+  }
+}

@@ -1,0 +1,1139 @@
+{
+  "reference": "26143382d1262b2ef9cbeb02f8773148e4439ebc",
+  "files": [
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/adapter-focal.json",
+      "raw_sha256": "374bf9a2e85dfb5f9aafd9dffd4b9683ea5de0718bf8fbed9a90e449a4e35f70",
+      "published_sha256": "374bf9a2e85dfb5f9aafd9dffd4b9683ea5de0718bf8fbed9a90e449a4e35f70",
+      "published_bytes": 15738
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/adapter-focal.log",
+      "raw_sha256": "e74ea410092e0c8ed7c339f15a34cd5943d18c4c3a6425119e76dec4c62fc32b",
+      "published_sha256": "1c9e7c3d31aea248e4e4c0fff05bab4c6c9b6814a0808652b4e67c208a324d41",
+      "published_bytes": 3876
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/adapter.log",
+      "raw_sha256": "0e1875f6eaa346b85002897064cfc27ebdaf3687e8e1590d4fd8df070ae828e8",
+      "published_sha256": "e513d80f8974f5f3339cac93ff1ee2d54e07b860ca8b48567818261da73e80bb",
+      "published_bytes": 2448
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/after-full-host.json",
+      "raw_sha256": "f91af081e95eb6d69652bce1ad3ca4ec1ebfe16a004146ee7d4a130f6d1733be",
+      "published_sha256": "89e0d404d8604f934d5031deb468d88fd149488aecc3ff650b91c9f2a08a4489",
+      "published_bytes": 5471
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/after-full-manifest.json",
+      "raw_sha256": "59b834c5d72d6d5d250bd182a5fc4c3497cf7a7899fe1c858c1710571123a96d",
+      "published_sha256": "7da3a40a73609fe52ced3c1f5e406abcaf7137ef95e7ffeaa83b0d907a14b54a",
+      "published_bytes": 477
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/after-full-stages/11956-23.jsonl.gz",
+      "raw_sha256": "6a47269559c371c18f0627a5a74110b4bf43059edeace986b256a6314ae2fcac",
+      "published_sha256": "6a47269559c371c18f0627a5a74110b4bf43059edeace986b256a6314ae2fcac",
+      "published_bytes": 624
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/after-full-stages/12416-4.jsonl.gz",
+      "raw_sha256": "ca808d1e5f4d6a5e36eb4c917ea1a323d6867f3c903ee5c7b237ba7876d03336",
+      "published_sha256": "ca808d1e5f4d6a5e36eb4c917ea1a323d6867f3c903ee5c7b237ba7876d03336",
+      "published_bytes": 30509
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/after-full-stages/20832-9.jsonl.gz",
+      "raw_sha256": "9944025f2eb4d0a9f3732463fe2ba1820b278d156a75f38b9c01ae5ffe36ff8a",
+      "published_sha256": "9944025f2eb4d0a9f3732463fe2ba1820b278d156a75f38b9c01ae5ffe36ff8a",
+      "published_bytes": 368783
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/after-full-stages/22012-15.jsonl.gz",
+      "raw_sha256": "a77a437e7a3a35242cc39d39bb687b98113928a6f7128daaa1c6c54b0c1305d1",
+      "published_sha256": "a77a437e7a3a35242cc39d39bb687b98113928a6f7128daaa1c6c54b0c1305d1",
+      "published_bytes": 52837
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/after-full-stages/22940-20.jsonl.gz",
+      "raw_sha256": "e64c274813ec7d6f690638ebd58f2fa9c28f769b1a6c845ed79dba7b3f39947d",
+      "published_sha256": "e64c274813ec7d6f690638ebd58f2fa9c28f769b1a6c845ed79dba7b3f39947d",
+      "published_bytes": 9970
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/after-full-stages/26224-12.jsonl.gz",
+      "raw_sha256": "e45fe2fbc8b98e0b0ed0ca94916bdbc50b9e9ab772fc45d8cc14631c64281523",
+      "published_sha256": "e45fe2fbc8b98e0b0ed0ca94916bdbc50b9e9ab772fc45d8cc14631c64281523",
+      "published_bytes": 33198
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/after-full-stages/31792-8.jsonl.gz",
+      "raw_sha256": "8e338f059dc1075e6ad9c8e848de1e672c72f249a2de07036bcaf26602cc64c7",
+      "published_sha256": "8e338f059dc1075e6ad9c8e848de1e672c72f249a2de07036bcaf26602cc64c7",
+      "published_bytes": 155872
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/after-full-stages/38448-7.jsonl.gz",
+      "raw_sha256": "89b9fbd1d462b2672a33fe045e64becbe87c1456fc32d62e451cb456d56443d1",
+      "published_sha256": "89b9fbd1d462b2672a33fe045e64becbe87c1456fc32d62e451cb456d56443d1",
+      "published_bytes": 126394
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/after-full-stages/47824-5.jsonl.gz",
+      "raw_sha256": "24515988612e693d070bf9861a015b7a90ffd8a3c7d6e12f61ddfb972cec8c7a",
+      "published_sha256": "24515988612e693d070bf9861a015b7a90ffd8a3c7d6e12f61ddfb972cec8c7a",
+      "published_bytes": 9263
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/after-full-stages/48016-0.jsonl.gz",
+      "raw_sha256": "bd827f96ae31790c80ed50b24b5c7937416fc0f100e8de69c8faa879f9873811",
+      "published_sha256": "bd827f96ae31790c80ed50b24b5c7937416fc0f100e8de69c8faa879f9873811",
+      "published_bytes": 27460
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/after-full-stages/52964-17.jsonl.gz",
+      "raw_sha256": "a1953fdd3dc70a524274927ba036737b7ccacd84735f5b65cb934bbbdd5ea23f",
+      "published_sha256": "a1953fdd3dc70a524274927ba036737b7ccacd84735f5b65cb934bbbdd5ea23f",
+      "published_bytes": 29463
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/after-full-stages/56140-10.jsonl.gz",
+      "raw_sha256": "fce2ac8792249b1576e15847485616b9811f3f52d4b9d2aac13f8f2671ffe46a",
+      "published_sha256": "fce2ac8792249b1576e15847485616b9811f3f52d4b9d2aac13f8f2671ffe46a",
+      "published_bytes": 9333
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/after-full-stages/5968-13.jsonl.gz",
+      "raw_sha256": "896b7aea8aed3bc9495353b6edad136a554f84e13274dd527dd51d507ac38725",
+      "published_sha256": "896b7aea8aed3bc9495353b6edad136a554f84e13274dd527dd51d507ac38725",
+      "published_bytes": 53844
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/after-full-stages/60516-11.jsonl.gz",
+      "raw_sha256": "13d2fd38a8ca231a3bcd6c3d8abd9b3117cf0c4072c34453963f193273415c38",
+      "published_sha256": "13d2fd38a8ca231a3bcd6c3d8abd9b3117cf0c4072c34453963f193273415c38",
+      "published_bytes": 12082
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/after-full-stages/61912-2.jsonl.gz",
+      "raw_sha256": "c1dc4aa200bfb0fd6eb2c547afe8bd3f177b2c90212f818e2a6c322a4cc90434",
+      "published_sha256": "c1dc4aa200bfb0fd6eb2c547afe8bd3f177b2c90212f818e2a6c322a4cc90434",
+      "published_bytes": 23159
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/after-full-stages/64888-21.jsonl.gz",
+      "raw_sha256": "4e799d484fdc276cf40970e268cbab412743546f7b36f0e4602ff959bcedffaf",
+      "published_sha256": "4e799d484fdc276cf40970e268cbab412743546f7b36f0e4602ff959bcedffaf",
+      "published_bytes": 1264
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/after-full-stages/65032-22.jsonl.gz",
+      "raw_sha256": "4749ebbdf453b12530abcae21dd72be18dc89dc917d5d41ed3b817bb609d10ee",
+      "published_sha256": "4749ebbdf453b12530abcae21dd72be18dc89dc917d5d41ed3b817bb609d10ee",
+      "published_bytes": 1321
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/after-full-stages/68716-16.jsonl.gz",
+      "raw_sha256": "d0fba266ac00d63c5e8a7888824c73752aa20d937c9a623aa391d4232f0e99ac",
+      "published_sha256": "d0fba266ac00d63c5e8a7888824c73752aa20d937c9a623aa391d4232f0e99ac",
+      "published_bytes": 9088
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/after-full-stages/71432-19.jsonl.gz",
+      "raw_sha256": "5d917cf8cbe42b1e87c5aed2628a65a8cd8d6b996c6439a117582b3de15b270f",
+      "published_sha256": "5d917cf8cbe42b1e87c5aed2628a65a8cd8d6b996c6439a117582b3de15b270f",
+      "published_bytes": 7562
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/after-full-stages/7160-18.jsonl.gz",
+      "raw_sha256": "762316bbf69e1497c8de64c60857398e4414e46f93e65c08fcdd4642d76e8ded",
+      "published_sha256": "762316bbf69e1497c8de64c60857398e4414e46f93e65c08fcdd4642d76e8ded",
+      "published_bytes": 2839
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/after-full-stages/72460-1.jsonl.gz",
+      "raw_sha256": "85d09c0e96deea37725ef46151ef1dab7c8be96637784deea91b08c8381945e5",
+      "published_sha256": "85d09c0e96deea37725ef46151ef1dab7c8be96637784deea91b08c8381945e5",
+      "published_bytes": 38907
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/after-full-stages/73912-6.jsonl.gz",
+      "raw_sha256": "d59345e0f45e91f34820ef50aa7fd10ad9b6d46361c4df3c3001efee5fc745b8",
+      "published_sha256": "d59345e0f45e91f34820ef50aa7fd10ad9b6d46361c4df3c3001efee5fc745b8",
+      "published_bytes": 180229
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/after-full-stages/75748-3.jsonl.gz",
+      "raw_sha256": "cf5548980a6014211bd24a3cf9aade71d95858774d4c0d0307086276b58ded1d",
+      "published_sha256": "cf5548980a6014211bd24a3cf9aade71d95858774d4c0d0307086276b58ded1d",
+      "published_bytes": 23351
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/after-full-stages/9276-14.jsonl.gz",
+      "raw_sha256": "1dadcc1fc954dffe846dffe5cf2aa9587b046273646ebaf6c7a622239e0a2d4f",
+      "published_sha256": "1dadcc1fc954dffe846dffe5cf2aa9587b046273646ebaf6c7a622239e0a2d4f",
+      "published_bytes": 408807
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/after-full.json",
+      "raw_sha256": "36155125b9fc04520dd44d833c215853a100311788c605caa22e4bbcecef821e",
+      "published_sha256": "36155125b9fc04520dd44d833c215853a100311788c605caa22e4bbcecef821e",
+      "published_bytes": 257229
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/after-full.log",
+      "raw_sha256": "f9ad5887b45b1bab18f4113b4031c1f5c1ab71b627c856a61d1a0e9b53cea84f",
+      "published_sha256": "83b938b3e1ae52be30b8c5320e1346b82e331b35cf01268792efb404c2ae8e29",
+      "published_bytes": 82629
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/after-group-manifest.json",
+      "raw_sha256": "c1795e34e83c51a9fe11e45f9156ac2fe5f00360e60f874d0193412c4a970283",
+      "published_sha256": "4b629d37100446b8d284c0cc52670474cfa0aef6c0a717c3475109f10093e116",
+      "published_bytes": 664
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/after-group-stages/18600-5.jsonl.gz",
+      "raw_sha256": "19479364abc495a8556d29e574baa5cc54b181adcb6bc9d151af15f278e5a0fe",
+      "published_sha256": "19479364abc495a8556d29e574baa5cc54b181adcb6bc9d151af15f278e5a0fe",
+      "published_bytes": 357578
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/after-group-stages/21480-6.jsonl.gz",
+      "raw_sha256": "d382f4e85b6d1d82801388f8d07d35ab788d2b6b12582ac49776f97f22f17300",
+      "published_sha256": "d382f4e85b6d1d82801388f8d07d35ab788d2b6b12582ac49776f97f22f17300",
+      "published_bytes": 396472
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/after-group-stages/26036-0.jsonl.gz",
+      "raw_sha256": "9064565834ff68eb5d790bd856c7a9eab409b9e0bf105fc8f953e5830c26225a",
+      "published_sha256": "9064565834ff68eb5d790bd856c7a9eab409b9e0bf105fc8f953e5830c26225a",
+      "published_bytes": 49004
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/after-group-stages/26348-7.jsonl.gz",
+      "raw_sha256": "429c4052c25309f732f3f7610d435a788b62989c50c5191f7e58b0e299e4973e",
+      "published_sha256": "429c4052c25309f732f3f7610d435a788b62989c50c5191f7e58b0e299e4973e",
+      "published_bytes": 302979
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/after-group-stages/34828-4.jsonl.gz",
+      "raw_sha256": "8f397dd6433ae1225adb2853f56e46a3157df22c6619e4be98538987875f4d2b",
+      "published_sha256": "8f397dd6433ae1225adb2853f56e46a3157df22c6619e4be98538987875f4d2b",
+      "published_bytes": 7575
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/after-group-stages/56336-1.jsonl.gz",
+      "raw_sha256": "1f4f819d618db11284eb559ab389630e1b43da70927f8ceb3d0d924585506d32",
+      "published_sha256": "1f4f819d618db11284eb559ab389630e1b43da70927f8ceb3d0d924585506d32",
+      "published_bytes": 29471
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/after-group-stages/70036-2.jsonl.gz",
+      "raw_sha256": "b162e33d750fa28640c423e99b748eb35cf11b531e12ca73c60d0b697b5a12e4",
+      "published_sha256": "b162e33d750fa28640c423e99b748eb35cf11b531e12ca73c60d0b697b5a12e4",
+      "published_bytes": 29070
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/after-group-stages/7484-3.jsonl.gz",
+      "raw_sha256": "83af214a1254cf8b124db64ab25fd1157c57b0982fd734bf2432f2a91eaa442f",
+      "published_sha256": "83af214a1254cf8b124db64ab25fd1157c57b0982fd734bf2432f2a91eaa442f",
+      "published_bytes": 8791
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/after-group.json",
+      "raw_sha256": "ea38fc9a3242dea565d89ff0d1eb352e1540ba7cf253c0060a3014b154db96c0",
+      "published_sha256": "ea38fc9a3242dea565d89ff0d1eb352e1540ba7cf253c0060a3014b154db96c0",
+      "published_bytes": 93016
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/after-group.log",
+      "raw_sha256": "84c84804ab41f66eb1facff7b71115b53edacc6885805c2058e949f4c4a19c79",
+      "published_sha256": "1dd9702f5e24a8b3d7648d1129c00e6b058f128fbaf6c79a5e69241d6521e6cb",
+      "published_bytes": 17966
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/after-isolated-manifest.json",
+      "raw_sha256": "db32f9fb66db3468bf1a8f40c74cd21e03f9582f14e10a382188810fc936e1f2",
+      "published_sha256": "64307e9343708ffec64822d632ac4e53473eddf48aa5867d5c969fd544af597b",
+      "published_bytes": 509
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/after-isolated-stages/26516-0.jsonl.gz",
+      "raw_sha256": "fcad1d7e6a5a3ced1669f12269841b62b522575254985e73d17635b8b60e04c4",
+      "published_sha256": "fcad1d7e6a5a3ced1669f12269841b62b522575254985e73d17635b8b60e04c4",
+      "published_bytes": 294422
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/after-isolated.json",
+      "raw_sha256": "b5c6504abb5315e2de7f4515e94a2602f9ceb5041b5ecc83c605d55ebb8bb881",
+      "published_sha256": "b5c6504abb5315e2de7f4515e94a2602f9ceb5041b5ecc83c605d55ebb8bb881",
+      "published_bytes": 5292
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/after-isolated.log",
+      "raw_sha256": "1ef4bba464b02098ac52123318ba98f74919e2fdddd9e8705e3814f447fe5306",
+      "published_sha256": "18f36d299718ec07143098ece33f2bbe41d387b1c55bee205d82e71545bd13a4",
+      "published_bytes": 1925
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/archive-traces.mjs",
+      "raw_sha256": "5ac230afc831542b596cc484482a0324d3ff15490c850183a16b12bc66a18acd",
+      "published_sha256": "5ac230afc831542b596cc484482a0324d3ff15490c850183a16b12bc66a18acd",
+      "published_bytes": 1031
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-focal.json",
+      "raw_sha256": "1fecca94fd1087121183e9c9a73ce6b13685c9ac877937c060895e20cfd3f341",
+      "published_sha256": "1fecca94fd1087121183e9c9a73ce6b13685c9ac877937c060895e20cfd3f341",
+      "published_bytes": 14676
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-focal.log",
+      "raw_sha256": "54a498dfb98160032a14ca6ade26e70132a90357d0b1c2643171f2813f2fc8de",
+      "published_sha256": "093aa1e09501c165a268ff9e0eaec686a0aaf5f55416c4587de3e3c1170f46ba",
+      "published_bytes": 2792
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-full-host.json",
+      "raw_sha256": "8bef883d93b4e938127dfa55c7e0c604633ef23dacc377e41786e65a32cae136",
+      "published_sha256": "6925f77efc01996ecfee176a0ff3efb055b3681cab4bc54209e87e2393823224",
+      "published_bytes": 5463
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-full-manifest.json",
+      "raw_sha256": "5bf34e71861963a6bd2e80846f0f15196a13158acb3902d02f01bb10c0fa75f1",
+      "published_sha256": "cf906128844e78ca3c46332d548706044a90a1039d6d0e6246d621343746f8e6",
+      "published_bytes": 479
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-full-stages/18152-5.jsonl.gz",
+      "raw_sha256": "19557bd891b79128b5dd6fb0190d734876ea04c16042fe5d1254c4d917e7b737",
+      "published_sha256": "19557bd891b79128b5dd6fb0190d734876ea04c16042fe5d1254c4d917e7b737",
+      "published_bytes": 123284
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-full-stages/24224-17.jsonl.gz",
+      "raw_sha256": "5704d4e9ac183caf7712192e3a9ab3be968108e26469a25efab65aa1a62f5258",
+      "published_sha256": "5704d4e9ac183caf7712192e3a9ab3be968108e26469a25efab65aa1a62f5258",
+      "published_bytes": 15321
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-full-stages/28148-15.jsonl.gz",
+      "raw_sha256": "0aa490c88ac3f37eeb0b64f02eea9dfa23a6e7ffd602063ba62f0478731eac6a",
+      "published_sha256": "0aa490c88ac3f37eeb0b64f02eea9dfa23a6e7ffd602063ba62f0478731eac6a",
+      "published_bytes": 413250
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-full-stages/28208-21.jsonl.gz",
+      "raw_sha256": "32abaaced38ccb70e28e3c241ecf40f73c7b12f4ecc943ad77ccf42f98e555b2",
+      "published_sha256": "32abaaced38ccb70e28e3c241ecf40f73c7b12f4ecc943ad77ccf42f98e555b2",
+      "published_bytes": 1412
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-full-stages/30644-14.jsonl.gz",
+      "raw_sha256": "fa07bf1f2d75506760ff5843ed95743ab4534733bcc8dbdfd34bc9ca42752ac7",
+      "published_sha256": "fa07bf1f2d75506760ff5843ed95743ab4534733bcc8dbdfd34bc9ca42752ac7",
+      "published_bytes": 33382
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-full-stages/30732-19.jsonl.gz",
+      "raw_sha256": "550c43012cfdff3a60c8828f3375720805bd1175200c2e347b29836dee98ce59",
+      "published_sha256": "550c43012cfdff3a60c8828f3375720805bd1175200c2e347b29836dee98ce59",
+      "published_bytes": 4143
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-full-stages/33036-2.jsonl.gz",
+      "raw_sha256": "725b7186206680abff093a0ea9c91fecdbc2490ffc81611b5b55a2ab851bcc61",
+      "published_sha256": "725b7186206680abff093a0ea9c91fecdbc2490ffc81611b5b55a2ab851bcc61",
+      "published_bytes": 55234
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-full-stages/36696-9.jsonl.gz",
+      "raw_sha256": "b40c7470bdd1904b13331c9add7c28b78b3c70743282ad85abd8491de5b483e4",
+      "published_sha256": "b40c7470bdd1904b13331c9add7c28b78b3c70743282ad85abd8491de5b483e4",
+      "published_bytes": 23787
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-full-stages/43152-23.jsonl.gz",
+      "raw_sha256": "9e3781a0405c87e54b70a40ac91bb7d93d47396463b514293473f4cdadf65de1",
+      "published_sha256": "9e3781a0405c87e54b70a40ac91bb7d93d47396463b514293473f4cdadf65de1",
+      "published_bytes": 624
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-full-stages/45048-6.jsonl.gz",
+      "raw_sha256": "541dfc2a3282be47e8bf6bec0b2a06fad15555d53aca4f0ea123fe12d810b55f",
+      "published_sha256": "541dfc2a3282be47e8bf6bec0b2a06fad15555d53aca4f0ea123fe12d810b55f",
+      "published_bytes": 47669
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-full-stages/46640-7.jsonl.gz",
+      "raw_sha256": "425b96534501e78a6991895c96fd3f04c9b5ba9f021781d7d0ec4999581f5e9c",
+      "published_sha256": "425b96534501e78a6991895c96fd3f04c9b5ba9f021781d7d0ec4999581f5e9c",
+      "published_bytes": 23188
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-full-stages/48324-16.jsonl.gz",
+      "raw_sha256": "429713075881aff180fb828305ca9c6bac14fc018b5ecc3816d8b258a3fbcca2",
+      "published_sha256": "429713075881aff180fb828305ca9c6bac14fc018b5ecc3816d8b258a3fbcca2",
+      "published_bytes": 54174
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-full-stages/48724-22.jsonl.gz",
+      "raw_sha256": "148fbc19b0a990f09fa86efeb66b95cdbdded365161b91ee8541348e451e6f5a",
+      "published_sha256": "148fbc19b0a990f09fa86efeb66b95cdbdded365161b91ee8541348e451e6f5a",
+      "published_bytes": 1410
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-full-stages/52428-11.jsonl.gz",
+      "raw_sha256": "9fac51e3b0614d58b9dc4a809e22fb798f973725949b1ad6db83149b390750a3",
+      "published_sha256": "9fac51e3b0614d58b9dc4a809e22fb798f973725949b1ad6db83149b390750a3",
+      "published_bytes": 21422
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-full-stages/52652-8.jsonl.gz",
+      "raw_sha256": "3e7fe92fd803019419c82240be4bd0cfec4acfd331f97ab223550051e2ca5128",
+      "published_sha256": "3e7fe92fd803019419c82240be4bd0cfec4acfd331f97ab223550051e2ca5128",
+      "published_bytes": 128082
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-full-stages/54728-1.jsonl.gz",
+      "raw_sha256": "dc648df3fd661d561d994ac0ee9602b3d55fa3c68defc5ee58b1c4778d1f80d1",
+      "published_sha256": "dc648df3fd661d561d994ac0ee9602b3d55fa3c68defc5ee58b1c4778d1f80d1",
+      "published_bytes": 187211
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-full-stages/56044-20.jsonl.gz",
+      "raw_sha256": "7f80956b236026fb70bbcbd432210fd1effedcb0ff994b1e23dfe1e246cfc344",
+      "published_sha256": "7f80956b236026fb70bbcbd432210fd1effedcb0ff994b1e23dfe1e246cfc344",
+      "published_bytes": 10147
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-full-stages/57224-18.jsonl.gz",
+      "raw_sha256": "3a48ff01c6532416f629247f0a547e3cef6be79b2e29112eceb78488e1746143",
+      "published_sha256": "3a48ff01c6532416f629247f0a547e3cef6be79b2e29112eceb78488e1746143",
+      "published_bytes": 13898
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-full-stages/58024-3.jsonl.gz",
+      "raw_sha256": "c42ae5f0bdef4032dc351897e56a6686a4c69c0d7bfab73da3a57dc16f97974d",
+      "published_sha256": "c42ae5f0bdef4032dc351897e56a6686a4c69c0d7bfab73da3a57dc16f97974d",
+      "published_bytes": 42626
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-full-stages/62760-0.jsonl.gz",
+      "raw_sha256": "56ee94e39f1555158d623f44c7d3ee333d73588beea67f463fe51b7ef828c235",
+      "published_sha256": "56ee94e39f1555158d623f44c7d3ee333d73588beea67f463fe51b7ef828c235",
+      "published_bytes": 28316
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-full-stages/65196-4.jsonl.gz",
+      "raw_sha256": "b11c9e78f1ba6f344fe789c881348d78e961ca116560d1fba8dbd386eea42472",
+      "published_sha256": "b11c9e78f1ba6f344fe789c881348d78e961ca116560d1fba8dbd386eea42472",
+      "published_bytes": 36631
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-full-stages/66948-13.jsonl.gz",
+      "raw_sha256": "629dd51ffbedaf393ec7c85442c23282a971245288cd2eade17cfd3454a58828",
+      "published_sha256": "629dd51ffbedaf393ec7c85442c23282a971245288cd2eade17cfd3454a58828",
+      "published_bytes": 49572
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-full-stages/66976-10.jsonl.gz",
+      "raw_sha256": "e6fe71153ff3882cd11ac4afb7cbe52e20aae0fafa99cd161d2180d730ece439",
+      "published_sha256": "e6fe71153ff3882cd11ac4afb7cbe52e20aae0fafa99cd161d2180d730ece439",
+      "published_bytes": 377586
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-full-stages/77412-12.jsonl.gz",
+      "raw_sha256": "08e80bc60ed74848b0b10c40409ad2696a04271b2863420515737ea235468353",
+      "published_sha256": "08e80bc60ed74848b0b10c40409ad2696a04271b2863420515737ea235468353",
+      "published_bytes": 61945
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-full.json",
+      "raw_sha256": "f059c0392a8fd14629ab60a3fd657def69c7bc35bcdc52af174a02d2609593dd",
+      "published_sha256": "f059c0392a8fd14629ab60a3fd657def69c7bc35bcdc52af174a02d2609593dd",
+      "published_bytes": 261747
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-full.log",
+      "raw_sha256": "e57dd21d938eec9335652449b12b1e9716f91e5197d16d809328d2fc94ee9d32",
+      "published_sha256": "1bb9197b36d195258d3ab1d2a2fa2f34a417549c69ee2259f058564e6c605a9d",
+      "published_bytes": 89363
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-group-manifest.json",
+      "raw_sha256": "3e864716b9ddf2dfeb10d370fb154a5eaa50800b179165b5c83e31db70aa72c5",
+      "published_sha256": "5a21d7f505fc29f389013ae01e85df501560e6700b4fc4eefdf36956e9867f90",
+      "published_bytes": 666
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-group-normal-manifest.json",
+      "raw_sha256": "97cc8351d4f4e238dce1290d6087eda51d62f9baa5a09c3c8a8efa4e0e537ef8",
+      "published_sha256": "006e07c52a25e77870fb33f6c51c419870e88c205461b073cfa61f00c87a8099",
+      "published_bytes": 578
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-group-normal.json",
+      "raw_sha256": "53c624056102a32fee43df235d50c1a0c73a5b45d67bc00ecfe66641ef1a5f98",
+      "published_sha256": "53c624056102a32fee43df235d50c1a0c73a5b45d67bc00ecfe66641ef1a5f98",
+      "published_bytes": 96806
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-group-normal.log",
+      "raw_sha256": "f8a4606602f747ef7931d2526eda25232447afa0b3218129a307dc58c4118fcc",
+      "published_sha256": "cd0757e1d8e9749034c682c223065468d989632b5687a8b9dcf0b7be23d83ea7",
+      "published_bytes": 21737
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-group-stages/13056-3.jsonl.gz",
+      "raw_sha256": "a03c026883f8d974b3792325fb4ab99361df142b25a7711b5a3b61bbecf946b0",
+      "published_sha256": "a03c026883f8d974b3792325fb4ab99361df142b25a7711b5a3b61bbecf946b0",
+      "published_bytes": 22784
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-group-stages/46388-4.jsonl.gz",
+      "raw_sha256": "bfcba05090af04bb156da80d3603450970465eaecf0829601b4d8c0d9c76e0ba",
+      "published_sha256": "bfcba05090af04bb156da80d3603450970465eaecf0829601b4d8c0d9c76e0ba",
+      "published_bytes": 15336
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-group-stages/50736-7.jsonl.gz",
+      "raw_sha256": "117761c8ca1b752fc80ad80c3d61ff3570a426ee2c38176658cdc5c4ae7c3768",
+      "published_sha256": "117761c8ca1b752fc80ad80c3d61ff3570a426ee2c38176658cdc5c4ae7c3768",
+      "published_bytes": 58227
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-group-stages/52300-1.jsonl.gz",
+      "raw_sha256": "5442acbd7039bd7ad4a91e872ca313e9c3fc63ef2f777588721d047b273a56d3",
+      "published_sha256": "5442acbd7039bd7ad4a91e872ca313e9c3fc63ef2f777588721d047b273a56d3",
+      "published_bytes": 46092
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-group-stages/60356-0.jsonl.gz",
+      "raw_sha256": "8125495fdf88f8303340155d21cb9b0fc89f659a6c9d8de990d8248eaebd8c2b",
+      "published_sha256": "8125495fdf88f8303340155d21cb9b0fc89f659a6c9d8de990d8248eaebd8c2b",
+      "published_bytes": 189150
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-group-stages/72308-5.jsonl.gz",
+      "raw_sha256": "a643ac3eeb42ec1829f6882e4ba14666b2150ed459d47c778d611e73c2b6e2e0",
+      "published_sha256": "a643ac3eeb42ec1829f6882e4ba14666b2150ed459d47c778d611e73c2b6e2e0",
+      "published_bytes": 191609
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-group-stages/73596-2.jsonl.gz",
+      "raw_sha256": "85df12ee3167a9a1742344140bc2b87140bb98f4678d2a749684cef526c37de3",
+      "published_sha256": "85df12ee3167a9a1742344140bc2b87140bb98f4678d2a749684cef526c37de3",
+      "published_bytes": 34602
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-group-stages/77272-6.jsonl.gz",
+      "raw_sha256": "07e0a2c50f16746e586749117295dd9cbce0fffd4e7f9bab804797379fb8a9dc",
+      "published_sha256": "07e0a2c50f16746e586749117295dd9cbce0fffd4e7f9bab804797379fb8a9dc",
+      "published_bytes": 161323
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-group.json",
+      "raw_sha256": "a2d86e9f9e876e27f7782d35da2fc8ed3d12042c7f8de59ec72f4285c8c146de",
+      "published_sha256": "a2d86e9f9e876e27f7782d35da2fc8ed3d12042c7f8de59ec72f4285c8c146de",
+      "published_bytes": 100113
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-group.log",
+      "raw_sha256": "32cfff7b10002a304fdd5b6e5b249972ac7f49eec636b0551221b319d24553f8",
+      "published_sha256": "f51a8a3330817572f593d6cd59fd312517334c1e2b305bca602a84a52ad7dc4d",
+      "published_bytes": 26918
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-isolated-stages/72156-0.jsonl.gz",
+      "raw_sha256": "46b688a91b080fc2e6428f180dea78db45e639237bef4bbfecc75e3fd7d39e4b",
+      "published_sha256": "46b688a91b080fc2e6428f180dea78db45e639237bef4bbfecc75e3fd7d39e4b",
+      "published_bytes": 218268
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-isolated.json",
+      "raw_sha256": "eb193bb632a4b4afcc040fd4a9cad1c727d34a7abaaf8681e8e722abf1932e18",
+      "published_sha256": "eb193bb632a4b4afcc040fd4a9cad1c727d34a7abaaf8681e8e722abf1932e18",
+      "published_bytes": 5299
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/before-isolated.log",
+      "raw_sha256": "7aaea81d660f4289e3f3109ea68289bc38033e10c2aac49ead12f829b04e171b",
+      "published_sha256": "fe7cf29b78a360acc5c295c25b2701c882c0a7dc856fe17caf7dc449b3e8b741",
+      "published_bytes": 2202
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/browser-debug-manifest.json",
+      "raw_sha256": "af82d311756985182953746ab575302a5eaa708ccbfe699a393512a8a15120dd",
+      "published_sha256": "6ec176520fd23f8e26744013bf33e29ee6ba4497ffce96b76675adf4768f1d71",
+      "published_bytes": 381
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/browser-debug.json",
+      "raw_sha256": "ec557120b98c08eff91606220ebfd39c284a769cfde49685ca6c45cc1e1919c1",
+      "published_sha256": "ec557120b98c08eff91606220ebfd39c284a769cfde49685ca6c45cc1e1919c1",
+      "published_bytes": 251312
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/browser-debug.log",
+      "raw_sha256": "13533e541df896a4b5c894f19aea1e964eda4154b1a7fcec2cd9c3a59adf8028",
+      "published_sha256": "6977e6e3d42c5db2774b1929694a62059ae7a602fee48949b57aeaeb2347780f",
+      "published_bytes": 192752
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/browser-shutdown.json",
+      "raw_sha256": "8e385e7f00fb17eab79642abfd088b1266c6329d407c61afdb251e48f7f715cf",
+      "published_sha256": "8e385e7f00fb17eab79642abfd088b1266c6329d407c61afdb251e48f7f715cf",
+      "published_bytes": 9076
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/build-corrected.log",
+      "raw_sha256": "ad0383c9038c817ff50b1b38ca51eab2f29a1fe2c3a08e9361f26b321eaa7434",
+      "published_sha256": "45e6d2f7e5e99ae4ce0fe0499abfc169817feb789bffc24b0d4f3a0f94ef8344",
+      "published_bytes": 11452
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/build-final.log",
+      "raw_sha256": "1633b58a7208bb1cbab69660f335f33351c4a601f0c4daf8959796ae2e8d7361",
+      "published_sha256": "75cf742b354f299cecabc82051e7c5922de09e7b270d38556123ccd868b21ad3",
+      "published_bytes": 7906
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/build.log",
+      "raw_sha256": "6388eabbe8803249c2a9ab8b5298c4a006d9872e6f17709242e063423b0b3997",
+      "published_sha256": "9ab4edd0ccfdd944529a2368ea357fde89d234a7c2787f833a1b5739d085a6d7",
+      "published_bytes": 10101
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/cache-build.log",
+      "raw_sha256": "60d4b316c2fd5998a7479b4634a806b471bc1ac37b146e3242206bb7f61ff415",
+      "published_sha256": "2465296c56d9ddb4f565513c27440d02e84158396f976febdf717c60f9bf67c8",
+      "published_bytes": 393
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/cache-normal-1-manifest.json",
+      "raw_sha256": "98d21855f8c6d757755520ad6fb356dc9f86ee1f539ffc9630535c65bd182ab7",
+      "published_sha256": "eeb2ee6bb8caec33158f9b5348da91b95247b15687a22849549012f9a6f06143",
+      "published_bytes": 383
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/cache-normal-1.json",
+      "raw_sha256": "2fb67dbdc4b553c3e8747c73b090e0645a537332facdeb1abba6b10e71c459c4",
+      "published_sha256": "2fb67dbdc4b553c3e8747c73b090e0645a537332facdeb1abba6b10e71c459c4",
+      "published_bytes": 256258
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/cache-normal-1.log",
+      "raw_sha256": "89f2a5fd46db940a275dd6e2499cb3b26f92a42b40a348b16146e86d11399249",
+      "published_sha256": "f2a88114c8f6b2748b8fe436140a1d9b61ac90a6b8dc8ac4fd93bf5b48499bec",
+      "published_bytes": 79761
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/changed-eslint.json",
+      "raw_sha256": "2b79df34f00278bb455d539a700eab23b218b38dd9680528ac10a8b02909eb3a",
+      "published_sha256": "2b79df34f00278bb455d539a700eab23b218b38dd9680528ac10a8b02909eb3a",
+      "published_bytes": 10105
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/cli.log",
+      "raw_sha256": "f7aa36c640d23f5c881c3094c5725837fe7133023fad8a52939cb9d3dbe03e64",
+      "published_sha256": "693d41a96d79b38fc43b2d9b366f1274be01b26d25f9a351095ff95836b92e31",
+      "published_bytes": 3156
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/comparison.json",
+      "raw_sha256": "adec387a42f2f7cfab9216b311a61e589593b7855fa2fe598fbb9bd95b414cc3",
+      "published_sha256": "adec387a42f2f7cfab9216b311a61e589593b7855fa2fe598fbb9bd95b414cc3",
+      "published_bytes": 1093432
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/comparison.log",
+      "raw_sha256": "25876fba89360823093fc91cfcb9847918db8a0e94885a67399a4fec97415b9f",
+      "published_sha256": "45923b1781716e9061de4a40b865c877fd0e5a306aaa9f3622a68f96251e3a68",
+      "published_bytes": 823
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/diagnostic-startup-error.log",
+      "raw_sha256": "0aa5463939baf7f6ff4fda9fc1e2d75feb46a5d0705f80a0ca3ede29e2acdc0c",
+      "published_sha256": "c65c6672b75089c923c96d1ffbd56be8a56960ee96baaa70427e65b5a5674552",
+      "published_bytes": 3196
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/diagnostic.config.ts",
+      "raw_sha256": "ce8ac519abd72c34d18657030e1172595daeb43860b069aa03f2430c53043b65",
+      "published_sha256": "ce8ac519abd72c34d18657030e1172595daeb43860b069aa03f2430c53043b65",
+      "published_bytes": 379
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/drain-regression.json",
+      "raw_sha256": "629a0328ecb9283276f0dd21593fada94bf3f960fb7d2ed27cd3469bbd6e4b75",
+      "published_sha256": "629a0328ecb9283276f0dd21593fada94bf3f960fb7d2ed27cd3469bbd6e4b75",
+      "published_bytes": 14714
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/drain-regression.log",
+      "raw_sha256": "be2d09f98d9ea40474cf0af7fd3bd7bf9427a47b615bf21d8109072a2a93b7f6",
+      "published_sha256": "fff94c87c8a76d699e42062a2dd5db0d2ec61d3372041665564ba92a136b49e2",
+      "published_bytes": 496
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/engine.log",
+      "raw_sha256": "abf3ecb15236ddbd5a01356c016796cb3e798b6fa3abd82d0c9b60e1ec46f5f1",
+      "published_sha256": "e74c8c192d6fbb8eb30b8d11ff2c7d7a01cc1f93ad4d232d9b6bc05b41b4a4a7",
+      "published_bytes": 259
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/final-eslint.json",
+      "raw_sha256": "93a0b649513d157d3a4e1f651a095994eefc82dd4dbe8d357043b632c0f6744a",
+      "published_sha256": "93a0b649513d157d3a4e1f651a095994eefc82dd4dbe8d357043b632c0f6744a",
+      "published_bytes": 180593
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/final-focal-manifest.json",
+      "raw_sha256": "86831cf41e520688b824e17c09e28e83429d18ecbb658022512d2be7b492409c",
+      "published_sha256": "5c7fac1febf0702e94626c75e74ce60d6682905bb34f2c230087f2277d4ebdd9",
+      "published_bytes": 475
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/final-focal.json",
+      "raw_sha256": "c72583ca8b49a1f232f9a9d10735eed10bd99face8645608aeb33385cf6c010e",
+      "published_sha256": "c72583ca8b49a1f232f9a9d10735eed10bd99face8645608aeb33385cf6c010e",
+      "published_bytes": 20913
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/final-focal.log",
+      "raw_sha256": "9969de0941afc3a396d2591470e10655be841671f594d8c7eeaa5980f5e944ef",
+      "published_sha256": "f5aa95eb6aa21225f262ed2b484074c9f1b7f62b66a6902b1eb67b2d339f4ad1",
+      "published_bytes": 2802
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/final-parallel-1-host.json",
+      "raw_sha256": "26abc1bcaaac49a2d7e1bdef5d8f4511b159237a67e636e67b3088cf86b6bd8d",
+      "published_sha256": "ca9d7fd6d730cea50c8a19e6f12a8a7043db1e949753e06bbe950d624fd94e4c",
+      "published_bytes": 6530
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/final-parallel-1-manifest.json",
+      "raw_sha256": "ed4fcc45d35dcec77ced3edf9633ce68e9049ca3907987381a4b99eb78b8d6b0",
+      "published_sha256": "cd038b36ecd35a7ea1f80bc1e6470f3005c38f30b38e795d0e7d27a14968e952",
+      "published_bytes": 387
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/final-parallel-1.json",
+      "raw_sha256": "264e9aa7d3b6fbf94689d9b4871024160648f9527bf4ea9a5dd825fd262fe11d",
+      "published_sha256": "264e9aa7d3b6fbf94689d9b4871024160648f9527bf4ea9a5dd825fd262fe11d",
+      "published_bytes": 248158
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/final-parallel-1.log",
+      "raw_sha256": "7a97cb3a5f4d9eb42937ce23a0fbf451c7c70c36a2b97447ada5c598812669bb",
+      "published_sha256": "ed02268e1bcdb38d31eb9c9c34e9d250367d42394aa5dbdc85202ed72e185cce",
+      "published_bytes": 75341
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/final-parallel-2-manifest.json",
+      "raw_sha256": "5bc0afd0994c71b1ad52b5c77d5e0ba3585fb0fe9ee819635435c829de9ae991",
+      "published_sha256": "f5e41b23707a494e9529a8b9b26a44fd1a1f492600c307ddba6fc7a60b224655",
+      "published_bytes": 387
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/final-parallel-2.json",
+      "raw_sha256": "762c528bdc6088fc970bc8804b79f798833796c49db47bcc86da92a7a48eec81",
+      "published_sha256": "762c528bdc6088fc970bc8804b79f798833796c49db47bcc86da92a7a48eec81",
+      "published_bytes": 249679
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/final-parallel-2.log",
+      "raw_sha256": "2fcc5e01c7c3e8c82cdec7a2d624ea89e289af97c269afa16b06b954eec35a1a",
+      "published_sha256": "bc92a3d44c789baf06a6a8955822840107e21fce176079013ce2fbeacfa8d89b",
+      "published_bytes": 75915
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/final-serial-manifest.json",
+      "raw_sha256": "9d4c84ea00244c44d3bc2f9766e3c324c3b97e1c121d347d80c604e4b25f1d27",
+      "published_sha256": "69bdfe4fa0818af9428d242fbe293b7cffe4c09cf61b3b039b4b90ce45b90d23",
+      "published_bytes": 408
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/final-serial.json",
+      "raw_sha256": "3e83c4ee6cdad7081e7ebb4ad305c11ec066bd4f56265a174b03ed1dd035d6b1",
+      "published_sha256": "3e83c4ee6cdad7081e7ebb4ad305c11ec066bd4f56265a174b03ed1dd035d6b1",
+      "published_bytes": 243568
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/final-serial.log",
+      "raw_sha256": "614eac7565b37ea660ec69ebe3067f02700e8916f3c771738deebac53968a7b9",
+      "published_sha256": "890cdbb8c95843685dcf4061816a235e7edaa6dc330e3487981edc0acd859528",
+      "published_bytes": 61128
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/final-stages-host.json",
+      "raw_sha256": "b7ed256acda2d97a7592208023cb0942953135792086ab3f0286435f2646dcd5",
+      "published_sha256": "691585ba9397a7cc98b75bd11397066fc8d73d349e1965e0e81ad2811e0868c8",
+      "published_bytes": 5446
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/final-stages-manifest.json",
+      "raw_sha256": "6b76c3cd0d42704aea116425be7b8836559a14953d676e358e580964d1f6b828",
+      "published_sha256": "5d9a7bb3574f15360ee3a438ed3b06510d8a55a0b93dbef6684d779d5ac165ce",
+      "published_bytes": 481
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/final-stages-stages/10096-19.jsonl.gz",
+      "raw_sha256": "1ea12caebd4550fb8669caa345d76268a2dca768f5d247957169deaac4b5b431",
+      "published_sha256": "1ea12caebd4550fb8669caa345d76268a2dca768f5d247957169deaac4b5b431",
+      "published_bytes": 9156
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/final-stages-stages/17964-16.jsonl.gz",
+      "raw_sha256": "b1fb2f640d2b2f55112383f1667a65f0109427b870a4d81e424a78bf2b01e652",
+      "published_sha256": "b1fb2f640d2b2f55112383f1667a65f0109427b870a4d81e424a78bf2b01e652",
+      "published_bytes": 7652
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/final-stages-stages/18488-20.jsonl.gz",
+      "raw_sha256": "5be2f5a0e5fa1757bc84efd3573f8f53e64aa8f31ad3bc84b09395ccaa0f8122",
+      "published_sha256": "5be2f5a0e5fa1757bc84efd3573f8f53e64aa8f31ad3bc84b09395ccaa0f8122",
+      "published_bytes": 2847
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/final-stages-stages/20280-10.jsonl.gz",
+      "raw_sha256": "3c1f4fd1d3ab7cc90ac91fc36cd349971068365eac9fb40a5992f9ea45bb9067",
+      "published_sha256": "3c1f4fd1d3ab7cc90ac91fc36cd349971068365eac9fb40a5992f9ea45bb9067",
+      "published_bytes": 53259
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/final-stages-stages/21428-14.jsonl.gz",
+      "raw_sha256": "9e9da1607036ffb7221c2f963f2b768210a5f59eca905b387a071b059f95598d",
+      "published_sha256": "9e9da1607036ffb7221c2f963f2b768210a5f59eca905b387a071b059f95598d",
+      "published_bytes": 9297
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/final-stages-stages/22560-1.jsonl.gz",
+      "raw_sha256": "773dd57399c7a9c987fa08e5006caf8a6656a6d557cbe2787e624da3bc54b671",
+      "published_sha256": "773dd57399c7a9c987fa08e5006caf8a6656a6d557cbe2787e624da3bc54b671",
+      "published_bytes": 38648
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/final-stages-stages/33680-13.jsonl.gz",
+      "raw_sha256": "9d3101b526579f7bc1172426fa770895fc5338e8b2043ae17e161a161feda63c",
+      "published_sha256": "9d3101b526579f7bc1172426fa770895fc5338e8b2043ae17e161a161feda63c",
+      "published_bytes": 55622
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/final-stages-stages/36672-21.jsonl.gz",
+      "raw_sha256": "aeb8911475a5ce381aa2ab6590a0ab80c29bb0db23e851deace3dec0f28683c6",
+      "published_sha256": "aeb8911475a5ce381aa2ab6590a0ab80c29bb0db23e851deace3dec0f28683c6",
+      "published_bytes": 1717
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/final-stages-stages/38784-15.jsonl.gz",
+      "raw_sha256": "d80c6ca55be6db26f5cced74a3394c018f4cf228113e0f4b62968ef28c7756e7",
+      "published_sha256": "d80c6ca55be6db26f5cced74a3394c018f4cf228113e0f4b62968ef28c7756e7",
+      "published_bytes": 32772
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/final-stages-stages/38980-9.jsonl.gz",
+      "raw_sha256": "0bc55ba0cecaf8004cecb4f64dfe470ed2c487aea770f80899c27aaa9c756504",
+      "published_sha256": "0bc55ba0cecaf8004cecb4f64dfe470ed2c487aea770f80899c27aaa9c756504",
+      "published_bytes": 128987
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/final-stages-stages/39084-3.jsonl.gz",
+      "raw_sha256": "9df70887cae5bd38ce270ced4a2b629db952e270afc4a4ee9b12fd0d0a628765",
+      "published_sha256": "9df70887cae5bd38ce270ced4a2b629db952e270afc4a4ee9b12fd0d0a628765",
+      "published_bytes": 30931
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/final-stages-stages/46112-5.jsonl.gz",
+      "raw_sha256": "0de2828dba101d063d19545ca8c491bb90fc09423c2b4ce6e8cc446ff4ebea01",
+      "published_sha256": "0de2828dba101d063d19545ca8c491bb90fc09423c2b4ce6e8cc446ff4ebea01",
+      "published_bytes": 8990
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/final-stages-stages/48496-22.jsonl.gz",
+      "raw_sha256": "e801d9be8d3cfaa8598c15aecbd6d09f307f21931d104cbd5b3647b37cd5206d",
+      "published_sha256": "e801d9be8d3cfaa8598c15aecbd6d09f307f21931d104cbd5b3647b37cd5206d",
+      "published_bytes": 1310
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/final-stages-stages/48524-23.jsonl.gz",
+      "raw_sha256": "dba09441a7736690fcab7152be9e551ca4b4a408963312bb44ba6b3eaee9cd4c",
+      "published_sha256": "dba09441a7736690fcab7152be9e551ca4b4a408963312bb44ba6b3eaee9cd4c",
+      "published_bytes": 627
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/final-stages-stages/55904-7.jsonl.gz",
+      "raw_sha256": "1316b1369a0fb76a456ae6065ca94c9b56968b4e22074424b1658d744affcde7",
+      "published_sha256": "1316b1369a0fb76a456ae6065ca94c9b56968b4e22074424b1658d744affcde7",
+      "published_bytes": 216288
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/final-stages-stages/59664-8.jsonl.gz",
+      "raw_sha256": "934b8c18f8a21aeb810b980081fd2ad25adeb7e9b264301105318e0df307cbee",
+      "published_sha256": "934b8c18f8a21aeb810b980081fd2ad25adeb7e9b264301105318e0df307cbee",
+      "published_bytes": 376675
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/final-stages-stages/60184-17.jsonl.gz",
+      "raw_sha256": "dad69feddfac454f6e3b519906496c4cc6ff6b40bffd0eb479afbaf9c0cbd7df",
+      "published_sha256": "dad69feddfac454f6e3b519906496c4cc6ff6b40bffd0eb479afbaf9c0cbd7df",
+      "published_bytes": 11636
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/final-stages-stages/6688-11.jsonl.gz",
+      "raw_sha256": "57a75310359395c97b9154ae020ea9707c035e3d1d98ba781bbc6a81af46ab57",
+      "published_sha256": "57a75310359395c97b9154ae020ea9707c035e3d1d98ba781bbc6a81af46ab57",
+      "published_bytes": 413252
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/final-stages-stages/72136-18.jsonl.gz",
+      "raw_sha256": "7370a42d447351ae94aee5a45088b33cd91f081a90633364858a8fa57ef570d9",
+      "published_sha256": "7370a42d447351ae94aee5a45088b33cd91f081a90633364858a8fa57ef570d9",
+      "published_bytes": 11285
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/final-stages-stages/74804-2.jsonl.gz",
+      "raw_sha256": "4a23995acc46931c5f937ff86cbec219977866f4910692f6880628c043838214",
+      "published_sha256": "4a23995acc46931c5f937ff86cbec219977866f4910692f6880628c043838214",
+      "published_bytes": 23289
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/final-stages-stages/7616-0.jsonl.gz",
+      "raw_sha256": "6cb4855a775df7b209c9447b4aaf7ee0d8dfa2f6f7a9576dcfee457a12c26576",
+      "published_sha256": "6cb4855a775df7b209c9447b4aaf7ee0d8dfa2f6f7a9576dcfee457a12c26576",
+      "published_bytes": 25969
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/final-stages-stages/76264-12.jsonl.gz",
+      "raw_sha256": "0611a5cc1445699da519623cdbced125558dded0067edd00072d1528ca867851",
+      "published_sha256": "0611a5cc1445699da519623cdbced125558dded0067edd00072d1528ca867851",
+      "published_bytes": 30407
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/final-stages-stages/8060-6.jsonl.gz",
+      "raw_sha256": "044c06018f08728859efe96600becf8768a747c51cf87030c92316624bac778d",
+      "published_sha256": "044c06018f08728859efe96600becf8768a747c51cf87030c92316624bac778d",
+      "published_bytes": 183318
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/final-stages-stages/8080-4.jsonl.gz",
+      "raw_sha256": "26c0f678db4957533fc3103c754fdd53c718566561abb0bede4b467b9f1865d3",
+      "published_sha256": "26c0f678db4957533fc3103c754fdd53c718566561abb0bede4b467b9f1865d3",
+      "published_bytes": 23042
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/final-stages.json",
+      "raw_sha256": "71b7cda76812f1fbbe1d4272e5c8003d93ed7f23c96544df7350237a7b82c2a3",
+      "published_sha256": "71b7cda76812f1fbbe1d4272e5c8003d93ed7f23c96544df7350237a7b82c2a3",
+      "published_bytes": 249818
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/final-stages.log",
+      "raw_sha256": "4296f347adcc0dc52b336e7bc93daf8af2699f1e79e953339929b2b27156af0d",
+      "published_sha256": "78f94e9065f4a3e6c0f9e27336a706ff2cdf1dd3a42dc072f2961b8353d20bcf",
+      "published_bytes": 76430
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/host-drain.log",
+      "raw_sha256": "9ebd74df344736a1f9e98d5c43b8657461e5f54e7c35b24ba873eddbab78cb0b",
+      "published_sha256": "c291f612e124de34faeacb24ddbeec5e20e3da44c087023433c483bf518981d3",
+      "published_bytes": 239
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/host-samples.ps1",
+      "raw_sha256": "f0952189407d5dcfd6a64d23bfb96705c4a1523f8b5a1e69366537a2c396f0ee",
+      "published_sha256": "f0952189407d5dcfd6a64d23bfb96705c4a1523f8b5a1e69366537a2c396f0ee",
+      "published_bytes": 1212
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/host-summary.json",
+      "raw_sha256": "2bfa6f169dc851a6d88a7a9332fdfc254d4a52acb052cc7a1ac5891687e5d392",
+      "published_sha256": "2bfa6f169dc851a6d88a7a9332fdfc254d4a52acb052cc7a1ac5891687e5d392",
+      "published_bytes": 697
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/index-evidence.mjs",
+      "raw_sha256": "060f1f99ef2944b470dec5e3aab8fea4bac4cf863b9f33288af6128905e666a6",
+      "published_sha256": "060f1f99ef2944b470dec5e3aab8fea4bac4cf863b9f33288af6128905e666a6",
+      "published_bytes": 1236
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/knowledge.log",
+      "raw_sha256": "bbc25141883470b9ea9890500c82b99b95ae24e95dcaedc379da9b199297dcc7",
+      "published_sha256": "70e936d5e5c4bd907c29977050e96563bd88edb9972d515bda0d318d5f112712",
+      "published_bytes": 850
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/lazy-build.log",
+      "raw_sha256": "26a0de7de3f6ccb608b5d3f5e119970950d986cbea1e77ccee90d820c1581b2a",
+      "published_sha256": "fc6396e322ccf093d98e805dbbfdf147b246c6e7e09b93251687746b389735e4",
+      "published_bytes": 1708
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/lazy-import.log",
+      "raw_sha256": "10a707b740258e0e88acc78f2b1b0d4a1311dbe4097486aaf0e30ee52a4fde62",
+      "published_sha256": "1d64c817b024e850ce92e94241238079f049c43fd7eb03f9402af8c05df9942b",
+      "published_bytes": 318
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/lazy-knowledge-build.log",
+      "raw_sha256": "66a27787b81aa8219a323924a47108553dcc32d5c117d21a0a22431fbc5d4d9b",
+      "published_sha256": "90e0e504494ea9437ba3b207f368e795233c81d0bd4d31733d89a42cb56c9716",
+      "published_bytes": 395
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/lazy-knowledge-import.log",
+      "raw_sha256": "7cd7e2c5410284c58c2a046b5fe1e269befdc4c45f70234d01da8746639207ab",
+      "published_sha256": "1d699a418226962394c610579bc49d2c338ceeae08699f312d633ce40e3e7312",
+      "published_bytes": 315
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/lazy-normal-1-manifest.json",
+      "raw_sha256": "686ac8086c69a7be9813a5bdf767175c18ba9f2966ffc7206c1dc41a0e3fc473",
+      "published_sha256": "f8f913740aca046710f22daf1751edac8d75716e5e3173c94f0ea9e781586efb",
+      "published_bytes": 381
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/lazy-normal-1.json",
+      "raw_sha256": "aeac1564134f4a36f1f668df2c490447609a93857f03a885e9532274da2b2a1d",
+      "published_sha256": "aeac1564134f4a36f1f668df2c490447609a93857f03a885e9532274da2b2a1d",
+      "published_bytes": 254398
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/lazy-normal-1.log",
+      "raw_sha256": "3a8181436bf937a8e2974930a05b7daef6b836f66f1d96e37f16a1152fbcac30",
+      "published_sha256": "9fbffc4f0b15f144f7cb1bf2aef80760fdb52d7cbf7830718893c9661c1c3373",
+      "published_bytes": 78300
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/lazy-normal-2-manifest.json",
+      "raw_sha256": "47a829c9c6f40d41fa4cdd14242f2967b079f9adf8de30e8a6a196c861045779",
+      "published_sha256": "c376c1e30ee6e7abbc0664ee1399744ad019bd1d85dcab3c7d619f85b268dabf",
+      "published_bytes": 381
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/lazy-normal-2.json",
+      "raw_sha256": "9163ff38303dab452fdce5fc78eb807dacaf13b2fed17cbb8b03e571c836d9d8",
+      "published_sha256": "9163ff38303dab452fdce5fc78eb807dacaf13b2fed17cbb8b03e571c836d9d8",
+      "published_bytes": 254418
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/lazy-normal-2.log",
+      "raw_sha256": "cc961d29bcd69f207f68dfe6cb60b95195ec21d654de50f9832e6c4861a68338",
+      "published_sha256": "b3b64ece75d1945f8cf2bc10256a280706dc7134e0112c2c4b7b5585a8cc11c7",
+      "published_bytes": 78302
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/report.mjs",
+      "raw_sha256": "3891724c70d2e24f0745d41900e0c945f1e32cfd8fbcfc50c0afaeda48650428",
+      "published_sha256": "3891724c70d2e24f0745d41900e0c945f1e32cfd8fbcfc50c0afaeda48650428",
+      "published_bytes": 4407
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/run.ps1",
+      "raw_sha256": "765474c2699e76b325c4874a547253ec357887f26d934b682bcc0b7a7e8f784c",
+      "published_sha256": "765474c2699e76b325c4874a547253ec357887f26d934b682bcc0b7a7e8f784c",
+      "published_bytes": 1332
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/runner.log",
+      "raw_sha256": "c5b9f75542236df3ac2d47a7ec0845f747fe6e4ff4535cd44a25c48e621cc00b",
+      "published_sha256": "320603d1721ea209fda2222d084f8c2e4ba47d8f03c9fb3854656efda98f47a3",
+      "published_bytes": 270
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/scripts-eslint-final.json",
+      "raw_sha256": "9af660cfc922772176b092834360060df4835956a49430d7466dec7cc185aeb2",
+      "published_sha256": "9af660cfc922772176b092834360060df4835956a49430d7466dec7cc185aeb2",
+      "published_bytes": 1470
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/scripts-eslint.json",
+      "raw_sha256": "043480a8c4360ea0118af38d52a4b262e2908c59f269808bc3f9a8dfe6a8facf",
+      "published_sha256": "043480a8c4360ea0118af38d52a4b262e2908c59f269808bc3f9a8dfe6a8facf",
+      "published_bytes": 14577
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/shared-tests.log",
+      "raw_sha256": "8a9ddeda306b6f0ce6681e1829fa96b04f8a1409e852217bf6d90f6c2a7ce2f5",
+      "published_sha256": "99803f69944afe01035ce2fc630fe1f08b76866c128b88ec78617b24cd470388",
+      "published_bytes": 260
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/shared.log",
+      "raw_sha256": "b0df43586c5326654971894f2ed477979d813b886e66429cc6ca82aeeb2bd625",
+      "published_sha256": "6a32f6a712a3d54377f479db9c3384ff22ff3458af676644f4abd7e2970d4628",
+      "published_bytes": 261
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/stage-summary.json",
+      "raw_sha256": "79c4b2d93424b380bc8dbbef20cde23cb3c1f3b20756916bbf2493b75b413b11",
+      "published_sha256": "79c4b2d93424b380bc8dbbef20cde23cb3c1f3b20756916bbf2493b75b413b11",
+      "published_bytes": 1153946
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/stage-summary.log",
+      "raw_sha256": "66da5a39a2bdce1c22f867e97ed27d2070baea7bc6759a6ae7dc44cb36e06cac",
+      "published_sha256": "8a7db5bec4731c1aa6aabf496b36e87d911a46ebcb1fe4681a8b3502551093e7",
+      "published_bytes": 3370
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/stages.mjs",
+      "raw_sha256": "ed6f2961f7ff772fec1c4b8001c44b83649f13b6bb5343c5999acca6b1abdd99",
+      "published_sha256": "ed6f2961f7ff772fec1c4b8001c44b83649f13b6bb5343c5999acca6b1abdd99",
+      "published_bytes": 2387
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/typecheck-committed.log",
+      "raw_sha256": "ee2ecd8531c384df9446fb361b223e00d06ea791ab0cddc89e8d1df7e1b59b79",
+      "published_sha256": "505ea0f93a0735c3c857bf6b4fd9a80722a2243ebe901953fba5017527639132",
+      "published_bytes": 108
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/typecheck-final.log",
+      "raw_sha256": "12171178c343324b0d008b3c52cd90a4d459c324c8b29496f9bc134ab812f553",
+      "published_sha256": "984e838d2df87ad716a74605654589da62e40288843154e775df5fc8cdcef9f7",
+      "published_bytes": 4235
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/typecheck-verified.log",
+      "raw_sha256": "40d7cb39d5a4d80dacf121d1f9f8fdbfd3c20dbf2e9f1cef87bb4ed1aee9a278",
+      "published_sha256": "8a436c36cc98c2403ddd43751ba8ce792bd4d5d248c86baa048f4b23a26ac201",
+      "published_bytes": 513
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/typecheck.json",
+      "raw_sha256": "7fec4e6925c9502dffce35a1a0dc4cba4530d8f505a660e7c2adefc47efbffdb",
+      "published_sha256": "7fec4e6925c9502dffce35a1a0dc4cba4530d8f505a660e7c2adefc47efbffdb",
+      "published_bytes": 129
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/typecheck.log",
+      "raw_sha256": "9fc0da74ae637c390e436a2e7767c8831dae5079aa78b4aefd3de3e00c9b8a1a",
+      "published_sha256": "ec29e126eebca499e0db5e344d98979e0826761441b29fd3d1c1eb695e490c88",
+      "published_bytes": 3176
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/typecheck.mjs",
+      "raw_sha256": "a26396ddd1d9ef3a5ea35a7793b0d17524a5ad93fe20adbe830c8ee8c9a3ae08",
+      "published_sha256": "a26396ddd1d9ef3a5ea35a7793b0d17524a5ad93fe20adbe830c8ee8c9a3ae08",
+      "published_bytes": 2368
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/verification-manifest.json",
+      "raw_sha256": "1f3cfee4228e84038f5105850ad1657cc71665786456897a30304b47a0946fe2",
+      "published_sha256": "ead78a2556d21b7ea16bc7ce6038bdc553a68238e6749d02ca4be98ee3076be9",
+      "published_bytes": 2123
+    },
+    {
+      "path": "docs/vnext/implementaciones/VNEXT-014-E01/evidencia/verify.ps1",
+      "raw_sha256": "ddd6db536d2897531566a693a79e676af83ae35ee4d33b40bb59f52720e3002b",
+      "published_sha256": "ddd6db536d2897531566a693a79e676af83ae35ee4d33b40bb59f52720e3002b",
+      "published_bytes": 1567
+    }
+  ]
+}

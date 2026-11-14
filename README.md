@@ -6,6 +6,8 @@ Monorepo modular para la plataforma de automatización de pruebas QA, construido
 
 QAP es una plataforma diseñada para facilitar la creación, ejecución y reporte de pruebas de calidad de software de manera automatizada. Este monorepo contiene todos los módulos necesarios para el funcionamiento del sistema.
 
+La [guía de continuidad](docs/vnext/CONTINUIDAD_MVP.md) indica cómo instalar y verificar el candidato en otra computadora. El [plan del MVP](docs/vnext/PLAN_ONE_SHOT_Y_MERGE.md) documenta las capacidades de Discovery y el trabajo pendiente para completar el ciclo conversacional.
+
 ## Estructura del Monorepo
 
 ```
@@ -44,8 +46,8 @@ qap-monorepo/
 
 ## Requisitos
 
-- Node.js >= 18
-- pnpm >= 8
+- Para el candidato conversacional, Node.js con `node:sqlite` y FTS5. Verificado con Node `22.16.0` y pnpm `11.3.0`.
+- Chromium administrado por Playwright para ejecutar pruebas de navegador.
 
 ## Instalación
 
@@ -61,6 +63,10 @@ pnpm build
 
 # Ejecutar linting
 pnpm lint
+
+# Consultar comandos y opciones del CLI
+node packages/cli/dist/entrypoint.js --help
+node packages/cli/dist/entrypoint.js flow --help
 ```
 
 ## Reglas de Importación

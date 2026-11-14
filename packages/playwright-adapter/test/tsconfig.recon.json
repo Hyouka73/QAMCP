@@ -1,0 +1,6 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": { "rootDir": ".." },
+  "include": ["../src/reconnaissance/**/*.ts", "../src/__tests__/reconnaissance.test.ts"],
+  "exclude": ["../node_modules", "../dist"]
+}

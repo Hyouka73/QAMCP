@@ -1,0 +1,412 @@
+{
+  "numTotalTestSuites": 3,
+  "numPassedTestSuites": 3,
+  "numFailedTestSuites": 0,
+  "numPendingTestSuites": 0,
+  "numTotalTests": 31,
+  "numPassedTests": 31,
+  "numFailedTests": 0,
+  "numPendingTests": 0,
+  "numTodoTests": 0,
+  "snapshot": {
+    "added": 0,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0,
+    "didUpdate": false
+  },
+  "startTime": 1794006712807,
+  "success": true,
+  "testResults": [
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "PlanHandler Real Declarative Implementation (VNEXT-014-B)"
+          ],
+          "fullName": "PlanHandler Real Declarative Implementation (VNEXT-014-B) resolves correct topological DAG order respecting dependencies and persists plan.json",
+          "status": "passed",
+          "title": "resolves correct topological DAG order respecting dependencies and persists plan.json",
+          "duration": 126.20220000000018,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "PlanHandler Real Declarative Implementation (VNEXT-014-B)"
+          ],
+          "fullName": "PlanHandler Real Declarative Implementation (VNEXT-014-B) detects missing dependencies and returns structured error without crashing",
+          "status": "passed",
+          "title": "detects missing dependencies and returns structured error without crashing",
+          "duration": 41.73039999999992,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "PlanHandler Real Declarative Implementation (VNEXT-014-B)"
+          ],
+          "fullName": "PlanHandler Real Declarative Implementation (VNEXT-014-B) detects duplicate case IDs across files and reports error before graph resolution",
+          "status": "passed",
+          "title": "detects duplicate case IDs across files and reports error before graph resolution",
+          "duration": 48.94750000000022,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "PlanHandler Real Declarative Implementation (VNEXT-014-B)"
+          ],
+          "fullName": "PlanHandler Real Declarative Implementation (VNEXT-014-B) detects cyclic dependencies safely returning cycle information without unhandled crashes",
+          "status": "passed",
+          "title": "detects cyclic dependencies safely returning cycle information without unhandled crashes",
+          "duration": 47.73669999999993,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "PlanHandler Real Declarative Implementation (VNEXT-014-B)"
+          ],
+          "fullName": "PlanHandler Real Declarative Implementation (VNEXT-014-B) returns explicit cases: [] when module directory has no test cases",
+          "status": "passed",
+          "title": "returns explicit cases: [] when module directory has no test cases",
+          "duration": 29.00559999999996,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "PlanHandler Real Declarative Implementation (VNEXT-014-B)"
+          ],
+          "fullName": "PlanHandler Real Declarative Implementation (VNEXT-014-B) returns explicit cases: [] when cases exist but lack executable steps",
+          "status": "passed",
+          "title": "returns explicit cases: [] when cases exist but lack executable steps",
+          "duration": 34.54989999999998,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "PlanHandler Real Declarative Implementation (VNEXT-014-B)"
+          ],
+          "fullName": "PlanHandler Real Declarative Implementation (VNEXT-014-B) rejects invalid arguments (missing or malformed module)",
+          "status": "passed",
+          "title": "rejects invalid arguments (missing or malformed module)",
+          "duration": 0.7157999999999447,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "PlanHandler Real Declarative Implementation (VNEXT-014-B)"
+          ],
+          "fullName": "PlanHandler Real Declarative Implementation (VNEXT-014-B) rejects unauthorized external targetPath outside authorized projectRoots",
+          "status": "passed",
+          "title": "rejects unauthorized external targetPath outside authorized projectRoots",
+          "duration": 18.17300000000023,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "PlanHandler Real Declarative Implementation (VNEXT-014-B)"
+          ],
+          "fullName": "PlanHandler Real Declarative Implementation (VNEXT-014-B) rejects targetPath containing directory traversal escapes",
+          "status": "passed",
+          "title": "rejects targetPath containing directory traversal escapes",
+          "duration": 7.469100000000253,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "PlanHandler Real Declarative Implementation (VNEXT-014-B)"
+          ],
+          "fullName": "PlanHandler Real Declarative Implementation (VNEXT-014-B) rejects symlinks and junctions inside project directory",
+          "status": "passed",
+          "title": "rejects symlinks and junctions inside project directory",
+          "duration": 17.12850000000026,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "PlanHandler Real Declarative Implementation (VNEXT-014-B)"
+          ],
+          "fullName": "PlanHandler Real Declarative Implementation (VNEXT-014-B) returns blocked status if target module is not registered in .qa/modules/",
+          "status": "passed",
+          "title": "returns blocked status if target module is not registered in .qa/modules/",
+          "duration": 16.423699999999826,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "PlanHandler Real Declarative Implementation (VNEXT-014-B)"
+          ],
+          "fullName": "PlanHandler Real Declarative Implementation (VNEXT-014-B) identifies and preserves manually edited cases with UpdateGuard",
+          "status": "passed",
+          "title": "identifies and preserves manually edited cases with UpdateGuard",
+          "duration": 57.9681999999998,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "PlanHandler Real Declarative Implementation (VNEXT-014-B)"
+          ],
+          "fullName": "PlanHandler Real Declarative Implementation (VNEXT-014-B) integrates completely with createMcpServer, exposes exactly 18 tools and dispatches qap_plan cleanly",
+          "status": "passed",
+          "title": "integrates completely with createMcpServer, exposes exactly 18 tools and dispatches qap_plan cleanly",
+          "duration": 126.07240000000002,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "PlanHandler Real Declarative Implementation (VNEXT-014-B)"
+          ],
+          "fullName": "PlanHandler Real Declarative Implementation (VNEXT-014-B) never synthesizes fake test cases or relies on fallback defaultPlan",
+          "status": "passed",
+          "title": "never synthesizes fake test cases or relies on fallback defaultPlan",
+          "duration": 25.659799999999905,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "PlanHandler Real Declarative Implementation (VNEXT-014-B)"
+          ],
+          "fullName": "PlanHandler Real Declarative Implementation (VNEXT-014-B) detects modifications in YAML steps and dependencies post-plan generation (FAIL BEFORE / PASS AFTER)",
+          "status": "passed",
+          "title": "detects modifications in YAML steps and dependencies post-plan generation (FAIL BEFORE / PASS AFTER)",
+          "duration": 108.49739999999974,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "PlanHandler Real Declarative Implementation (VNEXT-014-B)"
+          ],
+          "fullName": "PlanHandler Real Declarative Implementation (VNEXT-014-B) enforces authorized write mode and rejects directories with hardlinks in .qa (FAIL BEFORE / PASS AFTER)",
+          "status": "passed",
+          "title": "enforces authorized write mode and rejects directories with hardlinks in .qa (FAIL BEFORE / PASS AFTER)",
+          "duration": 40.79449999999997,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "PlanHandler Real Declarative Implementation (VNEXT-014-B)"
+          ],
+          "fullName": "PlanHandler Real Declarative Implementation (VNEXT-014-B) handles persistence write failure with sanitized error and no partial files (FAIL BEFORE / PASS AFTER)",
+          "status": "passed",
+          "title": "handles persistence write failure with sanitized error and no partial files (FAIL BEFORE / PASS AFTER)",
+          "duration": 41.85119999999961,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "PlanHandler Real Declarative Implementation (VNEXT-014-B)"
+          ],
+          "fullName": "PlanHandler Real Declarative Implementation (VNEXT-014-B) classifies historical plans without cases_fingerprint as unverifiable without deleting them (FAIL BEFORE / PASS AFTER)",
+          "status": "passed",
+          "title": "classifies historical plans without cases_fingerprint as unverifiable without deleting them (FAIL BEFORE / PASS AFTER)",
+          "duration": 13.7179000000001,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "PlanHandler Real Declarative Implementation (VNEXT-014-B)"
+          ],
+          "fullName": "PlanHandler Real Declarative Implementation (VNEXT-014-B) preserves manually edited test cases bit-for-bit on disk without modifying custom content (FAIL BEFORE / PASS AFTER)",
+          "status": "passed",
+          "title": "preserves manually edited test cases bit-for-bit on disk without modifying custom content (FAIL BEFORE / PASS AFTER)",
+          "duration": 53.94370000000026,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1)"
+          ],
+          "fullName": "R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1) R1.1: rejects truncated or altered matrix.cases even when test cases on disk are intact (FAIL BEFORE / PASS AFTER)",
+          "status": "passed",
+          "title": "R1.1: rejects truncated or altered matrix.cases even when test cases on disk are intact (FAIL BEFORE / PASS AFTER)",
+          "duration": 78.33719999999994,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1)"
+          ],
+          "fullName": "R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1) R1.2: rejects inverted DAG dependencies in matrix.cases (FAIL BEFORE / PASS AFTER)",
+          "status": "passed",
+          "title": "R1.2: rejects inverted DAG dependencies in matrix.cases (FAIL BEFORE / PASS AFTER)",
+          "duration": 66.30749999999989,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1)"
+          ],
+          "fullName": "R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1) R1.3: accepts valid alternate topological orders without arbitrary positional rejection (FAIL BEFORE / PASS AFTER)",
+          "status": "passed",
+          "title": "R1.3: accepts valid alternate topological orders without arbitrary positional rejection (FAIL BEFORE / PASS AFTER)",
+          "duration": 68.67730000000029,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1)"
+          ],
+          "fullName": "R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1) R1.4: rejects environment mismatch between plan and requested environment (FAIL BEFORE / PASS AFTER)",
+          "status": "passed",
+          "title": "R1.4: rejects environment mismatch between plan and requested environment (FAIL BEFORE / PASS AFTER)",
+          "duration": 57.08649999999989,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1)"
+          ],
+          "fullName": "R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1) R1.5: rejects module mismatch when plan belongs to another module (FAIL BEFORE / PASS AFTER)",
+          "status": "passed",
+          "title": "R1.5: rejects module mismatch when plan belongs to another module (FAIL BEFORE / PASS AFTER)",
+          "duration": 90.24929999999995,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1)"
+          ],
+          "fullName": "R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1) R1.6: distinguishes corrupt JSON from missing plan and rejects missing matrix (FAIL BEFORE / PASS AFTER)",
+          "status": "passed",
+          "title": "R1.6: distinguishes corrupt JSON from missing plan and rejects missing matrix (FAIL BEFORE / PASS AFTER)",
+          "duration": 43.4055000000003,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1)"
+          ],
+          "fullName": "R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1) R1.7: rejects unknown or incompatible fingerprint and schema versions (FAIL BEFORE / PASS AFTER)",
+          "status": "passed",
+          "title": "R1.7: rejects unknown or incompatible fingerprint and schema versions (FAIL BEFORE / PASS AFTER)",
+          "duration": 79.6576,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1)"
+          ],
+          "fullName": "R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1) R1.8: rejects plan with missing cases_fingerprint_version (FAIL BEFORE / PASS AFTER)",
+          "status": "passed",
+          "title": "R1.8: rejects plan with missing cases_fingerprint_version (FAIL BEFORE / PASS AFTER)",
+          "duration": 55.75529999999981,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1)"
+          ],
+          "fullName": "R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1) R1.9: rejects plan with missing checksum (FAIL BEFORE / PASS AFTER)",
+          "status": "passed",
+          "title": "R1.9: rejects plan with missing checksum (FAIL BEFORE / PASS AFTER)",
+          "duration": 58.890699999999924,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1)"
+          ],
+          "fullName": "R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1) R1.10: rejects plan with missing schema version (FAIL BEFORE / PASS AFTER)",
+          "status": "passed",
+          "title": "R1.10: rejects plan with missing schema version (FAIL BEFORE / PASS AFTER)",
+          "duration": 57.03909999999996,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1)"
+          ],
+          "fullName": "R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1) R1.11: handles listTestCases failure as unverifiable and never as success (FAIL BEFORE / PASS AFTER)",
+          "status": "passed",
+          "title": "R1.11: handles listTestCases failure as unverifiable and never as success (FAIL BEFORE / PASS AFTER)",
+          "duration": 17.737499999999727,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1)"
+          ],
+          "fullName": "R1 Deterministic Regressions — Plan Integrity & DAG Validation (VNEXT-014-C1) R1.12: returns verified plan and cases snapshot for TOCTOU prevention (FAIL BEFORE / PASS AFTER)",
+          "status": "passed",
+          "title": "R1.12: returns verified plan and cases snapshot for TOCTOU prevention (FAIL BEFORE / PASS AFTER)",
+          "duration": 73.62789999999995,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        }
+      ],
+      "startTime": 1794006715166,
+      "endTime": 1794006716770.628,
+      "status": "passed",
+      "message": "",
+      "name": "<repo>/packages/mcp/src/__tests__/plan-handler.test.ts"
+    }
+  ]
+}

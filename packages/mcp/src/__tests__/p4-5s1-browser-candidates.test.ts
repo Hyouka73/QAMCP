@@ -18,7 +18,8 @@ describe('P4.5-S1: Preflight browser, Module Candidates, and Session Plan', () =
   beforeEach(async () => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'qap-p4-5s1-test-'));
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-    const server = createMcpServer();
+    // Restrict writes to this disposable root and its nested test projects.
+    const server = createMcpServer({ projectRoots: [tmpDir] });
     await server.connect(serverTransport);
     client = new Client({ name: 'test-client', version: '1.0.0' }, { capabilities: {} });
     await client.connect(clientTransport);
@@ -29,10 +30,15 @@ describe('P4.5-S1: Preflight browser, Module Candidates, and Session Plan', () =
   });
 
   async function initAndAdvanceToScoping(c: Client, dir: string) {
-    await c.callTool({
+    const initialized = await c.callTool({
       name: 'qap_init',
       arguments: { targetPath: dir }
     });
+    expect(initialized.isError).not.toBe(true);
+    const initText = initialized.content[0];
+    expect(initText.type).toBe('text');
+    if (initText.type !== 'text') throw new Error('Expected qap_init text response');
+    expect(JSON.parse(initText.text).status).toBe('success');
 
     // Provide environments.yaml with url
     const envsPath = path.join(dir, '.qa', 'project', 'environments.yaml');
@@ -69,6 +75,7 @@ describe('P4.5-S1: Preflight browser, Module Candidates, and Session Plan', () =
     }) as { content: Array<{ type: string; text: string }> };
 
     const parsed = JSON.parse(setRes.content[0].text);
+    expect(parsed.status).toBe('success');
     expect(parsed.fase).toBe('SCOPING');
   }
 
@@ -100,15 +107,19 @@ describe('P4.5-S1: Preflight browser, Module Candidates, and Session Plan', () =
     expect(QAP_CORE_DIRECTIVES).toContain('Explora solo con qap_discover');
   });
 
-  it('C1: descripciones de qap_status, qap_init y qap_discover contienen la frase obligatoria sobre exploracion', async () => {
+  it('C1: status/init conservan la frase histórica y discover declara modo estático/SPA y persistencia canónica', async () => {
     const listRes = await client.listTools();
     const toolMap = new Map(listRes.tools.map((t) => [t.name, t.description || '']));
+    const discoverTool = listRes.tools.find((t) => t.name === 'qap_discover');
 
     const requiredPhrase = 'QAP observa la app con su propio navegador mediante qap_discover; no uses navegadores ni herramientas de otros servidores MCP ni del IDE para explorarla (no se persistiría conocimiento en .qa)';
 
     expect(toolMap.get('qap_status')).toContain(requiredPhrase);
     expect(toolMap.get('qap_init')).toContain(requiredPhrase);
-    expect(toolMap.get('qap_discover')).toContain(requiredPhrase);
+    expect(toolMap.get('qap_discover')).toContain('Observa una ruta mediante BlackBoxCrawler real, con modo estático o SPA de solo lectura.');
+    expect(toolMap.get('qap_discover')).toContain('Persiste observaciones y evidencias en IKnowledgeStore.');
+    expect(toolMap.get('qap_discover')).toContain('credentials, profileId, sesiones aportadas y headed=true se rechazan.');
+    expect(discoverTool?.inputSchema.properties?.allow_spa).toMatchObject({ type: 'boolean' });
   });
 
   it('C4/C6: qap_context_ingest persiste module-candidates.json y qap_session_plan lo usa', async () => {
@@ -184,7 +195,7 @@ describe('P4.5-S1: Preflight browser, Module Candidates, and Session Plan', () =
     expect(planRes.isError).toBeFalsy();
     const planData = JSON.parse(planRes.content[0].text);
     expect(planData.status).toBe('blocked');
-    expect(planData.razon).toContain("El candidato con id 'inexistente-123' no existe en module-candidates.json.");
+    expect(planData.razon).toContain("El candidato indicado ('inexistente-123') no figura en la lista de candidatos revisables.");
   });
 
   it('C4: qap_session_plan bloquea si candidato tiene ruta null con ejemplo generico fijo (/catalog) nunca derivado del nombre', async () => {
@@ -218,7 +229,7 @@ describe('P4.5-S1: Preflight browser, Module Candidates, and Session Plan', () =
 
     const planData = JSON.parse(planRes.content[0].text);
     expect(planData.status).toBe('blocked');
-    expect(planData.razon).toContain('no tiene una ruta definida');
+    expect(planData.razon).toContain('aún no tiene una ruta asignada');
 
     const pregunta = planData.siguiente_accion?.pregunta;
     expect(pregunta).toBeDefined();
@@ -250,7 +261,7 @@ describe('P4.5-S1: Preflight browser, Module Candidates, and Session Plan', () =
   });
 
   it('C7: pregunta de alcance sin candidatos o sin front es byte a byte identica a la original', async () => {
-    const noFrontDir = fs.mkdtempSync(path.join(os.tmpdir(), 'qap-nofront-c7-'));
+    const noFrontDir = fs.mkdtempSync(path.join(tmpDir, 'qap-nofront-c7-'));
     try {
       await client.callTool({
         name: 'qap_init',
@@ -436,7 +447,7 @@ describe('P4.5-S1: Preflight browser, Module Candidates, and Session Plan', () =
     expect(planData.plan[4].priority).toBe('medium');
 
     // Retrocompatibilidad: formato tradicional con modules
-    const retroDir = fs.mkdtempSync(path.join(os.tmpdir(), 'qap-retro-plan-'));
+    const retroDir = fs.mkdtempSync(path.join(tmpDir, 'qap-retro-plan-'));
     try {
       await initAndAdvanceToScoping(client, retroDir);
       const retroPlanRes = await client.callTool({

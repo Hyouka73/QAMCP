@@ -181,8 +181,12 @@ export function canExitOnboarding(
   const objective = typeof rawObjective === 'string' ? rawObjective.trim() : '';
   const objSource = context.objective_source;
 
+  const STUB_OBJECTIVE_PATTERNS = /^(documento\s+vac[ií]o|sin\s+objetivo|todo|tbd|placeholder|none|null|n\/a)$/i;
+
   if (!objective) {
     faltantes.push({ campo: 'objective', motivo: 'falta definir el objetivo del proyecto' });
+  } else if (STUB_OBJECTIVE_PATTERNS.test(objective)) {
+    faltantes.push({ campo: 'objective', motivo: 'el objetivo es un marcador de posición o stub inválido' });
   } else if (objective.length < 20) {
     faltantes.push({ campo: 'objective', motivo: 'el objetivo debe tener al menos 20 caracteres tras trim' });
   } else {

@@ -1,0 +1,370 @@
+[
+  {
+    "pid": "76504",
+    "close_started": 1793988367069,
+    "process_exited": 1793988367291,
+    "profile_removed": 1793988367327,
+    "process_exit_ms": 222,
+    "profile_cleanup_ms": 36
+  },
+  {
+    "pid": "52580",
+    "close_started": 1793988369991,
+    "process_exited": 1793988371471,
+    "profile_removed": 1793988371564,
+    "process_exit_ms": 1480,
+    "profile_cleanup_ms": 93
+  },
+  {
+    "pid": "75416",
+    "close_started": 1793988370283,
+    "process_exited": 1793988371229,
+    "profile_removed": 1793988371312,
+    "process_exit_ms": 946,
+    "profile_cleanup_ms": 83
+  },
+  {
+    "pid": "16672",
+    "close_started": 1793988371227,
+    "process_exited": 1793988371684,
+    "profile_removed": 1793988371708,
+    "process_exit_ms": 457,
+    "profile_cleanup_ms": 24
+  },
+  {
+    "pid": "33760",
+    "close_started": 1793988374934,
+    "process_exited": 1793988376900,
+    "profile_removed": 1793988376988,
+    "process_exit_ms": 1966,
+    "profile_cleanup_ms": 88
+  },
+  {
+    "pid": "29080",
+    "close_started": 1793988374936,
+    "process_exited": 1793988376619,
+    "profile_removed": 1793988376724,
+    "process_exit_ms": 1683,
+    "profile_cleanup_ms": 105
+  },
+  {
+    "pid": "20688",
+    "close_started": 1793988375815,
+    "process_exited": 1793988376573,
+    "profile_removed": 1793988376638,
+    "process_exit_ms": 758,
+    "profile_cleanup_ms": 65
+  },
+  {
+    "pid": "76932",
+    "close_started": 1793988375878,
+    "process_exited": 1793988377016,
+    "profile_removed": 1793988377080,
+    "process_exit_ms": 1138,
+    "profile_cleanup_ms": 64
+  },
+  {
+    "pid": "59116",
+    "close_started": 1793988379592,
+    "process_exited": 1793988383103,
+    "profile_removed": 1793988383167,
+    "process_exit_ms": 3511,
+    "profile_cleanup_ms": 64
+  },
+  {
+    "pid": "52464",
+    "close_started": 1793988379829,
+    "process_exited": 1793988382413,
+    "profile_removed": 1793988382437,
+    "process_exit_ms": 2584,
+    "profile_cleanup_ms": 24
+  },
+  {
+    "pid": "55132",
+    "close_started": 1793988381324,
+    "process_exited": 1793988382970,
+    "profile_removed": 1793988383025,
+    "process_exit_ms": 1646,
+    "profile_cleanup_ms": 55
+  },
+  {
+    "pid": "39340",
+    "close_started": 1793988381369,
+    "process_exited": 1793988384523,
+    "profile_removed": 1793988384618,
+    "process_exit_ms": 3154,
+    "profile_cleanup_ms": 95
+  },
+  {
+    "pid": "75032",
+    "close_started": 1793988382379,
+    "process_exited": 1793988384005,
+    "profile_removed": 1793988384184,
+    "process_exit_ms": 1626,
+    "profile_cleanup_ms": 179
+  },
+  {
+    "pid": "44392",
+    "close_started": 1793988383855,
+    "process_exited": 1793988385878,
+    "profile_removed": 1793988385901,
+    "process_exit_ms": 2023,
+    "profile_cleanup_ms": 23
+  },
+  {
+    "pid": "45484",
+    "close_started": 1793988385341,
+    "process_exited": 1793988387102,
+    "profile_removed": 1793988387167,
+    "process_exit_ms": 1761,
+    "profile_cleanup_ms": 65
+  },
+  {
+    "pid": "31376",
+    "close_started": 1793988387003,
+    "process_exited": 1793988387259,
+    "profile_removed": 1793988387288,
+    "process_exit_ms": 256,
+    "profile_cleanup_ms": 29
+  },
+  {
+    "pid": "24052",
+    "close_started": 1793988388230,
+    "process_exited": 1793988389270,
+    "profile_removed": 1793988389288,
+    "process_exit_ms": 1040,
+    "profile_cleanup_ms": 18
+  },
+  {
+    "pid": "34596",
+    "close_started": 1793988388371,
+    "process_exited": 1793988389287,
+    "profile_removed": 1793988389343,
+    "process_exit_ms": 916,
+    "profile_cleanup_ms": 56
+  },
+  {
+    "pid": "78064",
+    "close_started": 1793988389053,
+    "process_exited": 1793988389364,
+    "profile_removed": 1793988389405,
+    "process_exit_ms": 311,
+    "profile_cleanup_ms": 41
+  },
+  {
+    "pid": "30936",
+    "close_started": 1793988390623,
+    "process_exited": 1793988390750,
+    "profile_removed": 1793988390773,
+    "process_exit_ms": 127,
+    "profile_cleanup_ms": 23
+  },
+  {
+    "pid": "39680",
+    "close_started": 1793988390897,
+    "process_exited": 1793988391190,
+    "profile_removed": 1793988391305,
+    "process_exit_ms": 293,
+    "profile_cleanup_ms": 115
+  },
+  {
+    "pid": "60180",
+    "close_started": 1793988391118,
+    "process_exited": 1793988391490,
+    "profile_removed": 1793988391537,
+    "process_exit_ms": 372,
+    "profile_cleanup_ms": 47
+  },
+  {
+    "pid": "41708",
+    "close_started": 1793988391244,
+    "process_exited": 1793988391741,
+    "profile_removed": 1793988391801,
+    "process_exit_ms": 497,
+    "profile_cleanup_ms": 60
+  },
+  {
+    "pid": "27700",
+    "close_started": 1793988392102,
+    "process_exited": 1793988392186,
+    "profile_removed": 1793988392202,
+    "process_exit_ms": 84,
+    "profile_cleanup_ms": 16
+  },
+  {
+    "pid": "46800",
+    "close_started": 1793988394391,
+    "process_exited": 1793988394610,
+    "profile_removed": 1793988394659,
+    "process_exit_ms": 219,
+    "profile_cleanup_ms": 49
+  },
+  {
+    "pid": "31068",
+    "close_started": 1793988395201,
+    "process_exited": 1793988395501,
+    "profile_removed": 1793988395558,
+    "process_exit_ms": 300,
+    "profile_cleanup_ms": 57
+  },
+  {
+    "pid": "37096",
+    "close_started": 1793988395870,
+    "process_exited": 1793988396089,
+    "profile_removed": 1793988396134,
+    "process_exit_ms": 219,
+    "profile_cleanup_ms": 45
+  },
+  {
+    "pid": "5384",
+    "close_started": 1793988396356,
+    "process_exited": 1793988396727,
+    "profile_removed": 1793988396766,
+    "process_exit_ms": 371,
+    "profile_cleanup_ms": 39
+  },
+  {
+    "pid": "73944",
+    "close_started": 1793988397424,
+    "process_exited": 1793988397677,
+    "profile_removed": 1793988397726,
+    "process_exit_ms": 253,
+    "profile_cleanup_ms": 49
+  },
+  {
+    "pid": "58152",
+    "close_started": 1793988398873,
+    "process_exited": 1793988399115,
+    "profile_removed": 1793988399160,
+    "process_exit_ms": 242,
+    "profile_cleanup_ms": 45
+  },
+  {
+    "pid": "45532",
+    "close_started": 1793988399385,
+    "process_exited": 1793988399574,
+    "profile_removed": 1793988399610,
+    "process_exit_ms": 189,
+    "profile_cleanup_ms": 36
+  },
+  {
+    "pid": "62360",
+    "close_started": 1793988399731,
+    "process_exited": 1793988400419,
+    "profile_removed": 1793988400471,
+    "process_exit_ms": 688,
+    "profile_cleanup_ms": 52
+  },
+  {
+    "pid": "38460",
+    "close_started": 1793988400394,
+    "process_exited": 1793988400613,
+    "profile_removed": 1793988400647,
+    "process_exit_ms": 219,
+    "profile_cleanup_ms": 34
+  },
+  {
+    "pid": "34948",
+    "close_started": 1793988401720,
+    "process_exited": 1793988401931,
+    "profile_removed": 1793988401977,
+    "process_exit_ms": 211,
+    "profile_cleanup_ms": 46
+  },
+  {
+    "pid": "2000",
+    "close_started": 1793988402548,
+    "process_exited": 1793988402811,
+    "profile_removed": 1793988402856,
+    "process_exit_ms": 263,
+    "profile_cleanup_ms": 45
+  },
+  {
+    "pid": "54972",
+    "close_started": 1793988403077,
+    "process_exited": 1793988403226,
+    "profile_removed": 1793988403257,
+    "process_exit_ms": 149,
+    "profile_cleanup_ms": 31
+  },
+  {
+    "pid": "37548",
+    "close_started": 1793988404053,
+    "process_exited": 1793988404176,
+    "profile_removed": 1793988404204,
+    "process_exit_ms": 123,
+    "profile_cleanup_ms": 28
+  },
+  {
+    "pid": "36212",
+    "close_started": 1793988404690,
+    "process_exited": 1793988405007,
+    "profile_removed": 1793988405045,
+    "process_exit_ms": 317,
+    "profile_cleanup_ms": 38
+  },
+  {
+    "pid": "75124",
+    "close_started": 1793988405088,
+    "process_exited": 1793988405241,
+    "profile_removed": 1793988405285,
+    "process_exit_ms": 153,
+    "profile_cleanup_ms": 44
+  },
+  {
+    "pid": "62540",
+    "close_started": 1793988407208,
+    "process_exited": 1793988407359,
+    "profile_removed": 1793988407390,
+    "process_exit_ms": 151,
+    "profile_cleanup_ms": 31
+  },
+  {
+    "pid": "26420",
+    "close_started": 1793988407750,
+    "process_exited": 1793988408059,
+    "profile_removed": 1793988408098,
+    "process_exit_ms": 309,
+    "profile_cleanup_ms": 39
+  },
+  {
+    "pid": "29144",
+    "close_started": 1793988408348,
+    "process_exited": 1793988408553,
+    "profile_removed": 1793988408593,
+    "process_exit_ms": 205,
+    "profile_cleanup_ms": 40
+  },
+  {
+    "pid": "34896",
+    "close_started": 1793988409257,
+    "process_exited": 1793988409321,
+    "profile_removed": 1793988409333,
+    "process_exit_ms": 64,
+    "profile_cleanup_ms": 12
+  },
+  {
+    "pid": "48768",
+    "close_started": 1793988409466,
+    "process_exited": 1793988409598,
+    "profile_removed": 1793988409630,
+    "process_exit_ms": 132,
+    "profile_cleanup_ms": 32
+  },
+  {
+    "pid": "35700",
+    "close_started": 1793988410388,
+    "process_exited": 1793988410528,
+    "profile_removed": 1793988410554,
+    "process_exit_ms": 140,
+    "profile_cleanup_ms": 26
+  },
+  {
+    "pid": "66000",
+    "close_started": 1793988411437,
+    "process_exited": 1793988411569,
+    "profile_removed": 1793988411595,
+    "process_exit_ms": 132,
+    "profile_cleanup_ms": 26
+  }
+]

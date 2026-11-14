@@ -1,0 +1,160 @@
+{
+  "source_head": "9be02fe2a76452fba7dcea87450135e203e833f1",
+  "ancestors": [
+    {
+      "sha": "08a34bbdaffc1aee89b2fe1a26b08eab66c284d1",
+      "ancestor": true
+    },
+    {
+      "sha": "a64a90aa39374772fc756032b291688496e6a73c",
+      "ancestor": true
+    },
+    {
+      "sha": "7a3d6dd6c189feb85d8097792ef1f0c2915e5c65",
+      "ancestor": true
+    },
+    {
+      "sha": "d49297a36f0340d46108553bb1e7989c66549eb1",
+      "ancestor": true
+    },
+    {
+      "sha": "15eaabcc03baf0b05d74e48c5887a5261a179041",
+      "ancestor": true
+    },
+    {
+      "sha": "c9d624c79e65bb3de5623d28ed93cbd3724465b1",
+      "ancestor": true
+    },
+    {
+      "sha": "ea54a8b873ae9f224cddd7c6e3a8b7ca0b450f1d",
+      "ancestor": true
+    },
+    {
+      "sha": "7149c030eb814e759bc824b1106c8bf3d77e1d11",
+      "ancestor": true
+    },
+    {
+      "sha": "0b8d8c78b2e76be170cc399ece8d063db3d3c501",
+      "ancestor": true
+    },
+    {
+      "sha": "dda870e4695a8a27db07ea32b81c1efbbf6ba39e",
+      "ancestor": true
+    },
+    {
+      "sha": "f555f9dc2d17a2933210cc49db7dbe3bdda646f0",
+      "ancestor": true
+    },
+    {
+      "sha": "c34e1e51b153cb7006104cd0e698ad2a3e905083",
+      "ancestor": true
+    },
+    {
+      "sha": "541c925a6c1194bc2c85ab5a42b2b54e66f4d82c",
+      "ancestor": true
+    },
+    {
+      "sha": "3fe4fec91843943c7b901974b7c0a4ef5540e0eb",
+      "ancestor": true
+    },
+    {
+      "sha": "ed2955ff91a6506a80e3ff0e4bb9322cf9eed226",
+      "ancestor": true
+    },
+    {
+      "sha": "6f4f55c41d5ed340d85a8f38174868ac8741387f",
+      "ancestor": true
+    }
+  ],
+  "inherited_failure_tests_unchanged": {
+    "packages/mcp/src/__tests__/p4-4-auth-lifecycle.test.ts": true,
+    "packages/mcp/src/__tests__/p4-5a2-integrity.test.ts": true,
+    "packages/mcp/src/__tests__/p4-5a-integrity.test.ts": true,
+    "packages/mcp/src/__tests__/server.test.ts": true
+  },
+  "admin_files": [
+    {
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audit-r4-r10\\packages\\playwright-runner\\.qa\\cache\\sessions\\admin-user.json",
+      "sha256": "f2a35a0cbc8d1808f2305bd10cc24c10462a0aac6b5981dec254620567eed47a",
+      "unchanged": true
+    },
+    {
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audit-r4-r10-docs\\packages\\playwright-runner\\.qa\\cache\\sessions\\admin-user.json",
+      "sha256": "f2a35a0cbc8d1808f2305bd10cc24c10462a0aac6b5981dec254620567eed47a",
+      "unchanged": true
+    },
+    {
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audit-r4-r8\\packages\\playwright-runner\\.qa\\cache\\sessions\\admin-user.json",
+      "sha256": "f2a35a0cbc8d1808f2305bd10cc24c10462a0aac6b5981dec254620567eed47a",
+      "unchanged": true
+    },
+    {
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audit-r4-r9\\packages\\playwright-runner\\.qa\\cache\\sessions\\admin-user.json",
+      "sha256": "f2a35a0cbc8d1808f2305bd10cc24c10462a0aac6b5981dec254620567eed47a",
+      "unchanged": true
+    },
+    {
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\QAMCP\\packages\\playwright-runner\\.qa\\cache\\sessions\\admin-user.json",
+      "sha256": "e45ef591b7cb47cf584afc230b8bbf3db0a28351b4bbcd5ec388ce0d753508af",
+      "unchanged": true
+    },
+    {
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\vnext014-conv\\packages\\playwright-runner\\.qa\\cache\\sessions\\admin-user.json",
+      "sha256": "f2a35a0cbc8d1808f2305bd10cc24c10462a0aac6b5981dec254620567eed47a",
+      "unchanged": true
+    },
+    {
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\vnext014-reparacion-audit\\packages\\playwright-runner\\.qa\\cache\\sessions\\admin-user.json",
+      "sha256": "f2a35a0cbc8d1808f2305bd10cc24c10462a0aac6b5981dec254620567eed47a",
+      "unchanged": true
+    },
+    {
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\worktrees\\mvp01-bva-rbac\\packages\\playwright-runner\\.qa\\cache\\sessions\\admin-user.json",
+      "sha256": "2234e33c43f854c51df0304967a9c670f0935e43c1cdfe8a1ae7af31d5363cea",
+      "unchanged": true
+    },
+    {
+      "path": "C:\\Users\\Judirico\\.codex\\worktrees\\dev-mvp-02\\QAMCP\\packages\\playwright-runner\\.qa\\cache\\sessions\\admin-user.json",
+      "sha256": "2234e33c43f854c51df0304967a9c670f0935e43c1cdfe8a1ae7af31d5363cea",
+      "unchanged": true
+    },
+    {
+      "path": "C:\\Users\\Judirico\\.codex\\worktrees\\int-03-r5\\QAMCP\\packages\\playwright-runner\\.qa\\cache\\sessions\\admin-user.json",
+      "sha256": "2234e33c43f854c51df0304967a9c670f0935e43c1cdfe8a1ae7af31d5363cea",
+      "unchanged": true
+    },
+    {
+      "path": "C:\\Users\\Judirico\\.codex\\worktrees\\int01-mvp-lab\\QAMCP\\packages\\playwright-runner\\.qa\\cache\\sessions\\admin-user.json",
+      "sha256": "2234e33c43f854c51df0304967a9c670f0935e43c1cdfe8a1ae7af31d5363cea",
+      "unchanged": true
+    },
+    {
+      "path": "C:\\Users\\Judirico\\.codex\\worktrees\\int03-mvp-fixes\\QAMCP\\packages\\playwright-runner\\.qa\\cache\\sessions\\admin-user.json",
+      "sha256": "2234e33c43f854c51df0304967a9c670f0935e43c1cdfe8a1ae7af31d5363cea",
+      "unchanged": true
+    },
+    {
+      "path": "C:\\Users\\Judirico\\.codex\\worktrees\\int03-qa-r1\\QAMCP\\packages\\playwright-runner\\.qa\\cache\\sessions\\admin-user.json",
+      "sha256": "2234e33c43f854c51df0304967a9c670f0935e43c1cdfe8a1ae7af31d5363cea",
+      "unchanged": true
+    },
+    {
+      "path": "C:\\Users\\Judirico\\.codex\\worktrees\\int03-r4-consolidated\\mvp01-bva-rbac\\packages\\playwright-runner\\.qa\\cache\\sessions\\admin-user.json",
+      "sha256": "2234e33c43f854c51df0304967a9c670f0935e43c1cdfe8a1ae7af31d5363cea",
+      "unchanged": true
+    },
+    {
+      "path": "C:\\Users\\Judirico\\.codex\\worktrees\\mvp-integral\\QAMCP\\packages\\playwright-runner\\.qa\\cache\\sessions\\admin-user.json",
+      "sha256": "2234e33c43f854c51df0304967a9c670f0935e43c1cdfe8a1ae7af31d5363cea",
+      "unchanged": true
+    },
+    {
+      "path": "C:\\Users\\Judirico\\.codex\\worktrees\\vnext-015-04\\QAMCP\\packages\\playwright-runner\\.qa\\cache\\sessions\\admin-user.json",
+      "sha256": "f2a35a0cbc8d1808f2305bd10cc24c10462a0aac6b5981dec254620567eed47a",
+      "unchanged": true
+    }
+  ],
+  "product_delta_from_dev02": "packages/knowledge/src/impact/flow-impact.ts | 201 ++++++++++++++++\n packages/knowledge/src/index.ts              |   1 +\n packages/knowledge/test/flow-impact.test.ts  | 335 +++++++++++++++++++++++++++\n 3 files changed, 537 insertions(+)",
+  "develop_ref": "b9d5b503a6c4c827f5184fe30cbcec7366efbfb6",
+  "main_ref": "fa6a527764f6e96514a1e589411e7f402e059b68"
+}

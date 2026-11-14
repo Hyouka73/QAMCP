@@ -24,8 +24,16 @@ function renderStep(step: ExecutedStep, index: number): string {
   const duration = typeof step.duration_ms === 'number' ? `${step.duration_ms} ms` : '—';
   const selector = step.selector ? ` \`${escapeMd(step.selector)}\`` : '';
   const line = `  - #${index + 1} **${escapeMd(step.action)}**${selector} — ${duration} — ${statusLabel(step.status)}`;
+  const expObs =
+    step.expected !== undefined || step.observed !== undefined
+      ? `\n    - Esperado: \`${escapeMd(String(step.expected ?? '—'))}\` · Observado: \`${escapeMd(String(step.observed ?? '—'))}\``
+      : '';
   const message = step.message ? `\n    - ${escapeMd(step.message)}` : '';
-  return line + message;
+  const shot = step.screenshot
+    ? `\n    - Captura${step.focused_screenshot ? ' enfocada' : ''}: \`${escapeMd(step.screenshot)}\``
+    : '';
+  const artErr = step.artifact_error ? `\n    - Causa fallo artefacto: ${escapeMd(step.artifact_error)}` : '';
+  return line + expObs + message + shot + artErr;
 }
 
 function renderCase(caseItem: ExecutedCase): string {
@@ -54,6 +62,26 @@ export function generateMarkdownReport(result: ExecutionResult): string {
   ].join('\n');
 
   const casesMd = result.cases.map(renderCase).join('\n\n');
+  const artifactLines: string[] = [];
+  if (result.attempt_id) {
+    artifactLines.push(`- Intento: \`${escapeMd(result.attempt_id)}\``);
+  }
+  if (result.artifacts?.video_path) {
+    artifactLines.push(`- Video WebM: \`${escapeMd(result.artifacts.video_path)}\``);
+  }
+  if (result.artifacts?.trace_zip_path) {
+    artifactLines.push(`- Trace Playwright: \`${escapeMd(result.artifacts.trace_zip_path)}\``);
+  }
+  if (result.artifacts?.timeline_path) {
+    artifactLines.push(`- Timeline de pasos: \`${escapeMd(result.artifacts.timeline_path)}\``);
+  }
+  if (result.artifacts?.artifact_errors && result.artifacts.artifact_errors.length > 0) {
+    for (const err of result.artifacts.artifact_errors) {
+      artifactLines.push(`- Diagnóstico artefacto (${escapeMd(err.artifact)}): ${escapeMd(err.message)}`);
+    }
+  }
+  const artifactsSection =
+    artifactLines.length > 0 ? ['## Evidencia del intento', '', ...artifactLines, ''] : [];
 
   return [
     `# Reporte de ejecución: ${escapeMd(result.module)}`,
@@ -62,6 +90,7 @@ export function generateMarkdownReport(result: ExecutionResult): string {
     '',
     summaryTable,
     '',
+    ...artifactsSection,
     casesMd,
     '',
   ].join('\n');

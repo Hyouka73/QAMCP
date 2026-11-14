@@ -1,0 +1,100 @@
+{
+  "checkedAt": "2026-11-09T18:01:31.049Z",
+  "sourceCommit": "387e7be8b8440dac1c8144bffa601aa832c88e06",
+  "original": "47f17ceafc2f76d5a41fd714cd0c071dbdcb8d72",
+  "update": "4d2b5ee81d7bf86425950db73a4a980d6e934ef0",
+  "vnext": "dda870e4695a8a27db07ea32b81c1efbbf6ba39e",
+  "originalConflictsUnchanged": 8,
+  "r7DeltaUnmodified": true,
+  "detached": true,
+  "preserved015NotIncluded": [
+    "0b8d8c78b2e76be170cc399ece8d063db3d3c501",
+    "7149c030eb814e759bc824b1106c8bf3d77e1d11"
+  ],
+  "syntax": {
+    "result": "SYNTAX_OK",
+    "node": "v24.15.0",
+    "files": [
+      {
+        "file": "packages/cli/src/commands.ts",
+        "sha256": "f9ff75ce163a160aeb22e7ba3849e72f1536e55d2a3a9ace40e47fe545f2982b"
+      },
+      {
+        "file": "packages/cli/src/commands/prune.ts",
+        "sha256": "b79ac4246a9cfe5de066d504dc91954211ce288e952c6b1863454edc242c2996"
+      },
+      {
+        "file": "packages/cli/src/__tests__/prune-safety-integration.test.ts",
+        "sha256": "55c9d8b744d096bc34e3b9b31be61cbd60d4093fcddac79c468c2ebe5500898b"
+      },
+      {
+        "file": "packages/reporter/src/persistence/sqlite-client.ts",
+        "sha256": "5940f8c61f42a8653eed86531a45947061c26eb13fb18c85c4b225682a025e58"
+      },
+      {
+        "file": "packages/reporter/src/pruning/pruning-engine.ts",
+        "sha256": "861600cec3b1d9709f8cf94a713206af5ee4ed2f5d1de49f911458d501799d3f"
+      },
+      {
+        "file": "packages/reporter/src/__tests__/quota-plan.test.ts",
+        "sha256": "4dfb4923e6e37201bef3370226a9f6df980031b16870a8d623dd05a87b94f473"
+      },
+      {
+        "file": "packages/reporter/src/__tests__/sqlite-audit-mode.test.ts",
+        "sha256": "01b186f8ae2ceaece429980d76194a144ee674739428ded49ff40487d5433a81"
+      },
+      {
+        "file": "packages/knowledge/src/plan/bva-generator.ts",
+        "sha256": "f928c58ebdd22949a1741554f1dd3cd7971c56acba90b59b77c265c8bd1c232a"
+      },
+      {
+        "file": "packages/knowledge/src/plan/rbac-generator.ts",
+        "sha256": "6318e4ce0d1de6ab5aa662685bbd26ef5061be3752c8233df90353744e89ba50"
+      },
+      {
+        "file": "packages/knowledge/src/__tests__/generator-oracle-safety.test.ts",
+        "sha256": "c6f62c4b44517677219bb750955324b2e0ac3617a2ea519b7a55b9e9b6573641"
+      },
+      {
+        "file": "packages/playwright-runner/src/runner.ts",
+        "sha256": "d4efd6fa5ee9917368dea06fb7df2c8359545bf4e9c12d86083b7b618a73473e"
+      },
+      {
+        "file": "packages/playwright-runner/src/case-execution-policy.ts",
+        "sha256": "cbc32eb74febff81c8cde921f221d0250a75990668de4c76a326a69fa447ce67"
+      },
+      {
+        "file": "packages/playwright-runner/src/__tests__/case-execution-policy.test.ts",
+        "sha256": "fa59aff81724a9fd2a78744bba4f6eb42f09c6e1d94f0b9a6a5654fb1c57306b"
+      },
+      {
+        "file": "packages/playwright-runner/src/__tests__/runner-capability-blocks.test.ts",
+        "sha256": "46a2adda62a2b48e5aff8ad3d74656fadcab8af6bc639baf5d0d0fbbf688a880"
+      }
+    ]
+  },
+  "conservation": {
+    "result": "SOURCE_CHECKS_OK",
+    "docsWithBothParentTexts": 6,
+    "conflictFilesWithoutMarkers": 8,
+    "uniqueExportPaths": 26,
+    "directlyDeclaredNamesChecked": 94,
+    "functionalTestsRun": 0,
+    "typecheckRun": false,
+    "buildRun": false,
+    "limitation": "Lexical conservation only. No runtime/semantic compatibility or certification asserted."
+  },
+  "declaredPreparedTests": {
+    "inherited": 17,
+    "additional": 34,
+    "total": 51,
+    "discoveredByVitest": false
+  },
+  "functionalTestsExecuted": 0,
+  "buildsExecuted": 0,
+  "typecheckExecuted": false,
+  "lintExecuted": false,
+  "E01Executed": false,
+  "executionStatus": "BLOCKED_ENVIRONMENT: user confirms Gemini active on shared host; suites NOT EXECUTED",
+  "certification": "NO-GO; source preparation only"
+}

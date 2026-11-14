@@ -19,7 +19,7 @@ import type { Command } from 'commander';
 
 import { NotImplementedError } from './errors.js';
 import { handleClean } from './commands/clean.js';
-import { handleAuthAdd, handleAuthList, handleAuthSetSecret, handleAuthRemove } from './commands/auth/index.js';
+import { handleAuthAdd, handleAuthList, handleAuthSetSecret, handleAuthRemove, handleAuthTokenVariable, handleAuthImportInventory } from './commands/auth/index.js';
 import { handleRun } from './commands/runner/index.js';
 import { handleStatus } from './commands/status/index.js';
 import { handleContext } from './commands/context.js';
@@ -36,6 +36,7 @@ import { handleMcp, handleMcpRegister } from './commands/mcp.js';
 import { handleTest } from './commands/test.js';
 import { handleUpdate } from './commands/update.js';
 import { handleRollback } from './commands/rollback.js';
+import { handleFlow } from './commands/flow.js';
 
 export { handleClean } from './commands/clean.js';
 export { handleMcp } from './commands/mcp.js';
@@ -49,11 +50,15 @@ interface CommandDefinition {
 }
 
 // Mantenemos únicamente los stubs pendientes que aún no tienen implementación real
-const COMMANDS: readonly CommandDefinition[] = [
-  { name: 'flow', description: 'Ejecuta un flow definido sobre uno o más módulos.', args: '<flow>' },
-];
+const COMMANDS: readonly CommandDefinition[] = [];
 
 export function registerCommands(program: Command): void {
+  program
+    .command('flow <flow>')
+    .description('Ejecuta un flow definido sobre uno o más módulos.')
+    .action(async (flowName: string) => {
+      await handleFlow(flowName);
+    });
   // 1. Registrar el comando `init`
   program
     .command('init')
@@ -76,10 +81,9 @@ export function registerCommands(program: Command): void {
   program
     .command('clean')
     .alias('reset')
-    .description('Elimina de forma segura todo el árbol .qa/ del proyecto actual y limpia locks remanentes')
-    .option('-y, --yes', 'Confirma la eliminación sin solicitar confirmación interactiva')
-    .option('-f, --force', 'Fuerza la eliminación inmediata de .qa/ y locks remanentes')
-    .action(async (options: { yes?: boolean; force?: boolean }) => {
+    .description('Restablece el proyecto QAP con autorización humana local')
+    .option('--preview', 'Muestra el inventario sin borrar')
+    .action(async (options: { preview?: boolean }) => {
       await handleClean(options);
     });
 
@@ -92,9 +96,36 @@ export function registerCommands(program: Command): void {
     .command('add [profile]')
     .description('Registra un nuevo perfil de autenticación')
     .option('-p, --profile <profile>', 'Nombre del perfil')
-    .action(async (profileArg?: string, options?: { profile?: string }) => {
+    .option('-u, --username <username>', 'Identificador de usuario (requerido para perfiles nuevos)')
+    .option('-e, --env <env>', 'Entorno del perfil', 'dev')
+    .option('-r, --role <role>', 'Rol asociado al perfil')
+    .option('--alias <alias>', 'Alias del perfil')
+    .option('--scenario <scenario>', 'Escenario de prueba del perfil')
+    .action(async (profileArg?: string, options?: { profile?: string; username?: string; env?: string; role?: string; alias?: string; scenario?: string }) => {
       const targetProfile = options?.profile || profileArg || 'default';
-      await handleAuthAdd(targetProfile);
+      await handleAuthAdd({
+        id: targetProfile,
+        ...(options?.username ? { username: options.username } : {}),
+        ...(options?.env ? { env: options.env } : {}),
+        ...(options?.role ? { role: options.role } : {}),
+        ...(options?.alias ? { alias: options.alias } : {}),
+        ...(options?.scenario ? { scenario: options.scenario } : {}),
+      });
+    });
+
+  authGroup
+    .command('import <file>')
+    .description('Importa un inventario local de cuentas QA (CSV, JSON o XLSX) autorizado por el operador')
+    .option('-e, --env <env>', 'Entorno por defecto', 'local')
+    .option('--import-passwords', 'Importa contraseñas presentes hacia el llavero seguro local')
+    .action(async (file: string, options?: { env?: string; importPasswords?: boolean }) => {
+      const res = await handleAuthImportInventory({
+        filePath: file,
+        operatorAuthorized: true,
+        defaults: { env: options?.env ?? 'local' },
+        importPasswordsLocally: Boolean(options?.importPasswords),
+      });
+      console.log(`✔ Perfiles importados: ${res.imported.length} (duplicados omitidos: ${res.skippedDuplicates.length})`);
     });
 
   authGroup
@@ -105,15 +136,21 @@ export function registerCommands(program: Command): void {
     });
 
   authGroup
-    .command('set-secret [profile] [secret]')
-    .description('Almacena un secreto directamente en el llavero local')
-    .option('-p, --profile <profile>', 'Nombre del perfil')
-    .option('-s, --secret <secret>', 'Valor del secreto')
-    .action(async (profileArg?: string, secretArg?: string, options?: { profile?: string; secret?: string }) => {
-      const targetProfile = options?.profile || profileArg || 'default';
-      const targetSecret = options?.secret || secretArg || '';
-      await handleAuthSetSecret(targetProfile, targetSecret);
+    .command('set-secret <profile>')
+    .description('Guarda una credencial mediante el diálogo local de Windows')
+    .allowUnknownOption()
+    .allowExcessArguments()
+    .action(async (profile: string, _options: object, command: Command) => {
+      if (command.args.length !== 1 || !/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(profile)) {
+        throw new Error('Usa qap auth set-secret <perfil> y escribe la contraseña en el diálogo local.');
+      }
+      await handleAuthSetSecret(profile);
     });
+
+  authGroup
+    .command('token-variable <profile>')
+    .description('Muestra el nombre de la variable de token autorizada para este perfil')
+    .action(handleAuthTokenVariable);
 
   authGroup
     .command('remove [profile]')
@@ -253,11 +290,11 @@ export function registerCommands(program: Command): void {
      .command('prune')
      .description('Elimina ejecuciones, capturas temporales y logs obsoletos')
      .option('--older-than-days <dias>', 'Antigüedad máxima en días')
-     .option('--max-bytes <bytes>', 'Límite de cuota en disco')
+     .option('--max-bytes <bytes>', 'Cuota de runtime/runs; purga solo videos/trazas y preserva registros y pinned')
      .option('--max-entries <entradas>', 'Número máximo de ejecuciones a conservar')
      .option('--include-screenshots', 'Incluir purga de capturas de pantalla de artefactos')
      .option('--include-hashes', 'Incluir purga de snapshots DOM antiguos en caché')
-     .option('--dry-run', 'Audita sin eliminar ningún archivo')
+     .option('--dry-run', 'Audita sin cambiar el proyecto; SQLite se inspecciona en copia temporal')
      .action(async (options: PruneCommandOptions) => {
        await handlePrune(options);
      });

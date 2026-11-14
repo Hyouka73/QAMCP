@@ -164,8 +164,6 @@ describe('interview-engine (P3)', () => {
           category: 'sensibilidad',
           view: 'default',
           reason: 'Gestionado externamente por SSO',
-          waived_at: new Date().toISOString(),
-          waived_by: 'user',
         },
       ];
 

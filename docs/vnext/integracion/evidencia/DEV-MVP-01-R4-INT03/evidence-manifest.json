@@ -1,0 +1,304 @@
+{
+  "date": "2026-11-09",
+  "timezone": "America/Mexico_City",
+  "int03": "18199e0c036ab53c6d0f7af0a9f65740eb0aec89",
+  "r4": "d49297a36f0340d46108553bb1e7989c66549eb1",
+  "r4Verdict": "GO",
+  "integrationVerdict": "NO-GO",
+  "logs": [
+    {
+      "name": "consolidated-all-tests-serial.log",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\consolidated-all-tests-serial.log",
+      "bytes": 3427,
+      "sha256": "77CC35FC6D53D7202438CDD1D12F6DFD4DA859C8C9099B6A44F64F94B26211E9"
+    },
+    {
+      "name": "consolidated-all-tests.log",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\consolidated-all-tests.log",
+      "bytes": 19196,
+      "sha256": "748EA072425D80D6D03F7369D1D36F544C3581339D29A3C0898A833692C56999"
+    },
+    {
+      "name": "consolidated-browser.json",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\consolidated-browser.json",
+      "bytes": 8146,
+      "sha256": "1CA02F41BA03E371EE5D7AD4620F6096C33BC885790265EEB66879E002185086"
+    },
+    {
+      "name": "consolidated-build.log",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\consolidated-build.log",
+      "bytes": 8369,
+      "sha256": "C535097119C525AC1E57DC5D4F78ACA26CE9C0FA6F92EF4A2E2B6114A71E3774"
+    },
+    {
+      "name": "consolidated-cli.log",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\consolidated-cli.log",
+      "bytes": 5419,
+      "sha256": "90C13362AB2590696228EF382FADE1B0A741452D553C4FA420AA63B88657BDF4"
+    },
+    {
+      "name": "consolidated-dispatcher-integration.log",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\consolidated-dispatcher-integration.log",
+      "bytes": 278,
+      "sha256": "360A237BEDD61F1AB5D4EA5426C5A0A8508785363394F3B126B872DF7A7371F3"
+    },
+    {
+      "name": "consolidated-exact.json",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\consolidated-exact.json",
+      "bytes": 27195,
+      "sha256": "8E72193773B680D40075DC0B24F8E95A658A1A19DF53EEB768A83039E89672C2"
+    },
+    {
+      "name": "consolidated-final-test-lint.log",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\consolidated-final-test-lint.log",
+      "bytes": 0,
+      "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+    },
+    {
+      "name": "consolidated-focal.log",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\consolidated-focal.log",
+      "bytes": 288,
+      "sha256": "C4D0BD28D95025B15572B1B83354409141E97A9827B581B56BDDCF7BEEAE5832"
+    },
+    {
+      "name": "consolidated-generator-runner-final.log",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\consolidated-generator-runner-final.log",
+      "bytes": 291,
+      "sha256": "D5DF5A0506FF6D0BD6EC38A6D7551DC2F7C894A28CD6DAFF1170A24D894E9AC0"
+    },
+    {
+      "name": "consolidated-knowledge-first.log",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\consolidated-knowledge-first.log",
+      "bytes": 2484,
+      "sha256": "0CE7515ED0463546295E890F38A03E44464DE8B82754D85970C05D02DBC516FB"
+    },
+    {
+      "name": "consolidated-lint.log",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\consolidated-lint.log",
+      "bytes": 12,
+      "sha256": "CC5A0B39C7052D24C24888403C48018B4FCCCC9D799F81BE6C9C30C9E19C85FC"
+    },
+    {
+      "name": "consolidated-mcp-single-worker.log",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\consolidated-mcp-single-worker.log",
+      "bytes": 11515,
+      "sha256": "A4767A40A0E37DE0CA5B4A678512A6F2A8B51199E779BA12039886503F0E5B0B"
+    },
+    {
+      "name": "consolidated-preflight-tests.log",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\consolidated-preflight-tests.log",
+      "bytes": 9082,
+      "sha256": "01835B8E6AAC3B0B9C9636C7EF58CC0AA7F41675DF79113DAC42D865959728A4"
+    },
+    {
+      "name": "consolidated-remaining-tests.log",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\consolidated-remaining-tests.log",
+      "bytes": 36611,
+      "sha256": "063442E620DBD681129F498B00845F02723D8B919479770010DB19E94F36C488"
+    },
+    {
+      "name": "consolidated-reproduce.json",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\consolidated-reproduce.json",
+      "bytes": 1954,
+      "sha256": "AA21D249994E0B472C7881446E5FD7B6BCBB314B98FFDCEE6F5891EE8D566521"
+    },
+    {
+      "name": "consolidated-source-conservation.json",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\consolidated-source-conservation.json",
+      "bytes": 4345,
+      "sha256": "AA72E105058CBD886E255552681270AA020119824B249F25EEBD685BB8E75CE4"
+    },
+    {
+      "name": "consolidated-tsc-engine.log",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\consolidated-tsc-engine.log",
+      "bytes": 0,
+      "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+    },
+    {
+      "name": "consolidated-tsc-knowledge.log",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\consolidated-tsc-knowledge.log",
+      "bytes": 0,
+      "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+    },
+    {
+      "name": "consolidated-tsc-mcp.log",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\consolidated-tsc-mcp.log",
+      "bytes": 39539,
+      "sha256": "CF21C76010A1B91A8A5AC67C6D950495A1731B72BE8C4F13EE976EDEBC1589CD"
+    },
+    {
+      "name": "consolidated-tsc-playwright-runner.log",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\consolidated-tsc-playwright-runner.log",
+      "bytes": 0,
+      "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+    },
+    {
+      "name": "consolidated-tsc-shared.log",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\consolidated-tsc-shared.log",
+      "bytes": 0,
+      "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+    },
+    {
+      "name": "consolidated-typecheck.log",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\consolidated-typecheck.log",
+      "bytes": 287858,
+      "sha256": "2545D9E2654AFCBE3420BD3A880C985D62884AA06D0580C9FD4397EE36125C94"
+    },
+    {
+      "name": "int03-baseline-build.log",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\int03-baseline-build.log",
+      "bytes": 8374,
+      "sha256": "B3077561BC60B5471ACAFC69A8247F7CAC026B99F5194C0C3F9C576244459E35"
+    },
+    {
+      "name": "int03-baseline-lint.log",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\int03-baseline-lint.log",
+      "bytes": 12,
+      "sha256": "CC5A0B39C7052D24C24888403C48018B4FCCCC9D799F81BE6C9C30C9E19C85FC"
+    },
+    {
+      "name": "int03-baseline-mcp-c1.log",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\int03-baseline-mcp-c1.log",
+      "bytes": 3612,
+      "sha256": "2B5F3B71A95215AD7B38E82DAE75B503AD1BDE40E9F52B2F522BFC930067E816"
+    },
+    {
+      "name": "int03-baseline-mcp-failures.log",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\int03-baseline-mcp-failures.log",
+      "bytes": 8457,
+      "sha256": "6A516D6697225ABCD253E5DAD04F705278DE4CB02649A696F15953943C55AB4E"
+    },
+    {
+      "name": "int03-baseline-oracle.log",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\int03-baseline-oracle.log",
+      "bytes": 285,
+      "sha256": "0F6C5EB33001F26589102F189BF64AE25AED9D0DAEB97643A3E5272CFD236963"
+    },
+    {
+      "name": "int03-baseline-runner.log",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\int03-baseline-runner.log",
+      "bytes": 313,
+      "sha256": "08CD431B9C3D528100C4DA9AEEAD049064435EBD53ED5CABB2A773D271C2B1B7"
+    },
+    {
+      "name": "int03-baseline-source-conservation.json",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\int03-baseline-source-conservation.json",
+      "bytes": 4343,
+      "sha256": "73703C98AE3A8DFBBB2DE79E851825CE1C454EC3E3F1164CC90E23518465957C"
+    },
+    {
+      "name": "int03-baseline-tsc-engine.log",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\int03-baseline-tsc-engine.log",
+      "bytes": 0,
+      "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+    },
+    {
+      "name": "int03-baseline-tsc-knowledge.log",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\int03-baseline-tsc-knowledge.log",
+      "bytes": 0,
+      "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+    },
+    {
+      "name": "int03-baseline-tsc-mcp.log",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\int03-baseline-tsc-mcp.log",
+      "bytes": 39539,
+      "sha256": "CF21C76010A1B91A8A5AC67C6D950495A1731B72BE8C4F13EE976EDEBC1589CD"
+    },
+    {
+      "name": "int03-baseline-tsc-playwright-runner.log",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\int03-baseline-tsc-playwright-runner.log",
+      "bytes": 0,
+      "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+    },
+    {
+      "name": "int03-baseline-tsc-shared.log",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\int03-baseline-tsc-shared.log",
+      "bytes": 0,
+      "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+    },
+    {
+      "name": "int03-baseline-typecheck.log",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\int03-baseline-typecheck.log",
+      "bytes": 287100,
+      "sha256": "D6A388A9B630520070B65BD4CA998F5E641AC54D56F9EDACA50A91584FB23018"
+    },
+    {
+      "name": "int03-discovery-response.log",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\int03-discovery-response.log",
+      "bytes": 2110,
+      "sha256": "58F2FD797777B9B9F172E62BB15466218572A82DF04015E93FEEFF7190068A42"
+    },
+    {
+      "name": "int03-reproduction-build.log",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\int03-reproduction-build.log",
+      "bytes": 8362,
+      "sha256": "E6C56EE2FB4B990547E53B877691B905F6715447557A774C1D4985B1D14B4481"
+    },
+    {
+      "name": "merge.log",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\merge.log",
+      "bytes": 355,
+      "sha256": "6EFB0E94B6FFE853C042F400C1FE35144A46DDF02D027F17B95F52457AFB6B26"
+    },
+    {
+      "name": "r4-baseline-auth-classification.log",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\r4-baseline-auth-classification.log",
+      "bytes": 1484,
+      "sha256": "960C3CDC2FE50B9558F1628741A6750CA9ACFBCB6136E663596B218682484FBB"
+    },
+    {
+      "name": "r4-browser.json",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\r4-browser.json",
+      "bytes": 8146,
+      "sha256": "1CA02F41BA03E371EE5D7AD4620F6096C33BC885790265EEB66879E002185086"
+    },
+    {
+      "name": "r4-build.log",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\r4-build.log",
+      "bytes": 8368,
+      "sha256": "50CB5E4633C8D478AC1E021E90A69050E834C386F87CEA26054EA08BA479F58D"
+    },
+    {
+      "name": "r4-exact.json",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\r4-exact.json",
+      "bytes": 27195,
+      "sha256": "8E72193773B680D40075DC0B24F8E95A658A1A19DF53EEB768A83039E89672C2"
+    },
+    {
+      "name": "r4-focal.log",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\r4-focal.log",
+      "bytes": 287,
+      "sha256": "361DE972FBB375CB71642EF2D915B17F07BB58F3D81D203C840A90ACAD080336"
+    },
+    {
+      "name": "r4-knowledge.log",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\r4-knowledge.log",
+      "bytes": 895,
+      "sha256": "E7D514151E26A3AA78C518B250A5A5918BD15B197A5293951AD87BA736F7EE2C"
+    },
+    {
+      "name": "r4-lint.log",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\r4-lint.log",
+      "bytes": 14467,
+      "sha256": "150759A7677056699884920A1869D9F564E7ACF286134C00D010E89D0BB4C4AD"
+    },
+    {
+      "name": "r4-reproduce.json",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\r4-reproduce.json",
+      "bytes": 1940,
+      "sha256": "5EAA56E68268DFDCEB8902FB9488D5092D98153F41078CEEB98C112387942943"
+    },
+    {
+      "name": "r4-tsc-knowledge.log",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\r4-tsc-knowledge.log",
+      "bytes": 1569,
+      "sha256": "963B7A28D0F603ACD9DFBCE68C0CF13EF4E90A7C8B8698601FDA47E2B0247733"
+    },
+    {
+      "name": "r4-typecheck.log",
+      "path": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\DEV-MVP-01-R4-independent\\logs\\r4-typecheck.log",
+      "bytes": 296741,
+      "sha256": "4538BB1B12A6D56698096DEE2F0C76A631DB8574031FC2D25211EF4D3036844F"
+    }
+  ]
+}
