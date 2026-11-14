@@ -361,6 +361,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
     projectRoots: authorizedRoots,
     knowledgeBindings: workspaceBindings,
     ...(applicationService ? { applicationService } : {}),
+    ruleReviewGateway,
     provisionalInventory: options.provisionalInventory ?? Boolean(options.workspaceBootstrap),
     allowSpaReadOnly: options.allowSpaReadOnly ?? Boolean(options.workspaceBootstrap || applicationService),
     silentBoundScope: options.silentBoundScope,

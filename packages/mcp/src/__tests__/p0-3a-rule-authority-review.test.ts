@@ -736,4 +736,337 @@ describe('P0.3a — Autoridad de reglas y revisión de solo lectura', () => {
     expect(testRes.data.result, JSON.stringify(testRes.data)).toBe('passed');
     expect(testAuthorizer.requestAuthorization).toHaveBeenCalledTimes(1);
   }, 90_000);
+
+  it('P0.3a-SEC: impide atribución indebida de autoridad humana en decide_oracles y approve_batch, preserva lote de 1 confirmación e invalida aprobación tras modificar un caso', async () => {
+    staging = await startProtectedSpaStaging();
+    const creds = new TestMemoryCredentialProvider();
+    const { workspaceRoot, openStack } = createHarness(creds);
+
+    // 1. Servidor SIN mecanismo humano (ni humanReviewGateway ni elicitation)
+    const stackNoGateway = await openStack();
+    await setupStagingProject(stackNoGateway.client, workspaceRoot, staging.origin);
+
+    const project = stackNoGateway.appService.findActiveProjectByRoot(workspaceRoot)!;
+    const modRecord = stackNoGateway.appService.upsertModule({
+      projectId: project.project_id,
+      key: 'pedidos',
+      title: 'pedidos',
+    });
+    const confirmedReq1 = stackNoGateway.appService.upsertServiceRequirement({
+      projectId: project.project_id,
+      moduleId: modRecord.module_id,
+      moduleKey: 'pedidos',
+      title: 'Regla 1 acreditada previamente',
+      description: 'ORD-101',
+      source: 'user',
+      validationStatus: 'confirmed',
+      acceptanceCriteria: ['ORD-101'],
+    });
+    const confirmedReq2 = stackNoGateway.appService.upsertServiceRequirement({
+      projectId: project.project_id,
+      moduleId: modRecord.module_id,
+      moduleKey: 'pedidos',
+      title: 'Regla 2 acreditada previamente',
+      description: 'Panel de Pedidos',
+      source: 'user',
+      validationStatus: 'confirmed',
+      acceptanceCriteria: ['Panel de Pedidos'],
+    });
+
+    const caseReady1Id = randomUUID();
+    const caseReady2Id = randomUUID();
+    const casePendingId = randomUUID();
+
+    const proposeRes = await callJson(stackNoGateway.client, 'qap_plan', {
+      targetPath: workspaceRoot,
+      module: 'pedidos',
+      case_workflow: {
+        action: 'propose_from_observations',
+        proposals: [
+          {
+            case_id: caseReady1Id,
+            title: 'Caso listo 1',
+            requirement_id: confirmedReq1.requirement_id,
+            steps: [
+              { type: 'navigate', url: `${staging.origin}/app` },
+              { type: 'waitFor', selector: '#spa-shell' },
+              { type: 'assert', selector: '#spa-shell', assertion_type: 'contains', expected: 'ORD-101' },
+            ],
+          },
+          {
+            case_id: caseReady2Id,
+            title: 'Caso listo 2',
+            requirement_id: confirmedReq2.requirement_id,
+            steps: [
+              { type: 'navigate', url: `${staging.origin}/app` },
+              { type: 'waitFor', selector: '#spa-shell' },
+              { type: 'assert', selector: '#spa-shell', assertion_type: 'contains', expected: 'Panel de Pedidos' },
+            ],
+          },
+          {
+            case_id: casePendingId,
+            title: 'Caso sin oráculo pendiente',
+            expected_outcome: 'Oráculo no autorizado por el agente',
+            oracle_source: 'user',
+            steps: [
+              { type: 'navigate', url: `${staging.origin}/app` },
+              { type: 'waitFor', selector: '#spa-shell' },
+            ],
+          },
+        ],
+      },
+    });
+    expect(proposeRes.isError).toBe(false);
+    expect((proposeRes.data.proposed_cases as Array<unknown>).length).toBe(2);
+    expect((proposeRes.data.pending_oracle_cases as Array<unknown>).length).toBe(1);
+
+    const reqCountBefore = stackNoGateway.appService.listServiceRequirements(project.project_id, 'pedidos').length;
+
+    // A) Intentos de inyección de user_confirmed: true / approved_by en decide_oracles y approve_batch son rechazados
+    const spoofDecideArgs = await callJson(stackNoGateway.client, 'qap_plan', {
+      targetPath: workspaceRoot,
+      module: 'pedidos',
+      case_workflow: {
+        action: 'decide_oracles',
+        user_confirmed: true,
+        decisions: [{ case_id: casePendingId, expected_outcome: 'ORD-101' }],
+      },
+    });
+    expect(spoofDecideArgs.isError).toBe(true);
+    expect(spoofDecideArgs.data.code).toBe('invalid_case_command');
+
+    const spoofDecisionNested = await callJson(stackNoGateway.client, 'qap_plan', {
+      targetPath: workspaceRoot,
+      module: 'pedidos',
+      case_workflow: {
+        action: 'decide_oracles',
+        decisions: [{ case_id: casePendingId, expected_outcome: 'ORD-101', user_confirmed: true }],
+      },
+    });
+    expect(spoofDecisionNested.isError).toBe(true);
+    expect(spoofDecisionNested.data.code).toBe('invalid_oracle_decision');
+
+    const spoofApproveArgs = await callJson(stackNoGateway.client, 'qap_plan', {
+      targetPath: workspaceRoot,
+      module: 'pedidos',
+      case_workflow: {
+        action: 'approve_batch',
+        user_confirmed: true,
+        approved_by: 'qa_user',
+      },
+    });
+    expect(spoofApproveArgs.isError).toBe(true);
+    expect(spoofApproveArgs.data.code).toBe('invalid_case_command');
+
+    // B) Sin gateway ni elicitation: decide_oracles y approve_batch bloquean con human_review_gateway_required sin mutar autoridad
+    const decideNoGateway = await callJson(stackNoGateway.client, 'qap_plan', {
+      targetPath: workspaceRoot,
+      module: 'pedidos',
+      case_workflow: {
+        action: 'decide_oracles',
+        decisions: [{ case_id: casePendingId, expected_outcome: 'ORD-101', assert_type: 'contains' }],
+      },
+    });
+    expect(decideNoGateway.isError).toBe(true);
+    expect(decideNoGateway.data.status).toBe('blocked');
+    expect(decideNoGateway.data.code).toBe('human_review_gateway_required');
+    expect(stackNoGateway.appService.listServiceRequirements(project.project_id, 'pedidos').length).toBe(reqCountBefore);
+
+    const approveNoGateway = await callJson(stackNoGateway.client, 'qap_plan', {
+      targetPath: workspaceRoot,
+      module: 'pedidos',
+      case_workflow: { action: 'approve_batch' },
+    });
+    expect(approveNoGateway.isError).toBe(true);
+    expect(approveNoGateway.data.status).toBe('blocked');
+    expect(approveNoGateway.data.code).toBe('human_review_gateway_required');
+
+    const modDir = join(workspaceRoot, '.qa', 'modules', 'pedidos');
+    expect(existsSync(join(modDir, 'tests', `TC-${caseReady1Id}.yaml`))).toBe(false);
+    const casesAfterNoGateway = stackNoGateway.appService.listServiceCases(project.project_id, 'pedidos');
+    expect(casesAfterNoGateway.find((c) => c.case_id === casePendingId)?.conformity_status).toBe('pending_oracle');
+    expect(casesAfterNoGateway.find((c) => c.case_id === caseReady1Id)?.conformity_status).toBe('proposed');
+    expect(casesAfterNoGateway.find((c) => c.case_id === caseReady1Id)?.confirmed_by).toBeNull();
+
+    await stackNoGateway.close();
+
+    // 2. Servidor CON gateway humano verificable: probar rechazo, diferimiento, error, digest alterado y reutilización de approvalId
+    let gatewayBehavior: 'reject' | 'defer' | 'throw' | 'null' | 'tampered_digest' | 'fixed_approval_id' | 'confirm' = 'reject';
+    const fixedReusedApprovalId = randomUUID();
+    const reviewRequests: HumanReviewRequest[] = [];
+    const gateway: IHumanReviewGateway = {
+      review: vi.fn(async (req) => {
+        reviewRequests.push(req);
+        if (gatewayBehavior === 'throw') {
+          throw new Error('gateway_failure');
+        }
+        if (gatewayBehavior === 'null') {
+          return null;
+        }
+        const now = new Date();
+        return {
+          requestDigest: gatewayBehavior === 'tampered_digest' ? '0'.repeat(64) : req.requestDigest,
+          approvalId: gatewayBehavior === 'fixed_approval_id' ? fixedReusedApprovalId : randomUUID(),
+          decision: gatewayBehavior === 'reject' ? 'reject' : gatewayBehavior === 'defer' ? 'defer' : 'confirm',
+          presentedStatementDigest: req.statementDigest,
+          reviewer: 'qa-auditor@staging.local',
+          decidedAt: now.toISOString(),
+          expiresAt: new Date(now.getTime() + 10 * 60_000).toISOString(),
+        };
+      }),
+    };
+
+    const stackWithGateway = await openStack({ humanReviewGateway: gateway });
+
+    // Rechazo en decide_oracles -> bloquea sin crear service_requirement ni promover caso
+    gatewayBehavior = 'reject';
+    const rejectedDecide = await callJson(stackWithGateway.client, 'qap_plan', {
+      targetPath: workspaceRoot,
+      module: 'pedidos',
+      case_workflow: {
+        action: 'decide_oracles',
+        decisions: [{ case_id: casePendingId, expected_outcome: 'ORD-101' }],
+      },
+    });
+    expect(rejectedDecide.isError).toBe(true);
+    expect(rejectedDecide.data.code).toBe('human_review_rejected');
+
+    // Defer en approve_batch -> bloquea sin escribir YAML ni marcar approved
+    gatewayBehavior = 'defer';
+    const deferredApprove = await callJson(stackWithGateway.client, 'qap_plan', {
+      targetPath: workspaceRoot,
+      module: 'pedidos',
+      case_workflow: { action: 'approve_batch' },
+    });
+    expect(deferredApprove.isError).toBe(true);
+    expect(deferredApprove.data.code).toBe('human_review_deferred');
+
+    // Error en gateway -> human_review_unavailable
+    gatewayBehavior = 'throw';
+    const errorApprove = await callJson(stackWithGateway.client, 'qap_plan', {
+      targetPath: workspaceRoot,
+      module: 'pedidos',
+      case_workflow: { action: 'approve_batch' },
+    });
+    expect(errorApprove.isError).toBe(true);
+    expect(errorApprove.data.code).toBe('human_review_unavailable');
+
+    // Null (revocación/cancelación de sesión de revisión) -> human_review_not_authorized
+    gatewayBehavior = 'null';
+    const nullApprove = await callJson(stackWithGateway.client, 'qap_plan', {
+      targetPath: workspaceRoot,
+      module: 'pedidos',
+      case_workflow: { action: 'approve_batch' },
+    });
+    expect(nullApprove.isError).toBe(true);
+    expect(nullApprove.data.code).toBe('human_review_not_authorized');
+
+    // Digest alterado (intento de reutilizar respuesta de otro lote/alcance) -> human_review_invalid
+    gatewayBehavior = 'tampered_digest';
+    const tamperedApprove = await callJson(stackWithGateway.client, 'qap_plan', {
+      targetPath: workspaceRoot,
+      module: 'pedidos',
+      case_workflow: { action: 'approve_batch' },
+    });
+    expect(tamperedApprove.isError).toBe(true);
+    expect(tamperedApprove.data.code).toBe('human_review_invalid');
+
+    // Verificar que ninguna operación fallida mutó autoridad ni creó archivos YAML
+    expect(stackWithGateway.appService.listServiceRequirements(project.project_id, 'pedidos').length).toBe(reqCountBefore);
+    expect(existsSync(join(modDir, 'tests', `TC-${caseReady1Id}.yaml`))).toBe(false);
+
+    // 3. Confirmación positiva de decide_oracles -> acredita requisito, regla y promueve caso a proposed
+    gatewayBehavior = 'fixed_approval_id';
+    const confirmedDecide = await callJson(stackWithGateway.client, 'qap_plan', {
+      targetPath: workspaceRoot,
+      module: 'pedidos',
+      case_workflow: {
+        action: 'decide_oracles',
+        decisions: [{ case_id: casePendingId, expected_outcome: 'ORD-101', assert_selector: '#spa-shell', assert_type: 'contains' }],
+      },
+    });
+    expect(confirmedDecide.isError, JSON.stringify(confirmedDecide.data)).toBe(false);
+    expect(confirmedDecide.data.status).toBe('updated');
+    expect((confirmedDecide.data.updated_cases as Array<{ case_id: string; conformity_status: string }>)[0]).toMatchObject({
+      case_id: casePendingId,
+      conformity_status: 'proposed',
+    });
+    expect((confirmedDecide.data.human_confirmations as Array<{ reviewer: string }>)[0].reviewer).toBe('qa-auditor@staging.local');
+
+    // Intentar reutilizar el mismo approvalId en approve_batch -> rechazado con human_review_invalid
+    const replayedApprove = await callJson(stackWithGateway.client, 'qap_plan', {
+      targetPath: workspaceRoot,
+      module: 'pedidos',
+      case_workflow: { action: 'approve_batch' },
+    });
+    expect(replayedApprove.isError).toBe(true);
+    expect(replayedApprove.data.code).toBe('human_review_invalid');
+
+    // 4. Confirmación positiva por lote en approve_batch: 3 casos aprobados con UNA sola llamada al gateway
+    const callsBeforeBatch = (gateway.review as ReturnType<typeof vi.fn>).mock.calls.length;
+    gatewayBehavior = 'confirm';
+    const confirmedBatch = await callJson(stackWithGateway.client, 'qap_plan', {
+      targetPath: workspaceRoot,
+      module: 'pedidos',
+      case_workflow: { action: 'approve_batch' },
+    });
+    expect(confirmedBatch.isError, JSON.stringify(confirmedBatch.data)).toBe(false);
+    expect(confirmedBatch.data.status).toBe('approved');
+    expect(confirmedBatch.data.idempotent).toBe(false);
+    expect((confirmedBatch.data.cases as Array<unknown>).length).toBe(3);
+    expect((gateway.review as ReturnType<typeof vi.fn>).mock.calls.length).toBe(callsBeforeBatch + 1);
+
+    const casesAfterBatch = stackWithGateway.appService.listServiceCases(project.project_id, 'pedidos');
+    expect(casesAfterBatch.every((c) => c.conformity_status === 'approved' && c.confirmed_by === 'qa-auditor@staging.local')).toBe(true);
+
+    // Segunda llamada idéntica a approve_batch es idempotente y NO vuelve a abrir diálogo
+    const idempotentBatch = await callJson(stackWithGateway.client, 'qap_plan', {
+      targetPath: workspaceRoot,
+      module: 'pedidos',
+      case_workflow: { action: 'approve_batch' },
+    });
+    expect(idempotentBatch.isError).toBe(false);
+    expect(idempotentBatch.data.idempotent).toBe(true);
+    expect((gateway.review as ReturnType<typeof vi.fn>).mock.calls.length).toBe(callsBeforeBatch + 1);
+
+    // 5. Modificar un caso ya aprobado mediante propose_from_observations INVALIDA su aprobación anterior
+    const modifiedPropose = await callJson(stackWithGateway.client, 'qap_plan', {
+      targetPath: workspaceRoot,
+      module: 'pedidos',
+      case_workflow: {
+        action: 'propose_from_observations',
+        proposals: [
+          {
+            case_id: caseReady1Id,
+            title: 'Caso listo 1 modificado con paso adicional',
+            requirement_id: confirmedReq1.requirement_id,
+            steps: [
+              { type: 'navigate', url: `${staging.origin}/app` },
+              { type: 'waitFor', selector: '#spa-shell' },
+              { type: 'waitFor', selector: 'body' },
+              { type: 'assert', selector: '#spa-shell', assertion_type: 'contains', expected: 'ORD-101' },
+            ],
+          },
+        ],
+      },
+    });
+    expect(modifiedPropose.isError).toBe(false);
+    const modifiedCase = stackWithGateway.appService
+      .listServiceCases(project.project_id, 'pedidos')
+      .find((c) => c.case_id === caseReady1Id)!;
+    expect(modifiedCase.version).toBe(2);
+    expect(modifiedCase.conformity_status).toBe('proposed');
+    expect(modifiedCase.confirmed_by).toBeNull();
+    expect(modifiedCase.confirmed_at).toBeNull();
+
+    // Si el operador rechaza aprobar la versión 2 modificada, queda bloqueado y en estado proposed
+    gatewayBehavior = 'reject';
+    const rejectModifiedBatch = await callJson(stackWithGateway.client, 'qap_plan', {
+      targetPath: workspaceRoot,
+      module: 'pedidos',
+      case_workflow: { action: 'approve_batch', case_ids: [caseReady1Id] },
+    });
+    expect(rejectModifiedBatch.isError).toBe(true);
+    expect(rejectModifiedBatch.data.code).toBe('human_review_rejected');
+  }, 60_000);
 });

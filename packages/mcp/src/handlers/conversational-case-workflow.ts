@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -13,8 +14,11 @@ import {
   resolveScopedBusinessRules,
   type DiscoveryDossierRuleResolution,
   type DossierRuleAmbiguity,
+  type RuleAssertType,
 } from '../application/scoped-rule-resolver.js';
+import { reviewDigest } from '../host-review.js';
 
+import type { HumanReviewDecision, HumanReviewRequest } from './canonical-interview-service.js';
 import { binding, isObject, type StateDependencies } from './state-services.js';
 
 const ALLOWED_ACTIONS = new Set([
@@ -32,12 +36,29 @@ const ALLOWED_COMMAND_KEYS = new Set([
   'case_ids',
   'acceptance',
 ]);
+const ALLOWED_ORACLE_DECISION_KEYS = new Set([
+  'case_id',
+  'expected_outcome',
+  'assert_selector',
+  'assert_type',
+  'risk_accepted',
+  'risk_note',
+]);
 
 const blocked = (code: string, extra: Record<string, unknown> = {}) => ({
   status: 'blocked',
   code,
   ...extra,
 });
+
+function cleanControlText(v: unknown, max: number): v is string {
+  return (
+    typeof v === 'string' &&
+    v.trim().length > 0 &&
+    v.length <= max &&
+    ![...v].some((c) => c.charCodeAt(0) < 32 || c.charCodeAt(0) === 127)
+  );
+}
 
 function resolveAbsoluteRouteUrl(baseUrl: string, routeHint?: string | null): string {
   const safeBase = baseUrl || 'http://127.0.0.1';
@@ -434,9 +455,9 @@ export async function runConversationalCaseWorkflow(
   const routeUrl = resolveAbsoluteRouteUrl(baseUrl, serviceMod.route_hint ?? '/');
   const storage = new FileSystemStorage({ rootDir: root });
   const modDir = join(root, '.qa', 'modules', moduleName);
-  mkdirSync(modDir, { recursive: true });
 
-  if (action === 'propose_from_observations' || action === 'generate') {
+    if (action === 'propose_from_observations' || action === 'generate') {
+      mkdirSync(modDir, { recursive: true });
     let inputs: ProposeCaseInput[];
     let usedDiscoveryRevisionId: string | undefined;
     let ruleResolutionSummary: DiscoveryDossierRuleResolution['summary'] | undefined;
@@ -635,6 +656,7 @@ export async function runConversationalCaseWorkflow(
     for (const d of command.decisions) {
       if (
         !isObject(d) ||
+        Object.keys(d).some((k) => !ALLOWED_ORACLE_DECISION_KEYS.has(k)) ||
         typeof d.case_id !== 'string' ||
         typeof d.expected_outcome !== 'string' ||
         d.expected_outcome.trim().length < 3
@@ -657,19 +679,229 @@ export async function runConversationalCaseWorkflow(
       });
     }
 
+    const modKey = serviceMod.key;
+    const allCases = appService.listServiceCases(project.project_id, modKey);
+    const missingCaseIds: string[] = [];
+    const matchedPairs: Array<{
+      readonly current: (typeof allCases)[number];
+      readonly decision: OracleDecisionInput;
+    }> = [];
+    for (const dec of decisions) {
+      const found = allCases.find((c) => c.case_id === dec.case_id);
+      if (!found) {
+        missingCaseIds.push(dec.case_id);
+      } else {
+        matchedPairs.push({ current: found, decision: dec });
+      }
+    }
+    if (matchedPairs.length === 0) {
+      return blocked('oracle_case_not_found', { missing_cases: missingCaseIds });
+    }
+
+    const reviewGateway = deps.ruleReviewGateway;
+    if (!reviewGateway || !reviewGateway.isAvailable()) {
+      return blocked('human_review_gateway_required', { human_review_required: true });
+    }
+
+    const envName = options?.effectiveScope?.environment_name ?? snapshot.environment?.name ?? 'default';
+    const tenantId = options?.effectiveScope?.tenant_id ?? snapshot.environment?.default_tenant ?? 'default';
+    const role = options?.effectiveScope?.role ?? 'default';
+    const revisionId = options?.discoveryRevisionId ?? null;
+    const validatedDecisions: OracleDecisionInput[] = [];
+    const recordedOracleConfirmations: Array<{
+      readonly case_id: string;
+      readonly decision_id: string;
+      readonly requirement_id: string;
+      readonly revision: number;
+      readonly approval_id: string;
+      readonly reviewer: string;
+    }> = [];
+
+    for (const { current, decision: dec } of matchedPairs) {
+      const routePathname = current.observation.route || serviceMod.route_hint || '/';
+      const ruleKey = normalizeSlug(current.title).replace(/-/g, '_') || `case_${current.case_id}`;
+      const requirementId =
+        current.requirement_id?.trim() ||
+        `REQ-${modKey.toUpperCase()}-${createHash('sha256')
+          .update(JSON.stringify([project.project_id, modKey, envName, tenantId, role, routePathname, current.case_id]))
+          .digest('hex')
+          .slice(0, 10)}`;
+      const existingReq = appService
+        .listServiceRequirements(project.project_id, modKey)
+        .find((r) => r.requirement_id === requirementId);
+      const existingRevision = existingReq?.revision ?? 0;
+      const questionId = `oracle:${current.case_id}:v${current.version}`;
+      const questionText =
+        current.expectation.business_risk_question ??
+        `¿Cuál es el resultado de negocio esperado para "${current.title}"?`;
+      const scopeContext = {
+        action: 'decide_oracles' as const,
+        case_id: current.case_id,
+        case_version: current.version,
+        environment_name: envName,
+        tenant_id: tenantId,
+        role,
+        route_pathname: routePathname,
+        risk_level: current.risk_level,
+        risk_accepted: Boolean(dec.risk_accepted),
+        ...(revisionId ? { discovery_revision_id: revisionId } : {}),
+      };
+      const proposal = {
+        title: current.title,
+        description: dec.expected_outcome,
+        category: 'business_rule' as const,
+        acceptance_criteria: [dec.expected_outcome],
+      };
+      const evidenceRefs = [...new Set(current.observation.evidence_refs)];
+      const statementDigest = reviewDigest({
+        moduleKey: modKey,
+        caseId: current.case_id,
+        caseVersion: current.version,
+        ruleKey,
+        questionId,
+        questionText,
+        proposal,
+        scope: scopeContext,
+        evidenceRefs,
+      });
+      const body = {
+        projectRoot: root,
+        applicationId: project.project_id,
+        environmentId: snapshot.environment?.env_id ?? envName,
+        moduleId: serviceMod.module_id,
+        moduleKey: modKey,
+        questionId,
+        context: JSON.stringify(scopeContext),
+        statementVersion: existingRevision + 1,
+        statementDigest,
+        requirementId,
+        expectedRevision: existingRevision,
+        proposal,
+        question: {
+          category: 'accion' as const,
+          text: questionText,
+          evidenceRefs: evidenceRefs.map((id) => ({ kind: 'evidence' as const, id, revision: 1 })),
+        },
+      };
+      const request: HumanReviewRequest = {
+        ...body,
+        requestDigest: reviewDigest(body),
+      };
+
+      let reviewDecision: HumanReviewDecision | null;
+      try {
+        reviewDecision = await reviewGateway.review(structuredClone(request));
+      } catch {
+        return blocked('human_review_unavailable', {
+          human_review_required: true,
+          case_id: current.case_id,
+          review_request_digest: request.requestDigest,
+        });
+      }
+      if (!reviewDecision) {
+        return blocked('human_review_not_authorized', {
+          human_review_required: true,
+          case_id: current.case_id,
+          review_request_digest: request.requestDigest,
+        });
+      }
+
+      const now = Date.now();
+      const at = Date.parse(reviewDecision.decidedAt);
+      const expiry = Date.parse(reviewDecision.expiresAt);
+      if (
+        reviewDecision.requestDigest !== request.requestDigest ||
+        reviewDecision.presentedStatementDigest !== request.statementDigest ||
+        !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(reviewDecision.approvalId) ||
+        !cleanControlText(reviewDecision.reviewer, 200) ||
+        !Number.isFinite(at) ||
+        !Number.isFinite(expiry) ||
+        at > now ||
+        expiry <= now ||
+        expiry <= at ||
+        expiry - at > 15 * 60_000 ||
+        !['confirm', 'reject', 'defer'].includes(reviewDecision.decision) ||
+        appService.hasUsedRuleApprovalId(project.project_id, reviewDecision.approvalId)
+      ) {
+        return blocked('human_review_invalid', {
+          human_review_required: true,
+          case_id: current.case_id,
+          review_request_digest: request.requestDigest,
+        });
+      }
+
+      if (reviewDecision.decision !== 'confirm') {
+        return blocked(
+          reviewDecision.decision === 'reject' ? 'human_review_rejected' : 'human_review_deferred',
+          {
+            human_review_required: true,
+            case_id: current.case_id,
+            decision: reviewDecision.decision,
+            review_request_digest: request.requestDigest,
+          },
+        );
+      }
+
+      const mechanism = reviewGateway.lastMechanism?.() ?? 'host_gateway';
+      const assertType: RuleAssertType | null =
+        dec.assert_type === 'visible' ||
+        dec.assert_type === 'exists' ||
+        dec.assert_type === 'contains' ||
+        dec.assert_type === 'equals'
+          ? dec.assert_type
+          : 'contains';
+
+      const recorded = appService.recordRuleConfirmationDecision({
+        projectId: project.project_id,
+        moduleKey: modKey,
+        requirementId,
+        ruleKey,
+        title: current.title,
+        expectedOutcome: dec.expected_outcome,
+        questionId,
+        questionText,
+        decision: 'confirm',
+        approvalId: reviewDecision.approvalId,
+        requestDigest: request.requestDigest,
+        presentedStatementDigest: reviewDecision.presentedStatementDigest,
+        reviewer: reviewDecision.reviewer.trim(),
+        mechanism,
+        decidedAt: reviewDecision.decidedAt,
+        evidenceRefs,
+        discoveryRevisionId: revisionId,
+        scope: {
+          environment_name: envName,
+          tenant_id: tenantId,
+          role,
+          route_pathname: routePathname,
+          scope_declaration: 'exact',
+        },
+        assertSelector: dec.assert_selector ?? null,
+        assertType,
+      });
+
+      validatedDecisions.push(dec);
+      recordedOracleConfirmations.push({
+        case_id: current.case_id,
+        decision_id: recorded.decision.decision_id,
+        requirement_id: recorded.requirement!.requirement_id,
+        revision: recorded.requirement!.revision,
+        approval_id: reviewDecision.approvalId,
+        reviewer: reviewDecision.reviewer.trim(),
+      });
+    }
+
     const res = appService.decideCaseOracles({
       projectId: project.project_id,
       moduleKey: moduleName,
-      decisions,
+      decisions: validatedDecisions,
     });
-    if (res.missing_cases.length > 0 && res.updated.length === 0) {
-      return blocked('oracle_case_not_found', { missing_cases: res.missing_cases });
-    }
     return {
       status: 'updated',
       module: moduleName,
       updated_cases: res.updated,
-      missing_cases: res.missing_cases,
+      missing_cases: [...new Set([...missingCaseIds, ...res.missing_cases])],
+      human_confirmations: recordedOracleConfirmations,
       siguiente_accion: {
         tipo: 'decision',
         tool: 'qap_plan',
@@ -683,11 +915,201 @@ export async function runConversationalCaseWorkflow(
       ? command.case_ids.map((id) => String(id).trim()).filter(Boolean)
       : undefined;
 
+    const modKey = serviceMod.key;
+    const allModuleCases = appService.listServiceCases(project.project_id, modKey);
+    const requestedCases = caseIds?.length
+      ? allModuleCases.filter((c) => caseIds.includes(c.case_id))
+      : allModuleCases;
+    const skippedPending = requestedCases.filter((c) => c.conformity_status === 'pending_oracle');
+    const eligibleCases = requestedCases.filter(
+      (c) =>
+        c.conformity_status !== 'pending_oracle' &&
+        c.conformity_status !== 'rejected' &&
+        c.oracle_status !== 'missing_oracle' &&
+        c.risk_decision !== 'pending' &&
+        c.steps.length > 0,
+    );
+
+    if (eligibleCases.length === 0) {
+      return blocked(skippedPending.length > 0 ? 'oracle_required' : 'no_eligible_cases', {
+        skipped_pending_oracle: skippedPending.map((c) => c.case_id),
+      });
+    }
+
+    const alreadyConfirmed = eligibleCases.every(
+      (c) =>
+        ['approved', 'pass', 'fail', 'not_run', 'technical_error', 'human_accepted'].includes(c.conformity_status) &&
+        Boolean(c.confirmed_at),
+    );
+
+    let approvedByReviewer = eligibleCases[0]?.confirmed_by ?? 'qa_user';
+    let batchApprovalEvidence:
+      | {
+          readonly approval_id: string;
+          readonly request_digest: string;
+          readonly reviewer: string;
+          readonly decided_at: string;
+          readonly mechanism: string;
+        }
+      | undefined;
+
+    if (!alreadyConfirmed) {
+      const reviewGateway = deps.ruleReviewGateway;
+      if (!reviewGateway || !reviewGateway.isAvailable()) {
+        return blocked('human_review_gateway_required', { human_review_required: true });
+      }
+
+      const sortedEligible = [...eligibleCases].sort((a, b) => a.case_id.localeCompare(b.case_id));
+      const batchDigest = reviewDigest(
+        sortedEligible.map((c) => ({
+          case_id: c.case_id,
+          version: c.version,
+          requirement_id: c.requirement_id,
+          requirement_revision: c.requirement_revision,
+          confirmation_digest: c.confirmation_digest ?? `${c.case_id}:${c.version}`,
+        })),
+      );
+      const envName = options?.effectiveScope?.environment_name ?? snapshot.environment?.name ?? 'default';
+      const tenantId = options?.effectiveScope?.tenant_id ?? snapshot.environment?.default_tenant ?? 'default';
+      const role = options?.effectiveScope?.role ?? 'default';
+      const revisionId = options?.discoveryRevisionId ?? null;
+      const batchQuestionId = `approve_batch:${modKey}:${batchDigest.slice(0, 16)}`;
+      const batchQuestionText = `¿Confirmar la aprobación del lote de ${sortedEligible.length} caso(s) de prueba verificados para el módulo '${moduleName}'?`;
+      const batchScopeContext = {
+        action: 'approve_batch' as const,
+        module_key: modKey,
+        environment_name: envName,
+        tenant_id: tenantId,
+        role,
+        ...(revisionId ? { discovery_revision_id: revisionId } : {}),
+        cases: sortedEligible.map((c) => ({
+          case_id: c.case_id,
+          version: c.version,
+          requirement_id: c.requirement_id,
+          requirement_revision: c.requirement_revision,
+          confirmation_digest: c.confirmation_digest,
+        })),
+      };
+      const batchProposal = {
+        title: `Lote de ${sortedEligible.length} caso(s) para '${moduleName}'`,
+        description: sortedEligible
+          .map((c) => `${c.case_id}@v${c.version}: ${c.title} -> ${c.expectation.expected_outcome ?? ''}`)
+          .join(' | ')
+          .slice(0, 3800),
+        category: 'functional' as const,
+        acceptance_criteria: sortedEligible
+          .map((c) => `${c.case_id}@v${c.version}:${c.confirmation_digest ?? ''}`)
+          .slice(0, 20),
+      };
+      const statementDigest = reviewDigest({
+        moduleKey: modKey,
+        batchDigest,
+        questionId: batchQuestionId,
+        proposal: batchProposal,
+        scope: batchScopeContext,
+      });
+      const batchReqId = `BATCH-${modKey.toUpperCase()}-${batchDigest.slice(0, 10)}`;
+      const body = {
+        projectRoot: root,
+        applicationId: project.project_id,
+        environmentId: snapshot.environment?.env_id ?? envName,
+        moduleId: serviceMod.module_id,
+        moduleKey: modKey,
+        questionId: batchQuestionId,
+        context: JSON.stringify(batchScopeContext),
+        statementVersion: 1,
+        statementDigest,
+        requirementId: batchReqId,
+        expectedRevision: 0,
+        proposal: batchProposal,
+        question: {
+          category: 'accion' as const,
+          text: batchQuestionText,
+          evidenceRefs: [],
+        },
+      };
+      const request: HumanReviewRequest = {
+        ...body,
+        requestDigest: reviewDigest(body),
+      };
+
+      let reviewDecision: HumanReviewDecision | null;
+      try {
+        reviewDecision = await reviewGateway.review(structuredClone(request));
+      } catch {
+        return blocked('human_review_unavailable', {
+          human_review_required: true,
+          review_request_digest: request.requestDigest,
+        });
+      }
+      if (!reviewDecision) {
+        return blocked('human_review_not_authorized', {
+          human_review_required: true,
+          review_request_digest: request.requestDigest,
+        });
+      }
+
+      const now = Date.now();
+      const at = Date.parse(reviewDecision.decidedAt);
+      const expiry = Date.parse(reviewDecision.expiresAt);
+      if (
+        reviewDecision.requestDigest !== request.requestDigest ||
+        reviewDecision.presentedStatementDigest !== request.statementDigest ||
+        !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(reviewDecision.approvalId) ||
+        !cleanControlText(reviewDecision.reviewer, 200) ||
+        !Number.isFinite(at) ||
+        !Number.isFinite(expiry) ||
+        at > now ||
+        expiry <= now ||
+        expiry <= at ||
+        expiry - at > 15 * 60_000 ||
+        !['confirm', 'reject', 'defer'].includes(reviewDecision.decision) ||
+        appService.hasUsedRuleApprovalId(project.project_id, reviewDecision.approvalId)
+      ) {
+        return blocked('human_review_invalid', {
+          human_review_required: true,
+          review_request_digest: request.requestDigest,
+        });
+      }
+
+      if (reviewDecision.decision !== 'confirm') {
+        return blocked(
+          reviewDecision.decision === 'reject' ? 'human_review_rejected' : 'human_review_deferred',
+          {
+            human_review_required: true,
+            decision: reviewDecision.decision,
+            review_request_digest: request.requestDigest,
+          },
+        );
+      }
+
+      const mechanism = reviewGateway.lastMechanism?.() ?? 'host_gateway';
+      appService.recordHumanApprovalReceipt({
+        projectId: project.project_id,
+        approvalId: reviewDecision.approvalId,
+        requestDigest: request.requestDigest,
+        presentedStatementDigest: reviewDecision.presentedStatementDigest,
+        reviewer: reviewDecision.reviewer.trim(),
+        mechanism,
+        decidedAt: reviewDecision.decidedAt,
+        kind: 'approve_batch',
+      });
+
+      approvedByReviewer = reviewDecision.reviewer.trim();
+      batchApprovalEvidence = {
+        approval_id: reviewDecision.approvalId,
+        request_digest: request.requestDigest,
+        reviewer: approvedByReviewer,
+        decided_at: reviewDecision.decidedAt,
+        mechanism,
+      };
+    }
+
     const approval = appService.approveCaseBatch({
       projectId: project.project_id,
       moduleKey: moduleName,
       caseIds,
-      approvedBy: 'qa_user',
+      approvedBy: approvedByReviewer,
     });
     if (approval.status === 'blocked') {
       return blocked(approval.code ?? 'case_approval_blocked', {
@@ -695,6 +1117,7 @@ export async function runConversationalCaseWorkflow(
       });
     }
 
+    mkdirSync(modDir, { recursive: true });
     if (!existsSync(join(modDir, 'context.yaml'))) {
       await storage.saveModuleContext(moduleName, {
         _version: '2',
@@ -738,6 +1161,7 @@ export async function runConversationalCaseWorkflow(
       idempotent: approval.idempotent,
       duplicate_confirmation_prevented: approval.duplicate_confirmation_prevented,
       confirmation_digest: approval.confirmation_digest,
+      ...(batchApprovalEvidence ? { evidence: batchApprovalEvidence } : {}),
       module: moduleName,
       cases: approval.approved_cases.map((c) => ({
         case_id: c.case_id,

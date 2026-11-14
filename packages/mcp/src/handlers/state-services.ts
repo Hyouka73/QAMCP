@@ -13,11 +13,22 @@ import { McpToolError } from '../dispatcher.js';
 import type { QapApplicationService } from '../application/application-service.js';
 
 import type { ModuleBinding } from './module-observation-bridge.js';
-import type { CanonicalInterviewService, IHumanReviewGateway } from './canonical-interview-service.js';
+import type {
+  CanonicalInterviewService,
+  HumanReviewDecision,
+  HumanReviewRequest,
+  IHumanReviewGateway,
+} from './canonical-interview-service.js';
 import type { IInterviewDraftStore } from './interview-draft-store.js';
 import type { CanonicalClosureService } from './canonical-closure-service.js';
 import type { IModuleClosureReviewGateway } from './module-closure-gateway.js';
 import type { IModuleClosureStore } from './module-closure-store.js';
+
+export interface VerifiableRuleReviewGateway {
+  isAvailable(): boolean;
+  lastMechanism?(): 'client_elicitation' | 'host_gateway';
+  review(request: Readonly<HumanReviewRequest>): Promise<HumanReviewDecision | null>;
+}
 
 /** Host-owned, already-open store. No filename discovery, implicit open or close. */
 export interface ProjectKnowledgeBinding {
@@ -36,6 +47,8 @@ export interface StateDependencies {
   /** Host capability; no MCP argument can install or grant it. */
   readonly prepareWorkspace?: (root: string, url?: string) => Promise<void>;
   readonly applicationService?: QapApplicationService;
+  /** Verifiable human review gateway (MCP client elicitation or host gateway). */
+  readonly ruleReviewGateway?: VerifiableRuleReviewGateway;
   readonly provisionalInventory?: boolean;
   /** Allow bounded read-only same-origin SPA discovery via host composition. */
   readonly allowSpaReadOnly?: boolean;

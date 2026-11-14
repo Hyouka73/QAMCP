@@ -386,12 +386,25 @@ export class Block3ExecutionRepo {
         });
 
         if (existing) {
+          const modified =
+            existing.title !== item.title ||
+            (req?.requirement_id ?? existing.requirement_id) !== existing.requirement_id ||
+            (req?.revision ?? existing.requirement_revision) !== existing.requirement_revision ||
+            version !== existing.version ||
+            conformityStatus === 'pending_oracle';
+          const nextConformityStatus: TestCaseConformityStatus = modified
+            ? conformityStatus
+            : existing.conformity_status;
+          const nextConfirmedBy = modified ? null : (existing.confirmed_by ?? null);
+          const nextConfirmedAt = modified ? null : (existing.confirmed_at ?? null);
+
           this.store.run(
             `UPDATE service_test_cases
              SET title = ?, requirement_id = ?, requirement_revision = ?, version = ?,
                  observation_json = ?, inference_json = ?, expectation_json = ?,
                  oracle_status = ?, risk_level = ?, risk_decision = ?, steps_json = ?,
-                 conformity_status = ?, confirmation_digest = ?, campaign_id = ?, updated_at = ?
+                 conformity_status = ?, confirmation_digest = ?, confirmed_by = ?, confirmed_at = ?,
+                 campaign_id = ?, updated_at = ?
              WHERE case_id = ?`,
             item.title,
             req?.requirement_id ?? existing.requirement_id,
@@ -404,8 +417,10 @@ export class Block3ExecutionRepo {
             riskLevel,
             riskDecision,
             JSON.stringify(steps),
-            conformityStatus,
+            nextConformityStatus,
             confirmationDigest,
+            nextConfirmedBy,
+            nextConfirmedAt,
             params.campaignId ?? existing.campaign_id ?? null,
             now,
             caseId,

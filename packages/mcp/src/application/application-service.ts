@@ -2663,7 +2663,46 @@ export class QapApplicationService {
       projectId,
       approvalId,
     );
-    return Boolean(row);
+    if (row) return true;
+    const batchKey = `human_approval:${projectId}:${approvalId}`;
+    const batchRow = this.store.get<{ key: string }>(
+      'SELECT key FROM host_session_state WHERE key = ?',
+      batchKey,
+    );
+    return Boolean(batchRow);
+  }
+
+  recordHumanApprovalReceipt(params: {
+    readonly projectId: string;
+    readonly approvalId: string;
+    readonly requestDigest: string;
+    readonly presentedStatementDigest: string;
+    readonly reviewer: string;
+    readonly mechanism: string;
+    readonly decidedAt: string;
+    readonly kind: 'approve_batch' | 'decide_oracles';
+  }): void {
+    this.assertActiveProject(params.projectId);
+    if (this.hasUsedRuleApprovalId(params.projectId, params.approvalId)) {
+      throw new Error('human_review_reused');
+    }
+    const batchKey = `human_approval:${params.projectId}:${params.approvalId}`;
+    const now = new Date().toISOString();
+    this.store.run(
+      `INSERT INTO host_session_state (key, value, updated_at) VALUES (?, ?, ?)`,
+      batchKey,
+      JSON.stringify({
+        project_id: params.projectId,
+        approval_id: params.approvalId,
+        request_digest: params.requestDigest,
+        presented_statement_digest: params.presentedStatementDigest,
+        reviewer: params.reviewer,
+        mechanism: params.mechanism,
+        decided_at: params.decidedAt,
+        kind: params.kind,
+      }),
+      now,
+    );
   }
 
   recordRuleConfirmationDecision(params: {

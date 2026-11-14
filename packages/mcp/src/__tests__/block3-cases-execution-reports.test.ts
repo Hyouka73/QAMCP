@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -11,6 +12,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { QapApplicationService } from '../application/application-service.js';
 import type { IAuthAuthorizer } from '../auth-authorizer.js';
 import type { IDiscoveryAuthorizer } from '../discovery-authorizer.js';
+import type { IHumanReviewGateway } from '../handlers/canonical-interview-service.js';
 import { createMcpServer, type McpServerOptions } from '../server.js';
 import type { ITestAuthorizer } from '../test-authorizer.js';
 import { WorkspaceBootstrap } from '../workspace-bootstrap.js';
@@ -114,6 +116,20 @@ describe('Bloque 3 — Casos epistémicos, intentos de ejecución, recuperación
             },
       ),
     };
+    const humanReviewGateway: IHumanReviewGateway = {
+      review: vi.fn(async (req) => {
+        const now = new Date();
+        return {
+          requestDigest: req.requestDigest,
+          approvalId: randomUUID(),
+          decision: 'confirm' as const,
+          presentedStatementDigest: req.statementDigest,
+          reviewer: 'qa.operator@staging.local',
+          decidedAt: now.toISOString(),
+          expiresAt: new Date(now.getTime() + 10 * 60_000).toISOString(),
+        };
+      }),
+    };
 
     const connectClient = async (extraOpts?: Partial<McpServerOptions>) => {
       const server = createMcpServer({
@@ -128,6 +144,7 @@ describe('Bloque 3 — Casos epistémicos, intentos de ejecución, recuperación
         hostAuthRegistryPath,
         testAuthorizer,
         hostTestRegistryPath,
+        humanReviewGateway,
         allowSpaReadOnly: true,
         ...extraOpts,
       });

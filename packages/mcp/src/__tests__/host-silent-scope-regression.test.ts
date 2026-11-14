@@ -7,7 +7,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import { ListRootsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { ElicitRequestSchema, ListRootsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { afterEach, describe, expect, it } from 'vitest';
 import YAML from 'yaml';
 
@@ -104,10 +104,14 @@ describe('Regresión: composición real Stdio/host sin diálogos QAP en flujo lo
 
     const client = new Client(
       { name: 'stdio-host-client', version: '1.0.0' },
-      { capabilities: { roots: {} } },
+      { capabilities: { roots: {}, elicitation: { form: {} } } },
     );
     client.setRequestHandler(ListRootsRequestSchema, async () => ({
       roots: [{ uri: pathToFileURL(boundRoot).href, name: 'bound-project' }],
+    }));
+    client.setRequestHandler(ElicitRequestSchema, async () => ({
+      action: 'accept',
+      content: { decision: 'confirm' },
     }));
 
     await client.connect(transport);
