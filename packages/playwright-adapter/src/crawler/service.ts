@@ -109,7 +109,13 @@ export class BlackBoxCrawler {
       }
       return found;
     };
-    const authorize = (url: URL) => { scope.authorize(url); if (input.authenticated_session && url.origin !== input.authenticated_session.origin) throw new ReconnaissanceError('SCOPE_BLOCKED'); if (!safeNavigation(url)) throw new ReconnaissanceError('SCOPE_BLOCKED'); };
+    const entryRedirects = new Set<string>();
+    const authorize = (url: URL) => {
+      if (!entryRedirects.has(url.href)) scope.authorize(url);
+      if ((input.authenticated_session && url.origin !== input.authenticated_session.origin) || !safeNavigation(url)) {
+        throw new ReconnaissanceError('SCOPE_BLOCKED');
+      }
+    };
     const queue = [{ url: target.href, depth: 0 }];
     const enqueued = new Set([target.href]);
     const attempted = new Set<string>();
@@ -223,14 +229,25 @@ export class BlackBoxCrawler {
             authorize(current);
             if (navigationSignal.aborted) throw new ReconnaissanceError('TIMEOUT');
             if (result.budget.requests && input.environment.rate_limit_ms) await delay(input.environment.rate_limit_ms, undefined, { signal: navigationSignal });
-            capture = await acquire(current, scope, recon, transportLimits, result.budget, navigationSignal, undefined, input.authenticated_session);
+            capture = await acquire(current, scope, recon, transportLimits, result.budget, navigationSignal, undefined,
+              input.authenticated_session, entryRedirects.has(current.href) ? target.origin : undefined);
             route.http_status = capture.status;
             if (capture.issue) throw new ReconnaissanceError(capture.issue);
             if (![301, 302, 303, 307, 308].includes(capture.status)) break;
             if (redirects++ >= limits.max_redirects) throw new ReconnaissanceError('REDIRECT_LIMIT');
             if (!capture.headers.location) throw new ReconnaissanceError('SCOPE_BLOCKED');
             const next = parseUrl(new URL(capture.headers.location, current).href);
+            const allowEntryRedirect = this.dependencies.followEntryRedirects && item.depth === 0 &&
+              item.url === target.href && next.origin === target.origin && !next.search;
+            if (allowEntryRedirect) {
+              // Servlet containers may include a session ID before the client has cookies.
+              next.pathname = next.pathname.replace(/;jsessionid=[a-z\d._-]+(?=\/|$)/gi, '');
+              if (/^\/[a-z\d/_.~-]*$/i.test(next.pathname) && safeNavigation(next)) entryRedirects.add(next.href);
+            }
             const destination = record(next.href, item.depth);
+            if (entryRedirects.has(next.href) && destination.authorized_index === undefined) {
+              destination.observed_public_pathname = next.pathname;
+            }
             try { authorize(next); } catch { destination.state = 'blocked'; destination.reason = 'SCOPE_BLOCKED'; throw new ReconnaissanceError('SCOPE_BLOCKED'); }
             result.relations.push({ from: route.route, to: destination.route, kind: 'http_redirect' });
             route.state = 'redirected';
@@ -271,6 +288,9 @@ export class BlackBoxCrawler {
           }
           if (!input.authenticated_session && (spaAuthFailed || redirectedToLogin || await page.locator('input[type="password"]').count() > 0)) {
             route.state = 'blocked'; route.reason = 'AUTH_REQUIRED';
+            if (this.dependencies.followEntryRedirects && !result.warnings.includes('AUTH_REQUIRED')) {
+              result.warnings.push('AUTH_REQUIRED');
+            }
           }
           const dom = await extractDom(page, limits.max_elements);
           if (navigationSignal.aborted) throw new ReconnaissanceError('TIMEOUT');
@@ -294,7 +314,19 @@ export class BlackBoxCrawler {
             const candidate = record(linked.href, item.depth + 1);
             let permitted = true;
             try { authorize(linked); if (link.download) throw new ReconnaissanceError('SCOPE_BLOCKED'); }
-            catch { permitted = false; if (candidate.state === 'candidate') { candidate.state = 'blocked'; candidate.reason = 'SCOPE_OR_UNSAFE_LINK'; } }
+            catch {
+              permitted = false;
+              if (candidate.state === 'candidate') {
+                const publicLink = this.dependencies.followEntryRedirects && linked.origin === target.origin &&
+                  !link.download && /^\/[a-z\d/_.~-]*$/i.test(linked.pathname) && safeNavigation(linked);
+                if (publicLink) {
+                  candidate.observed_public_pathname = linked.pathname;
+                  candidate.reason = 'OBSERVED_LINK_NOT_VISITED';
+                } else {
+                  candidate.state = 'blocked'; candidate.reason = 'SCOPE_OR_UNSAFE_LINK';
+                }
+              }
+            }
             view.links.push({ target: candidate.route, control_index: link.control_index, authorized: permitted,
               ...(link.label ? { label: link.label } : {}) });
             if (!result.relations.some(r => r.from === route.route && r.to === candidate.route && r.kind === 'link_candidate')) {

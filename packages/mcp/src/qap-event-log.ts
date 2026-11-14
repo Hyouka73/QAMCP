@@ -16,7 +16,7 @@ export interface QapEventInput {
 
 const SECRET_KEY = /password|passphrase|cookie|token|secret|credential|authorization|session|header|raw|body|answer|username|account/i;
 const FREE_TEXT_KEY = /description|details|comment|message|prompt|text|content|notes|objective|expected/i;
-const OBJECT_RESULT_FIELDS = ['status', 'code', 'fase', 'phase', 'verified', 'retryable', 'session_scope', 'next_action', 'tool', 'profile', 'environment'];
+const OBJECT_RESULT_FIELDS = ['status', 'code', 'fase', 'phase', 'verified', 'retryable', 'session_scope', 'next_action', 'tool', 'profile', 'environment', 'discovery_revision_id'];
 const loggerSessionId = randomUUID();
 const latestPhase = new Map<string, string>();
 
@@ -73,7 +73,11 @@ function parsedResult(value: unknown): Record<string, unknown> {
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
     const fields = Object.fromEntries(OBJECT_RESULT_FIELDS.filter(key => Object.hasOwn(parsed, key))
       .map(key => [key, safeValue((parsed as Record<string, unknown>)[key], key)]));
-    const authorization = (parsed as Record<string, unknown>).authorization;
+    const details = parsed as Record<string, unknown>;
+    if (!fields.code && typeof details.razon === 'string' && /^[a-z][a-z0-9_]{1,63}$/.test(details.razon)) {
+      fields.code = details.razon;
+    }
+    const authorization = details.authorization;
     if (authorization && typeof authorization === 'object' && typeof (authorization as Record<string, unknown>).state === 'string') {
       fields.authorization_state = safeValue((authorization as Record<string, unknown>).state, 'state');
     }

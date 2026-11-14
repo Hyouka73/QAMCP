@@ -47,6 +47,8 @@ export interface CrawlerDependencies {
   resolver?: ReconResolver;
   /** Host-approved bootstrap navigation can include the exact canonical base origin. */
   allowCanonicalOrigin?: boolean;
+  /** Follow same-origin redirects from the initial entry point for a host-bound read-only inventory. */
+  followEntryRedirects?: boolean;
   /** Trusted executable selection only; no arbitrary launch arguments or user profiles. */
   browser?: { channel?: 'chrome' | 'msedge'; executable_path?: string };
 }
@@ -69,6 +71,8 @@ export interface CrawlerRoute {
   depth: number;
   state: 'visited' | 'candidate' | 'blocked' | 'unavailable' | 'inconclusive' | 'redirected';
   authorized_index?: number;
+  /** Query-free pathname of a same-origin entry redirect or link seen in the initial inventory. */
+  observed_public_pathname?: string;
   reason?: string;
   http_status?: number;
   view_id?: string;

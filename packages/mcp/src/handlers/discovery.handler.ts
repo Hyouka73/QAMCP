@@ -396,10 +396,11 @@ export class DiscoveryHandler implements IMcpToolHandler {
       }
 
       const lifecycle = await new FileSystemStorage({ rootDir: root }).getLifecycleState();
-      const provisional = this.dependencies.provisionalInventory && !bound.moduleBindings?.length && (
-        (['ONBOARDING', 'SCOPING'].includes(lifecycle.phase) && args.name === 'inventario-provisional') ||
-        (lifecycle.phase === 'SCOPING' && Boolean(appProject))
-      );
+      const entryInventory = args.name === 'inventario-provisional' && this.dependencies.provisionalInventory &&
+        !bound.moduleBindings?.length && !args.profile && target === new URL(env.entity.base_url).href;
+      const provisional = this.dependencies.provisionalInventory && !bound.moduleBindings?.length &&
+        (entryInventory || (lifecycle.phase === 'ONBOARDING' && args.name === 'inventario-provisional') ||
+          (lifecycle.phase === 'SCOPING' && (args.name === 'inventario-provisional' || Boolean(appProject))));
       if (lifecycle.phase !== 'WORKING' && !provisional) return blocked('phase_restricted', lifecycle.phase === 'ONBOARDING' ? 'qap_context_set' : 'qap_session_plan');
       const module = lifecycle.modules && Object.hasOwn(lifecycle.modules, args.name as string)
         ? lifecycle.modules[args.name as string] : undefined;
@@ -424,7 +425,8 @@ export class DiscoveryHandler implements IMcpToolHandler {
       const protectedProjectHasProfiles = Boolean(
         appService && appProject && effectiveProfilesPool.some((p) => p.status === 'verified' || p.status === 'expired' || p.status === 'revoked'),
       );
-      const authRequired = requestedProfileRaw !== undefined || Boolean(lifecycle.session?.auth?.required) || protectedProjectHasProfiles;
+      const authRequired = !entryInventory && (requestedProfileRaw !== undefined ||
+        Boolean(lifecycle.session?.auth?.required) || protectedProjectHasProfiles);
 
       if (authRequired) {
         if (appService && appProject) {
@@ -571,9 +573,19 @@ export class DiscoveryHandler implements IMcpToolHandler {
       if (!currentEnvironment || currentEnvironment.revision !== env.revision) return blocked('authorization_context_mismatch');
       if (context.signal.aborted) return blocked('cancelled');
       const bootstrap = Boolean(this.dependencies.prepareWorkspace);
-      const limits = bootstrap && config.limits?.max_bytes
+      const baseLimits = bootstrap && config.limits?.max_bytes
         ? { ...config.limits, max_bytes: Math.min(config.limits.max_bytes, 1_048_576) } : config.limits;
-      const output = await new BlackBoxCrawler(bound.store, { ...config.dependencies, allowCanonicalOrigin: bootstrap }).run({
+      const limits = entryInventory ? {
+        ...baseLimits,
+        max_pages: Math.min(baseLimits?.max_pages ?? 4, 4),
+        max_depth: Math.min(baseLimits?.max_depth ?? 1, 1),
+        navigation_timeout_ms: Math.min(baseLimits?.navigation_timeout_ms ?? 6000, 6000),
+        total_timeout_ms: Math.min(baseLimits?.total_timeout_ms ?? 16000, 16000),
+      } : baseLimits;
+      const output = await new BlackBoxCrawler(bound.store, { ...config.dependencies, allowCanonicalOrigin: bootstrap,
+        followEntryRedirects: Boolean(entryInventory && this.dependencies.silentBoundScope && config.navigationOrigin === baseOrigin &&
+          env.entity.is_production !== true),
+      }).run({
         application_id: bound.applicationId, environment: env.entity, target_url: target,
         authorization: navigationAuthorization, limits, signal: context.signal,
         isolation, authenticated_session,
@@ -588,7 +600,10 @@ export class DiscoveryHandler implements IMcpToolHandler {
           next_safe_action: 'La sesión guardada ya no es válida. Inicia sesión de nuevo en una ventana segura sin degradar a acceso anónimo.',
           desbloquear_con: { tool: 'qap_auth_add', descripcion: 'Inicia sesión de nuevo con un perfil autorizado para continuar con las vistas protegidas.' } }, true);
       }
-      if (!authenticated_session && (output.warnings.includes('AUTH_REQUIRED') || output.routes.some(route => route.http_status === 401 || route.http_status === 403))) {
+      const requiresLogin = !authenticated_session && (output.warnings.includes('AUTH_REQUIRED') ||
+        output.routes.some(route => route.reason === 'AUTH_REQUIRED' || route.http_status === 401 || route.http_status === 403));
+      if (requiresLogin && !entryInventory && (output.warnings.includes('AUTH_REQUIRED') ||
+          output.routes.some(route => route.http_status === 401 || route.http_status === 403))) {
         return result({ status: 'blocked', code: 'auth_required', acquisition_status: 'blocked', acquisition_persistence: 'not_attempted',
           association_status: 'not_attempted', downgraded_to_anonymous: false, execution_id: output.execution_id, cleanup: output.cleanup,
           next_safe_action: 'Esta ruta requiere iniciar sesión en una ventana segura antes de continuar.',
@@ -672,7 +687,8 @@ export class DiscoveryHandler implements IMcpToolHandler {
           const authorizedUrl = r.authorized_index !== undefined
             ? navigationAuthorization.navigation_urls[r.authorized_index]
             : undefined;
-          const sanitizedPath = authorizedUrl ? sanitizeTargetPathname(authorizedUrl) : undefined;
+          const observedPath = authorizedUrl ?? r.observed_public_pathname;
+          const sanitizedPath = observedPath ? sanitizeTargetPathname(observedPath) : undefined;
           return {
             reference: r.route,
             state: r.state,
@@ -809,6 +825,10 @@ export class DiscoveryHandler implements IMcpToolHandler {
         const pendingDiscrepancies = appService.listDiscrepancies(appProject.project_id, true);
 
         const gaps: DiscoveryDossierGap[] = [];
+        if (requiresLogin) {
+          gaps.push({ code: 'auth_required', severity: 'blocking',
+            description: 'Se requiere un perfil verificado para documentar las rutas internas.' });
+        }
         if (ruleResolution.summary.accredited_count === 0) {
           gaps.push({
             code: 'missing_business_rules',
@@ -883,7 +903,7 @@ export class DiscoveryHandler implements IMcpToolHandler {
           scope: dossierScope,
           target_pathname: targetPathname,
           mode: output.mode,
-          acquisition_status: output.status,
+          acquisition_status: requiresLogin && entryInventory && output.views.length ? 'partial' : output.status,
           routes: dossierRoutes,
           relations: dossierRelations,
           route_counts: {
@@ -971,10 +991,14 @@ export class DiscoveryHandler implements IMcpToolHandler {
       }
 
       // Positive selection: no DOM text, labels, selectors, URLs, payloads or arbitrary errors.
-      return result({ status: output.status, application_id: bound.applicationId, environment_id: bound.environmentId,
+      const status = requiresLogin && entryInventory && output.views.length ? 'partial' : output.status;
+      return result({ status, application_id: bound.applicationId, environment_id: bound.environmentId,
         status_scope: 'acquisition',
         requested_module: args.name, execution_id: output.execution_id, mode: output.mode,
-        acquisition_status: output.status, acquisition_persistence: output.observations.length ? 'committed' : 'not_attempted',
+        acquisition_status: status, acquisition_persistence: output.observations.length ? 'committed' : 'not_attempted',
+        ...(requiresLogin && entryInventory ? { code: 'auth_required', desbloquear_con: {
+          tool: 'qap_auth_add', descripcion: 'Usa un perfil verificado para continuar el Discovery de las vistas internas.',
+        } } : {}),
         module_identity_status: persistedCandidates.length > 0 && identity.status === 'plan_ambiguous_or_missing'
           ? 'candidate_persisted'
           : identity.status,
@@ -1014,7 +1038,7 @@ export class DiscoveryHandler implements IMcpToolHandler {
           : persistedCandidates.length > 0
           ? 'Revisa los módulos candidatos detectados con qap_project(action="promote_candidates") o qap_session_plan para crear módulos confirmables.'
           : 'Continúa revisando preguntas y expectativas sobre los módulos del alcance.',
-      }, output.status === 'blocked' || output.status === 'indeterminate');
+      }, status === 'blocked' || status === 'indeterminate');
     } catch (error: unknown) {
       // Root/symlink/host-scope rejection is not a crawler outage. Preserve a
       // fixed, non-sensitive diagnostic without disclosing forbidden paths.

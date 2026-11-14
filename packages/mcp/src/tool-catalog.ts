@@ -11,19 +11,6 @@ const TARGET_PATH_PROP = {
 
 export const TOOLS: Tool[] = [
   {
-    name: 'qap_start',
-    description: 'Inicia una conversación de QA, prepara el proyecto, registra la URL ya indicada y devuelve el estado, conversation_id y la ruta de su bitácora MCP. Invócala antes de navegar. Envía el conversation_id devuelto en cada llamada de esta conversación.',
-    inputSchema: {
-      type: 'object',
-      additionalProperties: false,
-      properties: {
-        targetPath: TARGET_PATH_PROP,
-        base_url: { type: 'string', description: 'URL HTTP/HTTPS del sistema indicada por el usuario, sin credenciales.' },
-        conversation_id: { type: 'string', format: 'uuid', description: 'ID emitido por QAP para reanudar una conversación.' },
-      },
-    },
-  },
-  {
     name: 'qap_status',
     description: `PUNTO DE ENTRADA OBLIGATORIO: Invoca esta herramienta INMEDIATAMENTE cuando el usuario quiera probar su app, testear un proyecto o empezar con QAP. Analiza el repo y el preflight del navegador (Playwright), y devuelve exactamente la pregunta y opciones que debes presentar con ask_question. Si falta navegador, ejecuta la instalación como paso de trabajo autónomo. QAP observa la app con su propio navegador mediante qap_discover; no uses navegadores ni herramientas de otros servidores MCP ni del IDE para explorarla (no se persistiría conocimiento en .qa).\n\n${QAP_CORE_DIRECTIVES}`,
     inputSchema: {
@@ -905,6 +892,20 @@ export const TOOLS: Tool[] = [
         targetPath: TARGET_PATH_PROP,
         phase: { type: 'string', enum: ['preview', 'confirm'] },
         reset_id: { type: 'string', description: 'Identificador de preview, obligatorio solo para confirm.' },
+      },
+    },
+  },
+  {
+    name: 'qap_start',
+    description: 'Inicia una conversación de QA, prepara el proyecto, registra la URL indicada y recupera o documenta el inventario inicial visible. Devuelve el estado, las rutas del expediente y de la bitácora, y un conversation_id para usar en las llamadas siguientes.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        targetPath: TARGET_PATH_PROP,
+        base_url: { type: 'string', description: 'URL HTTP/HTTPS del sistema indicada por el usuario, sin credenciales.' },
+        refresh_discovery: { type: 'boolean', description: 'Vuelve a observar la entrada cuando se solicita una actualización del inventario.' },
+        conversation_id: { type: 'string', format: 'uuid', description: 'ID emitido por QAP para reanudar una conversación.' },
       },
     },
   },

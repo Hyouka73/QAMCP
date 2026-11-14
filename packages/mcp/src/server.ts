@@ -123,7 +123,8 @@ import { binding as knowledgeBinding, projectRoot as authorizedProjectRoot, resu
 import { hasLegacyViewContext, legacyInterviewBlocked } from './handlers/legacy-discovery-contract.js';
 import { ProjectHandler } from './handlers/project.handler.js';
 import { ApplicationServiceError } from './application/application-service.js';
-import { normalizePathKey } from './application/safe-storage.js';
+import { buildPublishedModuleDocRepoPath, sanitizeTargetPathname, writeDiscoveryMarkdownFiles } from './application/discovery-dossier.js';
+import { atomicWritePrivateFile, normalizePathKey, resolveContainedPath } from './application/safe-storage.js';
 import { PlanHandler } from './handlers/plan.handler.js';
 import { TestHandler, type TestNavigationAuthorization } from './handlers/test.handler.js';
 import { ReportHandler } from './handlers/report.handler.js';
@@ -474,7 +475,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         prompts: {},
       },
       instructions: `DIRECTIVAS DE INTERACCIÓN OBLIGATORIAS (QAP v3.0):
-0. Cuando el usuario quiera probar un sistema o iniciar un registro por conversación, invoca qap_start con la URL ya indicada. Guarda el conversation_id devuelto y envíalo en las siguientes llamadas que lo admitan. Sigue siguiente_accion; navega solo mediante QAP. En el workspace configurado en el host, la preparación y el flujo rutinario sobre el entorno registrado son automáticos y no requieren diálogos de autorización. Pide solo la información que falte.
+0. Cuando el usuario quiera probar un sistema o iniciar un registro por conversación, invoca qap_start con la URL ya indicada. Presenta primero el resumen y el enlace a discovery_inicial cuando esté disponible. Guarda el conversation_id devuelto y envíalo en las siguientes llamadas que lo admitan. Sigue siguiente_accion; navega solo mediante QAP. En el workspace configurado en el host, la preparación y el flujo rutinario sobre el entorno registrado son automáticos y no requieren diálogos de autorización. Pide solo la información que falte.
 1. RUTA OBJETIVO OBLIGATORIA (targetPath): En TODAS las llamadas a herramientas MCP, envía SIEMPRE la ruta absoluta del workspace del usuario en el parámetro 'targetPath'. NUNCA lo omitas.
 2. PROHIBIDO mostrar tablas markdown de estado, resúmenes de archivos o listas de próximos pasos (1, 2, 3...).
 3. Cuando siguiente_accion trae pregunta, presentala con la herramienta ask_question: UNA sola pregunta por llamada, usando texto, formato y opciones tal cual (no inventes, reordenes ni agregues opciones). Deja siempre disponible la respuesta libre. Si formato es abierta, haz esa unica pregunta en texto y espera. Nunca agrupes varias preguntas en un mensaje ni preguntes algo que siguiente_accion no pidio. Si ask_question no existe en tu cliente, haz la misma pregunta en texto con las opciones numeradas, una a la vez.
@@ -571,7 +572,8 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
     }
     if (rawArgs) request.params.arguments = rawArgs;
     if (name === 'qap_start' && (
-      Object.keys(rawArgs ?? {}).some(key => !['targetPath', 'base_url'].includes(key)) ||
+      Object.keys(rawArgs ?? {}).some(key => !['targetPath', 'base_url', 'refresh_discovery'].includes(key)) ||
+      (rawArgs?.refresh_discovery !== undefined && typeof rawArgs.refresh_discovery !== 'boolean') ||
       (rawArgs?.targetPath !== undefined && typeof rawArgs.targetPath !== 'string') ||
       !new ContextHandler(dependencies).validateArguments(
         rawArgs?.base_url === undefined ? {} : { base_url: rawArgs.base_url },
@@ -888,7 +890,100 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
       const status = await dispatcher.dispatch({ name: 'qap_status', arguments: { targetPath: eventWorkspace } }, invocation);
       if (status.isError || status.content[0]?.type !== 'text') return status;
       const state = JSON.parse(status.content[0].text) as Record<string, unknown>;
+      const project = applicationService?.findActiveProjectByRoot(eventWorkspace);
+      const environment = project && applicationService?.resumeProject(project.project_id).environment;
+      const baseUrl = environment?.base_url;
+      let discoveryAttempt: Record<string, unknown> = {};
+      const entryUrl = baseUrl ? new URL(baseUrl) : undefined;
+      const entryPath = entryUrl ? sanitizeTargetPathname(entryUrl.href) : undefined;
+      let revisions = project && environment && applicationService ? applicationService.listLatestDiscoveryRevisionsByScope(project.project_id)
+        .filter(revision => revision.environment_id === environment.env_id) : [];
+      const needsEntryObservation = rawArgs?.refresh_discovery === true || !revisions.some(revision =>
+        revision.profile_id === null && revision.dossier.target_pathname === entryPath && revision.dossier.views.length);
+      if (project && environment && applicationService && entryUrl && !environment.is_production &&
+          options.silentBoundScope && needsEntryObservation && !context.signal?.aborted) {
+        const args = { targetPath: eventWorkspace, name: 'inventario-provisional', path: entryUrl.href,
+          description: 'Inventario inicial del sistema' };
+        const started = Date.now();
+        const discovery = await dispatcher.dispatch({ name: 'qap_discover', arguments: args }, invocation);
+        if (discovery.content[0]?.type === 'text') discoveryAttempt = JSON.parse(discovery.content[0].text) as Record<string, unknown>;
+        qapEventLog.record({ workspace: eventWorkspace, conversationId, requestId: String(context.requestId) + ':discovery',
+          tool: 'qap_discover', args, result: discovery, durationMs: Date.now() - started });
+        revisions = applicationService.listLatestDiscoveryRevisionsByScope(project.project_id)
+          .filter(revision => revision.environment_id === environment.env_id);
+      }
+      const publicRevisions = revisions.filter(revision => revision.profile_id === null);
+      const firstObservation = publicRevisions.find(revision => revision.dossier.target_pathname === entryPath &&
+        revision.dossier.views.length) ?? publicRevisions.find(revision => revision.dossier.views.length) ?? publicRevisions[0];
+      let indexPath: string | undefined;
+      if (project && applicationService && revisions.length) {
+        indexPath = '.qa/discovery/INDEX.md';
+        if (!existsSync(join(eventWorkspace, indexPath)) ||
+            (firstObservation && !existsSync(join(eventWorkspace, buildPublishedModuleDocRepoPath(firstObservation))))) {
+          writeDiscoveryMarkdownFiles(eventWorkspace, project.project_id,
+            applicationService.listLatestDiscoveryRevisionsByScope(project.project_id), { regenerateAll: true });
+        }
+      }
+      const diagnostic = typeof discoveryAttempt.code === 'string' ? discoveryAttempt.code
+        : firstObservation?.dossier.gaps.find(gap => gap.code === 'auth_required')?.code;
+      const dossier = firstObservation?.dossier;
+      const discoverySummary = {
+        status: dossier?.acquisition_status ?? discoveryAttempt.status ?? 'pending',
+        ...(diagnostic ? { code: diagnostic } : {}),
+        ...(indexPath ? { index_path: indexPath } : {}),
+        ...(firstObservation && dossier ? {
+          revision_id: firstObservation.revision_id,
+          doc_path: buildPublishedModuleDocRepoPath(firstObservation),
+          reused: !discoveryAttempt.discovery_revision_id,
+          counts: { ...dossier.route_counts, views: dossier.views.length,
+            controls: dossier.views.reduce((sum, view) => sum + view.controls.length, 0),
+            forms: dossier.views.reduce((sum, view) => sum + view.forms_count, 0) },
+          routes: dossier.routes.flatMap(route => route.authorized_pathname ? [{
+            path: route.authorized_pathname,
+            state: route.state,
+            ...(route.reason ? { reason: route.reason } : {}),
+          }] : []).slice(0, 8),
+          gaps: dossier.gaps.map(gap => gap.code),
+        } : {}),
+        ...(revisions.length ? { documented_scopes: revisions.slice(0, 8).map(revision => ({
+          revision_id: revision.revision_id, module: revision.module_key,
+          access: revision.profile_id ? 'authenticated' : 'public',
+          doc_path: buildPublishedModuleDocRepoPath(revision),
+        })) } : {}),
+      };
+      const scan = state.scan as ReturnType<typeof generarScan> | undefined;
+      const codeRoutes = scanProjectRoutes(eventWorkspace, scan?.subproyectos ?? []).rutas;
+      const candidates = (scan?.documentos ?? []).flatMap(document =>
+        typeof document.path === 'string' && document.es_ingerible !== false &&
+          !/(^|[/\\])(?:scripts|metadata)([/\\]|$)/i.test(document.path)
+          ? [document.path.replace(/[\x00-\x1f\x7f]/g, ' ').slice(0, 200)] : []).slice(0, 8);
+      const notesPath = '.qa/discovery/INICIO.md';
+      const summaryLines = ['# Inventario inicial', '',
+        'Observaciones disponibles de la aplicación y materiales encontrados en este proyecto.', '',
+        '## Aplicación', '',
+        ...(dossier ? [
+          '- Estado de la observación: ' + dossier.acquisition_status,
+          '- Vistas: ' + dossier.views.length,
+          '- Rutas visitadas / candidatas / bloqueadas: ' +
+            [dossier.route_counts.visited, dossier.route_counts.candidate, dossier.route_counts.blocked].join(' / '),
+          ...(firstObservation ? ['- [Expediente de la vista](' + buildPublishedModuleDocRepoPath(firstObservation).replace(/^\.qa\/discovery\//, '') + ')'] : []),
+          ...(indexPath ? ['- [Índice de Discovery](INDEX.md)'] : []),
+          ...(discoverySummary.routes ?? []).map(route => '- Ruta ' + route.path.replace(/[^a-z\d/_.~-]/gi, '') + ' · ' + route.state +
+            (route.reason === 'AUTH_REQUIRED' ? ' (pantalla de acceso)' : '')),
+          ...dossier.gaps.filter(gap => gap.code === 'auth_required').map(gap => '- ' + gap.description),
+        ] : [baseUrl ? '- Observación pendiente: ' + (discoveryAttempt.code ?? discoveryAttempt.status ?? 'sin captura disponible') :
+          '- Falta la URL de la aplicación desplegada.']),
+        ...(indexPath && !dossier ? ['- [Índice de Discovery](INDEX.md)'] : []),
+        '', '## Materiales del proyecto', '',
+        ...(candidates.length ? candidates.map(path => '- ' + path.replace(/[\\[\]<>]/g, '')) : ['- Sin documentos candidatos en el escaneo.']),
+        ...(scan?.subproyectos?.length ? ['- Subproyectos detectados: ' + scan.subproyectos.length] : []),
+        ...(codeRoutes.length ? ['', '## Rutas encontradas en código', '',
+          ...codeRoutes.slice(0, 10).map(route => '- ' + route.path.replace(/[\x00-\x1f\x7f<>]/g, '')),
+          '- Rutas candidatas en el despliegue: ' + codeRoutes.length] : []), ''];
+      atomicWritePrivateFile(resolveContainedPath(eventWorkspace, notesPath), summaryLines.join('\n'));
       return canonicalResult({ ...state, status: state.status ?? 'success', conversation_id: conversationId,
+        discovery_inicial: { ...discoverySummary, notes_path: notesPath,
+          ...(diagnostic === 'auth_required' ? { continuation: 'Usa un perfil verificado para documentar áreas internas.' } : {}) },
         conversation_log: conversationLogPath(eventWorkspace, conversationId) });
     }
     if (dispatcher.has(name)) {
