@@ -84,7 +84,7 @@ describe('Bloque 1 — Identidad, estado duradero, aislamiento, autoridad y borr
     const toolNames = await mcp.listTools();
     expect(toolNames).toContain('qap_project');
     expect(toolNames).not.toContain('qap_clean');
-    expect(toolNames).toHaveLength(20);
+    expect(toolNames).toHaveLength(21);
 
     const legacyClean = await mcp.call('qap_clean', { targetPath: ws, force: true });
     expect(legacyClean.isError).toBe(true);

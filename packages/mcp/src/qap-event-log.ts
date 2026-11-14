@@ -1,10 +1,11 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { appendFileSync, existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, parse, resolve } from 'node:path';
 
 export interface QapEventInput {
   readonly workspace?: string;
+  readonly conversationId?: string;
   readonly requestId: string;
   readonly tool: string;
   readonly args: unknown;
@@ -14,16 +15,17 @@ export interface QapEventInput {
 }
 
 const SECRET_KEY = /password|passphrase|cookie|token|secret|credential|authorization|session|header|raw|body|answer|username|account/i;
-const FREE_TEXT_KEY = /description|details|comment|message|prompt|text|content|notes/i;
+const FREE_TEXT_KEY = /description|details|comment|message|prompt|text|content|notes|objective|expected/i;
 const OBJECT_RESULT_FIELDS = ['status', 'code', 'fase', 'phase', 'verified', 'retryable', 'session_scope', 'next_action', 'tool', 'profile', 'environment'];
 const loggerSessionId = randomUUID();
 const latestPhase = new Map<string, string>();
 
 function privateDirectory(path: string): void {
   const absolute = resolve(path);
-  let current = '';
-  for (const part of absolute.split(/[\\/]+/).filter(Boolean)) {
-    current = current ? join(current, part) : `${absolute.startsWith('\\\\') ? '\\\\' : ''}${part}`;
+  const root = parse(absolute).root;
+  let current = root;
+  for (const part of absolute.slice(root.length).split(/[\\/]+/).filter(Boolean)) {
+    current = join(current, part);
     if (existsSync(current)) {
       const stat = lstatSync(current);
       if (stat.isSymbolicLink() || (stat.isFile() && stat.nlink !== 1) || realpathSync(current).toLowerCase() !== resolve(current).toLowerCase()) {
@@ -49,7 +51,7 @@ function safeValue(value: unknown, key = ''): unknown {
   if (SECRET_KEY.test(key) || FREE_TEXT_KEY.test(key)) return '[redacted]';
   if (typeof value === 'string') {
     if (/(?:targetPath|workspace|projectRoot)$/i.test(key)) return `sha256:${createHash('sha256').update(value).digest('hex').slice(0, 16)}`;
-    if (value.length > 256 || /(?:https?:\/\/[^\s?#]+)[?#][^\s]*/i.test(value)) return '[redacted]';
+    if (value.length > 256 || /^https?:\/\/[^/]*@/i.test(value) || /(?:https?:\/\/[^\s?#]+)[?#][^\s]*/i.test(value)) return '[redacted]';
     return value;
   }
   if (typeof value === 'number' || typeof value === 'boolean' || value === null) return value;
@@ -88,6 +90,14 @@ function lastPhase(jsonl: string): string | undefined {
     }
   } catch { /* New workspace or unreadable history starts without phase context. */ }
   return undefined;
+}
+
+export function isConversationId(value: unknown): value is string {
+  return typeof value === 'string' && /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(value);
+}
+
+export function conversationLogPath(workspace: string, id: string): string {
+  return join(workspace, '.qa', 'logs', 'conversations', id + '.jsonl');
 }
 
 function eventPaths(workspace: string | undefined, hostDirectory?: string): { jsonl: string; summary: string; correlation: string } {
@@ -146,10 +156,10 @@ export class QapEventLog {
       durationMs: diagnostic.durationMs });
   }
 
-  record(input: QapEventInput): void {
+  record(input: QapEventInput): boolean {
     try {
       const paths = eventPaths(input.workspace, this.hostDirectory);
-      privateDirectory(resolve(paths.jsonl, '..'));
+      privateDirectory(dirname(paths.jsonl));
       ensurePrivateFile(paths.jsonl);
       const result = parsedResult(input.result);
       const phase = typeof result.fase === 'string' ? result.fase : typeof result.phase === 'string' ? result.phase : undefined;
@@ -167,6 +177,7 @@ export class QapEventLog {
                   : input.tool.startsWith('qap_auth_') && code === 'authentication_verified' ? 'granted' : 'not_indicated';
       const event = {
         at: new Date().toISOString(), session_id: loggerSessionId, correlation_id: paths.correlation,
+        ...(isConversationId(input.conversationId) ? { conversation_id: input.conversationId } : {}),
         version: process.env.QAP_BUILD_REVISION ?? 'development', request_id: input.requestId,
         tool: input.tool, parameters: safeValue(input.args), action: input.tool,
         result: result, authorization: { state: authorization },
@@ -174,7 +185,14 @@ export class QapEventLog {
         ...(phase ? { phase } : {}), ...(input.errorCode ? { error: { code: input.errorCode } } : {}),
         evidence_refs: [], durationMs: Math.max(0, Math.round(input.durationMs)),
       };
-      appendFileSync(paths.jsonl, JSON.stringify(event) + '\n', { encoding: 'utf8', mode: 0o600 });
+      const line = JSON.stringify(event) + '\n';
+      appendFileSync(paths.jsonl, line, { encoding: 'utf8', mode: 0o600 });
+      if (input.workspace && event.conversation_id) {
+        const path = conversationLogPath(input.workspace, event.conversation_id);
+        privateDirectory(dirname(path));
+        ensurePrivateFile(path);
+        appendFileSync(path, line, { encoding: 'utf8', mode: 0o600 });
+      }
       try {
         let summaryPath = paths.summary;
         if (existsSync(summaryPath)) ensurePrivateFile(summaryPath);
@@ -185,6 +203,7 @@ export class QapEventLog {
         writeSummary(paths.jsonl, summaryPath);
       } catch { /* Event data remains authoritative if summary regeneration fails. */ }
       if (phase) latestPhase.set(paths.correlation, phase);
-    } catch { /* Audit failure cannot change tool semantics; host diagnostics cover the log sink. */ }
+      return true;
+    } catch { return false; }
   }
 }

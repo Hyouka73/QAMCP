@@ -213,7 +213,7 @@ describe('VNEXT-014-D declarative ReportHandler — persisted evidence only', ()
       await server.connect(serverTransport);
       await client.connect(clientTransport);
       const tools = await client.listTools();
-      expect(tools.tools).toHaveLength(20);
+      expect(tools.tools).toHaveLength(21);
       expect(tools.tools.map(tool => tool.name)).toContain('qap_report');
       const response = await client.callTool({
         name: 'qap_report',

@@ -11,6 +11,19 @@ const TARGET_PATH_PROP = {
 
 export const TOOLS: Tool[] = [
   {
+    name: 'qap_start',
+    description: 'Inicia una conversación de QA, prepara el proyecto, registra la URL ya indicada y devuelve el estado, conversation_id y la ruta de su bitácora MCP. Invócala antes de navegar. Envía el conversation_id devuelto en cada llamada de esta conversación.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        targetPath: TARGET_PATH_PROP,
+        base_url: { type: 'string', description: 'URL HTTP/HTTPS del sistema indicada por el usuario, sin credenciales.' },
+        conversation_id: { type: 'string', format: 'uuid', description: 'ID emitido por QAP para reanudar una conversación.' },
+      },
+    },
+  },
+  {
     name: 'qap_status',
     description: `PUNTO DE ENTRADA OBLIGATORIO: Invoca esta herramienta INMEDIATAMENTE cuando el usuario quiera probar su app, testear un proyecto o empezar con QAP. Analiza el repo y el preflight del navegador (Playwright), y devuelve exactamente la pregunta y opciones que debes presentar con ask_question. Si falta navegador, ejecuta la instalación como paso de trabajo autónomo. QAP observa la app con su propio navegador mediante qap_discover; no uses navegadores ni herramientas de otros servidores MCP ni del IDE para explorarla (no se persistiría conocimiento en .qa).\n\n${QAP_CORE_DIRECTIVES}`,
     inputSchema: {
@@ -133,7 +146,7 @@ export const TOOLS: Tool[] = [
   },
   {
     name: 'qap_auth_add',
-    description: 'Gestiona perfiles de autenticación QA (crear, actualizar, seleccionar o resolver antes del login) y solicita autorización local para verificar una sesión. Usa auto con un perfil aprovisionado, reuse para comprobar una sesión existente, o handoff para iniciar sesión en el navegador. El username acepta cualquier identificador válido (no solo correos). Conserva toda credencial en el proveedor seguro del host.',
+    description: 'Gestiona perfiles de autenticación QA y verifica la sesión en el entorno vinculado. Usa auto con un perfil aprovisionado, reuse para comprobar una sesión existente, o handoff para iniciar sesión en el navegador. El username acepta cualquier identificador válido (no solo correos). Conserva la credencial en el proveedor seguro del host.',
     inputSchema: {
       type: 'object',
       additionalProperties: false,

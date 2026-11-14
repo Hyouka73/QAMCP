@@ -132,7 +132,7 @@ import type { StateDependencies } from './handlers/state-services.js';
 import { ClientElicitationDiscoveryAuthorizer, ClientElicitationHumanReviewGateway } from './client-elicitation-authorizers.js';
 import { acknowledgeProjectInitialization, acquireProjectOperation, ProjectReset, readProjectResetState, type ResetAuthorizer } from './project-reset.js';
 import { windowsProjectResetAuthorizer } from './project-reset-dialog.js';
-import { QapEventLog } from './qap-event-log.js';
+import { conversationLogPath, isConversationId, QapEventLog } from './qap-event-log.js';
 export { checkPlaywrightBrowser, PLAYWRIGHT_INSTALL_COMMAND } from './handlers/state-runtime.js';
 
 let activeViewerServer: ViewerServerInstance | null = null;
@@ -305,6 +305,7 @@ export interface McpServerOptions extends StateDependencies {
   readonly hostTestRegistryPath?: string;
   readonly handlers?: readonly IMcpToolHandler[];
   readonly workspaceAuthorizer?: IWorkspaceAuthorizer;
+  readonly configuredWorkspaceRoot?: string;
   readonly hostRegistryPath?: string;
   readonly discoveryAuthorizer?: IDiscoveryAuthorizer;
   readonly interactiveAccessAuthorizer?: IDiscoveryAuthorizer;
@@ -473,7 +474,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         prompts: {},
       },
       instructions: `DIRECTIVAS DE INTERACCIÓN OBLIGATORIAS (QAP v3.0):
-0. Si el usuario dice «Quiero probar un sistema» o quiere probar una aplicación, invoca qap_status inmediatamente. No requiere qap_start. La preparación local segura es automática solo en raíces autorizadas. targetPath nunca concede permisos. No instales, navegues, autentiques ni ejecutes sin autorización correspondiente. Si falta información pregunta una vez; si falta autorización sigue la acción local concreta del host.
+0. Cuando el usuario quiera probar un sistema o iniciar un registro por conversación, invoca qap_start con la URL ya indicada. Guarda el conversation_id devuelto y envíalo en las siguientes llamadas que lo admitan. Sigue siguiente_accion; navega solo mediante QAP. En el workspace configurado en el host, la preparación y el flujo rutinario sobre el entorno registrado son automáticos y no requieren diálogos de autorización. Pide solo la información que falte.
 1. RUTA OBJETIVO OBLIGATORIA (targetPath): En TODAS las llamadas a herramientas MCP, envía SIEMPRE la ruta absoluta del workspace del usuario en el parámetro 'targetPath'. NUNCA lo omitas.
 2. PROHIBIDO mostrar tablas markdown de estado, resúmenes de archivos o listas de próximos pasos (1, 2, 3...).
 3. Cuando siguiente_accion trae pregunta, presentala con la herramienta ask_question: UNA sola pregunta por llamada, usando texto, formato y opciones tal cual (no inventes, reordenes ni agregues opciones). Deja siempre disponible la respuesta libre. Si formato es abierta, haz esa unica pregunta en texto y espera. Nunca agrupes varias preguntas en un mensaje ni preguntes algo que siguiente_accion no pidio. Si ask_question no existe en tu cliente, haz la misma pregunta en texto con las opciones numeradas, una a la vez.
@@ -493,8 +494,23 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
 
   // Manejador de lista de tools
   const authInputProperties = TOOLS.find(tool => tool.name === 'qap_auth_add')?.inputSchema.properties ?? {};
-  server.setRequestHandler(ListToolsRequestSchema, () =>
-    Promise.resolve({ tools: [...TOOLS, ...dispatcher.listTools().filter(tool => !migrated.has(tool.name))] }));
+  server.setRequestHandler(ListToolsRequestSchema, () => {
+    const tools = [...TOOLS, ...dispatcher.listTools().filter(tool => !migrated.has(tool.name))];
+    if (!options.configuredWorkspaceRoot) return Promise.resolve({ tools });
+    return Promise.resolve({ tools: tools.map(tool => ({
+      ...tool,
+      inputSchema: { ...tool.inputSchema, properties: {
+        ...tool.inputSchema.properties,
+        ...(tool.name === 'qap_project_reset' ? {} : {
+          conversation_id: { type: 'string', format: 'uuid', description: 'ID devuelto por qap_start para llevar la bitácora de esta conversación.' },
+        }),
+        ...(tool.name === 'qap_auth_add' ? { password: {
+          type: 'string', minLength: 1, maxLength: 4096,
+          description: 'Contraseña de prueba ya proporcionada por el usuario para el entorno QA vinculado. QAP la omite de la bitácora.',
+        } } : {}),
+      } },
+    })) });
+  });
 
   // Manejador de lista de prompts
   server.setRequestHandler(ListPromptsRequestSchema, () => Promise.resolve({ prompts: PROMPTS }));
@@ -510,7 +526,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
             role: 'user',
             content: {
               type: 'text',
-              text: 'Inicia revisando el estado de QAP con qap_status y guíame paso a paso sin muros de texto.',
+              text: 'Invoca qap_start con el workspace y la URL que ya indiqué. Continúa con siguiente_accion y usa el conversation_id devuelto para conservar la bitácora. Explora únicamente con QAP.',
             },
           },
         ],
@@ -542,12 +558,26 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
     const controller = new AbortController();
     const context = { ...sdkContext, signal: AbortSignal.any([controller.signal, ...(sdkContext.signal ? [sdkContext.signal] : [])]) };
     let eventWorkspace: string | undefined;
+    let conversationId: string | undefined;
     let releaseStorage: (() => void) | undefined;
     let resetState: ReturnType<typeof readProjectResetState>;
     let guardedRoot: string | undefined;
     const eventStartedAt = Date.now();
     const operation = (async (): Promise<CallToolResult> => {
-    const { name, arguments: rawArgs } = request.params;
+    const { name, arguments: { conversation_id, ...argsWithoutConversation } = {} } = request.params;
+    const rawArgs = request.params.arguments === undefined ? undefined : argsWithoutConversation;
+    if (conversation_id !== undefined && (!isConversationId(conversation_id) || name === 'qap_project_reset')) {
+      return canonicalResult({ status: 'error', code: 'invalid_conversation_id' }, true);
+    }
+    if (rawArgs) request.params.arguments = rawArgs;
+    if (name === 'qap_start' && (
+      Object.keys(rawArgs ?? {}).some(key => !['targetPath', 'base_url'].includes(key)) ||
+      (rawArgs?.targetPath !== undefined && typeof rawArgs.targetPath !== 'string') ||
+      !new ContextHandler(dependencies).validateArguments(
+        rawArgs?.base_url === undefined ? {} : { base_url: rawArgs.base_url },
+      )
+    )) return canonicalResult({ status: 'error', code: 'invalid_arguments' }, true);
+    conversationId = isConversationId(conversation_id) ? conversation_id : name === 'qap_start' ? randomUUID() : undefined;
     if (name === 'qap_project_reset') {
       const { targetPath, phase, reset_id } = rawArgs ?? {};
       if (typeof targetPath !== 'string' || (phase !== 'preview' && phase !== 'confirm') ||
@@ -598,6 +628,13 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
       }
       return canonicalResult(outcome, outcome.status !== 'preview' && outcome.status !== 'success');
     }
+    if (options.configuredWorkspaceRoot && name === 'qap_auth_add' && rawArgs?.password !== undefined &&
+        (typeof rawArgs.password !== 'string' || rawArgs.password.length === 0 || rawArgs.password.length > 4096 ||
+          typeof rawArgs.username !== 'string' || !rawArgs.username.trim() ||
+          typeof rawArgs.profile !== 'string' || !/^[\w-]{1,100}$/.test(rawArgs.profile) ||
+          Object.keys(rawArgs).some(key => key !== 'password' && !Object.hasOwn(authInputProperties, key)))) {
+      return canonicalResult({ status: 'error', code: 'invalid_auth_arguments' }, true);
+    }
     if (!options.silentBoundScope && !options.authAuthorizer && name === 'qap_auth_add' &&
         Object.keys(rawArgs ?? {}).some(key => !Object.hasOwn(authInputProperties, key))) {
       return interactiveBlocked('agent_auth_material_not_supported');
@@ -643,7 +680,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
           if (resetState?.state === 'pending') return canonicalResult({ status: 'blocked', code: 'project_reset_incomplete',
             receipt_id: resetState.id }, true);
           if (resetState?.state === 'complete' && name !== 'qap_init') {
-            return name === 'qap_status'
+            return name === 'qap_status' || name === 'qap_start'
               ? canonicalResult({ status: 'success', initialized: false, fase: 'ONBOARDING',
                 siguiente_accion: { tool: 'qap_init', argumentos: { targetPath: guardedRoot }, descripcion: 'Inicializa un proyecto nuevo.' } })
               : canonicalResult({ status: 'blocked', code: 'project_not_initialized' }, true);
@@ -705,9 +742,13 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
             },
           }, true);
         }
+        if (options.configuredWorkspaceRoot && normalizePathKey(targetPath) !== normalizePathKey(options.configuredWorkspaceRoot)) {
+          return canonicalResult({ status: 'blocked', code: 'workspace_outside_configured_root',
+            desbloquear_con: { mecanismo: 'workspace_selection', descripcion: 'Usa el workspace configurado para esta instancia de QAP.' } }, true);
+        }
         let isAuthorized = false;
         try {
-          authorizedProjectRoot({ targetPath }, dependencies, true);
+          targetPath = authorizedProjectRoot({ targetPath }, dependencies, true);
           isAuthorized = true;
         } catch (error) {
           if (!(error instanceof McpToolError) || error.code === 'execution_failed') {
@@ -723,7 +764,10 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
             return canonicalResult({ status: 'blocked', category: 'human_authorization', code: 'workspace_path_invalid', diagnostic_id: diagnosticId,
               desbloquear_con: { mecanismo: 'workspace_selection', descripcion: 'Selecciona una carpeta física existente y admitida, con ruta absoluta, fuera de directorios del sistema y del almacenamiento del host.' } });
           }
-          if (options.workspaceAuthorizer) {
+          if (options.configuredWorkspaceRoot) {
+            return canonicalResult({ status: 'blocked', code: 'workspace_outside_configured_root',
+              desbloquear_con: { mecanismo: 'workspace_selection', descripcion: 'Usa el workspace configurado para esta instancia de QAP.' } }, true);
+          } else if (options.workspaceAuthorizer) {
             const authResult = await options.workspaceAuthorizer.requestAuthorization(
               { requestedPath: targetPath, canonicalPath: canonicalTarget },
               context.signal
@@ -765,8 +809,9 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
               desbloquear_con: { mecanismo: 'local_host', comando: preparationCommand, descripcion: 'El host no configuró un autorizador interactivo. Revisa su configuración o autoriza localmente mediante el mecanismo administrativo del host; reintenta sin reiniciar.' } });
           }
         }
+        eventWorkspace = targetPath;
         request.params.arguments = { ...rawArgs, targetPath };
-        const isBootstrapTrigger = ['qap_status', 'qap_init', 'qap_context_set'].includes(name);
+        const isBootstrapTrigger = ['qap_start', 'qap_status', 'qap_init', 'qap_context_set'].includes(name);
         const shouldRehydrateWorkspace =
           !isBootstrapTrigger &&
           ['qap_auth_add', 'qap_auth_list', 'qap_context_ingest', 'qap_session_plan', 'qap_discover', 'qap_plan', 'qap_test', 'qap_report'].includes(name) &&
@@ -774,11 +819,13 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         if (isBootstrapTrigger || shouldRehydrateWorkspace) {
           try {
             const suppliedUrl = rawArgs?.base_url ?? rawArgs?.environments;
-            const url = name === 'qap_context_set' && typeof suppliedUrl === 'string' ? suppliedUrl : undefined;
+            const contextArgs = name === 'qap_start' ? { targetPath, base_url: suppliedUrl } : request.params.arguments;
+            const url = (name === 'qap_context_set' || name === 'qap_start') && typeof suppliedUrl === 'string'
+              && new ContextHandler(dependencies).validateArguments(contextArgs) ? suppliedUrl : undefined;
             // Validate before performing any canonical writes.
             await dependencies.prepareWorkspace!(
               realpathSync(targetPath),
-              isBootstrapTrigger && name === 'qap_context_set' && new ContextHandler(dependencies).validateArguments(request.params.arguments) ? url : undefined,
+              url,
             );
           } catch (error: unknown) {
             if (error instanceof ApplicationServiceError && error.code === 'project_deleted_tombstone') {
@@ -825,6 +872,23 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
           }
         }
       }
+    }
+    if (name === 'qap_start') {
+      if (!eventWorkspace || !options.workspaceBootstrap || !conversationId) {
+        return canonicalResult({ status: 'blocked', code: 'workspace_not_bound' }, true);
+      }
+      const invocation = { requestId: context.requestId, signal: context.signal };
+      if (typeof rawArgs?.base_url === 'string') {
+        const update = await dispatcher.dispatch({
+          name: 'qap_context_set', arguments: { targetPath: eventWorkspace, base_url: rawArgs.base_url, source: 'user' },
+        }, invocation);
+        if (update.isError) return update;
+      }
+      const status = await dispatcher.dispatch({ name: 'qap_status', arguments: { targetPath: eventWorkspace } }, invocation);
+      if (status.isError || status.content[0]?.type !== 'text') return status;
+      const state = JSON.parse(status.content[0].text) as Record<string, unknown>;
+      return canonicalResult({ ...state, status: state.status ?? 'success', conversation_id: conversationId,
+        conversation_log: conversationLogPath(eventWorkspace, conversationId) });
     }
     if (dispatcher.has(name)) {
       const dispatchResult = await dispatcher.dispatch(request.params, { requestId: context.requestId, signal: context.signal ?? new AbortController().signal });
@@ -1153,6 +1217,12 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
             : undefined;
           const canonicalBaseUrl = activeEnvRec?.base_url;
           const resolvedBaseUrl = canonicalBaseUrl ?? yamlBaseUrl ?? 'http://localhost:3000';
+          if (options.configuredWorkspaceRoot && password &&
+              (!canonicalBaseUrl || activeEnvRec?.is_production || yamlIsProduction ||
+                (args.env !== undefined && env !== activeEnvRec?.name) ||
+                !loginRoute.startsWith('/') || loginRoute.startsWith('//') || loginRoute.includes('\\'))) {
+            return canonicalResult({ status: 'blocked', code: 'login_outside_configured_qa_environment' }, true);
+          }
           const origin = (() => {
             try {
               return new URL(resolvedBaseUrl).origin;
@@ -5025,12 +5095,17 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
       if (request.params.name === 'qap_init' && !result.isError && resetState?.state === 'complete' && guardedRoot && options.workspaceBootstrap) {
         acknowledgeProjectInitialization(options.workspaceBootstrap.directory, guardedRoot, resetState);
       }
-      if (options.workspaceBootstrap) qapEventLog.record({ workspace: eventWorkspace, requestId: String(context.requestId),
-        tool: request.params.name, args: request.params.arguments, result, durationMs: Date.now() - eventStartedAt });
+      if (options.workspaceBootstrap) {
+        const recorded = qapEventLog.record({ workspace: eventWorkspace, conversationId, requestId: String(context.requestId),
+          tool: request.params.name, args: request.params.arguments, result, durationMs: Date.now() - eventStartedAt });
+        if (request.params.name === 'qap_start' && eventWorkspace && !result.isError && !recorded) {
+          return canonicalResult({ status: 'partial', code: 'conversation_log_unavailable', conversation_id: conversationId }, true);
+        }
+      }
       return result;
     }, error => {
       if (request.params.name === 'qap_project_reset') throw error;
-      if (options.workspaceBootstrap) qapEventLog.record({ workspace: eventWorkspace, requestId: String(context.requestId),
+      if (options.workspaceBootstrap) qapEventLog.record({ workspace: eventWorkspace, conversationId, requestId: String(context.requestId),
         tool: request.params.name, args: request.params.arguments,
         errorCode: error instanceof McpToolError ? error.code : error instanceof Error ? error.name : 'unknown_error',
         durationMs: Date.now() - eventStartedAt });

@@ -84,8 +84,8 @@ describe('real MCP client/server via linked transports', () => {
     const handler = synthetic();
     const client = await connect({ handlers: [handler] });
     const catalog = await client.listTools();
-    expect(catalog.tools).toHaveLength(21);
-    expect(new Set(catalog.tools.map(tool => tool.name)).size).toBe(21);
+    expect(catalog.tools).toHaveLength(22);
+    expect(new Set(catalog.tools.map(tool => tool.name)).size).toBe(22);
     expect(catalog.tools.at(-1)).toEqual(handler.definition);
     const result = await client.callTool({ name: 'test_synthetic', arguments: { value: 'hello' } });
     expect(result.content).toEqual([{ type: 'text', text: JSON.stringify({ args: { value: 'hello' }, hasSignal: true }) }]);
@@ -95,8 +95,8 @@ describe('real MCP client/server via linked transports', () => {
   it('isolates registries and preserves unknown-tool legacy errors', async () => {
     const extended = await connect({ handlers: [synthetic()] });
     const production = await connect();
-    expect((await extended.listTools()).tools).toHaveLength(21);
-    expect((await production.listTools()).tools).toHaveLength(20);
+    expect((await extended.listTools()).tools).toHaveLength(22);
+    expect((await production.listTools()).tools).toHaveLength(21);
     expect(await production.callTool({ name: 'test_synthetic' })).toEqual({
       isError: true, content: [{ type: 'text', text: 'Tool no reconocida: test_synthetic' }],
     });
@@ -148,13 +148,13 @@ describe('real MCP client/server via linked transports', () => {
     expect(tools.find(t => t.name === 'qap_project_reset')!.inputSchema).toMatchObject({
       additionalProperties: false, required: ['targetPath', 'phase'], properties: { phase: { enum: ['preview', 'confirm'] } },
     });
-    expect(tools).toHaveLength(20);
+    expect(tools).toHaveLength(21);
     // Block 1 retired contradictory qap_clean in favor of qap_project.
     expect(tools.find(t => t.name === 'qap_clean')).toBeUndefined();
     const projectTool = tools.find(t => t.name === 'qap_project')!;
     expect(projectTool).toBeDefined();
     expect(projectTool.inputSchema.required).toEqual(['action']);
-    expect({ tools: tools.filter(tool => !['qap_auth_provision', 'qap_project_reset'].includes(tool.name)).map(tool => {
+    expect({ tools: tools.filter(tool => !['qap_start', 'qap_auth_provision', 'qap_project_reset'].includes(tool.name)).map(tool => {
       if (tool.name === 'qap_project') {
         return oldTools.find(t => t.name === 'qap_clean')!;
       }
@@ -206,7 +206,7 @@ describe('real MCP client/server via linked transports', () => {
 
     expect(await client.getPrompt({ name: 'qap_start' })).toEqual({
       description: 'Onboarding paso a paso para QAP',
-      messages: [{ role: 'user', content: { type: 'text', text: 'Inicia revisando el estado de QAP con qap_status y guíame paso a paso sin muros de texto.' } }],
+      messages: [{ role: 'user', content: { type: 'text', text: expect.stringContaining('Invoca qap_start') } }],
     });
   });
 

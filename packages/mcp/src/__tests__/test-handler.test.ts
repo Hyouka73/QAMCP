@@ -701,7 +701,7 @@ describe('TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4
 
     // Verify exactly 20 tools
     const tools = await client.listTools();
-    expect(tools.tools).toHaveLength(20);
+    expect(tools.tools).toHaveLength(21);
     const toolNames = tools.tools.map(t => t.name);
     expect(toolNames).toContain('qap_test');
     expect(toolNames).toContain('qap_plan');

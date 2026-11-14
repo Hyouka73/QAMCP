@@ -17,6 +17,7 @@ import { SqliteModuleClosureStore } from './handlers/module-closure-store.js';
 import type { ModuleBinding } from './handlers/module-observation-bridge.js';
 import type { McpServerOptions } from './server.js';
 import { WorkspaceBootstrap } from './workspace-bootstrap.js';
+import { validateCandidateWorkspace } from './workspace-authorizer.js';
 import {
   loadDiscoveryAuthorizationsFromDisk,
   WindowsInteractiveDiscoveryAuthorizer,
@@ -266,6 +267,9 @@ export async function loadHostComposition(
     const defaultQapHome = resolve(env.QAP_MCP_HOST_DATA_DIR ?? resolve(homedir(), '.qap'));
     const directory = resolve(env.QAP_MCP_WORKSPACE_HOST_DIR ?? join(defaultQapHome, 'workspaces'));
     const appDataDir = resolve(env.QAP_MCP_APP_SERVICE_DIR ?? join(defaultQapHome, 'application'));
+    const workspaceRoot = env.QAP_MCP_WORKSPACE_ROOT === undefined
+      ? undefined
+      : validateCandidateWorkspace(env.QAP_MCP_WORKSPACE_ROOT, directory);
     const registry = resolve(directory, 'authorized-roots.json');
     const discoveryRegistry = resolve(directory, 'discovery-authorizations.json');
     const authRegistry = resolve(directory, 'auth-authorizations.json');
@@ -347,14 +351,15 @@ export async function loadHostComposition(
     });
     return {
       options: {
-        projectRoots: [],
+        projectRoots: workspaceRoot ? [workspaceRoot] : [],
+        configuredWorkspaceRoot: workspaceRoot,
         workspaceBootstrap: bootstrap,
         applicationService,
         allowSpaReadOnly: true,
         silentBoundScope: true,
         interactiveAccessAuthorizer: isWindowsInteractive ? new WindowsInteractiveDiscoveryAuthorizer() : undefined,
-        clientWorkspaceRoots: true,
-        hostRegistryPath: registry,
+        clientWorkspaceRoots: workspaceRoot === undefined,
+        hostRegistryPath: workspaceRoot === undefined ? registry : undefined,
         hostDiscoveryRegistryPath: discoveryRegistry,
         authorizationPersistencePath: resolve(directory, 'qa-session-authorizations.enc'),
         discoveryAuthorizations: persistedDiscoveryAuthorizations,

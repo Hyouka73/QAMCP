@@ -96,7 +96,7 @@ describe('VNEXT-012 real MCP and physical persistence', () => {
     const context = vi.spyOn(ContextHandler.prototype, 'execute');
     const client = await connect({ projectRoots: [root] });
     const tools = (await client.listTools()).tools;
-    expect(tools).toHaveLength(20);
+    expect(tools).toHaveLength(21);
     expect(new Set(tools.map(tool => tool.name)).size).toBe(20);
     await call(client, 'qap_status', { targetPath: root });
     await call(client, 'qap_project', { action: 'list', targetPath: root });
