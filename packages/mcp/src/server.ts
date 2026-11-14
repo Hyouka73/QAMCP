@@ -766,7 +766,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         const isBootstrapTrigger = ['qap_status', 'qap_init', 'qap_context_set'].includes(name);
         const shouldRehydrateWorkspace =
           !isBootstrapTrigger &&
-          ['qap_auth_add', 'qap_auth_list', 'qap_context_ingest', 'qap_session_plan', 'qap_discover'].includes(name) &&
+          ['qap_auth_add', 'qap_auth_list', 'qap_context_ingest', 'qap_session_plan', 'qap_discover', 'qap_plan', 'qap_test', 'qap_report'].includes(name) &&
           Boolean(applicationService?.findActiveProjectByRoot(targetPath) || existsSync(join(targetPath, '.qa')));
         if (isBootstrapTrigger || shouldRehydrateWorkspace) {
           try {
