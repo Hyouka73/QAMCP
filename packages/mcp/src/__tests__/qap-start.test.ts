@@ -10,6 +10,91 @@ import { expect, it } from 'vitest';
 
 const serverPath = resolve(dirname(fileURLToPath(import.meta.url)), '../../dist/server.js');
 
+it.runIf(process.platform === 'win32')('persists the scoped login across Stdio restarts and renews an expired session from the keychain', async () => {
+  const base = realpathSync(mkdtempSync(join(tmpdir(), 'qap-start-auth-')));
+  const workspace = join(base, 'workspace');
+  mkdirSync(workspace);
+  const host = join(base, 'host');
+  const username = 'qap-fixture-user';
+  const password = 'qap-fixture-pass';
+  let posts = 0;
+  let validCookie = '';
+  const site = createServer((request, response) => {
+    const html = { 'content-type': 'text/html' };
+    if (request.url === '/login') {
+      response.writeHead(200, html).end('<form><input type="text"><input type="password" style="display:none"></form>' +
+        '<form method="post" action="/login/submit"><input name="user"><input name="password" type="password"><button>Entrar</button></form>');
+    } else if (request.method === 'POST' && request.url === '/login/submit') {
+      posts++;
+      const chunks: Buffer[] = [];
+      request.on('data', chunk => chunks.push(chunk as Buffer));
+      request.on('end', () => {
+        const fields = new URLSearchParams(Buffer.concat(chunks).toString());
+        if (fields.get('user') !== username || fields.get('password') !== password) return response.writeHead(403).end();
+        validCookie = 'session=authenticated-' + posts;
+        response.writeHead(302, { location: '/workspace/home', 'set-cookie': validCookie + '; Path=/; HttpOnly' }).end();
+      });
+    } else if (request.url === '/workspace/home' && validCookie && request.headers.cookie === validCookie) {
+      response.writeHead(200, html).end('<h1>Portal interno</h1><input type="password" style="display:none"><a href="/reports">Reportes</a>');
+    } else {
+      response.writeHead(302, { location: '/login' }).end();
+    }
+  });
+  await new Promise<void>(done => site.listen(0, '127.0.0.1', done));
+  const url = 'http://127.0.0.1:' + (site.address() as { port: number }).port;
+  let client: Client | undefined;
+  async function connect() {
+    await client?.close();
+    client = new Client({ name: 'qap-start-auth-test', version: '1' });
+    await client.connect(new StdioClientTransport({
+      command: process.execPath, args: [serverPath], stderr: 'pipe',
+      env: { PATH: process.env.PATH ?? '', NODE_ENV: 'test', QAP_MCP_HOST_DATA_DIR: host, QAP_MCP_WORKSPACE_ROOT: workspace,
+        ...(process.env.PLAYWRIGHT_BROWSERS_PATH ? { PLAYWRIGHT_BROWSERS_PATH: process.env.PLAYWRIGHT_BROWSERS_PATH } : {}) },
+    }));
+  }
+  async function call(name: string, args = {}) {
+    const response = await client!.callTool({ name, arguments: { targetPath: workspace, ...args } });
+    return JSON.parse((response.content[0] as { text: string }).text) as Record<string, unknown>;
+  }
+  try {
+    await connect();
+    const original = await call('qap_start', { base_url: url, credentials: { profile: 'fixture', username, password } });
+    expect(original).toMatchObject({ autenticacion: { status: 'verified', secretSaved: true, profile: 'fixture' },
+      discovery_inicial: { access: 'authenticated', counts: { views: 1 } } });
+    expect(posts).toBe(1);
+    await connect();
+    const reopened = await call('qap_start');
+    expect(reopened).toMatchObject({ autenticacion: { status: 'reused', profile: 'fixture' },
+      discovery_inicial: { access: 'authenticated', counts: { views: 1 } } });
+    expect(posts).toBe(1);
+    validCookie = 'session=expired-on-server';
+    await connect();
+    const renewed = await call('qap_start');
+    expect(renewed).toMatchObject({ autenticacion: { status: 'renewed', profile: 'fixture' },
+      discovery_inicial: { access: 'authenticated', counts: { views: 1 } } });
+    expect(posts).toBe(2);
+    const notes = readFileSync(join(workspace, '.qa/discovery/INICIO.md'), 'utf8');
+    expect(notes).toContain('/workspace/home');
+    const logs = readFileSync(join(workspace, '.qa/logs/qap-events.jsonl'), 'utf8');
+    expect(logs).not.toContain(password);
+    expect(logs).not.toContain('session=authenticated-');
+  } finally {
+    await client?.close();
+    const { QapApplicationService } = await import('../application/application-service.js');
+    const { KeychainCredentialProvider } = await import('@qap/auth');
+    const service = new QapApplicationService({ hostRootDir: join(host, 'application'), credentialProvider: new KeychainCredentialProvider() });
+    try {
+      const project = service.findActiveProjectByRoot(workspace);
+      if (project) {
+        const preview = service.previewDelete(project.project_id);
+        await service.confirmDelete(project.project_id, preview.confirmation_token, 'confirm_delete', { purgeWorkspaceQa: false });
+      }
+    } finally { service.close(); }
+    await new Promise<void>((done, reject) => site.close(error => error ? reject(error) : done()));
+    rmSync(base, { recursive: true, force: true });
+  }
+}, 90_000);
+
 it('starts from a client without roots or elicitation and persists separate MCP logs across reconnects', async () => {
   const base = realpathSync(mkdtempSync(join(tmpdir(), 'qap-start-')));
   const workspace = join(base, 'workspace');

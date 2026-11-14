@@ -10,7 +10,7 @@ import {
   realpathSync,
 } from 'node:fs';
 import { resolve, join, basename, extname } from 'node:path';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
@@ -43,7 +43,7 @@ import {
   type ProjectRepoMap,
   type ModuleCandidatesFile,
 } from '@qap/shared';
-import type { StorageState } from '@qap/auth';
+import { readProfiles, type StorageState } from '@qap/auth';
 import {
   FileSystemStorage,
   validateDefinitions,
@@ -123,6 +123,7 @@ import { binding as knowledgeBinding, projectRoot as authorizedProjectRoot, resu
 import { hasLegacyViewContext, legacyInterviewBlocked } from './handlers/legacy-discovery-contract.js';
 import { ProjectHandler } from './handlers/project.handler.js';
 import { ApplicationServiceError } from './application/application-service.js';
+import { authenticateScopedPassword, scopedRoute, usableScopedSession } from './scoped-password.js';
 import { buildPublishedModuleDocRepoPath, sanitizeTargetPathname, writeDiscoveryMarkdownFiles } from './application/discovery-dossier.js';
 import { atomicWritePrivateFile, normalizePathKey, resolveContainedPath } from './application/safe-storage.js';
 import { PlanHandler } from './handlers/plan.handler.js';
@@ -475,7 +476,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         prompts: {},
       },
       instructions: `DIRECTIVAS DE INTERACCIÓN OBLIGATORIAS (QAP v3.0):
-0. Cuando el usuario quiera probar un sistema o iniciar un registro por conversación, invoca qap_start con la URL ya indicada. Presenta primero el resumen y el enlace a discovery_inicial cuando esté disponible. Guarda el conversation_id devuelto y envíalo en las siguientes llamadas que lo admitan. Sigue siguiente_accion; navega solo mediante QAP. En el workspace configurado en el host, la preparación y el flujo rutinario sobre el entorno registrado son automáticos y no requieren diálogos de autorización. Pide solo la información que falte.
+0. Cuando el usuario quiera probar un sistema o iniciar un registro por conversación, invoca qap_start con la URL ya indicada. Si el usuario ya dio credenciales de prueba para ese origen y el esquema ofrece credentials, inclúyelas en esta primera llamada para que QAP las guarde antes de iniciar Discovery. Si las proporciona después, usa qap_auth_add para guardarlas en ese momento y continúa con el inventario. Presenta el resumen y el enlace a discovery_inicial y usa el conversation_id en las siguientes llamadas. En conversaciones posteriores usa el estado autenticacion devuelto por QAP; una captura pública histórica de /login no implica que falten credenciales. Pide solo la información que falte.
 1. RUTA OBJETIVO OBLIGATORIA (targetPath): En TODAS las llamadas a herramientas MCP, envía SIEMPRE la ruta absoluta del workspace del usuario en el parámetro 'targetPath'. NUNCA lo omitas.
 2. PROHIBIDO mostrar tablas markdown de estado, resúmenes de archivos o listas de próximos pasos (1, 2, 3...).
 3. Cuando siguiente_accion trae pregunta, presentala con la herramienta ask_question: UNA sola pregunta por llamada, usando texto, formato y opciones tal cual (no inventes, reordenes ni agregues opciones). Deja siempre disponible la respuesta libre. Si formato es abierta, haz esa unica pregunta en texto y espera. Nunca agrupes varias preguntas en un mensaje ni preguntes algo que siguiente_accion no pidio. Si ask_question no existe en tu cliente, haz la misma pregunta en texto con las opciones numeradas, una a la vez.
@@ -509,6 +510,15 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
           type: 'string', minLength: 1, maxLength: 4096,
           description: 'Contraseña de prueba ya proporcionada por el usuario para el entorno QA vinculado. QAP la omite de la bitácora.',
         } } : {}),
+        ...(tool.name === 'qap_start' ? { credentials: {
+          type: 'object', additionalProperties: false, required: ['username', 'password'],
+          description: 'Credenciales de prueba ya proporcionadas para base_url. QAP las guarda en el llavero del host antes de Discovery.',
+          properties: {
+            username: { type: 'string', minLength: 1, maxLength: 256 },
+            password: { type: 'string', minLength: 1, maxLength: 4096 },
+            profile: { type: 'string', pattern: '^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$' },
+          },
+        } } : {}),
       } },
     })) });
   });
@@ -527,7 +537,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
             role: 'user',
             content: {
               type: 'text',
-              text: 'Invoca qap_start con el workspace y la URL que ya indiqué. Continúa con siguiente_accion y usa el conversation_id devuelto para conservar la bitácora. Explora únicamente con QAP.',
+              text: 'Invoca qap_start con el workspace y la URL que ya indiqué. Si ya proporcioné credenciales de prueba para esa URL, inclúyelas en credentials cuando el esquema lo permita. Continúa con siguiente_accion y usa el conversation_id devuelto para conservar la bitácora. Explora únicamente con QAP.',
             },
           },
         ],
@@ -571,8 +581,16 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
       return canonicalResult({ status: 'error', code: 'invalid_conversation_id' }, true);
     }
     if (rawArgs) request.params.arguments = rawArgs;
+    const startCredentials = name === 'qap_start' ? rawArgs?.credentials as Record<string, unknown> | undefined : undefined;
     if (name === 'qap_start' && (
-      Object.keys(rawArgs ?? {}).some(key => !['targetPath', 'base_url', 'refresh_discovery'].includes(key)) ||
+      Object.keys(rawArgs ?? {}).some(key => !['targetPath', 'base_url', 'refresh_discovery', 'credentials'].includes(key)) ||
+      (startCredentials !== undefined && (!options.configuredWorkspaceRoot || !options.silentBoundScope ||
+        typeof rawArgs?.base_url !== 'string' || !startCredentials || typeof startCredentials !== 'object' ||
+        Array.isArray(startCredentials) || Object.keys(startCredentials).some(key => !['profile', 'username', 'password'].includes(key)) ||
+        typeof startCredentials.username !== 'string' || !startCredentials.username.trim() || startCredentials.username.length > 256 ||
+        typeof startCredentials.password !== 'string' || !startCredentials.password || startCredentials.password.length > 4096 ||
+        (startCredentials.profile !== undefined && (typeof startCredentials.profile !== 'string' ||
+          !/^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$/.test(startCredentials.profile))))) ||
       (rawArgs?.refresh_discovery !== undefined && typeof rawArgs.refresh_discovery !== 'boolean') ||
       (rawArgs?.targetPath !== undefined && typeof rawArgs.targetPath !== 'string') ||
       !new ContextHandler(dependencies).validateArguments(
@@ -634,6 +652,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         (typeof rawArgs.password !== 'string' || rawArgs.password.length === 0 || rawArgs.password.length > 4096 ||
           typeof rawArgs.username !== 'string' || !rawArgs.username.trim() ||
           typeof rawArgs.profile !== 'string' || !/^[\w-]{1,100}$/.test(rawArgs.profile) ||
+          rawArgs.method === 'handoff' || rawArgs.login_mode === 'handoff' ||
           Object.keys(rawArgs).some(key => key !== 'password' && !Object.hasOwn(authInputProperties, key)))) {
       return canonicalResult({ status: 'error', code: 'invalid_auth_arguments' }, true);
     }
@@ -828,7 +847,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
             // Validate before performing any canonical writes.
             await dependencies.prepareWorkspace!(
               realpathSync(targetPath),
-              url,
+              startCredentials && applicationService?.findActiveProjectByRoot(targetPath) ? undefined : url,
             );
           } catch (error: unknown) {
             if (error instanceof ApplicationServiceError && error.code === 'project_deleted_tombstone') {
@@ -876,32 +895,123 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         }
       }
     }
+    const scopedProject = options.configuredWorkspaceRoot && options.silentBoundScope && eventWorkspace
+      ? applicationService?.findActiveProjectByRoot(eventWorkspace) : undefined;
+    if (name === 'qap_auth_add' && scopedProject && applicationService && eventWorkspace &&
+        (typeof rawArgs?.password === 'string' || rawArgs?.action === 'login' ||
+          (rawArgs?.action === undefined && (rawArgs?.method === 'auto' || rawArgs?.login_mode === 'auto'))) &&
+        rawArgs?.method !== 'handoff' && rawArgs?.login_mode !== 'handoff') {
+      const scopedEnv = applicationService.resumeProject(scopedProject.project_id).environment;
+      if (!scopedEnv) return canonicalResult({ status: 'blocked', code: 'login_outside_configured_qa_environment' }, true);
+      const auth = await authenticateScopedPassword(applicationService, scopedProject.project_id, scopedEnv,
+        eventWorkspace, rawArgs ?? {}, context.signal);
+      return canonicalResult(auth, auth.status !== 'success');
+    }
     if (name === 'qap_start') {
       if (!eventWorkspace || !options.workspaceBootstrap || !conversationId) {
         return canonicalResult({ status: 'blocked', code: 'workspace_not_bound' }, true);
       }
       const invocation = { requestId: context.requestId, signal: context.signal };
+      const initialProject = applicationService?.findActiveProjectByRoot(eventWorkspace);
+      const initialEnvironment = initialProject && applicationService?.resumeProject(initialProject.project_id).environment;
+      if (startCredentials && initialEnvironment && (initialEnvironment.is_production ||
+          new URL(initialEnvironment.base_url).origin !== new URL(String(rawArgs!.base_url)).origin)) {
+        return canonicalResult({ status: 'blocked', code: 'login_outside_configured_qa_environment' }, true);
+      }
       if (typeof rawArgs?.base_url === 'string') {
         const update = await dispatcher.dispatch({
           name: 'qap_context_set', arguments: { targetPath: eventWorkspace, base_url: rawArgs.base_url, source: 'user' },
         }, invocation);
         if (update.isError) return update;
       }
-      const status = await dispatcher.dispatch({ name: 'qap_status', arguments: { targetPath: eventWorkspace } }, invocation);
+      let status = await dispatcher.dispatch({ name: 'qap_status', arguments: { targetPath: eventWorkspace } }, invocation);
       if (status.isError || status.content[0]?.type !== 'text') return status;
-      const state = JSON.parse(status.content[0].text) as Record<string, unknown>;
+      let state = JSON.parse(status.content[0].text) as Record<string, unknown>;
       const project = applicationService?.findActiveProjectByRoot(eventWorkspace);
-      const environment = project && applicationService?.resumeProject(project.project_id).environment;
+      let snapshot = project && applicationService?.resumeProject(project.project_id);
+      const environment = snapshot?.environment;
       const baseUrl = environment?.base_url;
       let discoveryAttempt: Record<string, unknown> = {};
       const entryUrl = baseUrl ? new URL(baseUrl) : undefined;
       const entryPath = entryUrl ? sanitizeTargetPathname(entryUrl.href) : undefined;
+      let auth: Record<string, unknown> | undefined;
+      let suppliedProfile: string | undefined;
+      const runScopedLogin = async (args: Record<string, unknown>, label: string) => {
+        if (!scopedProject || !applicationService || !environment || !eventWorkspace) return false;
+        const started = Date.now();
+        const outcome = await authenticateScopedPassword(applicationService, scopedProject.project_id, environment,
+          eventWorkspace, args, context.signal);
+        qapEventLog.record({ workspace: eventWorkspace, conversationId, requestId: String(context.requestId) + ':auth',
+          tool: 'qap_auth_add', args: { profile: label, action: args.action }, result: canonicalResult(outcome, outcome.status !== 'success'),
+          durationMs: Date.now() - started });
+        const success = outcome.status === 'success';
+        auth = success ? { status: startCredentials ? 'verified' : 'renewed', profile: label, secretSaved: true }
+          : { ...outcome, profile: label };
+        status = await dispatcher.dispatch({ name: 'qap_status', arguments: { targetPath: eventWorkspace } }, invocation);
+        if (!status.isError && status.content[0]?.type === 'text') state = JSON.parse(status.content[0].text) as Record<string, unknown>;
+        snapshot = applicationService.resumeProject(scopedProject.project_id);
+        return success;
+      };
+      if (startCredentials) {
+        if (!entryUrl || !scopedProject || new URL(String(rawArgs!.base_url)).origin !== entryUrl.origin) {
+          return canonicalResult({ status: 'blocked', code: 'login_outside_configured_qa_environment' }, true);
+        }
+        const knownProfile = readProfiles(eventWorkspace).find(item =>
+          item.env === environment?.name && item.username === startCredentials.username &&
+          (!item.login_origin || item.login_origin === entryUrl.origin));
+        suppliedProfile = String(startCredentials.profile ?? knownProfile?.id ??
+          ('qa-' + createHash('sha256').update(JSON.stringify([entryUrl.origin, startCredentials.username])).digest('hex').slice(0, 12)));
+        await runScopedLogin({ ...startCredentials, profile: suppliedProfile, action: 'create' }, suppliedProfile);
+      }
       let revisions = project && environment && applicationService ? applicationService.listLatestDiscoveryRevisionsByScope(project.project_id)
         .filter(revision => revision.environment_id === environment.env_id) : [];
-      const needsEntryObservation = rawArgs?.refresh_discovery === true || !revisions.some(revision =>
+      const activeProfiles = snapshot?.profiles.filter(profile => profile.env_id === environment?.env_id && profile.status !== 'revoked') ?? [];
+      const profile = suppliedProfile ? activeProfiles.find(item => item.label === suppliedProfile) :
+        activeProfiles.length === 1 ? activeProfiles[0] : undefined;
+      let authenticatedObservation = profile ? revisions.find(revision => revision.profile_id === profile.profile_id &&
+        revision.dossier.views.length) : undefined;
+      if (scopedProject && environment && applicationService && entryUrl && !environment.is_production && !context.signal.aborted) {
+        if (!startCredentials && activeProfiles.length > 1) auth = { status: 'profile_selection_required', profiles: activeProfiles.map(item => item.label) };
+        if (profile) {
+          let localProfile = readProfiles(eventWorkspace).find(item => item.id === profile.label && item.env === environment.name);
+          const attempt = async (path: string, selectedProfile?: string) => {
+            const args = { targetPath: eventWorkspace!, name: 'inventario-provisional', path,
+              description: 'Inventario inicial del sistema', ...(selectedProfile ? { profile: selectedProfile } : {}) };
+            const started = Date.now();
+            const discovery = await dispatcher.dispatch({ name: 'qap_discover', arguments: args }, invocation);
+            qapEventLog.record({ workspace: eventWorkspace, conversationId, requestId: String(context.requestId) + ':discovery',
+              tool: 'qap_discover', args, result: discovery, durationMs: Date.now() - started });
+            return discovery.content[0]?.type === 'text' ? JSON.parse(discovery.content[0].text) as Record<string, unknown> : {};
+          };
+          const renew = async () => {
+            const args = { targetPath: eventWorkspace!, profile: profile.label, action: 'login', method: 'auto' };
+            if (!await runScopedLogin(args, profile.label)) return false;
+            localProfile = readProfiles(eventWorkspace!).find(item => item.id === profile.label && item.env === environment.name);
+            return true;
+          };
+          const localOrigin = entryUrl.origin;
+          const reusable = usableScopedSession(applicationService, scopedProject.project_id, profile.profile_id, localProfile, localOrigin);
+          if (reusable && !startCredentials) auth = { status: 'reused', profile: profile.label };
+          if ((reusable && (!startCredentials || auth?.status === 'verified')) || (!startCredentials && await renew())) {
+            const path = () => scopedRoute(localProfile?.verified_route, localOrigin) ?? entryUrl.href;
+            discoveryAttempt = await attempt(path(), profile.label);
+            if (reusable && !startCredentials && ['auth_session_invalid', 'auth_session_expired'].includes(String(discoveryAttempt.code)) && await renew()) {
+              discoveryAttempt = await attempt(path(), profile.label);
+            }
+            if (['auth_session_invalid', 'auth_session_expired'].includes(String(discoveryAttempt.code)) && auth?.status !== 'blocked') {
+              auth = { status: 'blocked', code: discoveryAttempt.code, profile: profile.label };
+            }
+            revisions = applicationService.listLatestDiscoveryRevisionsByScope(scopedProject.project_id)
+              .filter(revision => revision.environment_id === environment.env_id);
+            authenticatedObservation = revisions.find(revision => revision.revision_id === discoveryAttempt.discovery_revision_id) ??
+              authenticatedObservation;
+          }
+        }
+      }
+      const needsEntryObservation = (rawArgs?.refresh_discovery === true && !auth) || !revisions.some(revision =>
         revision.profile_id === null && revision.dossier.target_pathname === entryPath && revision.dossier.views.length);
       if (project && environment && applicationService && entryUrl && !environment.is_production &&
-          options.silentBoundScope && needsEntryObservation && !context.signal?.aborted) {
+          options.silentBoundScope && needsEntryObservation && !authenticatedObservation && !context.signal?.aborted) {
         const args = { targetPath: eventWorkspace, name: 'inventario-provisional', path: entryUrl.href,
           description: 'Inventario inicial del sistema' };
         const started = Date.now();
@@ -913,7 +1023,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
           .filter(revision => revision.environment_id === environment.env_id);
       }
       const publicRevisions = revisions.filter(revision => revision.profile_id === null);
-      const firstObservation = publicRevisions.find(revision => revision.dossier.target_pathname === entryPath &&
+      const firstObservation = authenticatedObservation ?? publicRevisions.find(revision => revision.dossier.target_pathname === entryPath &&
         revision.dossier.views.length) ?? publicRevisions.find(revision => revision.dossier.views.length) ?? publicRevisions[0];
       let indexPath: string | undefined;
       if (project && applicationService && revisions.length) {
@@ -924,11 +1034,13 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
             applicationService.listLatestDiscoveryRevisionsByScope(project.project_id), { regenerateAll: true });
         }
       }
-      const diagnostic = typeof discoveryAttempt.code === 'string' ? discoveryAttempt.code
-        : firstObservation?.dossier.gaps.find(gap => gap.code === 'auth_required')?.code;
+      const diagnostic = typeof auth?.code === 'string' ? auth.code
+        : typeof discoveryAttempt.code === 'string' && (!auth || discoveryAttempt.code !== 'auth_required') ? discoveryAttempt.code
+          : !auth ? firstObservation?.dossier.gaps.find(gap => gap.code === 'auth_required')?.code : undefined;
       const dossier = firstObservation?.dossier;
       const discoverySummary = {
         status: dossier?.acquisition_status ?? discoveryAttempt.status ?? 'pending',
+        ...(firstObservation ? { access: firstObservation.profile_id ? 'authenticated' : 'public' } : {}),
         ...(diagnostic ? { code: diagnostic } : {}),
         ...(indexPath ? { index_path: indexPath } : {}),
         ...(firstObservation && dossier ? {
@@ -963,6 +1075,8 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         '## Aplicación', '',
         ...(dossier ? [
           '- Estado de la observación: ' + dossier.acquisition_status,
+          '- Acceso de la observación: ' + (firstObservation?.profile_id ? 'autenticado' : 'público'),
+          ...(auth ? ['- Estado del acceso actual: ' + String(auth.code ?? auth.status)] : []),
           '- Vistas: ' + dossier.views.length,
           '- Rutas visitadas / candidatas / bloqueadas: ' +
             [dossier.route_counts.visited, dossier.route_counts.candidate, dossier.route_counts.blocked].join(' / '),
@@ -970,7 +1084,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
           ...(indexPath ? ['- [Índice de Discovery](INDEX.md)'] : []),
           ...(discoverySummary.routes ?? []).map(route => '- Ruta ' + route.path.replace(/[^a-z\d/_.~-]/gi, '') + ' · ' + route.state +
             (route.reason === 'AUTH_REQUIRED' ? ' (pantalla de acceso)' : '')),
-          ...dossier.gaps.filter(gap => gap.code === 'auth_required').map(gap => '- ' + gap.description),
+          ...(!auth ? dossier.gaps.filter(gap => gap.code === 'auth_required').map(gap => '- ' + gap.description) : []),
         ] : [baseUrl ? '- Observación pendiente: ' + (discoveryAttempt.code ?? discoveryAttempt.status ?? 'sin captura disponible') :
           '- Falta la URL de la aplicación desplegada.']),
         ...(indexPath && !dossier ? ['- [Índice de Discovery](INDEX.md)'] : []),
@@ -982,6 +1096,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
           '- Rutas candidatas en el despliegue: ' + codeRoutes.length] : []), ''];
       atomicWritePrivateFile(resolveContainedPath(eventWorkspace, notesPath), summaryLines.join('\n'));
       return canonicalResult({ ...state, status: state.status ?? 'success', conversation_id: conversationId,
+        ...(auth ? { autenticacion: auth } : {}),
         discovery_inicial: { ...discoverySummary, notes_path: notesPath,
           ...(diagnostic === 'auth_required' ? { continuation: 'Usa un perfil verificado para documentar áreas internas.' } : {}) },
         conversation_log: conversationLogPath(eventWorkspace, conversationId) });

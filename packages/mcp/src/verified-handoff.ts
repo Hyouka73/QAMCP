@@ -1,6 +1,6 @@
 import { authBrowserDiagnosticsEnabled, executeAutoLogin, fillLoginInput, InteractiveLoginRequired, restrictChromiumPage,
   type AutoLoginFailureReason, type AuthCredentials, type StorageState } from '@qap/auth';
-import type { AuthProfile } from '@qap/shared';
+import { isAuthPath, type AuthProfile } from '@qap/shared';
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright-core';
 
 export interface HandoffRequest {
@@ -26,7 +26,7 @@ function sameOrigin(value: string, origin: string): boolean {
 
 function normalizePath(urlStr: string): string {
   try {
-    const pathname = new URL(urlStr).pathname.replace(/\/+$/, '');
+    const pathname = new URL(urlStr).pathname.replace(/;jsessionid=[a-z\d._-]+(?=\/|$)/gi, '').replace(/\/+$/, '');
     return pathname || '/';
   } catch {
     return urlStr;
@@ -54,11 +54,13 @@ async function isolatedPage(browser: Browser, origin: string, state?: StorageSta
   }
 }
 
-async function verify(browser: Browser, request: HandoffRequest, state?: StorageState): Promise<boolean> {
+async function verify(browser: Browser, request: HandoffRequest, state?: StorageState, exactPath = false): Promise<boolean> {
   const { context, page } = await isolatedPage(browser, request.origin, state, true);
   try {
     const response = await page.goto(request.verificationUrl, { waitUntil: 'domcontentloaded', timeout: 15_000 });
-    if (!response?.ok() || !isProtectedNonLoginRoute(page.url(), request)) return false;
+    const onVerificationPage = () => isProtectedNonLoginRoute(page.url(), request) &&
+      (!exactPath || normalizePath(page.url()) === normalizePath(request.verificationUrl));
+    if (!response?.ok() || !onVerificationPage()) return false;
     const marker = page.locator(request.selector).first();
     if (!state) {
       try { await marker.waitFor({ state: 'visible', timeout: 3000 }); }
@@ -66,12 +68,12 @@ async function verify(browser: Browser, request: HandoffRequest, state?: Storage
         if (!(error instanceof Error) || error.name !== 'TimeoutError') throw error;
         return false;
       }
-      return !(await page.locator(
+      return onVerificationPage() && !(await page.locator(
         'input[type="password"]:visible, input[autocomplete="one-time-code"]:visible, iframe[src*="captcha" i]:visible'
       ).count());
     }
     await marker.waitFor({ state: 'visible', timeout: 10_000 });
-    return isProtectedNonLoginRoute(page.url(), request) && !(await page.locator(
+    return onVerificationPage() && !(await page.locator(
       'input[type="password"]:visible, input[autocomplete="one-time-code"]:visible, iframe[src*="captcha" i]:visible'
     ).count());
   } finally { await context.close().catch(() => undefined); }
@@ -167,7 +169,7 @@ async function openBrowser(headless: boolean, signal: AbortSignal): Promise<Brow
   return undefined;
 }
 
-async function withHeadlessBrowser(request: HandoffRequest, signal: AbortSignal,
+async function withHeadlessBrowser(request: Pick<HandoffRequest, 'timeoutMs'>, signal: AbortSignal,
   operation: (browser: Browser) => Promise<CaptureResult>): Promise<CaptureResult> {
   if (authBrowserDiagnosticsEnabled()) return { code: 'authentication_diagnostics_enabled' };
   let browser: Browser | undefined;
@@ -194,6 +196,44 @@ async function withHeadlessBrowser(request: HandoffRequest, signal: AbortSignal,
     signal.removeEventListener('abort', abort);
     await browser?.close().catch(() => undefined);
   }
+}
+
+export function captureVerifiedPassword(
+  { origin, loginUrl, timeoutMs, verificationUrl, selector }: Omit<HandoffRequest, 'verificationUrl' | 'selector'> &
+    { verificationUrl?: string; selector?: string },
+  profile: AuthProfile, credentials: AuthCredentials, signal: AbortSignal,
+): Promise<CaptureResult & { verificationPath?: string }> {
+  let verificationPath: string | undefined;
+  return withHeadlessBrowser({ timeoutMs }, signal, async browser => {
+    const context = await browser.newContext({ serviceWorkers: 'block', acceptDownloads: false });
+    let landing: string | undefined;
+    let state: StorageState;
+    try {
+      state = scopedState(await executeAutoLogin({ ...profile, login_route: loginUrl }, credentials, context,
+        { origin, timeoutMs, onLanding: url => { landing = url; } }), origin);
+    } finally { await context.close().catch(() => undefined); }
+    const probe = verificationUrl ?? landing;
+    if (!probe || !sameOrigin(probe, origin) || isAuthPath(normalizePath(probe)) ||
+        normalizePath(probe) === normalizePath(loginUrl)) {
+      return { code: 'authentication_required', failureReason: 'protected_landing_not_detected' };
+    }
+    if (!state.cookies.length && !state.origins.some(item => item.localStorage.length)) {
+      return { code: 'authentication_required', failureReason: 'session_storage_empty' };
+    }
+    verificationPath = normalizePath(probe);
+    const request = { origin, loginUrl, timeoutMs, verificationUrl: new URL(verificationPath, origin).href, selector: selector ?? 'body' };
+    try {
+      if (await verify(browser, request, undefined, true)) {
+        return { code: 'authentication_required', failureReason: 'verification_route_is_public' };
+      }
+      if (!await verify(browser, request, state, true)) {
+        return { code: 'authentication_required', failureReason: 'session_rejected_on_verification_route' };
+      }
+    } catch {
+      return { code: 'authentication_required', failureReason: 'verification_route_unavailable' };
+    }
+    return { state };
+  }).then(result => result.state ? { ...result, verificationPath } : result);
 }
 
 export function verifyStoredSession(request: HandoffRequest, state: StorageState, signal: AbortSignal): Promise<CaptureResult> {

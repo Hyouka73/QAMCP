@@ -397,7 +397,9 @@ export class DiscoveryHandler implements IMcpToolHandler {
 
       const lifecycle = await new FileSystemStorage({ rootDir: root }).getLifecycleState();
       const entryInventory = args.name === 'inventario-provisional' && this.dependencies.provisionalInventory &&
-        !bound.moduleBindings?.length && !args.profile && target === new URL(env.entity.base_url).href;
+        !bound.moduleBindings?.length && targetOrigin === baseOrigin &&
+        (args.profile ? Boolean(appProject && this.dependencies.silentBoundScope && !env.entity.is_production) :
+          target === new URL(env.entity.base_url).href);
       const provisional = this.dependencies.provisionalInventory && !bound.moduleBindings?.length &&
         (entryInventory || (lifecycle.phase === 'ONBOARDING' && args.name === 'inventario-provisional') ||
           (lifecycle.phase === 'SCOPING' && (args.name === 'inventario-provisional' || Boolean(appProject))));
@@ -425,8 +427,8 @@ export class DiscoveryHandler implements IMcpToolHandler {
       const protectedProjectHasProfiles = Boolean(
         appService && appProject && effectiveProfilesPool.some((p) => p.status === 'verified' || p.status === 'expired' || p.status === 'revoked'),
       );
-      const authRequired = !entryInventory && (requestedProfileRaw !== undefined ||
-        Boolean(lifecycle.session?.auth?.required) || protectedProjectHasProfiles);
+      const authRequired = requestedProfileRaw !== undefined ||
+        (!entryInventory && (Boolean(lifecycle.session?.auth?.required) || protectedProjectHasProfiles));
 
       if (authRequired) {
         if (appService && appProject) {
@@ -501,10 +503,16 @@ export class DiscoveryHandler implements IMcpToolHandler {
             appProject.project_id,
             resolvedProfileRecord?.profile_id ?? resolvedProfileName,
           );
-          const loginCap = appService.authority.check(appProject.project_id, 'login', { origin: new URL(env.entity.base_url).origin });
+          const loginCap = appService.authority.check(appProject.project_id, 'login', { origin: baseOrigin,
+            profile_id: hostProfile?.profile.label ?? resolvedProfileName,
+            ...(resolvedTenantId ? { tenant_id: resolvedTenantId } : {}) });
           if (hostProfile) {
             resolvedProfileRecord = hostProfile.profile;
             resolvedProfileName = hostProfile.profile.label;
+            const localProfile = await readProfile(resolvedProfileName, root);
+            if (localProfile?.login_origin && localProfile.login_origin !== baseOrigin) {
+              return blocked('auth_profile_origin_mismatch', 'El perfil está vinculado a otro origen.', { downgraded_to_anonymous: false });
+            }
             if (hostProfile.revoked || (!loginCap.allowed && (loginCap.reason === 'revoked' || hostProfile.profile.status !== 'verified'))) {
               return blocked('auth_session_revoked', 'El acceso autenticado fue revocado; vuelve a iniciar sesión con autorización.', { downgraded_to_anonymous: false });
             }
@@ -593,7 +601,7 @@ export class DiscoveryHandler implements IMcpToolHandler {
       if (authenticated_session && !output.observations.length && (output.warnings.includes('AUTH_SESSION_INVALID') ||
         output.routes.some(route => route.http_status === 401 || route.http_status === 403))) {
         if (appService && appProject && resolvedProfileName) {
-          try { appService.expireProfileSession(appProject.project_id, resolvedProfileName); } catch { /* Best effort */ }
+          try { appService.expireProfileSession(appProject.project_id, resolvedProfileRecord?.profile_id ?? resolvedProfileName); } catch { /* Best effort */ }
         }
         return result({ status: 'blocked', code: 'auth_session_invalid', acquisition_status: 'blocked', acquisition_persistence: 'not_attempted',
           association_status: 'not_attempted', downgraded_to_anonymous: false, execution_id: output.execution_id, cleanup: output.cleanup,

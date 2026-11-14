@@ -1,5 +1,5 @@
 import type { BrowserContext } from 'playwright-core';
-import type { AuthProfile } from '@qap/shared';
+import { isAuthPath, type AuthProfile } from '@qap/shared';
 
 import { restrictChromiumPage } from '../scoped-browser.js';
 import type { AuthCredentials } from '../types.js';
@@ -69,7 +69,7 @@ const PASSWORD_SELECTORS = [
 ].join(', ');
 
 const SUBMIT_SELECTORS = [
-  'button[type="submit"]',
+  'button[type="submit"], button:not([type])',
   'input[type="submit"]',
 ].join(', ');
 
@@ -134,7 +134,7 @@ export async function executeAutoLogin(
   profile: AuthProfile,
   credentials: AuthCredentials,
   browserContext: BrowserContext,
-  options?: { origin: string; timeoutMs: number },
+  options?: { origin: string; timeoutMs: number; onLanding?: (url: string) => void },
 ): Promise<Awaited<ReturnType<BrowserContext['storageState']>>> {
   if (!profile.login_route) {
     throw new Error(`El perfil '${profile.id}' no define login_route`);
@@ -181,13 +181,15 @@ export async function executeAutoLogin(
     if (new URL(page.url()).origin !== origin) throw new InteractiveLoginRequired('login_navigation_failed');
     if (await challenge.isVisible()) throw new InteractiveLoginRequired('challenge_detected');
 
-    const password = page.locator(profile.form_selectors?.password ?? PASSWORD_SELECTORS).first();
+    const password = page.locator(profile.form_selectors?.password ?? PASSWORD_SELECTORS).filter({ visible: true }).first();
     try {
       await password.waitFor({ state: 'visible', timeout: Math.min(timeout, 10_000) });
     } catch {
       if (await challenge.isVisible()) throw new InteractiveLoginRequired('challenge_detected');
       throw new InteractiveLoginRequired('login_form_not_found', 'No se encontró el campo de contraseña visible.');
     }
+    const form = page.locator('form').filter({ has: password }).first();
+    const scope = await form.count() ? form : page;
     const formOrigin = await password.evaluate((element: { type: string; form?: { action: string } }, base) =>
       element.type === 'password' ? new URL(element.form?.action || base, base).origin : null, page.url());
     if (formOrigin !== origin) throw new InteractiveLoginRequired('login_navigation_failed');
@@ -195,7 +197,8 @@ export async function executeAutoLogin(
 
     const username = credentials.username ?? profile.username;
     if (username) {
-      const userInput = page.locator(profile.form_selectors?.username ?? USERNAME_SELECTORS).first();
+      const userInput = (profile.form_selectors?.username
+        ? page.locator(profile.form_selectors.username) : scope.locator(USERNAME_SELECTORS)).filter({ visible: true }).first();
       try {
         await fillLoginInput(userInput, username, Math.min(timeout, 10_000));
       } catch {
@@ -203,7 +206,8 @@ export async function executeAutoLogin(
         throw new InteractiveLoginRequired('login_form_not_found', 'No se encontró o no se pudo completar el campo de usuario.');
       }
     }
-    const submit = page.locator(profile.form_selectors?.submit ?? SUBMIT_SELECTORS).first();
+    const submit = (profile.form_selectors?.submit
+      ? page.locator(profile.form_selectors.submit) : scope.locator(SUBMIT_SELECTORS)).filter({ visible: true }).first();
     try {
       await submit.waitFor({ state: 'visible', timeout: Math.min(timeout, 10_000) });
     } catch {
@@ -232,9 +236,14 @@ export async function executeAutoLogin(
     await submit.click({ timeout: Math.min(timeout, 10_000) });
     try {
       await Promise.race([
-        waitForPostLoginCondition(page, profile, timeout),
+        ...(profile.post_login_condition ? [waitForPostLoginCondition(page, profile, timeout)] : []),
+        ...(options?.onLanding ? [page.waitForURL(url => url.origin === origin &&
+          !isAuthPath(url.pathname.split(';')[0]) &&
+          url.pathname.split(';')[0] !== new URL(profile.login_route!).pathname.split(';')[0],
+        { timeout, waitUntil: 'domcontentloaded' })] : []),
         // The scoped caller performs the definitive probe on a separate protected route.
-        ...(options ? [password.waitFor({ state: 'hidden', timeout })] : []),
+        ...(options && (!options.onLanding || profile.post_login_condition)
+          ? [password.waitFor({ state: 'hidden', timeout })] : []),
         challenge.waitFor({ state: 'visible', timeout }).then(() => { throw new InteractiveLoginRequired('challenge_detected'); }),
         errorAlert.waitFor({ state: 'visible', timeout }).then(async () => {
           // Give a brief grace window in case error container is transient before navigation
@@ -254,6 +263,7 @@ export async function executeAutoLogin(
       throw new InteractiveLoginRequired('post_login_verification_failed', 'No se alcanzó la condición post-login tras enviar el formulario.');
     }
     if (await challenge.isVisible()) throw new InteractiveLoginRequired('challenge_detected');
+    options?.onLanding?.(page.url());
     return await browserContext.storageState();
   } finally {
     await page.close().catch(() => {});

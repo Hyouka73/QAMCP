@@ -275,11 +275,11 @@ export class BlackBoxCrawler {
           if (navigationSignal.aborted) throw new ReconnaissanceError('TIMEOUT');
           const navigatedUrl = page.url();
           if (!spaMode && navigatedUrl !== current.href) throw new ReconnaissanceError('TIMEOUT');
-          const redirectedToLogin = spaMode && /\/login(?:[/?#]|$)/i.test(navigatedUrl);
+          const redirectedToLogin = spaMode && /\/login(?:[;/?#]|$)/i.test(navigatedUrl);
           if (input.authenticated_session && (
             spaAuthFailed ||
             redirectedToLogin ||
-            await page.locator('input[type="password"]').count() > 0 ||
+            await page.locator('input[type="password"]:visible').count() > 0 ||
             (input.authenticated_session.validation_selector
               ? await page.locator(input.authenticated_session.validation_selector).count() === 0
               : false)

@@ -6,6 +6,7 @@ import { URL } from 'node:url';
 import { homedir } from 'node:os';
 
 import { SqliteKnowledgeAdapter } from '@qap/knowledge';
+import { KeychainCredentialProvider } from '@qap/auth';
 
 import { QapApplicationService } from './application/application-service.js';
 import { atomicWritePrivateFile, normalizePathKey } from './application/safe-storage.js';
@@ -276,6 +277,7 @@ export async function loadHostComposition(
     const testRegistry = resolve(directory, 'test-authorizations.json');
     const applicationService = new QapApplicationService({
       hostRootDir: appDataDir,
+      ...(workspaceRoot ? { credentialProvider: new KeychainCredentialProvider() } : {}),
       onProjectDeleted: (_projectId, canonicalRoot) => {
         const targetKey = normalizePathKey(canonicalRoot);
         if (existsSync(registry)) {

@@ -897,7 +897,7 @@ export const TOOLS: Tool[] = [
   },
   {
     name: 'qap_start',
-    description: 'Inicia una conversación de QA, prepara el proyecto, registra la URL indicada y recupera o documenta el inventario inicial visible. Devuelve el estado, las rutas del expediente y de la bitácora, y un conversation_id para usar en las llamadas siguientes.',
+    description: 'Inicia una conversación de QA, recupera el acceso guardado para el entorno vinculado y documenta el inventario inicial visible. Devuelve el estado de autenticación, las rutas del expediente y de la bitácora, y el conversation_id.',
     inputSchema: {
       type: 'object',
       additionalProperties: false,
