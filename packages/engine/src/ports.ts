@@ -195,6 +195,29 @@ export interface IFlowLockProvider {
 }
 
 /**
+ * Persisted state snapshot for resumable multi-module flows.
+ */
+export interface IFlowState {
+  flow_name: string;
+  started_at: string;
+  completed_modules: string[];
+  shared_variables: Record<string, string>;
+}
+
+/**
+ * FlowStateStore Port
+ *
+ * Abstracts flow checkpoint persistence and session backup/restore for rollback.
+ */
+export interface IFlowStateStore {
+  loadState(flowName: string): IFlowState | null;
+  saveState(state: IFlowState): void;
+  hasSessionBackup(flowName: string): boolean;
+  backupSessions(flowName: string): void;
+  restoreSessions(flowName: string): boolean;
+}
+
+/**
  * Storage Port  (S3-001 — QAP v2.1)
  *
  * Defines the complete abstract contract for reading/writing to the .qa/ tree.

@@ -1,7 +1,6 @@
-import type { FlowDefinition, FlowOptions, FlowExecutionResult, TestPlan} from '@qap/shared';
-import { FlowContextStore } from '@qap/knowledge';
+import type { FlowDefinition, FlowOptions, FlowExecutionResult, TestPlan } from '@qap/shared';
 
-import type { IStorage, IRunner, IFlowLockProvider, IFlowRunner } from './ports.js';
+import type { IStorage, IRunner, IFlowLockProvider, IFlowRunner, IFlowStateStore } from './ports.js';
 
 function isRollbackOnFailure(onFailure: unknown): boolean {
   if (onFailure === 'rollback_storage_state') return true;
@@ -17,16 +16,12 @@ function isRollbackOnFailure(onFailure: unknown): boolean {
 }
 
 export class FlowOrchestrator implements IFlowRunner {
-  private flowStore: FlowContextStore;
-
   constructor(
     private storage: IStorage,
     private runner: IRunner,
     private lockProvider?: IFlowLockProvider,
-    rootDir?: string
-  ) {
-    this.flowStore = new FlowContextStore(rootDir);
-  }
+    private flowStore?: IFlowStateStore
+  ) {}
 
   private interpolateValue(value: unknown, sharedVars: Record<string, string>, contextType: 'text' | 'selector' | 'url'): unknown {
     if (typeof value !== 'string') return value;
@@ -75,11 +70,10 @@ export class FlowOrchestrator implements IFlowRunner {
     const optsRecord = options as Record<string, unknown>;
     const baseContextData = (optsRecord.context_data as Record<string, unknown>) ?? {};
 
-    // 1. Respaldo de sesiones cifradas antes del primer módulo
-        const existingState = this.flowStore.loadState(flowName);
+    // 1. Respaldo de sesiones cifradas antes del primer módulo (no se pisa al reanudar)
+    const existingState = this.flowStore?.loadState(flowName) ?? null;
 
-    // 1. Respaldo de sesiones antes del primer módulo (no se pisa al reanudar)
-    if (!existingState || !this.flowStore.hasSessionBackup(flowName)) {
+    if (this.flowStore && (!existingState || !this.flowStore.hasSessionBackup(flowName))) {
       this.flowStore.backupSessions(flowName);
     }
     
@@ -144,7 +138,7 @@ export class FlowOrchestrator implements IFlowRunner {
             }
 
             // Actualizar atómicamente el checkpoint en .state.json
-            this.flowStore.saveState({
+            this.flowStore?.saveState({
               flow_name: flowName,
               started_at: startedAt,
               completed_modules: completedModules,
@@ -157,7 +151,7 @@ export class FlowOrchestrator implements IFlowRunner {
            const shouldRollback = isRollbackOnFailure(onFailure);
            
             if (shouldRollback) {
-              this.flowStore.restoreSessions(flowName);
+              this.flowStore?.restoreSessions(flowName);
             }
 
             if (failFast) {
@@ -181,7 +175,7 @@ export class FlowOrchestrator implements IFlowRunner {
         const shouldRollback = isRollbackOnFailure(onFailure);
 
         if (shouldRollback) {
-          this.flowStore.restoreSessions(flowName);
+          this.flowStore?.restoreSessions(flowName);
         }
 
         return {

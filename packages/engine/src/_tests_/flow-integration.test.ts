@@ -59,7 +59,7 @@ describe('S82-002: Integración de Flujo A -> B (Captura e Interpolación)', () 
       },
     };
 
-    const orchestrator = new FlowOrchestrator(mockStorage as any, mockRunner as any, undefined, testDir);
+    const orchestrator = new FlowOrchestrator(mockStorage as any, mockRunner as any);
 
     const flowDefinition = {
       _version: '1.0',

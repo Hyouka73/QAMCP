@@ -130,9 +130,6 @@ importers:
 
   packages/engine:
     dependencies:
-      '@qap/knowledge':
-        specifier: workspace:*
-        version: link:../knowledge
       '@qap/shared':
         specifier: workspace:*
         version: link:../shared

@@ -2,9 +2,61 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { FlowContextStore } from '@qap/knowledge';
 
 import { FlowOrchestrator } from '../flow-orchestrator.js';
+import type { IFlowState, IFlowStateStore } from '../ports.js';
+
+function createTestFlowStore(rootDir: string): IFlowStateStore {
+  const cacheDir = path.join(rootDir, '.qa', 'cache', 'flow_states');
+  const sessionsDir = path.join(rootDir, '.qa', 'cache', 'sessions');
+  const statePath = (flowName: string) => path.join(cacheDir, `${flowName}.state.json`);
+  const backupPath = (flowName: string) => path.join(cacheDir, `${flowName}.sessions.bak.json`);
+
+  return {
+    saveState(state: IFlowState): void {
+      const filePath = statePath(state.flow_name);
+      fs.mkdirSync(path.dirname(filePath), { recursive: true });
+      const tmpPath = `${filePath}.${process.pid}.tmp`;
+      fs.writeFileSync(tmpPath, JSON.stringify(state, null, 2), 'utf-8');
+      fs.renameSync(tmpPath, filePath);
+    },
+    loadState(flowName: string): IFlowState | null {
+      const filePath = statePath(flowName);
+      if (!fs.existsSync(filePath)) return null;
+      return JSON.parse(fs.readFileSync(filePath, 'utf-8')) as IFlowState;
+    },
+    hasSessionBackup(flowName: string): boolean {
+      return fs.existsSync(backupPath(flowName));
+    },
+    backupSessions(flowName: string): void {
+      fs.mkdirSync(cacheDir, { recursive: true });
+      const sessionsBackup: Record<string, string> = {};
+      if (fs.existsSync(sessionsDir)) {
+        for (const file of fs.readdirSync(sessionsDir)) {
+          if (file.endsWith('.json')) {
+            sessionsBackup[file] = fs.readFileSync(path.join(sessionsDir, file), 'utf-8');
+          }
+        }
+      }
+      fs.writeFileSync(backupPath(flowName), JSON.stringify(sessionsBackup, null, 2), 'utf-8');
+    },
+    restoreSessions(flowName: string): boolean {
+      const bakPath = backupPath(flowName);
+      if (!fs.existsSync(bakPath)) return false;
+      const sessionsBackup = JSON.parse(fs.readFileSync(bakPath, 'utf-8')) as Record<string, string>;
+      fs.mkdirSync(sessionsDir, { recursive: true });
+      for (const file of fs.readdirSync(sessionsDir)) {
+        if (file.endsWith('.json') && !(file in sessionsBackup)) {
+          fs.unlinkSync(path.join(sessionsDir, file));
+        }
+      }
+      for (const [filename, fileContent] of Object.entries(sessionsBackup)) {
+        fs.writeFileSync(path.join(sessionsDir, filename), fileContent, 'utf-8');
+      }
+      return true;
+    },
+  };
+}
 
 
 describe('S82-003: Rollback transaccional de sesiones y checkpoints', () => {
@@ -51,7 +103,8 @@ describe('S82-003: Rollback transaccional de sesiones y checkpoints', () => {
       },
     };
 
-    const orchestrator = new FlowOrchestrator(mockStorage as any, mockRunner as any, undefined, testDir);
+    const store = createTestFlowStore(testDir);
+    const orchestrator = new FlowOrchestrator(mockStorage as any, mockRunner as any, undefined, store);
 
     const flowDefinition = {
       _version: '1.0',
@@ -75,7 +128,6 @@ const result = (await orchestrator.executeFlow(flowDefinition, {})) as unknown a
     const restoredSessionContent = fs.readFileSync(sessionFile, 'utf-8');
     expect(restoredSessionContent).toBe(originalSessionContent);
 
-    const store = new FlowContextStore(testDir);
     const savedState = store.loadState('flow_with_rollback');
     expect(savedState).not.toBeNull();
     expect(savedState?.completed_modules).toEqual(['mod_1']);
@@ -99,7 +151,7 @@ const result = (await orchestrator.executeFlow(flowDefinition, {})) as unknown a
     const original = JSON.stringify({ token: 'original' });
     fs.writeFileSync(sessionFile, original, 'utf-8');
 
-    const store = new FlowContextStore(testDir);
+    const store = createTestFlowStore(testDir);
     store.backupSessions('flow_resume');
     store.saveState({
       flow_name: 'flow_resume',
@@ -115,7 +167,7 @@ const result = (await orchestrator.executeFlow(flowDefinition, {})) as unknown a
       getTestPlan: async (m: string) => ({ name: m, cases: [] }),
     };
     const mockRunner = { execute: async () => ({ result: 'passed' }) };
-    const orchestrator = new FlowOrchestrator(mockStorage as any, mockRunner as any, undefined, testDir);
+    const orchestrator = new FlowOrchestrator(mockStorage as any, mockRunner as any, undefined, store);
 
     await orchestrator.executeFlow(
       { _version: '1.0', name: 'flow_resume', modules: [{ module: 'mod_1' }, { module: 'mod_2' }] } as any,
