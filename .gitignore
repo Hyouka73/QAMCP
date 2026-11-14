@@ -25,12 +25,32 @@ coverage/
 .idea/
 .DS_Store
 # QA Runtime and Ephemeral Data (QAP v3.0 Desacoplamiento Git vs Runtime)
-.qa/*
-!.qa/definitions/
+**/.qa/*
+!**/.qa/definitions/
 .playwright-mcp/
 .qamcp/
+*.jsonl.gz
+*.sqlite*
+*.db
+playwright-report/
+blob-report/
+test-results/
 
 # Local agent artifacts and workspace configs
 .agents/
 .gemini/
 mcp_config.json
+
+# Ephemeral audit/runner dumps under docs/vnext
+docs/vnext/**/evidencia/**/*.html
+docs/vnext/**/evidencia/**/*.xml
+docs/vnext/**/evidencia/**/*.png
+docs/vnext/**/evidencia/**/*.jsonl
+docs/vnext/**/evidencia/**/execution.report.json
+docs/vnext/**/evidencia/admin-final-verification.json
+docs/vnext/**/evidencia/codex-registration.json
+docs/vnext/**/evidencia/**/.gitattributes
+docs/vnext/**/*-host.json
+docs/vnext/**/identity-register.json
+docs/vnext/**/identity-inventory.json
+docs/vnext/integracion/CONSOLIDACION_VNEXT_2026-11-10/inventory.json

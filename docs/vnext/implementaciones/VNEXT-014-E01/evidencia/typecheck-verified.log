@@ -1,4 +1,0 @@
-warning: in the working copy of 'packages/mcp/src/__tests__/fixtures/lifecycle-canonical.ts', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'packages/mcp/src/handlers/state-runtime.ts', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'packages/mcp/src/server.ts', LF will be replaced by CRLF the next time Git touches it
-{"reference":"26143382d1262b2ef9cbeb02f8773148e4439ebc","baseline":121,"final":121,"added":[],"removed":[]}

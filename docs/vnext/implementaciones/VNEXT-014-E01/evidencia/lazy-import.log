@@ -1,5 +1,0 @@
-shared 82.1462 { user: 16000, system: 78000 } 46555136
-engine 5.5075999999999965 { user: 0, system: 0 } 48033792
-knowledge 360.8657 { user: 250000, system: 125000 } 81944576
-playwright-adapter 46.09190000000001 { user: 31000, system: 0 } 92180480
-playwright-runner 7.32409999999993 { user: 16000, system: 0 } 92553216

@@ -1,9 +1,0 @@
-
- RUN  v4.1.11 C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp
-
-
- Test Files  3 passed (3)
-      Tests  54 passed (54)
-   Start at  12:20:40
-   Duration  2.84s (transform 1.56s, setup 0ms, import 3.86s, tests 977ms, environment 0ms)
-

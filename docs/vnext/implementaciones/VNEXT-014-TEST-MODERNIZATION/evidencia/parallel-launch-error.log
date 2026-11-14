@@ -1,6 +1,0 @@
-error: invalid value 'json' for '--reporter <REPORTER>'
-  [possible values: default, append-only, ndjson, silent]
-
-  tip: a similar value exists: 'ndjson'
-
-For more information, try '--help'.

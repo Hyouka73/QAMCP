@@ -1,9 +1,0 @@
-
- RUN  v4.1.11 C:/Users/Judirico/.codex/worktrees/int-03-r5/QAMCP/packages/playwright-adapter
-
-
- Test Files  8 passed (8)
-      Tests  165 passed (165)
-   Start at  17:17:59
-   Duration  220.61s (transform 837ms, setup 0ms, import 4.19s, tests 212.95s, environment 1ms)
-

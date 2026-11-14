@@ -1,2 +1,0 @@
-$ vitest run "src/__tests__/lifecycle-v3-e2e.test.ts" "--reporter=json" "--outputFile=../../docs/vnext/implementaciones/VNEXT-014-TEST-MODERNIZATION/evidencia/lote1-verified.json"
-JSON report written to C:/Users/Judirico/Documents/QAMCP/QAMCP/docs/vnext/implementaciones/VNEXT-014-TEST-MODERNIZATION/evidencia/lote1-verified.json
