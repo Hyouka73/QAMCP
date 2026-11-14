@@ -22,6 +22,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { QapApplicationService } from '../application/application-service.js';
 import { type IAuthAuthorizer, WindowsInteractiveAuthAuthorizer } from '../auth-authorizer.js';
 import { type IDiscoveryAuthorizer, WindowsInteractiveDiscoveryAuthorizer } from '../discovery-authorizer.js';
+import type { IHumanReviewGateway } from '../handlers/canonical-interview-service.js';
 import { createMcpServer } from '../server.js';
 import { type ITestAuthorizer, WindowsInteractiveTestAuthorizer } from '../test-authorizer.js';
 import { WorkspaceBootstrap } from '../workspace-bootstrap.js';
@@ -166,6 +167,21 @@ function makeHostEnv(baseDir: string, extra?: {
     }),
   };
 
+  const humanReviewGateway = {
+    review: vi.fn<IHumanReviewGateway['review']>(async (request) => {
+      const now = new Date();
+      return {
+        requestDigest: request.requestDigest,
+        approvalId: randomUUID(),
+        decision: 'confirm',
+        presentedStatementDigest: request.statementDigest,
+        reviewer: 'qa-operator@b4.local',
+        decidedAt: now.toISOString(),
+        expiresAt: new Date(now.getTime() + 10 * 60_000).toISOString(),
+      };
+    }),
+  };
+
   return {
     service,
     bootstrap,
@@ -181,6 +197,7 @@ function makeHostEnv(baseDir: string, extra?: {
     discoveryAuthorizer,
     authAuthorizer,
     testAuthorizer,
+    humanReviewGateway,
   };
 }
 
@@ -423,6 +440,7 @@ describe('Bloque 4 — Paquete limpio instalado, cliente real Stdio y matriz de 
         hostAuthRegistryPath: env.authRegistry,
         testAuthorizer: env.testAuthorizer,
         hostTestRegistryPath: env.testRegistry,
+        humanReviewGateway: env.humanReviewGateway,
         applicationService: env.service,
       });
       const client = new Client({ name: 'qap-b4-matrix', version: '1.0.0' });
@@ -582,16 +600,20 @@ describe('Bloque 4 — Paquete limpio instalado, cliente real Stdio y matriz de 
         expect(discRes.isError, JSON.stringify(discRes.data)).toBe(false);
         stages.push({ stage: 'discovery_spa', sha256: sha256Json(discRes.data) });
 
-        // 4. Case proposal with PASS case, deliberate FAIL case, and pending_oracle case
-        const proposeRes = await callJson(mcp.client, 'qap_plan', {
+        // 4. Negative check: without human confirmation, oracle_source='user' proposals stay pending_oracle and approve_batch blocks
+        const passCaseId = randomUUID();
+        const failCaseId = randomUUID();
+        const pendingCaseId = randomUUID();
+        const unconfirmedPropose = await callJson(mcp.client, 'qap_plan', {
           targetPath: wsA,
           module: 'pedidos',
           case_workflow: {
             action: 'propose_from_observations',
             proposals: [
               {
+                case_id: passCaseId,
                 title: 'Mostrar orden ORD-101 tras autenticar',
-                expected_outcome: 'Se visualiza ORD-101 en #spa-shell',
+                expected_outcome: 'ORD-101',
                 oracle_source: 'user',
                 steps: [
                   { type: 'navigate', url: `${baseUrl}/app` },
@@ -600,8 +622,9 @@ describe('Bloque 4 — Paquete limpio instalado, cliente real Stdio y matriz de 
                 ],
               },
               {
+                case_id: failCaseId,
                 title: 'Fallo deliberado esperando orden inexistente ORD-999',
-                expected_outcome: 'El tablero debe contener ORD-999 (fallo deliberado)',
+                expected_outcome: 'ORD-999-MISSING',
                 oracle_source: 'user',
                 steps: [
                   { type: 'navigate', url: `${baseUrl}/app` },
@@ -610,6 +633,100 @@ describe('Bloque 4 — Paquete limpio instalado, cliente real Stdio y matriz de 
                 ],
               },
               {
+                case_id: pendingCaseId,
+                title: 'Caso pendiente sin oráculo de negocio',
+                oracle_source: 'missing',
+                steps: [{ type: 'navigate', url: `${baseUrl}/app` }],
+              },
+            ],
+          },
+        });
+        expect(unconfirmedPropose.isError).toBe(false);
+        expect((unconfirmedPropose.data.proposed_cases as Array<unknown>).length).toBe(0);
+        expect((unconfirmedPropose.data.pending_oracle_cases as Array<unknown>).length).toBe(3);
+
+        const unconfirmedApprove = await callJson(mcp.client, 'qap_plan', {
+          targetPath: wsA,
+          module: 'pedidos',
+          case_workflow: { action: 'approve_batch' },
+        });
+        expect(unconfirmedApprove.data.status).toBe('blocked');
+        expect(unconfirmedApprove.data.code).toBe('oracle_required');
+        expect((unconfirmedApprove.data.skipped_pending_oracle as Array<unknown>).length).toBe(3);
+
+        // Explicit human operator confirmation via P0.3a qap_rules_set + IHumanReviewGateway
+        const confirmPassRule = await callJson(mcp.client, 'qap_rules_set', {
+          targetPath: wsA,
+          module: 'pedidos',
+          rule_resolution: {
+            action: 'confirm',
+            question_id: 'q-b4-ord-101',
+            question_text: '¿Confirmar que el listado SPA de pedidos debe mostrar la orden ORD-101 tras autenticar?',
+            rule_key: 'ord_101_visible',
+            title: 'Mostrar orden ORD-101 tras autenticar',
+            expected_outcome: 'ORD-101',
+            environment: envRecord.name,
+            tenant_id: 'tenant-acme',
+            role: 'operador',
+            route_pathname: '/app',
+            assert_selector: '#spa-shell',
+            assert_type: 'contains',
+          },
+        });
+        expect(confirmPassRule.isError, JSON.stringify(confirmPassRule.data)).toBe(false);
+        expect(confirmPassRule.data.status).toBe('confirmed');
+
+        const confirmFailRule = await callJson(mcp.client, 'qap_rules_set', {
+          targetPath: wsA,
+          module: 'pedidos',
+          rule_resolution: {
+            action: 'confirm',
+            question_id: 'q-b4-ord-999',
+            question_text: '¿Confirmar el criterio de regresión que espera ORD-999-MISSING en #spa-shell?',
+            rule_key: 'ord_999_missing',
+            title: 'Fallo deliberado esperando orden inexistente ORD-999',
+            expected_outcome: 'ORD-999-MISSING',
+            environment: envRecord.name,
+            tenant_id: 'tenant-acme',
+            role: 'operador',
+            route_pathname: '/app',
+            assert_selector: '#spa-shell',
+            assert_type: 'contains',
+          },
+        });
+        expect(confirmFailRule.isError, JSON.stringify(confirmFailRule.data)).toBe(false);
+        expect(confirmFailRule.data.status).toBe('confirmed');
+        expect(env.humanReviewGateway.review).toHaveBeenCalledTimes(2);
+
+        // Re-propose with accredited requirement_ids while keeping the 3rd case pending_oracle
+        const proposeRes = await callJson(mcp.client, 'qap_plan', {
+          targetPath: wsA,
+          module: 'pedidos',
+          case_workflow: {
+            action: 'propose_from_observations',
+            proposals: [
+              {
+                case_id: passCaseId,
+                title: 'Mostrar orden ORD-101 tras autenticar',
+                requirement_id: String(confirmPassRule.data.requirement_id),
+                steps: [
+                  { type: 'navigate', url: `${baseUrl}/app` },
+                  { type: 'waitFor', selector: '#spa-shell' },
+                  { type: 'assert', selector: '#spa-shell', assertion_type: 'contains', expected: 'ORD-101' },
+                ],
+              },
+              {
+                case_id: failCaseId,
+                title: 'Fallo deliberado esperando orden inexistente ORD-999',
+                requirement_id: String(confirmFailRule.data.requirement_id),
+                steps: [
+                  { type: 'navigate', url: `${baseUrl}/app` },
+                  { type: 'waitFor', selector: '#spa-shell' },
+                  { type: 'assert', selector: '#spa-shell', assertion_type: 'contains', expected: 'ORD-999-MISSING' },
+                ],
+              },
+              {
+                case_id: pendingCaseId,
                 title: 'Caso pendiente sin oráculo de negocio',
                 oracle_source: 'missing',
                 steps: [{ type: 'navigate', url: `${baseUrl}/app` }],
@@ -621,13 +738,14 @@ describe('Bloque 4 — Paquete limpio instalado, cliente real Stdio y matriz de 
         expect(proposeRes.data.non_blocking_pending_oracles).toBe(true);
         const proposedCases = proposeRes.data.proposed_cases as Array<{ case_id: string }>;
         expect(proposedCases.length).toBe(2);
+        expect((proposeRes.data.pending_oracle_cases as Array<unknown>).length).toBe(1);
 
         const approveBatch = await callJson(mcp.client, 'qap_plan', {
           targetPath: wsA,
           module: 'pedidos',
           case_workflow: { action: 'approve_batch' },
         });
-        expect(approveBatch.data.status).toBe('approved');
+        expect(approveBatch.data.status, JSON.stringify(approveBatch.data)).toBe('approved');
         expect((approveBatch.data.skipped_pending_oracle as Array<unknown>).length).toBe(1);
 
         const dagPlan = await callJson(mcp.client, 'qap_plan', {
