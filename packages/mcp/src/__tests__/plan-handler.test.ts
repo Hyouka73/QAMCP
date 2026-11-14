@@ -387,7 +387,7 @@ describe('PlanHandler Real Declarative Implementation (VNEXT-014-B)', () => {
   });
 
   // Criterion 8: Real MCP integration via ToolDispatcher and InMemoryTransport
-  it('integrates completely with createMcpServer, exposes exactly 20 tools and dispatches qap_plan cleanly', async () => {
+  it('integrates completely with createMcpServer, exposes exactly 21 tools and dispatches qap_plan cleanly', async () => {
     const root = initProject();
     seedModule(root, 'orders');
     seedTestCase(root, 'orders', 'TC-001', { depends_on: [] });
@@ -395,14 +395,16 @@ describe('PlanHandler Real Declarative Implementation (VNEXT-014-B)', () => {
 
     const client = await connect({ projectRoots: [root] });
 
-    // 1. Verify exact 20 tools exposed
+    // 1. Verify exact 21 unique tools exposed
     const toolsResult = await client.listTools();
-    expect(toolsResult.tools.length).toBe(20);
+    expect(toolsResult.tools.length).toBe(21);
     const toolNames = toolsResult.tools.map(t => t.name);
+    expect(new Set(toolNames).size).toBe(21);
     expect(toolNames).toContain('qap_plan');
     expect(toolNames).toContain('qap_test');
     expect(toolNames).toContain('qap_status');
     expect(toolNames).toContain('qap_discover');
+    expect(toolNames).toContain('qap_start');
 
     // 2. Call qap_plan via real MCP protocol
     const { response, data } = await callTool(client, 'qap_plan', {

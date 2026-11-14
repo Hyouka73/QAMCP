@@ -97,7 +97,7 @@ describe('VNEXT-012 real MCP and physical persistence', () => {
     const client = await connect({ projectRoots: [root] });
     const tools = (await client.listTools()).tools;
     expect(tools).toHaveLength(21);
-    expect(new Set(tools.map(tool => tool.name)).size).toBe(20);
+    expect(new Set(tools.map(tool => tool.name)).size).toBe(21);
     await call(client, 'qap_status', { targetPath: root });
     await call(client, 'qap_project', { action: 'list', targetPath: root });
     await call(client, 'qap_context_set', { targetPath: root });

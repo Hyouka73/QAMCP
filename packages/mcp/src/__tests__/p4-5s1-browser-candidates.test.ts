@@ -107,16 +107,19 @@ describe('P4.5-S1: Preflight browser, Module Candidates, and Session Plan', () =
     expect(QAP_CORE_DIRECTIVES).toContain('Explora solo con qap_discover');
   });
 
-  it('C1: status/init conservan la frase histórica y discover declara persistencia canónica estática', async () => {
+  it('C1: status/init conservan la frase histórica y discover declara modo estático/SPA y persistencia canónica', async () => {
     const listRes = await client.listTools();
     const toolMap = new Map(listRes.tools.map((t) => [t.name, t.description || '']));
+    const discoverTool = listRes.tools.find((t) => t.name === 'qap_discover');
 
     const requiredPhrase = 'QAP observa la app con su propio navegador mediante qap_discover; no uses navegadores ni herramientas de otros servidores MCP ni del IDE para explorarla (no se persistiría conocimiento en .qa)';
 
     expect(toolMap.get('qap_status')).toContain(requiredPhrase);
     expect(toolMap.get('qap_init')).toContain(requiredPhrase);
-    expect(toolMap.get('qap_discover')).toContain('BlackBoxCrawler real y estático, con JavaScript deshabilitado');
-    expect(toolMap.get('qap_discover')).toContain('Persiste observaciones y evidencias en IKnowledgeStore, sin escribir .qa/modules/ ni avanzar lifecycle.');
+    expect(toolMap.get('qap_discover')).toContain('Observa una ruta mediante BlackBoxCrawler real, con modo estático o SPA de solo lectura.');
+    expect(toolMap.get('qap_discover')).toContain('Persiste observaciones y evidencias en IKnowledgeStore.');
+    expect(toolMap.get('qap_discover')).toContain('credentials, profileId, sesiones aportadas y headed=true se rechazan.');
+    expect(discoverTool?.inputSchema.properties?.allow_spa).toMatchObject({ type: 'boolean' });
   });
 
   it('C4/C6: qap_context_ingest persiste module-candidates.json y qap_session_plan lo usa', async () => {

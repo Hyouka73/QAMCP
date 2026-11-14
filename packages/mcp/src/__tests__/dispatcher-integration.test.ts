@@ -125,7 +125,28 @@ describe('real MCP client/server via linked transports', () => {
     const rules = tools.find(tool => tool.name === 'qap_rules_set')!;
     expect(rules.inputSchema.properties?.canonical_interview).toMatchObject({ type: 'object', additionalProperties: false,
       properties: { action: { enum: ['next', 'propose', 'correct', 'review', 'defer', 'resume'] } }, required: ['action'] });
-    expect(tools.find(t => t.name === 'qap_plan')!.inputSchema.properties?.case_workflow).toMatchObject({
+    const ingest = tools.find(t => t.name === 'qap_context_ingest')!.inputSchema;
+    expect(ingest.properties?.doc_version).toMatchObject({ type: 'string' });
+    expect(ingest.properties?.scope).toMatchObject({
+      type: 'object',
+      properties: {
+        environment: { type: 'string' },
+        tenant_id: { type: 'string' },
+        role: { type: 'string' },
+        module_key: { type: 'string' },
+        route_pathname: { type: 'string' },
+      },
+    });
+    expect(ingest.properties?.business_rules).toMatchObject({
+      type: 'array',
+      items: { type: 'object', required: ['expected_outcome'] },
+    });
+    const discover = tools.find(t => t.name === 'qap_discover')!.inputSchema;
+    expect(discover.properties?.allow_spa).toMatchObject({ type: 'boolean' });
+    expect(discover.properties?.tenant_id).toMatchObject({ type: 'string' });
+    expect(discover.properties?.environment).toMatchObject({ type: 'string' });
+    const plan = tools.find(t => t.name === 'qap_plan')!.inputSchema;
+    expect(plan.properties?.case_workflow).toMatchObject({
       type: 'object',
       additionalProperties: false,
       properties: {
@@ -134,6 +155,9 @@ describe('real MCP client/server via linked transports', () => {
         },
       },
     });
+    expect(plan.properties?.discovery_revision_id).toMatchObject({ type: 'string' });
+    expect(plan.properties?.tenant_id).toMatchObject({ type: 'string' });
+    expect(plan.properties?.profile).toMatchObject({ type: 'string' });
     const auth = tools.find(t => t.name === 'qap_auth_add')!.inputSchema;
     expect(auth).toMatchObject({ additionalProperties: false, required: ['profile'] });
     expect(auth.properties?.post_login_condition).toMatchObject({
@@ -149,6 +173,13 @@ describe('real MCP client/server via linked transports', () => {
       additionalProperties: false, required: ['targetPath', 'phase'], properties: { phase: { enum: ['preview', 'confirm'] } },
     });
     expect(tools).toHaveLength(21);
+    expect(new Set(tools.map(t => t.name)).size).toBe(21);
+    expect(tools.map(t => t.name)).toEqual([
+      'qap_status', 'qap_init', 'qap_project', 'qap_auth_add', 'qap_auth_provision', 'qap_auth_list',
+      'qap_context_set', 'qap_context_ingest', 'qap_session_plan', 'qap_discover', 'qap_plan',
+      'qap_validate', 'qap_test', 'qap_report', 'qap_server', 'qap_prune', 'qap_rules_set',
+      'qap_module_close', 'qap_session_close', 'qap_project_reset', 'qap_start',
+    ]);
     // Block 1 retired contradictory qap_clean in favor of qap_project.
     expect(tools.find(t => t.name === 'qap_clean')).toBeUndefined();
     const projectTool = tools.find(t => t.name === 'qap_project')!;
@@ -158,11 +189,19 @@ describe('real MCP client/server via linked transports', () => {
       if (tool.name === 'qap_project') {
         return oldTools.find(t => t.name === 'qap_clean')!;
       }
+      if (tool.name === 'qap_context_ingest') {
+        const properties = { ...tool.inputSchema.properties };
+        delete properties.doc_version;
+        delete properties.scope;
+        delete properties.business_rules;
+        return { ...tool, inputSchema: { ...tool.inputSchema, properties } };
+      }
       if (tool.name === 'qap_discover') {
         const prior = oldTools.find(t => t.name === tool.name)!;
-        const properties = { ...tool.inputSchema.properties, profile: prior.inputSchema.properties?.profile };
+        const properties: Record<string, unknown> = { ...tool.inputSchema.properties, profile: prior.inputSchema.properties?.profile };
         delete properties.allow_spa;
         delete properties.tenant_id;
+        delete properties.environment;
         return { ...tool, description: prior.description, inputSchema: { ...tool.inputSchema, properties } };
       }
       if (tool.name === 'qap_plan' || tool.name === 'qap_auth_add' || tool.name === 'qap_auth_list') {
@@ -170,6 +209,9 @@ describe('real MCP client/server via linked transports', () => {
         if (tool.name === 'qap_auth_add' || tool.name === 'qap_auth_list') return prior;
         const properties = { ...tool.inputSchema.properties };
         delete properties.case_workflow;
+        delete properties.discovery_revision_id;
+        delete properties.tenant_id;
+        delete properties.profile;
         return { ...tool, description: prior.description, inputSchema: { ...tool.inputSchema, properties } };
       }
       if (tool.name === 'qap_module_close') {

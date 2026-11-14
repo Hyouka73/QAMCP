@@ -149,7 +149,10 @@ describe('Suite MCP Server QAP v2.1 / v2.1.2', () => {
     expect(toolNames).toContain('qap_rules_set');
     expect(toolNames).toContain('qap_module_close');
     expect(toolNames).toContain('qap_session_close');
-    expect(toolNames.length).toBe(20);
+    expect(toolNames).toContain('qap_project_reset');
+    expect(toolNames).toContain('qap_start');
+    expect(toolNames.length).toBe(21);
+    expect(new Set(toolNames).size).toBe(21);
 
     // @ts-expect-error accessing internal request handler
     const promptHandler = server._requestHandlers.get(ListPromptsRequestSchema.shape.method.value);
