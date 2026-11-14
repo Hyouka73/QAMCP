@@ -952,7 +952,7 @@ describe('P0.2a — Expediente de Discovery reutilizable por revisión y alcance
     });
     expect(planSandboxManual.isError, planSandboxManual.rawText).toBe(false);
     expect(planSandboxManual.data.discovery_revision_id).toBeUndefined();
-    const manualSteps = JSON.stringify(planSandboxManual.data.proposed_cases[0].steps);
+    const manualSteps = JSON.stringify(planSandboxManual.data.pending_oracle_cases[0].steps);
     expect(manualSteps).toContain(`${sandboxStaging.origin}/app/orders`);
     expect(manualSteps).not.toContain(staging.origin);
   }, 45_000);

@@ -114,10 +114,11 @@ import { TOOLS } from './tool-catalog.js';
 import { StatusHandler } from './handlers/status.handler.js';
 import { ContextHandler } from './handlers/context.handler.js';
 import { DiscoveryHandler, type DiscoveryAuthorization } from './handlers/discovery.handler.js';
-import { CanonicalInterviewService } from './handlers/canonical-interview-service.js';
+import { CanonicalInterviewService, type IHumanReviewGateway } from './handlers/canonical-interview-service.js';
 import { CanonicalClosureError } from './handlers/canonical-closure-error.js';
 import { CanonicalClosureService } from './handlers/canonical-closure-service.js';
 import { renderCanonicalSessionReport } from './handlers/canonical-session-report.js';
+import { handleScopedRuleResolution } from './handlers/rule-resolution-handler.js';
 import { binding as knowledgeBinding, projectRoot as authorizedProjectRoot, result as canonicalResult } from './handlers/state-services.js';
 import { hasLegacyViewContext, legacyInterviewBlocked } from './handlers/legacy-discovery-contract.js';
 import { ProjectHandler } from './handlers/project.handler.js';
@@ -128,7 +129,7 @@ import { TestHandler, type TestNavigationAuthorization } from './handlers/test.h
 import { ReportHandler } from './handlers/report.handler.js';
 import { checkPlaywrightBrowser, PLAYWRIGHT_INSTALL_COMMAND, detectarSubcarpetaWorkspace } from './handlers/state-runtime.js';
 import type { StateDependencies } from './handlers/state-services.js';
-import { ClientElicitationDiscoveryAuthorizer } from './client-elicitation-authorizers.js';
+import { ClientElicitationDiscoveryAuthorizer, ClientElicitationHumanReviewGateway } from './client-elicitation-authorizers.js';
 import { acknowledgeProjectInitialization, acquireProjectOperation, ProjectReset, readProjectResetState, type ResetAuthorizer } from './project-reset.js';
 import { windowsProjectResetAuthorizer } from './project-reset-dialog.js';
 import { QapEventLog } from './qap-event-log.js';
@@ -317,11 +318,13 @@ export interface McpServerOptions extends StateDependencies {
   readonly sessionPersistenceKey?: string;
   readonly authorizationTtlMs?: number;
   readonly projectResetAuthorizer?: ResetAuthorizer;
+  readonly humanReviewGateway?: IHumanReviewGateway;
 }
 
 export function createMcpServer(options: McpServerOptions = {}): Server {
   const serverRef: { current?: Server } = {};
   const serverProvider = () => serverRef.current;
+  const ruleReviewGateway = new ClientElicitationHumanReviewGateway(serverProvider, options.humanReviewGateway);
   const qapEventLog = new QapEventLog(options.workspaceBootstrap?.directory);
   const authorizationDiagnosticSink = (diagnostic: Parameters<QapEventLog['recordNativeAuthorization']>[0], workspace?: string) =>
     qapEventLog.recordNativeAuthorization(diagnostic, workspace);
@@ -3318,6 +3321,16 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
             const service = interviews.get(root);
             return canonicalResult(service ? await service.execute(args.module, args.canonical_interview)
               : { status: 'blocked', code: 'knowledge_unbound' });
+          }
+          if (Object.hasOwn(args, 'rule_resolution')) {
+            const res = await handleScopedRuleResolution({
+              rootDir,
+              moduleName: typeof args.module === 'string' ? args.module : '',
+              rawArgs: args as Record<string, unknown>,
+              appService: options.applicationService,
+              reviewGateway: ruleReviewGateway,
+            });
+            return canonicalResult(res, res.status === 'blocked');
           }
           const moduleName = args.module ? String(args.module) : '';
           if (!moduleName) {

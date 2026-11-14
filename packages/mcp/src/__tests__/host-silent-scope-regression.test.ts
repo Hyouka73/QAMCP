@@ -211,7 +211,24 @@ describe('Regresión: composición real Stdio/host sin diálogos QAP en flujo lo
       },
     });
     expect(proposeRes.isError, JSON.stringify(proposeRes.data)).toBe(false);
-    const caseId = String((proposeRes.data.proposed_cases as Array<Record<string, unknown>>)[0].case_id);
+    const pendingCaseId = String((proposeRes.data.pending_oracle_cases as Array<Record<string, unknown>>)[0].case_id);
+    const decideRes = await callJson(client, 'qap_plan', {
+      targetPath: boundRoot,
+      module: 'portal-pedidos',
+      case_workflow: {
+        action: 'decide_oracles',
+        decisions: [
+          {
+            case_id: pendingCaseId,
+            expected_outcome: 'ORD-101',
+            assert_selector: 'body',
+            assert_type: 'contains',
+          },
+        ],
+      },
+    });
+    expect(decideRes.isError, JSON.stringify(decideRes.data)).toBe(false);
+    const caseId = pendingCaseId;
 
     const approveRes = await callJson(client, 'qap_plan', {
       targetPath: boundRoot,

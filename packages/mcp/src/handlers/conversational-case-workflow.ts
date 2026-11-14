@@ -330,9 +330,104 @@ export async function runConversationalCaseWorkflow(
     return blocked('project_not_found');
   }
   const snapshot = appService.resumeProject(project.project_id);
-  const serviceMod =
+  const existingMod =
     snapshot.modules.find((m) => m.title.toLowerCase() === moduleName.toLowerCase()) ??
-    snapshot.modules.find((m) => m.key === normalizeSlug(moduleName)) ??
+    snapshot.modules.find((m) => m.key === normalizeSlug(moduleName));
+
+  if (action === 'review') {
+    const caseIds = Array.isArray(command.case_ids)
+      ? command.case_ids.map((id) => String(id).trim()).filter(Boolean)
+      : undefined;
+    const modKey = existingMod?.key ?? normalizeSlug(moduleName);
+    const allCases = appService.listServiceCases(project.project_id, modKey);
+    const filteredCases = caseIds?.length
+      ? allCases.filter((c) => caseIds.includes(c.case_id))
+      : allCases;
+
+    const readyForApproval = filteredCases.filter(
+      (c) =>
+        c.conformity_status === 'proposed' &&
+        c.oracle_status !== 'missing_oracle' &&
+        c.risk_decision !== 'pending' &&
+        c.steps.length > 0,
+    );
+    const approvedCases = filteredCases.filter((c) =>
+      ['approved', 'pass', 'fail', 'not_run', 'technical_error', 'human_accepted'].includes(c.conformity_status),
+    );
+    const pendingOracle = filteredCases.filter(
+      (c) =>
+        c.conformity_status === 'pending_oracle' ||
+        c.oracle_status === 'missing_oracle' ||
+        c.risk_decision === 'pending',
+    );
+    const rejectedCases = filteredCases.filter((c) => c.conformity_status === 'rejected');
+
+    return {
+      status: 'review',
+      read_only: true,
+      module: moduleName,
+      cases: filteredCases.map((c) => ({
+        case_id: c.case_id,
+        title: c.title,
+        version: c.version,
+        requirement_id: c.requirement_id,
+        requirement_revision: c.requirement_revision,
+        conformity_status: c.conformity_status,
+        oracle_status: c.oracle_status,
+        expectation: c.expectation,
+        observation: c.observation,
+        inference: c.inference,
+        steps: c.steps,
+        confirmed_by: c.confirmed_by,
+        confirmed_at: c.confirmed_at,
+        confirmation_digest: c.confirmation_digest,
+      })),
+      ready_for_approval: readyForApproval.map((c) => ({
+        case_id: c.case_id,
+        title: c.title,
+        version: c.version,
+        requirement_id: c.requirement_id,
+        requirement_revision: c.requirement_revision,
+        oracle_source: c.expectation.source,
+      })),
+      approved_cases: approvedCases.map((c) => ({
+        case_id: c.case_id,
+        title: c.title,
+        version: c.version,
+        conformity_status: c.conformity_status,
+        confirmed_by: c.confirmed_by,
+        confirmed_at: c.confirmed_at,
+      })),
+      pending_oracle: pendingOracle.map((c) => ({
+        case_id: c.case_id,
+        title: c.title,
+        oracle_status: c.oracle_status,
+        question: c.expectation.business_risk_question ?? null,
+      })),
+      summary: {
+        total_cases: filteredCases.length,
+        ready_for_approval: readyForApproval.length,
+        approved: approvedCases.length,
+        pending_oracle: pendingOracle.length,
+        rejected: rejectedCases.length,
+      },
+      siguiente_accion: {
+        tipo: readyForApproval.length > 0 ? 'decision' : pendingOracle.length > 0 ? 'entrevista' : 'trabajo',
+        tool: readyForApproval.length > 0 || approvedCases.length > 0 ? 'qap_plan' : 'qap_rules_set',
+        descripcion:
+          readyForApproval.length > 0
+            ? `Revisión de solo lectura: ${readyForApproval.length} caso(s) listo(s) para aprobar con action=approve_batch y ${pendingOracle.length} pendiente(s) de oráculo.`
+            : pendingOracle.length > 0
+              ? `Revisión de solo lectura: ${pendingOracle.length} caso(s) pendiente(s) de oráculo acreditado o confirmación humana.`
+              : approvedCases.length > 0
+                ? `Revisión de solo lectura: ${approvedCases.length} caso(s) aprobado(s) listo(s) para plan DAG.`
+                : 'No hay casos propuestos para este módulo. Usa action=propose_from_observations.',
+      },
+    };
+  }
+
+  const serviceMod =
+    existingMod ??
     appService.upsertModule({ projectId: project.project_id, key: moduleName, title: moduleName });
 
   const baseUrl = options?.effectiveScope?.base_url ?? snapshot.environment?.base_url ?? 'http://127.0.0.1';
@@ -347,6 +442,16 @@ export async function runConversationalCaseWorkflow(
     let ruleResolutionSummary: DiscoveryDossierRuleResolution['summary'] | undefined;
     let ruleAmbiguities: readonly DossierRuleAmbiguity[] | undefined;
     if (Array.isArray(command.proposals)) {
+      const confirmedReqs = appService
+        .listServiceRequirements(project.project_id, serviceMod.key)
+        .filter((r) => r.validation_status === 'confirmed' && r.acceptance_criteria.length > 0);
+      const revision = options?.discoveryRevisionId
+        ? appService.getDiscoveryRevision(options.discoveryRevisionId)
+        : options?.effectiveScope
+          ? appService.findLatestDiscoveryRevisionForScope(options.effectiveScope)
+          : null;
+      const activeResolution = revision?.dossier.rule_resolution;
+
       inputs = [];
       for (const rawItem of command.proposals) {
         if (!isObject(rawItem) || typeof rawItem.title !== 'string' || !rawItem.title.trim()) {
@@ -355,40 +460,85 @@ export async function runConversationalCaseWorkflow(
         const rawSteps = Array.isArray(rawItem.steps)
           ? rawItem.steps.filter((s): s is Record<string, unknown> => isObject(s))
           : undefined;
-        const expected =
+        const proposedExpected =
           typeof rawItem.expected_outcome === 'string' && rawItem.expected_outcome.trim()
             ? rawItem.expected_outcome.trim()
             : null;
-        let reqId = typeof rawItem.requirement_id === 'string' ? rawItem.requirement_id : undefined;
-        if (!reqId && expected) {
-          const createdReq = appService.upsertServiceRequirement({
-            projectId: project.project_id,
-            moduleId: serviceMod.module_id,
-            moduleKey: moduleName,
-            title: rawItem.title.trim(),
-            description: expected,
-            source: rawItem.oracle_source === 'ingested_doc' ? 'ingested_doc' : 'user',
-            validationStatus: 'confirmed',
-            acceptanceCriteria: [expected],
-            riskLevel:
-              rawItem.risk_level === 'high' || rawItem.risk_level === 'critical' || rawItem.risk_level === 'low'
-                ? rawItem.risk_level
-                : 'medium',
-            riskDecision: rawItem.risk_accepted === true ? 'accepted_by_qa' : 'not_required',
-          });
-          reqId = createdReq.requirement_id;
-        }
+        const rawReqId = typeof rawItem.requirement_id === 'string' ? rawItem.requirement_id.trim() : undefined;
+        const rawRuleId =
+          typeof rawItem.rule_id === 'string'
+            ? rawItem.rule_id.trim()
+            : isObject(rawItem.expectation_metadata) && typeof rawItem.expectation_metadata.rule_id === 'string'
+              ? rawItem.expectation_metadata.rule_id.trim()
+              : undefined;
+
+        const matchingDecision = activeResolution?.decisions.find(
+          (d) =>
+            (rawRuleId && (d.decision_id === rawRuleId || d.rule_key === rawRuleId)) ||
+            (rawReqId && d.source_id === rawReqId),
+        );
+        const isContradictedOrPendingInResolution = Boolean(
+          matchingDecision && matchingDecision.decision_status !== 'accredited',
+        ) || Boolean(
+          rawReqId &&
+            activeResolution?.ambiguities.some((a) =>
+              a.candidates.some((c) => c.source_id === rawReqId),
+            ),
+        );
+
+        const verifiedReq =
+          rawReqId && !isContradictedOrPendingInResolution
+            ? confirmedReqs.find((r) => r.requirement_id === rawReqId)
+            : undefined;
+        const verifiedDecision =
+          matchingDecision && matchingDecision.decision_status === 'accredited' && matchingDecision.expected_outcome
+            ? matchingDecision
+            : undefined;
+
+        const isAccredited = Boolean(verifiedReq || verifiedDecision);
+        const accreditedExpected = verifiedDecision?.expected_outcome ?? verifiedReq?.acceptance_criteria[0] ?? null;
+        const accreditedSource: 'user' | 'ingested_doc' | 'missing' = !isAccredited
+          ? 'missing'
+          : verifiedDecision
+            ? verifiedDecision.source_kind === 'confirmed_requirement'
+              ? 'user'
+              : 'ingested_doc'
+            : verifiedReq!.source === 'ingested_doc'
+              ? 'ingested_doc'
+              : 'user';
+
+        const safeSteps = isAccredited
+          ? normalizeStepsForProposal(rawSteps, routeUrl, accreditedExpected)
+          : normalizeStepsForProposal(
+              rawSteps?.filter((s) => s.type !== 'assert'),
+              routeUrl,
+              null,
+            );
+
+        const pendingReason = isContradictedOrPendingInResolution
+          ? `La regla '${rawItem.title.trim()}' tiene contradicción o estado '${matchingDecision?.decision_status ?? 'pending'}' y requiere confirmación humana antes de emitir oráculo.`
+          : proposedExpected
+            ? `La expectativa propuesta ('${proposedExpected}') no cuenta con una fuente acreditada ni confirmación humana verificable.`
+            : `¿Cuál es el resultado de negocio esperado para "${rawItem.title.trim()}"?`;
+
         inputs.push({
           case_id: typeof rawItem.case_id === 'string' ? rawItem.case_id : undefined,
           title: rawItem.title.trim(),
-          requirement_id: reqId,
-          expected_outcome: expected,
-          oracle_source:
-            rawItem.oracle_source === 'ingested_doc' || rawItem.oracle_source === 'user'
-              ? rawItem.oracle_source
-              : expected
-                ? 'user'
-                : 'missing',
+          ...(verifiedReq ? { requirement_id: verifiedReq.requirement_id } : {}),
+          expected_outcome: isAccredited ? accreditedExpected : null,
+          oracle_source: accreditedSource,
+          ...(!isAccredited ? { business_risk_question: pendingReason } : {}),
+          ...(verifiedDecision
+            ? {
+                expectation_metadata: {
+                  rule_id: verifiedDecision.decision_id,
+                  decision_status: verifiedDecision.decision_status,
+                  ...(verifiedDecision.source_ref ? { source_ref: verifiedDecision.source_ref } : {}),
+                  ...(verifiedDecision.source_version ? { source_version: verifiedDecision.source_version } : {}),
+                  ...(verifiedDecision.scope_match ? { scope_match: verifiedDecision.scope_match } : {}),
+                },
+              }
+            : {}),
           risk_level:
             rawItem.risk_level === 'high' || rawItem.risk_level === 'critical' || rawItem.risk_level === 'low'
               ? rawItem.risk_level
@@ -399,8 +549,14 @@ export async function runConversationalCaseWorkflow(
             : { route: serviceMod.route_hint ?? '/' },
           inference: isObject(rawItem.inference)
             ? rawItem.inference
-            : undefined,
-          steps: normalizeStepsForProposal(rawSteps, routeUrl, expected),
+            : !isAccredited && proposedExpected
+              ? {
+                  rationale: pendingReason,
+                  proposed_flow: `Pendiente de confirmación humana o fuente acreditada en ${serviceMod.route_hint ?? '/'}.`,
+                  proposed_by: 'qap',
+                }
+              : undefined,
+          steps: safeSteps,
         });
       }
     } else {
@@ -522,7 +678,7 @@ export async function runConversationalCaseWorkflow(
     };
   }
 
-  if (action === 'approve_batch' || action === 'review') {
+  if (action === 'approve_batch') {
     const caseIds = Array.isArray(command.case_ids)
       ? command.case_ids.map((id) => String(id).trim()).filter(Boolean)
       : undefined;

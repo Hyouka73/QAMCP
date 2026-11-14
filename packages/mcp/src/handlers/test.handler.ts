@@ -553,7 +553,9 @@ export class TestHandler implements IMcpToolHandler {
 
     const lifecycle = await storage.getLifecycleState();
     const bound = binding(rootDir, this.dependencies);
-    if (bound && (environment !== bound.environmentId || (lifecycle.session?.auth?.profile && lifecycle.session.auth.profile !== args.profile))) return result({ status: 'blocked', code: 'auth_context_mismatch' }, true);
+    const activeEnvName = appProject && appService ? appService.resumeProject(appProject.project_id).environment?.name : undefined;
+    const boundEnvMatches = bound ? (environment === bound.environmentId || activeEnvName === environment) : true;
+    if (bound && (!boundEnvMatches || (lifecycle.session?.auth?.profile && lifecycle.session.auth.profile !== args.profile))) return result({ status: 'blocked', code: 'auth_context_mismatch' }, true);
     if (bound && lifecycle.session?.auth?.required && !args.profile) return result({ status: 'blocked', code: 'auth_profile_required' }, true);
     let runnerStorageState: PlaywrightRunnerOptions['storageState'];
     let runnerExtraHeaders: Record<string, string> | undefined;

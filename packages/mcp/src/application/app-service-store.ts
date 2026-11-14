@@ -462,6 +462,40 @@ CREATE INDEX IF NOT EXISTS idx_scoped_business_rules_source
   ON scoped_business_rules(project_id, source_kind, source_id);
 `;
 
+const SCHEMA_V7_SQL = `
+CREATE TABLE IF NOT EXISTS rule_confirmation_decisions (
+  decision_id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(project_id) ON DELETE CASCADE,
+  requirement_id TEXT NOT NULL,
+  rule_id TEXT NOT NULL,
+  rule_key TEXT NOT NULL,
+  module_key TEXT NOT NULL,
+  route_pathname TEXT NOT NULL,
+  environment_name TEXT NOT NULL,
+  tenant_id TEXT NOT NULL,
+  role TEXT NOT NULL,
+  scope_declaration TEXT NOT NULL CHECK(scope_declaration IN ('exact','general_compatible')),
+  revision INTEGER NOT NULL,
+  question_id TEXT NOT NULL,
+  question_text TEXT NOT NULL,
+  expected_outcome TEXT NOT NULL,
+  title TEXT NOT NULL,
+  decision TEXT NOT NULL CHECK(decision IN ('confirm','reject','defer')),
+  approval_id TEXT NOT NULL UNIQUE,
+  request_digest TEXT NOT NULL,
+  presented_statement_digest TEXT NOT NULL,
+  reviewer TEXT NOT NULL,
+  mechanism TEXT NOT NULL,
+  evidence_refs_json TEXT NOT NULL DEFAULT '[]',
+  discovery_revision_id TEXT,
+  decided_at TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_rule_confirmation_decisions_project_scope
+  ON rule_confirmation_decisions(project_id, module_key, environment_name, tenant_id, role, revision DESC);
+`;
+
 export class AppServiceSqliteStore {
   readonly db: DatabaseSync;
   readonly dbPath: string;
@@ -505,6 +539,7 @@ export class AppServiceSqliteStore {
       this.applySchemaStep(4, SCHEMA_V4_SQL);
       this.applySchemaStep(5, SCHEMA_V5_SQL);
       this.applySchemaStep(6, SCHEMA_V6_SQL);
+      this.applySchemaStep(7, SCHEMA_V7_SQL);
     });
   }
 

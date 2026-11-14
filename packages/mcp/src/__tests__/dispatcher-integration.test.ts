@@ -197,7 +197,9 @@ describe('real MCP client/server via linked transports', () => {
         return { ...tool, inputSchema: { ...tool.inputSchema, properties } };
       }
       if (tool.name !== 'qap_rules_set') return tool;
-      const properties = { ...tool.inputSchema.properties }; delete properties.canonical_interview;
+      const properties = { ...tool.inputSchema.properties };
+      delete properties.canonical_interview;
+      delete properties.rule_resolution;
       return { ...tool, description: oldTools.find(t => t.name === tool.name)!.description,
         inputSchema: { ...tool.inputSchema, properties } };
     }), prompts: (await client.listPrompts()).prompts }).toEqual(baseline);

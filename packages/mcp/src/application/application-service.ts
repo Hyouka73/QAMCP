@@ -98,6 +98,35 @@ export class ApplicationServiceError extends Error {
   }
 }
 
+export interface RuleConfirmationDecisionRecord {
+  readonly decision_id: string;
+  readonly project_id: string;
+  readonly requirement_id: string;
+  readonly rule_id: string;
+  readonly rule_key: string;
+  readonly module_key: string;
+  readonly route_pathname: string;
+  readonly environment_name: string;
+  readonly tenant_id: string;
+  readonly role: string;
+  readonly scope_declaration: 'exact' | 'general_compatible';
+  readonly revision: number;
+  readonly question_id: string;
+  readonly question_text: string;
+  readonly expected_outcome: string;
+  readonly title: string;
+  readonly decision: 'confirm' | 'reject' | 'defer';
+  readonly approval_id: string;
+  readonly request_digest: string;
+  readonly presented_statement_digest: string;
+  readonly reviewer: string;
+  readonly mechanism: string;
+  readonly evidence_refs: readonly string[];
+  readonly discovery_revision_id: string | null;
+  readonly decided_at: string;
+  readonly created_at: string;
+}
+
 export interface QapApplicationServiceOptions {
   readonly hostRootDir: string;
   readonly credentialProvider?: ICredentialProvider;
@@ -2625,6 +2654,255 @@ export class QapApplicationService {
   listServiceRequirements(projectId: string, moduleKey?: string): ServiceRequirementRecord[] {
     this.assertActiveProject(projectId);
     return this.block3.listRequirements(projectId, moduleKey);
+  }
+
+  hasUsedRuleApprovalId(projectId: string, approvalId: string): boolean {
+    this.assertActiveProject(projectId);
+    const row = this.store.get<{ decision_id: string }>(
+      'SELECT decision_id FROM rule_confirmation_decisions WHERE project_id = ? AND approval_id = ?',
+      projectId,
+      approvalId,
+    );
+    return Boolean(row);
+  }
+
+  recordRuleConfirmationDecision(params: {
+    readonly projectId: string;
+    readonly moduleKey: string;
+    readonly requirementId?: string;
+    readonly ruleKey: string;
+    readonly title: string;
+    readonly expectedOutcome: string;
+    readonly questionId: string;
+    readonly questionText: string;
+    readonly decision: 'confirm' | 'reject' | 'defer';
+    readonly approvalId: string;
+    readonly requestDigest: string;
+    readonly presentedStatementDigest: string;
+    readonly reviewer: string;
+    readonly mechanism: string;
+    readonly decidedAt: string;
+    readonly evidenceRefs?: readonly string[];
+    readonly discoveryRevisionId?: string | null;
+    readonly scope: {
+      readonly environment_name: string;
+      readonly tenant_id: string;
+      readonly role: string;
+      readonly route_pathname: string;
+      readonly scope_declaration?: 'exact' | 'general_compatible';
+    };
+    readonly assertSelector?: string | null;
+    readonly assertType?: RuleAssertType | null;
+  }): {
+    readonly decision: RuleConfirmationDecisionRecord;
+    readonly requirement: ServiceRequirementRecord | null;
+    readonly rule: ScopedBusinessRuleRecord | null;
+  } {
+    this.assertActiveProject(params.projectId);
+    const modKey = normalizeSlug(params.moduleKey);
+    const envName = normalizeScopeToken(params.scope.environment_name) || 'default';
+    const tenantId = normalizeScopeToken(params.scope.tenant_id) || 'default';
+    const role = normalizeScopeToken(params.scope.role) || 'default';
+    const routePath = normalizeRuleRoute(params.scope.route_pathname || '*');
+    const scopeDeclaration: 'exact' | 'general_compatible' =
+      params.scope.scope_declaration === 'general_compatible' ? 'general_compatible' : 'exact';
+    const ruleKey = normalizeRuleKey(params.ruleKey || params.title);
+    const deterministicReqId =
+      params.requirementId?.trim() ||
+      `REQ-${modKey.toUpperCase()}-${createHash('sha256')
+        .update(JSON.stringify([params.projectId, modKey, envName, tenantId, role, routePath, ruleKey]))
+        .digest('hex')
+        .slice(0, 10)}`;
+    const ruleId = `sreq-${deterministicReqId}`;
+    const evidenceRefs = [...new Set((params.evidenceRefs ?? []).map((e) => e.trim()).filter(Boolean))];
+    const now = new Date().toISOString();
+
+    return this.store.transaction('IMMEDIATE', () => {
+      const existingApproval = this.store.get<{ decision_id: string }>(
+        'SELECT decision_id FROM rule_confirmation_decisions WHERE approval_id = ?',
+        params.approvalId,
+      );
+      if (existingApproval) {
+        throw new Error('human_review_reused');
+      }
+
+      const mod = this.upsertModule({
+        projectId: params.projectId,
+        key: modKey,
+        title: params.moduleKey,
+      });
+
+      let req: ServiceRequirementRecord | null = null;
+      let rule: ScopedBusinessRuleRecord | null = null;
+      let revision = 0;
+
+      if (params.decision === 'confirm') {
+        const priorReq = this.block3.getRequirement(params.projectId, deterministicReqId);
+        req = this.block3.upsertRequirement({
+          projectId: params.projectId,
+          moduleId: mod.module_id,
+          moduleKey: mod.key,
+          requirementId: deterministicReqId,
+          title: params.title.trim(),
+          description: params.expectedOutcome.trim(),
+          category: 'business_rule',
+          source: 'user',
+          validationStatus: 'confirmed',
+          acceptanceCriteria: [params.expectedOutcome.trim()],
+        });
+        if (priorReq && req.revision === priorReq.revision) {
+          this.store.run(
+            'UPDATE service_requirements SET revision = ?, updated_at = ? WHERE requirement_id = ?',
+            priorReq.revision + 1,
+            now,
+            req.requirement_id,
+          );
+          req = this.block3.getRequirement(params.projectId, req.requirement_id)!;
+        }
+        revision = req.revision;
+        rule = this.writeScopedBusinessRuleRow({
+          ruleId,
+          projectId: params.projectId,
+          sourceKind: 'confirmed_requirement',
+          sourceId: req.requirement_id,
+          sourceRef: `qa-confirmacion:${params.approvalId}`,
+          sourceVersion: `rev:${req.revision}`,
+          sourceDigest: params.requestDigest,
+          moduleKey: mod.key,
+          routePathname: routePath,
+          environmentName: envName,
+          tenantId,
+          role,
+          scopeDeclaration,
+          authorityStatus: 'accredited',
+          ruleKey,
+          title: params.title.trim(),
+          expectedOutcome: params.expectedOutcome.trim(),
+          assertSelector: params.assertSelector ?? null,
+          assertType: params.assertType ?? null,
+        });
+      }
+
+      const decisionId = `rcd-${randomUUID()}`;
+      this.store.run(
+        `INSERT INTO rule_confirmation_decisions
+         (decision_id, project_id, requirement_id, rule_id, rule_key, module_key, route_pathname,
+          environment_name, tenant_id, role, scope_declaration, revision, question_id, question_text,
+          expected_outcome, title, decision, approval_id, request_digest, presented_statement_digest,
+          reviewer, mechanism, evidence_refs_json, discovery_revision_id, decided_at, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        decisionId,
+        params.projectId,
+        deterministicReqId,
+        ruleId,
+        ruleKey,
+        mod.key,
+        routePath,
+        envName,
+        tenantId,
+        role,
+        scopeDeclaration,
+        revision,
+        params.questionId.trim(),
+        params.questionText.trim(),
+        params.expectedOutcome.trim(),
+        params.title.trim(),
+        params.decision,
+        params.approvalId,
+        params.requestDigest,
+        params.presentedStatementDigest,
+        params.reviewer,
+        params.mechanism,
+        JSON.stringify(evidenceRefs),
+        params.discoveryRevisionId ?? null,
+        params.decidedAt,
+        now,
+      );
+
+      const saved = this.listRuleConfirmationDecisions(params.projectId, {
+        moduleKey: mod.key,
+      }).find((d) => d.decision_id === decisionId)!;
+
+      return { decision: saved, requirement: req, rule };
+    });
+  }
+
+  listRuleConfirmationDecisions(
+    projectId: string,
+    filters?: {
+      readonly moduleKey?: string;
+      readonly environmentName?: string;
+      readonly tenantId?: string;
+      readonly role?: string;
+    },
+  ): RuleConfirmationDecisionRecord[] {
+    this.assertActiveProject(projectId);
+    const clauses = ['project_id = ?'];
+    const params: Array<string> = [projectId];
+    if (filters?.moduleKey) {
+      clauses.push('module_key = ?');
+      params.push(normalizeSlug(filters.moduleKey));
+    }
+    if (filters?.environmentName) {
+      const envToken = normalizeScopeToken(filters.environmentName);
+      if (envToken) {
+        clauses.push('environment_name = ?');
+        params.push(envToken);
+      }
+    }
+    if (filters?.tenantId) {
+      const tenantToken = normalizeScopeToken(filters.tenantId);
+      if (tenantToken) {
+        clauses.push('tenant_id = ?');
+        params.push(tenantToken);
+      }
+    }
+    if (filters?.role) {
+      const roleToken = normalizeScopeToken(filters.role);
+      if (roleToken) {
+        clauses.push('role = ?');
+        params.push(roleToken);
+      }
+    }
+    const rows = this.store.all<Record<string, unknown>>(
+      `SELECT * FROM rule_confirmation_decisions WHERE ${clauses.join(' AND ')} ORDER BY created_at DESC, decision_id ASC`,
+      ...params,
+    );
+    return rows.map((row) => ({
+      decision_id: rowStr(row.decision_id),
+      project_id: rowStr(row.project_id),
+      requirement_id: rowStr(row.requirement_id),
+      rule_id: rowStr(row.rule_id),
+      rule_key: rowStr(row.rule_key),
+      module_key: rowStr(row.module_key),
+      route_pathname: rowStr(row.route_pathname),
+      environment_name: rowStr(row.environment_name),
+      tenant_id: rowStr(row.tenant_id),
+      role: rowStr(row.role),
+      scope_declaration: rowStr(row.scope_declaration) === 'general_compatible' ? 'general_compatible' : 'exact',
+      revision: Number(row.revision ?? 0),
+      question_id: rowStr(row.question_id),
+      question_text: rowStr(row.question_text),
+      expected_outcome: rowStr(row.expected_outcome),
+      title: rowStr(row.title),
+      decision: rowStr(row.decision) as 'confirm' | 'reject' | 'defer',
+      approval_id: rowStr(row.approval_id),
+      request_digest: rowStr(row.request_digest),
+      presented_statement_digest: rowStr(row.presented_statement_digest),
+      reviewer: rowStr(row.reviewer),
+      mechanism: rowStr(row.mechanism),
+      evidence_refs: (() => {
+        try {
+          const parsed: unknown = JSON.parse(rowStr(row.evidence_refs_json) || '[]');
+          return Array.isArray(parsed) ? parsed.map(String) : [];
+        } catch {
+          return [];
+        }
+      })(),
+      discovery_revision_id: row.discovery_revision_id == null ? null : rowStr(row.discovery_revision_id),
+      decided_at: rowStr(row.decided_at),
+      created_at: rowStr(row.created_at),
+    }));
   }
 
   proposeModuleCases(params: {

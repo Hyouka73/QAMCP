@@ -1,6 +1,13 @@
+import { randomUUID } from 'node:crypto';
+
 import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
 
 import type { IDiscoveryAuthorizer, DiscoveryAuthorizationRequest, DiscoveryAuthorizationResult } from './discovery-authorizer.js';
+import type {
+  HumanReviewDecision,
+  HumanReviewRequest,
+  IHumanReviewGateway,
+} from './handlers/canonical-interview-service.js';
 import type { IWorkspaceAuthorizer, WorkspaceAuthorizationRequest, WorkspaceAuthorizationResult } from './workspace-authorizer.js';
 
 type ServerProvider = () => Server | undefined;
@@ -121,5 +128,91 @@ export class ClientElicitationDiscoveryAuthorizer implements IDiscoveryAuthorize
 
   requestCredential(request: DiscoveryAuthorizationRequest, profile: string, details: string, signal: AbortSignal): Promise<string | undefined> {
     return this.fallback?.requestCredential?.(request, profile, details, signal) ?? Promise.resolve(undefined);
+  }
+}
+
+/**
+ * Verifiable human confirmation gateway using MCP client form elicitation when advertised,
+ * falling back to an injected host IHumanReviewGateway (e.g. HostReviewQueue).
+ */
+export class ClientElicitationHumanReviewGateway implements IHumanReviewGateway {
+  constructor(
+    private readonly server: ServerProvider,
+    private readonly fallback?: IHumanReviewGateway,
+  ) {}
+
+  isAvailable(): boolean {
+    return Boolean(this.fallback) || canElicit(this.server());
+  }
+
+  lastMechanism(): 'client_elicitation' | 'host_gateway' {
+    return canElicit(this.server()) ? 'client_elicitation' : 'host_gateway';
+  }
+
+  async review(request: Readonly<HumanReviewRequest>): Promise<HumanReviewDecision | null> {
+    const server = this.server();
+    if (!canElicit(server)) {
+      return this.fallback ? this.fallback.review(request) : null;
+    }
+
+    const message = [
+      `Confirmar regla de negocio para el módulo '${request.moduleKey}':`,
+      `Pregunta: ${request.question.text}`,
+      `Regla (${request.proposal.title}): ${request.proposal.description}`,
+      `Ámbito: ${request.context}`,
+    ].join('\n');
+
+    try {
+      const answer = await server.elicitInput({
+        mode: 'form',
+        message,
+        requestedSchema: {
+          type: 'object',
+          properties: {
+            decision: {
+              type: 'string',
+              enum: ['confirm', 'reject', 'defer'],
+              title: 'Decisión de QA',
+            },
+          },
+          required: ['decision'],
+        },
+      });
+
+      const now = new Date();
+      const decidedAt = now.toISOString();
+      const expiresAt = new Date(now.getTime() + 10 * 60_000).toISOString();
+      const base = {
+        requestDigest: request.requestDigest,
+        approvalId: randomUUID(),
+        presentedStatementDigest: request.statementDigest,
+        reviewer: 'mcp_client_elicitation',
+        decidedAt,
+        expiresAt,
+      };
+
+      if (answer.action === 'decline') {
+        return { ...base, decision: 'reject' };
+      }
+      if (answer.action === 'cancel') {
+        return { ...base, decision: 'defer' };
+      }
+      if (answer.action !== 'accept' || !answer.content) {
+        return null;
+      }
+      const rawDecision = answer.content.decision;
+      if (rawDecision === 'confirm' || rawDecision === 'reject' || rawDecision === 'defer') {
+        return { ...base, decision: rawDecision };
+      }
+      if (answer.content.authorize === true) {
+        return { ...base, decision: 'confirm' };
+      }
+      if (answer.content.authorize === false) {
+        return { ...base, decision: 'reject' };
+      }
+      return null;
+    } catch {
+      return null;
+    }
   }
 }

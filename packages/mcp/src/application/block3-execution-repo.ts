@@ -303,23 +303,25 @@ export class Block3ExecutionRepo {
     this.store.transaction('IMMEDIATE', () => {
       for (const item of params.proposals) {
         const req = item.requirement_id ? this.getRequirement(params.projectId, item.requirement_id) : null;
-        const oracleFromReq =
-          req && req.validation_status === 'confirmed' && req.acceptance_criteria.length > 0
-            ? req.acceptance_criteria[0]
-            : null;
+        const reqConfirmed = Boolean(req && req.validation_status === 'confirmed' && req.acceptance_criteria.length > 0);
+        const accreditedByMetadata = item.expectation_metadata?.decision_status === 'accredited';
+        const oracleFromReq = reqConfirmed ? req!.acceptance_criteria[0] : null;
         const expectedOutcome =
-          item.expected_outcome?.trim() || oracleFromReq || null;
+          reqConfirmed || accreditedByMetadata
+            ? (item.expected_outcome?.trim() || oracleFromReq || null)
+            : null;
         const oracleSource: 'user' | 'ingested_doc' | 'missing' = expectedOutcome
-          ? item.oracle_source && item.oracle_source !== 'missing'
-            ? item.oracle_source
-            : req?.source === 'ingested_doc'
-              ? 'ingested_doc'
-              : 'user'
+          ? reqConfirmed
+            ? (req!.source === 'ingested_doc' ? 'ingested_doc' : 'user')
+            : item.oracle_source === 'user' || item.oracle_source === 'ingested_doc'
+              ? item.oracle_source
+              : 'ingested_doc'
           : 'missing';
 
-        const steps = [...(item.steps ?? [])];
-        const hasAssert = steps.some((s) => s.type === 'assert');
-        const hasOracle = Boolean(expectedOutcome) && (hasAssert || oracleSource !== 'missing');
+        const hasOracle = Boolean(expectedOutcome) && oracleSource !== 'missing';
+        const steps = hasOracle
+          ? [...(item.steps ?? [])]
+          : [...(item.steps ?? [])].filter((s) => s.type !== 'assert');
         const oracleStatus: OracleStatus = hasOracle ? 'accredited' : 'missing_oracle';
         const riskLevel = item.risk_level ?? req?.risk_level ?? 'medium';
         const needsRiskDecision = riskLevel === 'high' || riskLevel === 'critical';

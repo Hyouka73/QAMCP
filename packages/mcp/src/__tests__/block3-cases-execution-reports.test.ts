@@ -212,6 +212,40 @@ describe('Bloque 3 — Casos epistémicos, intentos de ejecución, recuperación
 
     // 2. Propuesta epistémica separando observación, inferencia, expectativa y conformidad
     // Incluye: 1 PASS real, 1 FAIL deliberado, 1 caso sin oráculo (no bloqueante) y 1 riesgo alto pendiente
+    const modRecord = appService.upsertModule({ projectId, key: 'pedidos', title: 'pedidos' });
+    const reqPass = appService.upsertServiceRequirement({
+      projectId,
+      moduleId: modRecord.module_id,
+      moduleKey: 'pedidos',
+      title: 'Mostrar pedido ORD-101 en panel SPA',
+      description: 'ORD-101',
+      source: 'user',
+      validationStatus: 'confirmed',
+      acceptanceCriteria: ['ORD-101'],
+    });
+    const reqFail = appService.upsertServiceRequirement({
+      projectId,
+      moduleId: modRecord.module_id,
+      moduleKey: 'pedidos',
+      title: 'Detectar marcador inexistente (FAIL deliberado)',
+      description: 'ESTADO_INEXISTENTE_DELIBERADO',
+      source: 'user',
+      validationStatus: 'confirmed',
+      acceptanceCriteria: ['ESTADO_INEXISTENTE_DELIBERADO'],
+    });
+    const reqHigh = appService.upsertServiceRequirement({
+      projectId,
+      moduleId: modRecord.module_id,
+      moduleKey: 'pedidos',
+      title: 'Operación sensible de riesgo alto',
+      description: 'Panel de Pedidos',
+      source: 'user',
+      validationStatus: 'confirmed',
+      acceptanceCriteria: ['Panel de Pedidos'],
+      riskLevel: 'high',
+      riskDecision: 'pending',
+    });
+
     const proposeRes = await callJson(client, 'qap_plan', {
       targetPath: workspaceRoot,
       module: 'pedidos',
@@ -220,6 +254,7 @@ describe('Bloque 3 — Casos epistémicos, intentos de ejecución, recuperación
         proposals: [
           {
             title: 'Mostrar pedido ORD-101 en panel SPA',
+            requirement_id: reqPass.requirement_id,
             expected_outcome: 'ORD-101',
             oracle_source: 'user',
             steps: [
@@ -230,6 +265,7 @@ describe('Bloque 3 — Casos epistémicos, intentos de ejecución, recuperación
           },
           {
             title: 'Detectar marcador inexistente (FAIL deliberado)',
+            requirement_id: reqFail.requirement_id,
             expected_outcome: 'ESTADO_INEXISTENTE_DELIBERADO',
             oracle_source: 'user',
             steps: [
@@ -249,6 +285,7 @@ describe('Bloque 3 — Casos epistémicos, intentos de ejecución, recuperación
           },
           {
             title: 'Operación sensible de riesgo alto',
+            requirement_id: reqHigh.requirement_id,
             expected_outcome: 'Panel de Pedidos',
             oracle_source: 'user',
             risk_level: 'high',
@@ -495,6 +532,19 @@ describe('Bloque 3 — Casos epistémicos, intentos de ejecución, recuperación
       auth: { required: true, method: 'credentials', roles: ['operador'], profile: 'qa-guard' },
     });
 
+    const activeProject = appService.findActiveProjectByRoot(workspaceRoot)!;
+    const modGuard = appService.upsertModule({ projectId: activeProject.project_id, key: 'pedidos', title: 'pedidos' });
+    const reqGuard = appService.upsertServiceRequirement({
+      projectId: activeProject.project_id,
+      moduleId: modGuard.module_id,
+      moduleKey: 'pedidos',
+      title: 'Verificar panel protegido',
+      description: 'ORD-101',
+      source: 'user',
+      validationStatus: 'confirmed',
+      acceptanceCriteria: ['ORD-101'],
+    });
+
     const proposeRes = await callJson(client, 'qap_plan', {
       targetPath: workspaceRoot,
       module: 'pedidos',
@@ -503,6 +553,7 @@ describe('Bloque 3 — Casos epistémicos, intentos de ejecución, recuperación
         proposals: [
           {
             title: 'Verificar panel protegido',
+            requirement_id: reqGuard.requirement_id,
             expected_outcome: 'ORD-101',
             oracle_source: 'user',
             steps: [
