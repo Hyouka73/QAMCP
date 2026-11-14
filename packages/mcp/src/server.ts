@@ -635,6 +635,10 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
           Object.keys(rawArgs).some(key => key !== 'password' && !Object.hasOwn(authInputProperties, key)))) {
       return canonicalResult({ status: 'error', code: 'invalid_auth_arguments' }, true);
     }
+    if (options.configuredWorkspaceRoot && name === 'qap_auth_add' &&
+        Object.keys(rawArgs ?? {}).some(key => key !== 'password' && !Object.hasOwn(authInputProperties, key))) {
+      return interactiveBlocked('agent_auth_material_not_supported');
+    }
     if (!options.silentBoundScope && !options.authAuthorizer && name === 'qap_auth_add' &&
         Object.keys(rawArgs ?? {}).some(key => !Object.hasOwn(authInputProperties, key))) {
       return interactiveBlocked('agent_auth_material_not_supported');
@@ -764,10 +768,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
             return canonicalResult({ status: 'blocked', category: 'human_authorization', code: 'workspace_path_invalid', diagnostic_id: diagnosticId,
               desbloquear_con: { mecanismo: 'workspace_selection', descripcion: 'Selecciona una carpeta física existente y admitida, con ruta absoluta, fuera de directorios del sistema y del almacenamiento del host.' } });
           }
-          if (options.configuredWorkspaceRoot) {
-            return canonicalResult({ status: 'blocked', code: 'workspace_outside_configured_root',
-              desbloquear_con: { mecanismo: 'workspace_selection', descripcion: 'Usa el workspace configurado para esta instancia de QAP.' } }, true);
-          } else if (options.workspaceAuthorizer) {
+          if (options.workspaceAuthorizer) {
             const authResult = await options.workspaceAuthorizer.requestAuthorization(
               { requestedPath: targetPath, canonicalPath: canonicalTarget },
               context.signal
@@ -1530,11 +1531,13 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
             try {
               const { PlaywrightAdapter } = await import('@qap/playwright-adapter');
               const tempSessionPath = join(sessionDir, `tmp_${profileId}_${Date.now()}.json`);
+              const { restrictChromiumPage } = await import('@qap/auth');
               const loginAdapter = new PlaywrightAdapter({
                 headless: true,
                 baseUrl,
                 sessionPath: tempSessionPath,
                 credentials: { username, password },
+                ...(options.configuredWorkspaceRoot ? { preparePage: (page: Parameters<typeof restrictChromiumPage>[0]) => restrictChromiumPage(page, origin) } : {}),
               });
               const loginRes = await loginAdapter.discover({ name: 'login_flow', path: loginRoute });
               const loginCtx = (loginRes.context || {}) as Record<string, unknown>;

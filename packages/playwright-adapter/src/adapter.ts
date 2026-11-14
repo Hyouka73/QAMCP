@@ -29,6 +29,8 @@ export interface PlaywrightAdapterOptions {
   storageState?: string | Record<string, unknown> | object;
   /** Credenciales explícitas para autenticarse si la pantalla es de login */
   credentials?: AuthCredentials;
+  /** Host hook to scope the isolated page before its first request. */
+  preparePage?: (page: Page) => Promise<void>;
   /** Si es true, omite la espera de asentamiento del DOM (para pruebas comparativas en SPAs con skeleton). */
   skipDomSettling?: boolean;
   /** Ventana de estabilidad de URL configurable (por defecto URL_STABILITY_WINDOW_MS = 500 ms). */
@@ -412,7 +414,7 @@ export class PlaywrightAdapter implements IDiscoverer {
 
     try {
       // 1. Inicializar contexto con storageState si existe sesión previa
-      const contextOptions: BrowserContextOptions = {};
+      const contextOptions: BrowserContextOptions = this.options.preparePage ? { serviceWorkers: 'block' } : {};
       const sessionTarget = options?.storageState ?? this.options.storageState ?? this.options.sessionPath;
       if (sessionTarget) {
         if (typeof sessionTarget === 'string' && existsSync(sessionTarget)) {
@@ -423,6 +425,7 @@ export class PlaywrightAdapter implements IDiscoverer {
       }
       context = await browser.newContext(contextOptions);
       const page = await context.newPage();
+      await this.options.preparePage?.(page);
 
       let httpStatus: number | null = null;
       try {
@@ -477,7 +480,8 @@ export class PlaywrightAdapter implements IDiscoverer {
       let sessionSaved = false;
       if (
         (pageKind === 'login' || pageKind === 'auth_wall' || isAuthPath(normRequested.pathname)) &&
-        this.options.credentials
+        this.options.credentials &&
+        (!this.options.preparePage || normFinal.origin === normRequested.origin)
       ) {
         const { username, password } = this.options.credentials;
         const usernameInput = await page.$(
