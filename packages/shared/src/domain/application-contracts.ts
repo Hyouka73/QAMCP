@@ -506,6 +506,14 @@ export interface ExecutionStepResultRecord {
   readonly action: string;
   readonly status: StepExecutionVerdict;
   readonly duration_ms?: number;
+  readonly selector?: string | null;
+  readonly expected?: string | null;
+  readonly observed?: string | null;
+  readonly started_at?: string | null;
+  readonly finished_at?: string | null;
+  readonly focused_screenshot?: boolean;
+  readonly artifact_error?: string | null;
+  readonly redacted_selectors_count?: number;
   readonly message?: string;
   readonly evidence_paths: readonly string[];
 }
@@ -543,6 +551,16 @@ export interface ExecutionAttemptRecord {
   readonly raw_execution_path?: string | null;
   readonly trace_path?: string | null;
   readonly result_digest?: string | null;
+  readonly video_path?: string | null;
+  readonly trace_zip_path?: string | null;
+  readonly timeline_path?: string | null;
+  readonly screenshots?: readonly string[];
+  readonly artifact_errors?: readonly {
+    readonly artifact: string;
+    readonly case_id?: string | null;
+    readonly step_index?: number | null;
+    readonly message: string;
+  }[];
 }
 
 export interface ExecutionCaseResultRecord {

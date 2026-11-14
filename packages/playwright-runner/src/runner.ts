@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import fs from 'node:fs';
 import path from 'node:path';
 
 import { restrictChromiumPage, type StorageState } from '@qap/auth';
@@ -9,6 +10,8 @@ import type {
   TestOptions,
   ExecutionResult,
   ExecutionStatus,
+  ExecutionArtifactError,
+  ExecutionTimelineStep,
   TCCase,
   TCStep,
   ExecutedCase,
@@ -23,13 +26,24 @@ import {
   executeFill,
   executeAssert,
   executeWaitFor,
-  executeScreenshot,
+  executeScreenshotWithMetadata,
   executeCapture,
   executeSwitchAuth,
   executeEvaluate,
 } from './actions/index.js';
 import { interpolateStep } from './context/interpolator.js';
 import { caseExecutionBlockReason } from './case-execution-policy.js';
+import {
+  ensureConfinedDir,
+  extractSecretsFromStorageState,
+  installEvidenceDomSanitizer,
+  isSensitiveSelectorOrField,
+  maskSensitiveDomBeforeCapture,
+  persistRuntimeEvidenceBundle,
+  resolveConfinedArtifactPath,
+  sanitizeEvidenceText,
+  sanitizePlaywrightTraceZip,
+} from './evidence-artifacts.js';
 import { resolveModuleSession } from './session-resolver.js';
 
 function classifyError(error: unknown): { category: FailureType; message: string } {
@@ -101,6 +115,18 @@ export interface PlaywrightRunnerOptions extends TestOptions {
   interactiveReadOnly?: boolean;
   verifiedSession?: { state: StorageState; verificationUrl: string; selector: string };
   contextSetup?: (context: BrowserContext) => Promise<void> | void;
+  /** Identificador del intento para vincular artefactos físicos (P0.4). */
+  attemptId?: string;
+  recordVideo?: boolean;
+  recordTrace?: boolean;
+  captureFocusedOnAssert?: boolean;
+  redactSecrets?: string[];
+  artifactFaultInjection?: {
+    failVideo?: boolean;
+    failTrace?: boolean;
+    failScreenshot?: boolean;
+    failTimeline?: boolean;
+  };
 }
 
 export function extractFlowVariables(contextData?: Record<string, unknown>): Record<string, string> {
@@ -350,10 +376,66 @@ export class PlaywrightRunner implements IRunner {
         };
       }
 
+      const attemptId = options.attemptId ?? null;
+      const runArtifactId = (attemptId ?? executionId).replace(/[^a-zA-Z0-9._-]/g, '_');
+      const runtimeRunDirRel = `.qa/runtime/runs/${runArtifactId}`;
+      const runtimeArtifactsDirRel = `${runtimeRunDirRel}/artifacts`;
+      const rawVideoDirRel = `${runtimeRunDirRel}/video-tmp`;
+
+      const isRealBrowser =
+        typeof (browser as unknown as { version?: unknown })?.version === 'function';
+      const shouldRecordPhysicalArtifacts =
+        !options.interactiveReadOnly &&
+        ((isRealBrowser && Boolean(rawProjectRoot)) ||
+          options.attemptId !== undefined ||
+          options.recordVideo !== undefined ||
+          options.recordTrace !== undefined ||
+          options.artifactFaultInjection !== undefined);
+
+      const collectedSecrets: string[] = [
+        ...(options.redactSecrets ?? []),
+        ...extractSecretsFromStorageState(storageState),
+      ];
+      if (options.extraHTTPHeaders) {
+        for (const [hdrName, hdrVal] of Object.entries(options.extraHTTPHeaders)) {
+          if (isSensitiveSelectorOrField(hdrName, hdrVal) && typeof hdrVal === 'string' && hdrVal.trim().length >= 4) {
+            collectedSecrets.push(hdrVal.trim());
+          }
+        }
+      }
+
+      const artifactErrors: ExecutionArtifactError[] = [];
+      const attemptTimeline: ExecutionTimelineStep[] = [];
+      const allScreenshots: string[] = [];
+      let videoRelativePath: string | null = null;
+      let traceZipRelativePath: string | null = null;
+      let timelineRelativePath: string | null = null;
+
+      let rawVideoDirAbs: string | null = null;
+      if (shouldRecordPhysicalArtifacts && options.recordVideo !== false) {
+        if (options.artifactFaultInjection?.failVideo) {
+          artifactErrors.push({
+            artifact: 'video',
+            message: 'Fallo de captura de video WebM (inyección de fallo o directorio no disponible).',
+          });
+        } else if (isRealBrowser) {
+          try {
+            rawVideoDirAbs = ensureConfinedDir(projectRoot, rawVideoDirRel);
+          } catch (videoDirErr: unknown) {
+            const msg = videoDirErr instanceof Error ? videoDirErr.message : String(videoDirErr);
+            artifactErrors.push({
+              artifact: 'video',
+              message: sanitizeEvidenceText(msg, collectedSecrets),
+            });
+          }
+        }
+      }
+
       const newContextOpts: BrowserContextOptions = {
         ...(storageState ? { storageState } : {}),
         ...(options.extraHTTPHeaders ? { extraHTTPHeaders: options.extraHTTPHeaders } : {}),
         ...(options.interactiveReadOnly ? { serviceWorkers: 'block', acceptDownloads: false } : {}),
+        ...(rawVideoDirAbs ? { recordVideo: { dir: rawVideoDirAbs, size: { width: 1280, height: 720 } } } : {}),
       };
       context = await browser!.newContext(Object.keys(newContextOpts).length > 0 ? newContextOpts : undefined);
       checkCancellation();
@@ -362,6 +444,32 @@ export class PlaywrightRunner implements IRunner {
         await options.contextSetup(context);
       }
       checkCancellation();
+
+      let tracingStarted = false;
+      if (shouldRecordPhysicalArtifacts && options.recordTrace !== false) {
+        if (options.artifactFaultInjection?.failTrace) {
+          artifactErrors.push({
+            artifact: 'trace.zip',
+            message: 'Fallo al iniciar o guardar trace.zip del intento.',
+          });
+        } else {
+          const ctxTracing = (context as unknown as {
+            tracing?: { start?: (opts: Record<string, unknown>) => Promise<void> };
+          })?.tracing;
+          if (ctxTracing && typeof ctxTracing.start === 'function') {
+            try {
+              await ctxTracing.start({ screenshots: true, snapshots: true, sources: false });
+              tracingStarted = true;
+            } catch (traceStartErr: unknown) {
+              const msg = traceStartErr instanceof Error ? traceStartErr.message : String(traceStartErr);
+              artifactErrors.push({
+                artifact: 'trace.zip',
+                message: sanitizeEvidenceText(msg, collectedSecrets),
+              });
+            }
+          }
+        }
+      }
 
       if (!options.interactiveReadOnly && options.allowedOrigins && options.allowedOrigins.length > 0) {
         const allowedPatterns = options.allowedOrigins;
@@ -410,6 +518,9 @@ export class PlaywrightRunner implements IRunner {
 
       const page = await context.newPage();
       page.setDefaultTimeout(timeout);
+      if (shouldRecordPhysicalArtifacts) {
+        await installEvidenceDomSanitizer(context, page);
+      }
       if (options.interactiveReadOnly) {
         const [origin] = options.allowedOrigins ?? [];
         if (!origin || options.allowedOrigins?.length !== 1) throw new Error('Falta el origen autorizado.');
@@ -523,7 +634,15 @@ export class PlaywrightRunner implements IRunner {
         let failureType: FailureType = 'assertion_failed';
         let failureScreenshotPath: string | undefined;
         const stepTrace: NonNullable<ExecutedCase['steps']> = [];
+        const caseScreenshots: string[] = [];
+        const caseArtifactErrors: string[] = [];
+        let activeStepIndex = 0;
         let activeStepType = 'execute';
+        let activeStepSelector: string | null = null;
+        let activeStepExpected: string | null = null;
+        let activeStepStartedAt = new Date().toISOString();
+        let activeStepStartMs = Date.now();
+        let activeStepRedactedCount = 0;
 
         try {
           if (!moduleName) {
@@ -535,19 +654,105 @@ export class PlaywrightRunner implements IRunner {
           }
 
           const steps = testCase.steps || [];
-          for (const rawStep of steps) {
+          for (const [sIdx, rawStep] of steps.entries()) {
+            activeStepIndex = sIdx;
             activeStepType = rawStep.type;
             const step = interpolateStep(rawStep, contextVariables, flowVariables);
-            const stepStarted = Date.now();
+            const isSensitive = isSensitiveSelectorOrField(step.selector, step.value);
+            if (isSensitive && typeof step.value === 'string' && step.value.trim().length >= 4) {
+              collectedSecrets.push(step.value.trim());
+            }
+            activeStepSelector = step.selector ? sanitizeEvidenceText(step.selector, collectedSecrets) : null;
+            activeStepRedactedCount = isSensitive ? 1 : 0;
+            activeStepExpected = this.deriveStepExpected(step, isSensitive, collectedSecrets);
+            activeStepStartedAt = new Date().toISOString();
+            activeStepStartMs = Date.now();
+
             const stepRes = await this.executeStep(page, step, screenshotsDir, contextVariables, {
               caseId,
+              stepIndex: sIdx,
+              projectRoot,
+              shouldRecordPhysicalArtifacts,
+              captureFocusedOnAssert: options.captureFocusedOnAssert !== false,
+              failScreenshot: Boolean(options.artifactFaultInjection?.failScreenshot),
+              collectedSecrets,
               context_data: options.context_data,
             });
-            stepTrace.push({
+
+            if (shouldRecordPhysicalArtifacts && (step.type === 'navigate' || step.type === 'fill')) {
+              await installEvidenceDomSanitizer(context, page);
+              await maskSensitiveDomBeforeCapture(page);
+            }
+
+            const stepFinishedAt = new Date().toISOString();
+            const stepDurationMs = Date.now() - activeStepStartMs;
+            const sanitizedMsg = stepRes?.message
+              ? sanitizeEvidenceText(stepRes.message, collectedSecrets)
+              : undefined;
+            const stepExpected =
+              stepRes?.expected !== undefined
+                ? sanitizeEvidenceText(stepRes.expected, collectedSecrets)
+                : activeStepExpected;
+            const stepObserved =
+              stepRes?.observed !== undefined
+                ? sanitizeEvidenceText(stepRes.observed, collectedSecrets)
+                : this.deriveStepObserved(page, step, isSensitive, sanitizedMsg, collectedSecrets);
+
+            if (stepRes?.screenshot) {
+              caseScreenshots.push(stepRes.screenshot);
+              allScreenshots.push(stepRes.screenshot);
+            }
+            if (stepRes?.artifact_error) {
+              caseArtifactErrors.push(stepRes.artifact_error);
+              artifactErrors.push({
+                artifact: 'screenshot',
+                case_id: caseId,
+                step_index: sIdx,
+                message: stepRes.artifact_error,
+              });
+            }
+
+            const executedStepEntry: NonNullable<ExecutedCase['steps']>[number] = {
+              step_index: sIdx,
               action: stepRes?.action ?? step.type,
+              ...(activeStepSelector ? { selector: activeStepSelector } : {}),
+              ...(stepExpected !== null && stepExpected !== undefined ? { expected: stepExpected } : {}),
+              ...(stepObserved !== null && stepObserved !== undefined ? { observed: stepObserved } : {}),
+              started_at: activeStepStartedAt,
+              finished_at: stepFinishedAt,
               status: stepRes?.status ?? 'passed',
-              duration_ms: Date.now() - stepStarted,
-              ...(stepRes?.message ? { message: stepRes.message } : {}),
+              duration_ms: stepDurationMs,
+              ...(sanitizedMsg ? { message: sanitizedMsg } : {}),
+              ...(stepRes?.screenshot ? { screenshot: stepRes.screenshot } : {}),
+              ...(stepRes?.focused_screenshot !== undefined
+                ? { focused_screenshot: stepRes.focused_screenshot }
+                : {}),
+              ...(stepRes?.artifact_error ? { artifact_error: stepRes.artifact_error } : {}),
+              ...(activeStepRedactedCount > 0
+                ? { redacted_selectors_count: activeStepRedactedCount }
+                : {}),
+            };
+            stepTrace.push(executedStepEntry);
+            attemptTimeline.push({
+              step_index: sIdx,
+              case_id: caseId,
+              action: executedStepEntry.action,
+              selector: activeStepSelector ?? null,
+              expected: stepExpected ?? null,
+              observed: stepObserved ?? null,
+              status: executedStepEntry.status,
+              started_at: activeStepStartedAt,
+              finished_at: stepFinishedAt,
+              duration_ms: stepDurationMs,
+              message: sanitizedMsg ?? null,
+              screenshot: stepRes?.screenshot ?? null,
+              ...(stepRes?.focused_screenshot !== undefined
+                ? { focused_screenshot: stepRes.focused_screenshot }
+                : {}),
+              ...(activeStepRedactedCount > 0
+                ? { redacted_selectors_count: activeStepRedactedCount }
+                : {}),
+              ...(stepRes?.artifact_error ? { artifact_error: stepRes.artifact_error } : {}),
             });
           }
           totalPassed++;
@@ -556,25 +761,99 @@ export class PlaywrightRunner implements IRunner {
           caseResult = 'failed';
           totalFailed++;
           executedStatuses.set(caseId, 'failed');
-          errorMessage = options.interactiveReadOnly ? 'El paso no se completó.' : err instanceof Error ? err.message : String(err);
+          const rawErrMessage = options.interactiveReadOnly
+            ? 'El paso no se completó.'
+            : err instanceof Error
+              ? err.message
+              : String(err);
+          errorMessage = sanitizeEvidenceText(rawErrMessage, collectedSecrets);
 
+          const errWithObs = err as { expected?: string | null; observed?: string | null } | null;
+          const failedExpected =
+            errWithObs?.expected !== undefined && errWithObs?.expected !== null
+              ? sanitizeEvidenceText(errWithObs.expected, collectedSecrets)
+              : activeStepExpected;
+          const failedObserved =
+            errWithObs?.observed !== undefined && errWithObs?.observed !== null
+              ? sanitizeEvidenceText(errWithObs.observed, collectedSecrets)
+              : errorMessage;
+
+          let failureFocusedScreenshot = false;
+          let failureArtifactError: string | null = null;
           try {
             if (!options.interactiveReadOnly) {
-              const absShot = await executeScreenshot(
+              if (options.artifactFaultInjection?.failScreenshot) {
+                throw new Error('Fallo inyectado al capturar screenshot del paso fallido.');
+              }
+              const shotMeta = await executeScreenshotWithMetadata(
                 page,
-                { type: 'screenshot', filename: `failure_${caseId}_${Date.now()}.png` },
-                screenshotsDir
+                {
+                  type: 'screenshot',
+                  selector: activeStepSelector ?? undefined,
+                  filename: `failure_${caseId}_step_${activeStepIndex}_${Date.now()}.png`,
+                  timeout: 2000,
+                },
+                screenshotsDir,
               );
-              failureScreenshotPath = absShot ? path.relative(projectRoot, absShot).replace(/\\/g, '/') : undefined;
+              failureScreenshotPath = shotMeta.targetPath
+                ? path.relative(projectRoot, shotMeta.targetPath).replace(/\\/g, '/')
+                : undefined;
+              failureFocusedScreenshot = shotMeta.focused;
+              if (failureScreenshotPath) {
+                caseScreenshots.push(failureScreenshotPath);
+                allScreenshots.push(failureScreenshotPath);
+              }
             }
-          } catch {
-            // Ignorar fallos al tomar captura
+          } catch (shotErr: unknown) {
+            const rawShotMsg = shotErr instanceof Error ? shotErr.message : String(shotErr);
+            failureArtifactError = sanitizeEvidenceText(rawShotMsg, collectedSecrets);
+            caseArtifactErrors.push(failureArtifactError);
+            artifactErrors.push({
+              artifact: 'screenshot',
+              case_id: caseId,
+              step_index: activeStepIndex,
+              message: failureArtifactError,
+            });
           }
+
+          const stepFinishedAt = new Date().toISOString();
+          const stepDurationMs = Math.max(0, Date.now() - activeStepStartMs);
           stepTrace.push({
+            step_index: activeStepIndex,
             action: activeStepType,
+            ...(activeStepSelector ? { selector: activeStepSelector } : {}),
+            ...(failedExpected !== null && failedExpected !== undefined ? { expected: failedExpected } : {}),
+            ...(failedObserved !== null && failedObserved !== undefined ? { observed: failedObserved } : {}),
+            started_at: activeStepStartedAt,
+            finished_at: stepFinishedAt,
+            duration_ms: stepDurationMs,
             status: 'failed',
             message: errorMessage,
             screenshot: failureScreenshotPath ?? null,
+            focused_screenshot: failureFocusedScreenshot,
+            ...(failureArtifactError ? { artifact_error: failureArtifactError } : {}),
+            ...(activeStepRedactedCount > 0
+              ? { redacted_selectors_count: activeStepRedactedCount }
+              : {}),
+          });
+          attemptTimeline.push({
+            step_index: activeStepIndex,
+            case_id: caseId,
+            action: activeStepType,
+            selector: activeStepSelector ?? null,
+            expected: failedExpected ?? null,
+            observed: failedObserved ?? null,
+            status: 'failed',
+            started_at: activeStepStartedAt,
+            finished_at: stepFinishedAt,
+            duration_ms: stepDurationMs,
+            message: errorMessage ?? null,
+            screenshot: failureScreenshotPath ?? null,
+            focused_screenshot: failureFocusedScreenshot,
+            ...(activeStepRedactedCount > 0
+              ? { redacted_selectors_count: activeStepRedactedCount }
+              : {}),
+            ...(failureArtifactError ? { artifact_error: failureArtifactError } : {}),
           });
 
           const classified = classifyError(err);
@@ -592,6 +871,8 @@ export class PlaywrightRunner implements IRunner {
               failure_type: failureType,
               duration_ms: Date.now() - caseStartMs,
               ...(stepTrace.length > 0 ? { steps: stepTrace } : {}),
+              ...(caseScreenshots.length > 0 ? { screenshots: Array.from(new Set(caseScreenshots)) } : {}),
+              ...(caseArtifactErrors.length > 0 ? { artifact_errors: caseArtifactErrors } : {}),
             };
             casesResult.push(failFastCase);
 
@@ -620,10 +901,198 @@ export class PlaywrightRunner implements IRunner {
             duration_ms: Date.now() - caseStartMs,
             ...(errorMessage ? { failure_type: failureType } : {}),
             ...(stepTrace.length > 0 ? { steps: stepTrace } : {}),
+            ...(caseScreenshots.length > 0 ? { screenshots: Array.from(new Set(caseScreenshots)) } : {}),
+            ...(caseArtifactErrors.length > 0 ? { artifact_errors: caseArtifactErrors } : {}),
           };
 
           casesResult.push(executedCase);
         }
+      }
+
+      // 4. Finalizar artefactos físicos de evidencia (trace.zip, WebM, timeline.json) ANTES de retornar/publicar
+      if (shouldRecordPhysicalArtifacts) {
+        await maskSensitiveDomBeforeCapture(page);
+
+        const pageVideo =
+          !options.interactiveReadOnly &&
+          typeof (page as unknown as { video?: () => { path?: () => Promise<string>; saveAs?: (p: string) => Promise<void> } | null }).video === 'function'
+            ? (page as unknown as { video: () => { path?: () => Promise<string>; saveAs?: (p: string) => Promise<void> } | null }).video()
+            : null;
+
+        // 4a. Finalizar y sanear trace.zip antes de cerrar el contexto
+        if (context && typeof (context as unknown as { cookies?: () => Promise<Array<{ value?: string }>> }).cookies === 'function') {
+          try {
+            const liveCookies = await context.cookies();
+            for (const ck of liveCookies) {
+              if (typeof ck?.value === 'string' && ck.value.trim().length >= 4) {
+                collectedSecrets.push(ck.value.trim());
+              }
+            }
+          } catch {
+            // Ignore if context cookies cannot be read
+          }
+        }
+        if (options.recordTrace !== false && tracingStarted && !options.artifactFaultInjection?.failTrace) {
+          const ctxTracing = (context as unknown as {
+            tracing?: { stop?: (opts: { path: string }) => Promise<void> };
+          })?.tracing;
+          if (ctxTracing && typeof ctxTracing.stop === 'function') {
+            try {
+              ensureConfinedDir(projectRoot, runtimeArtifactsDirRel);
+              const traceRel = `${runtimeArtifactsDirRel}/trace.zip`;
+              const traceAbs = resolveConfinedArtifactPath(projectRoot, traceRel);
+              await ctxTracing.stop({ path: traceAbs });
+              sanitizePlaywrightTraceZip(traceAbs, collectedSecrets);
+              traceZipRelativePath = traceRel;
+            } catch (traceStopErr: unknown) {
+              const msg = traceStopErr instanceof Error ? traceStopErr.message : String(traceStopErr);
+              artifactErrors.push({
+                artifact: 'trace.zip',
+                message: sanitizeEvidenceText(msg, collectedSecrets),
+              });
+            }
+          }
+        }
+
+        // 4b. Cerrar página y contexto para que Playwright vuelque y cierre el archivo WebM en disco
+        const closingContext = context;
+        context = null;
+        await (page as unknown as { close?: () => Promise<void> }).close?.().catch(() => {});
+        if (closingContext) {
+          await closingContext.close().catch(() => {});
+        }
+
+        if (options.recordVideo !== false && !options.artifactFaultInjection?.failVideo && pageVideo) {
+          try {
+            ensureConfinedDir(projectRoot, runtimeArtifactsDirRel);
+            const videoRel = `${runtimeArtifactsDirRel}/attempt.webm`;
+            const videoAbs = resolveConfinedArtifactPath(projectRoot, videoRel);
+            if (typeof pageVideo.saveAs === 'function') {
+              await pageVideo.saveAs(videoAbs);
+            } else if (typeof pageVideo.path === 'function') {
+              const rawVideoFile = await pageVideo.path();
+              if (rawVideoFile && fs.existsSync(rawVideoFile)) {
+                fs.copyFileSync(rawVideoFile, videoAbs);
+              }
+            }
+            if (rawVideoDirAbs && fs.existsSync(rawVideoDirAbs)) {
+              fs.rmSync(rawVideoDirAbs, { recursive: true, force: true });
+            }
+            if (fs.existsSync(videoAbs) && fs.statSync(videoAbs).size > 0) {
+              videoRelativePath = videoRel;
+            } else {
+              artifactErrors.push({
+                artifact: 'video',
+                message: 'El archivo WebM del intento quedó vacío o no se materializó tras cerrar el contexto.',
+              });
+            }
+          } catch (videoErr: unknown) {
+            const msg = videoErr instanceof Error ? videoErr.message : String(videoErr);
+            artifactErrors.push({
+              artifact: 'video',
+              message: sanitizeEvidenceText(msg, collectedSecrets),
+            });
+          } finally {
+            if (rawVideoDirAbs && fs.existsSync(rawVideoDirAbs)) {
+              try {
+                fs.rmSync(rawVideoDirAbs, { recursive: true, force: true });
+              } catch {
+                // Ignore temp video cleanup error
+              }
+            }
+          }
+        }
+
+        // 4c. Persistir timeline.json, run.json y registro de retención en .qa/runtime/qap.sqlite
+        if (options.artifactFaultInjection?.failTimeline) {
+          artifactErrors.push({
+            artifact: 'timeline',
+            message: 'Fallo inyectado al persistir timeline.json del intento.',
+          });
+        } else {
+          const totalDurationSoFar = Math.max(0, Date.now() - new Date(startedAt).getTime());
+          const runtimeStatus =
+            unexpectedlyInterrupted
+              ? 'error'
+              : totalFailed > 0 && totalPassed === 0
+                ? 'failed'
+                : totalFailed === 0 && totalPassed > 0
+                  ? 'passed'
+                  : 'partial';
+          const bundleRes = persistRuntimeEvidenceBundle({
+            projectRoot,
+            runId: runArtifactId,
+            moduleKey: moduleName || 'default',
+            status: runtimeStatus,
+            timestamp: startedAt,
+            durationMs: totalDurationSoFar,
+            totalCases: totalPassed + totalFailed + totalSkipped + totalNotRun,
+            passed: totalPassed,
+            failed: totalFailed,
+            skipped: totalSkipped + totalNotRun,
+            videoRelativePath,
+            traceRelativePath: traceZipRelativePath,
+            timelineRelativePath: `${runtimeArtifactsDirRel}/timeline.json`,
+            timeline: attemptTimeline,
+            artifactErrors,
+          });
+          if (bundleRes.timelineRelativePath) {
+            timelineRelativePath = bundleRes.timelineRelativePath;
+          }
+          if (bundleRes.error) {
+            artifactErrors.push({
+              artifact: 'timeline',
+              message: bundleRes.error,
+            });
+          }
+        }
+
+        // Enlazar artefactos en cada caso ejecutado del intento
+        const errMessages = artifactErrors.map((e) => `${e.artifact}: ${e.message}`);
+        for (const c of casesResult) {
+          if (attemptId) c.attempt_id = attemptId;
+          if (videoRelativePath) c.video_path = videoRelativePath;
+          if (traceZipRelativePath) c.trace_zip_path = traceZipRelativePath;
+          if (timelineRelativePath) c.timeline_path = timelineRelativePath;
+          if (errMessages.length > 0) {
+            c.artifact_errors = Array.from(new Set([...(c.artifact_errors ?? []), ...errMessages]));
+          }
+        }
+
+        return {
+          _version: '1',
+          execution_id: executionId,
+          module: moduleName,
+          env,
+          started_at: startedAt,
+          finished_at: new Date().toISOString(),
+          result:
+            unexpectedlyInterrupted
+              ? 'error'
+              : totalPassed + totalFailed + totalSkipped + totalNotRun === 0 || totalPassed === 0
+                ? 'failed'
+                : totalPassed === totalPassed + totalFailed + totalSkipped + totalNotRun
+                  ? 'passed'
+                  : 'partial',
+          timed_out: timedOut,
+          summary: {
+            total: totalPassed + totalFailed + totalSkipped + totalNotRun,
+            passed: totalPassed,
+            failed: totalFailed,
+            skipped: totalSkipped,
+            not_run: totalNotRun,
+          },
+          ...(attemptId ? { attempt_id: attemptId } : {}),
+          artifacts: {
+            video_path: videoRelativePath,
+            trace_zip_path: traceZipRelativePath,
+            timeline_path: timelineRelativePath,
+            screenshots: Array.from(new Set(allScreenshots)),
+            ...(artifactErrors.length > 0 ? { artifact_errors: artifactErrors } : {}),
+          },
+          timeline: attemptTimeline,
+          cases: casesResult,
+        };
       }
     } catch (err: unknown) {
       unexpectedlyInterrupted = true;
@@ -691,14 +1160,98 @@ export class PlaywrightRunner implements IRunner {
     };
   }
 
+  private deriveStepExpected(
+    step: TCStep,
+    isSensitive: boolean,
+    extraSecrets: readonly string[],
+  ): string | null {
+    if (isSensitive && step.type === 'fill') {
+      return '[REDACTED]';
+    }
+    switch (step.type) {
+      case 'navigate':
+        return step.url ? sanitizeEvidenceText(step.url, extraSecrets) : null;
+      case 'fill':
+        return step.value !== undefined ? sanitizeEvidenceText(String(step.value), extraSecrets) : null;
+      case 'assert':
+        if (step.expected !== undefined) return sanitizeEvidenceText(String(step.expected), extraSecrets);
+        if (step.expected_count !== undefined) return String(step.expected_count);
+        return step.assertion_type ?? 'visible';
+      case 'capture':
+        return step.capture_as ? `capture:${step.capture_as}` : (step.selector ?? 'capture');
+      case 'click':
+      case 'waitFor':
+      case 'screenshot':
+        return step.selector ? sanitizeEvidenceText(step.selector, extraSecrets) : step.type;
+      default:
+        return step.selector ? sanitizeEvidenceText(step.selector, extraSecrets) : step.type;
+    }
+  }
+
+  private deriveStepObserved(
+    page: Page,
+    step: TCStep,
+    isSensitive: boolean,
+    stepMsg: string | undefined,
+    extraSecrets: readonly string[],
+  ): string | null {
+    if (isSensitive && step.type === 'fill') {
+      return '[REDACTED]';
+    }
+    switch (step.type) {
+      case 'navigate': {
+        const currentUrl =
+          typeof (page as unknown as { url?: () => string }).url === 'function'
+            ? page.url()
+            : step.url;
+        return currentUrl ? sanitizeEvidenceText(currentUrl, extraSecrets) : 'navigated';
+      }
+      case 'fill':
+        return 'filled';
+      case 'click':
+        return 'clicked';
+      case 'waitFor':
+        return 'ready';
+      case 'capture':
+        return stepMsg ? sanitizeEvidenceText(stepMsg, extraSecrets) : 'captured';
+      default:
+        return stepMsg ? sanitizeEvidenceText(stepMsg, extraSecrets) : 'passed';
+    }
+  }
+
   private async executeStep(
     page: Page,
     step: TCStep,
     screenshotsDir: string = '.qa/reports/screenshots',
     contextVariables: Record<string, string> = {},
-    captureContext?: { caseId?: string; context_data?: Record<string, unknown> }
-  ): Promise<{ action: string; status: string; message?: string }> {
+    captureContext?: {
+      caseId?: string;
+      stepIndex?: number;
+      projectRoot?: string;
+      shouldRecordPhysicalArtifacts?: boolean;
+      captureFocusedOnAssert?: boolean;
+      failScreenshot?: boolean;
+      collectedSecrets?: readonly string[];
+      context_data?: Record<string, unknown>;
+    }
+  ): Promise<{
+    action: string;
+    status: string;
+    message?: string;
+    expected?: string | null;
+    observed?: string | null;
+    screenshot?: string | null;
+    focused_screenshot?: boolean;
+    artifact_error?: string | null;
+  }> {
     let stepMsg: string | undefined;
+    let stepExpected: string | null | undefined;
+    let stepObserved: string | null | undefined;
+    let stepScreenshot: string | null | undefined;
+    let stepFocusedScreenshot: boolean | undefined;
+    let stepArtifactError: string | null | undefined;
+    const projectRoot = captureContext?.projectRoot ?? process.cwd();
+    const secrets = captureContext?.collectedSecrets ?? [];
 
     switch (step.type) {
       case 'navigate':
@@ -710,23 +1263,72 @@ export class PlaywrightRunner implements IRunner {
       case 'fill':
         await executeFill(page, step);
         break;
-      case 'assert':
-        await executeAssert(page, step);
+      case 'assert': {
+        const assertObs = await executeAssert(page, step);
+        stepExpected = assertObs.expected;
+        stepObserved = assertObs.observed;
+        if (
+          captureContext?.shouldRecordPhysicalArtifacts &&
+          captureContext?.captureFocusedOnAssert !== false &&
+          step.selector
+        ) {
+          try {
+            if (captureContext.failScreenshot) {
+              throw new Error('Fallo inyectado al capturar captura enfocada en paso assert.');
+            }
+            const shotMeta = await executeScreenshotWithMetadata(
+              page,
+              {
+                type: 'screenshot',
+                selector: step.selector,
+                filename: `assert_${captureContext.caseId ?? 'case'}_step_${captureContext.stepIndex ?? 0}_${Date.now()}.png`,
+                timeout: 2000,
+              },
+              screenshotsDir,
+            );
+            stepScreenshot = shotMeta.targetPath
+              ? path.relative(projectRoot, shotMeta.targetPath).replace(/\\/g, '/')
+              : null;
+            stepFocusedScreenshot = shotMeta.focused;
+          } catch (shotErr: unknown) {
+            const rawMsg = shotErr instanceof Error ? shotErr.message : String(shotErr);
+            stepArtifactError = sanitizeEvidenceText(rawMsg, secrets);
+          }
+        }
         break;
+      }
       case 'waitFor':
         await executeWaitFor(page, step);
         break;
-      case 'screenshot':
-        await executeScreenshot(page, step, screenshotsDir);
+      case 'screenshot': {
+        try {
+          if (captureContext?.failScreenshot) {
+            throw new Error('Fallo inyectado al ejecutar paso screenshot.');
+          }
+          const shotMeta = await executeScreenshotWithMetadata(page, step, screenshotsDir);
+          stepScreenshot = shotMeta.targetPath
+            ? path.relative(projectRoot, shotMeta.targetPath).replace(/\\/g, '/')
+            : null;
+          stepFocusedScreenshot = shotMeta.focused;
+          stepObserved = stepScreenshot ?? 'captured';
+        } catch (shotErr: unknown) {
+          const rawMsg = shotErr instanceof Error ? shotErr.message : String(shotErr);
+          stepArtifactError = sanitizeEvidenceText(rawMsg, secrets);
+          stepObserved = 'screenshot_capture_failed';
+        }
         break;
+      }
       case 'capture': {
         const capturedVal = await executeCapture(page, step, contextVariables, {
           caseId: captureContext?.caseId,
           context_data: captureContext?.context_data,
         });
+        const isSensitiveCapture = isSensitiveSelectorOrField(step.selector, capturedVal) ||
+          isSensitiveSelectorOrField(step.capture_as, capturedVal);
+        stepObserved = isSensitiveCapture ? '[REDACTED]' : sanitizeEvidenceText(capturedVal, secrets);
         stepMsg = JSON.stringify({
           captured_as: step.capture_as,
-          value: capturedVal,
+          value: isSensitiveCapture ? '[REDACTED]' : sanitizeEvidenceText(capturedVal, secrets),
         });
         break;
       }
@@ -754,6 +1356,11 @@ export class PlaywrightRunner implements IRunner {
       action: step.type,
       status: 'passed',
       ...(stepMsg ? { message: stepMsg } : {}),
+      ...(stepExpected !== undefined ? { expected: stepExpected } : {}),
+      ...(stepObserved !== undefined ? { observed: stepObserved } : {}),
+      ...(stepScreenshot !== undefined ? { screenshot: stepScreenshot } : {}),
+      ...(stepFocusedScreenshot !== undefined ? { focused_screenshot: stepFocusedScreenshot } : {}),
+      ...(stepArtifactError !== undefined ? { artifact_error: stepArtifactError } : {}),
     };
   }
 }

@@ -47,19 +47,39 @@ export function validateReportEvidence(evidence: ExecutionResult): boolean {
  * Never let persisted evidence use that feature to read outside the project screenshot directory.
  */
 function screenshotReferencesAreSafe(root: string, evidence: ExecutionResult): boolean {
-  const approvedDirectory = resolve(root, '.qa', 'reports', 'screenshots');
-  const safe = (value: string) => {
+  const approvedScreenshotsDir = resolve(root, '.qa', 'reports', 'screenshots');
+  const approvedRuntimeDir = resolve(root, '.qa', 'runtime', 'runs');
+  const isInside = (baseDir: string, value: string) => {
     const candidate = resolve(root, value);
-    const location = relative(approvedDirectory, candidate);
+    const location = relative(baseDir, candidate);
     return location !== '' && location !== '..' &&
       !location.startsWith('..' + sep) && !isAbsolute(location);
   };
+  const safeScreenshot = (value: string) =>
+    isInside(approvedScreenshotsDir, value) || isInside(approvedRuntimeDir, value);
+  const safeRuntimeArtifact = (value: string | null | undefined) =>
+    !value || isInside(approvedRuntimeDir, value) || isInside(approvedScreenshotsDir, value);
+
+  if (evidence.artifacts) {
+    if (!safeRuntimeArtifact(evidence.artifacts.video_path)) return false;
+    if (!safeRuntimeArtifact(evidence.artifacts.trace_zip_path)) return false;
+    if (!safeRuntimeArtifact(evidence.artifacts.timeline_path)) return false;
+    for (const screenshot of evidence.artifacts.screenshots ?? []) {
+      if (!safeScreenshot(screenshot)) return false;
+    }
+  }
+  for (const timelineStep of evidence.timeline ?? []) {
+    if (timelineStep.screenshot && !safeScreenshot(timelineStep.screenshot)) return false;
+  }
   for (const testCase of evidence.cases) {
+    if (!safeRuntimeArtifact(testCase.video_path)) return false;
+    if (!safeRuntimeArtifact(testCase.trace_zip_path)) return false;
+    if (!safeRuntimeArtifact(testCase.timeline_path)) return false;
     for (const screenshot of testCase.screenshots ?? []) {
-      if (!safe(screenshot)) return false;
+      if (!safeScreenshot(screenshot)) return false;
     }
     for (const step of testCase.steps ?? []) {
-      if (step.screenshot && !safe(step.screenshot)) return false;
+      if (step.screenshot && !safeScreenshot(step.screenshot)) return false;
     }
   }
   return true;
@@ -331,6 +351,25 @@ export class ReportHandler implements IMcpToolHandler {
     const canonicalExecutionSummary =
       appProject && appService ? appService.getExecutionSummary(appProject.project_id, evidence.module) : undefined;
 
+    const resolvedAttemptId = matchingAttempt?.attempt_id ?? evidence.attempt_id ?? undefined;
+    const resolvedArtifacts =
+      evidence.artifacts ??
+      (matchingAttempt &&
+      (matchingAttempt.video_path ||
+        matchingAttempt.trace_zip_path ||
+        matchingAttempt.timeline_path ||
+        (matchingAttempt.screenshots && matchingAttempt.screenshots.length > 0))
+        ? {
+            video_path: matchingAttempt.video_path ?? null,
+            trace_zip_path: matchingAttempt.trace_zip_path ?? null,
+            timeline_path: matchingAttempt.timeline_path ?? null,
+            screenshots: [...(matchingAttempt.screenshots ?? [])],
+            ...(matchingAttempt.artifact_errors && matchingAttempt.artifact_errors.length > 0
+              ? { artifact_errors: [...matchingAttempt.artifact_errors] }
+              : {}),
+          }
+        : undefined);
+
     return result({
       status: 'success',
       directorio_objetivo: root,
@@ -338,7 +377,9 @@ export class ReportHandler implements IMcpToolHandler {
       module: evidence.module,
       result: evidence.result,
       summary: evidence.summary,
-      ...(matchingAttempt ? { attempt_id: matchingAttempt.attempt_id } : {}),
+      ...(resolvedAttemptId ? { attempt_id: resolvedAttemptId } : {}),
+      ...(resolvedArtifacts ? { artifacts: resolvedArtifacts } : {}),
+      ...(evidence.timeline ? { timeline: evidence.timeline } : {}),
       ...(canonicalExecutionSummary ? { canonical_execution_summary: canonicalExecutionSummary } : {}),
       ...(publication
         ? {

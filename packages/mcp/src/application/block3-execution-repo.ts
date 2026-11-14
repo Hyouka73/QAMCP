@@ -781,7 +781,7 @@ export class Block3ExecutionRepo {
                   : 'not_run';
 
           const stepResults: ExecutionStepResultRecord[] = (c.steps ?? []).map((st, sIdx) => ({
-            step_index: sIdx,
+            step_index: st.step_index ?? sIdx,
             action: st.action,
             status:
               st.status === 'passed'
@@ -790,13 +790,29 @@ export class Block3ExecutionRepo {
                   ? 'FAIL'
                   : 'not_run',
             duration_ms: st.duration_ms,
+            ...(st.selector !== undefined ? { selector: st.selector } : {}),
+            ...(st.expected !== undefined ? { expected: st.expected } : {}),
+            ...(st.observed !== undefined ? { observed: st.observed } : {}),
+            ...(st.started_at !== undefined ? { started_at: st.started_at } : {}),
+            ...(st.finished_at !== undefined ? { finished_at: st.finished_at } : {}),
+            ...(st.focused_screenshot !== undefined ? { focused_screenshot: st.focused_screenshot } : {}),
+            ...(st.artifact_error !== undefined ? { artifact_error: st.artifact_error } : {}),
+            ...(st.redacted_selectors_count !== undefined
+              ? { redacted_selectors_count: st.redacted_selectors_count }
+              : {}),
             message: st.message ?? undefined,
             evidence_paths: st.screenshot ? [st.screenshot] : [],
           }));
+          const caseVideo = c.video_path ?? params.executionResult.artifacts?.video_path ?? null;
+          const caseTraceZip = c.trace_zip_path ?? params.executionResult.artifacts?.trace_zip_path ?? null;
+          const caseTimeline = c.timeline_path ?? params.executionResult.artifacts?.timeline_path ?? null;
           const evidenceRefs = Array.from(
             new Set([
               ...(c.screenshots ?? []),
               ...stepResults.flatMap((s) => s.evidence_paths),
+              ...(caseVideo ? [caseVideo] : []),
+              ...(caseTraceZip ? [caseTraceZip] : []),
+              ...(caseTimeline ? [caseTimeline] : []),
               ...(params.rawExecutionPath ? [params.rawExecutionPath] : []),
               ...(params.tracePath ? [params.tracePath] : []),
             ]),
@@ -841,6 +857,27 @@ export class Block3ExecutionRepo {
           }
           caseResults.push(this.getCaseResultRow(rowId)!);
         }
+
+        const artifactsMeta = {
+          video_path: params.executionResult.artifacts?.video_path ?? null,
+          trace_zip_path: params.executionResult.artifacts?.trace_zip_path ?? null,
+          timeline_path: params.executionResult.artifacts?.timeline_path ?? null,
+          screenshots: Array.from(
+            new Set([
+              ...(params.executionResult.artifacts?.screenshots ?? []),
+              ...params.executionResult.cases.flatMap((item) => item.screenshots ?? []),
+            ]),
+          ),
+          artifact_errors: params.executionResult.artifacts?.artifact_errors ?? [],
+        };
+        this.store.run(
+          `INSERT INTO host_session_state (key, value, updated_at)
+           VALUES (?, ?, ?)
+           ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+          `attempt_evidence:${attempt.attempt_id}`,
+          JSON.stringify(artifactsMeta),
+          now,
+        );
       } else if (params.technicalError) {
         for (const [idx, caseId] of attempt.case_ids.entries()) {
           const svcCase = this.getCase(attempt.project_id, caseId);
@@ -940,9 +977,36 @@ export class Block3ExecutionRepo {
     return this.getCaseResultRow(existing.result_row_id);
   }
 
+  private hydrateAttemptEvidence(record: ExecutionAttemptRecord): ExecutionAttemptRecord {
+    const metaRow = this.store.get<{ value?: string }>(
+      'SELECT value FROM host_session_state WHERE key = ?',
+      `attempt_evidence:${record.attempt_id}`,
+    );
+    if (!metaRow?.value) return record;
+    try {
+      const parsed = JSON.parse(metaRow.value) as {
+        video_path?: string | null;
+        trace_zip_path?: string | null;
+        timeline_path?: string | null;
+        screenshots?: string[];
+        artifact_errors?: ExecutionAttemptRecord['artifact_errors'];
+      };
+      return {
+        ...record,
+        video_path: parsed.video_path ?? null,
+        trace_zip_path: parsed.trace_zip_path ?? null,
+        timeline_path: parsed.timeline_path ?? null,
+        screenshots: parsed.screenshots ?? [],
+        artifact_errors: parsed.artifact_errors ?? [],
+      };
+    } catch {
+      return record;
+    }
+  }
+
   getExecutionAttempt(attemptId: string): ExecutionAttemptRecord | null {
     const row = this.store.get('SELECT * FROM execution_attempts WHERE attempt_id = ?', attemptId);
-    return row ? mapAttemptRow(row) : null;
+    return row ? this.hydrateAttemptEvidence(mapAttemptRow(row)) : null;
   }
 
   listExecutionAttempts(projectId: string, moduleKey?: string): ExecutionAttemptRecord[] {
@@ -956,7 +1020,7 @@ export class Block3ExecutionRepo {
           'SELECT * FROM execution_attempts WHERE project_id = ? ORDER BY started_at DESC',
           projectId,
         );
-    return rows.map(mapAttemptRow);
+    return rows.map((r) => this.hydrateAttemptEvidence(mapAttemptRow(r)));
   }
 
   getCaseResultRow(resultRowId: string): ExecutionCaseResultRecord | null {

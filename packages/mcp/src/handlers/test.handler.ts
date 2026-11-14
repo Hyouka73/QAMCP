@@ -768,6 +768,7 @@ export class TestHandler implements IMcpToolHandler {
       extraHTTPHeaders: runnerExtraHeaders,
       storageResolver,
       allowedOrigins,
+      ...(attemptRecord ? { attemptId: attemptRecord.attempt_id } : {}),
     };
 
     let executionResult: ExecutionResult;
@@ -917,6 +918,13 @@ export class TestHandler implements IMcpToolHandler {
       );
     }
 
+    if (attemptRecord && !executionResult.attempt_id) {
+      executionResult = {
+        ...executionResult,
+        attempt_id: attemptRecord.attempt_id,
+      };
+    }
+
     try {
       await storage.saveExecutionResult(executionId, executionResult);
 
@@ -950,9 +958,12 @@ export class TestHandler implements IMcpToolHandler {
       try {
         await storage.writeJson(traceRelPath, {
           execution_id: executionId,
+          ...(attemptRecord ? { attempt_id: attemptRecord.attempt_id } : {}),
           case_approval_digest: approval.request_digest,
           requirements: approval.requirements,
           cases: [...snapshotMap.values()].map(c => ({ id: c.id, source_rule_id: c.source_rule_id })),
+          ...(executionResult.artifacts ? { artifacts: executionResult.artifacts } : {}),
+          ...(executionResult.timeline ? { timeline: executionResult.timeline } : {}),
         });
       } catch {
         if (attemptRecord && appService) {
@@ -1054,6 +1065,8 @@ export class TestHandler implements IMcpToolHandler {
       execution_id: executionId,
       ...(attemptRecord ? { attempt_id: attemptRecord.attempt_id } : {}),
       ...(canonicalExecutionSummary ? { canonical_execution_summary: canonicalExecutionSummary } : {}),
+      ...(executionResult.artifacts ? { artifacts: executionResult.artifacts } : {}),
+      ...(executionResult.timeline ? { timeline: executionResult.timeline } : {}),
       summary: executionResult.summary,
       cases: executionResult.cases,
       started_at: executionResult.started_at,
