@@ -131,7 +131,11 @@ import { TestHandler, type TestNavigationAuthorization } from './handlers/test.h
 import { ReportHandler } from './handlers/report.handler.js';
 import { checkPlaywrightBrowser, PLAYWRIGHT_INSTALL_COMMAND, detectarSubcarpetaWorkspace } from './handlers/state-runtime.js';
 import type { StateDependencies } from './handlers/state-services.js';
-import { ClientElicitationDiscoveryAuthorizer, ClientElicitationHumanReviewGateway } from './client-elicitation-authorizers.js';
+import {
+  ClientElicitationDiscoveryAuthorizer,
+  ClientElicitationHumanReviewGateway,
+  ClientElicitationWorkspaceAuthorizer,
+} from './client-elicitation-authorizers.js';
 import { acknowledgeProjectInitialization, acquireProjectOperation, ProjectReset, readProjectResetState, type ResetAuthorizer } from './project-reset.js';
 import { windowsProjectResetAuthorizer } from './project-reset-dialog.js';
 import { conversationLogPath, isConversationId, QapEventLog } from './qap-event-log.js';
@@ -331,6 +335,9 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
   const qapEventLog = new QapEventLog(options.workspaceBootstrap?.directory);
   const authorizationDiagnosticSink = (diagnostic: Parameters<QapEventLog['recordNativeAuthorization']>[0], workspace?: string) =>
     qapEventLog.recordNativeAuthorization(diagnostic, workspace);
+  const workspaceAuthorizer = options.workspaceAuthorizer
+    ? new ClientElicitationWorkspaceAuthorizer(serverProvider, options.workspaceAuthorizer, authorizationDiagnosticSink)
+    : undefined;
   const discoveryAuthorizer = options.discoveryAuthorizer
     ? new ClientElicitationDiscoveryAuthorizer(serverProvider, options.discoveryAuthorizer, authorizationDiagnosticSink)
     : undefined;
@@ -748,7 +755,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
       if (!skipWorkspaceGate) {
         const candidate = rawArgs?.targetPath ?? (name === 'qap_project' ? rawArgs?.canonical_root : undefined);
         let targetPath = typeof candidate === 'string' ? candidate : authorizedRoots.length === 1 ? authorizedRoots[0] : undefined;
-        authorizationDiagnostic('workspace_request', { tool: name, targetPath, authorizerConfigured: Boolean(options.workspaceAuthorizer) });
+        authorizationDiagnostic('workspace_request', { tool: name, targetPath, authorizerConfigured: Boolean(workspaceAuthorizer) });
         if (!targetPath) return canonicalResult({ status: 'blocked', category: 'human_authorization', code: 'workspace_selection_required',
           desbloquear_con: { mecanismo: 'workspace_selection', descripcion: 'Indica la ruta absoluta de una carpeta existente en targetPath; luego reintenta qap_status.' } });
         if (applicationService?.isTombstonedRoot(targetPath) && !(name === 'qap_project' && rawArgs?.allow_recreate_deleted === true)) {
@@ -789,8 +796,8 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
             return canonicalResult({ status: 'blocked', category: 'human_authorization', code: 'workspace_path_invalid', diagnostic_id: diagnosticId,
               desbloquear_con: { mecanismo: 'workspace_selection', descripcion: 'Selecciona una carpeta física existente y admitida, con ruta absoluta, fuera de directorios del sistema y del almacenamiento del host.' } });
           }
-          if (options.workspaceAuthorizer) {
-            const authResult = await options.workspaceAuthorizer.requestAuthorization(
+          if (workspaceAuthorizer) {
+            const authResult = await workspaceAuthorizer.requestAuthorization(
               { requestedPath: targetPath, canonicalPath: canonicalTarget },
               context.signal
             ).catch(() => ({ decision: 'unavailable' as const, code: 'workspace_dialog_start_failed' as const, reason: 'Dialog launch failed.' }));
