@@ -1,4 +1,5 @@
 import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -27,12 +28,26 @@ export function copyPackagedAssets(distDir, options = {}) {
 
   const helpersDest = join(distDir, 'assets', 'scripts');
   mkdirSync(helpersDest, { recursive: true });
+  const cwdRequire = createRequire(join(process.cwd(), 'package.json'));
+  const tsupRequire = createRequire(cwdRequire.resolve('tsup'));
+  const esbuild = tsupRequire('esbuild');
   for (const script of HELPER_SCRIPTS) {
     const src = join(scriptsDir, script);
     if (!existsSync(src)) {
       throw new Error(`Missing helper script asset: ${src}`);
     }
-    copyFileSync(src, join(helpersDest, script));
+    esbuild.buildSync({
+      entryPoints: [src],
+      outfile: join(helpersDest, script),
+      bundle: true,
+      format: 'esm',
+      platform: 'node',
+      target: 'node18',
+      external: ['playwright-core', 'chromium-bidi', 'keytar'],
+      banner: {
+        js: `import { createRequire as __qapHelperCreateRequire } from 'node:module';\nconst require = __qapHelperCreateRequire(import.meta.url);`,
+      },
+    });
   }
 
   if (options.includeReporterTemplate) {
