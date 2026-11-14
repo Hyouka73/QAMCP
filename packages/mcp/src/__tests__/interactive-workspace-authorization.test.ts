@@ -168,7 +168,13 @@ describe('Interactive Workspace Authorization & Continuity', () => {
     expect(JSON.stringify(res.data)).not.toContain('PRIVATE_INTERNAL_DETAIL');
     expect(res.data.desbloquear_con.comando).toBeUndefined();
     expect(existsSync(join(workspace, '.qa'))).toBe(false);
-    expect(readdirSync(harness.hostDir)).toEqual([]);
+    expect(existsSync(harness.registryPath)).toBe(false);
+    expect(existsSync(join(harness.hostDir, 'project-operations.sqlite'))).toBe(false);
+    expect(readdirSync(harness.hostDir)).toEqual(['logs']);
+    const hostEventLog = readFileSync(join(harness.hostDir, 'logs', 'qap-events.jsonl'), 'utf8');
+    expect(hostEventLog).toContain(code);
+    expect(hostEventLog).not.toContain('PRIVATE_INTERNAL_DETAIL');
+    expect(hostEventLog).not.toContain(workspace);
   });
 
   it('Prueba de continuidad sin reinicio del MCP: llamadas subsecuentes no vuelven a pedir autorización', async () => {
@@ -248,7 +254,7 @@ describe('Interactive Workspace Authorization & Continuity', () => {
     const statusB = (await harness.call('qap_status', { targetPath: projB })).data;
 
     expect(statusA.knowledge.application_id).not.toBe(statusB.knowledge.application_id);
-    expect(readdirSync(harness.hostDir).filter(p => p !== 'authorized-roots.json')).toHaveLength(2);
+    expect(readdirSync(harness.hostDir).filter(p => p !== 'authorized-roots.json' && p !== 'project-operations.sqlite')).toHaveLength(2);
   });
 
   describe('Pruebas negativas de seguridad y validación canónica', () => {

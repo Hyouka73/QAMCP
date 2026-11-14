@@ -682,9 +682,16 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         Object.keys(rawArgs ?? {}).some(key => !Object.hasOwn(authInputProperties, key))) {
       return interactiveBlocked('agent_auth_material_not_supported');
     }
+    const acquireHostStorageLock = () => {
+      if (releaseStorage || !options.workspaceBootstrap) return undefined;
+      try {
+        releaseStorage = acquireProjectOperation(options.workspaceBootstrap.directory);
+        return undefined;
+      } catch {
+        return canonicalResult({ status: 'blocked', code: 'project_storage_busy_or_unavailable' }, true);
+      }
+    };
     if (options.workspaceBootstrap) {
-      try { releaseStorage = acquireProjectOperation(options.workspaceBootstrap.directory); }
-      catch { return canonicalResult({ status: 'blocked', code: 'project_storage_busy_or_unavailable' }, true); }
       interactiveAccess?.refreshPersistedAuthorizations();
       if (options.hostRegistryPath) authorizedRoots.splice(0, authorizedRoots.length, ...(options.projectRoots ?? []));
     }
@@ -733,6 +740,8 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
     }
     if (name === 'qap_auth_provision') {
       if (!provisionAccess) return canonicalResult({ status: 'blocked', code: 'credential_dialog_host_unavailable' }, true);
+      const lockError = acquireHostStorageLock();
+      if (lockError) return lockError;
       if (options.workspaceBootstrap && typeof rawArgs?.targetPath === 'string') {
         try {
           const authRoot = authorizedProjectRoot({ targetPath: rawArgs.targetPath }, dependencies, true);
@@ -763,7 +772,10 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         !rawArgs?.targetPath &&
         !rawArgs?.canonical_root &&
         idScopedProjectActions.has(actionName);
-      if (!skipWorkspaceGate) {
+      if (skipWorkspaceGate) {
+        const lockError = acquireHostStorageLock();
+        if (lockError) return lockError;
+      } else {
         const candidate = rawArgs?.targetPath ?? (name === 'qap_project' ? rawArgs?.canonical_root : undefined);
         let targetPath = typeof candidate === 'string' ? candidate : authorizedRoots.length === 1 ? authorizedRoots[0] : undefined;
         authorizationDiagnostic('workspace_request', { tool: name, targetPath, authorizerConfigured: Boolean(workspaceAuthorizer) });
@@ -814,6 +826,8 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
             ).catch(() => ({ decision: 'unavailable' as const, code: 'workspace_dialog_start_failed' as const, reason: 'Dialog launch failed.' }));
             const diagnosticId = authorizationDiagnostic('authorization_result', { decision: authResult.decision, code: 'code' in authResult ? authResult.code : undefined });
             if (authResult.decision === 'approved') {
+              const lockError = acquireHostStorageLock();
+              if (lockError) return lockError;
               const compare = (p: string) => (process.platform === 'win32' ? p.toLowerCase() : p);
               if (!authorizedRoots.some(r => compare(r) === compare(authResult.root))) {
                 authorizedRoots.push(authResult.root);
@@ -849,6 +863,8 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
               desbloquear_con: { mecanismo: 'local_host', comando: preparationCommand, descripcion: 'El host no configuró un autorizador interactivo. Revisa su configuración o autoriza localmente mediante el mecanismo administrativo del host; reintenta sin reiniciar.' } });
           }
         }
+        const lockError = acquireHostStorageLock();
+        if (lockError) return lockError;
         eventWorkspace = targetPath;
         request.params.arguments = { ...rawArgs, targetPath };
         const isBootstrapTrigger = ['qap_start', 'qap_status', 'qap_init', 'qap_context_set'].includes(name);
