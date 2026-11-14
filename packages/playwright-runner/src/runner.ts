@@ -103,9 +103,29 @@ export interface PlaywrightRunnerOptions extends TestOptions {
   contextSetup?: (context: BrowserContext) => Promise<void> | void;
 }
 
+export function extractFlowVariables(contextData?: Record<string, unknown>): Record<string, string> {
+  if (!contextData) return {};
+  const result: Record<string, string> = {};
+  for (const [key, val] of Object.entries(contextData)) {
+    if (key === 'flow' || key === '_capturedBuffer') continue;
+    if (typeof val === 'string' || typeof val === 'number' || typeof val === 'boolean') {
+      result[key] = String(val);
+    }
+  }
+  const flowObj = contextData.flow;
+  if (typeof flowObj === 'object' && flowObj !== null && !Array.isArray(flowObj)) {
+    for (const [key, val] of Object.entries(flowObj as Record<string, unknown>)) {
+      if (val !== undefined && val !== null) {
+        result[key] = String(val);
+      }
+    }
+  }
+  return result;
+}
+
 export class PlaywrightRunner implements IRunner {
-  private currentCaseId?: string;
-  private currentOptions?: PlaywrightRunnerOptions;
+  constructor(private readonly defaults?: { projectRoot?: string }) {}
+
   public async execute(
     plan: TestPlan,
     options: PlaywrightRunnerOptions = {}
@@ -113,9 +133,9 @@ export class PlaywrightRunner implements IRunner {
     const startedAt = new Date().toISOString();
     // One stable collision-resistant identifier for every exit path of this run.
     const executionId = `exec_${Date.now()}_${randomUUID().replace(/-/g, '')}`;
-    const projectRoot = options.projectRoot ? path.resolve(options.projectRoot) : process.cwd();
+    const rawProjectRoot = options.projectRoot ?? this.defaults?.projectRoot;
+    const projectRoot = rawProjectRoot ? path.resolve(rawProjectRoot) : process.cwd();
     const storage = new FileSystemStorage({ rootDir: projectRoot });
-    this.currentOptions = options;
 
     const isHeadless = options.headless ?? true;
     const timeout = options.timeout_ms ?? plan.timeout_ms ?? 30000;
@@ -127,9 +147,7 @@ export class PlaywrightRunner implements IRunner {
       ? rawScreenshotsDir
       : path.resolve(projectRoot, rawScreenshotsDir);
 
-    const flowVariables: Record<string, string> = options.context_data
-      ? Object.fromEntries(Object.entries(options.context_data).map(([k, v]) => [k, String(v)]))
-      : {};
+    const flowVariables = extractFlowVariables(options.context_data);
 
     const loadCase = options.storageResolver ?? ((mod: string, caseId: string) => storage.getTestCase(mod, caseId));
     const loadedCasesMap = new Map<string, TCCase>();
@@ -201,8 +219,8 @@ export class PlaywrightRunner implements IRunner {
         throw new Error('Ejecución cancelada por AbortSignal.');
       }
 
-      // 1. Adquirir lock con LockManager.acquireModuleLock()
-      if (moduleName) {
+      // 1. Adquirir lock con LockManager.acquireModuleLock() si el caller no es ya dueño del lock
+      if (moduleName && !options.lock_owned_by_caller) {
         const lockManager = new LockManager({ rootDir: projectRoot });
         releaseLock = await lockManager.acquireModuleLock(moduleName);
       }
@@ -433,7 +451,6 @@ export class PlaywrightRunner implements IRunner {
 
       for (let i = 0; i < caseIds.length; i++) {
         const caseId = caseIds[i];
-        this.currentCaseId = caseId;
 
         if (options.signal?.aborted) {
           for (let j = i; j < caseIds.length; j++) {
@@ -519,10 +536,13 @@ export class PlaywrightRunner implements IRunner {
 
           const steps = testCase.steps || [];
           for (const rawStep of steps) {
+            activeStepType = rawStep.type;
             const step = interpolateStep(rawStep, contextVariables, flowVariables);
-            activeStepType = step.type;
             const stepStarted = Date.now();
-            const stepRes = await this.executeStep(page, step, screenshotsDir, contextVariables);
+            const stepRes = await this.executeStep(page, step, screenshotsDir, contextVariables, {
+              caseId,
+              context_data: options.context_data,
+            });
             stepTrace.push({
               action: stepRes?.action ?? step.type,
               status: stepRes?.status ?? 'passed',
@@ -675,7 +695,8 @@ export class PlaywrightRunner implements IRunner {
     page: Page,
     step: TCStep,
     screenshotsDir: string = '.qa/reports/screenshots',
-    contextVariables: Record<string, string> = {}
+    contextVariables: Record<string, string> = {},
+    captureContext?: { caseId?: string; context_data?: Record<string, unknown> }
   ): Promise<{ action: string; status: string; message?: string }> {
     let stepMsg: string | undefined;
 
@@ -700,8 +721,8 @@ export class PlaywrightRunner implements IRunner {
         break;
       case 'capture': {
         const capturedVal = await executeCapture(page, step, contextVariables, {
-          caseId: this.currentCaseId,
-          context_data: this.currentOptions?.context_data,
+          caseId: captureContext?.caseId,
+          context_data: captureContext?.context_data,
         });
         stepMsg = JSON.stringify({
           captured_as: step.capture_as,

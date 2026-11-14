@@ -1,13 +1,14 @@
 import { existsSync, mkdirSync, writeFileSync, rmSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
+import type { IFlowLockProvider } from '@qap/engine';
 import lockfile from 'proper-lockfile';
 
 export interface LockManagerOptions {
   rootDir?: string;
 }
 
-export class LockManager {
+export class LockManager implements IFlowLockProvider {
   private rootDir: string;
   private locksDir: string;
 

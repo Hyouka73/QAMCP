@@ -1,6 +1,30 @@
-import type { FlowDefinition, FlowOptions, FlowExecutionResult, TestPlan } from '@qap/shared';
+import type {
+  ExecutionResult,
+  FlowDefinition,
+  FlowExecutionResult,
+  FlowOptions,
+  TestOptions,
+  TestPlan,
+} from '@qap/shared';
 
-import type { IStorage, IRunner, IFlowLockProvider, IFlowRunner, IFlowStateStore } from './ports.js';
+import type { IFlowLockProvider, IFlowRunner, IFlowStateStore, IRunner, IStorage } from './ports.js';
+
+interface FlowStepRef {
+  module: string;
+  cases?: string[];
+  tags?: string[];
+}
+
+interface FlowWithOptionalExtensions extends FlowDefinition {
+  steps?: FlowStepRef[];
+  teardown?: {
+    on_failure?: unknown;
+  };
+}
+
+interface FlowOptionsWithContext extends FlowOptions {
+  context_data?: Record<string, unknown>;
+}
 
 function isRollbackOnFailure(onFailure: unknown): boolean {
   if (onFailure === 'rollback_storage_state') return true;
@@ -15,141 +39,125 @@ function isRollbackOnFailure(onFailure: unknown): boolean {
   });
 }
 
+function isRunnerPassed(res: ExecutionResult): boolean {
+  if (res.result === 'passed') return true;
+  const legacy = res as unknown as { status?: unknown; success?: unknown };
+  return legacy.success === true || legacy.status === 'success' || legacy.status === 'passed';
+}
+
+function collectCapturedVariables(
+  moduleName: string,
+  capturedBuffer: unknown,
+  contextSharing: FlowDefinition['context_sharing'],
+  target: Record<string, string>
+): void {
+  if (typeof capturedBuffer !== 'object' || capturedBuffer === null || Array.isArray(capturedBuffer)) {
+    return;
+  }
+
+  const bufferByCase = capturedBuffer as Record<string, Record<string, string>>;
+
+  for (const caseCaptures of Object.values(bufferByCase)) {
+    if (typeof caseCaptures !== 'object' || caseCaptures === null) continue;
+    for (const [key, val] of Object.entries(caseCaptures)) {
+      if (typeof val === 'string') {
+        target[key] = val;
+      }
+    }
+  }
+
+  if (Array.isArray(contextSharing)) {
+    for (const rule of contextSharing) {
+      if (rule.from_module !== moduleName) continue;
+      const val = bufferByCase[rule.from_case]?.[rule.capture];
+      if (typeof val === 'string') {
+        target[rule.as] = val;
+      }
+    }
+  }
+}
+
 export class FlowOrchestrator implements IFlowRunner {
   constructor(
-    private storage: IStorage,
-    private runner: IRunner,
-    private lockProvider?: IFlowLockProvider,
-    private flowStore?: IFlowStateStore
+    private readonly storage: IStorage,
+    private readonly runner: IRunner,
+    private readonly lockProvider?: IFlowLockProvider,
+    private readonly flowStore?: IFlowStateStore
   ) {}
 
-  private interpolateValue(value: unknown, sharedVars: Record<string, string>, contextType: 'text' | 'selector' | 'url'): unknown {
-    if (typeof value !== 'string') return value;
-
-    return value.replace(/\$\{flow\.([a-zA-Z0-9_.-]+)\}/g, (_, varName: string) => {
-      const val = sharedVars[varName];
-      if (val === undefined) {
-        throw new Error(`flow_context_missing: Variable de flujo '${varName}' no encontrada en el contexto.`);
-      }
-
-      if (contextType === 'selector') {
-        const globalCSS = (globalThis as Record<string, unknown>).CSS as { escape?: (s: string) => string } | undefined;
-        return globalCSS?.escape ? globalCSS.escape(val) : escapeCssManual(val);
-      }
-      if (contextType === 'url') {
-        return encodeURIComponent(val);
-      }
-      return val;
-    });
-  }
-
-  private interpolateStep(step: Record<string, unknown>, sharedVars: Record<string, string>): Record<string, unknown> {
-    const interpolated: Record<string, unknown> = {};
-    for (const [key, val] of Object.entries(step)) {
-      if (typeof val === 'string') {
-        const cType = key === 'selector' || key === 'target' ? 'selector' : key === 'url' ? 'url' : 'text';
-        interpolated[key] = this.interpolateValue(val, sharedVars, cType);
-      } else if (val && typeof val === 'object') {
-        interpolated[key] = JSON.parse(JSON.stringify(val, (_: string, subVal: unknown): unknown => 
-          typeof subVal === 'string' ? this.interpolateValue(subVal, sharedVars, 'text') : subVal
-        ));
-      } else {
-        interpolated[key] = val;
-      }
-    }
-    return interpolated;
-  }
-
-  async executeFlow(flow: FlowDefinition, options: FlowOptions): Promise<FlowExecutionResult> {
-    const flowRecord = flow as unknown as Record<string, unknown>;
-    const flowName = (flowRecord.name as string) ?? 'unknown-flow';
-    const rawSteps = (flowRecord.steps ?? flowRecord.modules ?? []) as Array<{ module: string; [key: string]: unknown }>;
+  async executeFlow(flow: FlowDefinition, options: FlowOptions = {}): Promise<FlowExecutionResult> {
+    const extFlow: FlowWithOptionalExtensions = flow;
+    const flowName = extFlow.name || 'unknown-flow';
+    const rawSteps: FlowStepRef[] = extFlow.steps ?? extFlow.modules ?? [];
     const modulesToLock = rawSteps.map((step) => step.module);
-    const failFast = flowRecord.fail_fast !== false;
+    const failFast = extFlow.fail_fast !== false;
+    const shouldRollback = isRollbackOnFailure(extFlow.teardown?.on_failure);
 
-    const optsRecord = options as Record<string, unknown>;
-    const baseContextData = (optsRecord.context_data as Record<string, unknown>) ?? {};
-
-    // 1. Respaldo de sesiones cifradas antes del primer módulo (no se pisa al reanudar)
-    const existingState = this.flowStore?.loadState(flowName) ?? null;
-
-    if (this.flowStore && (!existingState || !this.flowStore.hasSessionBackup(flowName))) {
-      this.flowStore.backupSessions(flowName);
-    }
-    
-    const sharedVariables: Record<string, string> = existingState?.shared_variables ?? {};
-    const completedModules: string[] = existingState?.completed_modules ?? [];
+    const extOptions: FlowOptionsWithContext = options;
+    const baseContextData = extOptions.context_data ?? {};
 
     const executionLogic = async (): Promise<FlowExecutionResult> => {
+      // Lectura de estado y respaldo de sesiones cifradas bajo el lock del flujo
+      const existingState = this.flowStore?.loadState(flowName) ?? null;
+
+      if (this.flowStore && (!existingState || !this.flowStore.hasSessionBackup(flowName))) {
+        this.flowStore.backupSessions(flowName);
+      }
+
       const startedAt = existingState?.started_at ?? new Date().toISOString();
-      const moduleResults: Record<string, unknown> = {};
+      const sharedVariables: Record<string, string> = { ...(existingState?.shared_variables ?? {}) };
+      const completedModules: string[] = [...(existingState?.completed_modules ?? [])];
+      const moduleResults: Record<string, ExecutionResult> = {};
 
       try {
         for (const rawStep of rawSteps) {
           const moduleName = rawStep.module;
-          
+
           if (completedModules.includes(moduleName)) {
             continue;
           }
 
           const testPlan = await this.storage.getTestPlan(moduleName);
-
-          const testPlanRecord = testPlan as unknown as Record<string, unknown>;
-          const planCases = (testPlanRecord.cases ?? []) as Array<Record<string, unknown>>;
-          
-          const interpolatedCases = planCases.map((tc) => {
-            const tcSteps = (tc.steps ?? []) as Array<Record<string, unknown>>;
-            return {
-              ...tc,
-              steps: tcSteps.map((s) => this.interpolateStep(s, sharedVariables)),
-            };
-          });
-
-          const interpolatedTestPlan = {
-            ...testPlanRecord,
-            cases: interpolatedCases,
+          const modulePlan: TestPlan = {
+            ...testPlan,
+            modules: testPlan.modules && testPlan.modules.length > 0 ? testPlan.modules : [moduleName],
+            ...(rawStep.cases && rawStep.cases.length > 0 ? { cases: rawStep.cases } : {}),
+            ...(rawStep.tags && rawStep.tags.length > 0 ? { tags: rawStep.tags } : {}),
           };
 
           const stepContextData: Record<string, unknown> = {
             ...baseContextData,
-            flow: sharedVariables,
+            flow: { ...sharedVariables },
             _capturedBuffer: {},
           };
 
-          const res = await this.runner.execute(interpolatedTestPlan as unknown as TestPlan, {
-            ...optsRecord,
+          const runnerOptions: TestOptions = {
+            ...extOptions,
             context_data: stepContextData,
-          });
+            ...(this.lockProvider && modulesToLock.length > 0 ? { lock_owned_by_caller: true } : {}),
+          };
 
+          const res = await this.runner.execute(modulePlan, runnerOptions);
           moduleResults[moduleName] = res;
 
-          const resRecord = res as unknown as Record<string, unknown>;
-          // Validación robusta para aceptar 'passed' o 'success' del runner
-          const isPassed = resRecord.success === true || resRecord.result === 'passed' || resRecord.status === 'success' || resRecord.status === 'passed';
-
-          if (isPassed) {
+          if (isRunnerPassed(res)) {
             completedModules.push(moduleName);
 
-            const capturedBuffer = (stepContextData._capturedBuffer as Record<string, Record<string, string>>) || {};
-            for (const [, caseCaptures] of Object.entries(capturedBuffer)) {
-              for (const [key, val] of Object.entries(caseCaptures)) {
-                sharedVariables[key] = val;
-              }
-            }
+            collectCapturedVariables(
+              moduleName,
+              stepContextData._capturedBuffer,
+              extFlow.context_sharing,
+              sharedVariables
+            );
 
-            // Actualizar atómicamente el checkpoint en .state.json
+            // Actualizar atómicamente el checkpoint en .state.json bajo el lock
             this.flowStore?.saveState({
               flow_name: flowName,
               started_at: startedAt,
-              completed_modules: completedModules,
-              shared_variables: sharedVariables,
+              completed_modules: [...completedModules],
+              shared_variables: { ...sharedVariables },
             });
           } else {
-            const teardown = flowRecord.teardown as { on_failure?: unknown } | undefined;
-            const onFailure = teardown?.on_failure;
-
-           const shouldRollback = isRollbackOnFailure(onFailure);
-           
             if (shouldRollback) {
               this.flowStore?.restoreSessions(flowName);
             }
@@ -169,10 +177,6 @@ export class FlowOrchestrator implements IFlowRunner {
         } as unknown as FlowExecutionResult;
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
-        
-        const teardown = flowRecord.teardown as { on_failure?: unknown } | undefined;
-        const onFailure = teardown?.on_failure;
-        const shouldRollback = isRollbackOnFailure(onFailure);
 
         if (shouldRollback) {
           this.flowStore?.restoreSessions(flowName);
@@ -195,8 +199,4 @@ export class FlowOrchestrator implements IFlowRunner {
 
     return await executionLogic();
   }
-}
-
-function escapeCssManual(str: string): string {
-  return str.replace(/([ !"#$%&'()*+,./:;<=>?@[\\\]^`{|}~])/g, '\\$1');
 }

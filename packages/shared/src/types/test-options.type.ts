@@ -13,4 +13,9 @@ export interface TestOptions {
   trace?: 'on' | 'off' | 'on-first-retry';
   retries?: number;
   context_data?: Record<string, unknown>;
+  /**
+   * True when the caller (e.g. FlowOrchestrator) already holds the module lock(s),
+   * so the runner must not re-acquire the module lock internally.
+   */
+  lock_owned_by_caller?: boolean;
 }

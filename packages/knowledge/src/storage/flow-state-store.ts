@@ -3,14 +3,11 @@ import {
 } from 'node:fs';
 import { dirname, join } from 'node:path';
 
-export interface FlowState {
-  flow_name: string;
-  started_at: string;
-  completed_modules: string[];
-  shared_variables: Record<string, string>;
-}
+import type { IFlowState, IFlowStateStore } from '@qap/engine';
 
-export class FlowContextStore {
+export type FlowState = IFlowState;
+
+export class FlowContextStore implements IFlowStateStore {
   private cacheDir: string;
   private sessionsDir: string;
 
