@@ -6,6 +6,7 @@ import { SchemaValidator, validateExpectedRequirement, type TCCase } from '@qap/
 
 import { reviewDigest } from '../host-review.js';
 
+import { runConversationalCaseWorkflow } from './conversational-case-workflow.js';
 import { ModuleObservationBridge } from './module-observation-bridge.js';
 import { binding, isObject, type StateDependencies } from './state-services.js';
 
@@ -34,7 +35,39 @@ export async function caseReviewRequest(root: string, module: string, cases: TCC
 
 /** For a canonical project every executable case requires an exact host receipt, including manually edited files. */
 export async function verifyCaseApproval(root: string, module: string, cases: TCCase[], deps: StateDependencies) {
-  if (!binding(root, deps)) return { allowed: true };
+  const bound = binding(root, deps);
+  if (!bound) return { allowed: true };
+  if (!bound.moduleBindings?.length && !bound.caseReviewGateway && deps.applicationService) {
+    const project = deps.applicationService.findActiveProjectByRoot(root);
+    if (!project) return { allowed: false, code: 'project_not_found' };
+    const serviceCases = deps.applicationService.listServiceCases(project.project_id, module);
+    if (!cases.length) return { allowed: false, code: 'no_test_cases' };
+    const reqs: Array<{ id: string; revision: number; digest: string }> = [];
+    for (const tc of cases) {
+      const match = serviceCases.find((sc) => sc.case_id === tc.id);
+      if (
+        !match ||
+        match.conformity_status === 'pending_oracle' ||
+        match.conformity_status === 'rejected' ||
+        match.conformity_status === 'proposed' ||
+        !match.confirmed_at
+      ) {
+        return { allowed: false, code: 'case_approval_required' };
+      }
+      if (match.requirement_id) {
+        reqs.push({
+          id: match.requirement_id,
+          revision: match.requirement_revision,
+          digest: match.confirmation_digest ?? '',
+        });
+      }
+    }
+    return {
+      allowed: true,
+      request_digest: reviewDigest({ projectId: project.project_id, module, cases: cases.map((c) => c.id).sort() }),
+      requirements: reqs,
+    };
+  }
   const value = await caseReviewRequest(root, module, cases, deps);
   if ('error' in value) return { allowed: false, code: value.error };
   if (!value.bound.caseReviewGateway) return { allowed: false, code: 'case_review_gateway_required' };
@@ -44,8 +77,15 @@ export async function verifyCaseApproval(root: string, module: string, cases: TC
 }
 
 export async function caseWorkflow(root: string, module: string, command: unknown, deps: StateDependencies) {
-  if (!isObject(command) || !['generate','review'].includes(String(command.action)) || Object.keys(command).some(k => !['action','proposals'].includes(k))) return blocked('invalid_case_command');
   const bound = binding(root, deps);
+  if (
+    isObject(command) &&
+    !bound?.moduleBindings?.length &&
+    deps.applicationService?.findActiveProjectByRoot(root)
+  ) {
+    return runConversationalCaseWorkflow(root, module, command, deps);
+  }
+  if (!isObject(command) || !['generate','review'].includes(String(command.action)) || Object.keys(command).some(k => !['action','proposals'].includes(k))) return blocked('invalid_case_command');
   if (!bound) return blocked('knowledge_unbound');
   const identity = await new ModuleObservationBridge(bound.store, { ...bound, projectRoot: root }).resolve(module);
   if (identity.status !== 'resolved') return blocked(identity.status);

@@ -15,7 +15,7 @@ import YAML from 'yaml';
 import { createMcpServer, type McpServerOptions } from '../server.js';
 import { ContextFiles } from '../handlers/state-services.js';
 import { StatusHandler } from '../handlers/status.handler.js';
-import { CleanHandler } from '../handlers/clean.handler.js';
+import { ProjectHandler } from '../handlers/project.handler.js';
 import { ContextHandler } from '../handlers/context.handler.js';
 import { ToolDispatcher } from '../dispatcher.js';
 
@@ -68,7 +68,13 @@ async function call(client: Client, name: string, args: Record<string, unknown>)
   const response = await client.request({ method: 'tools/call', params: { name, arguments: args } }, CallToolResultSchema);
   const item = response.content[0];
   if (item.type !== 'text') throw new Error('Expected text');
-  return { response, data: JSON.parse(item.text) as Record<string, any> };
+  let parsed: Record<string, any> = { message: item.text };
+  try {
+    parsed = JSON.parse(item.text) as Record<string, any>;
+  } catch {
+    // Unknown tool response returns plain text
+  }
+  return { response, rawText: item.text, data: parsed };
 }
 function files(root: string): Record<string, string> {
   return Object.fromEntries(readdirSync(root, { recursive: true, withFileTypes: true }).filter(item => item.isFile()).map(item => {
@@ -85,7 +91,7 @@ afterEach(async () => {
 describe('VNEXT-012 real MCP and physical persistence', () => {
   it('registers all three declarative owners exactly once and never falls back after failure', async () => {
     const root = directory();
-    const spy = vi.spyOn(CleanHandler.prototype, 'execute');
+    const spy = vi.spyOn(ProjectHandler.prototype, 'execute');
     const status = vi.spyOn(StatusHandler.prototype, 'execute');
     const context = vi.spyOn(ContextHandler.prototype, 'execute');
     const client = await connect({ projectRoots: [root] });
@@ -93,11 +99,11 @@ describe('VNEXT-012 real MCP and physical persistence', () => {
     expect(tools).toHaveLength(18);
     expect(new Set(tools.map(tool => tool.name)).size).toBe(18);
     await call(client, 'qap_status', { targetPath: root });
-    await call(client, 'qap_clean', { targetPath: root, force: true });
+    await call(client, 'qap_project', { action: 'list', targetPath: root });
     await call(client, 'qap_context_set', { targetPath: root });
     expect(spy).toHaveBeenCalledTimes(1); expect(status).toHaveBeenCalledTimes(1); expect(context).toHaveBeenCalledTimes(1);
     expect(existsSync(join(root, '.qa'))).toBe(false);
-    expect(() => createMcpServer({ handlers: [new CleanHandler({})] })).toThrow();
+    expect(() => createMcpServer({ handlers: [new ProjectHandler({})] })).toThrow();
   });
 
   it('status inspects uninitialized and legacy projects without creating memory or scan files', async () => {
@@ -168,7 +174,7 @@ describe('VNEXT-012 real MCP and physical persistence', () => {
     expect((await f.store.history('b', 'application', 'b')).items).toHaveLength(1);
   });
 
-  it.each([undefined, true, false])('clean blocks force=%s and physically preserves every protected resource', async force => {
+  it.each([undefined, true, false])('retired clean route force=%s rejects and physically preserves every protected resource', async force => {
     const f = await fixture();
     const protectedNames = ['cache/tmp/file.tmp', 'cache/locks/stale.lock', 'cache/locks/active.lock', 'cache/sessions/protected.json', 'project/auth/profiles.json', 'personal.txt', 'vault.enc'];
     for (const name of protectedNames) { const path = join(f.root, '.qa', name); mkdirSync(join(path, '..'), { recursive: true }); writeFileSync(path, canary); }
@@ -177,21 +183,21 @@ describe('VNEXT-012 real MCP and physical persistence', () => {
     expect(existsSync(f.path + '-wal')).toBe(true); expect(existsSync(f.path + '-shm')).toBe(true);
     const before = files(f.root);
     const client = await connect(f.options);
-    const { data } = await call(client, 'qap_clean', { targetPath: f.root, ...(force === undefined ? {} : { force }) });
-    expect(data).toMatchObject({ status: 'blocked', removed: [] });
+    const { response } = await call(client, 'qap_clean', { targetPath: f.root, ...(force === undefined ? {} : { force }) });
+    expect(response.isError).toBe(true);
     expect(files(f.root)).toEqual(before);
     expect((await second.get('a', 'module', 'm'))?.revision).toBe(1);
     expect((await f.store.history('a', 'application', 'a')).items).toHaveLength(1);
   });
 
-  it('blocks cleanup of uninitialized, external and junction projects without touching targets', async () => {
+  it('blocks uninitialized, external and junction projects on qap_project without touching targets', async () => {
     const root = legacy(); const external = legacy();
     const client = await connect({ projectRoots: [root] });
-    expect((await call(client, 'qap_clean', { targetPath: external, force: true })).data.code).toBe('invalid_arguments');
+    expect((await call(client, 'qap_project', { action: 'create', targetPath: external })).data.code).toBe('workspace_authorization_required');
     const link = join(root, '.qa', 'external');
     symlinkSync(external, link, 'junction');
     const before = files(external);
-    expect((await call(client, 'qap_clean', { targetPath: root })).response.isError).toBe(true);
+    expect((await call(client, 'qap_project', { action: 'delete_confirm', project_id: 'missing', confirmation_token: 'bad', decision: 'confirm_delete', targetPath: root })).response.isError).toBe(true);
     expect(files(external)).toEqual(before);
   });
 
@@ -227,8 +233,8 @@ describe('VNEXT-012 real MCP and physical persistence', () => {
     const application = (await f.store.get('a', 'application', 'a'))!;
     await f.store.commit('a', [write('application', { ...application.entity, metadata: { synthetic_note: canary } }, 1)]);
     const log = vi.spyOn(console, 'error'); const info = vi.spyOn(console, 'log');
-    for (const args of [{ force: canary }, { password: canary }, { targetPath: canary }]) {
-      const response = await call(client, 'qap_clean', { targetPath: f.root, ...args });
+    for (const args of [{ action: canary }, { decision: canary }, { targetPath: canary }]) {
+      const response = await call(client, 'qap_project', { targetPath: f.root, ...args });
       expect(response.data.code).toBe('invalid_arguments'); expect(JSON.stringify(response)).not.toContain(canary);
     }
     for (const args of [{ roles: [{ name: 'x', password: canary }] }, { base_url: `https://example.test?token=${canary}` }, { source_of_truth: `../${canary}` }, { roles: Array(101).fill('x') }, { objective: { token: canary } }]) {
@@ -236,7 +242,7 @@ describe('VNEXT-012 real MCP and physical persistence', () => {
       expect(response.data.code).toBe('invalid_arguments'); expect(JSON.stringify(response)).not.toContain(canary);
     }
     const sensitiveRoot = join(directory(), canary); mkdirSync(sensitiveRoot); legacy(sensitiveRoot);
-    const outside = await call(client, 'qap_clean', { targetPath: sensitiveRoot });
+    const outside = await call(client, 'qap_project', { action: 'create', targetPath: sensitiveRoot });
     expect(outside.response.isError).toBe(true); expect(JSON.stringify(outside)).not.toContain(canary);
     expect(JSON.stringify(await call(client, 'qap_status', { targetPath: f.root }))).not.toContain(canary);
     expect((await f.store.history('a', 'application', 'a')).items).toHaveLength(2);
@@ -308,10 +314,10 @@ describe('VNEXT-012 real MCP and physical persistence', () => {
   });
 
   it('rejects cancellation before execution and preserves the fixture', async () => {
-    const root = legacy(); const dispatcher = new ToolDispatcher(); const handler = new CleanHandler({ projectRoots: [root] });
+    const root = legacy(); const dispatcher = new ToolDispatcher(); const handler = new ProjectHandler({ projectRoots: [root] });
     const execute = vi.spyOn(handler, 'execute'); dispatcher.register(handler).seal();
     const controller = new AbortController(); controller.abort(); const before = files(root);
-    const response = await dispatcher.dispatch({ name: 'qap_clean', arguments: { targetPath: root } }, { requestId: 1, signal: controller.signal });
+    const response = await dispatcher.dispatch({ name: 'qap_project', arguments: { action: 'list', targetPath: root } }, { requestId: 1, signal: controller.signal });
     expect(response.isError).toBe(true); expect(execute).not.toHaveBeenCalled(); expect(files(root)).toEqual(before);
   });
 
@@ -330,7 +336,7 @@ describe('VNEXT-012 real MCP and physical persistence', () => {
       const relation = write('relation', { id: 'rel', source: { kind: 'module', id: 'm' }, target: { kind: 'evidence', id: 'e' }, predicate: 'supports' });
       await f.store.commit('a', [relation]);
       expect((await f.store.get('a', 'relation', 'rel'))?.references).toContainEqual({ kind: 'module', id: 'm', revision: 2 });
-      const client = await connect(f.options); await call(client, 'qap_clean', { targetPath: f.root, force: true });
+      const client = await connect(f.options); await call(client, 'qap_project', { action: 'list', targetPath: f.root });
       expect(db.prepare('PRAGMA integrity_check').get()?.integrity_check).toBe('ok');
       expect(db.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
     } finally { db.exec('DROP TRIGGER IF EXISTS synthetic_failure'); db.close(); }

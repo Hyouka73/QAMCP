@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
-import { existsSync, lstatSync, unlinkSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync, lstatSync, mkdirSync, unlinkSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 
 import {
   FileSystemStorage,
@@ -570,7 +570,18 @@ export class PlanHandler implements IMcpToolHandler {
     const storage = new FileSystemStorage({ rootDir });
 
     // 3. Module registration validation
-    const moduleExists = await storage.hasModule(moduleName);
+    let moduleExists = await storage.hasModule(moduleName);
+    if (!moduleExists && this.dependencies.applicationService) {
+      const appProject = this.dependencies.applicationService.findActiveProjectByRoot(rootDir);
+      if (appProject) {
+        const snapshot = this.dependencies.applicationService.resumeProject(appProject.project_id);
+        const ownedModule = snapshot.modules.find((m) => m.key === moduleName);
+        if (ownedModule) {
+          mkdirSync(join(rootDir, '.qa', 'modules', moduleName, 'tests'), { recursive: true });
+          moduleExists = true;
+        }
+      }
+    }
     if (!moduleExists) {
       return result(
         {

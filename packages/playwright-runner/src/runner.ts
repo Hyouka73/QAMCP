@@ -86,7 +86,9 @@ export interface PlaywrightRunnerOptions extends TestOptions {
   /** Override opcional para pruebas: si se pasa, se usa en vez de cargar vía FileSystemStorage. */
   storageResolver?: (moduleName: string, caseId: string) => Promise<TCCase>;
   screenshotsDir?: string;
-  storageStatePath?: string; 
+  storageStatePath?: string;
+  storageState?: NonNullable<Parameters<Browser['newContext']>[0]>['storageState'];
+  extraHTTPHeaders?: Record<string, string>;
   /** Raíz del proyecto para FileSystemStorage: por defecto process.cwd().*/
   projectRoot?: string;
   registerSignalHandlers?: boolean;
@@ -242,10 +244,11 @@ export class PlaywrightRunner implements IRunner {
         };
       }
 
-      // 2. Resolver sesión autenticada con resolveModuleSession()
+      // 2. Resolver sesión autenticada con resolveModuleSession() o storageState inyectado por el host
       type BrowserContextOptions = NonNullable<Parameters<Browser['newContext']>[0]>;
-      let storageState: BrowserContextOptions['storageState'] = undefined;
-      const shouldResolveSession = options.profile !== undefined || (Boolean(moduleName) && options.allowImplicitAuth !== false);
+      let storageState: BrowserContextOptions['storageState'] = options.storageState;
+      const shouldResolveSession =
+        !storageState && (options.profile !== undefined || (Boolean(moduleName) && options.allowImplicitAuth !== false));
       if (shouldResolveSession && moduleName) {
         try {
           storageState = (await resolveModuleSession(
@@ -313,7 +316,11 @@ export class PlaywrightRunner implements IRunner {
         };
       }
 
-      context = await browser!.newContext(storageState ? { storageState } : undefined);
+      const newContextOpts: BrowserContextOptions = {
+        ...(storageState ? { storageState } : {}),
+        ...(options.extraHTTPHeaders ? { extraHTTPHeaders: options.extraHTTPHeaders } : {}),
+      };
+      context = await browser!.newContext(Object.keys(newContextOpts).length > 0 ? newContextOpts : undefined);
       checkCancellation();
 
       if (options.contextSetup) {
@@ -466,6 +473,8 @@ export class PlaywrightRunner implements IRunner {
         let errorMessage: string | undefined;
         let failureType: FailureType = 'assertion_failed';
         let failureScreenshotPath: string | undefined;
+        const stepTrace: NonNullable<ExecutedCase['steps']> = [];
+        let activeStepType = 'execute';
 
         try {
           if (!moduleName) {
@@ -479,7 +488,14 @@ export class PlaywrightRunner implements IRunner {
           const steps = testCase.steps || [];
           for (const rawStep of steps) {
             const step = interpolateStep(rawStep, contextVariables, flowVariables);
+            activeStepType = step.type;
+            const stepStarted = Date.now();
             await this.executeStep(page, step, screenshotsDir, contextVariables);
+            stepTrace.push({
+              action: step.type,
+              status: 'passed',
+              duration_ms: Date.now() - stepStarted,
+            });
           }
 
           totalPassed++;
@@ -491,14 +507,21 @@ export class PlaywrightRunner implements IRunner {
           errorMessage = err instanceof Error ? err.message : String(err);
 
           try {
-            failureScreenshotPath = await executeScreenshot(
+            const absShot = await executeScreenshot(
               page,
               { type: 'screenshot', filename: `failure_${caseId}_${Date.now()}.png` },
               screenshotsDir
             );
+            failureScreenshotPath = absShot ? path.relative(projectRoot, absShot).replace(/\\/g, '/') : undefined;
           } catch {
             // Ignorar fallos al tomar captura
           }
+          stepTrace.push({
+            action: activeStepType,
+            status: 'failed',
+            message: errorMessage,
+            screenshot: failureScreenshotPath ?? null,
+          });
 
           const classified = classifyError(err);
           failureType = classified.category;
@@ -514,18 +537,7 @@ export class PlaywrightRunner implements IRunner {
               result: caseResult,
               failure_type: failureType,
               duration_ms: Date.now() - caseStartMs,
-              ...(errorMessage
-                ? {
-                    steps: [
-                      {
-                        action: 'execute',
-                        status: 'failed',
-                        message: errorMessage,
-                        screenshot: failureScreenshotPath ?? null,
-                      },
-                    ],
-                  }
-                : {}),
+              ...(stepTrace.length > 0 ? { steps: stepTrace } : {}),
             };
             casesResult.push(failFastCase);
 
@@ -552,19 +564,8 @@ export class PlaywrightRunner implements IRunner {
             title: caseTitle,
             result: caseResult,
             duration_ms: Date.now() - caseStartMs,
-            ...(errorMessage
-              ? {
-                  failure_type: failureType,
-                  steps: [
-                    {
-                      action: 'execute',
-                      status: 'failed',
-                      message: errorMessage,
-                      screenshot: failureScreenshotPath ?? null,
-                    },
-                  ],
-                }
-              : {}),
+            ...(errorMessage ? { failure_type: failureType } : {}),
+            ...(stepTrace.length > 0 ? { steps: stepTrace } : {}),
           };
 
           casesResult.push(executedCase);

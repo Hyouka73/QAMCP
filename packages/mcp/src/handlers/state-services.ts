@@ -10,6 +10,7 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import type { HostReviewQueue } from '../host-review.js';
 import { TOOLS } from '../tool-catalog.js';
 import { McpToolError } from '../dispatcher.js';
+import type { QapApplicationService } from '../application/application-service.js';
 
 import type { ModuleBinding } from './module-observation-bridge.js';
 import type { CanonicalInterviewService, IHumanReviewGateway } from './canonical-interview-service.js';
@@ -34,7 +35,12 @@ export interface ProjectKnowledgeBinding {
 export interface StateDependencies {
   /** Host capability; no MCP argument can install or grant it. */
   readonly prepareWorkspace?: (root: string, url?: string) => Promise<void>;
+  readonly applicationService?: QapApplicationService;
   readonly provisionalInventory?: boolean;
+  /** Allow bounded read-only same-origin SPA discovery via host composition. */
+  readonly allowSpaReadOnly?: boolean;
+  /** Silently resolve non-production, same-origin QA scope from host-bound roots without interactive dialogs. */
+  readonly silentBoundScope?: boolean;
   /** Internal host runtime, never tool arguments. */
   readonly canonicalInterviews?: ReadonlyMap<string, CanonicalInterviewService>;
   readonly canonicalClosures?: ReadonlyMap<string, CanonicalClosureService>;

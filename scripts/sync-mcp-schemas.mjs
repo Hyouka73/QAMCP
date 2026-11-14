@@ -1,11 +1,12 @@
 import { writeFileSync, mkdirSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { homedir } from 'node:os';
+import { join, resolve } from 'node:path';
 
 import { ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 
 import { createMcpServer } from '../packages/mcp/dist/index.js';
 
-const targetDir = 'C:/Users/Judirico/.gemini/antigravity-ide/mcp/qap-mcp';
+const targetDir = resolve(process.argv[2] ?? join(homedir(), '.gemini', 'antigravity-ide', 'mcp', 'qap-mcp'));
 
 if (!existsSync(targetDir)) {
   mkdirSync(targetDir, { recursive: true });
@@ -35,7 +36,7 @@ const instructionsContent = `# Instrucciones de QAP (qap-mcp) para el Asistente
 
 ## Directivas Críticas de Interacción y Experiencia de Usuario:
 1. **PARÁMETRO \`targetPath\` OBLIGATORIO**:
-   - En TODAS las llamadas a las herramientas de \`qap-mcp\` (\`qap_status\`, \`qap_init\`, \`qap_clean\`, \`qap_auth_add\`, \`qap_auth_list\`, \`qap_context_set\`, \`qap_context_ingest\`, \`qap_session_plan\`, \`qap_discover\`, \`qap_rules_set\`, \`qap_module_close\`, \`qap_session_close\`, \`qap_plan\`, \`qap_validate\`, \`qap_test\`, \`qap_report\`, \`qap_server\`, \`qap_prune\`), debes enviar SIEMPRE la ruta absoluta del workspace abierto en el parámetro \`targetPath\`.
+   - En TODAS las llamadas a las herramientas de \`qap-mcp\` (\`qap_status\`, \`qap_project\`, \`qap_init\`, \`qap_auth_add\`, \`qap_auth_list\`, \`qap_context_set\`, \`qap_context_ingest\`, \`qap_session_plan\`, \`qap_discover\`, \`qap_rules_set\`, \`qap_module_close\`, \`qap_session_close\`, \`qap_plan\`, \`qap_validate\`, \`qap_test\`, \`qap_report\`, \`qap_server\`, \`qap_prune\`), debes enviar SIEMPRE la ruta absoluta del workspace abierto en el parámetro \`targetPath\`.
    - NUNCA omitas este parámetro, para asegurar que el motor opere exactamente sobre la carpeta del proyecto del usuario y no en el directorio de ejecución del proceso MCP.
 
 2. **PROHIBIDO los muros de texto**:
@@ -68,6 +69,9 @@ const instructionsContent = `# Instrucciones de QAP (qap-mcp) para el Asistente
 
 11. **RESUMEN DE REPORTE DE BRECHAS**:
     - Al cerrar la sesión, presenta al usuario el resumen del reporte de brechas generado.
+
+12. **CONTINUIDAD DEL PLAN**:
+    - Explora las rutas y propone casos siguiendo siguiente_accion y el orden del plan vigente. Usa el permiso de observación ya concedido por el host para el entorno. Pregunta por cambios de alcance, expectativas de negocio o aprobaciones requeridas por el servidor.
 `;
 
 writeFileSync(join(targetDir, 'instructions.md'), instructionsContent, 'utf-8');

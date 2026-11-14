@@ -44,23 +44,86 @@ export const TOOLS: Tool[] = [
     },
   },
   {
-    name: 'qap_clean',
-    description: `Ejecuta el reseteo completo del proyecto (.qa/ y locks remanentes) para una inicialización limpia desde cero. ${UX_DIRECTIVE}`,
+    name: 'qap_project',
+    description: `Gestiona identidad y ciclo de vida explícito de proyectos por ID: crear, listar, seleccionar, reanudar, importar .qa versionado, consultar/revocar permisos y ejecutar borrado seguro en dos pasos con vista previa de alcance y recuperación. Nunca concede permisos por argumentos MCP ni ejecuta resets generales destructivos. ${UX_DIRECTIVE}`,
     inputSchema: {
       type: 'object',
       properties: {
         targetPath: TARGET_PATH_PROP,
-        force: {
+        action: {
+          type: 'string',
+          enum: [
+            'create',
+            'list',
+            'select',
+            'resume',
+            'delete_preview',
+            'delete_confirm',
+            'recover',
+            'import_qa',
+            'verify_import',
+            'permissions',
+            'revoke_permission',
+            'candidates',
+            'review_candidate',
+            'promote_candidates',
+            'discrepancies',
+            'resolve_discrepancy',
+          ],
+          description: 'Operación explícita sobre el servicio duradero de proyectos y autoridad',
+        },
+        project_id: { type: 'string', description: 'Identificador estable del proyecto' },
+        name: { type: 'string', description: 'Nombre legible del proyecto (para action="create")' },
+        canonical_root: { type: 'string', description: 'Ruta raíz física autorizada del proyecto' },
+        objective: { type: 'string', description: 'Objetivo inicial de pruebas o investigación' },
+        base_url: { type: 'string', description: 'URL base del entorno principal' },
+        env_name: { type: 'string', description: 'Nombre del entorno inicial (por defecto: local)' },
+        tenant_mode: { type: 'string', enum: ['single', 'multi_tenant'] },
+        default_tenant: { type: 'string' },
+        mode: {
+          type: 'string',
+          enum: ['investigate', 'investigate_and_test', 'investigate_bug', 'continue'],
+        },
+        allow_recreate_deleted: {
           type: 'boolean',
-          description: 'Fuerza la eliminación inmediata sin interactividad (por defecto: true)',
-          default: true,
+          description: 'Solo true cuando el usuario decide explícitamente recrear sobre un proyecto borrado previo',
+        },
+        include_deleted: { type: 'boolean', description: 'Incluir tumbas de proyectos borrados al listar' },
+        confirmation_token: { type: 'string', description: 'Token de un solo uso devuelto por delete_preview' },
+        decision: { type: 'string', description: 'Debe ser "confirm_delete" para confirmar el borrado' },
+        purge_workspace_qa: {
+          type: 'boolean',
+          description: 'Si es true, limpia únicamente la carpeta .qa propia del workspace preservando código fuente',
+          default: false,
+        },
+        source_root: { type: 'string', description: 'Ruta del workspace origen para import_qa/verify_import' },
+        import_id: { type: 'string', description: 'ID del manifiesto de importación a verificar' },
+        grant_id: { type: 'string', description: 'ID de concesión de permiso a revocar' },
+        capabilities: {
+          type: 'array',
+          items: { type: 'string', enum: ['access', 'login', 'observe', 'execute', 'accept'] },
+          description: 'Capacidades específicas a revocar',
+        },
+        reason: { type: 'string', description: 'Motivo de revocación' },
+        candidate_id: { type: 'string', description: 'ID o clave de módulo candidato' },
+        candidate_decision: { type: 'string', enum: ['approved', 'rejected'] },
+        selected_candidates: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Claves o IDs de candidatos aprobados para crear módulos',
+        },
+        discrepancy_id: { type: 'string', description: 'ID de discrepancia documental a resolver' },
+        discrepancy_choice: {
+          type: 'string',
+          enum: ['kept_source_a', 'kept_source_b', 'dismissed'],
         },
       },
+      required: ['action'],
     },
   },
   {
     name: 'qap_auth_add',
-    description: `Registra y verifica un perfil de autenticación en .qa/project/auth/profiles.json. Permite método 'credentials' (almacenando únicamente credenciales de PRUEBA en llavero seguro keytar sin texto plano) o 'handoff' (login manual asistido en navegador). Tras capturar la sesión, ejecuta verificación automática contra el primer módulo protegido del plan y guarda el storageState. ${UX_DIRECTIVE}`,
+    description: `Registra y verifica una sesión o perfil de acceso controlado en el host (modo seguro automático o inicio de sesión en ventana interactiva). Guarda credenciales únicamente en almacenamiento protegido del host y verifica el acceso real contra la aplicación. ${UX_DIRECTIVE}`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -121,7 +184,11 @@ export const TOOLS: Tool[] = [
         }, required: ['type', 'value'], description: 'Marcador explícito de sesión válida, verificado de nuevo en cada captura autenticada.' },
         storageState: {
           type: 'object',
-          description: 'Objeto de sesión storageState previo o inyectado',
+          description: 'Estado de sesión gestionado por el host',
+        },
+        tenant_id: {
+          type: 'string',
+          description: 'Identificador explícito del tenant cuando el entorno es multi-tenant',
         },
       },
       required: ['profile'],
@@ -336,12 +403,23 @@ export const TOOLS: Tool[] = [
           required: ['required'],
           description: 'Decisión explícita de autenticación',
         },
+        reuse_modules: {
+          description: 'Reutiliza módulos cerrados de una campaña previa (true para todos o lista de nombres/claves de módulos)',
+          oneOf: [
+            { type: 'boolean' },
+            { type: 'array', items: { type: 'string' } },
+          ],
+        },
+        tenant_id: {
+          type: 'string',
+          description: 'Identificador explícito de tenant en entornos multi-tenant',
+        },
       },
     },
   },
   {
     name: 'qap_discover',
-    description: `Observa una MPA mediante BlackBoxCrawler real y estático, con JavaScript deshabilitado; admite un perfil de sesión de cookies verificado si el host lo autoriza. Requiere binding canónico y autorización explícita del host para cada URL GET e IP/red; GET no garantiza inocuidad semántica. Persiste observaciones y evidencias en IKnowledgeStore, sin escribir .qa/modules/ ni avanzar lifecycle. Solo profile selecciona una sesión de cookies autorizada y verificada; no admite credentials, profileId, sesiones aportadas ni headed=true. Cobertura parcial y vistas dependientes de JavaScript se declaran como tales. ${UX_DIRECTIVE}\n\n${QAP_CORE_DIRECTIVES}`,
+    description: `Observa una ruta mediante BlackBoxCrawler real, con modo estático o SPA de solo lectura. QAP reutiliza el permiso de observación para las rutas del mismo entorno y origen cuando el host lo concedió con ese alcance. Si el módulo ya está en el plan, sigue siguiente_accion sin pedir que se vuelva a elegir o autorizar. Persiste observaciones y evidencias en IKnowledgeStore. Usa profile para una sesión ya verificada; credentials, profileId, sesiones aportadas y headed=true se rechazan. GET puede tener efectos en el servidor. ${UX_DIRECTIVE}\n\n${QAP_CORE_DIRECTIVES}`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -385,24 +463,86 @@ export const TOOLS: Tool[] = [
           required: ['username', 'password'],
           description: 'Credenciales explícitas para iniciar sesión si la ruta es de autenticación',
         },
+        allow_spa: {
+          type: 'boolean',
+          description: 'Habilita observación SPA de solo lectura en el mismo origen autorizado',
+        },
+        tenant_id: {
+          type: 'string',
+          description: 'Identificador explícito de tenant para desambiguar el alcance',
+        },
       },
       required: ['name', 'path'],
     },
   },
   {
     name: 'qap_plan',
-    description: `Planifica casos existentes. case_workflow genera propuestas desde requisitos confirmados y solicita su aprobación independiente; nunca confirma requisitos ni aprueba por argumentos MCP. ${UX_DIRECTIVE}`,
+    description: `Planifica casos existentes o gestiona el flujo conversacional de propuesta, decisión de oráculos/riesgos, aprobación por lotes y aceptación humana de brechas. ${UX_DIRECTIVE}`,
     inputSchema: {
       type: 'object',
       properties: {
         targetPath: TARGET_PATH_PROP,
-        case_workflow: { type: 'object', additionalProperties: false, properties: {
-          action: { type: 'string', enum: ['generate', 'review'] },
-          proposals: { type: 'array', maxItems: 100, items: { type: 'object', additionalProperties: false, properties: {
-            requirement_id: { type: 'string' }, expected_revision: { type: 'integer', minimum: 1 },
-            name: { type: 'string', maxLength: 200 }, steps: { type: 'array', maxItems: 100, items: { type: 'object' } },
-          }, required: ['requirement_id', 'expected_revision', 'name', 'steps'] } },
-        }, required: ['action'] },
+        case_workflow: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            action: {
+              type: 'string',
+              enum: ['generate', 'review', 'propose_from_observations', 'decide_oracles', 'approve_batch', 'accept_case_gap'],
+            },
+            proposals: {
+              type: 'array',
+              maxItems: 100,
+              items: {
+                type: 'object',
+                properties: {
+                  requirement_id: { type: 'string' },
+                  expected_revision: { type: 'integer', minimum: 1 },
+                  name: { type: 'string', maxLength: 200 },
+                  title: { type: 'string', maxLength: 200 },
+                  expected_outcome: { type: 'string', maxLength: 1000 },
+                  oracle_source: { type: 'string', enum: ['missing', 'user', 'document', 'observed'] },
+                  risk_level: { type: 'string', enum: ['low', 'medium', 'high', 'critical'] },
+                  risk_accepted: { type: 'boolean' },
+                  steps: { type: 'array', maxItems: 100, items: { type: 'object' } },
+                },
+              },
+            },
+            decisions: {
+              type: 'array',
+              maxItems: 100,
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                  case_id: { type: 'string' },
+                  expected_outcome: { type: 'string' },
+                  assert_selector: { type: 'string' },
+                  assert_type: { type: 'string', enum: ['visible', 'exists', 'contains', 'equals'] },
+                  risk_accepted: { type: 'boolean' },
+                  risk_note: { type: 'string' },
+                },
+                required: ['case_id', 'expected_outcome'],
+              },
+            },
+            case_ids: {
+              type: 'array',
+              maxItems: 200,
+              items: { type: 'string' },
+            },
+            acceptance: {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
+                case_id: { type: 'string' },
+                reason: { type: 'string' },
+                accepted_by: { type: 'string' },
+              },
+              required: ['case_id', 'reason'],
+            },
+          },
+          required: ['action'],
+        },
         module: {
           type: 'string',
           description: 'Nombre del módulo para el cual generar el plan de pruebas',
@@ -455,6 +595,11 @@ export const TOOLS: Tool[] = [
           description: 'Si es true, abre el navegador visualmente durante la ejecución de Playwright',
           default: false,
         },
+        case_ids: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Subconjunto selectivo de IDs de casos aprobados a ejecutar en este lote',
+        },
       },
     },
   },
@@ -478,6 +623,10 @@ export const TOOLS: Tool[] = [
           enum: ['all', 'html', 'markdown', 'junit', 'json'],
           description: 'Formato de reporte deseado (por defecto: "all")',
           default: 'all',
+        },
+        recover_pending: {
+          type: 'boolean',
+          description: 'Si es true, recupera publicaciones parciales pendientes sin reejecutar Playwright',
         },
       },
     },

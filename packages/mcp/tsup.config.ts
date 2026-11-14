@@ -1,5 +1,7 @@
 import { defineConfig } from 'tsup';
 import { execFileSync } from 'node:child_process';
+import { resolve } from 'node:path';
+import { copyPackagedAssets } from '../../scripts/copy-dialog-assets.mjs';
 
 export default defineConfig({
   entry: ['src/index.ts', 'src/server.ts'],
@@ -14,5 +16,8 @@ export default defineConfig({
     js: `#!/usr/bin/env node
 import { createRequire as __qapMcpCreateRequire } from 'node:module';
 const require = __qapMcpCreateRequire(import.meta.url);`,
+  },
+  onSuccess: async () => {
+    copyPackagedAssets(resolve('dist'));
   },
 });

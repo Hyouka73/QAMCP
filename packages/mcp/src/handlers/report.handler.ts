@@ -1,4 +1,5 @@
-import { existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, readFileSync } from 'node:fs';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
@@ -30,6 +31,7 @@ interface ReportArguments {
   executionId?: string;
   module?: string;
   format?: ReportFormat;
+  recover_pending?: boolean;
 }
 
 const SAFE_EXECUTION_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
@@ -70,7 +72,7 @@ export class ReportHandler implements IMcpToolHandler {
   constructor(private readonly dependencies: StateDependencies) {}
 
   validateArguments(raw: unknown): boolean {
-    if (!isObject(raw) || !validateBase(raw, ['targetPath', 'executionId', 'module', 'format'])) {
+    if (!isObject(raw) || !validateBase(raw, ['targetPath', 'executionId', 'module', 'format', 'recover_pending'])) {
       return false;
     }
     if (raw.executionId !== undefined &&
@@ -80,6 +82,9 @@ export class ReportHandler implements IMcpToolHandler {
     if (raw.module !== undefined &&
       (typeof raw.module !== 'string' || !raw.module.trim() || raw.module.length > 128 ||
         raw.module === '.' || raw.module === '..' || /[\\/:]/.test(raw.module))) {
+      return false;
+    }
+    if (raw.recover_pending !== undefined && typeof raw.recover_pending !== 'boolean') {
       return false;
     }
     return raw.format === undefined ||
@@ -112,7 +117,18 @@ export class ReportHandler implements IMcpToolHandler {
       }, true);
     }
 
+    const appService = this.dependencies.applicationService;
+    const appProject = appService?.findActiveProjectByRoot(root) ?? null;
+
     let executionId = args.executionId;
+    if (!executionId && appProject && appService) {
+      const pendingPubs = appService.listRecoverablePublications(appProject.project_id);
+      const matchingPending = pendingPubs.find(p => !args.module || p.module_key === args.module);
+      if (matchingPending && (args.recover_pending === true || SAFE_EXECUTION_ID.test(matchingPending.execution_id))) {
+        executionId = matchingPending.execution_id;
+      }
+    }
+
     let evidence: ExecutionResult | null = null;
     if (executionId) {
       try {
@@ -212,9 +228,44 @@ export class ReportHandler implements IMcpToolHandler {
     }
 
     const paths: Record<string, string> = {};
-    const selected = format === 'all' ? FORMATS.filter(item => item !== 'all') : [format];
-    for (const requested of selected) {
+    const requestedFormats: Array<'html' | 'markdown' | 'junit' | 'json'> =
+      format === 'all'
+        ? FORMATS.filter((item): item is 'html' | 'markdown' | 'junit' | 'json' => item !== 'all')
+        : [format];
+    const matchingAttempt =
+      appProject && appService
+        ? appService.listExecutionAttempts(appProject.project_id, evidence.module).find(a => a.execution_id === executionId)
+        : undefined;
+    let publication =
+      appProject && appService
+        ? appService.beginReportPublication({
+            projectId: appProject.project_id,
+            campaignId: matchingAttempt?.campaign_id ?? appProject.active_campaign_id ?? null,
+            attemptId: matchingAttempt?.attempt_id ?? null,
+            executionId,
+            moduleKey: evidence.module,
+            requestedFormats,
+          })
+        : null;
+    const reusedFormats: string[] = [];
+    const generatedFormats: string[] = [];
+
+    for (const requested of requestedFormats) {
       if (context?.signal?.aborted) throw new McpToolError('cancelled');
+      const existingFormatEntry = publication?.published_formats?.[requested];
+      if (existingFormatEntry && existsSync(existingFormatEntry.path)) {
+        try {
+          const currentSha = createHash('sha256').update(readFileSync(existingFormatEntry.path)).digest('hex');
+          if (currentSha === existingFormatEntry.sha256) {
+            paths[requested] = existingFormatEntry.path;
+            reusedFormats.push(requested);
+            continue;
+          }
+        } catch {
+          // Fall through and regenerate cleanly if unreadable
+        }
+      }
+
       let extension: string;
       let body: string;
       try {
@@ -240,18 +291,45 @@ export class ReportHandler implements IMcpToolHandler {
         }
         const relativeOutput = join(executeDirectory, executionId + '.report.' + extension);
         await storage.write(relativeOutput, body);
-        paths[requested] = resolve(root, relativeOutput);
+        const absoluteOutput = resolve(root, relativeOutput);
+        paths[requested] = absoluteOutput;
+        generatedFormats.push(requested);
+        if (publication && appService) {
+          const bytes = Buffer.byteLength(body, 'utf8');
+          const sha256 = createHash('sha256').update(body, 'utf8').digest('hex');
+          publication = appService.recordPublishedReportFormat({
+            publicationId: publication.publication_id,
+            format: requested,
+            filePath: absoluteOutput,
+            sha256,
+            bytes,
+          });
+        }
       } catch {
+        if (publication && appService) {
+          try {
+            publication = appService.failReportPublication(publication.publication_id, requested) ?? publication;
+          } catch {
+            // Suppress secondary tracking errors during partial failure return
+          }
+        }
         return result({
           status: 'partial',
           code: 'report_generation_or_persistence_failed',
           executionId,
           reports: paths,
-          message: 'No se completaron todos los informes solicitados. No se acredita éxito total.',
+          ...(publication ? { publication_id: publication.publication_id, publication_status: publication.status, failed_format: requested } : {}),
+          recovered_without_reexecution: reusedFormats.length > 0,
+          reused_formats: reusedFormats,
+          generated_formats: generatedFormats,
+          message: 'No se completaron todos los informes solicitados. No se acredita éxito total; recupera la publicación pendiente con qap_report sin reejecutar pruebas.',
           desbloquear_con: 'qap_report',
         }, true);
       }
     }
+
+    const canonicalExecutionSummary =
+      appProject && appService ? appService.getExecutionSummary(appProject.project_id, evidence.module) : undefined;
 
     return result({
       status: 'success',
@@ -260,6 +338,18 @@ export class ReportHandler implements IMcpToolHandler {
       module: evidence.module,
       result: evidence.result,
       summary: evidence.summary,
+      ...(matchingAttempt ? { attempt_id: matchingAttempt.attempt_id } : {}),
+      ...(canonicalExecutionSummary ? { canonical_execution_summary: canonicalExecutionSummary } : {}),
+      ...(publication
+        ? {
+            publication: {
+              publication_id: publication.publication_id,
+              status: publication.status,
+              reused_formats: reusedFormats,
+              generated_formats: generatedFormats,
+            },
+          }
+        : {}),
       reports: paths,
       evidence_source: 'persisted_execution',
       traceability_file: existsSync(resolve(root, '.qa/executions/' + executionId + '.trace.json')) ? resolve(root, '.qa/executions/' + executionId + '.trace.json') : null,

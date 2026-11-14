@@ -20,3 +20,5 @@ export { SqliteModuleClosureStore } from './handlers/module-closure-store.js';
 
 export * from './workspace-authorizer.js';
 export * from './discovery-authorizer.js';
+export * from './application/index.js';
+export { ProjectHandler } from './handlers/project.handler.js';

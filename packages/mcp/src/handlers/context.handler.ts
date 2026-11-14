@@ -495,6 +495,47 @@ export class ContextHandler implements IMcpToolHandler {
     const hallazgos = detectarDocumentosProyecto(rootDir);
     hallazgos.servicios = serviciosConEvidencia;
 
+    const appService = this.dependencies.applicationService;
+    if (appService) {
+      const activeProj = appService.findActiveProjectByRoot(rootDir);
+      if (activeProj) {
+        if (existingContext.objective && existingContext.objective_source === 'user') {
+          appService.updateProjectObjective(activeProj.project_id, existingContext.objective);
+        }
+        if (rawUrl) {
+          appService.upsertEnvironment({
+            projectId: activeProj.project_id,
+            name: 'local',
+            baseUrl: rawUrl,
+          });
+        }
+        const snap = appService.resumeProject(activeProj.project_id);
+        if (snap.campaign) {
+          appService.updateCampaignPhase(snap.campaign.campaign_id, finalPhase);
+          appService.upsertTask({
+            projectId: activeProj.project_id,
+            campaignId: snap.campaign.campaign_id,
+            kind: 'onboarding',
+            title: autoTransitioned ? 'Contexto base confirmado' : 'Actualización de contexto conversacional',
+            status: autoTransitioned ? 'completed' : 'in_progress',
+            progressCurrent: autoTransitioned ? 1 : 0,
+            progressTotal: 1,
+            progressUnit: 'steps',
+            recoveryCursor: {
+              recoverable: true,
+              project_id: activeProj.project_id,
+              campaign_id: snap.campaign.campaign_id,
+              resume_token: `${snap.campaign.campaign_id}:${autoTransitioned ? 'scoping_ready' : 'onboarding_fields'}`,
+              last_completed_step: autoTransitioned ? 'scoping_ready' : 'onboarding_fields',
+              checkpoint_at: new Date().toISOString(),
+              recovery_bundle_available: true,
+              tombstone_blocked: false,
+            },
+          });
+        }
+      }
+    }
+
     const guidance = getPhaseGuidance(finalPhase, {
       investigateBeforeScoping: this.dependencies.provisionalInventory,
       faltantes: gateRes.faltantes,

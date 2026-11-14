@@ -130,7 +130,8 @@ describe('Suite MCP Server QAP v2.1 / v2.1.2', () => {
     const toolNames = response.tools.map((t: { name: string }) => t.name);
 
     expect(toolNames).toContain('qap_init');
-    expect(toolNames).toContain('qap_clean');
+    expect(toolNames).toContain('qap_project');
+    expect(toolNames).not.toContain('qap_clean');
     expect(toolNames).toContain('qap_auth_add');
     expect(toolNames).toContain('qap_auth_list');
     expect(toolNames).toContain('qap_status');
@@ -304,7 +305,7 @@ describe('Suite MCP Server QAP v2.1 / v2.1.2', () => {
     expect(parsedReport.directorio_objetivo).toBe(tempDir);
     expect(parsedReport.reports.html).toBeDefined();
 
-    // El contrato VNEXT-012 bloquea el reset y conserva todos los archivos.
+    // Retiro del reset contradictorio: qap_clean ya no está en el catálogo ni borra archivos.
     const filesBeforeClean = readdirSync(join(tempDir, '.qa'), { recursive: true }).sort();
     const cleanResult = await handler(
       {
@@ -317,8 +318,6 @@ describe('Suite MCP Server QAP v2.1 / v2.1.2', () => {
       {}
     );
     expect(cleanResult.isError).toBe(true);
-    const parsedClean = JSON.parse(cleanResult.content[0].text);
-    expect(parsedClean).toMatchObject({ status: 'blocked', code: 'persistent_memory_reset_not_authorized', removed: [] });
     expect(existsSync(join(tempDir, '.qa'))).toBe(true);
     expect(existsSync(join(execDir, 'exec-test.json'))).toBe(true);
     expect(existsSync(parsedReport.reports.html)).toBe(true);

@@ -24,11 +24,21 @@ export interface BlackBoxCrawlerInput {
     allowed_ips?: string[];
     allow_public_network?: boolean;
   };
-  /** Only this isolated, anonymous, non-scripted mode is supported. */
-  isolation?: 'fresh_anonymous_static' | 'fresh_authenticated_static';
-  /** Host-only Auth session. Never serialized into observations or evidence. Cookie transport only. */
-  authenticated_session?: { profile_id: string; role_id?: string; origin: string;
-    cookies: import('playwright-core').Cookie[]; validation_selector: string };
+  /** Isolated static or strictly bounded same-origin read-only SPA observation. */
+  isolation?:
+    | 'fresh_anonymous_static'
+    | 'fresh_authenticated_static'
+    | 'fresh_anonymous_spa_readonly'
+    | 'fresh_authenticated_spa_readonly';
+  /** Host-only Auth session. Never serialized into observations or evidence. */
+  authenticated_session?: {
+    profile_id: string;
+    role_id?: string;
+    origin: string;
+    cookies: import('playwright-core').Cookie[];
+    origins?: Array<{ origin: string; localStorage: Array<{ name: string; value: string }> }>;
+    validation_selector?: string;
+  };
   limits?: Partial<CrawlerLimits>;
   tls_ca?: string;
   signal?: AbortSignal;
@@ -64,7 +74,7 @@ export interface CrawlerRoute {
 export interface ObservedView {
   id: string;
   route: string;
-  state: 'static_snapshot' | 'loading_or_script_dependent';
+  state: 'static_snapshot' | 'spa_rendered' | 'loading_or_script_dependent';
   evidence_id: string;
   controls: ObservedControl[];
   links: Array<{ target: string; control_index: number; authorized: boolean; label?: string }>;
@@ -76,7 +86,11 @@ export interface ObservedView {
 export interface BlackBoxCrawlerResult {
   execution_id: string;
   status: 'completed' | 'partial' | 'blocked' | 'indeterminate';
-  mode: 'fresh_anonymous_static' | 'fresh_authenticated_static';
+  mode:
+    | 'fresh_anonymous_static'
+    | 'fresh_authenticated_static'
+    | 'fresh_anonymous_spa_readonly'
+    | 'fresh_authenticated_spa_readonly';
   routes: CrawlerRoute[];
   views: ObservedView[];
   relations: Array<{ from: string; to: string; kind: 'link_candidate' | 'http_redirect' }>;

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { realpathSync } from 'node:fs';
 
 import { SessionStore, readProfile } from '@qap/auth';
@@ -12,6 +13,7 @@ import {
   type IMcpToolHandler,
   type McpInvocationContext,
 } from '../dispatcher.js';
+import { atomicRecordTestAuthorization, type ITestAuthorizer } from '../test-authorizer.js';
 
 import { verifyCaseApproval } from './case-workflow.js';
 import {
@@ -36,6 +38,8 @@ export interface TestNavigationAuthorization {
 
 export interface TestHandlerOptions {
   readonly testAuthorizations?: readonly TestNavigationAuthorization[];
+  readonly testAuthorizer?: ITestAuthorizer;
+  readonly hostTestRegistryPath?: string;
   readonly storageResolver?: (moduleName: string, caseId: string) => Promise<TCCase>;
   readonly runner?: IRunner;
 }
@@ -46,6 +50,7 @@ export interface TestArguments {
   environment?: string;
   profile?: string;
   headed?: boolean;
+  case_ids?: string[];
 }
 
 /**
@@ -72,8 +77,8 @@ export class TestHandler implements IMcpToolHandler {
 
   validateArguments(args: unknown): boolean {
     if (!isObject(args)) return false;
-    // Strict validation against public schema: targetPath, module, environment, profile, headed
-    if (!validateBase(args, ['targetPath', 'module', 'environment', 'profile', 'headed'])) {
+    // Strict validation against public schema: targetPath, module, environment, profile, headed, case_ids
+    if (!validateBase(args, ['targetPath', 'module', 'environment', 'profile', 'headed', 'case_ids'])) {
       return false;
     }
 
@@ -105,6 +110,23 @@ export class TestHandler implements IMcpToolHandler {
 
     if (args.headed !== undefined && typeof args.headed !== 'boolean') {
       return false;
+    }
+
+    if (args.case_ids !== undefined) {
+      if (!Array.isArray(args.case_ids) || args.case_ids.length > 500) {
+        return false;
+      }
+      for (const item of args.case_ids) {
+        if (
+          typeof item !== 'string' ||
+          !item.trim() ||
+          item.length > 128 ||
+          /[\\/:]/.test(item) ||
+          [...item].some(c => c.charCodeAt(0) < 32)
+        ) {
+          return false;
+        }
+      }
     }
 
     return true;
@@ -168,8 +190,266 @@ export class TestHandler implements IMcpToolHandler {
       );
     }
 
-    // 4. Host Navigation Policy Authorization (R2)
-    const authorizations = this.options.testAuthorizations ?? [];
+    const appService = this.dependencies.applicationService;
+    const appProject = appService?.findActiveProjectByRoot(rootDir) ?? null;
+    const appSnapshot = appProject && appService ? appService.resumeProject(appProject.project_id) : null;
+
+    // 4. Host Navigation Policy Authorization (R2) + ApplicationService Execute Authority
+    let yamlEnvUrl: string | undefined;
+    let isProductionEnv = environment === 'production';
+    try {
+      const envConfig = await storage.getEnvironments();
+      const envRecord = envConfig?.environments?.[environment] as Record<string, unknown> | undefined;
+      yamlEnvUrl = typeof envRecord?.url === 'string' ? envRecord.url : undefined;
+      if (envRecord?.is_production === true) {
+        isProductionEnv = true;
+      }
+    } catch {
+      yamlEnvUrl = undefined;
+    }
+    const canonicalEnvUrl = appSnapshot?.environment?.base_url;
+    const envUrl = canonicalEnvUrl ?? yamlEnvUrl;
+    if (appSnapshot?.environment?.is_production === true) {
+      isProductionEnv = true;
+    }
+    const hasDiscrepantYamlUrl = Boolean(
+      yamlEnvUrl &&
+      canonicalEnvUrl &&
+      (() => {
+        try {
+          return new URL(yamlEnvUrl).origin !== new URL(canonicalEnvUrl).origin;
+        } catch {
+          return yamlEnvUrl !== canonicalEnvUrl;
+        }
+      })(),
+    );
+
+    let envOrigin: string | undefined;
+    if (envUrl) {
+      try {
+        envOrigin = new URL(envUrl).origin;
+      } catch {
+        envOrigin = undefined;
+      }
+    }
+
+    if (appProject && appService) {
+      const accessCheck = appService.authority.check(appProject.project_id, 'access', {
+        root_path: rootDir,
+      });
+      if (!accessCheck.allowed && (accessCheck.reason === 'revoked' || accessCheck.reason === 'expired')) {
+        return result(
+          {
+            status: 'blocked',
+            code: accessCheck.code,
+            module: moduleName,
+            environment,
+            message: 'El acceso al proyecto fue revocado o expiró. No se puede ejecutar pruebas.',
+            desbloquear_con: 'qap_status',
+          },
+          true,
+        );
+      }
+
+      const executeCheck = appService.authority.check(appProject.project_id, 'execute', {
+        root_path: rootDir,
+        ...(envOrigin ? { origin: envOrigin } : {}),
+        ...(appSnapshot?.environment?.env_id ? { env_id: appSnapshot.environment.env_id } : {}),
+      });
+      if (!executeCheck.allowed && (executeCheck.reason === 'revoked' || executeCheck.reason === 'expired')) {
+        return result(
+          {
+            status: 'blocked',
+            code: executeCheck.code,
+            module: moduleName,
+            environment,
+            message:
+              'La autorización de ejecución para este proyecto fue revocada o expiró. Autoriza nuevamente antes de ejecutar.',
+            desbloquear_con: 'qap_status',
+          },
+          true,
+        );
+      }
+
+      if (args.profile) {
+        const loginCheck = appService.authority.check(appProject.project_id, 'login', {
+          ...(envOrigin ? { origin: envOrigin } : {}),
+          profile_id: args.profile,
+        });
+        if (!loginCheck.allowed && (loginCheck.reason === 'revoked' || loginCheck.reason === 'expired')) {
+          return result(
+            {
+              status: 'blocked',
+              code: loginCheck.reason === 'revoked' ? 'auth_session_revoked' : 'auth_session_expired',
+              module: moduleName,
+              environment,
+              profile: args.profile,
+              message:
+                loginCheck.reason === 'revoked'
+                  ? `La autorización de inicio de sesión para '${args.profile}' fue revocada. Nunca se degradará a anónimo.`
+                  : `La autorización de inicio de sesión para '${args.profile}' expiró. Revalida con 'qap_auth_add'.`,
+              desbloquear_con: 'qap_auth_add',
+            },
+            true,
+          );
+        }
+      }
+    }
+
+    let canonicalRoot: string;
+    try {
+      canonicalRoot = realpathSync(rootDir);
+    } catch {
+      canonicalRoot = rootDir;
+    }
+
+    const staticAuths = this.options.testAuthorizations ?? [];
+    let authorizations: TestNavigationAuthorization[] = [...staticAuths];
+
+    let matchingAuths = authorizations.filter(auth => {
+      if (auth.projectRoot) {
+        try {
+          return realpathSync(auth.projectRoot) === canonicalRoot;
+        } catch {
+          return false;
+        }
+      }
+      return true; // global policy if no specific projectRoot
+    });
+
+    const hasStaticOriginMatch =
+      matchingAuths.length > 0 &&
+      matchingAuths.some(a => (a.allowedOrigins ?? []).length > 0) &&
+      (!envUrl ||
+        isUrlAllowedByPolicy(
+          envUrl,
+          Array.from(new Set(matchingAuths.flatMap(a => Array.from(a.allowedOrigins ?? [])))),
+        ));
+
+    if (!hasStaticOriginMatch && appProject && appService) {
+      const executeGrantCheck = appService.authority.check(appProject.project_id, 'execute', {
+        root_path: rootDir,
+        ...(envOrigin ? { origin: envOrigin } : {}),
+      });
+      if (executeGrantCheck.allowed && executeGrantCheck.grant?.scope.origin) {
+        const grantedAuth: TestNavigationAuthorization = {
+          projectRoot: canonicalRoot,
+          allowedOrigins: [executeGrantCheck.grant.scope.origin],
+          allowRedirectsToAllowedOnly: true,
+          ...(args.profile ? { authorizedProfiles: [args.profile] } : {}),
+        };
+        authorizations = [...authorizations, grantedAuth];
+        matchingAuths = [...matchingAuths, grantedAuth];
+      } else if (
+        !this.options.testAuthorizer &&
+        this.dependencies.silentBoundScope &&
+        Boolean(canonicalEnvUrl) &&
+        !hasDiscrepantYamlUrl &&
+        environment === (appSnapshot?.environment?.name ?? 'local') &&
+        envOrigin &&
+        !isProductionEnv &&
+        authorizations.length === 0
+      ) {
+        appService.authority.grant({
+          project_id: appProject.project_id,
+          capability: 'execute',
+          scope: {
+            root_path: canonicalRoot,
+            origin: envOrigin,
+            ...(appSnapshot?.environment?.env_id ? { env_id: appSnapshot.environment.env_id } : {}),
+          },
+          granted_by: 'host_bound_scope',
+          policy_hash: createHash('sha256').update(envOrigin).digest('hex'),
+        });
+        const grantedAuth: TestNavigationAuthorization = {
+          projectRoot: canonicalRoot,
+          allowedOrigins: [envOrigin],
+          allowRedirectsToAllowedOnly: true,
+          ...(args.profile && args.profile !== 'admin-user' ? { authorizedProfiles: [args.profile] } : {}),
+        };
+        authorizations = [...authorizations, grantedAuth];
+        matchingAuths = [...matchingAuths, grantedAuth];
+      } else if (this.options.testAuthorizer) {
+        const requestedOrigin = envOrigin ?? 'http://127.0.0.1';
+        const authRes = await this.options.testAuthorizer.requestAuthorization(
+          {
+            projectRoot: canonicalRoot,
+            projectName: appProject.name,
+            origin: requestedOrigin,
+            moduleName,
+            caseCount: args.case_ids?.length ?? 1,
+            profileLabel: args.profile,
+          },
+          context?.signal,
+        );
+        if (authRes.decision === 'rejected') {
+          return result(
+            {
+              status: 'blocked',
+              code: 'test_authorization_rejected',
+              module: moduleName,
+              environment,
+              message: authRes.reason ?? 'Autorización de ejecución rechazada por el usuario.',
+              desbloquear_con: 'qap_status',
+            },
+            true,
+          );
+        }
+        if (authRes.decision === 'cancelled') {
+          return result(
+            {
+              status: 'blocked',
+              code: authRes.code ?? 'test_authorization_cancelled',
+              module: moduleName,
+              environment,
+              message: authRes.reason ?? 'Autorización de ejecución cancelada o expirada.',
+              desbloquear_con: 'qap_status',
+            },
+            true,
+          );
+        }
+        if (authRes.decision === 'unavailable') {
+          return result(
+            {
+              status: 'blocked',
+              code: 'navigation_not_authorized',
+              diagnostic_code: authRes.code,
+              module: moduleName,
+              environment,
+              message: authRes.reason,
+              desbloquear_con: 'qap_context_set',
+            },
+            true,
+          );
+        }
+
+        const approvedOrigins = authRes.allowedOrigins.length > 0 ? authRes.allowedOrigins : [requestedOrigin];
+        appService.authority.grant({
+          project_id: appProject.project_id,
+          capability: 'execute',
+          scope: {
+            root_path: canonicalRoot,
+            origin: approvedOrigins[0],
+            ...(appSnapshot?.environment?.env_id ? { env_id: appSnapshot.environment.env_id } : {}),
+          },
+          granted_by: 'interactive_test_authorizer',
+          policy_hash: createHash('sha256').update(approvedOrigins.join('|')).digest('hex'),
+        });
+
+        const approvedAuth: TestNavigationAuthorization = {
+          projectRoot: canonicalRoot,
+          allowedOrigins: approvedOrigins,
+          allowRedirectsToAllowedOnly: true,
+          ...(authRes.authorizedProfiles ? { authorizedProfiles: authRes.authorizedProfiles } : {}),
+        };
+        if (this.options.hostTestRegistryPath) {
+          atomicRecordTestAuthorization(this.options.hostTestRegistryPath, approvedAuth);
+        }
+        authorizations = [...authorizations, approvedAuth];
+        matchingAuths = [...matchingAuths, approvedAuth];
+      }
+    }
+
     if (authorizations.length === 0) {
       return result(
         {
@@ -184,25 +464,6 @@ export class TestHandler implements IMcpToolHandler {
         true
       );
     }
-
-    let canonicalRoot: string;
-    try {
-      canonicalRoot = realpathSync(rootDir);
-    } catch {
-      canonicalRoot = rootDir;
-    }
-
-    // Find authorizations matching current project
-    const matchingAuths = authorizations.filter(auth => {
-      if (auth.projectRoot) {
-        try {
-          return realpathSync(auth.projectRoot) === canonicalRoot;
-        } catch {
-          return false;
-        }
-      }
-      return true; // global policy if no specific projectRoot
-    });
 
     if (matchingAuths.length === 0) {
       return result(
@@ -234,15 +495,6 @@ export class TestHandler implements IMcpToolHandler {
         },
         true
       );
-    }
-
-    // Check environment URL from environments.yaml against allowed origins
-    let envUrl: string | undefined;
-    try {
-      const envConfig = await storage.getEnvironments();
-      envUrl = envConfig?.environments?.[environment]?.url;
-    } catch {
-      envUrl = undefined;
     }
 
     if (envUrl && !isUrlAllowedByPolicy(envUrl, allowedOrigins)) {
@@ -303,7 +555,81 @@ export class TestHandler implements IMcpToolHandler {
     const bound = binding(rootDir, this.dependencies);
     if (bound && (environment !== bound.environmentId || (lifecycle.session?.auth?.profile && lifecycle.session.auth.profile !== args.profile))) return result({ status: 'blocked', code: 'auth_context_mismatch' }, true);
     if (bound && lifecycle.session?.auth?.required && !args.profile) return result({ status: 'blocked', code: 'auth_profile_required' }, true);
-    if (args.profile && bound) {
+
+    let runnerStorageState: PlaywrightRunnerOptions['storageState'];
+    let runnerExtraHeaders: Record<string, string> | undefined;
+    let resolvedProfileId: string | undefined = args.profile;
+
+    if (args.profile && appProject && appService) {
+      const svcSession = appService.readProfileSession<{
+        cookies?: Array<Record<string, unknown>>;
+        origins?: Array<Record<string, unknown>>;
+      }>(appProject.project_id, args.profile);
+      if (svcSession) {
+        if (svcSession.revoked) {
+          return result(
+            {
+              status: 'blocked',
+              code: 'auth_session_revoked',
+              module: moduleName,
+              environment,
+              profile: args.profile,
+              message: `La sesión del perfil '${args.profile}' fue revocada. Nunca se degradará a anónimo; reautentica con 'qap_auth_add'.`,
+              desbloquear_con: 'qap_auth_add',
+            },
+            true,
+          );
+        }
+        if (svcSession.expired || !svcSession.session) {
+          return result(
+            {
+              status: 'blocked',
+              code: 'auth_session_expired',
+              module: moduleName,
+              environment,
+              profile: args.profile,
+              message: `La sesión del perfil '${args.profile}' expiró o no está vigente. Nunca se degradará a anónimo; revalida con 'qap_auth_add'.`,
+              desbloquear_con: 'qap_auth_add',
+            },
+            true,
+          );
+        }
+        const tenantCheck = appService.validateTenantScope(
+          appProject.project_id,
+          svcSession.profile.tenant_id,
+          svcSession.profile.profile_id,
+        );
+        if (!tenantCheck.ok) {
+          return result(
+            {
+              status: 'blocked',
+              code: tenantCheck.code,
+              module: moduleName,
+              environment,
+              profile: args.profile,
+              message: tenantCheck.reason,
+              desbloquear_con: 'qap_auth_add',
+            },
+            true,
+          );
+        }
+        if (bound && matchingAuths.some(a => a.authorizedProfiles && a.authorizedProfiles.length > 0)) {
+          if (!matchingAuths.some(a => a.authorizedProfiles?.includes(args.profile!))) {
+            return result({ status: 'blocked', code: 'unauthorized_profile' }, true);
+          }
+        }
+        resolvedProfileId = svcSession.profile.profile_id;
+        runnerStorageState = svcSession.session as PlaywrightRunnerOptions['storageState'];
+        if (tenantCheck.tenant_id) {
+          runnerExtraHeaders = { 'X-Tenant-Id': tenantCheck.tenant_id };
+        }
+      } else if (bound) {
+        if (!matchingAuths.some(a => a.authorizedProfiles?.includes(args.profile!))) return result({ status: 'blocked', code: 'unauthorized_profile' }, true);
+        const profile = await readProfile(args.profile, rootDir);
+        const session = new SessionStore(undefined, rootDir).getValidSession(args.profile);
+        if (!profile?.verified || profile.application_id !== bound.applicationId || profile.env !== environment || !session) return result({ status: 'blocked', code: 'auth_session_expired' }, true);
+      }
+    } else if (args.profile && bound) {
       if (!matchingAuths.some(a => a.authorizedProfiles?.includes(args.profile!))) return result({ status: 'blocked', code: 'unauthorized_profile' }, true);
       const profile = await readProfile(args.profile, rootDir);
       const session = new SessionStore(undefined, rootDir).getValidSession(args.profile);
@@ -354,6 +680,32 @@ export class TestHandler implements IMcpToolHandler {
       snapshotMap.set(tc.id, structuredClone(tc));
     }
 
+    let selectedPlanCaseIds = verifiedPlan.matrix.cases;
+    if (args.case_ids && args.case_ids.length > 0) {
+      const requestedSet = new Set(args.case_ids.map(id => id.trim()));
+      const missingFromPlan = [...requestedSet].filter(id => !snapshotMap.has(id));
+      if (missingFromPlan.length > 0) {
+        return result(
+          {
+            status: 'blocked',
+            code: 'unknown_case_in_batch',
+            module: moduleName,
+            environment,
+            missing_case_ids: missingFromPlan,
+            message: `Algunos casos del lote solicitado no forman parte del plan vigente para '${moduleName}'.`,
+            desbloquear_con: 'qap_plan',
+          },
+          true,
+        );
+      }
+      selectedPlanCaseIds = verifiedPlan.matrix.cases.filter(id => requestedSet.has(id));
+      for (const id of [...snapshotMap.keys()]) {
+        if (!requestedSet.has(id)) {
+          snapshotMap.delete(id);
+        }
+      }
+    }
+
     const storageResolver =
       this.options.storageResolver ??
       ((_mod: string, caseId: string) => {
@@ -371,6 +723,35 @@ export class TestHandler implements IMcpToolHandler {
     catch { return result({ status: 'blocked', code: 'case_approval_unavailable' }, true); }
     if (!approval.allowed) return result({ status: 'blocked', ...approval }, true);
 
+    // Pre-launch durable execution attempt persistence BEFORE invoking browser runner (Block 3)
+    const serviceCasesById = new Map(
+      appProject && appService
+        ? appService.listServiceCases(appProject.project_id, moduleName).map(c => [c.case_id, c])
+        : [],
+    );
+    const attemptRecord =
+      appProject && appService
+        ? appService.createExecutionAttempt({
+            projectId: appProject.project_id,
+            moduleKey: moduleName,
+            envId: appSnapshot?.environment?.env_id ?? environment,
+            profileId: resolvedProfileId ?? null,
+            cases: [...snapshotMap.values()].map(c => {
+              const svc = serviceCasesById.get(c.id);
+              return {
+                case_id: c.id,
+                version: svc?.version ?? 1,
+                requirement_id: svc?.requirement_id ?? c.source_rule_id ?? null,
+                requirement_revision: svc?.requirement_revision ?? 1,
+                title: c.name ?? svc?.title ?? c.id,
+              };
+            }),
+          })
+        : null;
+    if (attemptRecord && appService) {
+      appService.markAttemptRunning(attemptRecord.attempt_id);
+    }
+
     // 8. Safe Runner Execution (R2 / F7 / F8)
     const runner = this.options.runner ?? new PlaywrightRunner();
     const runnerOptions: PlaywrightRunnerOptions = {
@@ -382,6 +763,8 @@ export class TestHandler implements IMcpToolHandler {
       signal: context?.signal,
       allowImplicitAuth: false,
       profile: args.profile,
+      storageState: runnerStorageState,
+      extraHTTPHeaders: runnerExtraHeaders,
       storageResolver,
       allowedOrigins,
     };
@@ -391,19 +774,26 @@ export class TestHandler implements IMcpToolHandler {
       executionResult = await runner.execute(
         {
           modules: [moduleName],
-          cases: verifiedPlan.matrix.cases,
+          cases: selectedPlanCaseIds,
           environment,
         },
         runnerOptions
       );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
+      if (attemptRecord && appService) {
+        appService.finalizeExecutionAttempt({
+          attemptId: attemptRecord.attempt_id,
+          technicalError: { code: 'execution_failed', message: msg },
+        });
+      }
       return result(
         {
           status: 'error',
           code: 'execution_failed',
           module: moduleName,
           environment,
+          ...(attemptRecord ? { attempt_id: attemptRecord.attempt_id } : {}),
           message: `Fallo crítico durante la ejecución del runner: ${msg}`,
         },
         true
@@ -417,12 +807,25 @@ export class TestHandler implements IMcpToolHandler {
         c => c.result === 'not_run' && c.not_run_reason?.toLowerCase().includes('infraestructura')
       )
     ) {
+      if (attemptRecord && appService) {
+        appService.finalizeExecutionAttempt({
+          attemptId: attemptRecord.attempt_id,
+          executionResult,
+          technicalError: {
+            code: 'browser_not_available',
+            message:
+              executionResult.cases[0]?.not_run_reason ??
+              'Error de infraestructura: el navegador Chromium no está disponible.',
+          },
+        });
+      }
       return result(
         {
           status: 'blocked',
           code: 'browser_not_available',
           module: moduleName,
           environment,
+          ...(attemptRecord ? { attempt_id: attemptRecord.attempt_id } : {}),
           message:
             executionResult.cases[0]?.not_run_reason ??
             'Error de infraestructura: el navegador Chromium no está disponible.',
@@ -440,12 +843,22 @@ export class TestHandler implements IMcpToolHandler {
     if (!schemaValidation.valid) {
       // Never persist or report an execution that violates the canonical schema.
       // In particular, an invalid execution_id must never reach filesystem paths.
+      if (attemptRecord && appService) {
+        appService.finalizeExecutionAttempt({
+          attemptId: attemptRecord.attempt_id,
+          technicalError: {
+            code: 'invalid_execution_result',
+            message: 'El runner devolvió un resultado incompatible con el esquema canónico.',
+          },
+        });
+      }
       return result(
         {
           status: 'error',
           code: 'invalid_execution_result',
           module: moduleName,
           environment,
+          ...(attemptRecord ? { attempt_id: attemptRecord.attempt_id } : {}),
           message: 'El runner devolvió un resultado incompatible con el esquema canónico. No se guardó ninguna ejecución.',
           desbloquear_con: 'qap_status',
         },
@@ -454,12 +867,22 @@ export class TestHandler implements IMcpToolHandler {
     }
 
     if (!isInternallyConsistentExecution(executionResult, { module: moduleName, environment })) {
+      if (attemptRecord && appService) {
+        appService.finalizeExecutionAttempt({
+          attemptId: attemptRecord.attempt_id,
+          technicalError: {
+            code: 'inconsistent_execution_result',
+            message: 'El resultado devuelto por el runner es internamente inconsistente.',
+          },
+        });
+      }
       return result(
         {
           status: 'error',
           code: 'inconsistent_execution_result',
           module: moduleName,
           environment,
+          ...(attemptRecord ? { attempt_id: attemptRecord.attempt_id } : {}),
           message: 'El resultado devuelto por el runner no corresponde al módulo/entorno o sus conteos y estados son inconsistentes. No se guardó evidencia.',
           desbloquear_con: 'qap_status',
         },
@@ -471,12 +894,22 @@ export class TestHandler implements IMcpToolHandler {
     // Schema v1 declares execution_id as a free-form string. Storage uses it in a
     // filesystem path; enforce a safe basename before any persistence attempt.
     if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(executionId)) {
+      if (attemptRecord && appService) {
+        appService.finalizeExecutionAttempt({
+          attemptId: attemptRecord.attempt_id,
+          technicalError: {
+            code: 'invalid_execution_id',
+            message: 'El identificador de ejecución no es seguro para persistencia.',
+          },
+        });
+      }
       return result(
         {
           status: 'error',
           code: 'invalid_execution_id',
           module: moduleName,
           environment,
+          ...(attemptRecord ? { attempt_id: attemptRecord.attempt_id } : {}),
           message: 'El identificador de ejecución no es seguro para persistencia. No se guardó ninguna ejecución.',
         },
         true
@@ -487,12 +920,22 @@ export class TestHandler implements IMcpToolHandler {
       await storage.saveExecutionResult(executionId, executionResult);
 
     } catch {
+      if (attemptRecord && appService) {
+        appService.finalizeExecutionAttempt({
+          attemptId: attemptRecord.attempt_id,
+          technicalError: {
+            code: 'execution_not_persisted',
+            message: 'Fallo al guardar el resultado de ejecución en disco.',
+          },
+        });
+      }
       return result(
         {
           status: 'error',
           code: 'execution_not_persisted',
           module: moduleName,
           environment,
+          ...(attemptRecord ? { attempt_id: attemptRecord.attempt_id } : {}),
           message: 'La ejecución terminó, pero no se pudo guardar su resultado. No se acreditó como ejecución persistida.',
           desbloquear_con: 'qap_status',
         },
@@ -500,13 +943,50 @@ export class TestHandler implements IMcpToolHandler {
       );
     }
 
+    let traceRelPath: string | null = null;
     if (approval.request_digest) {
-      try { await storage.writeJson('.qa/executions/' + executionId + '.trace.json', {
-        execution_id: executionId, case_approval_digest: approval.request_digest, requirements: approval.requirements,
-        cases: [...snapshotMap.values()].map(c => ({ id: c.id, source_rule_id: c.source_rule_id })) }); }
-      catch { return result({ status: 'partial', code: 'execution_trace_not_persisted', execution_id: executionId,
-        execution_saved: true, trace_saved: false, summary: executionResult.summary,
-        message: 'La ejecución está guardada; falta persistir su trazabilidad. No reejecutar el navegador implícitamente.', desbloquear_con: 'qap_report' }, true); }
+      traceRelPath = '.qa/executions/' + executionId + '.trace.json';
+      try {
+        await storage.writeJson(traceRelPath, {
+          execution_id: executionId,
+          case_approval_digest: approval.request_digest,
+          requirements: approval.requirements,
+          cases: [...snapshotMap.values()].map(c => ({ id: c.id, source_rule_id: c.source_rule_id })),
+        });
+      } catch {
+        if (attemptRecord && appService) {
+          appService.finalizeExecutionAttempt({
+            attemptId: attemptRecord.attempt_id,
+            executionResult,
+            rawExecutionPath: `.qa/executions/${executionId}.json`,
+            tracePath: null,
+          });
+        }
+        return result(
+          {
+            status: 'partial',
+            code: 'execution_trace_not_persisted',
+            execution_id: executionId,
+            ...(attemptRecord ? { attempt_id: attemptRecord.attempt_id } : {}),
+            execution_saved: true,
+            trace_saved: false,
+            summary: executionResult.summary,
+            message:
+              'La ejecución está guardada; falta persistir su trazabilidad. No reejecutar el navegador implícitamente.',
+            desbloquear_con: 'qap_report',
+          },
+          true,
+        );
+      }
+    }
+
+    if (attemptRecord && appService) {
+      appService.finalizeExecutionAttempt({
+        attemptId: attemptRecord.attempt_id,
+        executionResult,
+        rawExecutionPath: `.qa/executions/${executionId}.json`,
+        tracePath: traceRelPath,
+      });
     }
 
     try {
@@ -526,6 +1006,7 @@ export class TestHandler implements IMcpToolHandler {
           module: moduleName,
           environment,
           execution_id: executionId,
+          ...(attemptRecord ? { attempt_id: attemptRecord.attempt_id } : {}),
           execution_saved: true,
           history_saved: false,
           result: executionResult.result,
@@ -536,6 +1017,9 @@ export class TestHandler implements IMcpToolHandler {
         true
       );
     }
+
+    const canonicalExecutionSummary =
+      appProject && appService ? appService.getExecutionSummary(appProject.project_id, moduleName) : undefined;
 
     // Note: NEVER create automated ConformityAssessment in SQLite (enforced by design).
 
@@ -550,6 +1034,8 @@ export class TestHandler implements IMcpToolHandler {
           module: moduleName,
           environment,
           execution_id: executionId,
+          ...(attemptRecord ? { attempt_id: attemptRecord.attempt_id } : {}),
+          ...(canonicalExecutionSummary ? { canonical_execution_summary: canonicalExecutionSummary } : {}),
           summary: executionResult.summary,
           message: 'La ejecución se interrumpió. El resultado y los casos no ejecutados quedaron registrados sin acreditar conformidad.',
           desbloquear_con: 'qap_status',
@@ -565,6 +1051,8 @@ export class TestHandler implements IMcpToolHandler {
       module: moduleName,
       environment,
       execution_id: executionId,
+      ...(attemptRecord ? { attempt_id: attemptRecord.attempt_id } : {}),
+      ...(canonicalExecutionSummary ? { canonical_execution_summary: canonicalExecutionSummary } : {}),
       summary: executionResult.summary,
       cases: executionResult.cases,
       started_at: executionResult.started_at,

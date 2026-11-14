@@ -120,14 +120,14 @@ $form.Controls.Add($scopeLabel)
 
 # Target URL Label & Box
 $lblTarget = New-Object System.Windows.Forms.Label
-$lblTarget.Text = "URL u origen solicitado para descubrimiento:"
+$lblTarget.Text = "Origen autorizado para todas sus rutas de observación:"
 $lblTarget.Font = New-Object System.Drawing.Font("Segoe UI", 9)
 $lblTarget.Location = New-Object System.Drawing.Point(20, 86)
 $lblTarget.Size = New-Object System.Drawing.Size(540, 18)
 $form.Controls.Add($lblTarget)
 
 $targetBox = New-Object System.Windows.Forms.TextBox
-$targetBox.Text = $TargetUrl
+$targetBox.Text = ([Uri]$BaseUrl).GetLeftPart([System.UriPartial]::Authority)
 $targetBox.ReadOnly = $true
 $targetBox.Location = New-Object System.Drawing.Point(20, 106)
 $targetBox.Size = New-Object System.Drawing.Size(540, 24)
@@ -138,8 +138,8 @@ $form.Controls.Add($targetBox)
 $details = New-Object System.Windows.Forms.Label
 $details.Text = @"
 Alcance y condiciones de navegación autorizadas:
-  [x] Navegación GET observacional estrictamente acotada a esta URL y su origen.
-  [x] Navegación inicialmente anónima (sin autenticación ni uso de credenciales).
+  [x] Navegación GET observacional en las rutas de este mismo origen.
+  [x] Las vistas protegidas requieren un perfil ya autorizado y verificado.
   [!] ADVERTENCIA: Solicitudes HTTP GET pueden tener efectos colaterales en el servidor.
   [x] Límites acotados: Máx $MaxPages páginas | Máx $MaxRequests peticiones | Timeout ${TimeoutSec}s.
 

@@ -34,6 +34,7 @@ import {
   filterValidRoles,
   normalizeSlug,
   type AuthProfile,
+  type CanonicalExecutionSummary,
   type ModuleLifecycleState,
   type IngestProposal,
   type RuleEntry,
@@ -92,7 +93,19 @@ import {
   type IWorkspaceAuthorizer,
 } from './workspace-authorizer.js';
 import type { IDiscoveryAuthorizer } from './discovery-authorizer.js';
+import {
+  atomicRecordAuthAuthorization,
+  hasPersistedAuthAuthorization,
+  loadAuthAuthorizationsFromDisk,
+  type IAuthAuthorizer,
+  type PersistedAuthAuthorization,
+} from './auth-authorizer.js';
+import {
+  loadTestAuthorizationsFromDisk,
+  type ITestAuthorizer,
+} from './test-authorizer.js';
 import { loadHostComposition } from './host-composition.js';
+import { resolveHelperScriptPath } from './dialog-script-path.js';
 import { authorizationDiagnostic } from './authorization-diagnostics.js';
 import { logTechnicalDiagnostic } from './technical-diagnostics.js';
 import { ToolDispatcher, McpToolError, type IMcpToolHandler } from './dispatcher.js';
@@ -106,7 +119,9 @@ import { CanonicalClosureService } from './handlers/canonical-closure-service.js
 import { renderCanonicalSessionReport } from './handlers/canonical-session-report.js';
 import { binding as knowledgeBinding, projectRoot as authorizedProjectRoot, result as canonicalResult } from './handlers/state-services.js';
 import { hasLegacyViewContext, legacyInterviewBlocked } from './handlers/legacy-discovery-contract.js';
-import { CleanHandler } from './handlers/clean.handler.js';
+import { ProjectHandler } from './handlers/project.handler.js';
+import { ApplicationServiceError } from './application/application-service.js';
+import { normalizePathKey } from './application/safe-storage.js';
 import { PlanHandler } from './handlers/plan.handler.js';
 import { TestHandler, type TestNavigationAuthorization } from './handlers/test.handler.js';
 import { ReportHandler } from './handlers/report.handler.js';
@@ -138,6 +153,46 @@ function makeDecisionQuestion(
   };
   p.render_texto = generarRenderTexto(p);
   return guardPregunta(p) as Pregunta;
+}
+
+const reportMarkdownSpecials = new Set(['\\', '`', '*', '_', '{', '}', '[', ']', '<', '>', '|']);
+const cleanReportText = (value: string | number | boolean | null | undefined): string =>
+  [...String(value ?? '').replace(/[\r\n\t]+/g, ' ')]
+    .map((char) => (reportMarkdownSpecials.has(char) ? '\\' + char : char))
+    .join('')
+    .trim();
+
+function renderVerifiedPhysicalExecutionSection(summary: CanonicalExecutionSummary): string {
+  const lines: string[] = [
+    '',
+    '## Resumen de Ejecución Física Verificada',
+    '',
+    `- Estado de ejecución: **${cleanReportText(summary.status)}**`,
+    `- Último intento: ${cleanReportText(summary.latest_attempt_id ?? 'N/A')} (ejecución: ${cleanReportText(summary.latest_execution_id ?? 'N/A')})`,
+    `- Intentos registrados: ${summary.total_attempts}`,
+    `- Resultados por caso (${summary.total_cases}): PASS=${summary.counts.pass}, FAIL=${summary.counts.fail}, not_run=${summary.counts.not_run}, technical_error=${summary.counts.technical_error}, human_accepted=${summary.counts.human_accepted}`,
+    '',
+  ];
+  if (summary.case_verdicts.length > 0) {
+    lines.push('### Veredictos por Caso y Requisito', '');
+    for (const cv of summary.case_verdicts) {
+      lines.push(
+        `- **${cleanReportText(cv.case_id)}** (v${cv.case_version}) | Veredicto: **${cleanReportText(cv.verdict)}** | Req: ${cleanReportText(cv.requirement_id ?? 'N/A')} rev.${cv.requirement_revision} | Intento: ${cleanReportText(cv.attempt_id)}`,
+      );
+      if (cv.human_acceptance_reason) {
+        lines.push(`  - Aceptación humana (${cleanReportText(cv.human_accepted_by ?? 'qa')}): ${cleanReportText(cv.human_acceptance_reason)}`);
+      }
+      const failedStep = cv.step_results.find((s) => s.status === 'FAIL' || s.status === 'technical_error');
+      if (failedStep?.message) {
+        lines.push(`  - Falla en paso ${failedStep.step_index + 1} (${cleanReportText(failedStep.action)}): ${cleanReportText(failedStep.message)}`);
+      }
+      if (cv.evidence_refs.length > 0) {
+        lines.push(`  - Evidencias: ${cv.evidence_refs.map((e) => cleanReportText(e)).join(', ')}`);
+      }
+    }
+    lines.push('');
+  }
+  return lines.join('\n') + '\n';
 }
 
 /* Legacy view helpers: pending typed migration. */
@@ -240,22 +295,40 @@ export interface McpServerOptions extends StateDependencies {
   readonly clientWorkspaceRoots?: boolean;
   readonly discoveryAuthorizations?: readonly DiscoveryAuthorization[];
   readonly testAuthorizations?: readonly TestNavigationAuthorization[];
+  readonly testAuthorizer?: ITestAuthorizer;
+  readonly hostTestRegistryPath?: string;
   readonly handlers?: readonly IMcpToolHandler[];
   readonly workspaceAuthorizer?: IWorkspaceAuthorizer;
   readonly hostRegistryPath?: string;
   readonly discoveryAuthorizer?: IDiscoveryAuthorizer;
   readonly hostDiscoveryRegistryPath?: string;
+  readonly authAuthorizer?: IAuthAuthorizer;
+  readonly hostAuthRegistryPath?: string;
+  readonly authAuthorizations?: readonly PersistedAuthAuthorization[];
+  readonly allowSpaReadOnly?: boolean;
 }
 
 export function createMcpServer(options: McpServerOptions = {}): Server {
-  const preparationCommand = `"${process.execPath}" "${fileURLToPath(new URL('../../../scripts/qap-authorize-workspace.mjs', import.meta.url))}" <workspace-absoluto>`;
+  const preparationCommand = `"${process.execPath}" "${resolveHelperScriptPath('qap-authorize-workspace.mjs')}" <workspace-absoluto>`;
   const authorizedRoots = [...(options.projectRoots ?? [process.cwd()])];
+  const authorizedAuths: PersistedAuthAuthorization[] = [
+    ...(options.authAuthorizations ?? []),
+    ...(options.hostAuthRegistryPath ? loadAuthAuthorizationsFromDisk(options.hostAuthRegistryPath) : []),
+  ];
+  const authorizedTestAuths: TestNavigationAuthorization[] = [
+    ...(options.testAuthorizations ?? []),
+    ...(options.hostTestRegistryPath ? loadTestAuthorizationsFromDisk(options.hostTestRegistryPath) : []),
+  ];
   const workspaceBindings = [...(options.knowledgeBindings ?? [])];
   const pendingPreparations = new Map<string, Promise<void>>();
+  const applicationService = options.applicationService ?? options.workspaceBootstrap?.appService;
   const dependencies: StateDependencies = {
     projectRoots: authorizedRoots,
     knowledgeBindings: workspaceBindings,
+    ...(applicationService ? { applicationService } : {}),
     provisionalInventory: options.provisionalInventory ?? Boolean(options.workspaceBootstrap),
+    allowSpaReadOnly: options.allowSpaReadOnly ?? Boolean(options.workspaceBootstrap || applicationService),
+    silentBoundScope: options.silentBoundScope,
     prepareWorkspace: options.workspaceBootstrap ? async (root, url) => {
       const previous = pendingPreparations.get(root) ?? Promise.resolve();
       const operation = previous.catch(() => undefined).then(async () => {
@@ -292,10 +365,10 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
   }
   const runtimeDependencies: StateDependencies = { ...dependencies, canonicalInterviews: interviews, canonicalClosures: closures };
 
-  const migrated = new Set(['qap_status', 'qap_clean', 'qap_context_set', 'qap_discover', 'qap_plan', 'qap_test', 'qap_report']);
+  const migrated = new Set(['qap_status', 'qap_project', 'qap_context_set', 'qap_discover', 'qap_plan', 'qap_test', 'qap_report']);
   const dispatcher = new ToolDispatcher(TOOLS.filter(tool => !migrated.has(tool.name)).map(tool => tool.name));
   dispatcher.register(new StatusHandler({ ...runtimeDependencies, browser: checkPlaywrightBrowser, view: buildViewDiscoveryContext }));
-  dispatcher.register(new CleanHandler(dependencies));
+  dispatcher.register(new ProjectHandler(dependencies));
   dispatcher.register(new ContextHandler(dependencies));
   dispatcher.register(new DiscoveryHandler(
     dependencies,
@@ -304,7 +377,11 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
     options.hostDiscoveryRegistryPath,
   ));
   dispatcher.register(new PlanHandler(dependencies));
-  dispatcher.register(new TestHandler(dependencies, options.testAuthorizations));
+  dispatcher.register(new TestHandler(dependencies, {
+    testAuthorizations: authorizedTestAuths,
+    testAuthorizer: options.testAuthorizer,
+    hostTestRegistryPath: options.hostTestRegistryPath,
+  }));
   dispatcher.register(new ReportHandler(dependencies));
   for (const handler of options.handlers ?? []) dispatcher.register(handler);
   dispatcher.seal();
@@ -331,7 +408,8 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
 8. Para hipótesis DOM (source "dom", status "inferred"): CONFIRMA cada una con el usuario antes de marcarla como "confirmed". Presenta las hipótesis al usuario y pregunta cuáles son correctas.
 9. Presenta al usuario el resumen de cierre del módulo y llama qap_module_close solo con su confirmación explícita (user_confirmed: true).
 10. Declara un waiver únicamente cuando el usuario haya dicho que la categoría no aplica, citando su razón (mínimo 15 caracteres).
-11. Al cerrar la sesión, presenta al usuario el resumen del reporte de brechas generado.`,
+11. Al cerrar la sesión, presenta al usuario el resumen del reporte de brechas generado.
+12. Un plan vigente ya fija los módulos y su prioridad. Explora sus rutas y propone casos siguiendo siguiente_accion sin volver a pedir que el usuario elija o autorice cada ruta. Conserva las preguntas para decisiones de alcance nuevas, expectativas de negocio y aprobaciones explícitas requeridas por el servidor.`,
     }
   );
 
@@ -403,110 +481,197 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
       syncAuthorizedRootsFromDisk(options.hostRegistryPath, authorizedRoots);
     }
     if (options.workspaceBootstrap) {
-      const candidate = rawArgs?.targetPath;
-      let targetPath = typeof candidate === 'string' ? candidate : authorizedRoots.length === 1 ? authorizedRoots[0] : undefined;
-      authorizationDiagnostic('workspace_request', { tool: name, targetPath, authorizerConfigured: Boolean(options.workspaceAuthorizer) });
-      if (!targetPath) return canonicalResult({ status: 'blocked', category: 'human_authorization', code: 'workspace_selection_required',
-        desbloquear_con: { mecanismo: 'workspace_selection', descripcion: 'Indica la ruta absoluta de una carpeta existente en targetPath; luego reintenta qap_status.' } });
-      let isAuthorized = false;
-      try {
-        authorizedProjectRoot({ targetPath }, dependencies, true);
-        isAuthorized = true;
-      } catch (error) {
-        if (!(error instanceof McpToolError) || error.code === 'execution_failed') {
-          return canonicalResult({ status: 'blocked', category: 'technical_error', code: 'workspace_inspection_failed', retryable: true });
-        }
-      }
-      if (!isAuthorized) {
-        let canonicalTarget: string;
-        try {
-          canonicalTarget = validateCandidateWorkspace(targetPath, options.workspaceBootstrap.directory);
-        } catch (error) {
-          const diagnosticId = authorizationDiagnostic('candidate_rejected', { targetPath, validation: error instanceof Error ? error.message.slice(0, 4096) : 'unknown' });
-          return canonicalResult({ status: 'blocked', category: 'human_authorization', code: 'workspace_path_invalid', diagnostic_id: diagnosticId,
-            desbloquear_con: { mecanismo: 'workspace_selection', descripcion: 'Selecciona una carpeta física existente y admitida, con ruta absoluta, fuera de directorios del sistema y del almacenamiento del host.' } });
-        }
-        if (options.workspaceAuthorizer) {
-          const authResult = await options.workspaceAuthorizer.requestAuthorization(
-            { requestedPath: targetPath, canonicalPath: canonicalTarget },
-            context.signal
-          ).catch(() => ({ decision: 'unavailable' as const, code: 'workspace_dialog_start_failed' as const, reason: 'Dialog launch failed.' }));
-          const diagnosticId = authorizationDiagnostic('authorization_result', { decision: authResult.decision, code: 'code' in authResult ? authResult.code : undefined });
-          if (authResult.decision === 'approved') {
-            const compare = (p: string) => (process.platform === 'win32' ? p.toLowerCase() : p);
-            if (!authorizedRoots.some(r => compare(r) === compare(authResult.root))) {
-              authorizedRoots.push(authResult.root);
-            }
-            if (options.hostRegistryPath) {
-              atomicRecordAuthorizedRoot(options.hostRegistryPath, authResult.root);
-            }
-            targetPath = authResult.root;
-          } else if (authResult.decision === 'rejected') {
-            return canonicalResult({
-              status: 'blocked',
-              category: 'human_authorization',
-              code: 'workspace_authorization_rejected',
-              mensaje: 'La autorización del workspace fue rechazada por el operador local.',
-              desbloquear_con: {
-                mecanismo: 'local_host',
-                descripcion: 'El operador local rechazó la autorización para este directorio. Si deseas utilizarlo, autorízalo localmente mediante el mecanismo del host.',
-              },
-            });
-          } else {
-            return canonicalResult({
-              status: 'blocked',
-              category: 'human_authorization',
-              code: authResult.code ?? (authResult.decision === 'cancelled' ? 'workspace_authorization_cancelled' : 'workspace_gui_unavailable'),
-              diagnostic_id: diagnosticId,
-              desbloquear_con: { mecanismo: 'local_host', descripcion: authResult.decision === 'cancelled'
-                ? 'La solicitud se canceló o expiró. Reintenta qap_status cuando el operador esté listo para responder.'
-                : 'El host no pudo mostrar el diálogo. Revisa la sesión de escritorio y los diagnósticos locales antes de reintentar.' },
-            });
-          }
-        } else {
-          return canonicalResult({ status: 'blocked', category: 'human_authorization', code: 'workspace_authorizer_not_configured',
-            desbloquear_con: { mecanismo: 'local_host', comando: preparationCommand, descripcion: 'El host no configuró un autorizador interactivo. Revisa su configuración o autoriza localmente mediante el mecanismo administrativo del host; reintenta sin reiniciar.' } });
-        }
-      }
-      request.params.arguments = { ...rawArgs, targetPath };
-      if (['qap_status', 'qap_init', 'qap_context_set'].includes(name)) {
-        try {
-          const suppliedUrl = rawArgs?.base_url ?? rawArgs?.environments;
-          const url = name === 'qap_context_set' && typeof suppliedUrl === 'string' ? suppliedUrl : undefined;
-          // Validate before performing any canonical writes.
-          await dependencies.prepareWorkspace!(realpathSync(targetPath), name === 'qap_context_set' && new ContextHandler(dependencies).validateArguments(request.params.arguments) ? url : undefined);
-        } catch (error: unknown) {
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          const errorStack = error instanceof Error ? error.stack : undefined;
-          const diagnosticId = randomUUID();
-          logTechnicalDiagnostic({
-            event: 'workspace_preparation_failed',
-            diagnostic_id: diagnosticId,
-            tool: name,
-            targetPath,
-            error: {
-              name: error instanceof Error ? error.name : 'UnknownError',
-              message: errorMessage,
-              stack: errorStack,
-            },
-          }, targetPath);
-
+      const idScopedProjectActions = new Set([
+        'list',
+        'select',
+        'resume',
+        'delete_preview',
+        'delete_confirm',
+        'recover',
+        'import_qa',
+        'verify_import',
+        'permissions',
+        'revoke_permission',
+      ]);
+      const actionName = typeof rawArgs?.action === 'string' ? rawArgs.action : '';
+      const skipWorkspaceGate =
+        name === 'qap_project' &&
+        !rawArgs?.targetPath &&
+        !rawArgs?.canonical_root &&
+        idScopedProjectActions.has(actionName);
+      if (!skipWorkspaceGate) {
+        const candidate = rawArgs?.targetPath ?? (name === 'qap_project' ? rawArgs?.canonical_root : undefined);
+        let targetPath = typeof candidate === 'string' ? candidate : authorizedRoots.length === 1 ? authorizedRoots[0] : undefined;
+        authorizationDiagnostic('workspace_request', { tool: name, targetPath, authorizerConfigured: Boolean(options.workspaceAuthorizer) });
+        if (!targetPath) return canonicalResult({ status: 'blocked', category: 'human_authorization', code: 'workspace_selection_required',
+          desbloquear_con: { mecanismo: 'workspace_selection', descripcion: 'Indica la ruta absoluta de una carpeta existente en targetPath; luego reintenta qap_status.' } });
+        if (applicationService?.isTombstonedRoot(targetPath) && !(name === 'qap_project' && rawArgs?.allow_recreate_deleted === true)) {
+          const tombstone = applicationService.getTombstoneByRoot(targetPath)!;
           return canonicalResult({
             status: 'blocked',
-            category: 'technical_error',
-            code: 'workspace_preparation_failed',
-            diagnostic_id: diagnosticId,
-            razon: errorMessage || 'Fallo durante la preparación técnica del espacio de trabajo.',
-            retryable: true,
+            category: 'human_authorization',
+            code: 'project_deleted_tombstone',
+            deleted_project_id: tombstone.project_id,
+            recovery_available: true,
+            auto_recreation_blocked: true,
             desbloquear_con: {
-              mecanismo: 'local_host',
-              descripcion: `Error técnico durante la preparación del espacio de trabajo: ${errorMessage}. Revisa ~/.qap/diagnostics/technical_errors.log.`,
+              mecanismo: 'qap_project',
+              tool: 'qap_project',
+              descripcion: 'Este proyecto fue eliminado explícitamente; se impide la recreación automática. Usa qap_project(action="recover") o create con allow_recreate_deleted: true.',
             },
-          });
+          }, true);
+        }
+        let isAuthorized = false;
+        try {
+          authorizedProjectRoot({ targetPath }, dependencies, true);
+          isAuthorized = true;
+        } catch (error) {
+          if (!(error instanceof McpToolError) || error.code === 'execution_failed') {
+            return canonicalResult({ status: 'blocked', category: 'technical_error', code: 'workspace_inspection_failed', retryable: true });
+          }
+        }
+        if (!isAuthorized) {
+          let canonicalTarget: string;
+          try {
+            canonicalTarget = validateCandidateWorkspace(targetPath, options.workspaceBootstrap.directory);
+          } catch (error) {
+            const diagnosticId = authorizationDiagnostic('candidate_rejected', { targetPath, validation: error instanceof Error ? error.message.slice(0, 4096) : 'unknown' });
+            return canonicalResult({ status: 'blocked', category: 'human_authorization', code: 'workspace_path_invalid', diagnostic_id: diagnosticId,
+              desbloquear_con: { mecanismo: 'workspace_selection', descripcion: 'Selecciona una carpeta física existente y admitida, con ruta absoluta, fuera de directorios del sistema y del almacenamiento del host.' } });
+          }
+          if (options.workspaceAuthorizer) {
+            const authResult = await options.workspaceAuthorizer.requestAuthorization(
+              { requestedPath: targetPath, canonicalPath: canonicalTarget },
+              context.signal
+            ).catch(() => ({ decision: 'unavailable' as const, code: 'workspace_dialog_start_failed' as const, reason: 'Dialog launch failed.' }));
+            const diagnosticId = authorizationDiagnostic('authorization_result', { decision: authResult.decision, code: 'code' in authResult ? authResult.code : undefined });
+            if (authResult.decision === 'approved') {
+              const compare = (p: string) => (process.platform === 'win32' ? p.toLowerCase() : p);
+              if (!authorizedRoots.some(r => compare(r) === compare(authResult.root))) {
+                authorizedRoots.push(authResult.root);
+              }
+              if (options.hostRegistryPath) {
+                atomicRecordAuthorizedRoot(options.hostRegistryPath, authResult.root);
+              }
+              targetPath = authResult.root;
+            } else if (authResult.decision === 'rejected') {
+              return canonicalResult({
+                status: 'blocked',
+                category: 'human_authorization',
+                code: 'workspace_authorization_rejected',
+                mensaje: 'La autorización del workspace fue rechazada por el operador local.',
+                desbloquear_con: {
+                  mecanismo: 'local_host',
+                  descripcion: 'El operador local rechazó la autorización para este directorio. Si deseas utilizarlo, autorízalo localmente mediante el mecanismo del host.',
+                },
+              });
+            } else {
+              return canonicalResult({
+                status: 'blocked',
+                category: 'human_authorization',
+                code: authResult.code ?? (authResult.decision === 'cancelled' ? 'workspace_authorization_cancelled' : 'workspace_gui_unavailable'),
+                diagnostic_id: diagnosticId,
+                desbloquear_con: { mecanismo: 'local_host', descripcion: authResult.decision === 'cancelled'
+                  ? 'La solicitud se canceló o expiró. Reintenta qap_status cuando el operador esté listo para responder.'
+                  : 'El host no pudo mostrar el diálogo. Revisa la sesión de escritorio y los diagnósticos locales antes de reintentar.' },
+              });
+            }
+          } else {
+            return canonicalResult({ status: 'blocked', category: 'human_authorization', code: 'workspace_authorizer_not_configured',
+              desbloquear_con: { mecanismo: 'local_host', comando: preparationCommand, descripcion: 'El host no configuró un autorizador interactivo. Revisa su configuración o autoriza localmente mediante el mecanismo administrativo del host; reintenta sin reiniciar.' } });
+          }
+        }
+        request.params.arguments = { ...rawArgs, targetPath };
+        const isBootstrapTrigger = ['qap_status', 'qap_init', 'qap_context_set'].includes(name);
+        const shouldRehydrateWorkspace =
+          !isBootstrapTrigger &&
+          ['qap_auth_add', 'qap_auth_list', 'qap_context_ingest', 'qap_session_plan', 'qap_discover'].includes(name) &&
+          Boolean(applicationService?.findActiveProjectByRoot(targetPath) || existsSync(join(targetPath, '.qa')));
+        if (isBootstrapTrigger || shouldRehydrateWorkspace) {
+          try {
+            const suppliedUrl = rawArgs?.base_url ?? rawArgs?.environments;
+            const url = name === 'qap_context_set' && typeof suppliedUrl === 'string' ? suppliedUrl : undefined;
+            // Validate before performing any canonical writes.
+            await dependencies.prepareWorkspace!(
+              realpathSync(targetPath),
+              isBootstrapTrigger && name === 'qap_context_set' && new ContextHandler(dependencies).validateArguments(request.params.arguments) ? url : undefined,
+            );
+          } catch (error: unknown) {
+            if (error instanceof ApplicationServiceError && error.code === 'project_deleted_tombstone') {
+              return canonicalResult({
+                status: 'blocked',
+                category: 'human_authorization',
+                code: 'project_deleted_tombstone',
+                ...(error.details ?? {}),
+                auto_recreation_blocked: true,
+                desbloquear_con: {
+                  mecanismo: 'qap_project',
+                  tool: 'qap_project',
+                  descripcion: error.message,
+                },
+              }, true);
+            }
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            const errorStack = error instanceof Error ? error.stack : undefined;
+            const diagnosticId = randomUUID();
+            logTechnicalDiagnostic({
+              event: 'workspace_preparation_failed',
+              diagnostic_id: diagnosticId,
+              tool: name,
+              targetPath,
+              error: {
+                name: error instanceof Error ? error.name : 'UnknownError',
+                message: errorMessage,
+                stack: errorStack,
+              },
+            }, targetPath);
+
+            return canonicalResult({
+              status: 'blocked',
+              category: 'technical_error',
+              code: 'workspace_preparation_failed',
+              diagnostic_id: diagnosticId,
+              razon: errorMessage || 'Fallo durante la preparación técnica del espacio de trabajo.',
+              retryable: true,
+              desbloquear_con: {
+                mecanismo: 'local_host',
+                descripcion: `Error técnico durante la preparación del espacio de trabajo: ${errorMessage}. Revisa ~/.qap/diagnostics/technical_errors.log.`,
+              },
+            });
+          }
         }
       }
     }
-    if (dispatcher.has(name)) return dispatcher.dispatch(request.params, { requestId: context.requestId, signal: context.signal ?? new AbortController().signal });
+    if (dispatcher.has(name)) {
+      const dispatchResult = await dispatcher.dispatch(request.params, { requestId: context.requestId, signal: context.signal ?? new AbortController().signal });
+      if (name === 'qap_project' && rawArgs?.action === 'delete_confirm' && !dispatchResult.isError && applicationService) {
+        try {
+          const parsed = JSON.parse((dispatchResult.content[0] as { text?: string })?.text ?? '{}') as { status?: string; project_id?: string };
+          if (parsed.status === 'deleted' && parsed.project_id) {
+            const deletedRow = applicationService.store.get<{ canonical_root: string }>(
+              'SELECT canonical_root FROM deletion_tombstones WHERE project_id = ?',
+              parsed.project_id,
+            );
+            if (deletedRow?.canonical_root) {
+              const targetKey = normalizePathKey(deletedRow.canonical_root);
+              for (let i = authorizedRoots.length - 1; i >= 0; i -= 1) {
+                if (normalizePathKey(authorizedRoots[i]) === targetKey) authorizedRoots.splice(i, 1);
+              }
+              for (let i = workspaceBindings.length - 1; i >= 0; i -= 1) {
+                if (normalizePathKey(workspaceBindings[i].projectRoot) === targetKey) workspaceBindings.splice(i, 1);
+              }
+              for (const k of [...interviews.keys()]) {
+                if (normalizePathKey(k) === targetKey) interviews.delete(k);
+              }
+              for (const k of [...closures.keys()]) {
+                if (normalizePathKey(k) === targetKey) closures.delete(k);
+              }
+            }
+          }
+        } catch { /* Non-fatal cleanup */ }
+      }
+      return dispatchResult;
+    }
     // Provisioned hosts keep their existing composition, but legacy writers must
     // obey the same root boundary as migrated handlers. No tool argument grants it.
     if (!options.workspaceBootstrap && options.projectRoots !== undefined) {
@@ -742,16 +907,245 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         }
 
         case 'qap_auth_add': {
-          if (options.workspaceBootstrap) return canonicalResult({ status: 'blocked', category: 'human_authorization', code: 'authentication_authorization_required',
-            desbloquear_con: { mecanismo: 'local_host', descripcion: 'El host debe configurar una política explícita de autenticación mediante la provisión local segura antes de iniciar login. La URL y las credenciales enviadas no conceden ese permiso.' } });
-          const profileId = String(args.profile || args.id || 'default');
-          const env = String(args.env || 'local');
-          const username = String(args.username || 'user');
+          const profileId = String(args.profile || args.id || 'default').trim();
+          const env = String(args.env || 'local').trim();
+          const username = String(args.username || 'user').trim();
           const method = (args.method === 'handoff' || args.login_mode === 'handoff') ? 'handoff' : 'credentials';
           const loginMode: 'auto' | 'handoff' = method === 'handoff' ? 'handoff' : 'auto';
-          const loginRoute = String(args.login_route || '/login');
-          const role = args.role ? String(args.role) : undefined;
+          const loginRoute = String(args.login_route || '/login').trim();
+          const role = args.role ? String(args.role).trim() : undefined;
           const password = args.password ? String(args.password) : (args.secret ? String(args.secret) : undefined);
+          const requestedTenant = typeof args.tenant_id === 'string' && args.tenant_id.trim() ? args.tenant_id.trim() : undefined;
+
+          const activeProject = applicationService?.findActiveProjectByRoot(rootDir);
+          if (activeProject && applicationService) {
+            const tenantCheck = applicationService.validateTenantScope(activeProject.project_id, requestedTenant, profileId);
+            if (!tenantCheck.ok) {
+              return canonicalResult({
+                status: 'blocked',
+                category: 'human_authorization',
+                code: tenantCheck.code,
+                razon: tenantCheck.reason,
+                desbloquear_con: {
+                  mecanismo: 'qap_auth_add',
+                  tool: 'qap_auth_add',
+                  campo: 'tenant_id',
+                  descripcion: tenantCheck.reason,
+                },
+              }, true);
+            }
+          }
+
+          // Resolver baseUrl temprano para validar alcance y autorización por origen
+          let yamlBaseUrl: string | undefined;
+          let yamlIsProduction = false;
+          const resolvedEnvsPath = join(rootDir, '.qa', 'project', 'environments.yaml');
+          if (existsSync(resolvedEnvsPath)) {
+            try {
+              const parsedEnv = YAML.parse(readFileSync(resolvedEnvsPath, 'utf-8'));
+              const targetEnvKey = args.env ? env : (parsedEnv?.default ?? 'local');
+              const envNode = parsedEnv?.environments?.[targetEnvKey] as Record<string, unknown> | undefined;
+              if (typeof envNode?.url === 'string' && envNode.url.trim()) {
+                yamlBaseUrl = envNode.url.trim();
+              }
+              if (envNode?.is_production === true) {
+                yamlIsProduction = true;
+              }
+            } catch { /* empty */ }
+          } else {
+            const ctxPath = join(rootDir, '.qa', 'project', 'context.yaml');
+            if (existsSync(ctxPath)) {
+              try {
+                const parsedCtx = YAML.parse(readFileSync(ctxPath, 'utf-8'));
+                if (typeof parsedCtx?.base_url === 'string' && parsedCtx.base_url.trim()) {
+                  yamlBaseUrl = parsedCtx.base_url.trim();
+                }
+              } catch { /* empty */ }
+            }
+          }
+          const activeEnvRec = activeProject && applicationService
+            ? applicationService.resumeProject(activeProject.project_id).environment
+            : undefined;
+          const canonicalBaseUrl = activeEnvRec?.base_url;
+          const resolvedBaseUrl = canonicalBaseUrl ?? yamlBaseUrl ?? 'http://localhost:3000';
+          const origin = (() => {
+            try {
+              return new URL(resolvedBaseUrl).origin;
+            } catch {
+              return resolvedBaseUrl;
+            }
+          })();
+          const hasDiscrepantYamlUrl = Boolean(
+            yamlBaseUrl &&
+            canonicalBaseUrl &&
+            (() => {
+              try {
+                return new URL(yamlBaseUrl).origin !== new URL(canonicalBaseUrl).origin;
+              } catch {
+                return yamlBaseUrl !== canonicalBaseUrl;
+              }
+            })(),
+          );
+
+          if (options.workspaceBootstrap) {
+            const diskAuths = options.hostAuthRegistryPath
+              ? loadAuthAuthorizationsFromDisk(options.hostAuthRegistryPath)
+              : [];
+            const combinedAuths = [...authorizedAuths, ...diskAuths];
+            const accessPerm = activeProject && applicationService
+              ? applicationService.authority.check(activeProject.project_id, 'access', { root_path: rootDir })
+              : null;
+            if (accessPerm && !accessPerm.allowed && (accessPerm.reason === 'revoked' || accessPerm.reason === 'expired')) {
+              return canonicalResult({
+                status: 'blocked',
+                category: 'human_authorization',
+                code: accessPerm.code,
+                razon: 'El acceso al proyecto fue revocado o expiró.',
+                desbloquear_con: {
+                  mecanismo: 'local_host',
+                  descripcion: accessPerm.recover_with,
+                },
+              }, true);
+            }
+            const loginPerm = activeProject && applicationService
+              ? applicationService.authority.check(activeProject.project_id, 'login', {
+                  origin,
+                  profile_id: profileId,
+                  ...(requestedTenant ? { tenant_id: requestedTenant } : {}),
+                })
+              : null;
+            if (loginPerm && !loginPerm.allowed && loginPerm.reason === 'revoked') {
+              return canonicalResult({
+                status: 'blocked',
+                category: 'human_authorization',
+                code: 'login_permission_revoked',
+                razon: 'El permiso de inicio de sesión para este perfil fue revocado. Nunca se degradará a una sesión anónima.',
+                desbloquear_con: {
+                  mecanismo: 'local_host',
+                  descripcion: loginPerm.recover_with,
+                },
+              }, true);
+            }
+            const existingProfSession = activeProject && applicationService
+              ? applicationService.readProfileSession(activeProject.project_id, profileId)
+              : null;
+            if (existingProfSession?.revoked) {
+              return canonicalResult({
+                status: 'blocked',
+                category: 'human_authorization',
+                code: 'auth_session_revoked',
+                razon: 'El perfil de inicio de sesión fue revocado. Nunca se degradará a una sesión anónima.',
+                desbloquear_con: {
+                  mecanismo: 'local_host',
+                  descripcion: 'Autoriza o crea un perfil vigente antes de iniciar sesión.',
+                },
+              }, true);
+            }
+            const isProductionEnv = Boolean(activeEnvRec?.is_production) || yamlIsProduction || env === 'production';
+            const alreadyAuthorized = Boolean(loginPerm?.allowed)
+              || hasPersistedAuthAuthorization(combinedAuths, rootDir, origin, profileId);
+            if (!alreadyAuthorized) {
+              if (!options.authAuthorizer && options.silentBoundScope && !isProductionEnv && Boolean(canonicalBaseUrl) && !hasDiscrepantYamlUrl) {
+                const grantedEntry: PersistedAuthAuthorization = {
+                  projectRoot: rootDir,
+                  origin,
+                  profileLabel: profileId,
+                  loginMode,
+                  authorizedAt: new Date().toISOString(),
+                };
+                authorizedAuths.push(grantedEntry);
+                if (activeProject && applicationService) {
+                  applicationService.authority.grant({
+                    project_id: activeProject.project_id,
+                    ...(activeEnvRec ? { env_id: activeEnvRec.env_id } : {}),
+                    capability: 'login',
+                    scope: {
+                      origin,
+                      profile_id: profileId,
+                      ...(requestedTenant ? { tenant_id: requestedTenant } : {}),
+                    },
+                    granted_by: 'host_bound_scope',
+                  });
+                }
+              } else if (!options.authAuthorizer) {
+                return canonicalResult({
+                  status: 'blocked',
+                  category: 'human_authorization',
+                  code: 'authentication_authorization_required',
+                  desbloquear_con: {
+                    mecanismo: 'local_host',
+                    descripcion: 'El host debe autorizar explícitamente la autenticación antes de iniciar sesión en el sistema.',
+                  },
+                });
+              } else {
+              const authResult = await options.authAuthorizer.requestAuthorization(
+                {
+                  projectRoot: rootDir,
+                  projectName: activeProject?.name ?? basename(rootDir),
+                  applicationId: activeProject?.application_id ?? knowledgeBinding(rootDir, dependencies)?.applicationId ?? basename(rootDir),
+                  environmentId: activeEnvRec?.env_id ?? env,
+                  origin,
+                  profileLabel: profileId,
+                  loginMode,
+                },
+                context.signal,
+              ).catch(() => ({
+                decision: 'unavailable' as const,
+                code: 'auth_dialog_start_failed' as const,
+                reason: 'No pudo abrirse la ventana segura de autenticación.',
+              }));
+              if (authResult.decision === 'rejected') {
+                return canonicalResult({
+                  status: 'blocked',
+                  category: 'human_authorization',
+                  code: 'authentication_authorization_rejected',
+                  mensaje: 'La autorización de inicio de sesión fue rechazada.',
+                  desbloquear_con: {
+                    mecanismo: 'local_host',
+                    descripcion: 'El inicio de sesión no fue autorizado; vuelve a intentarlo cuando desees habilitar el acceso autenticado.',
+                  },
+                });
+              }
+              if (authResult.decision !== 'approved') {
+                return canonicalResult({
+                  status: 'blocked',
+                  category: 'human_authorization',
+                  code: authResult.code ?? 'auth_authorization_cancelled',
+                  desbloquear_con: {
+                    mecanismo: 'local_host',
+                    descripcion: authResult.reason || 'La ventana de autorización se cerró antes de confirmar el inicio de sesión.',
+                  },
+                });
+              }
+              const grantedEntry: PersistedAuthAuthorization = {
+                projectRoot: rootDir,
+                origin: authResult.origin,
+                profileLabel: authResult.profileLabel,
+                loginMode,
+                authorizedAt: new Date().toISOString(),
+                ...(authResult.expiresAt ? { expiresAt: authResult.expiresAt } : {}),
+              };
+              authorizedAuths.push(grantedEntry);
+              if (options.hostAuthRegistryPath) {
+                atomicRecordAuthAuthorization(options.hostAuthRegistryPath, grantedEntry);
+              }
+              if (activeProject && applicationService) {
+                const envRec = applicationService.resumeProject(activeProject.project_id).environment;
+                applicationService.authority.grant({
+                  project_id: activeProject.project_id,
+                  ...(envRec ? { env_id: envRec.env_id } : {}),
+                  capability: 'login',
+                  scope: {
+                    origin: authResult.origin,
+                    profile_id: profileId,
+                    ...(requestedTenant ? { tenant_id: requestedTenant } : {}),
+                  },
+                  granted_by: 'interactive-dialog',
+                });
+              }
+              }
+            }
+          }
 
           const authDir = resolve(rootDir, '.qa', 'project', 'auth');
           const profilesPath = join(authDir, 'profiles.json');
@@ -794,8 +1188,37 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
             profiles.push(newProfile);
           }
 
-          // Guardar perfil inicial en disco para que AuthManager pueda leerlo
+          // Guardar perfil inicial
           writeFileSync(profilesPath, JSON.stringify({ profiles }, null, 2), 'utf-8');
+
+          let secretStoredViaService = false;
+          let durableEnvId: string | undefined;
+          if (activeProject && applicationService) {
+            const ensuredEnv = applicationService.resumeProject(activeProject.project_id).environment
+              ?? applicationService.upsertEnvironment({
+                projectId: activeProject.project_id,
+                name: env || 'local',
+                baseUrl: resolvedBaseUrl,
+              });
+            durableEnvId = ensuredEnv.env_id;
+            const svcProfile = applicationService.upsertProfile({
+              projectId: activeProject.project_id,
+              envId: durableEnvId,
+              label: profileId,
+              roleName: role || undefined,
+              tenantId: requestedTenant,
+              loginMode,
+              credentialAccount: profileId,
+              status: 'pending',
+            });
+            if (password) {
+              await applicationService.storeProfileSecret(activeProject.project_id, svcProfile.profile_id, {
+                username,
+                password,
+              });
+              secretStoredViaService = true;
+            }
+          }
 
           if (password) {
             try {
@@ -803,51 +1226,37 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
               const authManager = new AuthManager(rootDir);
               await authManager.setSecret(profileId, password);
             } catch {
-              return {
-                content: [
-                  {
-                    type: 'text',
-                    text: JSON.stringify(
-                      {
-                        status: 'blocked',
-                        razon: 'keychain_unavailable',
-                        directorio_objetivo: rootDir,
-                        error: 'El llavero seguro del sistema (keytar) no está disponible. No se almacenarán credenciales en texto plano.',
-                        desbloquear_con: {
-                          tool: 'qap_auth_add',
-                          descripcion: 'Usa el método handoff para autenticarte interactivamente en el navegador sin almacenar contraseñas en el llavero.',
+              if (!secretStoredViaService) {
+                return {
+                  content: [
+                    {
+                      type: 'text',
+                      text: JSON.stringify(
+                        {
+                          status: 'blocked',
+                          razon: 'keychain_unavailable',
+                          directorio_objetivo: rootDir,
+                          error: 'El llavero seguro del sistema no está disponible. No se almacenarán credenciales en texto plano.',
+                          desbloquear_con: {
+                            tool: 'qap_auth_add',
+                            descripcion: 'Usa el inicio de sesión interactivo (handoff) en ventana segura sin guardar contraseñas.',
+                          },
                         },
-                      },
-                      null,
-                      2
-                    ),
-                  },
-                ],
-              };
+                        null,
+                        2
+                      ),
+                    },
+                  ],
+                };
+              }
             }
           }
 
           const storage = new FileSystemStorage({ rootDir });
           const lifecycleState = await storage.getLifecycleState();
 
-          // Resolver baseUrl
-          let baseUrl = 'http://localhost:3000';
-          const envsPath = join(rootDir, '.qa', 'project', 'environments.yaml');
-          if (existsSync(envsPath)) {
-            try {
-              const parsedEnv = YAML.parse(readFileSync(envsPath, 'utf-8'));
-              const defaultEnv = parsedEnv?.default ?? 'local';
-              baseUrl = parsedEnv?.environments?.[defaultEnv]?.url ?? baseUrl;
-            } catch { /* empty */ }
-          } else {
-            const ctxPath = join(rootDir, '.qa', 'project', 'context.yaml');
-            if (existsSync(ctxPath)) {
-              try {
-                const parsedCtx = YAML.parse(readFileSync(ctxPath, 'utf-8'));
-                if (parsedCtx?.base_url) baseUrl = parsedCtx.base_url;
-              } catch { /* empty */ }
-            }
-          }
+          const baseUrl = resolvedBaseUrl;
+          const envsPath = resolvedEnvsPath;
 
           const sessionDir = join(rootDir, '.qa', 'cache', 'sessions');
           if (!existsSync(sessionDir)) mkdirSync(sessionDir, { recursive: true });
@@ -859,6 +1268,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
             : (newProfile.post_login_condition || { type: 'url_contains' as const, value: '/dashboard' }));
 
           let capturedStorageState: StorageState | undefined = args.storageState as StorageState | undefined;
+          let loginLandedPath: string | undefined;
           const verificationAttempted = Boolean(capturedStorageState || password || method === 'handoff');
 
           if (!capturedStorageState && password) {
@@ -871,7 +1281,13 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
                 sessionPath: tempSessionPath,
                 credentials: { username, password },
               });
-              await loginAdapter.discover({ name: 'login_flow', path: loginRoute });
+              const loginRes = await loginAdapter.discover({ name: 'login_flow', path: loginRoute });
+              const loginCtx = (loginRes.context || {}) as Record<string, unknown>;
+              if (loginCtx.page_kind !== 'login' && typeof loginCtx.final_url === 'string') {
+                try {
+                  loginLandedPath = new URL(loginCtx.final_url, baseUrl).pathname;
+                } catch { /* ignore */ }
+              }
               if (existsSync(tempSessionPath)) {
                 try {
                   capturedStorageState = JSON.parse(readFileSync(tempSessionPath, 'utf-8'));
@@ -911,7 +1327,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
           }
 
           let isVerified = false;
-          const verifiedRoute = firstProtected ? firstProtected.path : loginRoute;
+          const verifiedRoute = firstProtected ? firstProtected.path : (loginLandedPath || loginRoute);
 
           if (capturedStorageState) {
             const { SessionStore } = await import('@qap/auth');
@@ -934,12 +1350,12 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
                 const vCtx = (verifyRes.context || {}) as Record<string, unknown>;
                 const normFinal = normalizeUrlForComparison(String(vCtx.final_url || ''), baseUrl);
                 const normReq = normalizeUrlForComparison(String(vCtx.requested_url || firstProtected.path), baseUrl);
-                if (normFinal.pathname === normReq.pathname && vCtx.page_kind === 'app') {
+                if (normFinal.pathname === normReq.pathname && vCtx.page_kind !== 'login') {
                   isVerified = true;
                 }
               } else {
                 const verifyRes = await verifyAdapter.discover(
-                  { name: 'verify_post_login', path: loginRoute },
+                  { name: 'verify_post_login', path: verifiedRoute },
                   { storageState: capturedStorageState }
                 );
                 const vCtx = (verifyRes.context || {}) as Record<string, unknown>;
@@ -975,12 +1391,17 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
             const idx = profiles.findIndex((p) => p.id === profileId);
             if (idx >= 0) profiles[idx] = newProfile;
             writeFileSync(profilesPath, JSON.stringify({ profiles }, null, 2), 'utf-8');
+            if (activeProject && applicationService) {
+              try {
+                applicationService.expireProfileSession(activeProject.project_id, profileId);
+              } catch { /* profile may not have durable session yet */ }
+            }
 
             const isHandoffTimeout = method === 'handoff' && !capturedStorageState;
             const razon = isHandoffTimeout ? 'handoff_timeout' : 'session_invalid';
             const message = isHandoffTimeout
-              ? `El inicio de sesión interactivo (handoff) para el perfil '${profileId}' excedió el tiempo límite sin completar el acceso a la ruta objetivo.`
-              : `La sesión para el perfil '${profileId}' falló la verificación contra '${verifiedRoute}'.`;
+              ? `El inicio de sesión interactivo para el perfil '${profileId}' excedió el tiempo límite sin completar el acceso.`
+              : `No se pudo confirmar una sesión activa para el perfil '${profileId}' en '${verifiedRoute}'.`;
 
             return {
               content: [
@@ -993,12 +1414,13 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
                       directorio_objetivo: rootDir,
                       perfil: profileId,
                       rol: role,
+                      downgraded_to_anonymous: false,
                       message,
                       desbloquear_con: {
                         tool: 'qap_auth_add',
                         descripcion: isHandoffTimeout
-                          ? `Reintenta el inicio de sesión con handoff para el perfil '${profileId}' con qap_auth_add.`
-                          : `Revisa las credenciales o flujo de inicio de sesión para el perfil '${profileId}'.`,
+                          ? `Reintenta el inicio de sesión para el perfil '${profileId}'.`
+                          : `Revisa las credenciales o vuelve a iniciar sesión con el perfil '${profileId}'.`,
                       },
                       siguiente_accion: {
                         tipo: 'trabajo',
@@ -1011,6 +1433,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
                           role,
                           method,
                           login_route: loginRoute,
+                          ...(requestedTenant ? { tenant_id: requestedTenant } : {}),
                           timeout_ms: args.timeout_ms,
                         },
                       },
@@ -1027,6 +1450,29 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
             newProfile.verified = true;
             newProfile.verified_at = new Date().toISOString();
             newProfile.verified_route = verifiedRoute;
+            if (activeProject && applicationService && durableEnvId) {
+              applicationService.upsertProfile({
+                projectId: activeProject.project_id,
+                envId: durableEnvId,
+                label: profileId,
+                roleName: role || undefined,
+                tenantId: requestedTenant,
+                loginMode,
+                credentialAccount: profileId,
+                status: 'verified',
+              });
+              if (capturedStorageState) {
+                applicationService.saveProfileSession(
+                  activeProject.project_id,
+                  profileId,
+                  {
+                    cookies: Array.isArray(capturedStorageState.cookies) ? capturedStorageState.cookies : [],
+                    ...(Array.isArray(capturedStorageState.origins) ? { origins: capturedStorageState.origins } : {}),
+                  },
+                  { verifiedAt: newProfile.verified_at },
+                );
+              }
+            }
           }
 
           const idx = profiles.findIndex((p) => p.id === profileId);
@@ -1076,13 +1522,14 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
                     status: 'success',
                     directorio_objetivo: rootDir,
                     message: isVerified
-                      ? `✔ Perfil '${profileId}' verificado con éxito y sesión guardada.`
-                      : `✔ Perfil '${profileId}' registrado con éxito en .qa/project/auth/profiles.json.`,
+                      ? `✔ Perfil '${profileId}' autenticado y sesión verificada con éxito.`
+                      : `✔ Perfil '${profileId}' registrado y listo para validar acceso.`,
                     profile: {
                       id: newProfile.id,
                       env: newProfile.env,
                       username: newProfile.username,
                       role: newProfile.role,
+                      ...(requestedTenant ? { tenant_id: requestedTenant } : {}),
                       login_mode: newProfile.login_mode,
                       verified: Boolean(newProfile.verified),
                       verified_at: newProfile.verified_at,
@@ -1113,6 +1560,49 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
             }
           }
 
+          const activeProject = applicationService?.findActiveProjectByRoot(rootDir);
+          const merged = new Map<string, Record<string, unknown>>();
+          for (const p of profiles) {
+            merged.set(p.id, {
+              id: p.id,
+              env: p.env,
+              username: p.username,
+              role: p.role,
+              login_mode: p.login_mode,
+              login_route: p.login_route,
+              credential_source: p.credential_source,
+              verified: Boolean(p.verified),
+              status: p.verified ? 'verified' : 'pending',
+              needs_revalidation: false,
+            });
+          }
+          if (activeProject && applicationService) {
+            const snapshot = applicationService.resumeProject(activeProject.project_id);
+            for (const svcProf of snapshot.profiles) {
+              const sessionInfo = applicationService.readProfileSession(activeProject.project_id, svcProf.profile_id);
+              const needsRevalidation = Boolean(
+                sessionInfo?.expired || sessionInfo?.revoked || svcProf.status === 'expired' || svcProf.status === 'revoked',
+              );
+              const existing = merged.get(svcProf.label) ?? {};
+              merged.set(svcProf.label, {
+                ...existing,
+                id: svcProf.label,
+                profile_id: svcProf.profile_id,
+                env: snapshot.environment?.name ?? existing.env ?? 'local',
+                role: svcProf.role_name ?? existing.role,
+                tenant_id: svcProf.tenant_id,
+                login_mode: svcProf.login_mode,
+                status: svcProf.status,
+                verified: svcProf.status === 'verified' && !needsRevalidation,
+                verified_at: svcProf.verified_at,
+                needs_revalidation: needsRevalidation,
+              });
+            }
+          }
+
+          const list = [...merged.values()];
+          const profileToRevalidate = list.find((item) => item.needs_revalidation === true);
+
           return {
             content: [
               {
@@ -1121,15 +1611,15 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
                   {
                     status: 'success',
                     directorio_objetivo: rootDir,
-                    count: profiles.length,
-                    profiles: profiles.map((p) => ({
-                      id: p.id,
-                      env: p.env,
-                      username: p.username,
-                      login_mode: p.login_mode,
-                      login_route: p.login_route,
-                      credential_source: p.credential_source,
-                    })),
+                    count: list.length,
+                    profiles: list,
+                    ...(profileToRevalidate ? {
+                      siguiente_accion: {
+                        tipo: 'decision',
+                        descripcion: `El perfil '${String(profileToRevalidate.id)}' requiere revalidación de sesión antes de inspeccionar rutas protegidas.`,
+                        tool: 'qap_auth_add',
+                      },
+                    } : {}),
                   },
                   null,
                   2
@@ -1234,6 +1724,10 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
 
           let rawContent = '';
           let docRef = currentContext.source_of_truth?.ref || '';
+          const activeProject = applicationService?.findActiveProjectByRoot(rootDir);
+          const scopeLimits = activeProject && applicationService
+            ? applicationService.getDeclaredScopeLimits(activeProject.project_id)
+            : undefined;
 
           if (hasDocPath) {
             const rawPath = String(inputDocPath);
@@ -1248,8 +1742,13 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
                       {
                         status: 'error',
                         isError: true,
+                        code: 'unsupported_document_format',
                         directorio_objetivo: rootDir,
-                        error: 'Extensión no permitida. Solo se admiten archivos .md, .markdown o .txt.',
+                        error: `Formato '${ext || '(sin extensión)'}' no admitido en este corte. Solo se admiten texto o Markdown (.md, .markdown, .txt).`,
+                        format_limits: scopeLimits ?? {
+                          supported_doc_formats: ['.md', '.markdown', '.txt'],
+                          max_doc_bytes: 512 * 1024,
+                        },
                       },
                       null,
                       2
@@ -1293,8 +1792,13 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
                       {
                         status: 'error',
                         isError: true,
+                        code: 'document_size_limit_exceeded',
                         directorio_objetivo: rootDir,
                         error: 'Tamaño de archivo excedido: máximo 512 KB.',
+                        format_limits: scopeLimits ?? {
+                          supported_doc_formats: ['.md', '.markdown', '.txt'],
+                          max_doc_bytes: 512 * 1024,
+                        },
                       },
                       null,
                       2
@@ -1521,6 +2025,136 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
             environments: parsedEnv,
           });
 
+          let ingestedDocRecord: ReturnType<NonNullable<typeof applicationService>['saveIngestedDocument']> | undefined;
+          let pendingDiscrepancies: ReturnType<NonNullable<typeof applicationService>['listDiscrepancies']> = [];
+          let persistedCandidates: ReturnType<NonNullable<typeof applicationService>['listModuleCandidates']> = [];
+
+          if (activeProject && applicationService) {
+            const detectedDiscrepancies: Array<{
+              field: 'objective' | 'base_url' | 'tenant_mode' | 'role' | 'route';
+              source_a: string;
+              value_a: string;
+              source_b: string;
+              value_b: string;
+              severity: 'warning' | 'blocking';
+              resolution_status: 'pending_user_decision';
+            }> = [];
+            const docSourceLabel = docRef || 'inline_docContent';
+            if (
+              extractedObjective &&
+              currentContext.objective_source === 'user' &&
+              currentContext.objective &&
+              extractedObjective.toLowerCase().trim() !== String(currentContext.objective).toLowerCase().trim()
+            ) {
+              detectedDiscrepancies.push({
+                field: 'objective',
+                source_a: 'user_declared_context',
+                value_a: String(currentContext.objective),
+                source_b: docSourceLabel,
+                value_b: extractedObjective,
+                severity: 'warning',
+                resolution_status: 'pending_user_decision',
+              });
+            }
+            const urlMatches = rawContent ? rawContent.match(/https?:\/\/[^\s"'<>)]+/gi) ?? [] : [];
+            const declaredBaseUrl = parsedEnv?.environments?.[parsedEnv?.default ?? 'local']?.url ?? currentContext.base_url;
+            let declaredOrigin = '';
+            try { declaredOrigin = new URL(String(declaredBaseUrl || '')).origin; } catch { declaredOrigin = ''; }
+            for (const foundUrl of urlMatches) {
+              try {
+                const foundOrigin = new URL(foundUrl).origin;
+                if (declaredOrigin && foundOrigin !== declaredOrigin) {
+                  detectedDiscrepancies.push({
+                    field: 'base_url',
+                    source_a: 'user_declared_environment',
+                    value_a: declaredOrigin,
+                    source_b: docSourceLabel,
+                    value_b: foundOrigin,
+                    severity: 'blocking',
+                    resolution_status: 'pending_user_decision',
+                  });
+                  break;
+                }
+              } catch { /* ignore malformed url snippets in prose */ }
+            }
+            const resumeSnapshot = applicationService.resumeProject(activeProject.project_id);
+            const currentTenantMode = resumeSnapshot.environment?.tenant_mode ?? 'single';
+            if (rawContent) {
+              const mentionsMultiTenant = /\b(multi[- ]?tenant|multitenant)\b/i.test(rawContent);
+              const mentionsSingleTenant = /\b(single[- ]?tenant|monotenant)\b/i.test(rawContent);
+              if (mentionsMultiTenant && currentTenantMode !== 'multi_tenant') {
+                detectedDiscrepancies.push({
+                  field: 'tenant_mode',
+                  source_a: 'environment_scope',
+                  value_a: currentTenantMode,
+                  source_b: docSourceLabel,
+                  value_b: 'multi_tenant',
+                  severity: 'warning',
+                  resolution_status: 'pending_user_decision',
+                });
+              } else if (mentionsSingleTenant && currentTenantMode !== 'single') {
+                detectedDiscrepancies.push({
+                  field: 'tenant_mode',
+                  source_a: 'environment_scope',
+                  value_a: currentTenantMode,
+                  source_b: docSourceLabel,
+                  value_b: 'single',
+                  severity: 'warning',
+                  resolution_status: 'pending_user_decision',
+                });
+              }
+            }
+
+            const extLower = docRef ? extname(String(docRef)).toLowerCase() : '';
+            const ingestFormat: 'md' | 'markdown' | 'txt' | 'inline_text' = !hasDocPath
+              ? 'inline_text'
+              : extLower === '.txt'
+                ? 'txt'
+                : extLower === '.markdown'
+                  ? 'markdown'
+                  : 'md';
+            ingestedDocRecord = applicationService.saveIngestedDocument({
+              projectId: activeProject.project_id,
+              sourceRef: docSourceLabel,
+              format: ingestFormat,
+              rawContent: rawContent || JSON.stringify(propuesta ?? {}),
+              analyzedBy: propuesta ? 'agent' : 'heuristic',
+              extracted: {
+                ...(extractedObjective ? { objective: extractedObjective } : {}),
+                roles: validUsers,
+                routes: extractedRoutes,
+                critical_flows: (currentContext.critical_flows || []).map((f: { name?: string }) => String(f.name || '')).filter(Boolean),
+              },
+              discrepancies: detectedDiscrepancies,
+            });
+            for (const cand of candidateGenResult?.candidatesFile?.candidates ?? []) {
+              applicationService.upsertModuleCandidate({
+                projectId: activeProject.project_id,
+                key: cand.id || cand.nombre,
+                title: cand.nombre,
+                routeHint: cand.ruta || undefined,
+                provenanceSource: 'markdown_doc',
+                evidenceRefs: [docSourceLabel],
+                confidence: cand.ruta ? 'high' : 'medium',
+              });
+            }
+            if (!(candidateGenResult?.candidatesFile?.candidates?.length)) {
+              for (const sm of suggestedModules) {
+                applicationService.upsertModuleCandidate({
+                  projectId: activeProject.project_id,
+                  key: sm.module,
+                  title: sm.module,
+                  routeHint: sm.path,
+                  provenanceSource: 'markdown_doc',
+                  evidenceRefs: [docSourceLabel],
+                  confidence: 'medium',
+                });
+              }
+            }
+            pendingDiscrepancies = applicationService.listDiscrepancies(activeProject.project_id, true);
+            persistedCandidates = applicationService.listModuleCandidates(activeProject.project_id);
+          }
+
           if (
             lifecycleState.phase === 'SCOPING' &&
             currentContext.critical_flows &&
@@ -1550,11 +2184,22 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
                       notas: extractedNotes || undefined,
                       rutas: extractedRoutes,
                     },
+                    provenance: ingestedDocRecord ? {
+                      doc_id: ingestedDocRecord.doc_id,
+                      source_ref: ingestedDocRecord.source_ref,
+                      format: ingestedDocRecord.format,
+                      sha256: ingestedDocRecord.sha256,
+                      analyzed_by: ingestedDocRecord.analyzed_by,
+                      ingested_at: ingestedDocRecord.ingested_at,
+                    } : undefined,
+                    discrepancies: pendingDiscrepancies,
                     modulos_sugeridos_para_plan: suggestedModules,
                     modulos_candidatos_generados: candidateGenResult?.candidatesFile?.candidates || [],
+                    module_candidates: persistedCandidates,
                     candidatos_rechazados: candidateGenResult?.rejectedCandidates || [],
                     flujos_descartados: candidateGenResult?.flujos_descartados || [],
                     roles_descartados: discardedIngestRoles,
+                    format_limits: scopeLimits,
                     faltantes,
                     siguiente_accion: guidance.siguiente_accion,
                   },
@@ -1591,6 +2236,28 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
 
           const storage = new FileSystemStorage({ rootDir });
           const lifecycleState = await storage.getLifecycleState();
+          const activeProject = applicationService?.findActiveProjectByRoot(rootDir);
+          const requestedTenant = typeof args.tenant_id === 'string' && args.tenant_id.trim()
+            ? args.tenant_id.trim()
+            : undefined;
+          if (activeProject && applicationService) {
+            const tenantCheck = applicationService.validateTenantScope(activeProject.project_id, requestedTenant);
+            if (!tenantCheck.ok) {
+              return canonicalResult({
+                status: 'blocked',
+                category: 'human_authorization',
+                code: tenantCheck.code,
+                fase: lifecycleState.phase,
+                razon: tenantCheck.reason,
+                desbloquear_con: {
+                  mecanismo: 'qap_session_plan',
+                  tool: 'qap_session_plan',
+                  campo: 'tenant_id',
+                  descripcion: tenantCheck.reason,
+                },
+              }, true);
+            }
+          }
 
           if (lifecycleState.phase === 'ONBOARDING') {
             const ctxPath = join(qaDir, 'project', 'context.yaml');
@@ -1631,8 +2298,14 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
             };
           }
 
-          // Soporte de desde_candidatos y adicionales (C6)
+          // Soporte de desde_candidatos y adicionales (C6 + Block 2 candidatos del servicio)
           let resolvedModules: Array<{ module: string; path: string; priority: string; flujos?: string[] }> = [];
+          const promotedCandidateIds: Array<{
+            candidateKeyOrId: string;
+            title?: string;
+            routeHint?: string;
+            priority?: 'high' | 'medium' | 'low';
+          }> = [];
 
           if (Array.isArray(args.desde_candidatos) && args.desde_candidatos.length > 0) {
             const candidatesPath = join(qaDir, 'project', 'module-candidates.json');
@@ -1644,13 +2317,17 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
             }
 
             const allCandidates: ModuleCandidate[] = candidatesFile?.candidates || [];
+            const serviceCandidates = activeProject && applicationService
+              ? applicationService.listModuleCandidates(activeProject.project_id)
+              : [];
 
             for (const item of args.desde_candidatos) {
               const candId = typeof item === 'string' ? item.trim() : (item?.id ? String(item.id).trim() : '');
               const candPathOverride = typeof item === 'object' && item?.path ? String(item.path).trim() : undefined;
 
               const cand = allCandidates.find((c) => c.id === candId);
-              if (!cand) {
+              const svcCand = serviceCandidates.find((c) => c.candidate_id === candId || c.key === candId);
+              if (!cand && !svcCand) {
                 return {
                   content: [
                     {
@@ -1660,10 +2337,10 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
                           status: 'blocked',
                           directorio_objetivo: rootDir,
                           fase: 'SCOPING',
-                          razon: `El candidato con id '${candId}' no existe en module-candidates.json.`,
+                          razon: `El candidato indicado ('${candId}') no figura en la lista de candidatos revisables.`,
                           siguiente_accion: {
                             tipo: 'decision',
-                            descripcion: `El id de candidato '${candId}' no es válido. Selecciona un candidato existente o añade módulos con adicionales.`,
+                            descripcion: `Selecciona un candidato válido de la lista observada o agrega el módulo manualmente.`,
                             tool: 'qap_session_plan',
                           },
                         },
@@ -1675,11 +2352,14 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
                 };
               }
 
-              const finalPath = candPathOverride || cand.ruta;
-              if (!finalPath) {
+              const resolvedName = cand?.nombre ?? svcCand!.title;
+              const resolvedRoute = candPathOverride || cand?.ruta || svcCand?.route_hint;
+              const resolvedFlows = cand?.flujos || [];
+
+              if (!resolvedRoute) {
                 const preguntaRuta: Pregunta = {
-                  id: `scoping.ruta_candidato.${cand.id}`,
-                  texto: `Indica la ruta HTTP/URL para el módulo '${cand.nombre}' (por ejemplo: /catalog):`,
+                  id: `scoping.ruta_candidato.${cand?.id ?? svcCand!.candidate_id}`,
+                  texto: `Indica la ruta URL para el módulo '${resolvedName}' (por ejemplo: /catalog):`,
                   formato: 'abierta',
                   opciones: [],
                   permite_otra: true,
@@ -1697,10 +2377,10 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
                           status: 'blocked',
                           directorio_objetivo: rootDir,
                           fase: 'SCOPING',
-                          razon: `El candidato '${cand.nombre}' (id: ${cand.id}) no tiene una ruta definida. Aporta la ruta para continuar.`,
+                          razon: `El candidato '${resolvedName}' aún no tiene una ruta asignada.`,
                           siguiente_accion: {
                             tipo: 'decision',
-                            descripcion: `El candidato '${cand.nombre}' requiere que se especifique su ruta URL.`,
+                            descripcion: `Indica la ruta para el candidato '${resolvedName}'.`,
                             tool: 'qap_session_plan',
                             pregunta: guardedPregunta,
                           },
@@ -1713,11 +2393,20 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
                 };
               }
 
+              if (svcCand) {
+                promotedCandidateIds.push({
+                  candidateKeyOrId: svcCand.candidate_id,
+                  title: resolvedName,
+                  routeHint: resolvedRoute,
+                  priority: 'medium',
+                });
+              }
+
               resolvedModules.push({
-                module: cand.nombre,
-                path: finalPath,
+                module: resolvedName,
+                path: resolvedRoute,
                 priority: 'medium',
-                flujos: cand.flujos || [],
+                flujos: resolvedFlows,
               });
             }
 
@@ -1737,6 +2426,25 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
                   flujos: Array.isArray(ad.flujos) ? ad.flujos : [],
                 });
               }
+            }
+          }
+
+          if (resolvedModules.length === 0 && !Array.isArray(args.modules) && args.reuse_modules && activeProject && applicationService) {
+            const snapshot = applicationService.resumeProject(activeProject.project_id);
+            const closedPool = snapshot.modules.filter((m) => m.status === 'closed' || m.status === 'waived');
+            const requestedReuse = Array.isArray(args.reuse_modules)
+              ? args.reuse_modules.map((k: unknown) => String(k).trim()).filter(Boolean)
+              : null;
+            const reuseSelection = requestedReuse
+              ? closedPool.filter((m) => requestedReuse.includes(m.key) || requestedReuse.includes(m.title))
+              : closedPool;
+            for (const rm of reuseSelection) {
+              resolvedModules.push({
+                module: rm.key,
+                path: rm.route_hint || '/',
+                priority: rm.priority,
+                flujos: [],
+              });
             }
           }
 
@@ -1796,7 +2504,11 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
                 content: [{ type: 'text', text: JSON.stringify({ status: 'error', error: 'Nombre de módulo no puede estar vacío.' }, null, 2) }],
               };
             }
-            if (lifecycleState.phase === 'WRAP_UP' && lifecycleState.modules?.[mName]?.state === 'closed') {
+            const explicitlyReused =
+              args.reuse_modules === true ||
+              (Array.isArray(args.reuse_modules) &&
+                args.reuse_modules.map((k: unknown) => String(k).trim()).includes(mName));
+            if (!explicitlyReused && lifecycleState.phase === 'WRAP_UP' && lifecycleState.modules?.[mName]?.state === 'closed') {
               return {
                 isError: true,
                 content: [{
@@ -1838,6 +2550,23 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
               const parsed = JSON.parse(readFileSync(profilesPath, 'utf-8'));
               allProfiles = parsed.profiles || [];
             } catch { /* empty */ }
+          }
+          if (activeProject && applicationService) {
+            const snapProfiles = applicationService.resumeProject(activeProject.project_id).profiles;
+            for (const sp of snapProfiles) {
+              if (!allProfiles.some((p) => p.id === sp.label)) {
+                allProfiles.push({
+                  id: sp.label,
+                  env: 'local',
+                  username: sp.label,
+                  role: sp.role_name,
+                  login_mode: sp.login_mode === 'handoff' ? 'handoff' : 'auto',
+                  login_route: '/login',
+                  credential_source: 'keychain',
+                  verified: sp.status === 'verified',
+                });
+              }
+            }
           }
 
           const isAccess = (m: { path?: string; acceso?: boolean }) => Boolean(m.acceso || isAuthPath(String(m.path || '')));
@@ -1893,7 +2622,11 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
 
               curr.modules = curr.modules || {};
               for (const item of curr.session.plan) {
-                if (!curr.modules[item.module]) {
+                if (
+                  !curr.modules[item.module] ||
+                  curr.modules[item.module].state === 'closed' ||
+                  curr.modules[item.module].state === 'waived'
+                ) {
                   curr.modules[item.module] = {
                     state: 'planned',
                     updated_at: new Date().toISOString(),
@@ -2026,6 +2759,80 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
           try {
             projectCtx = await storage.getProjectContext();
           } catch { /* empty */ }
+
+          let durableModules: ReturnType<NonNullable<typeof applicationService>['resumeProject']>['modules'] = [];
+          let reusedModulesSummary: string[] = [];
+          let activeCampaignId: string | undefined;
+          let reusedFromCampaignId: string | undefined;
+          const wasWrapUpPhase = lifecycleState.phase === 'WRAP_UP';
+          if (activeProject && applicationService) {
+            if (promotedCandidateIds.length > 0) {
+              applicationService.promoteCandidatesToModules(activeProject.project_id, promotedCandidateIds);
+            }
+            const moduleKeysForPlan = sortedModules.map((m) => String(m.module).trim());
+            let campaign2: ReturnType<typeof applicationService.startCampaignReusingModules> | null = null;
+            if (wasWrapUpPhase || args.reuse_modules) {
+              campaign2 = applicationService.startCampaignReusingModules({
+                projectId: activeProject.project_id,
+                moduleKeys: moduleKeysForPlan,
+                objective: typeof args.objective === 'string' ? args.objective.trim() : undefined,
+              });
+              reusedModulesSummary = campaign2.reused_modules.map((m) => m.key);
+              activeCampaignId = campaign2.campaign.campaign_id;
+              reusedFromCampaignId = campaign2.campaign.reused_from_campaign_id;
+            }
+            const reusedKeySet = new Set(reusedModulesSummary);
+            for (const m of sortedModules) {
+              const mKey = String(m.module).trim();
+              if (reusedKeySet.has(mKey)) {
+                continue;
+              }
+              applicationService.upsertModule({
+                projectId: activeProject.project_id,
+                key: mKey,
+                title: mKey,
+                routeHint: String(m.path).trim(),
+                priority: String(m.priority || 'medium').trim() as 'high' | 'medium' | 'low',
+                criticality: String(m.priority || 'medium').trim() as 'high' | 'medium' | 'low',
+                status: 'planned',
+              });
+            }
+            const resumed = applicationService.resumeProject(activeProject.project_id);
+            durableModules = resumed.modules;
+            const activeCamp = campaign2?.campaign ?? resumed.campaign ?? (resumed.environment ? applicationService.startCampaign({
+              projectId: activeProject.project_id,
+              envId: resumed.environment.env_id,
+              mode: 'investigate_and_test',
+              phase: freshState.phase,
+              targetModuleIds: durableModules.map((mod) => mod.module_id),
+            }) : undefined);
+            if (activeCamp) {
+              activeCampaignId = activeCamp.campaign_id;
+              reusedFromCampaignId = activeCamp.reused_from_campaign_id ?? reusedFromCampaignId;
+              applicationService.updateCampaignPhase(activeCamp.campaign_id, freshState.phase);
+              applicationService.upsertTask({
+                projectId: activeProject.project_id,
+                campaignId: activeCamp.campaign_id,
+                kind: 'planning',
+                title: `Alcance acordado con ${sortedModules.length} módulo(s)`,
+                status: 'completed',
+                progressCurrent: 1,
+                progressTotal: 1,
+                progressUnit: 'steps',
+                recoveryCursor: {
+                  recoverable: true,
+                  project_id: activeProject.project_id,
+                  campaign_id: activeCamp.campaign_id,
+                  resume_token: `${activeCamp.campaign_id}:session_planned`,
+                  last_completed_step: 'session_planned',
+                  checkpoint_at: new Date().toISOString(),
+                  recovery_bundle_available: true,
+                  tombstone_blocked: false,
+                },
+              });
+            }
+          }
+
           const guidance = getPhaseGuidance(freshState.phase, {
             lifecycle: freshState,
             context: projectCtx,
@@ -2075,7 +2882,12 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
                     fase: freshState.phase,
                     transicion_automatica: updatedPhase === 'WORKING' && lifecycleState.phase === 'SCOPING',
                     plan: freshState.session?.plan,
+                    modules_registered: durableModules,
+                    ...(activeCampaignId ? { campaign_id: activeCampaignId } : {}),
+                    ...(reusedFromCampaignId ? { reused_from_campaign_id: reusedFromCampaignId } : {}),
+                    ...(reusedModulesSummary.length > 0 ? { reused_modules: reusedModulesSummary } : {}),
                     auth: freshState.session?.auth,
+                    ...(requestedTenant ? { tenant_id: requestedTenant } : {}),
                     faltantes: freshState.phase === 'WORKING' ? [] : scopingGateRes.faltantes,
                     siguiente_accion: guidance.siguiente_accion,
                   },
@@ -3272,7 +4084,25 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
             };
           }
 
-          if (action === 'close' && userConfirmed && !hasLegacyViewContext(rootDir, moduleName)) {
+          const closeProject = applicationService?.findActiveProjectByRoot(rootDir) ?? null;
+          const serviceCasesForClose =
+            closeProject && applicationService
+              ? applicationService.listServiceCases(closeProject.project_id, moduleName)
+              : [];
+          const serviceExecSummaryForClose =
+            closeProject && applicationService
+              ? applicationService.getExecutionSummary(closeProject.project_id, moduleName)
+              : null;
+          const hasServiceModuleEvidence = Boolean(
+            closeProject &&
+            applicationService &&
+            (serviceCasesForClose.some((c) =>
+              ['approved', 'pass', 'fail', 'not_run', 'technical_error', 'human_accepted'].includes(c.conformity_status),
+            ) ||
+              (serviceExecSummaryForClose?.total_attempts ?? 0) > 0),
+          );
+
+          if (action === 'close' && userConfirmed && !hasLegacyViewContext(rootDir, moduleName) && !hasServiceModuleEvidence) {
             return legacyInterviewBlocked();
           }
 
@@ -3299,8 +4129,12 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
           const covCurrent = computeCoverage(appCats, rulesList, waiversList, 'default');
           const sustantivasCount = covCurrent.sustantivas;
           const totalAplicables = appCats.length;
-          const tiene50Porciento = totalAplicables > 0 ? (sustantivasCount / totalAplicables >= 0.50) : true;
-          const conteoTexto = `${sustantivasCount} de ${totalAplicables} categorías con contenido${covCurrent.diferidas > 0 ? `, ${covCurrent.diferidas} diferidas` : ''}`;
+          const tiene50Porciento = hasServiceModuleEvidence
+            ? true
+            : (totalAplicables > 0 ? (sustantivasCount / totalAplicables >= 0.50) : true);
+          const conteoTexto = hasServiceModuleEvidence
+            ? `${serviceCasesForClose.length} caso(s) registrados, ${serviceExecSummaryForClose?.total_attempts ?? 0} intento(s) de ejecución`
+            : `${sustantivasCount} de ${totalAplicables} categorías con contenido${covCurrent.diferidas > 0 ? `, ${covCurrent.diferidas} diferidas` : ''}`;
 
           // 4. Bloqueado si user_confirmed no es true
           if (!userConfirmed) {
@@ -3338,7 +4172,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
 
           // 5. Validación por action
           if (action === 'close') {
-            if (modEntry.state === 'planned' && !args.accept_gaps) {
+            if (modEntry.state === 'planned' && !args.accept_gaps && !hasServiceModuleEvidence) {
               return {
                 content: [{
                   type: 'text',
@@ -3451,7 +4285,13 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
           const targetState: ModuleLifecycleState = action === 'close' ? 'closed' : 'waived';
           await storage.updateLifecycleState(async (curr) => {
             let transState = curr;
-            if (curr.modules?.[moduleName]?.state === 'observed' && targetState === 'closed') {
+            if (transState.modules?.[moduleName]?.state === 'planned' && targetState === 'closed') {
+              const toObs = transitionModule(transState, moduleName, 'observed', {
+                reason: `Evidencia de ejecución/casos acreditada para cierre de '${moduleName}'`,
+              });
+              if (toObs.state) transState = toObs.state;
+            }
+            if (transState.modules?.[moduleName]?.state === 'observed' && targetState === 'closed') {
               const toInter = transitionModule(transState, moduleName, 'interviewing', {
                 reason: `Inicio de entrevista para cierre${args.accept_gaps === true ? ' con brechas aceptadas' : ''}`,
               });
@@ -3488,6 +4328,15 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
             return curr;
           });
 
+          if (closeProject && applicationService) {
+            applicationService.closeServiceModule(
+              closeProject.project_id,
+              moduleName,
+              action as 'close' | 'waive',
+              action === 'waive' ? reasonStr : undefined,
+            );
+          }
+
           const summary = buildModuleSummary(rulesList, waiversList);
           const freshState = await storage.getLifecycleState();
           const plan = freshState.session?.plan || [];
@@ -3521,6 +4370,11 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
             };
           }
 
+          const updatedExecSummary =
+            closeProject && applicationService
+              ? applicationService.getExecutionSummary(closeProject.project_id, moduleName)
+              : undefined;
+
           return {
             content: [{
               type: 'text',
@@ -3533,6 +4387,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
                 state: targetState,
                 estado: targetState,
                 reason: action === 'waive' ? reasonStr : undefined,
+                ...(updatedExecSummary ? { canonical_execution_summary: updatedExecSummary } : {}),
                 resumen: summary,
                 siguiente_accion: sigAccion,
               }, null, 2),
@@ -3701,6 +4556,11 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
           // Never reinterpret their empty legacy YAML as zero gaps or approval.
           const canonicalReports = closureService ? await closureService.sessionReport() : [];
           const canonicalNames = new Set(canonicalReports.map(report => report.module));
+          const closeSessionProject = applicationService?.findActiveProjectByRoot(rootDir) ?? null;
+          const sessionExecutionSummary =
+            closeSessionProject && applicationService
+              ? applicationService.getExecutionSummary(closeSessionProject.project_id)
+              : null;
           const legacyNames = [...allModuleNames].filter(name => !canonicalNames.has(name));
           const moduleRulesMap: Record<string, { rules?: any[]; category_waivers?: any[] }> = {};
           for (const mName of legacyNames) {
@@ -3726,10 +4586,15 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
             moduleRules: moduleRulesMap,
           };
           const legacyReportMd = legacyNames.length ? generateSessionGapReport(gapParams) : '';
+          const physicalExecutionMd =
+            sessionExecutionSummary && sessionExecutionSummary.total_attempts > 0
+              ? renderVerifiedPhysicalExecutionSection(sessionExecutionSummary)
+              : '';
           const gapReportMd = canonicalReports.length
             ? renderCanonicalSessionReport(canonicalReports) +
+              physicalExecutionMd +
               (legacyReportMd ? '\n---\n\n# Módulos legacy no vinculados\n\n' + legacyReportMd : '')
-            : legacyReportMd;
+            : legacyReportMd + physicalExecutionMd;
           const gapSummary = computeSessionGapSummary(gapParams);
 
           const sessionsDir = join(qaDir, 'project', 'sessions');
@@ -3806,6 +4671,10 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
                 throw new Error('session_close_persisted_state_mismatch');
               }
 
+              if (closeSessionProject && applicationService) {
+                applicationService.completeActiveCampaign(closeSessionProject.project_id);
+              }
+
               return {
                 content: [{
                   type: 'text',
@@ -3817,6 +4686,12 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
                     session_id: sessionId,
                     report_path: reportFilePath,
                     reporte_brechas_path: reportFilePath,
+                    ...(sessionExecutionSummary
+                      ? {
+                          execution_status: sessionExecutionSummary.status,
+                          canonical_execution_summary: sessionExecutionSummary,
+                        }
+                      : {}),
                     cobertura_alcance: {
                       origen: canonicalReports.length ? 'legacy_only_not_canonical_coverage' : 'legacy',
                       flujos: { cubiertos: gapSummary.flujos_cubiertos, declarados: gapSummary.flujos_totales },

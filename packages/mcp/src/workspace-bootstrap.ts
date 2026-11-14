@@ -5,15 +5,27 @@ import { basename, join, parse, resolve } from 'node:path';
 import { SqliteKnowledgeAdapter } from '@qap/knowledge';
 import YAML from 'yaml';
 
+import { ApplicationServiceError, type QapApplicationService } from './application/application-service.js';
 import type { ProjectKnowledgeBinding } from './handlers/state-services.js';
 
 /** Host-owned capability. Never constructed from tool arguments or project files.
  * No review keys/gateways or navigation policies are created by this component. */
 export class WorkspaceBootstrap {
   private readonly stores = new Map<string, SqliteKnowledgeAdapter>();
-  constructor(readonly directory: string) {}
+  constructor(
+    readonly directory: string,
+    readonly appService?: QapApplicationService,
+  ) {}
 
   async prepare(root: string, url?: string): Promise<ProjectKnowledgeBinding | undefined> {
+    const tombstone = this.appService?.getTombstoneByRoot(root);
+    if (tombstone) {
+      throw new ApplicationServiceError(
+        'project_deleted_tombstone',
+        `El workspace '${root}' tiene un borrado previo (${tombstone.project_id}); se impide su recreación automática.`,
+        { deleted_project_id: tombstone.project_id, recovery_available: true },
+      );
+    }
     const key = createHash('sha256').update(process.platform === 'win32' ? root.toLowerCase() : root).digest('hex');
     const host = join(resolve(this.directory), key);
     // Check every existing ancestor before mkdir/open, including host and DB links.
@@ -62,7 +74,7 @@ export class WorkspaceBootstrap {
       await store.commit(app, [
         { kind: 'application', expected_revision: 0, trace, entity: { application_id: app, name: basename(root), base_url: url, created_at: at } },
         { kind: 'environment', expected_revision: 0, trace, entity: { application_id: app, environment_id: environmentId, name: 'local', base_url: url,
-          safe_domains: [], is_production: false, destructive_actions_allowed: false } },
+          safe_domains: (() => { try { return [new URL(url).hostname]; } catch { return []; } })(), is_production: false, destructive_actions_allowed: false } },
       ]);
     }
     // Minimal compatible local scaffold. Exclusive writes preserve restart state.
@@ -76,6 +88,31 @@ export class WorkspaceBootstrap {
     put('project/environments.yaml', YAML.stringify({ _version: '1', default: 'local', environments: {} }));
     put('project/lifecycle.json', JSON.stringify({ _version: '1', phase: 'ONBOARDING', session: { id: '', started_at: new Date().toISOString(), plan: [] }, modules: {}, history: [] }));
     put('.gitignore', 'cache/\nexecutions/\n');
+    if (this.appService) {
+      let project = this.appService.findActiveProjectByRoot(root);
+      if (!project) {
+        const snapshot = this.appService.createProject({
+          name: basename(root) || 'proyecto',
+          canonicalRoot: root,
+          baseUrl: url,
+        });
+        project = snapshot.project;
+      } else if (url && project.active_env_id) {
+        this.appService.upsertEnvironment({
+          projectId: project.project_id,
+          name: 'local',
+          baseUrl: url,
+        });
+      }
+      if (!this.appService.authority.check(project.project_id, 'access', { root_path: project.canonical_root }).allowed) {
+        this.appService.authority.grant({
+          project_id: project.project_id,
+          capability: 'access',
+          scope: { root_path: project.canonical_root, ...(project.active_env_id ? { env_id: project.active_env_id } : {}) },
+          granted_by: 'host_operator',
+        });
+      }
+    }
     if (!existing && !url) return undefined;
     return { projectRoot: root, applicationId: app, environmentId, store, moduleBindings: [] };
   }

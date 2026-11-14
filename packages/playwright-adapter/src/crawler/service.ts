@@ -50,14 +50,21 @@ export class BlackBoxCrawler {
     try {
       input = structuredClone({ ...request, signal: undefined });
     } catch { throw new BlackBoxCrawlerError('INVALID_INPUT'); }
+    const requestedIsolation = input.isolation ?? (input.authenticated_session ? 'fresh_authenticated_static' : 'fresh_anonymous_static');
+    const spaMode = requestedIsolation.endsWith('_spa_readonly');
+    const expectsAuth = requestedIsolation.startsWith('fresh_authenticated_');
+    const hasSessionCreds = Boolean(
+      input.authenticated_session?.cookies?.length ||
+      input.authenticated_session?.origins?.some((o) => o.localStorage.length > 0),
+    );
     if (!input?.environment || input.application_id !== input.environment.application_id ||
       !/^[a-zA-Z0-9_.:-]{1,128}$/.test(input.application_id) ||
       !/^[a-zA-Z0-9_.:-]{1,128}$/.test(input.environment.environment_id) ||
       input.authorization?.read_only_acknowledged !== true ||
-      (input.isolation !== undefined && !['fresh_anonymous_static', 'fresh_authenticated_static'].includes(input.isolation)) ||
-      ((input.isolation === 'fresh_authenticated_static') !== !!input.authenticated_session) ||
-      (input.authenticated_session !== undefined && (!input.authenticated_session.cookies?.length ||
-        !input.authenticated_session.validation_selector || input.authenticated_session.origin !== new URL(input.environment.base_url).origin)) ||
+      !['fresh_anonymous_static', 'fresh_authenticated_static', 'fresh_anonymous_spa_readonly', 'fresh_authenticated_spa_readonly'].includes(requestedIsolation) ||
+      (expectsAuth !== !!input.authenticated_session) ||
+      (input.authenticated_session !== undefined && (!hasSessionCreds ||
+        (!spaMode && !input.authenticated_session.validation_selector) || input.authenticated_session.origin !== new URL(input.environment.base_url).origin)) ||
       (input.tls_ca !== undefined && (typeof input.tls_ca !== 'string' || input.tls_ca.length > 65536)) ||
       (input.environment.rate_limit_ms !== undefined && (!Number.isSafeInteger(input.environment.rate_limit_ms) ||
         input.environment.rate_limit_ms < 0 || input.environment.rate_limit_ms > 60000))) throw new BlackBoxCrawlerError('INVALID_INPUT');
@@ -75,9 +82,10 @@ export class BlackBoxCrawler {
     const started = Date.now();
     const signal = AbortSignal.any([AbortSignal.timeout(limits.total_timeout_ms), ...(request.signal ? [request.signal] : [])]);
     const result: BlackBoxCrawlerResult = { execution_id: randomUUID(), status: 'indeterminate',
-      mode: input.authenticated_session ? 'fresh_authenticated_static' : 'fresh_anonymous_static', routes: [], views: [], relations: [], observations: [], evidence: [],
+      mode: requestedIsolation, routes: [], views: [], relations: [], observations: [], evidence: [],
       derived_entities_deferred: true,
-      warnings: ['STATIC_MODE_NO_APPLICATION_JAVASCRIPT', 'NO_GENERAL_BROWSER_SSRF_CERTIFICATION',
+      warnings: [spaMode ? 'SPA_READONLY_SAME_ORIGIN_GET_ONLY' : 'STATIC_MODE_NO_APPLICATION_JAVASCRIPT',
+        'NO_GENERAL_BROWSER_SSRF_CERTIFICATION',
         'EXTERNAL_RESOURCES_FRAMES_DOWNLOADS_BLOCKED', 'ROUTE_REFERENCES_ARE_OPAQUE_PER_EXECUTION',
         'GET_SAFETY_REQUIRES_CALLER_CONSENT', 'DOMAIN_IDENTITIES_DEFERRED'],
       limits, budget: { pages: 0, requests: 0, received_bytes: 0, decoded_bytes: 0, retained_bytes: 0,
@@ -114,12 +122,30 @@ export class BlackBoxCrawler {
       result.cleanup.proxy_closed = false;
       browser = await launchIsolated(proxy.url, this.dependencies.browser, Math.min(limits.navigation_timeout_ms, limits.total_timeout_ms));
       result.cleanup.browser_closed = false;
-      context = await browser.newContext({ javaScriptEnabled: false, offline: true, serviceWorkers: 'block',
-        acceptDownloads: false, permissions: [], ignoreHTTPSErrors: false });
+      context = await browser.newContext({
+        javaScriptEnabled: spaMode,
+        offline: !spaMode,
+        serviceWorkers: 'block',
+        acceptDownloads: false,
+        permissions: [],
+        ignoreHTTPSErrors: false,
+        ...(spaMode && input.authenticated_session
+          ? {
+              storageState: {
+                cookies: input.authenticated_session.cookies,
+                origins: (input.authenticated_session.origins ?? []).map((o) => ({
+                  origin: o.origin,
+                  localStorage: o.localStorage,
+                })),
+              },
+            }
+          : {}),
+      });
       signal.addEventListener('abort', closeOnAbort, { once: true });
       if (signal.aborted) closeOnAbort();
       await context.routeWebSocket('**/*', socket => socket.close());
       let document: { url: string; body: string; status: number } | undefined;
+      let spaAuthFailed = false;
       const page = await context.newPage();
       context.on('page', extra => { if (extra !== page) void extra.close().catch(() => undefined); });
       page.on('download', download => { void download.cancel().catch(() => undefined); });
@@ -130,8 +156,46 @@ export class BlackBoxCrawler {
             const response = document; document = undefined; // One-use document; meta refresh cannot repeat it.
             await route.fulfill({ status: response.status, body: response.body,
               headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store',
-                'content-security-policy': "sandbox allow-same-origin; default-src 'none'; style-src 'unsafe-inline'; form-action 'none'; frame-src 'none'; connect-src 'none'; base-uri 'none'" } });
-          } else { result.budget.blocked_browser_requests++; await route.abort('blockedbyclient'); }
+                ...(spaMode
+                  ? { 'content-security-policy': `default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self'; form-action 'none'; frame-src 'none'; base-uri 'none'` }
+                  : { 'content-security-policy': "sandbox allow-same-origin; default-src 'none'; style-src 'unsafe-inline'; form-action 'none'; frame-src 'none'; connect-src 'none'; base-uri 'none'" }) } });
+            return;
+          }
+          if (spaMode && req.method() === 'GET' && !req.isNavigationRequest()) {
+            try {
+              const reqUrl = parseUrl(req.url());
+              if (reqUrl.origin === target.origin && safeNavigation(reqUrl)) {
+                const subCapture = await acquire(
+                  reqUrl,
+                  scope,
+                  recon,
+                  transportLimits,
+                  result.budget,
+                  signal,
+                  target.origin,
+                  input.authenticated_session,
+                  target.origin,
+                );
+                if (subCapture.status === 401 || subCapture.status === 403) {
+                  spaAuthFailed = true;
+                }
+                const ct = typeof subCapture.headers['content-type'] === 'string'
+                  ? subCapture.headers['content-type']
+                  : (reqUrl.pathname.endsWith('.js') ? 'application/javascript; charset=utf-8'
+                    : reqUrl.pathname.endsWith('.json') ? 'application/json; charset=utf-8' : 'text/plain; charset=utf-8');
+                await route.fulfill({
+                  status: subCapture.status,
+                  body: subCapture.body,
+                  headers: { 'content-type': ct, 'cache-control': 'no-store' },
+                });
+                return;
+              }
+            } catch {
+              // Fall through to blocked abort below
+            }
+          }
+          result.budget.blocked_browser_requests++;
+          await route.abort('blockedbyclient');
         })().catch(() => undefined);
         pending.add(task); void task.finally(() => pending.delete(task));
         return task;
@@ -167,24 +231,46 @@ export class BlackBoxCrawler {
             if (attempted.has(next.href)) throw new ReconnaissanceError('REDIRECT_LIMIT');
             attempted.add(next.href); current = next; route = destination;
           }
+          if (capture.status === 401 || capture.status === 403) {
+            route.state = 'blocked';
+            route.reason = input.authenticated_session ? 'AUTH_SESSION_INVALID' : 'AUTH_REQUIRED';
+            result.warnings.push(input.authenticated_session ? 'AUTH_SESSION_INVALID' : 'AUTH_REQUIRED');
+            continue;
+          }
           if (capture.status < 200 || capture.status >= 300) { route.state = 'unavailable'; route.reason = 'HTTP_UNAVAILABLE'; continue; }
           if (capture.headers['content-disposition'] || !/^text\/html(?:\s*;|$)/i.test(capture.headers['content-type'] ?? '')) {
             route.state = 'blocked'; route.reason = 'NON_HTML_OR_DOWNLOAD'; continue;
           }
           document = { url: current.href, body: capture.body, status: capture.status };
+          spaAuthFailed = false;
           result.budget.pages++;
           navigationSignal.addEventListener('abort', stopNavigation, { once: true });
           await page.goto(current.href, { waitUntil: 'domcontentloaded', timeout: limits.navigation_timeout_ms });
-          if (navigationSignal.aborted || page.url() !== current.href) throw new ReconnaissanceError('TIMEOUT');
-          if (input.authenticated_session && (await page.locator('input[type="password"]').count() > 0 ||
-            await page.locator(input.authenticated_session.validation_selector).count() === 0)) {
+          if (spaMode) {
+            await page.waitForLoadState('networkidle', { timeout: Math.min(1500, limits.navigation_timeout_ms) }).catch(() => undefined);
+          }
+          if (navigationSignal.aborted) throw new ReconnaissanceError('TIMEOUT');
+          const navigatedUrl = page.url();
+          if (!spaMode && navigatedUrl !== current.href) throw new ReconnaissanceError('TIMEOUT');
+          const redirectedToLogin = spaMode && /\/login(?:[/?#]|$)/i.test(navigatedUrl);
+          if (input.authenticated_session && (
+            spaAuthFailed ||
+            redirectedToLogin ||
+            await page.locator('input[type="password"]').count() > 0 ||
+            (input.authenticated_session.validation_selector
+              ? await page.locator(input.authenticated_session.validation_selector).count() === 0
+              : false)
+          )) {
             route.state = 'blocked'; route.reason = 'AUTH_SESSION_INVALID'; result.warnings.push('AUTH_SESSION_INVALID'); break;
+          }
+          if (!input.authenticated_session && (spaAuthFailed || redirectedToLogin || await page.locator('input[type="password"]').count() > 0)) {
+            route.state = 'blocked'; route.reason = 'AUTH_REQUIRED';
           }
           const dom = await extractDom(page, limits.max_elements);
           if (navigationSignal.aborted) throw new ReconnaissanceError('TIMEOUT');
           const evidenceId = randomUUID();
           const view: ObservedView = { id: randomUUID(), route: route.route,
-            state: dom.script_dependent ? 'loading_or_script_dependent' : 'static_snapshot',
+            state: spaMode ? 'spa_rendered' : (dom.script_dependent ? 'loading_or_script_dependent' : 'static_snapshot'),
             evidence_id: evidenceId, controls: dom.controls, links: [], menus: dom.menus,
             headings: dom.headings, forms: dom.forms, truncated: dom.truncated };
           route.state = 'visited'; route.view_id = view.id; result.views.push(view);
@@ -248,7 +334,7 @@ export class BlackBoxCrawler {
       route.reason = signal.aborted ? 'CANCELLED_OR_DEADLINE' : 'BROWSER_OR_PROXY_UNAVAILABLE';
     }
     result.status = result.views.length ? (result.routes.some(r => !['visited', 'redirected'].includes(r.state)) ||
-      result.views.some(v => v.state !== 'static_snapshot' || v.truncated) || signal.aborted ? 'partial' : 'completed')
+      result.views.some(v => !['static_snapshot', 'spa_rendered'].includes(v.state) || v.truncated) || signal.aborted ? 'partial' : 'completed')
       : result.routes.some(r => r.state === 'blocked') ? 'blocked' : 'indeterminate';
     if (result.observations.length) await this.persist(input, result, originalContext);
     result.budget.elapsed_ms = Date.now() - started;

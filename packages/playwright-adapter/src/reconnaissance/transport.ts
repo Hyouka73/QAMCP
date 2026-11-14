@@ -35,7 +35,7 @@ function untilAbort<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
 
 /** One GET, no agent/pool/proxy/cookie jar, no automatic redirects and no retry. */
 export async function acquire(url: URL, scope: ReconScope, input: ReconnaissanceInput,
-  limits: ReconLimits, budget: ReconBudget, globalSignal: AbortSignal, origin?: string, session?: { origin: string; cookies: Cookie[] }): Promise<HttpCapture> {
+  limits: ReconLimits, budget: ReconBudget, globalSignal: AbortSignal, origin?: string, session?: { origin: string; cookies: Cookie[] }, sameOriginAssetOrigin?: string): Promise<HttpCapture> {
   // Only a canonical origin may be supplied by the browser gateway, never arbitrary headers.
   if (origin !== undefined && parseOrigin(origin) !== origin) throw new ReconnaissanceError('SCOPE_BLOCKED');
   if (session && session.origin !== url.origin) throw new ReconnaissanceError('SCOPE_BLOCKED');
@@ -49,11 +49,15 @@ export async function acquire(url: URL, scope: ReconScope, input: Reconnaissance
     return c.name + '=' + c.value;
   }).join('; ');
   const signal = AbortSignal.any([globalSignal, AbortSignal.timeout(limits.request_timeout_ms)]);
-  scope.authorize(url);
+  const pinned = sameOriginAssetOrigin
+    ? await untilAbort(scope.resolveSameOriginSubresource(url, sameOriginAssetOrigin), signal)
+    : await (async () => {
+        scope.authorize(url);
+        return untilAbort(scope.resolve(url), signal);
+      })();
   if (budget.requests >= limits.max_requests) throw new ReconnaissanceError('REQUEST_LIMIT');
   if (budget.received_bytes >= limits.max_received_bytes || budget.decoded_bytes >= limits.max_decoded_bytes ||
     budget.retained_bytes >= limits.max_retained_bytes) throw new ReconnaissanceError('BODY_LIMIT');
-  const pinned = await untilAbort(scope.resolve(url), signal);
   if (signal.aborted) throw new ReconnaissanceError('TIMEOUT');
   return new Promise((resolve, reject) => {
     const secure = url.protocol === 'https:';

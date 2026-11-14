@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve, join, basename } from 'node:path';
 
-import { SchemaValidator, filterValidRoles, type ProjectContext, type AuthProfile, type RuleEntry, type CategoryWaiver, type ModuleCandidate } from '@qap/shared';
+import { SchemaValidator, filterValidRoles, normalizeSlug, type ProjectContext, type AuthProfile, type RuleEntry, type CategoryWaiver, type ModuleCandidate } from '@qap/shared';
 import { FileSystemStorage, detectarServiciosConEvidencia, generarScan, detectarDocumentosProyecto, parsePrdContent } from '@qap/knowledge';
 import { canExitOnboarding, canExitScoping, obtenerSiguientePreguntaOnboarding, computeApplicableCategories, computeCoverage, generateNextInterviewBatch, sanitizeDomString, type ViewDiscoveryContext } from '@qap/engine';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
@@ -20,6 +20,29 @@ export class StatusHandler implements IMcpToolHandler {
   validateArguments(args: unknown): boolean { return validateBase(args, ['targetPath']); }
   async execute(raw: unknown): Promise<CallToolResult> {
     const rootDir = projectRoot(raw, this.dependencies, false);
+    const appService = this.dependencies.applicationService;
+    if (appService) {
+      const tombstone = appService.getTombstoneByRoot(rootDir);
+      if (tombstone) {
+        return result(
+          {
+            status: 'blocked',
+            category: 'human_authorization',
+            code: 'project_deleted_tombstone',
+            initialized: false,
+            deleted_project_id: tombstone.project_id,
+            recovery_available: true,
+            auto_recreation_blocked: true,
+            desbloquear_con: {
+              mecanismo: 'qap_project',
+              tool: 'qap_project',
+              descripcion: 'Este proyecto fue eliminado explícitamente. Recupera con qap_project(action="recover") o crea uno nuevo explícitamente.',
+            },
+          },
+          true,
+        );
+      }
+    }
     const knowledge = await knowledgeStatus(rootDir, this.dependencies);
     const canonicalModules: unknown[] = [];
     // A terminal state in lifecycle.json is not proof of a valid canonical
@@ -128,12 +151,26 @@ export class StatusHandler implements IMcpToolHandler {
       } satisfies SiguienteAccion;
       payload._guidance_for_assistant = description;
     }
+    const activeAppProject = appService ? appService.findActiveProjectByRoot(rootDir) : null;
+    const applicationSnapshot = activeAppProject && appService ? appService.resumeProject(activeAppProject.project_id) : undefined;
     return result({ ...payload, knowledge: this.dependencies.prepareWorkspace && knowledge.state === 'unbound' ? { state: 'prepared', context_present: false, next: 'await_application_location' } : knowledge, canonical_modules: canonicalModules,
+      ...(applicationSnapshot ? {
+        application: {
+          project_id: applicationSnapshot.project.project_id,
+          project_status: applicationSnapshot.project.status,
+          campaign_id: applicationSnapshot.campaign?.campaign_id ?? null,
+          mode: applicationSnapshot.campaign?.mode ?? null,
+          progress: applicationSnapshot.progress,
+          pending_decision: applicationSnapshot.pending_decision,
+          recovery: applicationSnapshot.recovery,
+          capabilities: applicationSnapshot.capabilities,
+        },
+      } : {}),
       canonical_bridge: { absence_does_not_imply_no_observations: true, coverage: 'partial', human_review_required: true },
       integration: { ...discoveryIntegration, module_association: 'inspect_canonical_modules' }, provenance: { knowledge: 'IKnowledgeStore', onboarding: 'legacy_files', hallazgos_workspace: 'workspace_inspection', preflight: 'runtime' }, coverage: 'partial_inventory_not_test_verdicts' });
   }
   private async inspectLegacyState(rootDir: string): Promise<CallToolResult> {
-
+    const appService = this.dependencies.applicationService;
     const qaDir = resolve(rootDir, '.qa');
     const initialized = existsSync(qaDir);
 
@@ -425,6 +462,23 @@ export class StatusHandler implements IMcpToolHandler {
       } catch { /* empty */ }
     }
 
+    const activeAppProject = appService?.findActiveProjectByRoot(rootDir);
+    const resumeSnapshot = activeAppProject && appService ? appService.resumeProject(activeAppProject.project_id) : undefined;
+    const serviceCases = activeAppProject && appService ? appService.listServiceCases(activeAppProject.project_id) : [];
+    const moduleKey = (name: string) => resumeSnapshot?.modules.find(module =>
+      module.title.toLowerCase() === name.toLowerCase())?.key ?? normalizeSlug(name);
+    const baseUrl = resumeSnapshot?.environment?.base_url;
+    const modulesWithInventory = new Set<string>();
+    if (baseUrl) {
+      for (const item of lifecycleState.session?.plan ?? []) {
+        try {
+          const target = new URL(item.path, baseUrl).href;
+          if (resumeSnapshot?.partial_inventories?.some(inventory => inventory.target_url === target && inventory.views_count > 0)) {
+            modulesWithInventory.add(item.module);
+          }
+        } catch { /* An invalid plan route cannot match a persisted inventory. */ }
+      }
+    }
     const currentKnowledge = this.dependencies.provisionalInventory ? await knowledgeStatus(rootDir, this.dependencies) : undefined;
     const guidance = getPhaseGuidance(currentPhase, {
       investigateBeforeScoping: this.dependencies.provisionalInventory && !(currentKnowledge && 'counts' in currentKnowledge && (currentKnowledge.counts.observation?.available ?? 0) > 0),
@@ -433,6 +487,9 @@ export class StatusHandler implements IMcpToolHandler {
       modules: modulesGuidance,
       moduleCandidates: moduleCandidatesList,
       interviewAction,
+      modulesWithInventory,
+      modulesWithCases: new Set((lifecycleState.session?.plan ?? []).filter(item =>
+        serviceCases.some(c => c.module_key === moduleKey(item.module))).map(item => item.module)),
       reportPath,
       hallazgos,
       context: parsedContext,
@@ -445,8 +502,74 @@ export class StatusHandler implements IMcpToolHandler {
       guidance.siguiente_accion = installAccion;
     }
 
+    const recoveredProfiles = resumeSnapshot?.profiles.map((p) => {
+      const sessionInfo = appService!.readProfileSession(resumeSnapshot.project.project_id, p.profile_id);
+      const needsRevalidation = Boolean(
+        sessionInfo?.expired || sessionInfo?.revoked || p.status === 'expired' || p.status === 'revoked',
+      );
+      return {
+        profile_id: p.profile_id,
+        label: p.label,
+        role: p.role_name,
+        tenant_id: p.tenant_id,
+        login_mode: p.login_mode,
+        status: p.status,
+        needs_revalidation: needsRevalidation,
+        downgraded_to_anonymous: false,
+      };
+    });
+    const pendingDiscrepancies = (resumeSnapshot?.discrepancies ?? [])
+      .filter((d) => d.resolution_status === 'pending_user_decision');
+    const expiredProfile = recoveredProfiles?.find((p) => p.needs_revalidation);
+
+    const pendingOracleCases = serviceCases.filter((c) => c.conformity_status === 'pending_oracle');
+    const recoverablePublications = activeAppProject && appService
+      ? appService.listRecoverablePublications(activeAppProject.project_id)
+      : [];
+    const canonicalExecSummary = activeAppProject && appService
+      ? appService.getExecutionSummary(activeAppProject.project_id)
+      : undefined;
+    const reusableClosedModules = (resumeSnapshot?.modules ?? [])
+      .filter((m) => m.status === 'closed' || m.status === 'waived')
+      .map((m) => m.key);
+
+    if (expiredProfile && browserCheck.disponible) {
+      guidance.siguiente_accion = {
+        tipo: 'decision',
+        descripcion: `La sesión protegida de '${expiredProfile.label}' requiere revalidación; inicia sesión nuevamente sin degradar a anónimo.`,
+        tool: 'qap_auth_add',
+      };
+    } else if (recoverablePublications.length > 0) {
+      const pendingPub = recoverablePublications[0];
+      guidance.siguiente_accion = {
+        tipo: 'trabajo',
+        descripcion: `Hay una publicación de reporte incompleta (${pendingPub.execution_id}, falló formato '${pendingPub.failed_format ?? 'desconocido'}'). Recupérala con qap_report sin reejecutar el navegador.`,
+        tool: 'qap_report',
+      };
+    } else if (pendingDiscrepancies.length > 0 && !interviewAction) {
+      const firstDisc = pendingDiscrepancies[0];
+      guidance.siguiente_accion = {
+        tipo: 'decision',
+        descripcion: `Hay una discrepancia en '${firstDisc.field}' entre ${firstDisc.source_a} y ${firstDisc.source_b}; confirma qué valor conservar antes de continuar.`,
+        tool: 'qap_project',
+      };
+    } else if (guidance.siguiente_accion.tipo !== 'trabajo' && pendingOracleCases.length > 0 && currentPhase === 'WORKING') {
+      guidance.siguiente_accion = {
+        tipo: 'decision',
+        descripcion: `Hay ${pendingOracleCases.length} caso(s) sin oráculo de negocio pendiente(s) de decisión del QA (sin bloquear el resto del lote).`,
+        tool: 'qap_plan',
+      };
+    } else if (resumeSnapshot?.pending_decision &&
+      (currentPhase !== 'WORKING' || guidance.siguiente_accion.tipo !== 'trabajo')) {
+      guidance.siguiente_accion = {
+        tipo: 'decision',
+        descripcion: resumeSnapshot.pending_decision.prompt,
+        tool: guidance.siguiente_accion.tool,
+      };
+    }
+
     const stateModuleCount = Object.keys(lifecycleState.modules || {}).length;
-    const totalModules = Math.max(moduleCount, stateModuleCount);
+    const totalModules = Math.max(moduleCount, stateModuleCount, resumeSnapshot?.modules.length ?? 0);
 
 
     return {
@@ -469,10 +592,37 @@ export class StatusHandler implements IMcpToolHandler {
               hallazgos_workspace: hallazgos,
               advertencias,
               projectName: projectName !== 'No inicializado' ? projectName : basename(rootDir),
+              ...(resumeSnapshot ? {
+                project_id: resumeSnapshot.project.project_id,
+                campaign: resumeSnapshot.campaign,
+                recovered_profiles: recoveredProfiles,
+                auth_revalidation_needed: Boolean(expiredProfile),
+                scope_limits: resumeSnapshot.scope_limits,
+                discrepancies: pendingDiscrepancies,
+                module_candidates: resumeSnapshot.module_candidates,
+                partial_inventories: resumeSnapshot.partial_inventories,
+                ingested_documents: resumeSnapshot.ingested_documents,
+                recovery: resumeSnapshot.recovery,
+                pending_decision: resumeSnapshot.pending_decision,
+                service_cases_summary: {
+                  total: serviceCases.length,
+                  pending_oracle: pendingOracleCases.length,
+                  approved_or_executed: serviceCases.filter((c) => c.conformity_status !== 'pending_oracle' && c.conformity_status !== 'proposed').length,
+                },
+                pending_oracles: pendingOracleCases.map((c) => ({
+                  case_id: c.case_id,
+                  module_key: c.module_key,
+                  title: c.title,
+                  question: c.expectation.business_risk_question,
+                })),
+                pending_report_recovery: recoverablePublications,
+                canonical_execution_summary: canonicalExecSummary,
+                reusable_closed_modules: reusableClosedModules,
+              } : {}),
               environments,
               stats: {
                 modules: totalModules,
-                authProfiles: profileCount,
+                authProfiles: Math.max(profileCount, resumeSnapshot?.profiles.length ?? 0),
                 executions: executionCount,
               },
               validatorReady: Boolean(validator),

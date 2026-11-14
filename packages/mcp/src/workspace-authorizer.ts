@@ -3,9 +3,9 @@ import { randomUUID } from 'node:crypto';
 import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, isAbsolute, join, parse, resolve, sep } from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 import { authorizationDiagnostic } from './authorization-diagnostics.js';
+import { resolveDialogScriptPath } from './dialog-script-path.js';
 
 export interface WorkspaceAuthorizationRequest {
   readonly requestedPath: string;
@@ -164,7 +164,7 @@ export class WindowsInteractiveWorkspaceAuthorizer implements IWorkspaceAuthoriz
   constructor(scriptPath?: string) {
     this.scriptPath = scriptPath
       ? decodeURIComponent(scriptPath)
-      : fileURLToPath(new URL('../../../scripts/qap-interactive-dialog.ps1', import.meta.url));
+      : resolveDialogScriptPath('qap-interactive-dialog.ps1');
   }
 
   async requestAuthorization(

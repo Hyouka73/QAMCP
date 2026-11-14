@@ -126,27 +126,63 @@ describe('real MCP client/server via linked transports', () => {
     expect(rules.inputSchema.properties?.canonical_interview).toMatchObject({ type: 'object', additionalProperties: false,
       properties: { action: { enum: ['next', 'propose', 'correct', 'review', 'defer', 'resume'] } }, required: ['action'] });
     expect(tools.find(t => t.name === 'qap_plan')!.inputSchema.properties?.case_workflow).toMatchObject({
-      type: 'object', additionalProperties: false, properties: { action: { enum: ['generate', 'review'] } } });
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        action: {
+          enum: expect.arrayContaining(['generate', 'review', 'propose_from_observations', 'decide_oracles', 'approve_batch', 'accept_case_gap']),
+        },
+      },
+    });
     expect(tools.find(t => t.name === 'qap_auth_add')!.inputSchema.properties?.post_login_condition).toMatchObject({
       type: 'object', required: ['type','value'], properties: { type: { enum: ['selector_present'] } } });
+    // Block 1 retired contradictory qap_clean in favor of qap_project.
+    expect(tools.find(t => t.name === 'qap_clean')).toBeUndefined();
+    const projectTool = tools.find(t => t.name === 'qap_project')!;
+    expect(projectTool).toBeDefined();
+    expect(projectTool.inputSchema.required).toEqual(['action']);
     expect({ tools: tools.map(tool => {
+      if (tool.name === 'qap_project') {
+        return oldTools.find(t => t.name === 'qap_clean')!;
+      }
       if (tool.name === 'qap_discover') {
         const prior = oldTools.find(t => t.name === tool.name)!;
-        return { ...tool, description: prior.description, inputSchema: { ...tool.inputSchema,
-          properties: { ...tool.inputSchema.properties, profile: prior.inputSchema.properties?.profile } } };
+        const properties = { ...tool.inputSchema.properties, profile: prior.inputSchema.properties?.profile };
+        delete properties.allow_spa;
+        delete properties.tenant_id;
+        return { ...tool, description: prior.description, inputSchema: { ...tool.inputSchema, properties } };
       }
       if (tool.name === 'qap_plan' || tool.name === 'qap_auth_add') {
-        const properties = { ...tool.inputSchema.properties }; delete properties.case_workflow; delete properties.post_login_condition;
-        return { ...tool, description: oldTools.find(t => t.name === tool.name)!.description, inputSchema: { ...tool.inputSchema, properties } };
+        const prior = oldTools.find(t => t.name === tool.name)!;
+        const properties = {
+          ...tool.inputSchema.properties,
+          ...(tool.name === 'qap_auth_add' ? { storageState: prior.inputSchema.properties?.storageState } : {}),
+        };
+        delete properties.case_workflow; delete properties.post_login_condition; delete properties.tenant_id;
+        return { ...tool, description: prior.description, inputSchema: { ...tool.inputSchema, properties } };
       }
       if (tool.name === 'qap_module_close') {
         const properties = { ...tool.inputSchema.properties }; delete properties.canonical_closure;
         return { ...tool, description: oldTools.find(t => t.name === tool.name)!.description,
           inputSchema: { ...tool.inputSchema, properties } };
       }
+      if (tool.name === 'qap_session_plan') {
+        const prior = oldTools.find(t => t.name === tool.name)!;
+        const properties = { ...tool.inputSchema.properties };
+        delete properties.reuse_modules;
+        delete properties.tenant_id;
+        return { ...tool, description: prior.description, inputSchema: { ...tool.inputSchema, properties } };
+      }
+      if (tool.name === 'qap_test') {
+        const prior = oldTools.find(t => t.name === tool.name)!;
+        const properties = { ...tool.inputSchema.properties };
+        delete properties.case_ids;
+        return { ...tool, description: prior.description, inputSchema: { ...tool.inputSchema, properties } };
+      }
       if (tool.name === 'qap_report') {
         const properties = { ...tool.inputSchema.properties };
         delete properties.module;
+        delete properties.recover_pending;
         return { ...tool, inputSchema: { ...tool.inputSchema, properties } };
       }
       if (tool.name !== 'qap_rules_set') return tool;

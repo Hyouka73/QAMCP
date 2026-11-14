@@ -192,7 +192,7 @@ describe('P4.5-S1: Preflight browser, Module Candidates, and Session Plan', () =
     expect(planRes.isError).toBeFalsy();
     const planData = JSON.parse(planRes.content[0].text);
     expect(planData.status).toBe('blocked');
-    expect(planData.razon).toContain("El candidato con id 'inexistente-123' no existe en module-candidates.json.");
+    expect(planData.razon).toContain("El candidato indicado ('inexistente-123') no figura en la lista de candidatos revisables.");
   });
 
   it('C4: qap_session_plan bloquea si candidato tiene ruta null con ejemplo generico fijo (/catalog) nunca derivado del nombre', async () => {
@@ -226,7 +226,7 @@ describe('P4.5-S1: Preflight browser, Module Candidates, and Session Plan', () =
 
     const planData = JSON.parse(planRes.content[0].text);
     expect(planData.status).toBe('blocked');
-    expect(planData.razon).toContain('no tiene una ruta definida');
+    expect(planData.razon).toContain('aún no tiene una ruta asignada');
 
     const pregunta = planData.siguiente_accion?.pregunta;
     expect(pregunta).toBeDefined();

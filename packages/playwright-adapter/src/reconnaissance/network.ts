@@ -111,6 +111,15 @@ export class ReconScope {
   }
   async resolve(url: URL): Promise<{ address: string; family: 4 | 6 }> {
     this.authorize(url);
+    return this.resolveChecked(url);
+  }
+  async resolveSameOriginSubresource(url: URL, baseOrigin: string): Promise<{ address: string; family: 4 | 6 }> {
+    if (url.origin !== baseOrigin || !this.domains.has(url.hostname)) {
+      throw new ReconnaissanceError('SCOPE_BLOCKED');
+    }
+    return this.resolveChecked(url);
+  }
+  private async resolveChecked(url: URL): Promise<{ address: string; family: 4 | 6 }> {
     let addresses: Array<{ address: string; family: number }>;
     try {
       const host = hostname(url);

@@ -91,7 +91,7 @@ describe('Interactive Discovery Authorization Suite', () => {
     expect(inMem[0].authorization.navigation_urls).toHaveLength(2);
   });
 
-  it('qap_discover: requests operator authorization when authorizer is configured and approves', async () => {
+  it('qap_discover: reuses one observation approval across routes and server reconnects, scoped to the same origin', async () => {
     const hostDir = makeTemp('host-');
     const ws = makeTemp('ws-');
     const bootstrap = new WorkspaceBootstrap(hostDir);
@@ -106,29 +106,29 @@ describe('Interactive Discovery Authorization Suite', () => {
           decision: 'approved',
           root: req.projectRoot,
           targetUrl: req.targetUrl,
+          navigationOrigin: new URL(req.baseUrl).origin,
           limits: req.limits,
         };
       },
     };
 
-    const server = createMcpServer({
-      projectRoots: [ws],
-      workspaceBootstrap: bootstrap,
-      clientWorkspaceRoots: false,
-      discoveryAuthorizer: mockAuthorizer,
-      hostDiscoveryRegistryPath: discoveryRegistryPath,
-    });
-
-    const client = new Client({ name: 'disc-auth-client', version: '1.0.0' }, {});
-    const [tA, tB] = InMemoryTransport.createLinkedPair();
-    await server.connect(tB);
-    await client.connect(tA);
-
-    cleanupFns.push(async () => {
-      await client.close();
-      await server.close();
-      bootstrap.close();
-    });
+    const connectClient = async () => {
+      const server = createMcpServer({
+        projectRoots: [ws],
+        workspaceBootstrap: bootstrap,
+        clientWorkspaceRoots: false,
+        discoveryAuthorizer: mockAuthorizer,
+        hostDiscoveryRegistryPath: discoveryRegistryPath,
+      });
+      const client = new Client({ name: 'disc-auth-client', version: '1.0.0' }, {});
+      const [tA, tB] = InMemoryTransport.createLinkedPair();
+      await server.connect(tB);
+      await client.connect(tA);
+      cleanupFns.push(async () => { await client.close(); await server.close(); });
+      return client;
+    };
+    cleanupFns.push(async () => { bootstrap.close(); });
+    const client = await connectClient();
 
     // 1. Initialize workspace
     const initRes = await client.callTool({ name: 'qap_status', arguments: { targetPath: ws } });
@@ -138,7 +138,7 @@ describe('Interactive Discovery Authorization Suite', () => {
     // 2. Set target URL to advance towards SCOPING
     const setRes = await client.callTool({
       name: 'qap_context_set',
-      arguments: { targetPath: ws, base_url: 'https://staging.lendus.dev/', source: 'user' },
+      arguments: { targetPath: ws, base_url: 'https://staging.example.invalid/', source: 'user' },
     });
     const setParsed = JSON.parse((setRes.content as Array<{ text: string }>)[0].text);
     expect(setParsed.status).toBe('success');
@@ -151,31 +151,32 @@ describe('Interactive Discovery Authorization Suite', () => {
       arguments: {
         targetPath: ws,
         name: 'inventario-provisional',
-        path: 'https://staging.lendus.dev/',
+        path: 'https://staging.example.invalid/',
       },
     });
 
     // Verify dialog was requested with exact expected parameters
     expect(authRequests).toHaveLength(1);
-    expect(authRequests[0].targetUrl).toBe('https://staging.lendus.dev/');
-    expect(authRequests[0].baseUrl).toBe('https://staging.lendus.dev/');
+    expect(authRequests[0].targetUrl).toBe('https://staging.example.invalid/');
+    expect(authRequests[0].baseUrl).toBe('https://staging.example.invalid/');
 
     // Verify decision was recorded on disk
     expect(existsSync(discoveryRegistryPath)).toBe(true);
     const persisted = loadDiscoveryAuthorizationsFromDisk(discoveryRegistryPath);
     expect(persisted).toHaveLength(1);
-    expect(persisted[0].authorization.navigation_urls).toContain('https://staging.lendus.dev/');
+    expect(persisted[0].authorization.navigation_urls).toContain('https://staging.example.invalid/');
+    expect(persisted[0].navigationOrigin).toBe('https://staging.example.invalid');
 
-    // 4. Second call to qap_discover on same URL does NOT prompt authorizer again (continuity)
-    await client.callTool({
-      name: 'qap_discover',
-      arguments: {
-        targetPath: ws,
-        name: 'inventario-provisional',
-        path: 'https://staging.lendus.dev/',
-      },
-    });
-    expect(authRequests).toHaveLength(1); // Still 1, no second prompt!
+    for (const [activeClient, path] of [[client, '/operaciones/tablero'], [await connectClient(), '/administracion/equipo']] as const) {
+      const response = await activeClient.callTool({ name: 'qap_discover',
+        arguments: { targetPath: ws, name: 'inventario-provisional', path } });
+      expect(JSON.parse((response.content as Array<{ text: string }>)[0].text).code).not.toBe('url_not_authorized');
+    }
+    const offOrigin = await client.callTool({ name: 'qap_discover', arguments: {
+      targetPath: ws, name: 'inventario-provisional', path: 'https://otro.example.invalid/',
+    } });
+    expect(JSON.parse((offOrigin.content as Array<{ text: string }>)[0].text).code).toBe('url_not_authorized');
+    expect(authRequests).toHaveLength(1);
   });
 
   it('qap_discover: operator rejection returns blocked discovery_authorization_rejected and writes no permissions', async () => {

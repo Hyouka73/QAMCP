@@ -39,6 +39,7 @@ export interface SiguienteAccion {
   tipo: AccionTipo;
   descripcion: string;
   tool?: string;
+  parametros?: Record<string, unknown>;
   comando?: string;
   /** Exact, non-authorizing canonical interview continuation command for qap_rules_set. */
   canonical_interview?: { action: 'next' };
@@ -127,6 +128,8 @@ export interface PhaseGuidanceOptions {
   plan?: Array<{ module: string; path: string; priority: string; status: string }>;
   modules?: Record<string, { state: string; hasPendingHypotheses?: boolean }>;
   interviewAction?: SiguienteAccion;
+  modulesWithInventory?: ReadonlySet<string>;
+  modulesWithCases?: ReadonlySet<string>;
   reportPath?: string;
   environments?: CanExitOnboardingEnvironments | null;
   profiles?: AuthProfile[];
@@ -586,8 +589,8 @@ export function getPhaseGuidance(
           return a.index - b.index;
         });
 
-      if (plannedItems.length > 0) {
-        const nextPlanned = plannedItems[0].item;
+      const nextPlanned = plannedItems.find(({ item }) => !options.modulesWithInventory?.has(item.module))?.item;
+      if (nextPlanned) {
         return {
           fase: 'WORKING',
           siguiente_accion: {
@@ -596,6 +599,35 @@ export function getPhaseGuidance(
             tool: 'qap_discover',
             module: nextPlanned.module,
             modulo: nextPlanned.module,
+            parametros: { name: nextPlanned.module, path: nextPlanned.path },
+          },
+        };
+      }
+
+      const nextToPlan = plannedItems.find(({ item }) => options.modulesWithInventory?.has(item.module) &&
+        !options.modulesWithCases?.has(item.module))?.item;
+      if (nextToPlan) {
+        return {
+          fase: 'WORKING',
+          siguiente_accion: {
+            tipo: 'trabajo',
+            descripcion: `Propón casos para el módulo del plan '${nextToPlan.module}' usando su inventario.`,
+            tool: 'qap_plan',
+            module: nextToPlan.module,
+            parametros: { module: nextToPlan.module, case_workflow: { action: 'propose_from_observations' } },
+          },
+        };
+      }
+
+      if (plannedItems.length > 0) {
+        const module = plannedItems[0].item.module;
+        return {
+          fase: 'WORKING',
+          siguiente_accion: {
+            tipo: 'decision',
+            descripcion: `Presenta los casos ya preparados y las decisiones de negocio pendientes, siguiendo el orden del plan desde '${module}'.`,
+            tool: 'qap_plan',
+            module,
           },
         };
       }

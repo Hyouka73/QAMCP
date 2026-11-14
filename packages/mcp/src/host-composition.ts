@@ -1,11 +1,13 @@
 import { existsSync, lstatSync, readFileSync, realpathSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { dirname, isAbsolute, resolve } from 'node:path';
+import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { URL } from 'node:url';
 import { homedir } from 'node:os';
 
 import { SqliteKnowledgeAdapter } from '@qap/knowledge';
 
+import { QapApplicationService } from './application/application-service.js';
+import { atomicWritePrivateFile, normalizePathKey } from './application/safe-storage.js';
 import { HostReviewQueue } from './host-review.js';
 import { SqliteInterviewDraftStore } from './handlers/interview-draft-store.js';
 import type { TestNavigationAuthorization } from './handlers/test.handler.js';
@@ -14,11 +16,15 @@ import { SqliteModuleClosureStore } from './handlers/module-closure-store.js';
 import type { ModuleBinding } from './handlers/module-observation-bridge.js';
 import type { McpServerOptions } from './server.js';
 import { WorkspaceBootstrap } from './workspace-bootstrap.js';
-import { WindowsInteractiveWorkspaceAuthorizer } from './workspace-authorizer.js';
 import {
-  WindowsInteractiveDiscoveryAuthorizer,
   loadDiscoveryAuthorizationsFromDisk,
 } from './discovery-authorizer.js';
+import {
+  loadAuthAuthorizationsFromDisk,
+} from './auth-authorizer.js';
+import {
+  loadTestAuthorizationsFromDisk,
+} from './test-authorizer.js';
 import { authorizationDiagnostic } from './authorization-diagnostics.js';
 
 /**
@@ -232,44 +238,105 @@ export async function loadHostComposition(
 ): Promise<HostComposition> {
   const manifestPath = env.QAP_MCP_HOST_CONFIG_PATH;
   if (manifestPath === undefined) {
-    const directory = resolve(env.QAP_MCP_WORKSPACE_HOST_DIR ?? resolve(homedir(), '.qap', 'workspaces'));
-    const bootstrap = new WorkspaceBootstrap(directory);
+    const defaultQapHome = resolve(env.QAP_MCP_HOST_DATA_DIR ?? resolve(homedir(), '.qap'));
+    const directory = resolve(env.QAP_MCP_WORKSPACE_HOST_DIR ?? join(defaultQapHome, 'workspaces'));
+    const appDataDir = resolve(env.QAP_MCP_APP_SERVICE_DIR ?? join(defaultQapHome, 'application'));
     const registry = resolve(directory, 'authorized-roots.json');
     const discoveryRegistry = resolve(directory, 'discovery-authorizations.json');
+    const authRegistry = resolve(directory, 'auth-authorizations.json');
+    const testRegistry = resolve(directory, 'test-authorizations.json');
+    const applicationService = new QapApplicationService({
+      hostRootDir: appDataDir,
+      onProjectDeleted: (_projectId, canonicalRoot) => {
+        const targetKey = normalizePathKey(canonicalRoot);
+        if (existsSync(registry)) {
+          try {
+            const parsed: unknown = JSON.parse(readFileSync(registry, 'utf8'));
+            if (Array.isArray(parsed)) {
+              const filtered = parsed.filter((p) => typeof p === 'string' && normalizePathKey(p) !== targetKey);
+              atomicWritePrivateFile(registry, JSON.stringify(filtered, null, 2));
+            }
+          } catch { /* Best-effort cleanup */ }
+        }
+        if (existsSync(discoveryRegistry)) {
+          try {
+            const parsed: unknown = JSON.parse(readFileSync(discoveryRegistry, 'utf8'));
+            if (Array.isArray(parsed)) {
+              const filtered = parsed.filter(
+                (entry) => entry && typeof entry === 'object' && normalizePathKey(String((entry as { projectRoot?: string }).projectRoot ?? '')) !== targetKey,
+              );
+              atomicWritePrivateFile(discoveryRegistry, JSON.stringify(filtered, null, 2));
+            }
+          } catch { /* Best-effort cleanup */ }
+        }
+        if (existsSync(authRegistry)) {
+          try {
+            const parsed: unknown = JSON.parse(readFileSync(authRegistry, 'utf8'));
+            if (Array.isArray(parsed)) {
+              const filtered = parsed.filter(
+                (entry) => entry && typeof entry === 'object' && normalizePathKey(String((entry as { projectRoot?: string }).projectRoot ?? '')) !== targetKey,
+              );
+              atomicWritePrivateFile(authRegistry, JSON.stringify(filtered, null, 2));
+            }
+          } catch { /* Best-effort cleanup */ }
+        }
+        if (existsSync(testRegistry)) {
+          try {
+            const parsed: unknown = JSON.parse(readFileSync(testRegistry, 'utf8'));
+            if (Array.isArray(parsed)) {
+              const filtered = parsed.filter(
+                (entry) => entry && typeof entry === 'object' && normalizePathKey(String((entry as { projectRoot?: string }).projectRoot ?? '')) !== targetKey,
+              );
+              atomicWritePrivateFile(testRegistry, JSON.stringify(filtered, null, 2));
+            }
+          } catch { /* Best-effort cleanup */ }
+        }
+      },
+    });
+    const bootstrap = new WorkspaceBootstrap(directory, applicationService);
     const roots: string[] = [];
     if (existsSync(registry)) {
       const values: unknown = JSON.parse(readFileSync(existingFile(registry, 'workspace registry'), 'utf8'));
       if (!Array.isArray(values) || values.some(value => typeof value !== 'string' || !isAbsolute(value) || realpathSync(value) !== value)) throw new Error('Invalid workspace registry');
       roots.push(...values as string[]);
     }
-    const isWindowsInteractive = process.platform === 'win32' && !env.QAP_DISABLE_INTERACTIVE_AUTH && env.NODE_ENV !== 'test';
-    const authorizer = isWindowsInteractive
-      ? new WindowsInteractiveWorkspaceAuthorizer()
-      : undefined;
-    const discoveryAuthorizer = isWindowsInteractive
-      ? new WindowsInteractiveDiscoveryAuthorizer()
-      : undefined;
     const persistedDiscoveryAuthorizations = existsSync(discoveryRegistry)
       ? loadDiscoveryAuthorizationsFromDisk(discoveryRegistry)
       : [];
+    const persistedAuthAuthorizations = existsSync(authRegistry)
+      ? loadAuthAuthorizationsFromDisk(authRegistry)
+      : [];
+    const persistedTestAuthorizations = existsSync(testRegistry)
+      ? loadTestAuthorizationsFromDisk(testRegistry)
+      : [];
     authorizationDiagnostic('host_composition', {
       build: process.env.QAP_BUILD_REVISION ?? 'development',
-      authorizer: authorizer ? 'WindowsInteractiveWorkspaceAuthorizer' : 'unconfigured',
-      discoveryAuthorizer: discoveryAuthorizer ? 'WindowsInteractiveDiscoveryAuthorizer' : 'unconfigured',
+      authorizer: 'host_bound_scope_only',
+      discoveryAuthorizer: 'unconfigured',
+      testAuthorizer: 'unconfigured',
+      silentBoundScope: true,
       disabledByFlag: Boolean(env.QAP_DISABLE_INTERACTIVE_AUTH), testEnvironment: env.NODE_ENV === 'test', manifest: false,
     });
     return {
       options: {
         projectRoots: roots,
         workspaceBootstrap: bootstrap,
+        applicationService,
+        allowSpaReadOnly: true,
+        silentBoundScope: true,
         clientWorkspaceRoots: true,
-        workspaceAuthorizer: authorizer,
         hostRegistryPath: registry,
-        discoveryAuthorizer,
         hostDiscoveryRegistryPath: discoveryRegistry,
         discoveryAuthorizations: persistedDiscoveryAuthorizations,
+        hostAuthRegistryPath: authRegistry,
+        authAuthorizations: persistedAuthAuthorizations,
+        hostTestRegistryPath: testRegistry,
+        testAuthorizations: persistedTestAuthorizations,
       },
-      close() { bootstrap.close(); },
+      close() {
+        bootstrap.close();
+        applicationService.close();
+      },
     };
   }
   const path = existingFile(manifestPath, 'manifest');

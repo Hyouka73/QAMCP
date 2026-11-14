@@ -20,15 +20,16 @@
   "dependencies": {
     "@inquirer/prompts": "^8.6.0",
     "@modelcontextprotocol/sdk": "^1.30.0",
-    "@qap/playwright-runner": "workspace:^",
-    "@qap/git-adapter": "workspace:*",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
     "commander": "^15.0.0",
-    "playwright-core": "^1.63.0",
+    "playwright-core": "1.63.0",
     "yaml": "^2.9.0"
   },
   "devDependencies": {
     "@qap/auth": "workspace:^",
     "@qap/engine": "workspace:^",
+    "@qap/git-adapter": "workspace:*",
     "@qap/knowledge": "workspace:^",
     "@qap/mcp": "workspace:*",
     "@qap/playwright-adapter": "workspace:^",

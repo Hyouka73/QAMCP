@@ -2,11 +2,11 @@ import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 import type { BlackBoxCrawlerInput } from '@qap/playwright-adapter';
 
 import { authorizationDiagnostic } from './authorization-diagnostics.js';
+import { resolveDialogScriptPath } from './dialog-script-path.js';
 import type { DiscoveryAuthorization } from './handlers/discovery.handler.js';
 
 export interface DiscoveryAuthorizationRequest {
@@ -20,7 +20,7 @@ export interface DiscoveryAuthorizationRequest {
 }
 
 export type DiscoveryAuthorizationResult =
-  | { readonly decision: 'approved'; readonly root: string; readonly targetUrl: string; readonly limits?: BlackBoxCrawlerInput['limits'] }
+  | { readonly decision: 'approved'; readonly root: string; readonly targetUrl: string; readonly navigationOrigin?: string; readonly limits?: BlackBoxCrawlerInput['limits'] }
   | { readonly decision: 'rejected'; readonly reason?: string }
   | { readonly decision: 'cancelled'; readonly reason?: string; readonly code?: 'discovery_authorization_cancelled' | 'discovery_authorization_expired' }
   | { readonly decision: 'unavailable'; readonly reason: string; readonly code?: 'discovery_gui_unavailable' | 'discovery_dialog_start_failed' };
@@ -38,6 +38,7 @@ export interface PersistedDiscoveryAuthorization {
   readonly environmentId: string;
   readonly environmentRevision: number;
   readonly navigationUrls: readonly string[];
+  readonly navigationOrigin?: string;
   readonly limits?: BlackBoxCrawlerInput['limits'];
   readonly authorizedAt: string;
 }
@@ -81,6 +82,7 @@ export function atomicRecordDiscoveryAuthorization(registryPath: string, auth: D
     records[existingIndex] = {
       ...existing,
       navigationUrls: combinedUrls,
+      navigationOrigin: auth.navigationOrigin ?? existing.navigationOrigin,
       limits: auth.limits ? { ...auth.limits } : existing.limits,
       authorizedAt: new Date().toISOString(),
     };
@@ -91,6 +93,7 @@ export function atomicRecordDiscoveryAuthorization(registryPath: string, auth: D
       environmentId: auth.environmentId,
       environmentRevision: auth.environmentRevision,
       navigationUrls: [...urlsToAdd],
+      navigationOrigin: auth.navigationOrigin,
       limits: auth.limits ? { ...auth.limits } : undefined,
       authorizedAt: new Date().toISOString(),
     });
@@ -110,10 +113,10 @@ export function loadDiscoveryAuthorizationsFromDisk(registryPath: string): Disco
     const parsed: unknown = JSON.parse(readFileSync(registryPath, 'utf8'));
     if (!Array.isArray(parsed)) return [];
     const result: DiscoveryAuthorization[] = [];
-    for (const item of parsed) {
+    for (const rawItem of parsed) {
+      if (!rawItem || typeof rawItem !== 'object') continue;
+      const item = rawItem as Record<string, unknown>;
       if (
-        item &&
-        typeof item === 'object' &&
         typeof item.projectRoot === 'string' &&
         typeof item.applicationId === 'string' &&
         typeof item.environmentId === 'string' &&
@@ -123,17 +126,22 @@ export function loadDiscoveryAuthorizationsFromDisk(registryPath: string): Disco
       ) {
         try {
           const canonical = realpathSync(item.projectRoot);
+          const limits =
+            item.limits && typeof item.limits === 'object'
+              ? ({ ...(item.limits as Record<string, unknown>) } as DiscoveryAuthorization['limits'])
+              : undefined;
           result.push({
             projectRoot: canonical,
             applicationId: item.applicationId,
             environmentId: item.environmentId,
             environmentRevision: item.environmentRevision,
+            ...(typeof item.navigationOrigin === 'string' ? { navigationOrigin: item.navigationOrigin } : {}),
             authorization: {
               read_only_acknowledged: true,
-              navigation_urls: item.navigationUrls.filter((u: unknown): u is string => typeof u === 'string'),
+              navigation_urls: item.navigationUrls.filter((u): u is string => typeof u === 'string'),
               allow_public_network: true,
             },
-            limits: item.limits ? { ...item.limits } : undefined,
+            limits,
           });
         } catch {
           // ignore unresolvable paths
@@ -171,8 +179,12 @@ export function syncDiscoveryAuthorizationsFromDisk(
       const existingUrls = new Set(existing.authorization.navigation_urls);
       for (const url of diskAuth.authorization.navigation_urls) {
         if (!existingUrls.has(url)) {
-          (existing.authorization.navigation_urls as string[]).push(url);
+          existing.authorization.navigation_urls.push(url);
         }
+      }
+      if (diskAuth.navigationOrigin && existing.navigationOrigin !== diskAuth.navigationOrigin) {
+        const index = inMemoryAuthorizations.indexOf(existing);
+        inMemoryAuthorizations[index] = { ...existing, navigationOrigin: diskAuth.navigationOrigin };
       }
     }
   }
@@ -189,7 +201,7 @@ export class WindowsInteractiveDiscoveryAuthorizer implements IDiscoveryAuthoriz
   constructor(scriptPath?: string) {
     this.scriptPath = scriptPath
       ? decodeURIComponent(scriptPath)
-      : fileURLToPath(new URL('../../../scripts/qap-interactive-discovery-dialog.ps1', import.meta.url));
+      : resolveDialogScriptPath('qap-interactive-discovery-dialog.ps1');
   }
 
   async requestAuthorization(
@@ -307,7 +319,8 @@ export class WindowsInteractiveDiscoveryAuthorizer implements IDiscoveryAuthoriz
         const text = stdout.trim();
         authorizationDiagnostic('discovery_dialog_closed', { childPid: child.pid, exitCode: code, shown, stderrBytes });
         if (code === 0 && text === 'AUTHORIZED' && shown) {
-          resolveResult({ decision: 'approved', root: request.projectRoot, targetUrl: request.targetUrl, limits: request.limits });
+          resolveResult({ decision: 'approved', root: request.projectRoot, targetUrl: request.targetUrl,
+            navigationOrigin: new URL(request.baseUrl).origin, limits: request.limits });
         } else if (code === 1 && text === 'REJECTED' && shown) {
           resolveResult({ decision: 'rejected', reason: 'Operator rejected discovery navigation authorization.' });
         } else if (code === 3 && text === 'UNAVAILABLE') {
