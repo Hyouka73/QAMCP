@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, writeFileSync, rmSync, readdirSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
 
 import type { IFlowLockProvider } from '@qap/engine';
 import lockfile from 'proper-lockfile';
@@ -9,12 +9,18 @@ export interface LockManagerOptions {
 }
 
 export class LockManager implements IFlowLockProvider {
+  private static readonly activeReleases = new Map<string, () => Promise<void>>();
   private rootDir: string;
   private locksDir: string;
 
   constructor(options: LockManagerOptions = {}) {
     this.rootDir = options.rootDir ?? process.cwd();
     this.locksDir = join(this.rootDir, '.qa', 'cache', 'locks');
+  }
+
+  private static normalizeLockKey(lockfilePath: string): string {
+    const resolved = resolve(lockfilePath);
+    return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
   }
 
   private getPaths(moduleName: string): { targetPath: string; lockfilePath: string } {
@@ -51,7 +57,13 @@ export class LockManager implements IFlowLockProvider {
         lockfilePath,
       });
 
+      const lockKey = LockManager.normalizeLockKey(lockfilePath);
+      LockManager.activeReleases.set(lockKey, release);
+
       return async () => {
+        if (LockManager.activeReleases.get(lockKey) === release) {
+          LockManager.activeReleases.delete(lockKey);
+        }
         try {
           await release();
         } catch {
@@ -67,11 +79,46 @@ export class LockManager implements IFlowLockProvider {
   /**
    * Implementa forceUnlock(moduleName?) eliminando los .lock y archivos asociados en .qa/cache/locks/
    */
-  forceUnlock(moduleName?: string): Promise<void> {
-    return new Promise<void>((resolve) => {
-      this.removeModuleLocks(moduleName);
-      resolve();
-    });
+  async forceUnlock(moduleName?: string): Promise<void> {
+    await this.releaseActiveLocks(moduleName);
+    this.removeModuleLocks(moduleName);
+  }
+
+  private async releaseActiveLocks(moduleName?: string): Promise<void> {
+    if (moduleName) {
+      const { lockfilePath } = this.getPaths(moduleName);
+      const lockKey = LockManager.normalizeLockKey(lockfilePath);
+      const release = LockManager.activeReleases.get(lockKey);
+      if (release) {
+        LockManager.activeReleases.delete(lockKey);
+        try {
+          await release();
+        } catch {
+          // Ignorar si ya fue liberado o eliminado
+        }
+      }
+      return;
+    }
+
+    const locksDirPrefix = `${LockManager.normalizeLockKey(this.locksDir)}${sep}`;
+    const matchingKeys: string[] = [];
+    for (const key of LockManager.activeReleases.keys()) {
+      if (key.startsWith(locksDirPrefix)) {
+        matchingKeys.push(key);
+      }
+    }
+
+    for (const key of matchingKeys) {
+      const release = LockManager.activeReleases.get(key);
+      LockManager.activeReleases.delete(key);
+      if (release) {
+        try {
+          await release();
+        } catch {
+          // Ignorar si ya fue liberado o eliminado
+        }
+      }
+    }
   }
 
   private removeModuleLocks(moduleName?: string): void {

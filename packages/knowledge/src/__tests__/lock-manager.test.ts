@@ -31,9 +31,9 @@ describe('LockManager (S75-005A)', () => {
   it('debe lanzar error "lock_timeout" si se intenta bloquear concurrentemente el mismo módulo', async () => {
     const release1 = await lockManager.acquireModuleLock('checkout');
 
-    await expect(lockManager.acquireModuleLock('checkout')).rejects.toThrowError(/lock_timeout/);
-
-    await expect(lockManager.acquireModuleLock('checkout')).rejects.toMatchObject({ cause: expect.any(Error) });
+    const attempt = lockManager.acquireModuleLock('checkout');
+    await expect(attempt).rejects.toThrowError(/lock_timeout/);
+    await expect(attempt).rejects.toMatchObject({ cause: expect.any(Error) });
     await release1();
   });
 
