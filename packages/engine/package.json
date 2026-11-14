@@ -14,6 +14,7 @@
     "@qap/shared": "workspace:*"
   },
   "devDependencies": {
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.11",
+    "@types/node": "^20.0.0"
   }
 }

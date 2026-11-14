@@ -341,7 +341,7 @@ describe('Bloque 4 — Paquete limpio instalado, cliente real Stdio y matriz de 
             env: cleanEnv,
             encoding: 'utf8',
           });
-          expect(authProc.status).toBe(0);
+          expect(authProc.status, authProc.stderr).toBe(0);
 
           // Retry over the SAME live Stdio MCP connection (no restart!) -> workspace initializes cleanly
           const readyStatus = await callJson(client, 'qap_status', { targetPath: coldWorkspace });

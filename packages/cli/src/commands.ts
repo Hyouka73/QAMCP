@@ -36,6 +36,7 @@ import { handleMcp, handleMcpRegister } from './commands/mcp.js';
 import { handleTest } from './commands/test.js';
 import { handleUpdate } from './commands/update.js';
 import { handleRollback } from './commands/rollback.js';
+import { handleFlow } from './commands/flow.js';
 
 export { handleClean } from './commands/clean.js';
 export { handleMcp } from './commands/mcp.js';
@@ -49,11 +50,15 @@ interface CommandDefinition {
 }
 
 // Mantenemos únicamente los stubs pendientes que aún no tienen implementación real
-const COMMANDS: readonly CommandDefinition[] = [
-  { name: 'flow', description: 'Ejecuta un flow definido sobre uno o más módulos.', args: '<flow>' },
-];
+const COMMANDS: readonly CommandDefinition[] = [];
 
 export function registerCommands(program: Command): void {
+  program
+    .command('flow <flow>')
+    .description('Ejecuta un flow definido sobre uno o más módulos.')
+    .action(async (flowName: string) => {
+      await handleFlow(flowName);
+    });
   // 1. Registrar el comando `init`
   program
     .command('init')
@@ -63,12 +68,13 @@ export function registerCommands(program: Command): void {
       await handleInitCommand(options);
     });
 
-  // 1b. Subcomando 'plan'
+   // 1b. Subcomando 'plan'
   program
     .command('plan <module>')
-    .description('Genera la matriz de pruebas del módulo calculando checksum de configuración.')
-    .action(async (moduleName: string) => {
-      await handlePlan(moduleName);
+    .description('Genera la matriz de pruebas del módulo (happy path, BVA y RBAC) con checksum de configuración.')
+    .option('--preview', 'Muestra los casos planificados sin escribir archivos')
+    .action(async (moduleName: string, options: { preview?: boolean }) => {
+      await handlePlan(moduleName, options);
     });
 
   // 1.1 Registrar comando `clean` (con alias `reset`)

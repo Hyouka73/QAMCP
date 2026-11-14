@@ -103,7 +103,29 @@ export interface PlaywrightRunnerOptions extends TestOptions {
   contextSetup?: (context: BrowserContext) => Promise<void> | void;
 }
 
+export function extractFlowVariables(contextData?: Record<string, unknown>): Record<string, string> {
+  if (!contextData) return {};
+  const result: Record<string, string> = {};
+  for (const [key, val] of Object.entries(contextData)) {
+    if (key === 'flow' || key === '_capturedBuffer') continue;
+    if (typeof val === 'string' || typeof val === 'number' || typeof val === 'boolean') {
+      result[key] = String(val);
+    }
+  }
+  const flowObj = contextData.flow;
+  if (typeof flowObj === 'object' && flowObj !== null && !Array.isArray(flowObj)) {
+    for (const [key, val] of Object.entries(flowObj as Record<string, unknown>)) {
+      if (val !== undefined && val !== null) {
+        result[key] = String(val);
+      }
+    }
+  }
+  return result;
+}
+
 export class PlaywrightRunner implements IRunner {
+  constructor(private readonly defaults?: { projectRoot?: string }) {}
+
   public async execute(
     plan: TestPlan,
     options: PlaywrightRunnerOptions = {}
@@ -111,7 +133,8 @@ export class PlaywrightRunner implements IRunner {
     const startedAt = new Date().toISOString();
     // One stable collision-resistant identifier for every exit path of this run.
     const executionId = `exec_${Date.now()}_${randomUUID().replace(/-/g, '')}`;
-    const projectRoot = options.projectRoot ? path.resolve(options.projectRoot) : process.cwd();
+    const rawProjectRoot = options.projectRoot ?? this.defaults?.projectRoot;
+    const projectRoot = rawProjectRoot ? path.resolve(rawProjectRoot) : process.cwd();
     const storage = new FileSystemStorage({ rootDir: projectRoot });
 
     const isHeadless = options.headless ?? true;
@@ -124,9 +147,7 @@ export class PlaywrightRunner implements IRunner {
       ? rawScreenshotsDir
       : path.resolve(projectRoot, rawScreenshotsDir);
 
-    const flowVariables: Record<string, string> = options.context_data
-      ? Object.fromEntries(Object.entries(options.context_data).map(([k, v]) => [k, String(v)]))
-      : {};
+    const flowVariables = extractFlowVariables(options.context_data);
 
     const loadCase = options.storageResolver ?? ((mod: string, caseId: string) => storage.getTestCase(mod, caseId));
     const loadedCasesMap = new Map<string, TCCase>();
@@ -198,8 +219,8 @@ export class PlaywrightRunner implements IRunner {
         throw new Error('Ejecución cancelada por AbortSignal.');
       }
 
-      // 1. Adquirir lock con LockManager.acquireModuleLock()
-      if (moduleName) {
+      // 1. Adquirir lock con LockManager.acquireModuleLock() si el caller no es ya dueño del lock
+      if (moduleName && !options.lock_owned_by_caller) {
         const lockManager = new LockManager({ rootDir: projectRoot });
         releaseLock = await lockManager.acquireModuleLock(moduleName);
       }
@@ -495,7 +516,6 @@ export class PlaywrightRunner implements IRunner {
           });
           continue;
         }
-
         const caseStartMs = Date.now();
         const contextVariables: Record<string, string> = {};
         let caseResult: CaseResult = 'passed';
@@ -516,17 +536,20 @@ export class PlaywrightRunner implements IRunner {
 
           const steps = testCase.steps || [];
           for (const rawStep of steps) {
+            activeStepType = rawStep.type;
             const step = interpolateStep(rawStep, contextVariables, flowVariables);
-            activeStepType = step.type;
             const stepStarted = Date.now();
-            await this.executeStep(page, step, screenshotsDir, contextVariables);
+            const stepRes = await this.executeStep(page, step, screenshotsDir, contextVariables, {
+              caseId,
+              context_data: options.context_data,
+            });
             stepTrace.push({
-              action: step.type,
-              status: 'passed',
+              action: stepRes?.action ?? step.type,
+              status: stepRes?.status ?? 'passed',
               duration_ms: Date.now() - stepStarted,
+              ...(stepRes?.message ? { message: stepRes.message } : {}),
             });
           }
-
           totalPassed++;
           executedStatuses.set(caseId, 'passed');
         } catch (err: unknown) {
@@ -672,8 +695,11 @@ export class PlaywrightRunner implements IRunner {
     page: Page,
     step: TCStep,
     screenshotsDir: string = '.qa/reports/screenshots',
-    contextVariables: Record<string, string> = {}
-  ): Promise<void> {
+    contextVariables: Record<string, string> = {},
+    captureContext?: { caseId?: string; context_data?: Record<string, unknown> }
+  ): Promise<{ action: string; status: string; message?: string }> {
+    let stepMsg: string | undefined;
+
     switch (step.type) {
       case 'navigate':
         await executeNavigate(page, step);
@@ -693,19 +719,41 @@ export class PlaywrightRunner implements IRunner {
       case 'screenshot':
         await executeScreenshot(page, step, screenshotsDir);
         break;
-      case 'capture':
-        await executeCapture(page, step, contextVariables);
+      case 'capture': {
+        const capturedVal = await executeCapture(page, step, contextVariables, {
+          caseId: captureContext?.caseId,
+          context_data: captureContext?.context_data,
+        });
+        stepMsg = JSON.stringify({
+          captured_as: step.capture_as,
+          value: capturedVal,
+        });
         break;
+      }
       case 'switch_auth':
         await executeSwitchAuth(page, step);
         break;
-      case 'evaluate':
-        await executeEvaluate(page, step, contextVariables);
+      case 'evaluate': {
+        const stepExt = step as unknown as {
+          sandbox?: boolean;
+          args?: Record<string, unknown>;
+        };
+        await executeEvaluate(page, step, contextVariables, {
+          sandbox: stepExt.sandbox !== false,
+          args: stepExt.args,
+        });
         break;
+      }
       default: {
         const unknownType = (step as { type?: string })?.type ?? 'desconocido';
         throw new Error(`Acción o tipo de paso no soportado o desconocido: '${unknownType}'`);
       }
     }
+
+    return {
+      action: step.type,
+      status: 'passed',
+      ...(stepMsg ? { message: stepMsg } : {}),
+    };
   }
 }
