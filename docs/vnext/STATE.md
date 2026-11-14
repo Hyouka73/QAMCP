@@ -9,7 +9,7 @@ INT-01E como enmienda pendiente de formalización, sin reescribir estas actas.
 
 # QAMCP vNext — Continuidad Codex
 
-Actualizado: 2026-11-05. Estado histórico preservado; resultado independiente R4-R12 al final.
+Continuidad del 2026-11-14 en [la guía de arranque](CONTINUIDAD_MVP.md) y [el plan de recuperación](PLAN_ONE_SHOT_Y_MERGE.md). Desde aquí se conserva el historial de la arquitectura y de sus verificaciones.
 
 ## Estado y alcance
 
@@ -1300,3 +1300,11 @@ Corregir A01 y contratos pendientes antes de A closed+B waived+reporte/WRAP_UP/r
 ## Anexo aditivo 2026-11-10 — consolidación local verificada
 
 DEV-MVP-02, INT-03-R5, DEV-MVP-01-R4, el contrato operativo publicado y VNEXT-015-04 se conservan en un único candidato. Build monorepo y vertical MCP Stdio con cierre/recuperación PASS técnicos. MCP mantiene exactamente 12 FAIL heredados; Adapter tuvo un timeout y pasó en repetición focal. No hay GO integral ni aceptación humana. Informe adicional de Antigravity pendiente; no se eliminaron ramas/worktrees ni se tocó admin-user.json. [Inventario y validación](integracion/CONSOLIDACION_VNEXT_2026-11-10/VALIDACION_Y_ENTREGA.md).
+
+## Corte operativo 2026-11-14 — Candidato para continuar
+
+`feat/mvp-conversational-recovery` incorpora el `develop` de `9f35377`, el arranque del helper empaquetado, la ejecución Chromium A→B y Discovery con índice, revisiones y reglas por alcance. El candidato de código `a416e23` reúne ambas entregas. Se verificaron 10 paquetes compilados, transferencia A→B con Chromium y dos entradas Stdio con 20 herramientas y el prompt `qap_start`. El catálogo y la reproducción técnica cubren componentes. La aceptación conversacional sigue en 0 de 2 demos completas y el merge a `develop` queda en NO-GO.
+
+Suite MCP serial en el candidato, 616 aprobadas, 35 fallidas y 3 omitidas. El total de fallos coincide con el corte de `fffa201`. Queda pendiente el cotejo completo por identidad y la resolución de los fallos críticos.
+
+La primera tarea del siguiente corte es fijar la autoridad de los oráculos antes de materializar plan, casos e intentos. WebM y traza pueden avanzar en paralelo, con el runner como unidad de trabajo. El [plan actualizado](PLAN_ONE_SHOT_Y_MERGE.md) enumera criterios por hito, evidencia y compuertas pendientes.

@@ -2,6 +2,8 @@
 
 El objetivo es que una persona de QA pueda pedir pruebas funcionales, aportar el objetivo, los datos de acceso y el comportamiento esperado cuando falten, y recuperar los resultados en otro chat. QAP debe llevar por sí mismo el estado de cada etapa, ejecutar lo que esté listo y explicar los huecos pendientes.
 
+Este diagnóstico conserva la inspección inicial de OPENCLAW. El [corte integrado](PLAN_ONE_SHOT_Y_MERGE.md) actualiza qué se implementó y qué falta verificar. El candidato ya publica un índice de Discovery con expedientes y reglas por alcance. Queda vincular esa memoria al plan, la ejecución y el reporte con revisiones fijas.
+
 ## Estado observado
 
 - **OPENCLAW en Windows.** La base de la aplicación registra cuatro módulos, cinco inventarios y un documento ingerido. Tiene cero requisitos de servicio, casos, intentos de ejecución y publicaciones de reportes para ese proyecto. La campaña figura activa en `WORKING`. Los registros del proceso anterior acreditan cuatro diálogos nativos de Discovery para el mismo origen y un diálogo de workspace. El chat también pidió elegir el siguiente módulo después de que ya había un plan. La inspección de datos fue de solo lectura.
@@ -31,15 +33,15 @@ El objetivo es que una persona de QA pueda pedir pruebas funcionales, aportar el
 
 ## Referencia operativa actual
 
-El CLI ofrece `qap --help` para el catálogo completo y `qap help <comando>` para opciones individuales. Se comprobó la ayuda de `plan`, `test`, `report` y `runtime` con el binario local. `qap plan` del CLI usa la implementación descrita arriba. La tabla explica las herramientas MCP publicadas en esta versión para quien necesite diagnosticar el flujo. [Catálogo MCP](../../packages/mcp/src/tool-catalog.ts), [catálogo CLI](../../packages/cli/src/commands.ts)
+El CLI ofrece `qap --help` para el catálogo completo y `qap help <comando>` para opciones individuales. Se comprobó la ayuda de `plan`, `test`, `report` y `runtime` con el binario local en la inspección inicial. El candidato añade `qap flow <flow>` y su `--help`. La tabla explica las 20 herramientas MCP verificadas para quien necesite diagnosticar el flujo. [Catálogo MCP](../../packages/mcp/src/tool-catalog.ts) · [Catálogo CLI](../../packages/cli/src/commands.ts)
 
 | Herramienta MCP | Función |
 | --- | --- |
 | `qap_status` | Consulta el proyecto, su fase, pendientes y siguiente acción. En un workspace vinculado puede preparar la estructura local. |
 | `qap_init` | Inicializa la estructura de QA del proyecto. |
-| `qap_project` | Gestiona identidad, selección, reanudación, importación, revocación y ciclo de borrado o recuperación del proyecto. |
+| `qap_project` | Gestiona identidad, selección, reanudación, importación, revocación y ciclo de borrado o recuperación. Consulta expedientes de Discovery por alcance y revisión y puede regenerar su publicación. |
 | `qap_context_set` | Registra ubicación, objetivo y demás contexto del sistema. |
-| `qap_context_ingest` | Extrae propuestas de contexto desde un documento y conserva su procedencia. |
+| `qap_context_ingest` | Extrae propuestas de contexto y registra reglas con procedencia, versión y alcance cuando están declarados. |
 | `qap_auth_add` | Configura un perfil e intenta establecer una sesión verificable. |
 | `qap_auth_provision` | Aprovisiona en el host una credencial para un perfil local. |
 | `qap_auth_list` | Lista perfiles y su estado. |

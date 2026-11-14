@@ -8,6 +8,8 @@
 
 ## 0. Propósito, alcance y precedencia
 
+La [verificación operativa del 14/11](PLAN_ONE_SHOT_Y_MERGE.md) actualiza el estado de implementación de la sección 7 y cruza sus requisitos con el WBS. Discovery documentado y la transferencia A→B tienen evidencia en fixtures. La certificación de las dos demos sigue pendiente.
+
 QAP es una plataforma de QA operada mediante un cliente de IA compatible con MCP, con herramientas propias para obtener conocimiento, orientar preguntas, planificar, ejecutar con Playwright y producir resultados trazables. El agente interpreta la intención; QAP debe imponer autorización, procedencia, aprobación y persistencia. La experiencia debe ser útil incluso sin acceso al código fuente o documentación inicial.
 
 Esta especificación precisa D-001, D-003 a D-009, D-011 a D-015 de [REQUISITOS_Y_DECISIONES.md](REQUISITOS_Y_DECISIONES.md) y no sustituye sus invariantes de seguridad. Separa explícitamente **decisión de producto**, **comportamiento requerido**, **mecanismo actual verificado** y **brecha pendiente**. Ante contradicciones con un contrato ya implementado no se presume que la función nueva existe: abrir cambio acotado y pruebas negativas.

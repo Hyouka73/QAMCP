@@ -2,6 +2,8 @@
 
 Fecha: 2026-11-09 (America/Mexico_City). Base: `7a3d6dd6c189feb85d8097792ef1f0c2915e5c65`.
 
+Esta guía documenta la composición histórica de host privado que usó el ensayo. Para instalar el candidato actualizado con 20 herramientas, comenzar por la [guía de continuidad](../CONTINUIDAD_MVP.md). Las llamadas operativas siguientes corresponden al SHA indicado.
+
 Este flujo utiliza las 18 herramientas existentes sobre MCP Stdio. Se extienden de forma aditiva los argumentos de `qap_auth_add` y `qap_plan`; no se cambia el transporte ni se incorpora una interfaz web. Los ejemplos son plantillas, no instrucciones ya autorizadas para Lendus.
 
 ## Preparación administrativa del host
