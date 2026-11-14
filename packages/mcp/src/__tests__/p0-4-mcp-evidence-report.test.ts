@@ -199,6 +199,20 @@ describe('P0.4 — Evidencia Playwright por intento vinculada a intento, reporte
     });
     expect(sessionPlanRes.data.status).toBe('success');
 
+    const module = appService.upsertModule({ projectId, key: 'pedidos', title: 'pedidos' });
+    const confirmedRequirement = (title: string, expected: string) => appService.upsertServiceRequirement({
+      projectId,
+      moduleId: module.module_id,
+      moduleKey: 'pedidos',
+      title,
+      description: expected,
+      source: 'user',
+      validationStatus: 'confirmed',
+      acceptanceCriteria: [expected],
+    }).requirement_id;
+    const passRequirement = confirmedRequirement('Mostrar ORD-101', 'ORD-101');
+    const failRequirement = confirmedRequirement('Marcador de fallo deliberado', 'ORD-999-INEXISTENTE');
+
     const proposeRes = await callJson(client1, 'qap_plan', {
       targetPath: workspaceRoot,
       module: 'pedidos',
@@ -207,8 +221,7 @@ describe('P0.4 — Evidencia Playwright por intento vinculada a intento, reporte
         proposals: [
           {
             title: 'TC P0.4 PASS — Verificar ORD-101',
-            expected_outcome: 'ORD-101',
-            oracle_source: 'user',
+            requirement_id: passRequirement,
             steps: [
               { type: 'navigate', url: `${staging.origin}/app` },
               { type: 'waitFor', selector: '#spa-shell' },
@@ -222,8 +235,7 @@ describe('P0.4 — Evidencia Playwright por intento vinculada a intento, reporte
           },
           {
             title: 'TC P0.4 FAIL — Discrepancia esperada vs observada',
-            expected_outcome: 'ORD-999-INEXISTENTE',
-            oracle_source: 'user',
+            requirement_id: failRequirement,
             steps: [
               { type: 'navigate', url: `${staging.origin}/app` },
               { type: 'waitFor', selector: '#spa-shell' },
@@ -247,7 +259,7 @@ describe('P0.4 — Evidencia Playwright por intento vinculada a intento, reporte
       module: 'pedidos',
       case_workflow: { action: 'approve_batch' },
     });
-    expect(approveRes.data.status).toBe('approved');
+    expect(approveRes.data.status, JSON.stringify(approveRes.data)).toBe('approved');
 
     const planRes = await callJson(client1, 'qap_plan', {
       targetPath: workspaceRoot,
