@@ -46,7 +46,18 @@ describe('P4.2 Suite: Contrato Canónico de Pregunta y Verificación E2E (Criter
     const statusBefore = await f.call('qap_status');
     expect(statusBefore.siguiente_accion).toMatchObject({ tipo: 'trabajo', tool: 'qap_discover' });
     const discovery = await f.discover();
-    expect(discovery).not.toHaveProperty('siguiente_accion');
+    expect(discovery).not.toHaveProperty('pregunta');
+    expect(discovery).not.toHaveProperty('opciones');
+    expect(discovery.siguiente_accion).toMatchObject({
+      tipo: 'trabajo',
+      tool: 'qap_status',
+      descripcion: expect.any(String),
+      parametros: { targetPath: f.root },
+    });
+    expect(discovery.siguiente_accion).not.toHaveProperty('pregunta');
+    expect(discovery.siguiente_accion).not.toHaveProperty('preguntas');
+    expect(f.lifecycle().modules.catalog.state).toBe('planned');
+    expect((await f.knowledge.query(f.scope.applicationId, 'requirement')).items).toHaveLength(0);
     const question = (await f.interview('catalog', { action: 'next' })).question;
     expect(question.id).toMatch(/^interview:[a-f0-9]{64}$/);
     expect(question.version).toBe(0); // Canonical initial question starts at version 0.

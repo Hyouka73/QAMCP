@@ -29,7 +29,17 @@ describe('P3 Suite de Verificación MCP (T3 - T15)', () => {
       counts: { views: expect.any(Number), forms: expect.any(Number) },
     });
     expect(JSON.stringify(discovered)).not.toMatch(/Descubrir otro módulo|pregunta_doc|opciones_doc/);
-    expect(discovered).not.toHaveProperty('siguiente_accion');
+    expect(discovered).not.toHaveProperty('pregunta');
+    expect(discovered).not.toHaveProperty('opciones');
+    expect(discovered.siguiente_accion).toMatchObject({
+      tipo: 'trabajo',
+      tool: 'qap_status',
+      descripcion: expect.any(String),
+      parametros: { targetPath: f.root },
+    });
+    expect(discovered.siguiente_accion).not.toHaveProperty('pregunta');
+    expect(discovered.siguiente_accion).not.toHaveProperty('preguntas');
+    expect(f.lifecycle().modules.catalog.state).toBe('planned');
     expect((await f.knowledge.query(f.scope.applicationId, 'requirement')).items).toHaveLength(0);
     const next = await f.interview('catalog', { action: 'next' });
     expect(next).toMatchObject({ status: 'interviewing', question: {
