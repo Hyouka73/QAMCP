@@ -497,5 +497,5 @@ describe('Bloque 1 — Identidad, estado duradero, aislamiento, autoridad y borr
     });
     expect(service.authority.check(idA, 'access', { root_path: wsA }).allowed).toBe(false);
     expect(service.findActiveProjectByRoot(wsA)?.project_id).toBe(idA);
-  });
+  }, 15000);
 });

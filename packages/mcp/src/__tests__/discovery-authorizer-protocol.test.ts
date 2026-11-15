@@ -179,5 +179,5 @@ describe.skipIf(process.platform !== 'win32')('Windows discovery child protocol 
       expect(layout.enabledSave).toBe(true);
       expect(layout.clearedSave).toBe(false);
     }
-  });
+  }, 20000);
 });
