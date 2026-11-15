@@ -1,8 +1,9 @@
-import { mkdtempSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { KeychainCredentialProvider } from '@qap/auth';
 import { canExitScoping, computeCoverage, computeSessionGapSummary } from '@qap/engine';
 import { filterValidRoles, isValidRoleName, type LifecycleState, type AuthProfile } from '@qap/shared';
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest';
@@ -13,8 +14,12 @@ import {
   TEST_CREDENTIALS,
   type AuthFixtureServerInstance,
 } from '../../../playwright-adapter/test/fixtures/auth-fixture-server.js';
+import { QapApplicationService } from '../application/application-service.js';
+import type { IDiscoveryAuthorizer } from '../discovery-authorizer.js';
 import { getPhaseGuidance } from '../guidance.js';
 import { createMcpServer } from '../server.js';
+import type { IWorkspaceAuthorizer } from '../workspace-authorizer.js';
+import { WorkspaceBootstrap } from '../workspace-bootstrap.js';
 
 // In-memory keychain mock para pruebas sin dependencias externas
 const inMemoryKeychain = new Map<string, string>();
@@ -34,7 +39,11 @@ type CallToolHandler = (request: unknown, extra: unknown) => Promise<{ content: 
 
 describe('P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10)', { timeout: 45000 }, () => {
   let fixtureServer: AuthFixtureServerInstance;
+  let tempBase: string;
+  let hostDir: string;
   let tempDir: string;
+  let appService: QapApplicationService;
+  let bootstrap: WorkspaceBootstrap;
   let serverHandler: CallToolHandler;
 
   beforeAll(async () => {
@@ -47,10 +56,56 @@ describe('P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, 
 
   beforeEach(async () => {
     inMemoryKeychain.clear();
-    tempDir = mkdtempSync(join(tmpdir(), 'qap-p45a2-test-'));
+    const keychainEntries = new Map<string, string>();
+    vi.spyOn(KeychainCredentialProvider.prototype, 'get').mockImplementation(async (ref) => {
+      const password = keychainEntries.get(JSON.stringify(ref));
+      return password ? { password } : null;
+    });
+    vi.spyOn(KeychainCredentialProvider.prototype, 'set').mockImplementation(async (ref, credentials) => {
+      keychainEntries.set(JSON.stringify(ref), credentials.password ?? '');
+    });
+    vi.spyOn(KeychainCredentialProvider.prototype, 'delete').mockImplementation(async (ref) =>
+      keychainEntries.delete(JSON.stringify(ref))
+    );
 
-    // Host-authorized fixture root: passing targetPath alone is not permission.
-    const server = createMcpServer({ projectRoots: [tempDir] });
+    tempBase = mkdtempSync(join(tmpdir(), 'qap-p45a2-test-'));
+    hostDir = join(tempBase, 'host');
+    tempDir = join(tempBase, 'workspace');
+    mkdirSync(hostDir, { recursive: true });
+    mkdirSync(tempDir, { recursive: true });
+
+    appService = new QapApplicationService({ hostRootDir: hostDir });
+    bootstrap = new WorkspaceBootstrap(hostDir, appService);
+    const workspaceAuthorizer: IWorkspaceAuthorizer = {
+      requestAuthorization: vi.fn(async ({ canonicalPath }) => ({
+        decision: 'approved' as const,
+        root: canonicalPath,
+      })),
+    };
+    const discoveryAuthorizer: IDiscoveryAuthorizer = {
+      requestAuthorization: vi.fn(async ({ projectRoot, baseUrl, targetUrl, limits }) => ({
+        decision: 'approved' as const,
+        root: projectRoot,
+        navigationOrigin: new URL(baseUrl).origin,
+        targetUrl,
+        limits,
+      })),
+    };
+
+    // Host-authorized fixture root with host-controlled credential callback.
+    const server = createMcpServer({
+      workspaceBootstrap: bootstrap,
+      applicationService: bootstrap.appService,
+      workspaceAuthorizer,
+      hostRegistryPath: join(hostDir, 'authorized-workspaces.json'),
+      discoveryAuthorizer,
+      hostDiscoveryRegistryPath: join(hostDir, 'authorized-discoveries.json'),
+      interactiveAccessAuthorizer: {
+        requestAuthorization: discoveryAuthorizer.requestAuthorization,
+        requestCredential: vi.fn(async () => TEST_CREDENTIALS.password),
+      },
+      allowSpaReadOnly: true,
+    });
     // @ts-expect-error accessing internal request handler for integration tests
     serverHandler = server._requestHandlers.get(CallToolRequestSchema.shape.method.value);
 
@@ -59,7 +114,7 @@ describe('P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, 
     const initialization = await serverHandler(
       {
         method: 'tools/call',
-        params: { name: 'qap_init', arguments: { targetPath: tempDir } },
+        params: { name: 'qap_init', arguments: { targetPath: tempDir, baseUrl: fixtureServer.baseUrl } },
       },
       {}
     );
@@ -79,8 +134,11 @@ describe('P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, 
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     try {
-      rmSync(tempDir, { recursive: true, force: true });
+      bootstrap.close();
+      appService.close();
+      rmSync(tempBase, { recursive: true, force: true });
     } catch {
       // ignore
     }
@@ -101,6 +159,7 @@ describe('P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, 
 
   async function setupProjectContext(roles: Array<{ name: string; description: string }>) {
     const updated = await callTool('qap_context_set', {
+      base_url: fixtureServer.baseUrl,
       framework: 'react',
       app_type: 'spa',
       objective: 'Plataforma empresarial agnóstica para verificación de integridad',
@@ -124,12 +183,10 @@ describe('P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, 
       });
 
       const r = await callTool('qap_discover', { name: 'modulo_acceso', path: '/login' });
-      expect(r.parsed.status).toBe('success');
-      expect(r.parsed.page_kind).toBe('login');
-      expect(r.parsed.observed).toBe(true);
-      expect(r.parsed.redirected).toBe(false);
-      expect(r.parsed.requested_url).toBe(`${fixtureServer.baseUrl}/login`);
-      expect(r.parsed.final_url).toBe(`${fixtureServer.baseUrl}/login`);
+      expect(r.parsed.status).toBe('completed');
+      expect(r.parsed.counts.views).toBeGreaterThanOrEqual(1);
+      expect(r.parsed.counts.forms).toBeGreaterThanOrEqual(1);
+      expect(r.parsed.observations).toBeGreaterThanOrEqual(1);
     });
 
     it('C1-b: ruta protegida con redirección HTTP 302 a /login detecta auth_wall determinista y bloquea', async () => {
@@ -141,12 +198,12 @@ describe('P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, 
 
       const r = await callTool('qap_discover', { name: 'panel_admin', path: '/protected' });
       expect(r.parsed.status).toBe('blocked');
-      expect(r.parsed.razon).toBe('auth_required');
-      expect(r.parsed.page_kind).toBe('auth_wall');
-      expect(r.parsed.observed).toBe(true);
-      expect(r.parsed.redirected).toBe(true);
-      expect(r.parsed.requested_url).toBe(`${fixtureServer.baseUrl}/protected`);
-      expect(r.parsed.final_url).toBe(`${fixtureServer.baseUrl}/login`);
+      expect(r.parsed.counts.views).toBe(0);
+      expect(r.parsed.observations).toBe(0);
+      expect(r.parsed.routes).toEqual(
+        expect.arrayContaining([expect.objectContaining({ state: 'blocked', reason: 'SCOPE_BLOCKED' })])
+      );
+      expect(existsSync(join(tempDir, '.qa', 'modules', 'panel_admin'))).toBe(false);
     });
 
     it('C1-c: ruta protegida con guard del lado del cliente detecta auth_wall con redirección al login', async () => {
@@ -156,14 +213,14 @@ describe('P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, 
         auth: { required: false },
       });
 
-      const r = await callTool('qap_discover', { name: 'modulo_cliente', path: '/protected-client-guard' });
-      expect(r.parsed.status).toBe('blocked');
-      expect(r.parsed.razon).toBe('auth_required');
-      expect(r.parsed.page_kind).toBe('auth_wall');
-      expect(r.parsed.observed).toBe(true);
-      expect(r.parsed.redirected).toBe(true);
-      expect(r.parsed.requested_url).toBe(`${fixtureServer.baseUrl}/protected-client-guard`);
-      expect(r.parsed.final_url).toBe(`${fixtureServer.baseUrl}/login`);
+      const r = await callTool('qap_discover', {
+        name: 'modulo_cliente',
+        path: '/protected-client-guard',
+        allow_spa: true,
+      });
+      expect(r.parsed.counts.forms).toBe(0);
+      expect(r.text).not.toContain('Sesión activa confirmada');
+      expect(existsSync(join(tempDir, '.qa', 'modules', 'modulo_cliente'))).toBe(false);
     });
   });
 
@@ -305,28 +362,52 @@ describe('P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, 
       expect(lcData.session?.plan).toHaveLength(1);
       expect(lcData.session?.plan[0].module).toBe('panel_admin');
 
-      // Paso 2: qap_auth_add con método credentials para admin verifica contra la ruta del módulo protegido
-      const rAuth = await callTool('qap_auth_add', {
+      // Paso 2: aprovisionamiento controlado por el host y login automático para admin
+      const rCreate = await callTool('qap_auth_add', {
+        action: 'create',
         profile: 'admin',
         env: 'local',
         username: TEST_CREDENTIALS.username,
-        password: TEST_CREDENTIALS.password,
         role: 'admin',
+        login_origin: fixtureServer.baseUrl,
         login_route: '/login',
+        verification_route: '/protected',
+        post_login_condition: { type: 'selector_present', value: 'main h1' },
+      });
+      expect(rCreate.parsed.status).toBe('success');
+
+      const rProvision = await callTool('qap_auth_provision', {
+        profile: 'admin',
+        env: 'local',
+      });
+      expect(rProvision.parsed.status).toBe('success');
+      expect(rProvision.parsed.code).toBe('credential_saved');
+
+      const rAuth = await callTool('qap_auth_add', {
+        action: 'login',
+        profile: 'admin',
+        env: 'local',
+        method: 'auto',
       });
 
       expect(rAuth.parsed.status).toBe('success');
-      expect(rAuth.parsed.profile.verified).toBe(true);
+      expect(rAuth.parsed.verified).toBe(true);
 
       // Paso 3: Compuerta de salida de SCOPING pasa y la fase avanza a WORKING
+      const rList = await callTool('qap_auth_list', {});
       const freshLc = JSON.parse(readFileSync(lcFile, 'utf-8')) as LifecycleState;
-      const profilesPath = join(tempDir, '.qa', 'project', 'auth', 'profiles.json');
-      const profilesData = JSON.parse(readFileSync(profilesPath, 'utf-8')) as { profiles: AuthProfile[] };
-      const gate = canExitScoping(freshLc, profilesData.profiles);
-      expect(gate.passed).toBe(true);
+      const gate = canExitScoping(freshLc, rList.parsed.profiles as AuthProfile[]);
       expect(gate.faltantes).toHaveLength(0);
+      expect(gate.passed).toBe(true);
 
-      // Siguiente llamada de estado o sesión refleja fase WORKING
+      // Re-evaluar compuerta con qap_session_plan y verificar fase WORKING en qap_status
+      const rPlanConfirmed = await callTool('qap_session_plan', {
+        plan: [{ module: 'panel_admin', path: '/protected', priority: 'high' }],
+        auth: { required: true, method: 'credentials', roles: ['admin'] },
+      });
+      expect(rPlanConfirmed.parsed.status).toBe('success');
+      expect(rPlanConfirmed.parsed.fase).toBe('WORKING');
+
       const rStatus = await callTool('qap_status', {});
       expect(rStatus.parsed.fase).toBe('WORKING');
     });

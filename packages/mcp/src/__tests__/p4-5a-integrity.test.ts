@@ -5,7 +5,11 @@ import { join } from 'node:path';
 import { CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
+import { QapApplicationService } from '../application/application-service.js';
+import type { IDiscoveryAuthorizer } from '../discovery-authorizer.js';
 import { createMcpServer } from '../server.js';
+import type { IWorkspaceAuthorizer } from '../workspace-authorizer.js';
+import { WorkspaceBootstrap } from '../workspace-bootstrap.js';
 
 vi.mock('playwright-core', () => ({
   chromium: {
@@ -105,8 +109,17 @@ describe('P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a
 
   beforeEach(() => {
     tempDir = mkdtempSync(join(tmpdir(), 'qap-p45a-'));
+    const discoveryAuthorizer: IDiscoveryAuthorizer = {
+      requestAuthorization: vi.fn(async ({ projectRoot, baseUrl, targetUrl, limits }) => ({
+        decision: 'approved' as const,
+        root: projectRoot,
+        navigationOrigin: new URL(baseUrl).origin,
+        targetUrl,
+        limits,
+      })),
+    };
     // Explicit authorization belongs to the host fixture, not targetPath.
-    server = createMcpServer({ projectRoots: [tempDir] });
+    server = createMcpServer({ projectRoots: [tempDir], discoveryAuthorizer });
     // @ts-expect-error accessing internal handler
     handler = server._requestHandlers.get(CallToolRequestSchema.shape.method.value);
   });
@@ -219,29 +232,73 @@ describe('P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a
   });
 
   it('C4-d: plan con auth.required true sin roles queda bloqueado con pregunta de roles y bloquea discover (V4)', async () => {
-    await callTool('qap_init', { projectName: 'auth-roles-gate' });
-    await callTool('qap_context_set', {
-      framework: 'react',
-      app_type: 'spa',
-      objective: 'Evaluación de compuerta auth.required sin roles',
-      critical_flows: [{ name: 'f1', description: 'Flujo' }],
-      roles: [{ name: 'operador', description: 'Operador del sistema' }],
-      source_of_truth: { type: 'prd', declared: true, ref: 'prd-inline' },
+    const tempBase = mkdtempSync(join(tmpdir(), 'qap-p45a-c4d-'));
+    const hostDir = join(tempBase, 'host');
+    const workspaceDir = join(tempBase, 'workspace');
+    mkdirSync(hostDir, { recursive: true });
+    mkdirSync(workspaceDir, { recursive: true });
+    const appService = new QapApplicationService({ hostRootDir: hostDir });
+    const bootstrap = new WorkspaceBootstrap(hostDir, appService);
+    const workspaceAuthorizer: IWorkspaceAuthorizer = {
+      requestAuthorization: vi.fn(async ({ canonicalPath }) => ({
+        decision: 'approved' as const,
+        root: canonicalPath,
+      })),
+    };
+    const discoveryAuthorizer: IDiscoveryAuthorizer = {
+      requestAuthorization: vi.fn(async ({ projectRoot, baseUrl, targetUrl, limits }) => ({
+        decision: 'approved' as const,
+        root: projectRoot,
+        navigationOrigin: new URL(baseUrl).origin,
+        targetUrl,
+        limits,
+      })),
+    };
+    const hostServer = createMcpServer({
+      workspaceBootstrap: bootstrap,
+      applicationService: bootstrap.appService,
+      workspaceAuthorizer,
+      hostRegistryPath: join(hostDir, 'authorized-workspaces.json'),
+      discoveryAuthorizer,
+      hostDiscoveryRegistryPath: join(hostDir, 'authorized-discoveries.json'),
     });
+    // @ts-expect-error accessing internal handler
+    const hostHandler = hostServer._requestHandlers.get(CallToolRequestSchema.shape.method.value);
+    const callHostTool = async (name: string, args: Record<string, unknown> = {}) => {
+      const res = await hostHandler({ method: 'tools/call', params: { name, arguments: { targetPath: workspaceDir, ...args } } }, {});
+      return { res, parsed: JSON.parse(res.content?.[0]?.text ?? '{}') };
+    };
 
-    // 1. Session plan con auth.required: true y method definido pero sin roles (en fase SCOPING)
-    const rNoRoles = await callTool('qap_session_plan', {
-      plan: [{ module: 'panel', path: '/panel', priority: 'high' }],
-      auth: { required: true, method: 'handoff' },
-    });
-    expect(rNoRoles.parsed.status).toBe('blocked');
-    expect(rNoRoles.parsed.razon).toBe('auth_roles_required');
-    expect(rNoRoles.parsed.siguiente_accion?.pregunta?.id).toBe('scoping.roles_a_probar');
+    try {
+      await callHostTool('qap_init', { projectName: 'auth-roles-gate', baseUrl: 'http://localhost:3000' });
+      await callHostTool('qap_context_set', {
+        base_url: 'http://localhost:3000',
+        framework: 'react',
+        app_type: 'spa',
+        objective: 'Evaluación de compuerta auth.required sin roles',
+        critical_flows: [{ name: 'f1', description: 'Flujo' }],
+        roles: [{ name: 'operador', description: 'Operador del sistema' }],
+        source_of_truth: { type: 'prd', declared: true, ref: 'prd-inline' },
+      });
 
-    // 2. Intento de ejecutar qap_discover en SCOPING debe ser bloqueado
-    const rDiscoverBlocked = await callTool('qap_discover', { name: 'panel', path: '/panel' });
-    expect(rDiscoverBlocked.parsed.status).toBe('blocked');
-    expect(rDiscoverBlocked.parsed.razon).toMatch(/No se puede ejecutar qap_discover en la fase SCOPING/);
+      // 1. Session plan con auth.required: true y method definido pero sin roles (en fase SCOPING)
+      const rNoRoles = await callHostTool('qap_session_plan', {
+        plan: [{ module: 'panel', path: '/panel', priority: 'high' }],
+        auth: { required: true, method: 'handoff' },
+      });
+      expect(rNoRoles.parsed.status).toBe('blocked');
+      expect(rNoRoles.parsed.razon).toBe('auth_roles_required');
+      expect(rNoRoles.parsed.siguiente_accion?.pregunta?.id).toBe('scoping.roles_a_probar');
+
+      // 2. Intento de ejecutar qap_discover en SCOPING sin auth verificada debe ser bloqueado
+      const rDiscoverBlocked = await callHostTool('qap_discover', { name: 'panel', path: '/panel' });
+      expect(rDiscoverBlocked.parsed.status).toBe('blocked');
+      expect(['phase_restricted', 'auth_required']).toContain(rDiscoverBlocked.parsed.code);
+    } finally {
+      bootstrap.close();
+      appService.close();
+      rmSync(tempBase, { recursive: true, force: true });
+    }
   });
 
 

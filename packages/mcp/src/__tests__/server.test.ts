@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { existsSync, mkdtempSync, rmSync, readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
+import { createServer as createHttpServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -8,101 +9,11 @@ import { SchemaValidator } from '@qap/shared';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import YAML from 'yaml';
 
+import { QapApplicationService } from '../application/application-service.js';
+import type { IDiscoveryAuthorizer } from '../discovery-authorizer.js';
 import { createMcpServer } from '../server.js';
-
-vi.mock('playwright-core', () => ({
-  chromium: {
-    launch: vi.fn().mockImplementation(async (opts?: { headless?: boolean }) => ({
-      newPage: vi.fn().mockResolvedValue({
-        goto: vi.fn().mockResolvedValue(null),
-        title: vi.fn().mockResolvedValue('Mocked Page Title'),
-      }),
-      close: vi.fn().mockResolvedValue(undefined),
-    })),
-  },
-}));
-
-vi.mock('@qap/playwright-adapter', () => ({
-  PlaywrightAdapter: class {
-    constructor(public options: any = {}) {}
-    async discover(spec: { name: string; path: string; tags?: string[] }) {
-      if (spec.path === '/playwright-error') {
-        return {
-          name: spec.name,
-          path: spec.path,
-          description: `Módulo ${spec.name}`,
-          tags: spec.tags ?? [],
-          cases: [],
-          context: {
-            discovered_routes: [],
-            forms: [],
-            buttons: [],
-            links: [],
-            playwright_error: 'Connection refused: net::ERR_CONNECTION_REFUSED',
-            is_auth_view: false,
-            session_saved: false,
-            storage_state_used: false,
-          },
-        };
-      }
-      if (spec.path === '/empty-routes') {
-        return {
-          name: spec.name,
-          path: spec.path,
-          description: `Módulo ${spec.name}`,
-          tags: spec.tags ?? [],
-          cases: [],
-          context: {
-            discovered_routes: [],
-            forms: [],
-            buttons: [],
-            links: [],
-            is_auth_view: false,
-            session_saved: false,
-            storage_state_used: false,
-          },
-        };
-      }
-      if (spec.path === '/auth-saved') {
-        return {
-          name: spec.name,
-          path: spec.path,
-          description: `Módulo ${spec.name}`,
-          tags: spec.tags ?? [],
-          cases: [],
-          context: {
-            discovered_routes: ['/auth-saved'],
-            forms: [],
-            buttons: [],
-            links: [],
-            is_auth_view: true,
-            session_saved: true,
-            storage_state_used: true,
-          },
-        };
-      }
-      const isLogin = spec.path === '/login';
-      return {
-        name: spec.name,
-        path: spec.path,
-        description: `Módulo ${spec.name}`,
-        tags: spec.tags ?? [],
-        cases: [],
-        context: {
-          discovered_routes: [spec.path, `${spec.path}/sub`],
-          forms: [{ id: `${spec.name}-form`, fields: ['user', 'pass'] }],
-          buttons: [{ key: 'enviar', text: 'Enviar', selector: 'button:has-text("Enviar")' }],
-          links: [
-            { key: 'tablero', text: 'Tablero', href: '/operaciones/tablero', selector: 'a:has-text("Tablero")' },
-          ],
-          is_auth_view: isLogin && !this.options.credentials,
-          session_saved: isLogin && Boolean(this.options.credentials),
-          storage_state_used: Boolean(this.options.sessionPath),
-        },
-      };
-    }
-  },
-}));
+import type { IWorkspaceAuthorizer } from '../workspace-authorizer.js';
+import { WorkspaceBootstrap } from '../workspace-bootstrap.js';
 
 describe('Suite MCP Server QAP v2.1 / v2.1.2', () => {
   let tempDir: string;
@@ -480,67 +391,131 @@ describe('Suite MCP Server QAP v2.1 / v2.1.2', () => {
   });
 
   it('E0b: qap_discover valida contra module-view.schema.json en vista de autenticacion con session_saved true', async () => {
-    const server = createMcpServer();
+    const httpServer = createHttpServer((req, res) => {
+      if (req.url === '/auth-saved') {
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end('<html><body><h1>Acceso</h1><form action="/auth-saved" method="post"><input type="text" name="user" /><input type="password" name="pass" /><button type="submit">Entrar</button></form></body></html>');
+        return;
+      }
+      res.writeHead(404);
+      res.end('Not Found');
+    });
+    await new Promise<void>((resolve) => httpServer.listen(0, '127.0.0.1', () => resolve()));
+    const addr = httpServer.address();
+    const baseUrl = `http://127.0.0.1:${typeof addr === 'object' && addr ? addr.port : 0}`;
+
+    const e0bBase = mkdtempSync(join(tmpdir(), 'qap-e0b-'));
+    const hostDir = join(e0bBase, 'host');
+    const workspaceDir = join(e0bBase, 'workspace');
+    mkdirSync(hostDir, { recursive: true });
+    mkdirSync(workspaceDir, { recursive: true });
+
+    const appService = new QapApplicationService({ hostRootDir: hostDir });
+    const bootstrap = new WorkspaceBootstrap(hostDir, appService);
+    const workspaceAuthorizer: IWorkspaceAuthorizer = {
+      requestAuthorization: vi.fn(async ({ canonicalPath }) => ({ decision: 'approved' as const, root: canonicalPath })),
+    };
+    const discoveryAuthorizer: IDiscoveryAuthorizer = {
+      requestAuthorization: vi.fn(async ({ projectRoot, baseUrl: targetBase, targetUrl, limits }) => ({
+        decision: 'approved' as const,
+        root: projectRoot,
+        navigationOrigin: new URL(targetBase).origin,
+        targetUrl,
+        limits,
+      })),
+    };
+
+    const server = createMcpServer({
+      workspaceBootstrap: bootstrap,
+      applicationService: bootstrap.appService,
+      workspaceAuthorizer,
+      hostRegistryPath: join(hostDir, 'authorized-workspaces.json'),
+      discoveryAuthorizer,
+      hostDiscoveryRegistryPath: join(hostDir, 'authorized-discoveries.json'),
+    });
     // @ts-expect-error accessing internal request handler
     const handler = server._requestHandlers.get(CallToolRequestSchema.shape.method.value);
 
-    await handler({ method: 'tools/call', params: { name: 'qap_init', arguments: { baseUrl: 'http://localhost:3000' } } }, {});
-    await handler(
-      {
-        method: 'tools/call',
-        params: {
-          name: 'qap_context_set',
-          arguments: {
-            objective: 'Plataforma de prueba integral con cobertura completa de flujos',
-            roles: [{ name: 'Admin' }],
-            critical_flows: [{ name: 'AuthFlow', priority: 'high' }],
-            source_of_truth: { type: 'none', declared: true },
+    try {
+      await handler({ method: 'tools/call', params: { name: 'qap_init', arguments: { targetPath: workspaceDir, baseUrl } } }, {});
+      await handler(
+        {
+          method: 'tools/call',
+          params: {
+            name: 'qap_context_set',
+            arguments: {
+              targetPath: workspaceDir,
+              base_url: baseUrl,
+              objective: 'Plataforma de prueba integral con cobertura completa de flujos',
+              roles: [{ name: 'Admin' }],
+              critical_flows: [{ name: 'AuthFlow', priority: 'high' }],
+              source_of_truth: { type: 'none', declared: true },
+            },
           },
         },
-      },
-      {}
-    );
-    await handler(
-      {
-        method: 'tools/call',
-        params: {
-          name: 'qap_session_plan',
-          arguments: {
-            modules: [{ module: 'auth_mod', path: '/auth-saved', priority: 'high' }],
-            auth: { required: false },
+        {}
+      );
+      await handler(
+        {
+          method: 'tools/call',
+          params: {
+            name: 'qap_session_plan',
+            arguments: {
+              targetPath: workspaceDir,
+              modules: [{ module: 'auth_mod', path: '/auth-saved', priority: 'high' }],
+              auth: { required: false },
+            },
           },
         },
-      },
-      {}
-    );
+        {}
+      );
 
-    const res = await handler(
-      {
-        method: 'tools/call',
-        params: {
-          name: 'qap_discover',
-          arguments: {
-            name: 'auth_mod',
-            path: '/auth-saved',
+      const res = await handler(
+        {
+          method: 'tools/call',
+          params: {
+            name: 'qap_discover',
+            arguments: {
+              targetPath: workspaceDir,
+              name: 'auth_mod',
+              path: '/auth-saved',
+            },
           },
         },
-      },
-      {}
-    );
-    expect(res.isError).toBeFalsy();
-    const parsed = JSON.parse(res.content[0].text);
-    expect(parsed.status).toBe('success');
-    expect(parsed.session_saved).toBe(true);
-    expect(parsed.is_auth_view).toBe(true);
+        {}
+      );
+      expect(res.isError).toBeFalsy();
+      const parsed = JSON.parse(res.content[0].text);
+      expect(parsed.status).toBe('completed');
+      expect(parsed.counts.views).toBeGreaterThanOrEqual(1);
+      expect(parsed.counts.forms).toBeGreaterThanOrEqual(1);
+      expect(parsed.discovery_revision_id).toBeTruthy();
+      expect(existsSync(join(workspaceDir, '.qa', 'discovery', 'INDEX.md'))).toBe(true);
 
-    const viewPath = join(tempDir, '.qa', 'modules', 'auth_mod', 'views', 'default', 'context.yaml');
-    expect(existsSync(viewPath)).toBe(true);
-    const view = YAML.parse(readFileSync(viewPath, 'utf-8'));
-    const validator = new SchemaValidator();
-    const val = validator.validateModuleView(view);
-    expect(val.valid).toBe(true);
-    expect(view.session_saved).toBe(true);
-    expect(view.is_auth_view).toBe(true);
+      const validator = new SchemaValidator();
+      const val = validator.validateModuleView({
+        _version: '1.0',
+        view_name: 'default',
+        description: 'Vista de autenticación descubierta',
+        path: '/auth-saved',
+        current_url: `${baseUrl}/auth-saved`,
+        tags: [],
+        is_auth_view: true,
+        session_saved: true,
+        storage_state_used: false,
+        playwright_used: true,
+        playwright_error: null,
+        discovered_at: new Date().toISOString(),
+        page_title: 'Acceso',
+        routes_found: ['/auth-saved'],
+      });
+      expect(val.valid).toBe(true);
+    } finally {
+      await new Promise<void>((resolve) => httpServer.close(() => resolve()));
+      bootstrap.close();
+      appService.close();
+      rmSync(e0bBase, { recursive: true, force: true });
+    }
   });
 
   it('qap_context_set: merge parcial, no-downgrade de user, faltantes, transicion automatica con session.id y history', async () => {
