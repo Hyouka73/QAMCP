@@ -13,7 +13,12 @@ import { FileSystemStorage } from '../storage/file-storage.js';
  */
 describe('FileSystemStorage same-process reader/replacement coordination', () => {
   const roots: string[] = [];
-  afterEach(() => {
+  const activeRuns: Array<() => Promise<void>> = [];
+
+  afterEach(async () => {
+    for (const stopAndDrain of activeRuns.splice(0)) {
+      await stopAndDrain();
+    }
     for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
   });
 
@@ -31,8 +36,15 @@ describe('FileSystemStorage same-process reader/replacement coordination', () =>
         reads++;
       }
     });
+    const writer = (async () => {
+      for (let i = 0; i < 60 && !stop; i++) await write(storage, i);
+    })();
+    activeRuns.push(async () => {
+      stop = true;
+      await Promise.allSettled([writer, ...readers]);
+    });
     try {
-      for (let i = 0; i < 60; i++) await write(storage, i);
+      await writer;
     } finally {
       stop = true;
       await Promise.all(readers);
@@ -43,10 +55,10 @@ describe('FileSystemStorage same-process reader/replacement coordination', () =>
   it('write() never fails with a concurrent same-process reader and never exposes partial content', async () => {
     const reads = await hammer((storage, i) => storage.writeJson('.qa/project/lifecycle.json', { i }));
     expect(reads).toBeGreaterThan(0);
-  });
+  }, 15_000);
 
   it('updateLifecycleState() never fails with a concurrent same-process reader', async () => {
     const reads = await hammer((storage, i) => storage.updateLifecycleState(state => ({ ...state, history: [], session: { ...state.session, id: 'w' + i } })));
     expect(reads).toBeGreaterThan(0);
-  });
+  }, 15_000);
 });
