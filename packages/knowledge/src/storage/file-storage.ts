@@ -37,7 +37,7 @@ import type {
   ModuleStateInfo,
 } from '@qap/shared';
 import { normalizeToPosix, normalizeSlug } from '@qap/shared';
-import { normalizeTcCase } from '@qap/shared';
+import { normalizeTcCase, SchemaValidator } from '@qap/shared';
 import lockfile from 'proper-lockfile';
 import YAML from 'yaml';
 
@@ -57,6 +57,7 @@ export interface FileSystemStorageOptions {
  */
 export class FileSystemStorage implements IStorage {
   private rootDir: string;
+  private flowValidator?: SchemaValidator;
 
   constructor(options: FileSystemStorageOptions = {}) {
     this.rootDir = options.rootDir ?? process.cwd();
@@ -522,14 +523,25 @@ export class FileSystemStorage implements IStorage {
     return files.filter((f) => f.endsWith('.yaml') || f.endsWith('.yml')).map((f) => f.replace(/\.ya?ml$/, ''));
   }
 
+  private assertValidFlow(flowName: string, data: unknown): void {
+    // Se compila una sola vez: crear SchemaValidator compila ~20 esquemas
+    this.flowValidator ??= new SchemaValidator();
+    const result = this.flowValidator.validateFlow(data);
+    if (!result.valid) {
+      throw new Error(`Flujo '${flowName}' inválido: ${JSON.stringify(result.errors)}`);
+    }
+  }
+
   async getFlow(flowName: string): Promise<FlowDefinition> {
-    return this.readYaml<FlowDefinition>(join('.qa/flows', `${flowName}.yaml`));
+    const flow = await this.readYaml<unknown>(join('.qa/flows', `${flowName}.yaml`));
+    this.assertValidFlow(flowName, flow);
+    return flow as FlowDefinition;
   }
 
   async saveFlow(flowName: string, flow: FlowDefinition): Promise<void> {
+    this.assertValidFlow(flowName, flow);
     await this.writeYaml(join('.qa/flows', `${flowName}.yaml`), flow);
   }
-
   // ---------------------------------------------------------------------
   // Diagnostico y estado del proyecto
   // ---------------------------------------------------------------------

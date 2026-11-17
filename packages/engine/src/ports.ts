@@ -192,6 +192,20 @@ export interface IFlowLockProvider {
   withModulesLock<T>(moduleNames: string[], fn: () => Promise<T>): Promise<T>;
 }
 
+export interface FlowTelemetryEvent {
+  flowName: string;
+  module: string;
+  caseId: string;
+  status: 'passed' | 'failed' | 'skipped';
+  durationMs: number;
+  error?: string;
+}
+
+export interface IFlowTelemetry {
+  onCaseEnd(event: FlowTelemetryEvent): void;
+  finish(): unknown;
+}
+
 /**
  * Storage Port  (S3-001 — QAP v2.1)
  *

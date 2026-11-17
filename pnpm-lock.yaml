@@ -203,6 +203,9 @@ importers:
       '@qap/playwright-adapter':
         specifier: workspace:*
         version: link:../playwright-adapter
+      '@qap/playwright-runner':
+        specifier: workspace:*
+        version: link:../playwright-runner
       '@qap/reporter':
         specifier: workspace:*
         version: link:../reporter

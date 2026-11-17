@@ -36,9 +36,9 @@ import { handleMcp, handleMcpRegister } from './commands/mcp.js';
 import { handleTest } from './commands/test.js';
 import { handleUpdate } from './commands/update.js';
 import { handleRollback } from './commands/rollback.js';
-
 export { handleClean } from './commands/clean.js';
 export { handleMcp } from './commands/mcp.js';
+import { handleFlowCommand } from './commands/flow.js';
 
 interface CommandDefinition {
   /** Nombre del subcomando, p.ej. "test" -> `qap test`. */
@@ -49,9 +49,7 @@ interface CommandDefinition {
 }
 
 // Mantenemos únicamente los stubs pendientes que aún no tienen implementación real
-const COMMANDS: readonly CommandDefinition[] = [
-  { name: 'flow', description: 'Ejecuta un flow definido sobre uno o más módulos.', args: '<flow>' },
-];
+const COMMANDS: readonly CommandDefinition[] = [];
 
 export function registerCommands(program: Command): void {
   // 1. Registrar el comando `init`
@@ -290,6 +288,54 @@ export function registerCommands(program: Command): void {
     .option('--dry-run', 'Muestra la configuración propuesta sin modificar archivos')
     .action(async (options: { client?: string; dryRun?: boolean }) => {
       await handleMcpRegister(options);
+    });
+
+    // 7.5 Comando `flow` (S82-004)
+  const flowCmd = program
+    .command('flow')
+    .description('Ejecuta y administra flujos multimódulo.');
+
+  type FlowCliOptions = { env?: string; tags?: string; headed?: boolean; all?: boolean };
+
+  flowCmd
+    .command('run <name>')
+    .description('Ejecuta un flujo desde cero.')
+    .option('--env <env>', 'Entorno de ejecución')
+    .option('--tags <tags>', 'Etiquetas separadas por coma')
+    .option('--headed', 'Navegador visible')
+    .action(async (name: string, options: FlowCliOptions) => {
+      await handleFlowCommand('run', name, options);
+    });
+
+  flowCmd
+    .command('resume <name>')
+    .description('Reanuda un flujo desde su último checkpoint.')
+    .option('--env <env>', 'Entorno de ejecución')
+    .option('--headed', 'Navegador visible')
+    .action(async (name: string, options: FlowCliOptions) => {
+      await handleFlowCommand('resume', name, options);
+    });
+
+  flowCmd
+    .command('list')
+    .description('Lista los flujos del proyecto.')
+    .action(async () => {
+      await handleFlowCommand('list');
+    });
+
+  flowCmd
+    .command('validate [name]')
+    .description('Valida la definición de un flujo (o todos con --all).')
+    .option('--all', 'Valida todos los flujos')
+    .action(async (name: string | undefined, options: FlowCliOptions) => {
+      await handleFlowCommand('validate', name, options);
+    });
+
+  flowCmd
+    .command('debug <name>')
+    .description('Muestra el estado y el checkpoint de un flujo.')
+    .action(async (name: string) => {
+      await handleFlowCommand('debug', name);
     });
 
   // 8. Registrar los comandos placeholders restantes

@@ -243,8 +243,8 @@ describe('FileSystemStorage (S3-002)', () => {
     });
 
     it('debe guardar y leer un flow', async () => {
-      const flow = { _version: '1', name: 'checkout-flow', modules: ['checkout'] };
-      await storage.saveFlow('checkout-flow', flow as never);
+      const flow = { _version: '1.0', name: 'checkout-flow', modules: [{ module: 'auth' }, { module: 'checkout' }], };
+      await storage.saveFlow('checkout-flow', flow);
       const result = await storage.getFlow('checkout-flow');
       expect(result).toEqual(flow);
     });
@@ -316,14 +316,15 @@ describe('FileSystemStorage (S3-002)', () => {
         const r = curr.rules?.find((x) => x.id === 'default.cart.min');
         if (r) r.status = 'confirmed';
         curr.category_waivers = [
-          {
-            category: 'sensibilidad',
-            view: 'default',
-            reason: 'Sin datos personales',
-            waived_at: new Date().toISOString(),
-            waived_by: 'user',
-          },
-        ];
+      {
+        category: 'sensibilidad',
+        view: 'default',
+        reason: 'Sin datos personales',
+        waived_at: new Date().toISOString(),
+        waived_by: 'user',
+      } as any,
+    ];
+        
         return curr;
       });
 

@@ -91,7 +91,7 @@ import {
 } from '@qap/reporter';
 
 import { getPhaseGuidance, buildInterviewNextAction, type SiguienteAccion, QAP_CORE_DIRECTIVES } from './guidance.js';
-
+import { FLOW_RUN_TOOL, qapFlowRunTool, type FlowRunArgs } from './tools/flow-tools.js';
 let activeViewerServer: ViewerServerInstance | null = null;
 
 export const PLAYWRIGHT_INSTALL_COMMAND = 'npx playwright install chromium';
@@ -968,7 +968,7 @@ export function createMcpServer(): Server {
 
   // Manejador de lista de tools
   server.setRequestHandler(ListToolsRequestSchema, async () => {
-    return { tools: TOOLS };
+        return { tools: [...TOOLS, FLOW_RUN_TOOL] };
   });
 
   // Manejador de lista de prompts
@@ -1004,6 +1004,9 @@ export function createMcpServer(): Server {
 
     try {
       switch (name) {
+        case 'qap_flow_run': {
+          return await qapFlowRunTool(args as unknown as FlowRunArgs, rootDir);
+        }
         case 'qap_status': {
           const qaDir = resolve(rootDir, '.qa');
           const initialized = existsSync(qaDir);

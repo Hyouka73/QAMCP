@@ -11,4 +11,5 @@ export interface FlowOptions {
   video_on_failure?: boolean;
   trace?: 'on' | 'off' | 'on-first-retry';
   retries?: number;
+  tags?: string[];
 }

@@ -92,6 +92,8 @@ const result = (await orchestrator.executeFlow(flowDefinition, {})) as unknown a
 
     // El módulo 3 no corrió
     expect(result.completed_modules).not.toContain('mod_3');
+        const results = result.results as Record<string, unknown>;
+    expect(results['mod_3']).toMatchObject({ result: 'skipped', failure_type: 'flow_step_failed' });
   });
 
     it('no sobrescribe el backup original al reanudar un flujo', async () => {

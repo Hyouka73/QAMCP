@@ -18,3 +18,5 @@ export * from './generators/json-report.js';
 export * from './generators/markdown-report.js';
 export * from './generators/junit-report.js';
 export * from './manifest/regression-detector.js';
+export * from './generators/flow-report.js';
+export * from './runner/flow-telemetry.js';
