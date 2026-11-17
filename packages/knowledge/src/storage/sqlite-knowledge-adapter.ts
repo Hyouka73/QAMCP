@@ -83,13 +83,13 @@ const kindCheck = (kind: KnowledgeKind): void => {
 export class SqliteKnowledgeAdapter implements IKnowledgeStore, IActionTargetSearch {
   readonly contract_version = 1 as const;
   readonly schema_version = SCHEMA_VERSION;
-  private readonly db: DatabaseSync;
+  readonly #db: DatabaseSync;
   private readonly cursorKey: string;
   private closed = false;
   private readonly planner = new KnowledgeCommitPlanner();
   private readonly databasePath: string;
   private readonly databaseIdentity?: string;
-  private readonly lockTimeoutMs: number;
+  readonly #lockTimeoutMs: number;
   /** Prevent synchronous SQLite busy waits from starving local fence owners. */
   private static readonly fenceTails = new Map<string, Promise<void>>();
   // Context of the fence owner, distinct from another connection/process trying
@@ -104,10 +104,10 @@ export class SqliteKnowledgeAdapter implements IKnowledgeStore, IActionTargetSea
 
   constructor(path: string, options: SqliteKnowledgeOptions = {}) {
     identity(path);
-    const timeout = options.busy_timeout_ms ?? 1000;
+    const timeout = options.busy_timeout_ms === undefined ? 1000 : options.busy_timeout_ms;
     this.databasePath = path === ':memory:' ? path : resolve(path);
-    this.lockTimeoutMs = timeout;
-    if (!Number.isSafeInteger(timeout) || timeout < 0 || timeout > 60_000) fail('INVALID_DATA');
+    if (typeof timeout !== 'number' || !Number.isFinite(timeout) || !Number.isSafeInteger(timeout) || timeout < 0 || timeout > 60_000) fail('INVALID_DATA');
+    this.#lockTimeoutMs = timeout;
 
     // 1. In-memory preflight check BEFORE creating or touching any files on disk
     const preflight = checkSqliteFts5Capability();
@@ -146,14 +146,14 @@ export class SqliteKnowledgeAdapter implements IKnowledgeStore, IActionTargetSea
       // must retain its prefix (bare 'sqlite' is not a builtin in downstream bundles).
       const loadBuiltin = createRequire(import.meta.url);
       const sqlite = loadBuiltin('node:sqlite') as typeof import('node:sqlite');
-      this.db = new sqlite.DatabaseSync(this.databasePath);
+      this.#db = new sqlite.DatabaseSync(this.databasePath);
     } catch { fail('UNAVAILABLE'); }
     try {
-      this.db.exec(`PRAGMA busy_timeout = ${timeout}; PRAGMA foreign_keys = ON`);
-      this.cursorKey = this.transaction('IMMEDIATE', () => initializeKnowledgeSchema(this.db));
+      this.#db.exec(`PRAGMA busy_timeout = ${timeout}; PRAGMA foreign_keys = ON`);
+      this.cursorKey = this.#transaction('IMMEDIATE', () => initializeKnowledgeSchema(this.#db));
       // Reject foreign/unknown schemas before any persistent journal mode change.
-      if (this.databasePath !== ':memory:' && this.db.prepare('PRAGMA journal_mode = WAL').get()!.journal_mode !== 'wal') fail('UNAVAILABLE');
-      this.db.exec('PRAGMA synchronous = FULL');
+      if (this.databasePath !== ':memory:' && this.#db.prepare('PRAGMA journal_mode = WAL').get()!.journal_mode !== 'wal') fail('UNAVAILABLE');
+      this.#db.exec('PRAGMA synchronous = FULL');
       if (this.databasePath !== ':memory:') {
         // Pin a real absolute pathname and inode, not the caller's mutable cwd.
         const canonical = realpathSync(this.databasePath);
@@ -163,14 +163,14 @@ export class SqliteKnowledgeAdapter implements IKnowledgeStore, IActionTargetSea
         this.databaseIdentity = `${stat.dev}:${stat.ino}`;
       }
     } catch (error) {
-      this.db.close();
+      this.#db.close();
       if (error instanceof KnowledgeStoreError) throw error;
       fail('SCHEMA_MISMATCH');
     }
   }
 
   close(): void {
-    if (!this.closed) { this.db.close(); this.closed = true; }
+    if (!this.closed) { this.#db.close(); this.closed = true; }
   }
 
   /**
@@ -205,7 +205,7 @@ export class SqliteKnowledgeAdapter implements IKnowledgeStore, IActionTargetSea
       if (!file || realpathSync(file) !== this.databasePath) return fail('UNAVAILABLE');
       const afterOpen = statSync(canonical);
       if (`${afterOpen.dev}:${afterOpen.ino}` !== this.databaseIdentity) return fail('UNAVAILABLE');
-      fence.exec(`PRAGMA busy_timeout = ${this.lockTimeoutMs}; BEGIN IMMEDIATE`);
+      fence.exec(`PRAGMA busy_timeout = ${this.#lockTimeoutMs}; BEGIN IMMEDIATE`);
       acquired = true;
       const underLock = statSync(canonical);
       if (`${underLock.dev}:${underLock.ino}` !== this.databaseIdentity) return fail('UNAVAILABLE');
@@ -247,7 +247,7 @@ export class SqliteKnowledgeAdapter implements IKnowledgeStore, IActionTargetSea
     const words = request.query.normalize('NFC').match(/[\p{L}\p{N}\p{M}]+/gu) ?? [];
     if (words.length > 64) fail('INVALID_DATA');
     const expression = [...new Set(words)].map(word => `"${word}"`).join(' OR ');
-    return this.transaction('DEFERRED', () => {
+    return this.#transaction('DEFERRED', () => {
       if (!expression) return [];
       const params: SQLInputValue[] = [expression, request.application_id];
       // CROSS JOIN fixes FTS before the application index: ordinary JOIN can run
@@ -276,7 +276,7 @@ export class SqliteKnowledgeAdapter implements IKnowledgeStore, IActionTargetSea
         }
       }
       sql += ' ORDER BY score, r.id_order LIMIT ?'; params.push(limit);
-      return this.db.prepare(sql).all(...params).map(row => ({
+      return this.#db.prepare(sql).all(...params).map(row => ({
         target: this.record(row) as KnowledgeRecord<'action_target'>, score: Number(row.score),
       }));
     });
@@ -285,8 +285,8 @@ export class SqliteKnowledgeAdapter implements IKnowledgeStore, IActionTargetSea
   async get<K extends KnowledgeKind>(app: string, kind: K, id: string, revision?: number): Promise<KnowledgeRecord<K> | null> {
     identity(app); identity(id); kindCheck(kind);
     if (revision !== undefined && (!Number.isSafeInteger(revision) || revision < 1)) fail('INVALID_DATA');
-    return this.transaction('DEFERRED', () => {
-      const row = this.db.prepare(`SELECT * FROM knowledge_revisions WHERE application_id = ? AND kind = ? AND id = ?
+    return this.#transaction('DEFERRED', () => {
+      const row = this.#db.prepare(`SELECT * FROM knowledge_revisions WHERE application_id = ? AND kind = ? AND id = ?
         ${revision === undefined ? 'ORDER BY revision DESC LIMIT 1' : 'AND revision = ?'}`)
         .get(...[app, kind, id, ...(revision === undefined ? [] : [revision])]);
       return row ? this.record(row) as KnowledgeRecord<K> : null;
@@ -314,12 +314,12 @@ export class SqliteKnowledgeAdapter implements IKnowledgeStore, IActionTargetSea
     }
     // JS contract sorts UTF-16 IDs; binary UTF-8 order differs for astral characters.
     sql += ' ORDER BY r.id_order';
-    return this.readPage<K>(app, JSON.stringify(['query', kind, ref ? [ref.kind, ref.id, ref.revision ?? null] : null]), sql, params, query);
+    return this.#readPage<K>(app, JSON.stringify(['query', kind, ref ? [ref.kind, ref.id, ref.revision ?? null] : null]), sql, params, query);
   }
 
   async history<K extends KnowledgeKind>(app: string, kind: K, id: string, page: KnowledgePageRequest = {}): Promise<KnowledgePage<KnowledgeRecord<K>>> {
     identity(app); identity(id); kindCheck(kind);
-    return this.readPage<K>(app, JSON.stringify(['history', kind, id]),
+    return this.#readPage<K>(app, JSON.stringify(['history', kind, id]),
       'SELECT * FROM knowledge_revisions WHERE application_id = ? AND kind = ? AND id = ? ORDER BY revision', [app, kind, id], page);
   }
 
@@ -331,9 +331,9 @@ export class SqliteKnowledgeAdapter implements IKnowledgeStore, IActionTargetSea
     // Scan before acquiring the writer lock. Never yield while holding a transaction.
     let prepared: KnowledgeWrite[];
     try { prepared = this.planner.prepare(writes); } catch { return fail('INVALID_DATA'); }
-    return this.transaction('IMMEDIATE', () => {
+    return this.#transaction('IMMEDIATE', () => {
       const staged = new Map<string, KnowledgeRecord>();
-      for (const row of this.db.prepare(`SELECT r.* FROM knowledge_revisions r WHERE r.application_id = ?
+      for (const row of this.#db.prepare(`SELECT r.* FROM knowledge_revisions r WHERE r.application_id = ?
         AND r.revision = (SELECT max(n.revision) FROM knowledge_revisions n
           WHERE n.application_id = r.application_id AND n.kind = r.kind AND n.id = r.id)`).all(app)) {
         const record = this.record(row, false);
@@ -341,28 +341,28 @@ export class SqliteKnowledgeAdapter implements IKnowledgeStore, IActionTargetSea
         staged.set(key, record);
       }
       let records: KnowledgeRecord[];
-      const historical = this.db.prepare('SELECT 1 FROM knowledge_revisions WHERE application_id = ? AND kind = ? AND id = ? AND revision = ?');
+      const historical = this.#db.prepare('SELECT 1 FROM knowledge_revisions WHERE application_id = ? AND kind = ? AND id = ? AND revision = ?');
       try { records = this.planner.plan(app, prepared, staged,
         ref => !!historical.get(app, ref.kind, ref.id, ref.revision!)); } catch (error) {
         if (error instanceof KnowledgeStoreError) throw error;
         return fail('INVALID_DATA');
       }
-      this.db.prepare('INSERT INTO knowledge_scopes VALUES (?, 0) ON CONFLICT DO NOTHING').run(app);
-      const version = Number(this.db.prepare('SELECT version FROM knowledge_scopes WHERE application_id = ?').get(app)!.version) + 1;
-      const insert = this.db.prepare('INSERT INTO knowledge_revisions VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
-      const link = this.db.prepare('INSERT INTO knowledge_links VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+      this.#db.prepare('INSERT INTO knowledge_scopes VALUES (?, 0) ON CONFLICT DO NOTHING').run(app);
+      const version = Number(this.#db.prepare('SELECT version FROM knowledge_scopes WHERE application_id = ?').get(app)!.version) + 1;
+      const insert = this.#db.prepare('INSERT INTO knowledge_revisions VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+      const link = this.#db.prepare('INSERT INTO knowledge_links VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
       for (const record of records) {
         identity(record.id);
         insert.run(app, record.kind, record.id, record.revision, Buffer.from(record.id, 'utf16le').swap16(), version, JSON.stringify(record.entity), JSON.stringify(record.trace));
         record.references.forEach((ref, ordinal) => link.run(app, record.kind, record.id, record.revision, ordinal, ref.kind, ref.id, ref.revision!));
       }
-      this.db.prepare('UPDATE knowledge_scopes SET version = version + 1 WHERE application_id = ?').run(app);
+      this.#db.prepare('UPDATE knowledge_scopes SET version = version + 1 WHERE application_id = ?').run(app);
       return records;
     });
   }
 
   private record(row: Row, includeReferences = true): KnowledgeRecord {
-    const references = includeReferences ? this.db.prepare(`SELECT target_kind AS kind, target_id AS id, target_revision AS revision
+    const references = includeReferences ? this.#db.prepare(`SELECT target_kind AS kind, target_id AS id, target_revision AS revision
       FROM knowledge_links WHERE application_id = ? AND source_kind = ? AND source_id = ? AND source_revision = ? ORDER BY ordinal`)
       .all(String(row.application_id), String(row.kind), String(row.id), Number(row.revision)) as unknown as KnowledgeRef[] : [];
     return { application_id: String(row.application_id), kind: row.kind as KnowledgeKind, id: String(row.id), revision: Number(row.revision),
@@ -370,12 +370,12 @@ export class SqliteKnowledgeAdapter implements IKnowledgeStore, IActionTargetSea
       trace: JSON.parse(String(row.trace_json)) as KnowledgeRecord['trace'], references };
   }
 
-  private readPage<K extends KnowledgeKind>(app: string, query: string, sql: string, params: SQLInputValue[], page: KnowledgePageRequest): KnowledgePage<KnowledgeRecord<K>> {
+  #readPage<K extends KnowledgeKind>(app: string, query: string, sql: string, params: SQLInputValue[], page: KnowledgePageRequest): KnowledgePage<KnowledgeRecord<K>> {
     if (!page || typeof page !== 'object') fail('INVALID_DATA');
     const limit = page.limit ?? 50;
     if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) fail('INVALID_DATA');
-    return this.transaction('DEFERRED', () => {
-      const version = Number(this.db.prepare('SELECT version FROM knowledge_scopes WHERE application_id = ?').get(app)?.version ?? 0);
+    return this.#transaction('DEFERRED', () => {
+      const version = Number(this.#db.prepare('SELECT version FROM knowledge_scopes WHERE application_id = ?').get(app)?.version ?? 0);
       let offset = 0;
       if (page.cursor !== undefined) {
         try {
@@ -388,7 +388,7 @@ export class SqliteKnowledgeAdapter implements IKnowledgeStore, IActionTargetSea
           offset = Number(decoded[3]);
         } catch { fail('INVALID_CURSOR'); }
       }
-      const rows = this.db.prepare(`${sql} LIMIT ? OFFSET ?`).all(...params, limit + 1, offset);
+      const rows = this.#db.prepare(`${sql} LIMIT ? OFFSET ?`).all(...params, limit + 1, offset);
       const payload = Buffer.from(JSON.stringify([app, query, version, offset + limit])).toString('base64url');
       return { items: rows.slice(0, limit).map(row => this.record(row) as KnowledgeRecord<K>),
         ...(rows.length > limit ? { next_cursor: `${payload}.${this.sign(payload)}` } : {}) };
@@ -397,16 +397,16 @@ export class SqliteKnowledgeAdapter implements IKnowledgeStore, IActionTargetSea
 
   private sign(payload: string): string { return createHmac('sha256', this.cursorKey).update(payload).digest('hex'); }
 
-  private transaction<T>(mode: 'IMMEDIATE' | 'DEFERRED', action: () => T): T {
+  #transaction<T>(mode: 'IMMEDIATE' | 'DEFERRED', action: () => T): T {
     if (this.closed) return fail('UNAVAILABLE');
     let begun = false;
     try {
-      this.db.exec(`BEGIN ${mode}`); begun = true;
+      this.#db.exec(`BEGIN ${mode}`); begun = true;
       const result = action();
-      this.db.exec('COMMIT');
+      this.#db.exec('COMMIT');
       return result;
     } catch (error) {
-      if (begun) { try { this.db.exec('ROLLBACK'); } catch { /* Preserve sanitized original error. */ } }
+      if (begun) { try { this.#db.exec('ROLLBACK'); } catch { /* Preserve sanitized original error. */ } }
       if (error instanceof KnowledgeStoreError) throw error;
       return fail('UNAVAILABLE');
     }

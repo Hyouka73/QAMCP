@@ -127,10 +127,11 @@ function safeParseYamlOrJson(file: ScannedLegacyFile): Record<string, unknown> |
  * Never scans global machine paths automatically; operates strictly on a selected workspace.
  */
 export class LegacyQaImporter {
-  constructor(private readonly store: AppServiceSqliteStore) {}
+  readonly #store: AppServiceSqliteStore;
+  constructor(store: AppServiceSqliteStore) { this.#store = store; }
 
   importWorkspace(projectId: string, sourceRoot: string): LegacyQaImportReceipt {
-    const project = this.store.get<{ project_id: string; status: string; active_env_id: string | null }>(
+    const project = this.#store.get<{ project_id: string; status: string; active_env_id: string | null }>(
       'SELECT project_id, status, active_env_id FROM projects WHERE project_id = ?',
       projectId,
     );
@@ -142,7 +143,7 @@ export class LegacyQaImporter {
     const scanned = collectLegacyFiles(safeSource);
     const manifestHash = computeManifestHash(scanned);
 
-    const existing = this.store.get<{
+    const existing = this.#store.get<{
       import_id: string;
       source_manifest_hash: string;
       entities_imported_json: string;
@@ -184,7 +185,7 @@ export class LegacyQaImporter {
     const now = new Date().toISOString();
     const importId = randomUUID();
 
-    this.store.transaction('IMMEDIATE', () => {
+    this.#store.transaction('IMMEDIATE', () => {
       let defaultEnvId = project.active_env_id;
       const byPath = new Map(scanned.map((f) => [f.relativePath, f]));
 
@@ -206,14 +207,14 @@ export class LegacyQaImporter {
             } catch {
               domain = [];
             }
-            const existingEnv = this.store.get<{ env_id: string }>(
+            const existingEnv = this.#store.get<{ env_id: string }>(
               'SELECT env_id FROM environments WHERE project_id = ? AND name = ?',
               projectId,
               envName,
             );
             const envId = existingEnv?.env_id ?? randomUUID();
             if (!existingEnv) {
-              this.store.run(
+              this.#store.run(
                 `INSERT INTO environments
                   (env_id, project_id, name, base_url, is_production, destructive_actions_allowed, safe_domains_json, tenant_mode, created_at, updated_at)
                  VALUES (?, ?, ?, ?, ?, 0, ?, 'single', ?, ?)`,
@@ -243,7 +244,7 @@ export class LegacyQaImporter {
           const obj = typeof parsed.objective === 'string' && parsed.objective.trim() ? parsed.objective.trim() : undefined;
           const projName = typeof parsed.project_name === 'string' && parsed.project_name.trim() ? parsed.project_name.trim() : undefined;
           if (obj || projName || defaultEnvId) {
-            this.store.run(
+            this.#store.run(
               `UPDATE projects
                SET objective = COALESCE(objective, ?),
                    name = CASE WHEN name = '' THEN COALESCE(?, name) ELSE name END,
@@ -259,7 +260,7 @@ export class LegacyQaImporter {
           }
         }
       } else if (defaultEnvId) {
-        this.store.run(
+        this.#store.run(
           'UPDATE projects SET active_env_id = COALESCE(active_env_id, ?), updated_at = ? WHERE project_id = ?',
           defaultEnvId,
           now,
@@ -270,7 +271,7 @@ export class LegacyQaImporter {
       // Ensure an env_id exists for profiles/campaigns
       if (!defaultEnvId) {
         defaultEnvId = randomUUID();
-        this.store.run(
+        this.#store.run(
           `INSERT INTO environments
             (env_id, project_id, name, base_url, is_production, destructive_actions_allowed, safe_domains_json, tenant_mode, created_at, updated_at)
            VALUES (?, ?, 'local', 'http://localhost', 0, 0, '["localhost"]', 'single', ?, ?)`,
@@ -279,7 +280,7 @@ export class LegacyQaImporter {
           now,
           now,
         );
-        this.store.run('UPDATE projects SET active_env_id = ?, updated_at = ? WHERE project_id = ?', defaultEnvId, now, projectId);
+        this.#store.run('UPDATE projects SET active_env_id = ?, updated_at = ? WHERE project_id = ?', defaultEnvId, now, projectId);
         counts.environments += 1;
       }
 
@@ -302,13 +303,13 @@ export class LegacyQaImporter {
           const label = typeof p.id === 'string' ? p.id : (typeof p.name === 'string' ? p.name : undefined);
           if (!label) continue;
           const envName = typeof p.env === 'string' ? p.env : 'local';
-          const envRow = this.store.get<{ env_id: string }>(
+          const envRow = this.#store.get<{ env_id: string }>(
             'SELECT env_id FROM environments WHERE project_id = ? AND name = ?',
             projectId,
             envName,
           );
           const targetEnvId = envRow?.env_id ?? defaultEnvId;
-          const existingProfile = this.store.get<{ profile_id: string }>(
+          const existingProfile = this.#store.get<{ profile_id: string }>(
             'SELECT profile_id FROM profiles WHERE project_id = ? AND env_id = ? AND label = ?',
             projectId,
             targetEnvId,
@@ -317,7 +318,7 @@ export class LegacyQaImporter {
           if (!existingProfile) {
             const loginMode = p.login_mode === 'handoff' ? 'handoff' : 'auto';
             // Legacy verified flag is NOT blindly trusted for protected auth: require pending/revalidation until Block 2 checks session.
-            this.store.run(
+            this.#store.run(
               `INSERT INTO profiles
                 (profile_id, project_id, env_id, label, role_name, login_mode, credential_ref_key, status, created_at, updated_at)
                VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
@@ -352,13 +353,13 @@ export class LegacyQaImporter {
             : 'ONBOARDING';
           const sessionObj = asRecord(parsed.session);
           const campaignKey = typeof sessionObj?.id === 'string' && sessionObj.id ? sessionObj.id : randomUUID();
-          const existingCampaign = this.store.get<{ campaign_id: string }>(
+          const existingCampaign = this.#store.get<{ campaign_id: string }>(
             'SELECT campaign_id FROM campaigns WHERE project_id = ? AND campaign_id = ?',
             projectId,
             campaignKey,
           );
           if (!existingCampaign) {
-            this.store.run(
+            this.#store.run(
               `INSERT INTO campaigns
                 (campaign_id, project_id, env_id, mode, phase, status, objective, target_module_ids_json, created_at, updated_at)
                VALUES (?, ?, ?, 'continue', ?, 'paused', ?, '[]', ?, ?)`,
@@ -370,7 +371,7 @@ export class LegacyQaImporter {
               now,
               now,
             );
-            this.store.run(
+            this.#store.run(
               'UPDATE projects SET active_campaign_id = COALESCE(active_campaign_id, ?), updated_at = ? WHERE project_id = ?',
               campaignKey,
               now,
@@ -399,7 +400,7 @@ export class LegacyQaImporter {
       ]);
 
       for (const modKey of moduleKeys) {
-        const existingMod = this.store.get<{ module_id: string }>(
+        const existingMod = this.#store.get<{ module_id: string }>(
           'SELECT module_id FROM modules WHERE project_id = ? AND key = ?',
           projectId,
           modKey,
@@ -418,7 +419,7 @@ export class LegacyQaImporter {
         const firstRoute = rawRoutes && typeof rawRoutes[0] === 'string' ? rawRoutes[0] : null;
         const routeHint = typeof modMetaObj?.path === 'string' ? modMetaObj.path : firstRoute;
 
-        this.store.run(
+        this.#store.run(
           `INSERT INTO modules
             (module_id, project_id, key, title, route_hint, priority, criticality, status, waiver_reason, created_at, updated_at)
            VALUES (?, ?, ?, ?, ?, 'medium', 'medium', ?, ?, ?, ?)`,
@@ -442,7 +443,7 @@ export class LegacyQaImporter {
         }
       }
 
-      this.store.run(
+      this.#store.run(
         `INSERT INTO import_manifests
           (import_id, project_id, importer_version, source_root, source_manifest_hash, entities_imported_json, secrets_redacted, imported_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -457,7 +458,7 @@ export class LegacyQaImporter {
       );
 
       for (const file of scanned) {
-        this.store.run(
+        this.#store.run(
           `INSERT INTO import_entries (import_id, relative_path, sha256, bytes) VALUES (?, ?, ?, ?)`,
           importId,
           file.relativePath,
@@ -482,7 +483,7 @@ export class LegacyQaImporter {
   }
 
   verifyImport(importId: string, sourceRoot?: string): LegacyQaVerificationResult {
-    const manifest = this.store.get<{
+    const manifest = this.#store.get<{
       import_id: string;
       project_id: string;
       importer_version: number;
@@ -492,7 +493,7 @@ export class LegacyQaImporter {
     if (!manifest) {
       throw new Error(`Unknown import_id: ${importId}`);
     }
-    const entries = this.store.all<{ relative_path: string; sha256: string; bytes: number }>(
+    const entries = this.#store.all<{ relative_path: string; sha256: string; bytes: number }>(
       'SELECT relative_path, sha256, bytes FROM import_entries WHERE import_id = ? ORDER BY relative_path ASC',
       importId,
     );

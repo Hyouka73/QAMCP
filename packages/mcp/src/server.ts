@@ -345,7 +345,10 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
     ? new ClientElicitationDiscoveryAuthorizer(serverProvider, options.interactiveAccessAuthorizer ?? options.discoveryAuthorizer, authorizationDiagnosticSink)
     : undefined;
   const preparationCommand = `"${process.execPath}" "${resolveHelperScriptPath('qap-authorize-workspace.mjs')}" <workspace-absoluto>`;
-  const authorizedRoots = [...(options.projectRoots ?? [process.cwd()])];
+  const configuredRoots = [...(options.projectRoots ?? (options.clientWorkspaceRoots ? [] : [process.cwd()]))];
+  const pendingDeleteCleanup = new Map<string, { root: string; token: string; receipt: unknown; cleaned: boolean }>();
+  const deletedRootKeys = new Set<string>();
+  const authorizedRoots = [...configuredRoots];
   const authorizedAuths: PersistedAuthAuthorization[] = [
     ...(options.authAuthorizations ?? []),
     ...(options.hostAuthRegistryPath ? loadAuthAuthorizationsFromDisk(options.hostAuthRegistryPath) : []),
@@ -472,6 +475,26 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
     const index = workspaceBindings.findIndex(binding => binding.projectRoot === root);
     if (index >= 0) workspaceBindings.splice(index, 1);
     interviews.delete(root);
+  };
+  const cleanupDeletedRoot = (root: string) => {
+    const targetKey = normalizePathKey(root);
+    deletedRootKeys.add(targetKey);
+    for (const roots of [configuredRoots, authorizedRoots]) {
+      for (let i = roots.length - 1; i >= 0; i -= 1) {
+        if (normalizePathKey(roots[i]) === targetKey) roots.splice(i, 1);
+      }
+    }
+    for (let i = workspaceBindings.length - 1; i >= 0; i -= 1) {
+      if (normalizePathKey(workspaceBindings[i].projectRoot) === targetKey) workspaceBindings.splice(i, 1);
+    }
+    for (const k of [...interviews.keys()]) if (normalizePathKey(k) === targetKey) interviews.delete(k);
+    for (const k of [...closures.keys()]) if (normalizePathKey(k) === targetKey) closures.delete(k);
+    if (options.hostRegistryPath && existsSync(options.hostRegistryPath)) {
+      const roots: unknown = JSON.parse(readFileSync(options.hostRegistryPath, 'utf8'));
+      if (!Array.isArray(roots) || roots.some(root => typeof root !== 'string')) throw new Error('Invalid root registry');
+      const retained = roots.filter(root => normalizePathKey(root) !== targetKey);
+      if (retained.length !== roots.length) atomicWritePrivateFile(options.hostRegistryPath, JSON.stringify(retained, null, 2));
+    }
   };
   dispatcher.register(new PlanHandler(dependencies));
   dispatcher.register(new TestHandler(dependencies, {
@@ -600,6 +623,43 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
       return canonicalResult({ status: 'error', code: 'invalid_conversation_id' }, true);
     }
     if (rawArgs) request.params.arguments = rawArgs;
+    // Tombstones are the durable authority for both a completed deletion and
+    // an interrupted root cleanup. Reconcile before any tool can use a root.
+    if (applicationService) {
+      // Serialize the tombstone read and registry cleanup with recovery and the
+      // local authorization helper. Otherwise an old read can revoke a new grant.
+      if (options.workspaceBootstrap) {
+        try { releaseStorage = acquireProjectOperation(options.workspaceBootstrap.directory); }
+        catch { return canonicalResult({ status: 'blocked', code: 'project_storage_busy_or_unavailable' }, true); }
+      }
+      let tombstones: NonNullable<ReturnType<typeof applicationService.listProjects>['tombstones']>;
+      try { tombstones = applicationService.listProjects({ includeDeleted: true }).tombstones ?? []; }
+      catch { return canonicalResult({ status: 'blocked', code: 'project_delete_state_unavailable' }, true); }
+      const liveDeletedRoots = new Set(tombstones.map(t => normalizePathKey(t.canonical_root)));
+      for (const key of deletedRootKeys) if (!liveDeletedRoots.has(key)) deletedRootKeys.delete(key);
+      for (const [id, pending] of pendingDeleteCleanup) {
+        if (!tombstones.some(t => t.project_id === id) && !liveDeletedRoots.has(normalizePathKey(pending.root))) pendingDeleteCleanup.delete(id);
+      }
+      const requestedId = name === 'qap_project' && typeof rawArgs?.project_id === 'string' ? rawArgs.project_id : undefined;
+      const requestedPath = typeof rawArgs?.targetPath === 'string' ? rawArgs.targetPath :
+        typeof rawArgs?.canonical_root === 'string' ? rawArgs.canonical_root : undefined;
+      for (const tombstone of tombstones) {
+        let failed = false;
+        try {
+          cleanupDeletedRoot(tombstone.canonical_root);
+          const pending = pendingDeleteCleanup.get(tombstone.project_id);
+          if (pending) pending.cleaned = true;
+        } catch { failed = true; }
+        const matches = requestedId === tombstone.project_id ||
+          (requestedPath !== undefined && normalizePathKey(requestedPath) === normalizePathKey(tombstone.canonical_root));
+        if (failed && matches) return canonicalResult({ status: 'blocked', code: 'project_delete_registry_cleanup_failed' }, true);
+        if (matches && requestedPath !== undefined && !(name === 'qap_project' && rawArgs?.action === 'delete_confirm')) {
+          return canonicalResult({ status: 'blocked', code: 'project_deleted_tombstone', deleted_project_id: tombstone.project_id }, true);
+        }
+      }
+      // Reset acquires the same gate internally.
+      if (name === 'qap_project_reset' && releaseStorage) { releaseStorage(); releaseStorage = undefined; }
+    }
     const startCredentials = name === 'qap_start' ? rawArgs?.credentials as Record<string, unknown> | undefined : undefined;
     if (name === 'qap_start' && (
       Object.keys(rawArgs ?? {}).some(key => !['targetPath', 'base_url', 'refresh_discovery', 'credentials'].includes(key)) ||
@@ -627,7 +687,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
       if (!reset) return canonicalResult({ status: 'blocked', code: 'reset_host_ownership_unavailable',
         retained: ['Knowledge SQL del manifiesto o adaptador externo', 'borradores, cierres y revisiones del host', 'Credential Vault global'] }, true);
       try {
-        const roots = [...(options.projectRoots ?? [])];
+        const roots = [...configuredRoots];
         syncAuthorizedRootsFromDisk(options.hostRegistryPath, roots);
         if (options.clientWorkspaceRoots && server.getClientCapabilities()?.roots) {
           for (const entry of (await server.listRoots()).roots) {
@@ -694,7 +754,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
     };
     if (options.workspaceBootstrap) {
       interactiveAccess?.refreshPersistedAuthorizations();
-      if (options.hostRegistryPath) authorizedRoots.splice(0, authorizedRoots.length, ...(options.projectRoots ?? []));
+      if (options.hostRegistryPath) authorizedRoots.splice(0, authorizedRoots.length, ...(options.projectRoots === undefined ? [] : configuredRoots));
     }
     if (options.clientWorkspaceRoots) {
       // Roots are an out-of-band client capability, never supplied as tool arguments.
@@ -708,11 +768,14 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
             if (resolve(path).toLowerCase() !== realpathSync(path).toLowerCase()) throw new Error('Linked root');
             return realpathSync(path);
           });
-          authorizedRoots.splice(0, authorizedRoots.length, ...new Set([...(options.projectRoots ?? []), ...roots]));
+          authorizedRoots.splice(0, authorizedRoots.length, ...new Set([...configuredRoots, ...roots]));
         }
       } catch { return canonicalResult({ status: 'blocked', category: 'technical_error', code: 'workspace_roots_unavailable', retryable: true }); }
     }
     if (options.hostRegistryPath) syncAuthorizedRootsFromDisk(options.hostRegistryPath, authorizedRoots);
+    for (let i = authorizedRoots.length - 1; i >= 0; i -= 1) {
+      if (deletedRootKeys.has(normalizePathKey(authorizedRoots[i]))) authorizedRoots.splice(i, 1);
+    }
     if (options.workspaceBootstrap) {
       const host = options.workspaceBootstrap.directory;
       const candidate = typeof rawArgs?.targetPath === 'string' ? rawArgs.targetPath : authorizedRoots.length === 1 ? authorizedRoots[0] : undefined;
@@ -1136,39 +1199,61 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
           ...(diagnostic === 'auth_required' ? { continuation: 'Usa un perfil verificado para documentar áreas internas.' } : {}) },
         conversation_log: conversationLogPath(eventWorkspace, conversationId) });
     }
+    if (name === 'qap_status' && applicationService && !options.workspaceBootstrap) {
+      try { authorizedProjectRoot(rawArgs, dependencies, true); }
+      catch { return canonicalResult({ status: 'blocked', code: 'workspace_authorization_required' }, true); }
+    }
     if (dispatcher.has(name)) {
+      const projectId = typeof rawArgs?.project_id === 'string' ? rawArgs.project_id : undefined;
+      const action = name === 'qap_project' ? rawArgs?.action : undefined;
+      const pending = projectId ? pendingDeleteCleanup.get(projectId) : undefined;
+
+      if (pending && !pending.cleaned && action === 'recover') return canonicalResult({ status: 'blocked', code: 'project_delete_registry_cleanup_failed' }, true);
+      if (pending && action === 'delete_confirm') {
+        if (rawArgs?.decision !== 'confirm_delete' || rawArgs?.confirmation_token !== pending.token) {
+          return canonicalResult({ status: 'blocked', code: 'project_delete_registry_cleanup_failed' }, true);
+        }
+        try {
+          cleanupDeletedRoot(pending.root);
+          pendingDeleteCleanup.delete(projectId!);
+          return canonicalResult(pending.receipt as Record<string, unknown>, false);
+        } catch { return canonicalResult({ status: 'blocked', code: 'project_delete_registry_cleanup_failed' }, true); }
+      }
+      // The service removes its tombstone during recovery, so capture its canonical root first.
+      const recoveredRoot = action === 'recover' && projectId && applicationService
+        ? applicationService.getDeletedProjectRoot(projectId) : null;
+      if (action === 'recover' && recoveredRoot) {
+        try { cleanupDeletedRoot(recoveredRoot); }
+        catch { return canonicalResult({ status: 'blocked', code: 'project_delete_registry_cleanup_failed' }, true); }
+      }
       const dispatchResult = await dispatcher.dispatch(request.params, { requestId: context.requestId, signal: context.signal ?? new AbortController().signal });
-      if (name === 'qap_project' && rawArgs?.action === 'delete_confirm' && !dispatchResult.isError && applicationService) {
+      if (action === 'delete_confirm' && !dispatchResult.isError && applicationService && projectId) {
         try {
           const parsed = JSON.parse((dispatchResult.content[0] as { text?: string })?.text ?? '{}') as { status?: string; project_id?: string };
-          if (parsed.status === 'deleted' && parsed.project_id) {
-            const deletedRow = applicationService.store.get<{ canonical_root: string }>(
-              'SELECT canonical_root FROM deletion_tombstones WHERE project_id = ?',
-              parsed.project_id,
-            );
-            if (deletedRow?.canonical_root) {
-              const targetKey = normalizePathKey(deletedRow.canonical_root);
-              for (let i = authorizedRoots.length - 1; i >= 0; i -= 1) {
-                if (normalizePathKey(authorizedRoots[i]) === targetKey) authorizedRoots.splice(i, 1);
-              }
-              for (let i = workspaceBindings.length - 1; i >= 0; i -= 1) {
-                if (normalizePathKey(workspaceBindings[i].projectRoot) === targetKey) workspaceBindings.splice(i, 1);
-              }
-              for (const k of [...interviews.keys()]) {
-                if (normalizePathKey(k) === targetKey) interviews.delete(k);
-              }
-              for (const k of [...closures.keys()]) {
-                if (normalizePathKey(k) === targetKey) closures.delete(k);
-              }
+          if (parsed.status === 'deleted' && parsed.project_id === projectId) {
+            const root = applicationService.getDeletedProjectRoot(projectId);
+            if (root) {
+              pendingDeleteCleanup.set(projectId, { root, token: String(rawArgs?.confirmation_token), receipt: parsed, cleaned: false });
+              cleanupDeletedRoot(root);
+              pendingDeleteCleanup.delete(projectId);
             }
           }
-        } catch { /* Non-fatal cleanup */ }
+        } catch { return canonicalResult({ status: 'blocked', code: 'project_delete_registry_cleanup_failed' }, true); }
+      }
+      if (action === 'recover' && !dispatchResult.isError && recoveredRoot) {
+        try {
+          const parsed = JSON.parse((dispatchResult.content[0] as { text?: string })?.text ?? '{}') as { status?: string };
+          if (parsed.status === 'recovered') {
+            deletedRootKeys.delete(normalizePathKey(recoveredRoot));
+            if (projectId) pendingDeleteCleanup.delete(projectId);
+          }
+        } catch { /* Unrecognized results never change root authorization. */ }
       }
       return dispatchResult;
     }
     // Provisioned hosts keep their existing composition, but legacy writers must
     // obey the same root boundary as migrated handlers. No tool argument grants it.
-    if (!options.workspaceBootstrap && options.projectRoots !== undefined) {
+    if (!options.workspaceBootstrap && (options.projectRoots !== undefined || options.clientWorkspaceRoots)) {
       try { eventWorkspace = authorizedProjectRoot(request.params.arguments, dependencies, true); }
       catch { return canonicalResult({ status: 'blocked', category: 'human_authorization', code: 'workspace_authorization_required',
         desbloquear_con: { mecanismo: 'local_host', descripcion: 'Selecciona una raíz autorizada por este host. No se amplían los permisos del manifiesto desde argumentos MCP.' } }); }

@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { isAbsolute, join } from 'node:path';
 
 import {
   EphemeralCredentialProvider,
@@ -65,6 +65,21 @@ import {
   type DiscoveryRevisionRecord,
 } from './discovery-dossier.js';
 import { LegacyQaImporter } from './legacy-qa-importer.js';
+import {
+  LINEAGED_CASE_SCHEMA,
+  buildValidatedTcCase,
+  normalizeLineagedCandidateInput,
+  resolveLineagedListArguments,
+  resolveLineagedReadArguments,
+  resolveLineagedReferences,
+  type LineagedCaseCandidateInput,
+  type LineagedCaseReadScopeInput,
+  type LineagedCaseRecord,
+  type LineagedCaseScope,
+  type LineagedCaseSelector,
+  type LineagedCaseWriteResult,
+  type LineagedReferenceReader,
+} from './lineaged-case.js';
 import { ManagedArtifactStore, type ManagedArtifactCategory, type StoredArtifactReceipt } from './managed-artifacts.js';
 import { PermissionAuthority } from './permission-authority.js';
 import {
@@ -96,6 +111,82 @@ export class ApplicationServiceError extends Error {
     super(message);
     this.name = 'ApplicationServiceError';
   }
+}
+
+export interface RootAuthorizationGrant {
+  readonly grant_id: string;
+  readonly generation: string;
+  readonly status: 'active' | 'revoked';
+  readonly granted_at: string;
+  readonly mechanism: 'local_operator_helper';
+  /** Present only after the helper has written the root registry. */
+  readonly registry_published?: true;
+}
+
+/** Durable reconciliation epoch and optional, independently recorded grant history. */
+export interface RootDeletionGeneration {
+  readonly version: 1;
+  readonly root_hash: string;
+  readonly canonical_root: string;
+  readonly project_id: string;
+  readonly deleted_at: string;
+  readonly generation: string;
+  readonly cleanup_status: 'pending' | 'completed';
+  readonly authorization_grants?: readonly RootAuthorizationGrant[];
+}
+
+export type RootDeletionState = RootDeletionGeneration | {
+  readonly version: 0;
+  readonly root_hash: string;
+  readonly canonical_root: string;
+  readonly project_id: string;
+  readonly deleted_at: string;
+  readonly cleanup_status: 'unknown';
+};
+
+export type RootAuthorizationLookup =
+  | { readonly kind: 'never_deleted' }
+  | { readonly kind: 'historical_tombstone' }
+  | { readonly kind: 'generation'; readonly generation: string; readonly cleanup_status: 'pending' | 'completed'; readonly grant: RootAuthorizationGrant | null };
+
+const deletionStateKey = (rootHash: string): string => `root_deletion_generation:v1:${rootHash}`;
+const isUuidV4 = (value: unknown): value is string =>
+  typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+
+function parseRootDeletionGeneration(value: string, rootHash: string): RootDeletionGeneration {
+  let record: unknown;
+  try { record = JSON.parse(value); } catch { throw new ApplicationServiceError('invalid_deletion_generation', 'Estado de generación de borrado inválido.'); }
+  if (!record || typeof record !== 'object' || Array.isArray(record)) {
+    throw new ApplicationServiceError('invalid_deletion_generation', 'Estado de generación de borrado inválido.');
+  }
+  const r = record as Record<string, unknown>;
+  if (r.version !== 1 || r.root_hash !== rootHash || typeof r.canonical_root !== 'string' || !isAbsolute(r.canonical_root) ||
+      hashCanonicalRoot(r.canonical_root) !== rootHash || typeof r.project_id !== 'string' || !r.project_id ||
+      typeof r.deleted_at !== 'string' || !Number.isFinite(Date.parse(r.deleted_at)) ||
+      !isUuidV4(r.generation) ||
+      (r.cleanup_status !== 'pending' && r.cleanup_status !== 'completed')) {
+    throw new ApplicationServiceError('invalid_deletion_generation', 'Estado de generación de borrado inválido.');
+  }
+  if (r.authorization_grants !== undefined) {
+    if (!Array.isArray(r.authorization_grants)) throw new ApplicationServiceError('invalid_deletion_generation', 'Concesiones de raíz inválidas.');
+    const ids = new Set<string>();
+    for (const entry of r.authorization_grants as unknown[]) {
+      if (!entry || typeof entry !== 'object' || Array.isArray(entry)) throw new ApplicationServiceError('invalid_deletion_generation', 'Concesión de raíz inválida.');
+      const grant = entry as Record<string, unknown>;
+      const grantKeys = Object.keys(grant).sort().join(',');
+      if ((grantKeys !== 'generation,grant_id,granted_at,mechanism,status' &&
+           grantKeys !== 'generation,grant_id,granted_at,mechanism,registry_published,status') ||
+          (grant.registry_published !== undefined && grant.registry_published !== true) ||
+          !isUuidV4(grant.grant_id) || grant.grant_id !== grant.grant_id.toLowerCase() || ids.has(grant.grant_id) || !isUuidV4(grant.generation) ||
+          grant.mechanism !== 'local_operator_helper' || (grant.status !== 'active' && grant.status !== 'revoked') ||
+          typeof grant.granted_at !== 'string' || !Number.isFinite(Date.parse(grant.granted_at)) ||
+          (grant.status === 'active' && (grant.generation !== r.generation || r.cleanup_status !== 'completed'))) {
+        throw new ApplicationServiceError('invalid_deletion_generation', 'Concesión de raíz inválida.');
+      }
+      ids.add(grant.grant_id);
+    }
+  }
+  return r as unknown as RootDeletionGeneration;
 }
 
 export interface RuleConfirmationDecisionRecord {
@@ -378,13 +469,13 @@ function parseTaskRow(row: Record<string, unknown>): TaskRecord {
  * modules, campaigns, tasks, capability permissions, and safe isolated lifecycle.
  */
 export class QapApplicationService {
-  readonly store: AppServiceSqliteStore;
+  readonly #store: AppServiceSqliteStore;
   readonly authority: PermissionAuthority;
   readonly artifacts: ManagedArtifactStore;
   readonly importer: LegacyQaImporter;
   readonly block3: Block3ExecutionRepo;
   readonly credentialProvider: ICredentialProvider;
-  private readonly knowledgeStores = new Map<string, SqliteKnowledgeAdapter>();
+  readonly #knowledgeStores = new Map<string, SqliteKnowledgeAdapter>();
   private readonly activeWork = new Map<string, Set<ActiveTaskHandle>>();
   private readonly deleteTokenTtlMs: number;
   private readonly onProjectDeleted?: (projectId: string, canonicalRoot: string) => void;
@@ -392,17 +483,17 @@ export class QapApplicationService {
   constructor(options: QapApplicationServiceOptions) {
     const safeHost = assertSafeHostPath(options.hostRootDir);
     this.artifacts = new ManagedArtifactStore(safeHost);
-    this.store = new AppServiceSqliteStore(join(this.artifacts.rootDir, 'app-service.sqlite'));
-    this.authority = new PermissionAuthority(this.store);
-    this.importer = new LegacyQaImporter(this.store);
-    this.block3 = new Block3ExecutionRepo(this.store);
+    this.#store = new AppServiceSqliteStore(join(this.artifacts.rootDir, 'app-service.sqlite'));
+    this.authority = new PermissionAuthority(this.#store);
+    this.importer = new LegacyQaImporter(this.#store);
+    this.block3 = new Block3ExecutionRepo(this.#store);
     this.credentialProvider = options.credentialProvider ?? new EphemeralCredentialProvider();
     this.deleteTokenTtlMs = options.deleteTokenTtlMs ?? 10 * 60_000;
     this.onProjectDeleted = options.onProjectDeleted;
   }
 
   private assertActiveProject(projectId: string): ProjectRecord {
-    const row = this.store.get<Record<string, unknown>>('SELECT * FROM projects WHERE project_id = ?', projectId);
+    const row = this.#store.get<Record<string, unknown>>('SELECT * FROM projects WHERE project_id = ?', projectId);
     if (!row) {
       throw new ApplicationServiceError('project_not_found', `Proyecto no encontrado: ${projectId}`);
     }
@@ -423,7 +514,7 @@ export class QapApplicationService {
     recovery_bundle_path: string;
   } | null {
     const rootHash = hashCanonicalRoot(assertSafeHostPath(canonicalRoot));
-    const row = this.store.get<{ project_id: string; deleted_at: string; recovery_bundle_path: string }>(
+    const row = this.#store.get<{ project_id: string; deleted_at: string; recovery_bundle_path: string }>(
       `SELECT project_id, deleted_at, recovery_bundle_path
        FROM deletion_tombstones
        WHERE root_hash = ?
@@ -433,19 +524,115 @@ export class QapApplicationService {
     return row ?? null;
   }
 
+  /** Root retained by a completed deletion, for removing host workspace bindings. */
+  getDeletedProjectRoot(projectId: string): string | null {
+    return this.#store.get<{ canonical_root: string }>(
+      'SELECT canonical_root FROM deletion_tombstones WHERE project_id = ?', projectId,
+    )?.canonical_root ?? null;
+  }
+
   isTombstonedRoot(canonicalRoot: string): boolean {
     return this.getTombstoneByRoot(canonicalRoot) !== null;
+  }
+
+  /** Legacy tombstones have unknown cleanup state and are never silently upgraded. */
+  getRootDeletionState(canonicalRoot: string): RootDeletionState | null {
+    const rootHash = hashCanonicalRoot(assertSafeHostPath(canonicalRoot));
+    const row = this.#store.get<{ value: string }>('SELECT value FROM host_session_state WHERE key = ?', deletionStateKey(rootHash));
+    const state = row ? parseRootDeletionGeneration(row.value, rootHash) : null;
+    const tombstone = this.#store.get<{ project_id: string; canonical_root: string; deleted_at: string }>(
+      'SELECT project_id, canonical_root, deleted_at FROM deletion_tombstones WHERE root_hash = ? ORDER BY deleted_at DESC LIMIT 1', rootHash,
+    );
+    if (tombstone && (!state || state.project_id !== tombstone.project_id || state.deleted_at !== tombstone.deleted_at || state.canonical_root !== tombstone.canonical_root)) {
+      return { version: 0, root_hash: rootHash, ...tombstone, cleanup_status: 'unknown' };
+    }
+    return state;
+  }
+
+  /** A stale cleanup cannot complete a different deletion epoch. */
+  completeRootDeletionCleanup(canonicalRoot: string, generation: string): boolean {
+    return this.#store.transaction('IMMEDIATE', () => {
+      const state = this.getRootDeletionState(canonicalRoot);
+      if (!state || state.version !== 1 || state.generation !== generation) return false;
+      if (state.cleanup_status === 'completed') return true;
+      this.#store.run('UPDATE host_session_state SET value = ?, updated_at = ? WHERE key = ?',
+        JSON.stringify({ ...state, cleanup_status: 'completed' }), new Date().toISOString(), deletionStateKey(state.root_hash));
+      return true;
+    });
+  }
+
+  /** Reads a single grant; missing/legacy deletion state never implies authorization. */
+  getRootAuthorizationGrant(canonicalRoot: string, grantId: string): RootAuthorizationLookup {
+    return this.#store.transaction('DEFERRED', () => {
+      const state = this.getRootDeletionState(canonicalRoot);
+      if (!state) return { kind: 'never_deleted' };
+      if (state.version === 0) return { kind: 'historical_tombstone' };
+      const grant = state.authorization_grants?.find(item => item.grant_id === grantId && item.generation === state.generation) ?? null;
+      return { kind: 'generation', generation: state.generation, cleanup_status: state.cleanup_status, grant };
+    });
+  }
+
+  /** Trusted host integration only: this records a decision, it does not solicit or verify one. */
+  recordRootAuthorizationGrant(input: {
+    canonicalRoot: string;
+    generation: string;
+    grantId: string;
+    mechanism: 'local_operator_helper';
+    registryPublished?: true;
+  }): RootAuthorizationGrant {
+    if (!isUuidV4(input.grantId) || input.grantId !== input.grantId.toLowerCase() || input.mechanism !== 'local_operator_helper' ||
+        (input.registryPublished !== undefined && input.registryPublished !== true)) {
+      throw new ApplicationServiceError('invalid_root_authorization_grant', 'Identidad o mecanismo de concesión inválido.');
+    }
+    return this.#store.transaction('IMMEDIATE', () => {
+      const state = this.getRootDeletionState(input.canonicalRoot);
+      if (!state || state.version !== 1 || state.generation !== input.generation || state.cleanup_status !== 'completed') {
+        throw new ApplicationServiceError('root_authorization_generation_unavailable', 'La generación no está disponible o su limpieza no ha terminado.');
+      }
+      const grants = state.authorization_grants ?? [];
+      const existing = grants.find(grant => grant.grant_id === input.grantId);
+      if (existing) {
+        if (existing.generation !== input.generation || existing.mechanism !== input.mechanism || existing.registry_published !== input.registryPublished) {
+          throw new ApplicationServiceError('root_authorization_grant_conflict', 'La identidad de concesión pertenece a otra operación.');
+        }
+        return existing;
+      }
+      const grant: RootAuthorizationGrant = {
+        grant_id: input.grantId, generation: state.generation, status: 'active',
+        granted_at: new Date().toISOString(), mechanism: input.mechanism,
+        ...(input.registryPublished ? { registry_published: true as const } : {}),
+      };
+      this.#store.run('UPDATE host_session_state SET value = ?, updated_at = ? WHERE key = ?',
+        JSON.stringify({ ...state, authorization_grants: [...grants, grant] }), new Date().toISOString(), deletionStateKey(state.root_hash));
+      return grant;
+    });
+  }
+
+  /** Revocation is scoped to one exact generation and is idempotent. */
+  revokeRootAuthorizationGrant(canonicalRoot: string, generation: string, grantId: string): boolean {
+    return this.#store.transaction('IMMEDIATE', () => {
+      const state = this.getRootDeletionState(canonicalRoot);
+      if (!state || state.version !== 1 || state.generation !== generation) return false;
+      const grants = state.authorization_grants ?? [];
+      const grant = grants.find(item => item.grant_id === grantId && item.generation === generation);
+      if (!grant) return false;
+      if (grant.status === 'revoked') return true;
+      this.#store.run('UPDATE host_session_state SET value = ?, updated_at = ? WHERE key = ?',
+        JSON.stringify({ ...state, authorization_grants: grants.map(item => item.grant_id === grantId ? { ...item, status: 'revoked' } : item) }),
+        new Date().toISOString(), deletionStateKey(state.root_hash));
+      return true;
+    });
   }
 
   /** Clears a root tombstone after an explicit host-confirmed qap_project_reset so qap_init can reinitialize. */
   clearResetTombstone(canonicalRoot: string): void {
     const rootHash = hashCanonicalRoot(assertSafeHostPath(canonicalRoot));
-    this.store.run('DELETE FROM deletion_tombstones WHERE root_hash = ?', rootHash);
+    this.#store.run('DELETE FROM deletion_tombstones WHERE root_hash = ?', rootHash);
   }
 
   findActiveProjectByRoot(canonicalRoot: string): ProjectRecord | null {
     const rootHash = hashCanonicalRoot(assertSafeHostPath(canonicalRoot));
-    const row = this.store.get<Record<string, unknown>>(
+    const row = this.#store.get<Record<string, unknown>>(
       `SELECT * FROM projects WHERE root_hash = ? AND status IN ('active', 'suspended') LIMIT 1`,
       rootHash,
     );
@@ -496,12 +683,12 @@ export class QapApplicationService {
 
     this.artifacts.ensureProjectWorkspace(projectId);
 
-    this.store.transaction('IMMEDIATE', () => {
+    this.#store.transaction('IMMEDIATE', () => {
       if (tombstone && input.allowRecreateDeleted) {
-        this.store.run('DELETE FROM deletion_tombstones WHERE root_hash = ?', rootHash);
+        this.#store.run('DELETE FROM deletion_tombstones WHERE root_hash = ?', rootHash);
       }
 
-      this.store.run(
+      this.#store.run(
         `INSERT INTO projects
           (project_id, name, slug, canonical_root, root_hash, application_id, status, objective, active_env_id, active_campaign_id, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?)`,
@@ -518,7 +705,7 @@ export class QapApplicationService {
         now,
       );
 
-      this.store.run(
+      this.#store.run(
         `INSERT INTO environments
           (env_id, project_id, name, base_url, is_production, destructive_actions_allowed, safe_domains_json, tenant_mode, default_tenant, created_at, updated_at)
          VALUES (?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?)`,
@@ -533,7 +720,7 @@ export class QapApplicationService {
         now,
       );
 
-      this.store.run(
+      this.#store.run(
         `INSERT INTO campaigns
           (campaign_id, project_id, env_id, mode, phase, status, objective, target_module_ids_json, created_at, updated_at)
          VALUES (?, ?, ?, ?, 'ONBOARDING', 'active', ?, '[]', ?, ?)`,
@@ -546,7 +733,7 @@ export class QapApplicationService {
         now,
       );
 
-      this.store.run(
+      this.#store.run(
         `INSERT INTO host_session_state (key, value, updated_at)
          VALUES ('active_project_id', ?, ?)
          ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
@@ -563,13 +750,13 @@ export class QapApplicationService {
     projects: ProjectRecord[];
     tombstones?: Array<{ project_id: string; canonical_root: string; deleted_at: string; recovery_bundle_path: string }>;
   } {
-    const activeRow = this.store.get<{ value: string }>(
+    const activeRow = this.#store.get<{ value: string }>(
       "SELECT value FROM host_session_state WHERE key = 'active_project_id'",
     );
     const sql = options.includeDeleted
       ? 'SELECT * FROM projects ORDER BY updated_at DESC'
       : "SELECT * FROM projects WHERE status != 'deleted' ORDER BY updated_at DESC";
-    const projects = this.store.all<Record<string, unknown>>(sql).map(parseProjectRow);
+    const projects = this.#store.all<Record<string, unknown>>(sql).map(parseProjectRow);
     const activeId = activeRow?.value && projects.some((p) => p.project_id === activeRow.value && p.status === 'active')
       ? activeRow.value
       : null;
@@ -577,7 +764,7 @@ export class QapApplicationService {
     if (!options.includeDeleted) {
       return { active_project_id: activeId, projects };
     }
-    const tombstones = this.store.all<{
+    const tombstones = this.#store.all<{
       project_id: string;
       canonical_root: string;
       deleted_at: string;
@@ -587,18 +774,18 @@ export class QapApplicationService {
   }
 
   getActiveProjectId(): string | null {
-    const row = this.store.get<{ value: string }>(
+    const row = this.#store.get<{ value: string }>(
       "SELECT value FROM host_session_state WHERE key = 'active_project_id'",
     );
     if (!row?.value) return null;
-    const project = this.store.get<{ status: string }>('SELECT status FROM projects WHERE project_id = ?', row.value);
+    const project = this.#store.get<{ status: string }>('SELECT status FROM projects WHERE project_id = ?', row.value);
     return project?.status === 'active' ? row.value : null;
   }
 
   selectProject(projectId: string): ProjectStateSnapshot {
     this.assertActiveProject(projectId);
     const now = new Date().toISOString();
-    this.store.run(
+    this.#store.run(
       `INSERT INTO host_session_state (key, value, updated_at)
        VALUES ('active_project_id', ?, ?)
        ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
@@ -611,37 +798,37 @@ export class QapApplicationService {
   updateProjectObjective(projectId: string, objective: string): ProjectRecord {
     this.assertActiveProject(projectId);
     const now = new Date().toISOString();
-    this.store.run(
+    this.#store.run(
       'UPDATE projects SET objective = ?, updated_at = ? WHERE project_id = ?',
       objective,
       now,
       projectId,
     );
-    return parseProjectRow(this.store.get<Record<string, unknown>>('SELECT * FROM projects WHERE project_id = ?', projectId)!);
+    return parseProjectRow(this.#store.get<Record<string, unknown>>('SELECT * FROM projects WHERE project_id = ?', projectId)!);
   }
 
   resumeProject(projectId: string): ProjectStateSnapshot {
     const project = this.assertActiveProject(projectId);
     const env = project.active_env_id
-      ? this.store.get<Record<string, unknown>>('SELECT * FROM environments WHERE env_id = ? AND project_id = ?', project.active_env_id, projectId)
-      : this.store.get<Record<string, unknown>>('SELECT * FROM environments WHERE project_id = ? ORDER BY created_at ASC LIMIT 1', projectId);
+      ? this.#store.get<Record<string, unknown>>('SELECT * FROM environments WHERE env_id = ? AND project_id = ?', project.active_env_id, projectId)
+      : this.#store.get<Record<string, unknown>>('SELECT * FROM environments WHERE project_id = ? ORDER BY created_at ASC LIMIT 1', projectId);
     const environment = env ? parseEnvironmentRow(env) : null;
 
     const campRow = project.active_campaign_id
-      ? this.store.get<Record<string, unknown>>('SELECT * FROM campaigns WHERE campaign_id = ? AND project_id = ?', project.active_campaign_id, projectId)
-      : this.store.get<Record<string, unknown>>(
+      ? this.#store.get<Record<string, unknown>>('SELECT * FROM campaigns WHERE campaign_id = ? AND project_id = ?', project.active_campaign_id, projectId)
+      : this.#store.get<Record<string, unknown>>(
           "SELECT * FROM campaigns WHERE project_id = ? AND status IN ('active', 'paused') ORDER BY updated_at DESC LIMIT 1",
           projectId,
         );
     const campaign = campRow ? parseCampaignRow(campRow) : null;
 
-    const modules = this.store
+    const modules = this.#store
       .all<Record<string, unknown>>('SELECT * FROM modules WHERE project_id = ? ORDER BY created_at ASC, rowid ASC', projectId)
       .map(parseModuleRow);
-    const profiles = this.store
+    const profiles = this.#store
       .all<Record<string, unknown>>('SELECT * FROM profiles WHERE project_id = ? ORDER BY created_at ASC, rowid ASC', projectId)
       .map(parseProfileRow);
-    const tasks = this.store
+    const tasks = this.#store
       .all<Record<string, unknown>>('SELECT * FROM tasks WHERE project_id = ? ORDER BY updated_at DESC, rowid DESC', projectId)
       .map(parseTaskRow);
 
@@ -717,26 +904,26 @@ export class QapApplicationService {
   }
 
   openKnowledgeStore(projectId: string): SqliteKnowledgeAdapter {
-    const existing = this.knowledgeStores.get(projectId);
+    const existing = this.#knowledgeStores.get(projectId);
     if (existing) return existing;
     this.assertActiveProject(projectId);
     const layout = this.artifacts.ensureProjectWorkspace(projectId);
     const store = new SqliteKnowledgeAdapter(layout.knowledgeDbPath);
-    this.knowledgeStores.set(projectId, store);
+    this.#knowledgeStores.set(projectId, store);
     return store;
   }
 
   closeKnowledgeStore(projectId: string): void {
-    const existing = this.knowledgeStores.get(projectId);
+    const existing = this.#knowledgeStores.get(projectId);
     if (existing) {
       existing.close();
-      this.knowledgeStores.delete(projectId);
+      this.#knowledgeStores.delete(projectId);
     }
   }
 
   upsertEnvironment(input: UpsertEnvironmentInput): EnvironmentRecord {
     this.assertActiveProject(input.projectId);
-    const existing = this.store.get<Record<string, unknown>>(
+    const existing = this.#store.get<Record<string, unknown>>(
       'SELECT * FROM environments WHERE project_id = ? AND name = ?',
       input.projectId,
       input.name,
@@ -753,9 +940,9 @@ export class QapApplicationService {
     }
 
     const envId = existing ? String(existing.env_id) : `env-${randomUUID().slice(0, 8)}`;
-    this.store.transaction('IMMEDIATE', () => {
+    this.#store.transaction('IMMEDIATE', () => {
       if (existing) {
-        this.store.run(
+        this.#store.run(
           `UPDATE environments
            SET base_url = ?, is_production = ?, destructive_actions_allowed = ?, safe_domains_json = ?, tenant_mode = ?, default_tenant = ?, updated_at = ?
            WHERE env_id = ?`,
@@ -769,7 +956,7 @@ export class QapApplicationService {
           envId,
         );
       } else {
-        this.store.run(
+        this.#store.run(
           `INSERT INTO environments
             (env_id, project_id, name, base_url, is_production, destructive_actions_allowed, safe_domains_json, tenant_mode, default_tenant, created_at, updated_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -786,7 +973,7 @@ export class QapApplicationService {
           now,
         );
       }
-      this.store.run(
+      this.#store.run(
         'UPDATE projects SET active_env_id = COALESCE(active_env_id, ?), updated_at = ? WHERE project_id = ?',
         envId,
         now,
@@ -794,12 +981,12 @@ export class QapApplicationService {
       );
     });
 
-    return parseEnvironmentRow(this.store.get<Record<string, unknown>>('SELECT * FROM environments WHERE env_id = ?', envId)!);
+    return parseEnvironmentRow(this.#store.get<Record<string, unknown>>('SELECT * FROM environments WHERE env_id = ?', envId)!);
   }
 
   upsertProfile(input: UpsertProfileInput): AuthProfileRecord {
     this.assertActiveProject(input.projectId);
-    const existing = this.store.get<Record<string, unknown>>(
+    const existing = this.#store.get<Record<string, unknown>>(
       'SELECT * FROM profiles WHERE project_id = ? AND env_id = ? AND label = ?',
       input.projectId,
       input.envId,
@@ -811,7 +998,7 @@ export class QapApplicationService {
     const credentialRefKey = input.credentialAccount ?? rowOptStr(existing?.credential_ref_key) ?? input.label;
 
     if (existing) {
-      this.store.run(
+      this.#store.run(
         `UPDATE profiles
          SET role_name = COALESCE(?, role_name), tenant_id = COALESCE(?, tenant_id),
              login_mode = ?, credential_ref_key = ?, status = ?, updated_at = ?
@@ -825,7 +1012,7 @@ export class QapApplicationService {
         profileId,
       );
     } else {
-      this.store.run(
+      this.#store.run(
         `INSERT INTO profiles
           (profile_id, project_id, env_id, label, role_name, tenant_id, login_mode, credential_ref_key, status, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -842,7 +1029,7 @@ export class QapApplicationService {
         now,
       );
     }
-    return parseProfileRow(this.store.get<Record<string, unknown>>('SELECT * FROM profiles WHERE profile_id = ?', profileId)!);
+    return parseProfileRow(this.#store.get<Record<string, unknown>>('SELECT * FROM profiles WHERE profile_id = ?', profileId)!);
   }
 
   async storeProfileSecret(
@@ -851,7 +1038,7 @@ export class QapApplicationService {
     credentials: { username?: string; password?: string; token?: string },
   ): Promise<void> {
     const project = this.assertActiveProject(projectId);
-    const row = this.store.get<Record<string, unknown>>(
+    const row = this.#store.get<Record<string, unknown>>(
       'SELECT * FROM profiles WHERE profile_id = ? AND project_id = ?',
       profileId,
       projectId,
@@ -869,7 +1056,7 @@ export class QapApplicationService {
     profileId: string,
   ): Promise<{ username?: string; password?: string; token?: string } | null> {
     const project = this.assertActiveProject(projectId);
-    const row = this.store.get<Record<string, unknown>>(
+    const row = this.#store.get<Record<string, unknown>>(
       'SELECT * FROM profiles WHERE profile_id = ? AND project_id = ?',
       profileId,
       projectId,
@@ -883,7 +1070,7 @@ export class QapApplicationService {
   upsertModule(input: UpsertModuleInput): ModuleRecord {
     this.assertActiveProject(input.projectId);
     const key = normalizeSlug(input.key) || input.key.trim().toLowerCase();
-    const existing = this.store.get<Record<string, unknown>>(
+    const existing = this.#store.get<Record<string, unknown>>(
       'SELECT * FROM modules WHERE project_id = ? AND key = ?',
       input.projectId,
       key,
@@ -892,7 +1079,7 @@ export class QapApplicationService {
     const moduleId = existing ? String(existing.module_id) : `mod-${randomUUID().slice(0, 8)}`;
 
     if (existing) {
-      this.store.run(
+      this.#store.run(
         `UPDATE modules
          SET title = COALESCE(?, title), route_hint = COALESCE(?, route_hint),
              priority = COALESCE(?, priority), criticality = COALESCE(?, criticality),
@@ -916,7 +1103,7 @@ export class QapApplicationService {
         moduleId,
       );
     } else {
-      this.store.run(
+      this.#store.run(
         `INSERT INTO modules
           (module_id, project_id, key, title, route_hint, priority, criticality, status, knowledge_module_id, knowledge_revision, waiver_reason, closed_at, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -936,7 +1123,7 @@ export class QapApplicationService {
         now,
       );
     }
-    return parseModuleRow(this.store.get<Record<string, unknown>>('SELECT * FROM modules WHERE module_id = ?', moduleId)!);
+    return parseModuleRow(this.#store.get<Record<string, unknown>>('SELECT * FROM modules WHERE module_id = ?', moduleId)!);
   }
 
   startCampaign(input: StartCampaignInput): CampaignRecord {
@@ -947,13 +1134,13 @@ export class QapApplicationService {
     }
     const campaignId = `camp-${randomUUID().slice(0, 8)}`;
     const now = new Date().toISOString();
-    this.store.transaction('IMMEDIATE', () => {
-      this.store.run(
+    this.#store.transaction('IMMEDIATE', () => {
+      this.#store.run(
         `UPDATE campaigns SET status = 'paused', updated_at = ? WHERE project_id = ? AND status = 'active'`,
         now,
         input.projectId,
       );
-      this.store.run(
+      this.#store.run(
         `INSERT INTO campaigns
           (campaign_id, project_id, env_id, mode, phase, status, objective, target_module_ids_json, reused_from_campaign_id, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?)`,
@@ -968,24 +1155,24 @@ export class QapApplicationService {
         now,
         now,
       );
-      this.store.run(
+      this.#store.run(
         'UPDATE projects SET active_campaign_id = ?, updated_at = ? WHERE project_id = ?',
         campaignId,
         now,
         input.projectId,
       );
     });
-    return parseCampaignRow(this.store.get<Record<string, unknown>>('SELECT * FROM campaigns WHERE campaign_id = ?', campaignId)!);
+    return parseCampaignRow(this.#store.get<Record<string, unknown>>('SELECT * FROM campaigns WHERE campaign_id = ?', campaignId)!);
   }
 
   updateCampaignPhase(campaignId: string, phase: CampaignPhase, status?: CampaignStatus): CampaignRecord {
-    const row = this.store.get<Record<string, unknown>>('SELECT * FROM campaigns WHERE campaign_id = ?', campaignId);
+    const row = this.#store.get<Record<string, unknown>>('SELECT * FROM campaigns WHERE campaign_id = ?', campaignId);
     if (!row) {
       throw new ApplicationServiceError('campaign_not_found', `Campaña no encontrada: ${campaignId}`);
     }
     const now = new Date().toISOString();
     const nextStatus = status ?? (row.status as CampaignStatus);
-    this.store.run(
+    this.#store.run(
       `UPDATE campaigns
        SET phase = ?, status = ?, closed_at = CASE WHEN ? IN ('completed', 'aborted') THEN COALESCE(closed_at, ?) ELSE closed_at END, updated_at = ?
        WHERE campaign_id = ?`,
@@ -996,19 +1183,19 @@ export class QapApplicationService {
       now,
       campaignId,
     );
-    return parseCampaignRow(this.store.get<Record<string, unknown>>('SELECT * FROM campaigns WHERE campaign_id = ?', campaignId)!);
+    return parseCampaignRow(this.#store.get<Record<string, unknown>>('SELECT * FROM campaigns WHERE campaign_id = ?', campaignId)!);
   }
 
   upsertTask(input: UpsertTaskInput): TaskRecord {
     this.assertActiveProject(input.projectId);
     const now = new Date().toISOString();
     const existing = input.taskId
-      ? this.store.get<Record<string, unknown>>('SELECT * FROM tasks WHERE task_id = ? AND project_id = ?', input.taskId, input.projectId)
+      ? this.#store.get<Record<string, unknown>>('SELECT * FROM tasks WHERE task_id = ? AND project_id = ?', input.taskId, input.projectId)
       : undefined;
     const taskId = existing ? String(existing.task_id) : (input.taskId ?? `task-${randomUUID().slice(0, 8)}`);
 
     if (existing) {
-      this.store.run(
+      this.#store.run(
         `UPDATE tasks
          SET title = ?, status = ?, progress_current = ?, progress_total = ?, progress_unit = ?,
              pending_decision_json = ?, recovery_cursor_json = ?, error_code = ?, updated_at = ?
@@ -1025,7 +1212,7 @@ export class QapApplicationService {
         taskId,
       );
     } else {
-      this.store.run(
+      this.#store.run(
         `INSERT INTO tasks
           (task_id, project_id, campaign_id, module_id, kind, title, status, progress_current, progress_total, progress_unit, pending_decision_json, recovery_cursor_json, error_code, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -1046,7 +1233,7 @@ export class QapApplicationService {
         now,
       );
     }
-    return parseTaskRow(this.store.get<Record<string, unknown>>('SELECT * FROM tasks WHERE task_id = ?', taskId)!);
+    return parseTaskRow(this.#store.get<Record<string, unknown>>('SELECT * FROM tasks WHERE task_id = ?', taskId)!);
   }
 
   saveManagedArtifact(
@@ -1057,7 +1244,7 @@ export class QapApplicationService {
   ): StoredArtifactReceipt {
     this.assertActiveProject(projectId);
     const receipt = this.artifacts.writeProjectArtifact(projectId, category, relativeName, content);
-    this.store.run(
+    this.#store.run(
       `INSERT INTO owned_artifacts (artifact_id, project_id, category, relative_path, sha256, bytes, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(project_id, relative_path) DO UPDATE SET
@@ -1111,10 +1298,10 @@ export class QapApplicationService {
   previewDelete(projectId: string): DeleteScopePreview {
     const project = this.assertActiveProject(projectId);
     const countOf = (table: string): number =>
-      Number((this.store.get<{ c: number }>(`SELECT COUNT(*) AS c FROM ${table} WHERE project_id = ?`, projectId))?.c ?? 0);
+      Number((this.#store.get<{ c: number }>(`SELECT COUNT(*) AS c FROM ${table} WHERE project_id = ?`, projectId))?.c ?? 0);
 
     const hostPaths = this.artifacts.listOwnedProjectPaths(projectId);
-    const profiles = this.store
+    const profiles = this.#store
       .all<Record<string, unknown>>('SELECT * FROM profiles WHERE project_id = ?', projectId)
       .map(parseProfileRow);
     const credentialRefs = profiles
@@ -1125,13 +1312,13 @@ export class QapApplicationService {
       .map((p) => String(p.session_artifact_id))
       .sort();
     const activeGrants = Number(
-      this.store.get<{ c: number }>(
+      this.#store.get<{ c: number }>(
         "SELECT COUNT(*) AS c FROM permission_grants WHERE project_id = ? AND status = 'active'",
         projectId,
       )?.c ?? 0,
     );
     const activeTasks = Number(
-      this.store.get<{ c: number }>(
+      this.#store.get<{ c: number }>(
         "SELECT COUNT(*) AS c FROM tasks WHERE project_id = ? AND status IN ('pending', 'in_progress', 'blocked', 'waiting_decision')",
         projectId,
       )?.c ?? 0,
@@ -1189,7 +1376,7 @@ export class QapApplicationService {
       neighboring_projects_untouched: true,
     };
 
-    this.store.run(
+    this.#store.run(
       `INSERT INTO pending_delete_requests
         (token_hash, project_id, scope_hash, scope_preview_json, expires_at, created_at)
        VALUES (?, ?, ?, ?, ?, ?)`,
@@ -1218,7 +1405,7 @@ export class QapApplicationService {
     }
     const project = this.assertActiveProject(projectId);
     const tokenHash = sha256Text(confirmationToken);
-    const reqRow = this.store.get<{
+    const reqRow = this.#store.get<{
       token_hash: string;
       project_id: string;
       scope_hash: string;
@@ -1243,13 +1430,13 @@ export class QapApplicationService {
     const now = new Date().toISOString();
 
     // 1. Mark deleting & consume confirmation token atomically
-    this.store.transaction('IMMEDIATE', () => {
-      this.store.run(
+    this.#store.transaction('IMMEDIATE', () => {
+      this.#store.run(
         'UPDATE pending_delete_requests SET consumed_at = ? WHERE token_hash = ? AND consumed_at IS NULL',
         now,
         tokenHash,
       );
-      this.store.run(
+      this.#store.run(
         `UPDATE projects SET status = 'deleting', updated_at = ? WHERE project_id = ?`,
         now,
         projectId,
@@ -1270,10 +1457,10 @@ export class QapApplicationService {
       version: 1,
       exported_at: now,
       project,
-      environments: this.store.all<Record<string, unknown>>('SELECT * FROM environments WHERE project_id = ? ORDER BY created_at ASC, rowid ASC', projectId).map(parseEnvironmentRow),
-      modules: this.store.all<Record<string, unknown>>('SELECT * FROM modules WHERE project_id = ? ORDER BY created_at ASC, rowid ASC', projectId).map(parseModuleRow),
-      profiles: this.store.all<Record<string, unknown>>('SELECT * FROM profiles WHERE project_id = ? ORDER BY created_at ASC, rowid ASC', projectId).map(parseProfileRow),
-      campaigns: this.store.all<Record<string, unknown>>('SELECT * FROM campaigns WHERE project_id = ?', projectId).map(parseCampaignRow),
+      environments: this.#store.all<Record<string, unknown>>('SELECT * FROM environments WHERE project_id = ? ORDER BY created_at ASC, rowid ASC', projectId).map(parseEnvironmentRow),
+      modules: this.#store.all<Record<string, unknown>>('SELECT * FROM modules WHERE project_id = ? ORDER BY created_at ASC, rowid ASC', projectId).map(parseModuleRow),
+      profiles: this.#store.all<Record<string, unknown>>('SELECT * FROM profiles WHERE project_id = ? ORDER BY created_at ASC, rowid ASC', projectId).map(parseProfileRow),
+      campaigns: this.#store.all<Record<string, unknown>>('SELECT * FROM campaigns WHERE project_id = ?', projectId).map(parseCampaignRow),
     };
     const recoveryBundle = this.artifacts.writeRecoveryBundle(projectId, recoveryPayload);
 
@@ -1313,8 +1500,8 @@ export class QapApplicationService {
     let drainedDbTasks = 0;
     let abortedCampaigns = 0;
 
-    this.store.transaction('IMMEDIATE', () => {
-      const taskRes = this.store.run(
+    this.#store.transaction('IMMEDIATE', () => {
+      const taskRes = this.#store.run(
         `UPDATE tasks
          SET status = 'cancelled', updated_at = ?
          WHERE project_id = ? AND status IN ('pending', 'in_progress', 'blocked', 'waiting_decision')`,
@@ -1323,7 +1510,7 @@ export class QapApplicationService {
       );
       drainedDbTasks = Number(taskRes.changes);
 
-      const campRes = this.store.run(
+      const campRes = this.#store.run(
         `UPDATE campaigns
          SET status = 'aborted', closed_at = COALESCE(closed_at, ?), updated_at = ?
          WHERE project_id = ? AND status IN ('active', 'paused', 'draining')`,
@@ -1333,7 +1520,7 @@ export class QapApplicationService {
       );
       abortedCampaigns = Number(campRes.changes);
 
-      this.store.run(
+      this.#store.run(
         `INSERT OR REPLACE INTO deletion_tombstones
           (project_id, canonical_root, root_hash, deleted_at, reason, recovery_bundle_path, recovery_bundle_hash)
          VALUES (?, ?, ?, ?, 'explicit_user_delete', ?, ?)`,
@@ -1345,25 +1532,42 @@ export class QapApplicationService {
         recoveryBundle.sha256,
       );
 
-      this.store.run('DELETE FROM owned_artifacts WHERE project_id = ?', projectId);
-      this.store.run(
+      const previousState = this.#store.get<{ value: string }>(
+        'SELECT value FROM host_session_state WHERE key = ?', deletionStateKey(project.root_hash),
+      );
+      const previous = previousState ? parseRootDeletionGeneration(previousState.value, project.root_hash) : null;
+      const deletionState: RootDeletionGeneration = {
+        version: 1, root_hash: project.root_hash, canonical_root: project.canonical_root,
+        project_id: projectId, deleted_at: now, generation: randomUUID(), cleanup_status: 'pending',
+        ...(previous?.authorization_grants ? {
+          authorization_grants: previous.authorization_grants.map(grant => ({ ...grant, status: 'revoked' as const })),
+        } : {}),
+      };
+      this.#store.run(
+        `INSERT INTO host_session_state (key, value, updated_at) VALUES (?, ?, ?)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+        deletionStateKey(project.root_hash), JSON.stringify(deletionState), now,
+      );
+
+      this.#store.run('DELETE FROM owned_artifacts WHERE project_id = ?', projectId);
+      this.#store.run(
         `UPDATE profiles SET status = 'revoked', revoked_at = ?, session_artifact_id = NULL, updated_at = ? WHERE project_id = ?`,
         now,
         now,
         projectId,
       );
-      this.store.run(
+      this.#store.run(
         `UPDATE projects SET status = 'deleted', deleted_at = ?, active_campaign_id = NULL, updated_at = ? WHERE project_id = ?`,
         now,
         now,
         projectId,
       );
 
-      const activeRow = this.store.get<{ value: string }>(
+      const activeRow = this.#store.get<{ value: string }>(
         "SELECT value FROM host_session_state WHERE key = 'active_project_id'",
       );
       if (activeRow?.value === projectId) {
-        this.store.run("DELETE FROM host_session_state WHERE key = 'active_project_id'");
+        this.#store.run("DELETE FROM host_session_state WHERE key = 'active_project_id'");
       }
     });
 
@@ -1384,7 +1588,7 @@ export class QapApplicationService {
   }
 
   recoverDeletedProject(projectId: string): RecoveryRestoreReceipt {
-    const tombstone = this.store.get<{
+    const tombstone = this.#store.get<{
       project_id: string;
       canonical_root: string;
       root_hash: string;
@@ -1415,9 +1619,9 @@ export class QapApplicationService {
     const { project, environments, modules, profiles, campaigns } = bundle.data;
     this.artifacts.ensureProjectWorkspace(projectId);
 
-    this.store.transaction('IMMEDIATE', () => {
-      this.store.run('DELETE FROM deletion_tombstones WHERE project_id = ?', projectId);
-      this.store.run(
+    this.#store.transaction('IMMEDIATE', () => {
+      this.#store.run('DELETE FROM deletion_tombstones WHERE project_id = ?', projectId);
+      this.#store.run(
         `UPDATE projects
          SET status = 'active', deleted_at = NULL, active_env_id = ?, updated_at = ?
          WHERE project_id = ?`,
@@ -1426,7 +1630,7 @@ export class QapApplicationService {
         projectId,
       );
       for (const env of environments) {
-        this.store.run(
+        this.#store.run(
           `INSERT OR IGNORE INTO environments
             (env_id, project_id, name, base_url, is_production, destructive_actions_allowed, safe_domains_json, tenant_mode, default_tenant, created_at, updated_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -1444,7 +1648,7 @@ export class QapApplicationService {
         );
       }
       for (const mod of modules) {
-        this.store.run(
+        this.#store.run(
           `INSERT OR IGNORE INTO modules
             (module_id, project_id, key, title, route_hint, priority, criticality, status, knowledge_module_id, knowledge_revision, waiver_reason, closed_at, created_at, updated_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -1465,7 +1669,7 @@ export class QapApplicationService {
         );
       }
       for (const prof of profiles) {
-        this.store.run(
+        this.#store.run(
           `UPDATE profiles SET status = 'pending', revoked_at = NULL, updated_at = ? WHERE profile_id = ?`,
           now,
           prof.profile_id,
@@ -1473,12 +1677,12 @@ export class QapApplicationService {
       }
       if (campaigns.length > 0) {
         const latestCamp = campaigns[campaigns.length - 1];
-        this.store.run(
+        this.#store.run(
           `UPDATE campaigns SET status = 'paused', closed_at = NULL, updated_at = ? WHERE campaign_id = ?`,
           now,
           latestCamp.campaign_id,
         );
-        this.store.run(
+        this.#store.run(
           `UPDATE projects SET active_campaign_id = ?, updated_at = ? WHERE project_id = ?`,
           latestCamp.campaign_id,
           now,
@@ -1487,7 +1691,7 @@ export class QapApplicationService {
       }
     });
 
-    const restoredRow = this.store.get<Record<string, unknown>>('SELECT * FROM projects WHERE project_id = ?', projectId)!;
+    const restoredRow = this.#store.get<Record<string, unknown>>('SELECT * FROM projects WHERE project_id = ?', projectId)!;
     return {
       status: 'recovered',
       project_id: projectId,
@@ -1507,8 +1711,8 @@ export class QapApplicationService {
   getDeclaredScopeLimits(projectId: string): ScopeLimitsContract {
     const project = this.assertActiveProject(projectId);
     const env = project.active_env_id
-      ? this.store.get<Record<string, unknown>>('SELECT * FROM environments WHERE env_id = ? AND project_id = ?', project.active_env_id, projectId)
-      : this.store.get<Record<string, unknown>>('SELECT * FROM environments WHERE project_id = ? ORDER BY created_at ASC LIMIT 1', projectId);
+      ? this.#store.get<Record<string, unknown>>('SELECT * FROM environments WHERE env_id = ? AND project_id = ?', project.active_env_id, projectId)
+      : this.#store.get<Record<string, unknown>>('SELECT * FROM environments WHERE project_id = ? ORDER BY created_at ASC LIMIT 1', projectId);
     const parsedEnv = env ? parseEnvironmentRow(env) : null;
     return {
       supported_doc_formats: ['.md', '.markdown', '.txt'],
@@ -1532,7 +1736,7 @@ export class QapApplicationService {
     this.assertActiveProject(projectId);
     const trimmed = profileRef.trim();
     if (!trimmed) return { status: 'not_found' };
-    const allProfiles = this.store
+    const allProfiles = this.#store
       .all<Record<string, unknown>>('SELECT * FROM profiles WHERE project_id = ? ORDER BY created_at ASC, rowid ASC', projectId)
       .map(parseProfileRow);
     const scoped = envId ? allProfiles.filter((p) => p.env_id === envId) : allProfiles;
@@ -1568,15 +1772,15 @@ export class QapApplicationService {
     const project = this.assertActiveProject(projectId);
     const targetEnvRef = envId?.trim() || project.active_env_id || undefined;
     const envRow = targetEnvRef
-      ? this.store.get<Record<string, unknown>>(
+      ? this.#store.get<Record<string, unknown>>(
           'SELECT * FROM environments WHERE project_id = ? AND (env_id = ? OR name = ?) LIMIT 1',
           projectId,
           targetEnvRef,
           targetEnvRef,
         )
-      : this.store.get<Record<string, unknown>>('SELECT * FROM environments WHERE project_id = ? ORDER BY created_at ASC, rowid ASC LIMIT 1', projectId);
+      : this.#store.get<Record<string, unknown>>('SELECT * FROM environments WHERE project_id = ? ORDER BY created_at ASC, rowid ASC LIMIT 1', projectId);
     const env = envRow ? parseEnvironmentRow(envRow) : null;
-    const allProfiles = this.store
+    const allProfiles = this.#store
       .all<Record<string, unknown>>('SELECT * FROM profiles WHERE project_id = ? ORDER BY created_at ASC, rowid ASC', projectId)
       .map(parseProfileRow);
     const profiles = env ? allProfiles.filter((p) => p.env_id === env.env_id) : allProfiles;
@@ -1670,13 +1874,13 @@ export class QapApplicationService {
         readonly options?: readonly string[];
       } {
     const project = this.assertActiveProject(input.projectId);
-    const envs = this.store
+    const envs = this.#store
       .all<Record<string, unknown>>('SELECT * FROM environments WHERE project_id = ? ORDER BY created_at ASC, rowid ASC', input.projectId)
       .map(parseEnvironmentRow);
-    const modules = this.store
+    const modules = this.#store
       .all<Record<string, unknown>>('SELECT * FROM modules WHERE project_id = ? ORDER BY created_at ASC, rowid ASC', input.projectId)
       .map(parseModuleRow);
-    const allProfiles = this.store
+    const allProfiles = this.#store
       .all<Record<string, unknown>>('SELECT * FROM profiles WHERE project_id = ? ORDER BY created_at ASC, rowid ASC', input.projectId)
       .map(parseProfileRow);
 
@@ -1943,7 +2147,7 @@ export class QapApplicationService {
     options?: { ttlMs?: number; verifiedAt?: string },
   ): AuthProfileRecord {
     this.assertActiveProject(projectId);
-    const profileRow = this.store.get<Record<string, unknown>>(
+    const profileRow = this.#store.get<Record<string, unknown>>(
       'SELECT * FROM profiles WHERE project_id = ? AND (profile_id = ? OR label = ?)',
       projectId,
       profileId,
@@ -1962,7 +2166,7 @@ export class QapApplicationService {
     );
     const now = options?.verifiedAt ?? new Date().toISOString();
     const expiresAt = options?.ttlMs ? new Date(Date.parse(now) + options.ttlMs).toISOString() : null;
-    this.store.run(
+    this.#store.run(
       `INSERT INTO owned_artifacts (artifact_id, project_id, category, relative_path, sha256, bytes, created_at)
        VALUES (?, ?, 'sessions', ?, ?, ?, ?)
        ON CONFLICT(project_id, relative_path) DO UPDATE SET artifact_id = excluded.artifact_id, sha256 = excluded.sha256, bytes = excluded.bytes, created_at = excluded.created_at`,
@@ -1973,7 +2177,7 @@ export class QapApplicationService {
       receipt.bytes,
       now,
     );
-    this.store.run(
+    this.#store.run(
       `UPDATE profiles
        SET status = 'verified', session_artifact_id = ?, verified_at = ?, expires_at = ?, revoked_at = NULL, updated_at = ?
        WHERE profile_id = ? AND project_id = ?`,
@@ -1984,7 +2188,7 @@ export class QapApplicationService {
       parsedProfile.profile_id,
       projectId,
     );
-    const updated = this.store.get<Record<string, unknown>>(
+    const updated = this.#store.get<Record<string, unknown>>(
       'SELECT * FROM profiles WHERE profile_id = ? AND project_id = ?',
       parsedProfile.profile_id,
       projectId,
@@ -2002,7 +2206,7 @@ export class QapApplicationService {
     revoked: boolean;
   } | null {
     this.assertActiveProject(projectId);
-    const row = this.store.get<Record<string, unknown>>(
+    const row = this.#store.get<Record<string, unknown>>(
       'SELECT * FROM profiles WHERE project_id = ? AND (profile_id = ? OR label = ?)',
       projectId,
       profileIdOrLabel,
@@ -2027,7 +2231,7 @@ export class QapApplicationService {
 
   expireProfileSession(projectId: string, profileIdOrLabel: string): AuthProfileRecord {
     this.assertActiveProject(projectId);
-    const row = this.store.get<Record<string, unknown>>(
+    const row = this.#store.get<Record<string, unknown>>(
       'SELECT * FROM profiles WHERE project_id = ? AND (profile_id = ? OR label = ?)',
       projectId,
       profileIdOrLabel,
@@ -2038,13 +2242,13 @@ export class QapApplicationService {
     }
     const now = new Date().toISOString();
     const profile = parseProfileRow(row);
-    this.store.run(
+    this.#store.run(
       `UPDATE profiles SET status = 'expired', updated_at = ? WHERE profile_id = ? AND project_id = ?`,
       now,
       profile.profile_id,
       projectId,
     );
-    const updated = this.store.get<Record<string, unknown>>(
+    const updated = this.#store.get<Record<string, unknown>>(
       'SELECT * FROM profiles WHERE profile_id = ? AND project_id = ?',
       profile.profile_id,
       projectId,
@@ -2100,8 +2304,8 @@ export class QapApplicationService {
     });
 
     const storedDiscrepancies: ContextDiscrepancy[] = [];
-    this.store.transaction('IMMEDIATE', () => {
-      const existing = this.store.get<{ doc_id: string }>(
+    this.#store.transaction('IMMEDIATE', () => {
+      const existing = this.#store.get<{ doc_id: string }>(
         'SELECT doc_id FROM ingested_documents WHERE project_id = ? AND source_ref = ? AND sha256 = ?',
         input.projectId,
         input.sourceRef,
@@ -2110,7 +2314,7 @@ export class QapApplicationService {
       if (existing) {
         persistedDocId = existing.doc_id;
       } else {
-        this.store.run(
+        this.#store.run(
           `INSERT INTO ingested_documents
             (doc_id, project_id, source_ref, format, sha256, byte_length, analyzed_by, extracted_json, ingested_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -2126,7 +2330,7 @@ export class QapApplicationService {
         );
       }
 
-      const existingRuleCountRow = this.store.get<{ cnt: number }>(
+      const existingRuleCountRow = this.#store.get<{ cnt: number }>(
         "SELECT COUNT(*) AS cnt FROM scoped_business_rules WHERE project_id = ? AND source_kind = 'ingested_doc' AND source_id = ?",
         input.projectId,
         persistedDocId,
@@ -2153,7 +2357,7 @@ export class QapApplicationService {
       }
 
       for (const d of input.discrepancies ?? []) {
-        const existingPending = this.store.get<{ discrepancy_id: string }>(
+        const existingPending = this.#store.get<{ discrepancy_id: string }>(
           `SELECT discrepancy_id FROM context_discrepancies
            WHERE project_id = ? AND field = ? AND value_a = ? AND value_b = ? AND resolution_status = 'pending_user_decision'`,
           input.projectId,
@@ -2163,7 +2367,7 @@ export class QapApplicationService {
         );
         const discrepancyId = existingPending?.discrepancy_id ?? `disc-${randomUUID().slice(0, 8)}`;
         if (!existingPending) {
-          this.store.run(
+          this.#store.run(
             `INSERT INTO context_discrepancies
               (discrepancy_id, project_id, field, source_a, value_a, source_b, value_b, severity, resolution_status, created_at)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -2198,7 +2402,7 @@ export class QapApplicationService {
   }
 
   listIngestedDocuments(projectId: string): IngestedDocumentRecord[] {
-    const docs = this.store.all<Record<string, unknown>>(
+    const docs = this.#store.all<Record<string, unknown>>(
       'SELECT * FROM ingested_documents WHERE project_id = ? ORDER BY ingested_at DESC',
       projectId,
     );
@@ -2224,7 +2428,7 @@ export class QapApplicationService {
     const sql = pendingOnly
       ? "SELECT * FROM context_discrepancies WHERE project_id = ? AND resolution_status = 'pending_user_decision' ORDER BY created_at DESC"
       : 'SELECT * FROM context_discrepancies WHERE project_id = ? ORDER BY created_at DESC';
-    return this.store.all<Record<string, unknown>>(sql, projectId).map((row) => ({
+    return this.#store.all<Record<string, unknown>>(sql, projectId).map((row) => ({
       discrepancy_id: rowStr(row.discrepancy_id),
       field: row.field as ContextDiscrepancy['field'],
       source_a: rowStr(row.source_a),
@@ -2244,7 +2448,7 @@ export class QapApplicationService {
   ): ContextDiscrepancy {
     this.assertActiveProject(projectId);
     const now = new Date().toISOString();
-    const res = this.store.run(
+    const res = this.#store.run(
       'UPDATE context_discrepancies SET resolution_status = ?, resolved_at = ? WHERE project_id = ? AND discrepancy_id = ?',
       choice,
       now,
@@ -2270,7 +2474,7 @@ export class QapApplicationService {
     this.assertActiveProject(input.projectId);
     const now = new Date().toISOString();
     const normKey = normalizeSlug(input.key) || 'modulo';
-    const existing = this.store.get<Record<string, unknown>>(
+    const existing = this.#store.get<Record<string, unknown>>(
       'SELECT * FROM module_candidates WHERE project_id = ? AND key = ?',
       input.projectId,
       normKey,
@@ -2280,7 +2484,7 @@ export class QapApplicationService {
     const mergedEvidence = [...new Set([...prevEvidence, ...(input.evidenceRefs ?? [])])];
 
     if (existing) {
-      this.store.run(
+      this.#store.run(
         `UPDATE module_candidates
          SET title = ?, route_hint = COALESCE(?, route_hint), evidence_refs_json = ?, confidence = ?, updated_at = ?
          WHERE candidate_id = ?`,
@@ -2292,7 +2496,7 @@ export class QapApplicationService {
         candidateId,
       );
     } else {
-      this.store.run(
+      this.#store.run(
         `INSERT INTO module_candidates
           (candidate_id, project_id, key, title, route_hint, provenance_source, evidence_refs_json, confidence, status, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'candidate', ?, ?)`,
@@ -2312,7 +2516,7 @@ export class QapApplicationService {
   }
 
   listModuleCandidates(projectId: string): ServiceModuleCandidateRecord[] {
-    return this.store
+    return this.#store
       .all<Record<string, unknown>>('SELECT * FROM module_candidates WHERE project_id = ? ORDER BY created_at ASC', projectId)
       .map((row) => ({
         candidate_id: rowStr(row.candidate_id),
@@ -2333,7 +2537,7 @@ export class QapApplicationService {
   reviewModuleCandidate(projectId: string, candidateIdOrKey: string, decision: 'approved' | 'rejected'): ServiceModuleCandidateRecord {
     this.assertActiveProject(projectId);
     const now = new Date().toISOString();
-    const row = this.store.get<Record<string, unknown>>(
+    const row = this.#store.get<Record<string, unknown>>(
       'SELECT * FROM module_candidates WHERE project_id = ? AND (candidate_id = ? OR key = ?)',
       projectId,
       candidateIdOrKey,
@@ -2343,7 +2547,7 @@ export class QapApplicationService {
       throw new ApplicationServiceError('candidate_not_found', `No existe el candidato '${candidateIdOrKey}'.`);
     }
     const candidateId = rowStr(row.candidate_id);
-    this.store.run(
+    this.#store.run(
       'UPDATE module_candidates SET status = ?, updated_at = ? WHERE candidate_id = ?',
       decision,
       now,
@@ -2384,7 +2588,7 @@ export class QapApplicationService {
         criticality: sel.priority ?? 'medium',
         status: 'planned',
       });
-      this.store.run(
+      this.#store.run(
         "UPDATE module_candidates SET status = 'promoted', promoted_module_id = ?, updated_at = ? WHERE candidate_id = ?",
         mod.module_id,
         now,
@@ -2411,7 +2615,7 @@ export class QapApplicationService {
     this.assertActiveProject(input.projectId);
     const now = new Date().toISOString();
     const inventoryId = `inv-${randomUUID().slice(0, 8)}`;
-    this.store.run(
+    this.#store.run(
       `INSERT INTO partial_inventories
         (inventory_id, project_id, execution_id, target_url, mode, routes_visited, routes_candidate, routes_blocked, views_count, controls_count, forms_count, candidate_keys_json, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -2447,7 +2651,7 @@ export class QapApplicationService {
   }
 
   listPartialInventories(projectId: string): PartialInventoryRecord[] {
-    return this.store
+    return this.#store
       .all<Record<string, unknown>>('SELECT * FROM partial_inventories WHERE project_id = ? ORDER BY created_at DESC LIMIT 25', projectId)
       .map((row) => ({
         inventory_id: rowStr(row.inventory_id),
@@ -2487,7 +2691,7 @@ export class QapApplicationService {
     const routePathname = normalizeRuleRoute(input.routePathname);
     const ruleKey = normalizeRuleKey(input.ruleKey ?? input.title);
 
-    this.store.run(
+    this.#store.run(
       `INSERT INTO scoped_business_rules (
         rule_id, project_id, source_kind, source_id, source_ref, source_version, source_digest,
         module_key, route_pathname, environment_name, tenant_id, role,
@@ -2533,7 +2737,7 @@ export class QapApplicationService {
       now,
       now,
     );
-    const saved = this.store.get<Record<string, unknown>>(
+    const saved = this.#store.get<Record<string, unknown>>(
       'SELECT * FROM scoped_business_rules WHERE rule_id = ?',
       ruleId,
     )!;
@@ -2568,7 +2772,7 @@ export class QapApplicationService {
 
   upsertScopedBusinessRule(input: UpsertScopedBusinessRuleInput): ScopedBusinessRuleRecord {
     this.assertActiveProject(input.projectId);
-    return this.store.transaction('IMMEDIATE', () => this.writeScopedBusinessRuleRow(input));
+    return this.#store.transaction('IMMEDIATE', () => this.writeScopedBusinessRuleRow(input));
   }
 
   listScopedBusinessRules(
@@ -2590,7 +2794,7 @@ export class QapApplicationService {
       clauses.push('source_id = ?');
       params.push(filters.sourceId);
     }
-    const rows = this.store.all<Record<string, unknown>>(
+    const rows = this.#store.all<Record<string, unknown>>(
       `SELECT * FROM scoped_business_rules WHERE ${clauses.join(' AND ')} ORDER BY updated_at DESC, rule_id ASC`,
       ...params,
     );
@@ -2658,14 +2862,14 @@ export class QapApplicationService {
 
   hasUsedRuleApprovalId(projectId: string, approvalId: string): boolean {
     this.assertActiveProject(projectId);
-    const row = this.store.get<{ decision_id: string }>(
+    const row = this.#store.get<{ decision_id: string }>(
       'SELECT decision_id FROM rule_confirmation_decisions WHERE project_id = ? AND approval_id = ?',
       projectId,
       approvalId,
     );
     if (row) return true;
     const batchKey = `human_approval:${projectId}:${approvalId}`;
-    const batchRow = this.store.get<{ key: string }>(
+    const batchRow = this.#store.get<{ key: string }>(
       'SELECT key FROM host_session_state WHERE key = ?',
       batchKey,
     );
@@ -2688,7 +2892,7 @@ export class QapApplicationService {
     }
     const batchKey = `human_approval:${params.projectId}:${params.approvalId}`;
     const now = new Date().toISOString();
-    this.store.run(
+    this.#store.run(
       `INSERT INTO host_session_state (key, value, updated_at) VALUES (?, ?, ?)`,
       batchKey,
       JSON.stringify({
@@ -2756,8 +2960,8 @@ export class QapApplicationService {
     const evidenceRefs = [...new Set((params.evidenceRefs ?? []).map((e) => e.trim()).filter(Boolean))];
     const now = new Date().toISOString();
 
-    return this.store.transaction('IMMEDIATE', () => {
-      const existingApproval = this.store.get<{ decision_id: string }>(
+    return this.#store.transaction('IMMEDIATE', () => {
+      const existingApproval = this.#store.get<{ decision_id: string }>(
         'SELECT decision_id FROM rule_confirmation_decisions WHERE approval_id = ?',
         params.approvalId,
       );
@@ -2790,7 +2994,7 @@ export class QapApplicationService {
           acceptanceCriteria: [params.expectedOutcome.trim()],
         });
         if (priorReq && req.revision === priorReq.revision) {
-          this.store.run(
+          this.#store.run(
             'UPDATE service_requirements SET revision = ?, updated_at = ? WHERE requirement_id = ?',
             priorReq.revision + 1,
             now,
@@ -2823,7 +3027,7 @@ export class QapApplicationService {
       }
 
       const decisionId = `rcd-${randomUUID()}`;
-      this.store.run(
+      this.#store.run(
         `INSERT INTO rule_confirmation_decisions
          (decision_id, project_id, requirement_id, rule_id, rule_key, module_key, route_pathname,
           environment_name, tenant_id, role, scope_declaration, revision, question_id, question_text,
@@ -2903,7 +3107,7 @@ export class QapApplicationService {
         params.push(roleToken);
       }
     }
-    const rows = this.store.all<Record<string, unknown>>(
+    const rows = this.#store.all<Record<string, unknown>>(
       `SELECT * FROM rule_confirmation_decisions WHERE ${clauses.join(' AND ')} ORDER BY created_at DESC, decision_id ASC`,
       ...params,
     );
@@ -2951,6 +3155,10 @@ export class QapApplicationService {
     proposals: readonly ProposeCaseInput[];
   }) {
     const project = this.assertActiveProject(params.projectId);
+    this.block3.assertNoLineagedCaseIds(
+      params.proposals.map((p) => p.case_id ?? ''),
+      'propose_cases',
+    );
     const mod = this.upsertModule({
       projectId: params.projectId,
       key: params.moduleKey,
@@ -2970,6 +3178,10 @@ export class QapApplicationService {
     decisions: readonly OracleDecisionInput[];
   }) {
     this.assertActiveProject(params.projectId);
+    this.block3.assertNoLineagedCaseIds(
+      params.decisions.map((d) => d.case_id),
+      'decide_oracles',
+    );
     const mod = this.upsertModule({
       projectId: params.projectId,
       key: params.moduleKey,
@@ -2998,6 +3210,196 @@ export class QapApplicationService {
     return this.block3.listCases(projectId, moduleKey);
   }
 
+  /** Preflight sin efectos secundarios para rutas legacy antes de crear módulos, campañas o pedir revisión humana. */
+  assertNoLineagedCaseIds(caseIds: readonly string[], operation: string): void {
+    this.block3.assertNoLineagedCaseIds(caseIds, operation);
+  }
+
+  /** Preflight sin efectos secundarios acotado al proyecto actual (evita filtrar existencia entre proyectos en flujos conversacionales). */
+  assertNoProjectLineagedCaseIds(projectId: string, caseIds: readonly string[], operation: string): void {
+    this.block3.assertNoProjectLineagedCaseIds(projectId, caseIds, operation);
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // P0.3b-01A — casos con linaje (operaciones internas; sin handlers, herramientas MCP ni planes)
+  // ---------------------------------------------------------------------------------------------
+
+  /**
+   * Crea, repite o avanza un candidato con linaje. Verifica las referencias (dossier, vista, controles,
+   * evidencias, decisión, regla fuente y confirmación) y escribe en la misma transacción IMMEDIATE.
+   * El resultado siempre es pending_oracle / missing_oracle, sin aprobación ni elegibilidad de ejecución.
+   * Lanza `LineagedCaseError` ante entradas inválidas, cruces de ámbito, conflictos o versiones obsoletas.
+   */
+  upsertLineagedCaseCandidate(input: LineagedCaseCandidateInput): LineagedCaseWriteResult {
+    const normalized = normalizeLineagedCandidateInput(input);
+    const project = this.assertActiveProject(normalized.projectId);
+    return this.#store.transaction('IMMEDIATE', () => {
+      const refs = resolveLineagedReferences(this.lineagedReferenceReader(), project, normalized);
+      return this.block3.upsertLineagedCandidateInTransaction({
+        projectId: normalized.projectId,
+        moduleKey: normalized.moduleKey,
+        scope: refs.scope,
+        executionKey: refs.executionKey,
+        dossierRevisionId: refs.lineage.dossier.revision_id,
+        ruleRevision: refs.ruleRevision,
+        expectedVersion: normalized.expectedVersion,
+        resolveModuleId: () => this.resolveModuleIdForLineagedCase(normalized.projectId, normalized.moduleKey),
+        prepare: (caseId) => ({
+          schema: LINEAGED_CASE_SCHEMA,
+          identity: {
+            case_id: caseId,
+            execution_key: refs.executionKey,
+            rule_id: refs.ruleId,
+            rule_key: refs.ruleKey,
+          },
+          scope: refs.scope,
+          lineage: refs.lineage,
+          tc_case: buildValidatedTcCase(normalized.tcCase, caseId, refs.ruleId),
+        }),
+      });
+    });
+  }
+
+  private isProjectActiveForLineagedRead(projectId: string): boolean {
+    const row = this.#store.get<Record<string, unknown>>('SELECT * FROM projects WHERE project_id = ?', projectId);
+    if (!row) return false;
+    const project = parseProjectRow(row);
+    if (project.status !== 'active') {
+      throw new ApplicationServiceError(
+        'project_not_active',
+        `El proyecto '${projectId}' está en estado '${project.status}'.`,
+        { status: project.status },
+      );
+    }
+    return true;
+  }
+
+  getLineagedCase(
+    scope: LineagedCaseReadScopeInput | LineagedCaseScope,
+    selector: LineagedCaseSelector,
+  ): LineagedCaseRecord | null;
+  getLineagedCase(
+    projectId: string,
+    selector: LineagedCaseSelector & Partial<LineagedCaseReadScopeInput>,
+    scope?: LineagedCaseReadScopeInput | LineagedCaseScope,
+  ): LineagedCaseRecord | null;
+  getLineagedCase(
+    arg1: LineagedCaseReadScopeInput | LineagedCaseScope | string,
+    arg2: unknown,
+    arg3?: unknown,
+  ): LineagedCaseRecord | null {
+    const { scope, selector } = resolveLineagedReadArguments(arg1, arg2, arg3);
+    if (!this.isProjectActiveForLineagedRead(scope.projectId)) {
+      return null;
+    }
+    return this.block3.getLineagedCase(scope, selector);
+  }
+
+  listLineagedCases(scope: LineagedCaseReadScopeInput | LineagedCaseScope): LineagedCaseRecord[];
+  listLineagedCases(
+    projectId: string,
+    scope: Omit<LineagedCaseReadScopeInput, 'projectId'> & { readonly projectId?: string },
+  ): LineagedCaseRecord[];
+  listLineagedCases(
+    arg1: LineagedCaseReadScopeInput | LineagedCaseScope | string,
+    arg2?: unknown,
+  ): LineagedCaseRecord[] {
+    const scope = resolveLineagedListArguments(arg1, arg2);
+    if (!this.isProjectActiveForLineagedRead(scope.projectId)) {
+      return [];
+    }
+    return this.block3.listLineagedCases(scope);
+  }
+
+  /** Reutiliza el módulo existente sin tocarlo; solo crea la fila si no existe (camino de creación). */
+  private resolveModuleIdForLineagedCase(projectId: string, moduleKey: string): string {
+    const existing = this.#store.get<{ module_id: string }>(
+      'SELECT module_id FROM modules WHERE project_id = ? AND key = ?',
+      projectId,
+      moduleKey,
+    );
+    if (existing) return existing.module_id;
+    return this.upsertModule({ projectId, key: moduleKey, title: moduleKey }).module_id;
+  }
+
+  private lineagedReferenceReader(): LineagedReferenceReader {
+    return {
+      getEnvironment: (projectId, environmentId) => {
+        const row = this.#store.get<Record<string, unknown>>(
+          'SELECT env_id, name FROM environments WHERE project_id = ? AND env_id = ?',
+          projectId,
+          environmentId,
+        );
+        return row ? { env_id: rowStr(row.env_id), name: rowStr(row.name) } : null;
+      },
+      isEnvironmentNameAlias: (projectId, token) => {
+        const row = this.#store.get<Record<string, unknown>>(
+          'SELECT env_id FROM environments WHERE project_id = ? AND lower(name) = lower(?) LIMIT 1',
+          projectId,
+          token,
+        );
+        return Boolean(row);
+      },
+      getProfile: (projectId, profileId) => {
+        const row = this.#store.get<Record<string, unknown>>(
+          'SELECT profile_id, env_id, role_name, tenant_id FROM profiles WHERE project_id = ? AND profile_id = ?',
+          projectId,
+          profileId,
+        );
+        return row
+          ? {
+              profile_id: rowStr(row.profile_id),
+              env_id: rowStr(row.env_id),
+              role_name: rowOptStr(row.role_name) ?? null,
+              tenant_id: rowOptStr(row.tenant_id) ?? null,
+            }
+          : null;
+      },
+      isProfileLabelAlias: (projectId, token) => {
+        const row = this.#store.get<Record<string, unknown>>(
+          'SELECT profile_id FROM profiles WHERE project_id = ? AND lower(label) = lower(?) LIMIT 1',
+          projectId,
+          token,
+        );
+        return Boolean(row);
+      },
+      getDiscoveryRevision: (revisionId) => this.getDiscoveryRevision(revisionId),
+      getScopedRule: (projectId, ruleId) => {
+        const row = this.#store.get<Record<string, unknown>>(
+          'SELECT * FROM scoped_business_rules WHERE project_id = ? AND rule_id = ?',
+          projectId,
+          ruleId,
+        );
+        return row ? this.mapScopedBusinessRuleRow(row) : null;
+      },
+      getRuleConfirmation: (projectId, decisionId) => {
+        const row = this.#store.get<Record<string, unknown>>(
+          'SELECT * FROM rule_confirmation_decisions WHERE project_id = ? AND decision_id = ?',
+          projectId,
+          decisionId,
+        );
+        return row
+          ? {
+              decision_id: rowStr(row.decision_id),
+              project_id: rowStr(row.project_id),
+              requirement_id: rowStr(row.requirement_id),
+              rule_id: rowStr(row.rule_id),
+              rule_key: rowStr(row.rule_key),
+              module_key: rowStr(row.module_key),
+              route_pathname: rowStr(row.route_pathname),
+              environment_name: rowStr(row.environment_name),
+              tenant_id: rowStr(row.tenant_id),
+              role: rowStr(row.role),
+              scope_declaration: rowStr(row.scope_declaration) === 'general_compatible' ? 'general_compatible' : 'exact',
+              revision: Number(row.revision ?? 0),
+              decision: rowStr(row.decision) as 'confirm' | 'reject' | 'defer',
+              request_digest: rowStr(row.request_digest),
+            }
+          : null;
+      },
+    };
+  }
+
   createExecutionAttempt(params: {
     projectId: string;
     campaignId?: string;
@@ -3014,6 +3416,10 @@ export class QapApplicationService {
     }[];
   }): ExecutionAttemptRecord {
     const project = this.assertActiveProject(params.projectId);
+    this.block3.assertNoLineagedCaseIds(
+      params.cases.map((c) => c.case_id),
+      'create_attempt',
+    );
     const mod = this.upsertModule({
       projectId: params.projectId,
       key: params.moduleKey,
@@ -3124,14 +3530,14 @@ export class QapApplicationService {
     });
     const now = new Date().toISOString();
     if (action === 'close') {
-      this.store.run(
+      this.#store.run(
         `UPDATE modules SET status = 'closed', closed_at = COALESCE(closed_at, ?), updated_at = ? WHERE module_id = ?`,
         now,
         now,
         mod.module_id,
       );
     } else {
-      this.store.run(
+      this.#store.run(
         `UPDATE modules SET status = 'waived', waiver_reason = ?, closed_at = COALESCE(closed_at, ?), updated_at = ? WHERE module_id = ?`,
         waiverReason ?? null,
         now,
@@ -3139,7 +3545,7 @@ export class QapApplicationService {
         mod.module_id,
       );
     }
-    const row = this.store.get<Record<string, unknown>>('SELECT * FROM modules WHERE module_id = ?', mod.module_id);
+    const row = this.#store.get<Record<string, unknown>>('SELECT * FROM modules WHERE module_id = ?', mod.module_id);
     return parseModuleRow(row!);
   }
 
@@ -3155,14 +3561,14 @@ export class QapApplicationService {
       params.reusedFromCampaignId ??
       project.active_campaign_id ??
       rowOptStr(
-        this.store.get<Record<string, unknown>>(
+        this.#store.get<Record<string, unknown>>(
           'SELECT campaign_id FROM campaigns WHERE project_id = ? ORDER BY created_at DESC LIMIT 1',
           params.projectId,
         )?.campaign_id,
       ) ??
       undefined;
 
-    const existingModules = this.store
+    const existingModules = this.#store
       .all<Record<string, unknown>>('SELECT * FROM modules WHERE project_id = ?', params.projectId)
       .map(parseModuleRow);
 
@@ -3244,8 +3650,8 @@ export class QapApplicationService {
     const contentHash = computeDossierContentHash(input.dossier);
     const now = new Date().toISOString();
 
-    return this.store.transaction('IMMEDIATE', () => {
-      const existing = this.store.get<Record<string, unknown>>(
+    return this.#store.transaction('IMMEDIATE', () => {
+      const existing = this.#store.get<Record<string, unknown>>(
         `SELECT * FROM discovery_revisions
          WHERE project_id = ? AND module_key = ? AND scope_hash = ? AND content_hash = ?`,
         scope.project_id,
@@ -3262,7 +3668,7 @@ export class QapApplicationService {
         reused = true;
       } else {
         const revisionId = buildDiscoveryRevisionId(scopeHash, contentHash);
-        this.store.run(
+        this.#store.run(
           `INSERT INTO discovery_revisions (
             revision_id, project_id, application_id, environment_id, environment_name,
             tenant_id, profile_id, role, module_key, module_title,
@@ -3286,7 +3692,7 @@ export class QapApplicationService {
           JSON.stringify(input.dossier),
           now,
         );
-        const inserted = this.store.get<Record<string, unknown>>(
+        const inserted = this.#store.get<Record<string, unknown>>(
           'SELECT * FROM discovery_revisions WHERE revision_id = ?',
           revisionId,
         );
@@ -3296,7 +3702,7 @@ export class QapApplicationService {
         revision = this.parseDiscoveryRevisionRow(inserted);
       }
 
-      this.store.run(
+      this.#store.run(
         `INSERT INTO discovery_scope_heads (project_id, scope_hash, module_key, active_revision_id, updated_at)
          VALUES (?, ?, ?, ?, ?)
          ON CONFLICT(project_id, scope_hash) DO UPDATE SET
@@ -3315,7 +3721,7 @@ export class QapApplicationService {
   }
 
   getDiscoveryRevision(revisionId: string): DiscoveryRevisionRecord | null {
-    const row = this.store.get<Record<string, unknown>>(
+    const row = this.#store.get<Record<string, unknown>>(
       'SELECT * FROM discovery_revisions WHERE revision_id = ?',
       revisionId,
     );
@@ -3325,14 +3731,14 @@ export class QapApplicationService {
   listDiscoveryRevisions(projectId: string, moduleKey?: string): DiscoveryRevisionRecord[] {
     this.assertActiveProject(projectId);
     const rows = moduleKey
-      ? this.store.all<Record<string, unknown>>(
+      ? this.#store.all<Record<string, unknown>>(
           `SELECT * FROM discovery_revisions
            WHERE project_id = ? AND module_key = ?
            ORDER BY created_at DESC, rowid DESC LIMIT 200`,
           projectId,
           normalizeSlug(moduleKey),
         )
-      : this.store.all<Record<string, unknown>>(
+      : this.#store.all<Record<string, unknown>>(
           `SELECT * FROM discovery_revisions
            WHERE project_id = ?
            ORDER BY created_at DESC, rowid DESC LIMIT 200`,
@@ -3343,7 +3749,7 @@ export class QapApplicationService {
 
   listLatestDiscoveryRevisionsByScope(projectId: string): DiscoveryRevisionRecord[] {
     this.assertActiveProject(projectId);
-    const headRows = this.store.all<Record<string, unknown>>(
+    const headRows = this.#store.all<Record<string, unknown>>(
       `SELECT dr.*
        FROM discovery_scope_heads dsh
        JOIN discovery_revisions dr ON dr.revision_id = dsh.active_revision_id
@@ -3360,7 +3766,7 @@ export class QapApplicationService {
       latest.push(rev);
     }
 
-    const fallbackRows = this.store.all<Record<string, unknown>>(
+    const fallbackRows = this.#store.all<Record<string, unknown>>(
       `SELECT * FROM discovery_revisions
        WHERE project_id = ?
        ORDER BY created_at DESC, rowid DESC`,
@@ -3391,7 +3797,7 @@ export class QapApplicationService {
     this.assertActiveProject(scope.project_id);
     const moduleKey = normalizeSlug(scope.module_key);
     const scopeHash = computeScopeHash(scope);
-    const headRow = this.store.get<Record<string, unknown>>(
+    const headRow = this.#store.get<Record<string, unknown>>(
       `SELECT dr.*
        FROM discovery_scope_heads dsh
        JOIN discovery_revisions dr ON dr.revision_id = dsh.active_revision_id
@@ -3405,7 +3811,7 @@ export class QapApplicationService {
       return this.parseDiscoveryRevisionRow(headRow);
     }
 
-    const fallbackRow = this.store.get<Record<string, unknown>>(
+    const fallbackRow = this.#store.get<Record<string, unknown>>(
       `SELECT * FROM discovery_revisions
        WHERE project_id = ? AND module_key = ? AND scope_hash = ?
        ORDER BY created_at DESC, rowid DESC LIMIT 1`,
@@ -3514,14 +3920,14 @@ export class QapApplicationService {
   }
 
   close(): void {
-    for (const store of this.knowledgeStores.values()) {
+    for (const store of this.#knowledgeStores.values()) {
       try {
         store.close();
       } catch {
         // Best-effort close
       }
     }
-    this.knowledgeStores.clear();
-    this.store.close();
+    this.#knowledgeStores.clear();
+    this.#store.close();
   }
 }

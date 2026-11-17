@@ -18,6 +18,26 @@ import type {
 } from '@qap/shared';
 
 import type { AppServiceSqliteStore } from './app-service-store.js';
+import {
+  LineagedCaseError,
+  computeLineagedCaseDigest,
+  computeLineagedExecutionKey,
+  matchesLineagedReadScope,
+  legacyBlockedError,
+  normalizeLineagedReadScope,
+  parseLineagedCaseRow,
+  resolveLineagedListArguments,
+  resolveLineagedReadArguments,
+  rowBelongsToLineagedReadScope,
+  stableStringify,
+  type LineagedCaseDocument,
+  type LineagedCaseReadScopeInput,
+  type LineagedCaseRecord,
+  type LineagedCaseScope,
+  type LineagedCaseSelector,
+  type LineagedCaseWriteResult,
+  type NormalizedLineagedReadScope,
+} from './lineaged-case.js';
 
 const rowStr = (value: unknown): string => {
   if (typeof value === 'string') return value;
@@ -31,8 +51,44 @@ const rowOptStr = (value: unknown): string | null => {
   return null;
 };
 
+const UUID_CASE_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function isUuidCaseId(value: string): boolean {
+  return UUID_CASE_ID_RE.test(value.trim());
+}
+
+/**
+ * Canonicaliza únicamente identificadores con formato UUID a minúsculas.
+ * Los IDs legacy sintéticos (p. ej. TC-SYNTH-LEGIT, TC-001) conservan exactamente su caja y semántica.
+ */
+export function canonicalizeCaseId(rawId: string): string {
+  const trimmed = rawId.trim();
+  if (!trimmed) return '';
+  return UUID_CASE_ID_RE.test(trimmed) ? trimmed.toLowerCase() : trimmed;
+}
+
 function shaDigest(value: unknown): string {
   return createHash('sha256').update(JSON.stringify(value)).digest('hex');
+}
+
+/** Columnas epistémicas legacy de un candidato con linaje: descriptivas y sin oráculo (01B acredita). */
+function lineagedLegacyColumns(document: LineagedCaseDocument): [string, string, string] {
+  return [
+    JSON.stringify({
+      source_kind: 'observed_dom',
+      route: document.scope.route_pathname,
+      observed_controls: [],
+      observed_headings: [],
+      evidence_refs: [...document.lineage.evidence_ids],
+    }),
+    JSON.stringify({
+      rationale: 'Candidato con linaje verificado (P0.3b-01A); oráculo pendiente de acreditación.',
+      proposed_flow: document.tc_case.name,
+      step_count: 0,
+      proposed_by: 'qap',
+    }),
+    JSON.stringify({ oracle_status: 'missing', expected_outcome: null, source: 'missing' }),
+  ];
 }
 
 export interface ProposeCaseInput {
@@ -184,7 +240,8 @@ function mapPublicationRow(row: Record<string, unknown>): ReportPublicationRecor
  * and partial report publication recovery.
  */
 export class Block3ExecutionRepo {
-  constructor(private readonly store: AppServiceSqliteStore) {}
+  readonly #store: AppServiceSqliteStore;
+  constructor(store: AppServiceSqliteStore) { this.#store = store; }
 
   upsertRequirement(params: {
     projectId: string;
@@ -203,7 +260,7 @@ export class Block3ExecutionRepo {
   }): ServiceRequirementRecord {
     const now = new Date().toISOString();
     const reqId = params.requirementId?.trim() || `REQ-${params.moduleKey.toUpperCase()}-${randomUUID().slice(0, 6)}`;
-    const existingRow = this.store.get(
+    const existingRow = this.#store.get(
       'SELECT * FROM service_requirements WHERE project_id = ? AND module_key = ? AND requirement_id = ?',
       params.projectId,
       params.moduleKey,
@@ -219,7 +276,7 @@ export class Block3ExecutionRepo {
         JSON.stringify(existing.acceptance_criteria) !== criteriaJson ||
         existing.validation_status !== params.validationStatus;
       const nextRev = changed ? existing.revision + 1 : existing.revision;
-      this.store.run(
+      this.#store.run(
         `UPDATE service_requirements
          SET title = ?, description = ?, category = ?, source = ?, validation_status = ?,
              acceptance_criteria_json = ?, risk_level = ?, risk_decision = ?, risk_note = ?,
@@ -241,7 +298,7 @@ export class Block3ExecutionRepo {
       return this.getRequirement(params.projectId, existing.requirement_id)!;
     }
 
-    this.store.run(
+    this.#store.run(
       `INSERT INTO service_requirements
        (requirement_id, project_id, module_id, module_key, revision, title, description, category, source,
         validation_status, acceptance_criteria_json, risk_level, risk_decision, risk_note, created_at, updated_at)
@@ -266,7 +323,7 @@ export class Block3ExecutionRepo {
   }
 
   getRequirement(projectId: string, requirementId: string): ServiceRequirementRecord | null {
-    const row = this.store.get(
+    const row = this.#store.get(
       'SELECT * FROM service_requirements WHERE project_id = ? AND requirement_id = ?',
       projectId,
       requirementId,
@@ -276,12 +333,12 @@ export class Block3ExecutionRepo {
 
   listRequirements(projectId: string, moduleKey?: string): ServiceRequirementRecord[] {
     const rows = moduleKey
-      ? this.store.all(
+      ? this.#store.all(
           'SELECT * FROM service_requirements WHERE project_id = ? AND module_key = ? ORDER BY created_at ASC',
           projectId,
           moduleKey,
         )
-      : this.store.all('SELECT * FROM service_requirements WHERE project_id = ? ORDER BY created_at ASC', projectId);
+      : this.#store.all('SELECT * FROM service_requirements WHERE project_id = ? ORDER BY created_at ASC', projectId);
     return rows.map(mapRequirementRow);
   }
 
@@ -297,10 +354,14 @@ export class Block3ExecutionRepo {
     readonly all_cases: ServiceTestCaseRecord[];
   } {
     const now = new Date().toISOString();
+    this.assertNoLineagedCaseIds(
+      params.proposals.map((p) => p.case_id ?? ''),
+      'propose_cases',
+    );
     const proposed: ServiceTestCaseRecord[] = [];
     const pendingOracle: ServiceTestCaseRecord[] = [];
 
-    this.store.transaction('IMMEDIATE', () => {
+    this.#store.transaction('IMMEDIATE', () => {
       for (const item of params.proposals) {
         const req = item.requirement_id ? this.getRequirement(params.projectId, item.requirement_id) : null;
         const reqConfirmed = Boolean(req && req.validation_status === 'confirmed' && req.acceptance_criteria.length > 0);
@@ -331,13 +392,14 @@ export class Block3ExecutionRepo {
             : 'pending'
           : 'not_required';
 
-        const caseId = item.case_id?.trim() || randomUUID();
-        const existingRow = this.store.get(
-          'SELECT * FROM service_test_cases WHERE project_id = ? AND case_id = ?',
-          params.projectId,
-          caseId,
-        );
-        const existing = existingRow ? mapCaseRow(existingRow) : null;
+        const caseId = item.case_id ? canonicalizeCaseId(item.case_id) || randomUUID() : randomUUID();
+        // Aislamiento: un ID con linaje solicitado explícitamente bloquea todo el lote (rollback), nunca se omite.
+        this.assertNotLineaged(params.projectId, caseId, 'propose_cases');
+        const ownerRow = this.#findServiceCaseRow(caseId);
+        if (ownerRow && rowStr(ownerRow.project_id) !== params.projectId) {
+          throw legacyBlockedError('propose_cases', caseId);
+        }
+        const existing = ownerRow ? mapCaseRow(ownerRow) : null;
 
         const observation: ServiceTestCaseRecord['observation'] = {
           source_kind: item.observation?.source_kind ?? 'observed_dom',
@@ -398,14 +460,14 @@ export class Block3ExecutionRepo {
           const nextConfirmedBy = modified ? null : (existing.confirmed_by ?? null);
           const nextConfirmedAt = modified ? null : (existing.confirmed_at ?? null);
 
-          this.store.run(
+          this.#store.run(
             `UPDATE service_test_cases
              SET title = ?, requirement_id = ?, requirement_revision = ?, version = ?,
                  observation_json = ?, inference_json = ?, expectation_json = ?,
                  oracle_status = ?, risk_level = ?, risk_decision = ?, steps_json = ?,
                  conformity_status = ?, confirmation_digest = ?, confirmed_by = ?, confirmed_at = ?,
                  campaign_id = ?, updated_at = ?
-             WHERE case_id = ?`,
+             WHERE case_id = ? AND execution_key IS NULL`,
             item.title,
             req?.requirement_id ?? existing.requirement_id,
             req?.revision ?? existing.requirement_revision,
@@ -423,10 +485,10 @@ export class Block3ExecutionRepo {
             nextConfirmedAt,
             params.campaignId ?? existing.campaign_id ?? null,
             now,
-            caseId,
+            existing.case_id,
           );
         } else {
-          this.store.run(
+          this.#store.run(
             `INSERT INTO service_test_cases
              (case_id, project_id, module_id, module_key, requirement_id, requirement_revision, title, version,
               observation_json, inference_json, expectation_json, oracle_status, risk_level, risk_decision,
@@ -454,7 +516,7 @@ export class Block3ExecutionRepo {
           );
         }
 
-        const saved = this.getCase(params.projectId, caseId)!;
+        const saved = this.getCase(params.projectId, existing ? existing.case_id : caseId)!;
         if (saved.conformity_status === 'pending_oracle') {
           pendingOracle.push(saved);
         } else {
@@ -477,21 +539,31 @@ export class Block3ExecutionRepo {
     decisions: readonly OracleDecisionInput[];
   }): { readonly updated: ServiceTestCaseRecord[]; readonly missing_cases: string[] } {
     const now = new Date().toISOString();
+    this.assertNoLineagedCaseIds(
+      params.decisions.map((d) => d.case_id),
+      'decide_oracles',
+    );
     const updated: ServiceTestCaseRecord[] = [];
     const missingCases: string[] = [];
+    const prepared: Array<{ readonly current: ServiceTestCaseRecord; readonly decision: OracleDecisionInput }> = [];
 
-    this.store.transaction('IMMEDIATE', () => {
-      for (const decision of params.decisions) {
-        const current = this.getCase(params.projectId, decision.case_id);
-        if (!current || current.module_key !== params.moduleKey) {
-          missingCases.push(decision.case_id);
-          continue;
-        }
+    for (const decision of params.decisions) {
+      const canonicalId = canonicalizeCaseId(decision.case_id);
+      const current = canonicalId ? this.getCase(params.projectId, canonicalId, 'decide_oracles') : null;
+      const trimmedOutcome = decision.expected_outcome.trim();
+      if (!current || current.module_key !== params.moduleKey || trimmedOutcome.length < 3) {
+        missingCases.push(canonicalId || decision.case_id.trim());
+        continue;
+      }
+      prepared.push({ current, decision });
+    }
+    if (missingCases.length > 0) {
+      return { updated, missing_cases: missingCases };
+    }
+
+    this.#store.transaction('IMMEDIATE', () => {
+      for (const { current, decision } of prepared) {
         const trimmedOutcome = decision.expected_outcome.trim();
-        if (trimmedOutcome.length < 3) {
-          missingCases.push(decision.case_id);
-          continue;
-        }
         const req = this.upsertRequirement({
           projectId: params.projectId,
           moduleId: params.moduleId,
@@ -540,13 +612,13 @@ export class Block3ExecutionRepo {
           expectation: nextExpectation,
         });
 
-        this.store.run(
+        this.#store.run(
           `UPDATE service_test_cases
            SET requirement_id = ?, requirement_revision = ?, version = ?,
                expectation_json = ?, oracle_status = 'confirmed_by_qa', risk_decision = ?,
                steps_json = ?, conformity_status = ?, confirmation_digest = ?,
                confirmed_by = NULL, confirmed_at = NULL, updated_at = ?
-           WHERE case_id = ?`,
+           WHERE case_id = ? AND execution_key IS NULL`,
           req.requirement_id,
           req.revision,
           nextVersion,
@@ -579,9 +651,14 @@ export class Block3ExecutionRepo {
     readonly skipped_pending_oracle: ServiceTestCaseRecord[];
     readonly code?: string;
   } {
+    // Aislamiento: IDs con linaje solicitados explícitamente se bloquean; no se omiten en silencio.
+    this.assertNoLineagedCaseIds(params.caseIds ?? [], 'approve_cases');
     const allModuleCases = this.listCases(params.projectId, params.moduleKey);
-    const requested = params.caseIds?.length
-      ? allModuleCases.filter((c) => params.caseIds!.includes(c.case_id))
+    const canonicalRequestedIds = params.caseIds?.length
+      ? new Set(params.caseIds.map((id) => canonicalizeCaseId(id)).filter(Boolean))
+      : null;
+    const requested = canonicalRequestedIds
+      ? allModuleCases.filter((c) => canonicalRequestedIds.has(canonicalizeCaseId(c.case_id)))
       : allModuleCases;
 
     const skippedPending = requested.filter((c) => c.conformity_status === 'pending_oracle');
@@ -629,15 +706,15 @@ export class Block3ExecutionRepo {
     }
 
     const now = new Date().toISOString();
-    this.store.transaction('IMMEDIATE', () => {
+    this.#store.transaction('IMMEDIATE', () => {
       for (const tc of eligible) {
         if (['approved', 'pass', 'fail', 'not_run', 'technical_error', 'human_accepted'].includes(tc.conformity_status)) {
           continue;
         }
-        this.store.run(
+        this.#store.run(
           `UPDATE service_test_cases
            SET conformity_status = 'approved', confirmed_by = ?, confirmed_at = ?, updated_at = ?
-           WHERE case_id = ?`,
+           WHERE case_id = ? AND execution_key IS NULL`,
           params.approvedBy,
           now,
           now,
@@ -657,24 +734,364 @@ export class Block3ExecutionRepo {
     };
   }
 
-  getCase(projectId: string, caseId: string): ServiceTestCaseRecord | null {
-    const row = this.store.get(
-      'SELECT * FROM service_test_cases WHERE project_id = ? AND case_id = ?',
-      projectId,
-      caseId,
-    );
+  getCase(projectId: string, caseId: string, operation = 'get_case'): ServiceTestCaseRecord | null {
+    // Aislamiento legacy: pedir explícitamente un ID con linaje se bloquea; nunca se devuelve ni se omite.
+    const canonicalId = canonicalizeCaseId(caseId);
+    if (!canonicalId) return null;
+    this.checkLineagedIds([canonicalId], operation, projectId);
+    const row = this.#findServiceCaseRow(canonicalId, { projectId, legacyOnly: true });
     return row ? mapCaseRow(row) : null;
   }
 
   listCases(projectId: string, moduleKey?: string): ServiceTestCaseRecord[] {
+    // Los candidatos con linaje (execution_key no nulo) tienen sus propias operaciones de consulta.
     const rows = moduleKey
-      ? this.store.all(
-          'SELECT * FROM service_test_cases WHERE project_id = ? AND module_key = ? ORDER BY created_at ASC',
+      ? this.#store.all(
+          'SELECT * FROM service_test_cases WHERE project_id = ? AND module_key = ? AND execution_key IS NULL ORDER BY created_at ASC',
           projectId,
           moduleKey,
         )
-      : this.store.all('SELECT * FROM service_test_cases WHERE project_id = ? ORDER BY created_at ASC', projectId);
+      : this.#store.all(
+          'SELECT * FROM service_test_cases WHERE project_id = ? AND execution_key IS NULL ORDER BY created_at ASC',
+          projectId,
+        );
     return rows.map(mapCaseRow);
+  }
+
+  #findServiceCaseRow(
+    canonicalId: string,
+    filters?: { readonly projectId?: string; readonly lineagedOnly?: boolean; readonly legacyOnly?: boolean },
+  ): Record<string, unknown> | undefined {
+    const clauses: string[] = [isUuidCaseId(canonicalId) ? 'lower(case_id) = ?' : 'case_id = ?'];
+    const args: string[] = [canonicalId];
+    if (filters?.projectId !== undefined) {
+      clauses.push('project_id = ?');
+      args.push(filters.projectId);
+    }
+    if (filters?.lineagedOnly) {
+      clauses.push('execution_key IS NOT NULL');
+    } else if (filters?.legacyOnly) {
+      clauses.push('execution_key IS NULL');
+    }
+    return this.#store.get(`SELECT * FROM service_test_cases WHERE ${clauses.join(' AND ')} LIMIT 1`, ...args);
+  }
+
+  private checkLineagedIds(caseIds: readonly string[], operation: string, projectId?: string): void {
+    const seen = new Set<string>();
+    for (const rawId of caseIds) {
+      const canonical = canonicalizeCaseId(rawId);
+      if (!canonical || seen.has(canonical)) continue;
+      seen.add(canonical);
+      const row = this.#findServiceCaseRow(canonical, { projectId, lineagedOnly: true });
+      if (row && row.execution_key !== null && row.execution_key !== undefined) {
+        throw legacyBlockedError(operation, canonical);
+      }
+    }
+  }
+
+  /** Preflight sin efectos secundarios: bloquea si cualquiera de los IDs pertenece a un caso con linaje en cualquier proyecto. */
+  assertNoLineagedCaseIds(caseIds: readonly string[], operation: string): void {
+    this.checkLineagedIds(caseIds, operation);
+  }
+
+  /** Preflight sin efectos secundarios acotado a un proyecto: bloquea si cualquiera de los IDs pertenece a un caso con linaje de ese proyecto. */
+  assertNoProjectLineagedCaseIds(projectId: string, caseIds: readonly string[], operation: string): void {
+    this.checkLineagedIds(caseIds, operation, projectId);
+  }
+
+  /** Lanza si el ID corresponde a un caso con linaje en cualquier proyecto. Las rutas legacy nunca deben operar sobre ellos. */
+  private assertNotLineaged(_projectId: string, caseId: string, operation: string): void {
+    this.checkLineagedIds([caseId], operation);
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // P0.3b-01A — casos con linaje (operaciones internas; sin handlers ni herramientas MCP)
+  // ---------------------------------------------------------------------------------------------
+
+  private assertCanonicalReadScopeInStore(scope: NormalizedLineagedReadScope): void {
+    const envById = this.#store.get<{ env_id: string }>(
+      'SELECT env_id FROM environments WHERE project_id = ? AND env_id = ?',
+      scope.projectId,
+      scope.environmentId,
+    );
+    if (!envById) {
+      const envByName = this.#store.get<{ env_id: string }>(
+        'SELECT env_id FROM environments WHERE project_id = ? AND lower(name) = lower(?) LIMIT 1',
+        scope.projectId,
+        scope.environmentId,
+      );
+      if (envByName) {
+        throw new LineagedCaseError(
+          'lineaged_case_ambiguous_alias',
+          "'environmentId' debe ser el identificador canónico del entorno, no su nombre.",
+          { field: 'environmentId' },
+        );
+      }
+    }
+
+    if (scope.profileId !== null) {
+      const profById = this.#store.get<{ profile_id: string }>(
+        'SELECT profile_id FROM profiles WHERE project_id = ? AND profile_id = ?',
+        scope.projectId,
+        scope.profileId,
+      );
+      if (!profById) {
+        const profByLabel = this.#store.get<{ profile_id: string }>(
+          'SELECT profile_id FROM profiles WHERE project_id = ? AND lower(label) = lower(?) LIMIT 1',
+          scope.projectId,
+          scope.profileId,
+        );
+        if (profByLabel) {
+          throw new LineagedCaseError(
+            'lineaged_case_ambiguous_alias',
+            "'profileId' debe ser el identificador canónico del perfil, no su alias/label.",
+            { field: 'profileId' },
+          );
+        }
+      }
+    }
+  }
+
+  getLineagedCase(
+    scope: LineagedCaseReadScopeInput | LineagedCaseScope,
+    selector: LineagedCaseSelector,
+  ): LineagedCaseRecord | null;
+  getLineagedCase(
+    projectId: string,
+    selector: LineagedCaseSelector & Partial<LineagedCaseReadScopeInput>,
+    scope?: LineagedCaseReadScopeInput | LineagedCaseScope,
+  ): LineagedCaseRecord | null;
+  getLineagedCase(
+    arg1: LineagedCaseReadScopeInput | LineagedCaseScope | string,
+    arg2: unknown,
+    arg3?: unknown,
+  ): LineagedCaseRecord | null {
+    const { scope, selector } = resolveLineagedReadArguments(arg1, arg2, arg3);
+    this.assertCanonicalReadScopeInStore(scope);
+
+    const row =
+      selector.kind === 'caseId'
+        ? this.#store.get(
+            `SELECT * FROM service_test_cases
+             WHERE project_id = ? AND module_key = ? AND case_id = ? AND execution_key IS NOT NULL
+             LIMIT 1`,
+            scope.projectId,
+            scope.moduleKey,
+            selector.caseId,
+          )
+        : this.#store.get(
+            `SELECT * FROM service_test_cases
+             WHERE project_id = ? AND module_key = ? AND execution_key = ?
+             LIMIT 1`,
+            scope.projectId,
+            scope.moduleKey,
+            selector.executionKey,
+          );
+
+    if (!row || !rowBelongsToLineagedReadScope(row, scope)) {
+      return null;
+    }
+    return parseLineagedCaseRow(row, scope);
+  }
+
+  listLineagedCases(scope: LineagedCaseReadScopeInput | LineagedCaseScope): LineagedCaseRecord[];
+  listLineagedCases(
+    projectId: string,
+    scope: Omit<LineagedCaseReadScopeInput, 'projectId'> & { readonly projectId?: string },
+  ): LineagedCaseRecord[];
+  listLineagedCases(
+    arg1: LineagedCaseReadScopeInput | LineagedCaseScope | string,
+    arg2?: unknown,
+  ): LineagedCaseRecord[] {
+    const scope = resolveLineagedListArguments(arg1, arg2);
+    this.assertCanonicalReadScopeInStore(scope);
+
+    const rows = this.#store.all(
+      `SELECT * FROM service_test_cases
+       WHERE project_id = ? AND module_key = ? AND execution_key IS NOT NULL
+       ORDER BY created_at ASC, case_id ASC`,
+      scope.projectId,
+      scope.moduleKey,
+    );
+    return rows
+      .filter((row) => rowBelongsToLineagedReadScope(row, scope))
+      .map((row) => parseLineagedCaseRow(row, scope));
+  }
+
+  /**
+   * Crea, repite (idempotente) o avanza un caso con linaje. DEBE ejecutarse dentro de una transacción
+   * IMMEDIATE abierta por el llamador (las referencias se verifican en esa misma transacción).
+   *
+   * - Sin caso previo para la identidad lógica: se genera el UUID y se inserta la versión 1.
+   * - Mismo dossier y misma revisión de regla: mismo contenido → devuelve el existente; distinto → conflicto.
+   * - Linaje avanzado (otro dossier o revisión de regla mayor): exige `expectedVersion` (CAS), mantiene el ID,
+   *   incrementa la versión e invalida cualquier aprobación previa.
+   * - Revisión de regla inferior a la registrada: rechazada.
+   * Todo caso queda pending_oracle / missing_oracle, sin aprobación ni elegibilidad de ejecución.
+   */
+  upsertLineagedCandidateInTransaction(params: {
+    readonly projectId: string;
+    readonly moduleKey: string;
+    readonly scope?: LineagedCaseScope;
+    readonly executionKey: string;
+    readonly dossierRevisionId: string;
+    readonly ruleRevision: number;
+    readonly expectedVersion: number | undefined;
+    /** Solo se invoca al crear: garantiza el módulo sin mutar nada en repeticiones ni conflictos. */
+    readonly resolveModuleId: () => string;
+    /** Construye el documento con el ID y la versión definitivos (el ID existente se resuelve antes). */
+    readonly prepare: (caseId: string, version: number) => LineagedCaseDocument;
+  }): LineagedCaseWriteResult {
+    const inTransaction = (this.#store.db as unknown as { isTransaction?: boolean }).isTransaction;
+    if (inTransaction === false) {
+      throw new Error('upsertLineagedCandidateInTransaction requiere una transacción IMMEDIATE activa.');
+    }
+
+    const expectedScope = normalizeLineagedReadScope(params.scope, params.projectId);
+    if (expectedScope.moduleKey !== params.moduleKey) {
+      throw new LineagedCaseError('lineaged_case_scope_mismatch', 'El módulo no coincide con el ámbito.', { field: 'moduleKey' });
+    }
+    const existingRow = this.#store.get(
+      'SELECT * FROM service_test_cases WHERE project_id = ? AND module_key = ? AND execution_key = ?',
+      params.projectId,
+      params.moduleKey,
+      params.executionKey,
+    );
+    const now = new Date().toISOString();
+    const prepare = (caseId: string, version: number): LineagedCaseDocument => {
+      const document = params.prepare(caseId, version);
+      if (!matchesLineagedReadScope(document.scope, expectedScope) ||
+          document.identity.case_id !== caseId || document.identity.execution_key !== params.executionKey ||
+          computeLineagedExecutionKey(document.scope, document.lineage.rule) !== params.executionKey) {
+        throw new LineagedCaseError('lineaged_case_scope_mismatch', 'El documento contradice el ámbito o la identidad solicitados.', { field: 'scope' });
+      }
+      return document;
+    };
+
+    if (!existingRow) {
+      if (params.expectedVersion !== undefined) {
+        throw new LineagedCaseError(
+          'lineaged_case_stale_version',
+          `No existe un caso previo para esta identidad; 'expectedVersion' (${params.expectedVersion}) no aplica a una creación.`,
+          { expected_version: params.expectedVersion, current_version: null },
+        );
+      }
+      const caseId = randomUUID();
+      const document = prepare(caseId, 1);
+      const digest = computeLineagedCaseDigest(document, 1);
+      const moduleId = params.resolveModuleId();
+      this.#store.run(
+        `INSERT INTO service_test_cases
+         (case_id, project_id, module_id, module_key, requirement_id, requirement_revision, title, version,
+          observation_json, inference_json, expectation_json, oracle_status, risk_level, risk_decision,
+          steps_json, conformity_status, confirmation_digest, confirmed_by, confirmed_at, campaign_id,
+          created_at, updated_at, execution_key, execution_lineage_json, execution_content_digest,
+          execution_approval_id)
+         VALUES (?, ?, ?, ?, NULL, 1, ?, 1, ?, ?, ?, 'missing_oracle', 'medium', 'not_required',
+                 '[]', 'pending_oracle', NULL, NULL, NULL, NULL, ?, ?, ?, ?, ?, NULL)`,
+        caseId,
+        params.projectId,
+        moduleId,
+        params.moduleKey,
+        document.tc_case.name,
+        ...lineagedLegacyColumns(document),
+        now,
+        now,
+        params.executionKey,
+        stableStringify(document),
+        digest,
+      );
+      return { outcome: 'created', case: this.requireLineagedCase(document.scope, caseId) };
+    }
+
+    if (!rowBelongsToLineagedReadScope(existingRow, expectedScope)) {
+      throw new LineagedCaseError('lineaged_case_scope_mismatch', 'El candidato no pertenece al ámbito solicitado.', { field: 'scope' });
+    }
+    const existing = parseLineagedCaseRow(existingRow, expectedScope);
+    const storedRevision = existing.lineage.rule.revision;
+    if (params.ruleRevision < storedRevision) {
+      throw new LineagedCaseError(
+        'lineaged_case_rule_revision_regression',
+        `La revisión de regla ${params.ruleRevision} es inferior a la registrada (${storedRevision}).`,
+        { stored_revision: storedRevision, candidate_revision: params.ruleRevision },
+      );
+    }
+
+    const sameLineage =
+      params.ruleRevision === storedRevision && existing.lineage.dossier.revision_id === params.dossierRevisionId;
+    if (sameLineage) {
+      const document = prepare(existing.case_id, existing.version);
+      const digest = computeLineagedCaseDigest(document, existing.version);
+      if (digest === existing.execution_content_digest) {
+        return { outcome: 'unchanged', case: this.requireLineagedCase(document.scope, existing.case_id) };
+      }
+      throw new LineagedCaseError(
+        'lineaged_case_content_conflict',
+        'Contenido distinto con el mismo dossier y la misma revisión de regla: el caso existente no se modifica.',
+        { case_id: existing.case_id, version: existing.version },
+      );
+    }
+
+    // Avance de linaje: compare-and-swap sobre la versión.
+    if (params.expectedVersion === undefined) {
+      throw new LineagedCaseError(
+        'lineaged_case_expected_version_required',
+        "Avanzar el linaje de un caso existente exige 'expectedVersion'.",
+        { case_id: existing.case_id, current_version: existing.version },
+      );
+    }
+    if (params.expectedVersion !== existing.version) {
+      throw new LineagedCaseError(
+        'lineaged_case_stale_version',
+        `Versión obsoleta: se esperaba ${params.expectedVersion} y la vigente es ${existing.version}.`,
+        { case_id: existing.case_id, expected_version: params.expectedVersion, current_version: existing.version },
+      );
+    }
+
+    const nextVersion = existing.version + 1;
+    const document = prepare(existing.case_id, nextVersion);
+    const digest = computeLineagedCaseDigest(document, nextVersion);
+    const [observationJson, inferenceJson, expectationJson] = lineagedLegacyColumns(document);
+    const result = this.#store.run(
+      `UPDATE service_test_cases
+       SET title = ?, version = ?, observation_json = ?, inference_json = ?, expectation_json = ?,
+           oracle_status = 'missing_oracle', risk_level = 'medium', risk_decision = 'not_required',
+           steps_json = '[]', conformity_status = 'pending_oracle',
+           confirmation_digest = NULL, confirmed_by = NULL, confirmed_at = NULL,
+           execution_lineage_json = ?, execution_content_digest = ?, execution_approval_id = NULL,
+           updated_at = ?
+       WHERE project_id = ? AND case_id = ? AND execution_key = ? AND version = ?`,
+      document.tc_case.name,
+      nextVersion,
+      observationJson,
+      inferenceJson,
+      expectationJson,
+      stableStringify(document),
+      digest,
+      now,
+      params.projectId,
+      existing.case_id,
+      params.executionKey,
+      existing.version,
+    );
+    if (Number(result.changes) !== 1) {
+      throw new LineagedCaseError(
+        'lineaged_case_stale_version',
+        'Versión obsoleta: el caso cambió durante la escritura.',
+        { case_id: existing.case_id, expected_version: params.expectedVersion },
+      );
+    }
+    return { outcome: 'advanced', case: this.requireLineagedCase(document.scope, existing.case_id) };
+  }
+
+  private requireLineagedCase(scope: LineagedCaseScope, caseId: string): LineagedCaseRecord {
+    const record = this.getLineagedCase(scope, { caseId, routePathname: scope.route_pathname });
+    if (!record) {
+      throw new LineagedCaseError('lineaged_case_corrupt', `No se pudo releer el caso con linaje '${caseId}'.`, {
+        case_id: caseId,
+      });
+    }
+    return record;
   }
 
   createExecutionAttempt(params: {
@@ -694,14 +1111,22 @@ export class Block3ExecutionRepo {
     }[];
   }): ExecutionAttemptRecord {
     const now = new Date().toISOString();
+    const canonicalCases = params.cases.map((c) => ({
+      ...c,
+      case_id: canonicalizeCaseId(c.case_id) || c.case_id.trim(),
+    }));
+    this.assertNoLineagedCaseIds(
+      canonicalCases.map((c) => c.case_id),
+      'create_attempt',
+    );
     const attemptId = `att_${randomUUID().replace(/-/g, '').slice(0, 16)}`;
     const executionId = params.executionId?.trim() || `exec_${Date.now()}_${randomUUID().slice(0, 6)}`;
-    const caseIds = params.cases.map((c) => c.case_id);
+    const caseIds = canonicalCases.map((c) => c.case_id);
     const caseVersions: Record<string, number> = {};
     const reqRevisions: ExecutionAttemptRecord['requirement_revisions'][number][] = [];
 
-    for (const c of params.cases) {
-      const existingCase = this.getCase(params.projectId, c.case_id);
+    for (const c of canonicalCases) {
+      const existingCase = this.getCase(params.projectId, c.case_id, 'create_attempt');
       caseVersions[c.case_id] = c.version ?? existingCase?.version ?? 1;
       reqRevisions.push({
         requirement_id: c.requirement_id ?? existingCase?.requirement_id ?? null,
@@ -710,7 +1135,7 @@ export class Block3ExecutionRepo {
       });
     }
 
-    this.store.run(
+    this.#store.run(
       `INSERT INTO execution_attempts
        (attempt_id, execution_id, project_id, campaign_id, module_id, module_key, env_id, profile_id,
         status, case_ids_json, case_versions_json, requirement_revisions_json, started_at)
@@ -732,7 +1157,7 @@ export class Block3ExecutionRepo {
   }
 
   markAttemptRunning(attemptId: string): ExecutionAttemptRecord | null {
-    this.store.run('UPDATE execution_attempts SET status = ? WHERE attempt_id = ? AND status = ?', 'running', attemptId, 'prepared');
+    this.#store.run('UPDATE execution_attempts SET status = ? WHERE attempt_id = ? AND status = ?', 'running', attemptId, 'prepared');
     return this.getExecutionAttempt(attemptId);
   }
 
@@ -748,6 +1173,10 @@ export class Block3ExecutionRepo {
     if (!attempt) {
       throw new Error(`Execution attempt not found: ${params.attemptId}`);
     }
+    this.assertNoLineagedCaseIds(
+      [...attempt.case_ids, ...(params.executionResult?.cases.map((c) => c.id) ?? [])],
+      'finalize_attempt',
+    );
     const now = new Date().toISOString();
     const caseResults: ExecutionCaseResultRecord[] = [];
     let attemptStatus: ExecutionAttemptStatus;
@@ -765,8 +1194,8 @@ export class Block3ExecutionRepo {
     const resultDigest = params.executionResult ? shaDigest(params.executionResult) : null;
     const reqByIndex = attempt.requirement_revisions;
 
-    this.store.transaction('IMMEDIATE', () => {
-      this.store.run(
+    this.#store.transaction('IMMEDIATE', () => {
+      this.#store.run(
         `UPDATE execution_attempts
          SET execution_id = ?, status = ?, finished_at = ?, error_code = ?, error_message = ?,
              raw_execution_path = ?, trace_path = ?, result_digest = ?
@@ -784,7 +1213,8 @@ export class Block3ExecutionRepo {
 
       if (params.executionResult) {
         for (const [idx, c] of params.executionResult.cases.entries()) {
-          const svcCase = this.getCase(attempt.project_id, c.id);
+          const canonicalCaseId = canonicalizeCaseId(c.id) || c.id;
+          const svcCase = this.getCase(attempt.project_id, canonicalCaseId, 'finalize_attempt');
           const reqInfo = reqByIndex[idx];
           const verdict: CaseExecutionVerdict =
             c.result === 'passed'
@@ -834,7 +1264,7 @@ export class Block3ExecutionRepo {
           );
 
           const rowId = `ecr_${randomUUID().replace(/-/g, '').slice(0, 16)}`;
-          this.store.run(
+          this.#store.run(
             `INSERT INTO execution_case_results
              (result_row_id, attempt_id, project_id, campaign_id, module_key, requirement_id, requirement_revision,
               case_id, case_version, verdict, human_acceptance_reason, human_accepted_by, human_accepted_at,
@@ -847,8 +1277,8 @@ export class Block3ExecutionRepo {
             attempt.module_key,
             svcCase?.requirement_id ?? reqInfo?.requirement_id ?? null,
             svcCase?.requirement_revision ?? reqInfo?.revision ?? 1,
-            c.id,
-            attempt.case_versions[c.id] ?? svcCase?.version ?? 1,
+            canonicalCaseId,
+            attempt.case_versions[canonicalCaseId] ?? attempt.case_versions[c.id] ?? svcCase?.version ?? 1,
             verdict,
             JSON.stringify(stepResults),
             JSON.stringify(evidenceRefs),
@@ -863,8 +1293,8 @@ export class Block3ExecutionRepo {
                   : verdict === 'technical_error'
                     ? 'technical_error'
                     : 'not_run';
-            this.store.run(
-              'UPDATE service_test_cases SET conformity_status = ?, updated_at = ? WHERE case_id = ?',
+            this.#store.run(
+              'UPDATE service_test_cases SET conformity_status = ?, updated_at = ? WHERE case_id = ? AND execution_key IS NULL',
               nextConformity,
               now,
               svcCase.case_id,
@@ -885,7 +1315,7 @@ export class Block3ExecutionRepo {
           ),
           artifact_errors: params.executionResult.artifacts?.artifact_errors ?? [],
         };
-        this.store.run(
+        this.#store.run(
           `INSERT INTO host_session_state (key, value, updated_at)
            VALUES (?, ?, ?)
            ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
@@ -894,11 +1324,12 @@ export class Block3ExecutionRepo {
           now,
         );
       } else if (params.technicalError) {
-        for (const [idx, caseId] of attempt.case_ids.entries()) {
-          const svcCase = this.getCase(attempt.project_id, caseId);
+        for (const [idx, rawCaseId] of attempt.case_ids.entries()) {
+          const caseId = canonicalizeCaseId(rawCaseId) || rawCaseId;
+          const svcCase = this.getCase(attempt.project_id, caseId, 'finalize_attempt');
           const reqInfo = reqByIndex[idx];
           const rowId = `ecr_${randomUUID().replace(/-/g, '').slice(0, 16)}`;
-          this.store.run(
+          this.#store.run(
             `INSERT INTO execution_case_results
              (result_row_id, attempt_id, project_id, campaign_id, module_key, requirement_id, requirement_revision,
               case_id, case_version, verdict, human_acceptance_reason, human_accepted_by, human_accepted_at,
@@ -912,7 +1343,7 @@ export class Block3ExecutionRepo {
             svcCase?.requirement_id ?? reqInfo?.requirement_id ?? null,
             svcCase?.requirement_revision ?? reqInfo?.revision ?? 1,
             caseId,
-            attempt.case_versions[caseId] ?? svcCase?.version ?? 1,
+            attempt.case_versions[caseId] ?? attempt.case_versions[rawCaseId] ?? svcCase?.version ?? 1,
             JSON.stringify([
               {
                 step_index: 0,
@@ -925,8 +1356,8 @@ export class Block3ExecutionRepo {
             now,
           );
           if (svcCase) {
-            this.store.run(
-              'UPDATE service_test_cases SET conformity_status = ?, updated_at = ? WHERE case_id = ?',
+            this.#store.run(
+              'UPDATE service_test_cases SET conformity_status = ?, updated_at = ? WHERE case_id = ? AND execution_key IS NULL',
               'technical_error',
               now,
               svcCase.case_id,
@@ -948,31 +1379,35 @@ export class Block3ExecutionRepo {
     reason: string;
   }): ExecutionCaseResultRecord | null {
     const trimmed = params.reason.trim();
+    const canonicalCaseId = canonicalizeCaseId(params.caseId);
+    if (!canonicalCaseId) return null;
+    this.assertNotLineaged(params.projectId, canonicalCaseId, 'record_human_acceptance');
     if (trimmed.length < 15) {
       throw new Error('La aceptación humana requiere una justificación de al menos 15 caracteres.');
     }
+    const caseFilter = isUuidCaseId(canonicalCaseId) ? 'lower(case_id) = ?' : 'case_id = ?';
     const row = params.moduleKey
-      ? this.store.get(
+      ? this.#store.get(
           `SELECT * FROM execution_case_results
-           WHERE project_id = ? AND case_id = ? AND module_key = ?
+           WHERE project_id = ? AND ${caseFilter} AND module_key = ?
            ORDER BY created_at DESC LIMIT 1`,
           params.projectId,
-          params.caseId,
+          canonicalCaseId,
           params.moduleKey,
         )
-      : this.store.get(
+      : this.#store.get(
           `SELECT * FROM execution_case_results
-           WHERE project_id = ? AND case_id = ?
+           WHERE project_id = ? AND ${caseFilter}
            ORDER BY created_at DESC LIMIT 1`,
           params.projectId,
-          params.caseId,
+          canonicalCaseId,
         );
     if (!row) return null;
 
     const existing = mapCaseResultRow(row);
     const now = new Date().toISOString();
-    this.store.transaction('IMMEDIATE', () => {
-      this.store.run(
+    this.#store.transaction('IMMEDIATE', () => {
+      this.#store.run(
         `UPDATE execution_case_results
          SET verdict = 'human_accepted', human_acceptance_reason = ?, human_accepted_by = ?, human_accepted_at = ?
          WHERE result_row_id = ?`,
@@ -981,19 +1416,19 @@ export class Block3ExecutionRepo {
         now,
         existing.result_row_id,
       );
-      this.store.run(
-        'UPDATE service_test_cases SET conformity_status = ?, updated_at = ? WHERE project_id = ? AND case_id = ?',
+      this.#store.run(
+        `UPDATE service_test_cases SET conformity_status = ?, updated_at = ? WHERE project_id = ? AND ${caseFilter} AND execution_key IS NULL`,
         'human_accepted',
         now,
         params.projectId,
-        params.caseId,
+        canonicalCaseId,
       );
     });
     return this.getCaseResultRow(existing.result_row_id);
   }
 
   private hydrateAttemptEvidence(record: ExecutionAttemptRecord): ExecutionAttemptRecord {
-    const metaRow = this.store.get<{ value?: string }>(
+    const metaRow = this.#store.get<{ value?: string }>(
       'SELECT value FROM host_session_state WHERE key = ?',
       `attempt_evidence:${record.attempt_id}`,
     );
@@ -1020,18 +1455,18 @@ export class Block3ExecutionRepo {
   }
 
   getExecutionAttempt(attemptId: string): ExecutionAttemptRecord | null {
-    const row = this.store.get('SELECT * FROM execution_attempts WHERE attempt_id = ?', attemptId);
+    const row = this.#store.get('SELECT * FROM execution_attempts WHERE attempt_id = ?', attemptId);
     return row ? this.hydrateAttemptEvidence(mapAttemptRow(row)) : null;
   }
 
   listExecutionAttempts(projectId: string, moduleKey?: string): ExecutionAttemptRecord[] {
     const rows = moduleKey
-      ? this.store.all(
+      ? this.#store.all(
           'SELECT * FROM execution_attempts WHERE project_id = ? AND module_key = ? ORDER BY started_at DESC',
           projectId,
           moduleKey,
         )
-      : this.store.all(
+      : this.#store.all(
           'SELECT * FROM execution_attempts WHERE project_id = ? ORDER BY started_at DESC',
           projectId,
         );
@@ -1039,19 +1474,19 @@ export class Block3ExecutionRepo {
   }
 
   getCaseResultRow(resultRowId: string): ExecutionCaseResultRecord | null {
-    const row = this.store.get('SELECT * FROM execution_case_results WHERE result_row_id = ?', resultRowId);
+    const row = this.#store.get('SELECT * FROM execution_case_results WHERE result_row_id = ?', resultRowId);
     return row ? mapCaseResultRow(row) : null;
   }
 
   getExecutionSummary(projectId: string, moduleKey?: string): CanonicalExecutionSummary {
     const attempts = this.listExecutionAttempts(projectId, moduleKey);
     const rows = moduleKey
-      ? this.store.all(
+      ? this.#store.all(
           'SELECT * FROM execution_case_results WHERE project_id = ? AND module_key = ? ORDER BY created_at DESC',
           projectId,
           moduleKey,
         )
-      : this.store.all(
+      : this.#store.all(
           'SELECT * FROM execution_case_results WHERE project_id = ? ORDER BY created_at DESC',
           projectId,
         );
@@ -1107,7 +1542,7 @@ export class Block3ExecutionRepo {
     moduleKey: string;
     requestedFormats: readonly ('html' | 'markdown' | 'junit' | 'json')[];
   }): ReportPublicationRecord {
-    const existingRow = this.store.get(
+    const existingRow = this.#store.get(
       `SELECT * FROM report_publications
        WHERE project_id = ? AND execution_id = ? AND module_key = ?
        ORDER BY updated_at DESC LIMIT 1`,
@@ -1120,7 +1555,7 @@ export class Block3ExecutionRepo {
       if (existing.status === 'partial') {
         const mergedFormats = Array.from(new Set([...existing.requested_formats, ...params.requestedFormats]));
         const now = new Date().toISOString();
-        this.store.run(
+        this.#store.run(
           'UPDATE report_publications SET requested_formats_json = ?, updated_at = ? WHERE publication_id = ?',
           JSON.stringify(mergedFormats),
           now,
@@ -1133,7 +1568,7 @@ export class Block3ExecutionRepo {
 
     const now = new Date().toISOString();
     const pubId = `pub_${randomUUID().replace(/-/g, '').slice(0, 16)}`;
-    this.store.run(
+    this.#store.run(
       `INSERT INTO report_publications
        (publication_id, project_id, campaign_id, attempt_id, execution_id, module_key,
         requested_formats_json, published_formats_json, failed_format, status, created_at, updated_at)
@@ -1172,7 +1607,7 @@ export class Block3ExecutionRepo {
       },
     };
     const allPublished = pub.requested_formats.every((f) => Boolean(updatedFormats[f]));
-    this.store.run(
+    this.#store.run(
       `UPDATE report_publications
        SET published_formats_json = ?, failed_format = ?, status = ?, updated_at = ?
        WHERE publication_id = ?`,
@@ -1187,7 +1622,7 @@ export class Block3ExecutionRepo {
 
   failReportPublication(publicationId: string, failedFormat: string): ReportPublicationRecord | null {
     const now = new Date().toISOString();
-    this.store.run(
+    this.#store.run(
       `UPDATE report_publications SET failed_format = ?, status = 'partial', updated_at = ? WHERE publication_id = ?`,
       failedFormat,
       now,
@@ -1197,12 +1632,12 @@ export class Block3ExecutionRepo {
   }
 
   getPublication(publicationId: string): ReportPublicationRecord | null {
-    const row = this.store.get('SELECT * FROM report_publications WHERE publication_id = ?', publicationId);
+    const row = this.#store.get('SELECT * FROM report_publications WHERE publication_id = ?', publicationId);
     return row ? mapPublicationRow(row) : null;
   }
 
   listRecoverablePublications(projectId: string): ReportPublicationRecord[] {
-    return this.store
+    return this.#store
       .all(
         `SELECT * FROM report_publications WHERE project_id = ? AND status = 'partial' ORDER BY updated_at DESC`,
         projectId,
@@ -1212,12 +1647,12 @@ export class Block3ExecutionRepo {
 
   getRecoverablePublication(projectId: string, executionId?: string): ReportPublicationRecord | null {
     const row = executionId
-      ? this.store.get(
+      ? this.#store.get(
           `SELECT * FROM report_publications WHERE project_id = ? AND execution_id = ? ORDER BY updated_at DESC LIMIT 1`,
           projectId,
           executionId,
         )
-      : this.store.get(
+      : this.#store.get(
           `SELECT * FROM report_publications WHERE project_id = ? AND status = 'partial' ORDER BY updated_at DESC LIMIT 1`,
           projectId,
         );

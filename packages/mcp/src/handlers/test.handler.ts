@@ -14,6 +14,8 @@ import {
   type McpInvocationContext,
 } from '../dispatcher.js';
 import { atomicRecordTestAuthorization, type ITestAuthorizer } from '../test-authorizer.js';
+import { canonicalizeCaseId } from '../application/block3-execution-repo.js';
+import { LineagedCaseError } from '../application/lineaged-case.js';
 
 import { verifyCaseApproval } from './case-workflow.js';
 import {
@@ -292,6 +294,114 @@ export class TestHandler implements IMcpToolHandler {
             },
             true,
           );
+        }
+      }
+    }
+
+    // 4a. Early Global Lineaged Case & Verified Plan Preflight (P0.3b-01A-R1)
+    // Runs BEFORE any silent/interactive authorization, SQLite grant, host registry write,
+    // module/attempt creation, or browser runner invocation (even on unregistered legacy roots).
+    if (appService && args.case_ids && args.case_ids.length > 0) {
+      try {
+        appService.assertNoLineagedCaseIds(args.case_ids, 'test_handler');
+      } catch (err) {
+        if (err instanceof LineagedCaseError) {
+          return result({ status: 'blocked', code: err.code, ...err.details }, true);
+        }
+        throw err;
+      }
+    }
+
+    const planCheck: PlanVigenciaCheck = await verifyPlanIntegrity(storage, moduleName, {
+      environment,
+    });
+
+    if (planCheck.validity !== 'valid') {
+      return result(
+        {
+          status: 'blocked',
+          code: planCheck.code ?? 'plan_invalid',
+          module: moduleName,
+          environment,
+          message:
+            planCheck.reason ??
+            `El plan de pruebas para el módulo '${moduleName}' no es válido o está obsoleto (validity: '${planCheck.validity}'). Debe regenerarse con 'qap_plan'.`,
+          desbloquear_con: planCheck.desbloquear_con ?? 'qap_plan',
+          vigencia: planCheck,
+        },
+        true
+      );
+    }
+
+    const verifiedPlan = planCheck.plan;
+    if (!verifiedPlan || !verifiedPlan.matrix || !Array.isArray(verifiedPlan.matrix.cases)) {
+      return result(
+        {
+          status: 'blocked',
+          code: 'corrupt_plan',
+          module: moduleName,
+          environment,
+          message: 'La estructura del plan verificado en memoria es inválida.',
+          desbloquear_con: 'qap_plan',
+        },
+        true
+      );
+    }
+
+    if (appService) {
+      try {
+        appService.assertNoLineagedCaseIds(
+          [
+            ...(args.case_ids ?? []),
+            ...verifiedPlan.matrix.cases,
+            ...(planCheck.verified_cases ?? []).map(c => c.id),
+          ],
+          'test_handler',
+        );
+      } catch (err) {
+        if (err instanceof LineagedCaseError) {
+          return result({ status: 'blocked', code: err.code, ...err.details }, true);
+        }
+        throw err;
+      }
+    }
+
+    // TOCTOU Snapshot Protection (R1.6 / R2)
+    // Populate an in-memory snapshot map of verified cases so PlaywrightRunner NEVER reads YAMLs from disk
+    const snapshotMap = new Map<string, TCCase>();
+    const snapshotByCanonical = new Map<string, TCCase>();
+    for (const tc of planCheck.verified_cases ?? []) {
+      const cloned = structuredClone(tc);
+      snapshotMap.set(tc.id, cloned);
+      snapshotByCanonical.set(canonicalizeCaseId(tc.id), cloned);
+    }
+
+    let selectedPlanCaseIds = verifiedPlan.matrix.cases;
+    if (args.case_ids && args.case_ids.length > 0) {
+      const requestedCanonical = new Set(args.case_ids.map(id => canonicalizeCaseId(id)));
+      const missingFromPlan = args.case_ids
+        .map(id => id.trim())
+        .filter(id => !snapshotByCanonical.has(canonicalizeCaseId(id)));
+      if (missingFromPlan.length > 0) {
+        return result(
+          {
+            status: 'blocked',
+            code: 'unknown_case_in_batch',
+            module: moduleName,
+            environment,
+            missing_case_ids: missingFromPlan,
+            message: `Algunos casos del lote solicitado no forman parte del plan vigente para '${moduleName}'.`,
+            desbloquear_con: 'qap_plan',
+          },
+          true,
+        );
+      }
+      selectedPlanCaseIds = verifiedPlan.matrix.cases.filter(id =>
+        requestedCanonical.has(canonicalizeCaseId(id)),
+      );
+      for (const [id, tc] of [...snapshotMap.entries()]) {
+        if (!requestedCanonical.has(canonicalizeCaseId(tc.id))) {
+          snapshotMap.delete(id);
         }
       }
     }
@@ -637,80 +747,12 @@ export class TestHandler implements IMcpToolHandler {
       if (!profile?.verified || profile.application_id !== bound.applicationId || profile.env !== environment || !session) return result({ status: 'blocked', code: 'auth_session_expired' }, true);
     }
 
-    // 6. Preflight Plan Verification Gate (R1 / R2)
-    const planCheck: PlanVigenciaCheck = await verifyPlanIntegrity(storage, moduleName, {
-      environment,
-    });
-
-    if (planCheck.validity !== 'valid') {
-      return result(
-        {
-          status: 'blocked',
-          code: planCheck.code ?? 'plan_invalid',
-          module: moduleName,
-          environment,
-          message:
-            planCheck.reason ??
-            `El plan de pruebas para el módulo '${moduleName}' no es válido o está obsoleto (validity: '${planCheck.validity}'). Debe regenerarse con 'qap_plan'.`,
-          desbloquear_con: planCheck.desbloquear_con ?? 'qap_plan',
-          vigencia: planCheck,
-        },
-        true
-      );
-    }
-
-    const verifiedPlan = planCheck.plan;
-    if (!verifiedPlan || !verifiedPlan.matrix || !Array.isArray(verifiedPlan.matrix.cases)) {
-      return result(
-        {
-          status: 'blocked',
-          code: 'corrupt_plan',
-          module: moduleName,
-          environment,
-          message: 'La estructura del plan verificado en memoria es inválida.',
-          desbloquear_con: 'qap_plan',
-        },
-        true
-      );
-    }
-
-    // 7. TOCTOU Snapshot Protection (R1.6 / R2)
-    // Populate an in-memory snapshot map of verified cases so PlaywrightRunner NEVER reads YAMLs from disk
-    const snapshotMap = new Map<string, TCCase>();
-    for (const tc of planCheck.verified_cases ?? []) {
-      snapshotMap.set(tc.id, structuredClone(tc));
-    }
-
-    let selectedPlanCaseIds = verifiedPlan.matrix.cases;
-    if (args.case_ids && args.case_ids.length > 0) {
-      const requestedSet = new Set(args.case_ids.map(id => id.trim()));
-      const missingFromPlan = [...requestedSet].filter(id => !snapshotMap.has(id));
-      if (missingFromPlan.length > 0) {
-        return result(
-          {
-            status: 'blocked',
-            code: 'unknown_case_in_batch',
-            module: moduleName,
-            environment,
-            missing_case_ids: missingFromPlan,
-            message: `Algunos casos del lote solicitado no forman parte del plan vigente para '${moduleName}'.`,
-            desbloquear_con: 'qap_plan',
-          },
-          true,
-        );
-      }
-      selectedPlanCaseIds = verifiedPlan.matrix.cases.filter(id => requestedSet.has(id));
-      for (const id of [...snapshotMap.keys()]) {
-        if (!requestedSet.has(id)) {
-          snapshotMap.delete(id);
-        }
-      }
-    }
-
+    // 6. TOCTOU Snapshot Resolver & Case Approval Gate (R1.6 / R2)
+    // Snapshot was preflight-verified and checked against lineaged cases in Step 4a.
     const storageResolver =
       this.options.storageResolver ??
       ((_mod: string, caseId: string) => {
-        const tc = snapshotMap.get(caseId);
+        const tc = snapshotMap.get(caseId) ?? snapshotByCanonical.get(canonicalizeCaseId(caseId));
         if (!tc) {
           return Promise.reject(
             new Error(`El caso de prueba '${caseId}' no forma parte del snapshot verificado.`)
@@ -727,7 +769,9 @@ export class TestHandler implements IMcpToolHandler {
     // Pre-launch durable execution attempt persistence BEFORE invoking browser runner (Block 3)
     const serviceCasesById = new Map(
       appProject && appService
-        ? appService.listServiceCases(appProject.project_id, moduleName).map(c => [c.case_id, c])
+        ? appService
+            .listServiceCases(appProject.project_id, moduleName)
+            .map(c => [canonicalizeCaseId(c.case_id), c])
         : [],
     );
     const attemptRecord =
@@ -738,7 +782,7 @@ export class TestHandler implements IMcpToolHandler {
             envId: appSnapshot?.environment?.env_id ?? environment,
             profileId: resolvedProfileId ?? null,
             cases: [...snapshotMap.values()].map(c => {
-              const svc = serviceCasesById.get(c.id);
+              const svc = serviceCasesById.get(canonicalizeCaseId(c.id));
               return {
                 case_id: c.id,
                 version: svc?.version ?? 1,
@@ -800,6 +844,29 @@ export class TestHandler implements IMcpToolHandler {
         },
         true
       );
+    }
+
+    if (appService) {
+      try {
+        appService.assertNoLineagedCaseIds(
+          executionResult.cases.map(c => c.id),
+          'test_handler',
+        );
+      } catch (err) {
+        if (err instanceof LineagedCaseError) {
+          if (attemptRecord) {
+            appService.finalizeExecutionAttempt({
+              attemptId: attemptRecord.attempt_id,
+              technicalError: {
+                code: err.code,
+                message: 'El runner devolvió un caso protegido por linaje.',
+              },
+            });
+          }
+          return result({ status: 'blocked', code: err.code, ...err.details }, true);
+        }
+        throw err;
+      }
     }
 
     // 9. Honest Infrastructure Error Isolation (R2 / R4)

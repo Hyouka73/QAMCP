@@ -161,3 +161,22 @@ it('T06: provisioned host legacy initialization also rejects an outside target',
     expect(existsSync(join(outside, '.qa'))).toBe(false);
   } finally { await client.close(); await server.close(); }
 });
+
+it('does not authorize cwd when only client roots are configured', async () => {
+  const root = temp(), host = temp();
+  const bootstrap = new WorkspaceBootstrap(host);
+  const server = createMcpServer({ clientWorkspaceRoots: true, workspaceBootstrap: bootstrap });
+  const client = new Client({ name: 'explicit-roots', version: '1' }, { capabilities: { roots: { listChanged: true } } });
+  client.setRequestHandler(ListRootsRequestSchema, () => ({ roots: [{ uri: pathToFileURL(root).href }] }));
+  const [a, b] = InMemoryTransport.createLinkedPair();
+  await server.connect(b); await client.connect(a);
+  try {
+    const call = async (name: string, targetPath: string, extra: Record<string, unknown> = {}) => {
+      const response = await client.callTool({ name, arguments: { targetPath, ...extra } });
+      return JSON.parse((response.content as Array<{ text: string }>)[0].text);
+    };
+    expect((await call('qap_status', process.cwd())).status).toBe('blocked');
+    expect((await call('qap_project_reset', process.cwd(), { phase: 'preview' })).status).toBe('blocked');
+    expect((await call('qap_status', root)).status).not.toBe('blocked');
+  } finally { await client.close(); await server.close(); bootstrap.close(); }
+});

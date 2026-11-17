@@ -5,11 +5,13 @@ import { join } from 'node:path';
 import { FileSystemStorage } from '@qap/knowledge';
 import { normalizeSlug, SchemaValidator, type TCCase } from '@qap/shared';
 
-import type {
-  OracleDecisionInput,
-  ProposeCaseInput,
+import {
+  canonicalizeCaseId,
+  type OracleDecisionInput,
+  type ProposeCaseInput,
 } from '../application/block3-execution-repo.js';
 import type { DiscoveryDossierScope } from '../application/discovery-dossier.js';
+import { LineagedCaseError } from '../application/lineaged-case.js';
 import {
   resolveScopedBusinessRules,
   type DiscoveryDossierRuleResolution,
@@ -330,6 +332,62 @@ async function synthesizeProposalsFromProjectState(
   };
 }
 
+function extractWorkflowRequestedCaseIds(action: string, command: Record<string, unknown>): string[] {
+  if (action === 'review' || action === 'approve_batch') {
+    return Array.isArray(command.case_ids)
+      ? command.case_ids.map((id) => canonicalizeCaseId(String(id))).filter(Boolean)
+      : [];
+  }
+  if (action === 'decide_oracles') {
+    return Array.isArray(command.decisions)
+      ? command.decisions
+          .map((d) => (isObject(d) && typeof d.case_id === 'string' ? canonicalizeCaseId(d.case_id) : ''))
+          .filter(Boolean)
+      : [];
+  }
+  if (action === 'propose_from_observations' || action === 'generate') {
+    return Array.isArray(command.proposals)
+      ? command.proposals
+          .map((p) => (isObject(p) && typeof p.case_id === 'string' ? canonicalizeCaseId(p.case_id) : ''))
+          .filter(Boolean)
+      : [];
+  }
+  if (action === 'accept_case_gap') {
+    return isObject(command.acceptance) && typeof command.acceptance.case_id === 'string'
+      ? [canonicalizeCaseId(command.acceptance.case_id)].filter(Boolean)
+      : [];
+  }
+  return [];
+}
+
+function parseExplicitCaseIds(rawCaseIds: unknown): string[] | null {
+  if (
+    !Array.isArray(rawCaseIds) ||
+    rawCaseIds.length === 0 ||
+    rawCaseIds.some((id) => typeof id !== 'string' || !canonicalizeCaseId(id))
+  ) {
+    return null;
+  }
+  return rawCaseIds.map((id) => canonicalizeCaseId(id));
+}
+
+function selectRequestedCasesInScope<T extends { readonly case_id: string }>(
+  allCases: readonly T[],
+  requestedIds: readonly string[],
+): T[] | null {
+  const byId = new Map(allCases.map((c) => [canonicalizeCaseId(c.case_id), c]));
+  const seen = new Set<string>();
+  const selected: T[] = [];
+  for (const id of requestedIds) {
+    const match = byId.get(id);
+    if (!match) return null;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    selected.push(match);
+  }
+  return selected;
+}
+
 export async function runConversationalCaseWorkflow(
   root: string,
   moduleName: string,
@@ -354,16 +412,42 @@ export async function runConversationalCaseWorkflow(
   const existingMod =
     snapshot.modules.find((m) => m.title.toLowerCase() === moduleName.toLowerCase()) ??
     snapshot.modules.find((m) => m.key === normalizeSlug(moduleName));
+  const targetModKey = existingMod?.key ?? normalizeSlug(moduleName);
+
+  // Preflight sin efectos secundarios acotado al proyecto del llamador: bloquea candidatos propios antes de mutar módulos o invocar el gateway,
+  // sin revelar la existencia de candidatos con linaje pertenecientes a otros proyectos en operaciones de lectura/lote.
+  const preflightCaseIds = extractWorkflowRequestedCaseIds(action, command);
+  if (preflightCaseIds.length > 0) {
+    try {
+      appService.assertNoProjectLineagedCaseIds(project.project_id, preflightCaseIds, action);
+      if (action === 'propose_from_observations' || action === 'generate') {
+        appService.assertNoLineagedCaseIds(preflightCaseIds, action);
+      }
+    } catch (err) {
+      if (err instanceof LineagedCaseError) {
+        return blocked(err.code, err.details);
+      }
+      throw err;
+    }
+  }
 
   if (action === 'review') {
-    const caseIds = Array.isArray(command.case_ids)
-      ? command.case_ids.map((id) => String(id).trim()).filter(Boolean)
-      : undefined;
-    const modKey = existingMod?.key ?? normalizeSlug(moduleName);
-    const allCases = appService.listServiceCases(project.project_id, modKey);
-    const filteredCases = caseIds?.length
-      ? allCases.filter((c) => caseIds.includes(c.case_id))
-      : allCases;
+    let explicitIds: string[] | undefined;
+    if (command.case_ids !== undefined) {
+      const parsed = parseExplicitCaseIds(command.case_ids);
+      if (!parsed) {
+        return blocked('invalid_case_command');
+      }
+      explicitIds = parsed;
+    }
+    const allCases = appService.listServiceCases(project.project_id, targetModKey);
+    const filteredCases = explicitIds ? selectRequestedCasesInScope(allCases, explicitIds) : allCases;
+    if (!filteredCases) {
+      return blocked('case_not_found_in_scope', {
+        operation: action,
+        module: moduleName,
+      });
+    }
 
     const readyForApproval = filteredCases.filter(
       (c) =>
@@ -447,17 +531,16 @@ export async function runConversationalCaseWorkflow(
     };
   }
 
-  const serviceMod =
+  const resolveMod = () =>
     existingMod ??
     appService.upsertModule({ projectId: project.project_id, key: moduleName, title: moduleName });
 
-  const baseUrl = options?.effectiveScope?.base_url ?? snapshot.environment?.base_url ?? 'http://127.0.0.1';
-  const routeUrl = resolveAbsoluteRouteUrl(baseUrl, serviceMod.route_hint ?? '/');
-  const storage = new FileSystemStorage({ rootDir: root });
-  const modDir = join(root, '.qa', 'modules', moduleName);
-
-    if (action === 'propose_from_observations' || action === 'generate') {
-      mkdirSync(modDir, { recursive: true });
+  if (action === 'propose_from_observations' || action === 'generate') {
+    const serviceMod = resolveMod();
+    const baseUrl = options?.effectiveScope?.base_url ?? snapshot.environment?.base_url ?? 'http://127.0.0.1';
+    const routeUrl = resolveAbsoluteRouteUrl(baseUrl, serviceMod.route_hint ?? '/');
+    const modDir = join(root, '.qa', 'modules', moduleName);
+    mkdirSync(modDir, { recursive: true });
     let inputs: ProposeCaseInput[];
     let usedDiscoveryRevisionId: string | undefined;
     let ruleResolutionSummary: DiscoveryDossierRuleResolution['summary'] | undefined;
@@ -654,17 +737,18 @@ export async function runConversationalCaseWorkflow(
     }
     const decisions: OracleDecisionInput[] = [];
     for (const d of command.decisions) {
+      const canonicalCaseId = isObject(d) && typeof d.case_id === 'string' ? canonicalizeCaseId(d.case_id) : '';
       if (
         !isObject(d) ||
         Object.keys(d).some((k) => !ALLOWED_ORACLE_DECISION_KEYS.has(k)) ||
-        typeof d.case_id !== 'string' ||
+        !canonicalCaseId ||
         typeof d.expected_outcome !== 'string' ||
         d.expected_outcome.trim().length < 3
       ) {
         return blocked('invalid_oracle_decision');
       }
       decisions.push({
-        case_id: d.case_id.trim(),
+        case_id: canonicalCaseId,
         expected_outcome: d.expected_outcome.trim(),
         assert_selector: typeof d.assert_selector === 'string' ? d.assert_selector.trim() : undefined,
         assert_type:
@@ -679,29 +763,30 @@ export async function runConversationalCaseWorkflow(
       });
     }
 
-    const modKey = serviceMod.key;
-    const allCases = appService.listServiceCases(project.project_id, modKey);
-    const missingCaseIds: string[] = [];
+    const allCases = appService.listServiceCases(project.project_id, targetModKey);
+    const casesById = new Map(allCases.map((c) => [canonicalizeCaseId(c.case_id), c]));
     const matchedPairs: Array<{
       readonly current: (typeof allCases)[number];
       readonly decision: OracleDecisionInput;
     }> = [];
     for (const dec of decisions) {
-      const found = allCases.find((c) => c.case_id === dec.case_id);
+      const found = casesById.get(dec.case_id);
       if (!found) {
-        missingCaseIds.push(dec.case_id);
-      } else {
-        matchedPairs.push({ current: found, decision: dec });
+        return blocked('case_not_found_in_scope', {
+          operation: action,
+          module: moduleName,
+        });
       }
-    }
-    if (matchedPairs.length === 0) {
-      return blocked('oracle_case_not_found', { missing_cases: missingCaseIds });
+      matchedPairs.push({ current: found, decision: { ...dec, case_id: found.case_id } });
     }
 
     const reviewGateway = deps.ruleReviewGateway;
     if (!reviewGateway || !reviewGateway.isAvailable()) {
       return blocked('human_review_gateway_required', { human_review_required: true });
     }
+
+    const serviceMod = resolveMod();
+    const modKey = serviceMod.key;
 
     const envName = options?.effectiveScope?.environment_name ?? snapshot.environment?.name ?? 'default';
     const tenantId = options?.effectiveScope?.tenant_id ?? snapshot.environment?.default_tenant ?? 'default';
@@ -900,7 +985,7 @@ export async function runConversationalCaseWorkflow(
       status: 'updated',
       module: moduleName,
       updated_cases: res.updated,
-      missing_cases: [...new Set([...missingCaseIds, ...res.missing_cases])],
+      missing_cases: res.missing_cases,
       human_confirmations: recordedOracleConfirmations,
       siguiente_accion: {
         tipo: 'decision',
@@ -911,15 +996,26 @@ export async function runConversationalCaseWorkflow(
   }
 
   if (action === 'approve_batch') {
-    const caseIds = Array.isArray(command.case_ids)
-      ? command.case_ids.map((id) => String(id).trim()).filter(Boolean)
-      : undefined;
+    let caseIds: string[] | undefined;
+    if (command.case_ids !== undefined) {
+      const parsed = parseExplicitCaseIds(command.case_ids);
+      if (!parsed) {
+        return blocked('invalid_case_command');
+      }
+      caseIds = parsed;
+    }
 
-    const modKey = serviceMod.key;
-    const allModuleCases = appService.listServiceCases(project.project_id, modKey);
-    const requestedCases = caseIds?.length
-      ? allModuleCases.filter((c) => caseIds.includes(c.case_id))
+    const allModuleCases = appService.listServiceCases(project.project_id, targetModKey);
+    const requestedCases = caseIds
+      ? selectRequestedCasesInScope(allModuleCases, caseIds)
       : allModuleCases;
+    if (!requestedCases) {
+      return blocked('case_not_found_in_scope', {
+        operation: action,
+        module: moduleName,
+      });
+    }
+
     const skippedPending = requestedCases.filter((c) => c.conformity_status === 'pending_oracle');
     const eligibleCases = requestedCases.filter(
       (c) =>
@@ -930,7 +1026,7 @@ export async function runConversationalCaseWorkflow(
         c.steps.length > 0,
     );
 
-    if (eligibleCases.length === 0) {
+    if (eligibleCases.length === 0 || (caseIds && eligibleCases.length !== requestedCases.length)) {
       return blocked(skippedPending.length > 0 ? 'oracle_required' : 'no_eligible_cases', {
         skipped_pending_oracle: skippedPending.map((c) => c.case_id),
       });
@@ -941,6 +1037,9 @@ export async function runConversationalCaseWorkflow(
         ['approved', 'pass', 'fail', 'not_run', 'technical_error', 'human_accepted'].includes(c.conformity_status) &&
         Boolean(c.confirmed_at),
     );
+
+    const serviceMod = resolveMod();
+    const modKey = serviceMod.key;
 
     let approvedByReviewer = eligibleCases[0]?.confirmed_by ?? 'qa_user';
     let batchApprovalEvidence:
@@ -1117,6 +1216,10 @@ export async function runConversationalCaseWorkflow(
       });
     }
 
+    const baseUrl = options?.effectiveScope?.base_url ?? snapshot.environment?.base_url ?? 'http://127.0.0.1';
+    const routeUrl = resolveAbsoluteRouteUrl(baseUrl, serviceMod.route_hint ?? '/');
+    const storage = new FileSystemStorage({ rootDir: root });
+    const modDir = join(root, '.qa', 'modules', moduleName);
     mkdirSync(modDir, { recursive: true });
     if (!existsSync(join(modDir, 'context.yaml'))) {
       await storage.saveModuleContext(moduleName, {
@@ -1195,21 +1298,34 @@ export async function runConversationalCaseWorkflow(
         razon: 'La aceptación humana requiere case_id y reason de al menos 15 caracteres.',
       });
     }
-    const recorded = appService.recordCaseHumanAcceptance({
-      projectId: project.project_id,
-      caseId: acceptance.case_id.trim(),
-      moduleKey: moduleName,
-      acceptedBy: 'qa_user',
-      reason: acceptance.reason.trim(),
-    });
-    if (!recorded) {
-      return blocked('case_result_not_found');
+    const canonicalCaseId = canonicalizeCaseId(acceptance.case_id);
+    if (!canonicalCaseId) {
+      return blocked('invalid_human_acceptance', {
+        razon: 'La aceptación humana requiere case_id y reason de al menos 15 caracteres.',
+      });
     }
-    return {
-      status: 'human_accepted',
-      module: moduleName,
-      case_result: recorded,
-    };
+    try {
+      const recorded = appService.recordCaseHumanAcceptance({
+        projectId: project.project_id,
+        caseId: canonicalCaseId,
+        moduleKey: moduleName,
+        acceptedBy: 'qa_user',
+        reason: acceptance.reason.trim(),
+      });
+      if (!recorded) {
+        return blocked('case_result_not_found');
+      }
+      return {
+        status: 'human_accepted',
+        module: moduleName,
+        case_result: recorded,
+      };
+    } catch (err) {
+      if (err instanceof LineagedCaseError) {
+        return blocked('case_result_not_found');
+      }
+      throw err;
+    }
   }
 
   return blocked('invalid_case_command');

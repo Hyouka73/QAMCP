@@ -14,7 +14,7 @@ function openSqliteDatabase(dbPath: string): DatabaseSync {
   return new sqlite.DatabaseSync(dbPath);
 }
 
-export const APP_SERVICE_SCHEMA_VERSION = 3;
+export const APP_SERVICE_SCHEMA_VERSION = 8;
 
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS app_schema_migrations (
@@ -496,6 +496,56 @@ CREATE INDEX IF NOT EXISTS idx_rule_confirmation_decisions_project_scope
   ON rule_confirmation_decisions(project_id, module_key, environment_name, tenant_id, role, revision DESC);
 `;
 
+/**
+ * v8 — identidad y linaje de casos (P0.3b-01A).
+ *
+ * `ALTER TABLE ... ADD COLUMN` no es idempotente: este paso NO se re-ejecuta con `IF NOT EXISTS`.
+ * Solo se aplica cuando `app_schema_migrations` no tiene la versión 8 y la tabla conserva la
+ * estructura v7 exacta; en cualquier otro caso se valida checksum y estructura sin emitir DDL.
+ * Todas las columnas son anulables: las filas legacy conservan íntegramente su información.
+ */
+const SCHEMA_V8_SQL = `
+ALTER TABLE service_test_cases ADD COLUMN execution_key TEXT;
+ALTER TABLE service_test_cases ADD COLUMN execution_lineage_json TEXT;
+ALTER TABLE service_test_cases ADD COLUMN execution_content_digest TEXT;
+ALTER TABLE service_test_cases ADD COLUMN execution_approval_id TEXT;
+CREATE UNIQUE INDEX idx_service_cases_project_execution_key
+  ON service_test_cases(project_id, execution_key)
+  WHERE execution_key IS NOT NULL;
+`;
+
+const V8_CASE_COLUMNS = [
+  'execution_key',
+  'execution_lineage_json',
+  'execution_content_digest',
+  'execution_approval_id',
+] as const;
+const V8_CASE_INDEX = 'idx_service_cases_project_execution_key';
+
+function sqlChecksum(sql: string): string {
+  return createHash('sha256').update(sql).digest('hex');
+}
+
+/** Migraciones declaradas, en orden. v1–v7 son históricas e inmutables (SQL y checksum). */
+export const APP_SERVICE_MIGRATIONS: ReadonlyArray<{
+  readonly version: number;
+  readonly sql: string;
+  readonly checksum: string;
+}> = Object.freeze(
+  [
+    [1, SCHEMA_SQL],
+    [2, SCHEMA_V2_SQL],
+    [3, SCHEMA_V3_SQL],
+    [4, SCHEMA_V4_SQL],
+    [5, SCHEMA_V5_SQL],
+    [6, SCHEMA_V6_SQL],
+    [7, SCHEMA_V7_SQL],
+    [8, SCHEMA_V8_SQL],
+  ].map(([version, sql]) =>
+    Object.freeze({ version: version as number, sql: sql as string, checksum: sqlChecksum(sql as string) }),
+  ),
+);
+
 export class AppServiceSqliteStore {
   readonly db: DatabaseSync;
   readonly dbPath: string;
@@ -513,7 +563,18 @@ export class AppServiceSqliteStore {
     this.db.exec('PRAGMA synchronous = NORMAL;');
     this.db.exec('PRAGMA foreign_keys = ON;');
     this.db.exec('PRAGMA busy_timeout = 5000;');
-    this.migrate();
+    try {
+      this.migrate();
+    } catch (error) {
+      // Un fallo de migración no debe dejar el archivo bloqueado ni el store a medio abrir.
+      this.closed = true;
+      try {
+        this.db.close();
+      } catch {
+        // Preserve original failure
+      }
+      throw error;
+    }
   }
 
   private applySchemaStep(version: number, sql: string): void {
@@ -531,6 +592,88 @@ export class AppServiceSqliteStore {
     }
   }
 
+  /**
+   * Aplica una migración de DDL no idempotente (ALTER TABLE). Debe ejecutarse dentro de la
+   * transacción IMMEDIATE de `migrate()`, de modo que DDL y registro confirman o revierten juntos.
+   *
+   * Orden obligatorio: (1) registro y checksum, (2) estructura, (3) DDL, (4) registro.
+   * Nunca reconstruye ni elimina tablas: ante estructura incompatible solo falla.
+   */
+  private applyNonIdempotentSchemaStep(version: number, sql: string): void {
+    const checksum = sqlChecksum(sql);
+    const existing = this.db
+      .prepare('SELECT version, checksum FROM app_schema_migrations WHERE version = ?')
+      .get(version) as { version: number; checksum: string } | undefined;
+
+    if (existing) {
+      if (existing.checksum !== checksum) {
+        throw new Error(`Incompatible application service SQLite schema checksum (v${version})`);
+      }
+      this.assertV8Structure();
+      return;
+    }
+
+    const columns = this.tableColumnNames('service_test_cases');
+    if (columns.size === 0) {
+      throw new Error(`Incompatible application service SQLite schema structure (v${version}): service_test_cases missing`);
+    }
+    const alreadyPresent = V8_CASE_COLUMNS.filter((column) => columns.has(column));
+    if (alreadyPresent.length > 0) {
+      throw new Error(
+        `Incompatible application service SQLite schema structure (v${version}): ` +
+          `columns present without migration record (${alreadyPresent.join(', ')})`,
+      );
+    }
+
+    this.db.exec(sql);
+    this.db
+      .prepare('INSERT INTO app_schema_migrations (version, applied_at, checksum) VALUES (?, ?, ?)')
+      .run(version, new Date().toISOString(), checksum);
+  }
+
+  private tableColumnNames(table: string): Set<string> {
+    const rows = this.db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+    return new Set(rows.map((row) => row.name));
+  }
+
+  private assertV8Structure(): void {
+    const columns = this.db.prepare('PRAGMA table_info(service_test_cases)').all() as Array<{
+      name: string;
+      type: string;
+      notnull: number;
+    }>;
+    for (const name of V8_CASE_COLUMNS) {
+      const column = columns.find((c) => c.name === name);
+      if (!column || column.type.toUpperCase() !== 'TEXT' || column.notnull !== 0) {
+        throw new Error(`Incompatible application service SQLite schema structure (v8): column ${name}`);
+      }
+    }
+    const index = this.db
+      .prepare("SELECT sql FROM sqlite_master WHERE type = 'index' AND name = ? AND tbl_name = 'service_test_cases'")
+      .get(V8_CASE_INDEX) as { sql: string | null } | undefined;
+    const list = this.db.prepare('PRAGMA index_list(service_test_cases)').all() as Array<{
+      name: string;
+      unique: number;
+      partial: number;
+    }>;
+    const entry = list.find((i) => i.name === V8_CASE_INDEX);
+    const indexed = (
+      this.db.prepare(`PRAGMA index_info(${V8_CASE_INDEX})`).all() as Array<{ seqno: number; name: string }>
+    )
+      .sort((a, b) => a.seqno - b.seqno)
+      .map((i) => i.name);
+    if (
+      !index ||
+      !entry ||
+      entry.unique !== 1 ||
+      entry.partial !== 1 ||
+      indexed.join(',') !== 'project_id,execution_key' ||
+      !/execution_key\s+IS\s+NOT\s+NULL/i.test(index.sql ?? '')
+    ) {
+      throw new Error(`Incompatible application service SQLite schema structure (v8): index ${V8_CASE_INDEX}`);
+    }
+  }
+
   private migrate(): void {
     this.transaction('IMMEDIATE', () => {
       this.applySchemaStep(1, SCHEMA_SQL);
@@ -540,6 +683,7 @@ export class AppServiceSqliteStore {
       this.applySchemaStep(5, SCHEMA_V5_SQL);
       this.applySchemaStep(6, SCHEMA_V6_SQL);
       this.applySchemaStep(7, SCHEMA_V7_SQL);
+      this.applyNonIdempotentSchemaStep(8, SCHEMA_V8_SQL);
     });
   }
 

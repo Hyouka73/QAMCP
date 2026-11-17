@@ -1,17 +1,28 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { execFileSync } from 'node:child_process';
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { EphemeralCredentialProvider } from '@qap/auth';
 import { QAP_CAPABILITIES } from '@qap/shared';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+const registryFault = vi.hoisted(() => ({ path: '' }));
+vi.mock('../application/safe-storage.js', async importOriginal => {
+  const original = await importOriginal<typeof import('../application/safe-storage.js')>();
+  return { ...original, atomicWritePrivateFile: (...args: Parameters<typeof original.atomicWritePrivateFile>) => {
+    if (args[0] === registryFault.path) throw new Error('injected registry write failure');
+    return original.atomicWritePrivateFile(...args);
+  } };
+});
 import YAML from 'yaml';
 
 import { QapApplicationService } from '../application/application-service.js';
 import { WorkspaceBootstrap } from '../workspace-bootstrap.js';
-import { createMcpServer } from '../server.js';
+import { createMcpServer, type McpServerOptions } from '../server.js';
 
 const tempDirs: string[] = [];
 const cleanups: Array<() => Promise<void> | void> = [];
@@ -26,11 +37,15 @@ async function openMcpClient(options: {
   service: QapApplicationService;
   projectRoots: string[];
   bootstrap?: WorkspaceBootstrap;
+  knowledgeBindings?: McpServerOptions['knowledgeBindings'];
+  hostRegistryPath?: string;
 }) {
   const server = createMcpServer({
     projectRoots: options.projectRoots,
     applicationService: options.service,
     workspaceBootstrap: options.bootstrap,
+    knowledgeBindings: options.knowledgeBindings,
+    hostRegistryPath: options.hostRegistryPath,
   });
   const client = new Client({ name: 'block1-test-client', version: '1.0.0' }, {});
   const [t1, t2] = InMemoryTransport.createLinkedPair();
@@ -346,6 +361,250 @@ describe('Bloque 1 — Identidad, estado duradero, aislamiento, autoridad y borr
     expect(updated.data.receipt.status).toBe('updated');
   });
 
+  it('rejects adversarial capability methods and isolates revocations', () => {
+    const service = new QapApplicationService({ hostRootDir: mkTemp('qap-enc-authority-') });
+    cleanups.push(() => service.close());
+    const a = service.createProject({ name: 'A', canonicalRoot: mkTemp('qap-enc-a-') });
+    const b = service.createProject({ name: 'B', canonicalRoot: mkTemp('qap-enc-b-') });
+    for (const project of [a, b]) service.authority.grant({ project_id: project.project.project_id, capability: 'execute', granted_by: 'test', policy_hash: 'test' });
+    const caps = ['execute'] as any;
+    caps.map = () => ({ join: () => '?) OR 1=1 --' });
+    expect(service.authority.revokeProjectAccess(a.project.project_id, 'test', caps)).toBe(1);
+    expect(service.authority.listGrants(a.project.project_id).filter(g => g.capability === 'execute')[0].status).toBe('revoked');
+    expect(service.authority.listGrants(b.project.project_id).filter(g => g.capability === 'execute')[0].status).toBe('active');
+  });
+
+  it('removes deleted roots from the persistent registry across subsequent calls', async () => {
+    const host = mkTemp('qap-enc-reg-host-'), rootA = mkTemp('qap-enc-reg-a-'), rootB = mkTemp('qap-enc-reg-b-');
+    const registry = join(host, 'roots.json');
+    writeFileSync(registry, JSON.stringify([rootA, rootB]));
+    const service = new QapApplicationService({ hostRootDir: host });
+    cleanups.push(() => service.close());
+    const a = service.createProject({ name: 'A', canonicalRoot: rootA });
+    service.createProject({ name: 'B', canonicalRoot: rootB });
+    const mcp = await openMcpClient({ service, projectRoots: [], hostRegistryPath: registry });
+    const preview = await mcp.call('qap_project', { action: 'delete_preview', project_id: a.project.project_id, targetPath: rootA });
+    const deleted = await mcp.call('qap_project', { action: 'delete_confirm', project_id: a.project.project_id, targetPath: rootA,
+      confirmation_token: preview.data.preview.confirmation_token, decision: 'confirm_delete' });
+    expect(deleted.data.status).toBe('deleted');
+    expect(JSON.parse(readFileSync(registry, 'utf8'))).toEqual([rootB]);
+    expect((await mcp.call('qap_status', { targetPath: rootA })).isError).toBe(true);
+    expect((await mcp.call('qap_status', { targetPath: rootB })).isError).toBe(false);
+  });
+
+  it('reconciles a failed registry write while keeping A blocked and B intact', async () => {
+    const host = mkTemp('qap-reconcile-host-'), rootA = mkTemp('qap-reconcile-a-'), rootB = mkTemp('qap-reconcile-b-');
+    const registry = join(host, 'roots.json');
+    writeFileSync(registry, JSON.stringify([rootA, rootB]));
+    const service = new QapApplicationService({ hostRootDir: host });
+    cleanups.push(() => service.close());
+    const a = service.createProject({ name: 'A', canonicalRoot: rootA });
+    const b = service.createProject({ name: 'B', canonicalRoot: rootB });
+    const mcp = await openMcpClient({ service, projectRoots: [rootA, rootB], hostRegistryPath: registry,
+      knowledgeBindings: [
+        { projectRoot: rootA, applicationId: a.project.application_id, environmentId: a.environment!.env_id, store: service.openKnowledgeStore(a.project.project_id) },
+        { projectRoot: rootB, applicationId: b.project.application_id, environmentId: b.environment!.env_id, store: service.openKnowledgeStore(b.project.project_id) },
+      ] });
+    const preview = await mcp.call('qap_project', { action: 'delete_preview', project_id: a.project.project_id });
+    const args = { action: 'delete_confirm', project_id: a.project.project_id, confirmation_token: preview.data.preview.confirmation_token, decision: 'confirm_delete' };
+    registryFault.path = registry;
+    try {
+      expect((await mcp.call('qap_project', args)).data.code).toBe('project_delete_registry_cleanup_failed');
+      expect(service.getDeletedProjectRoot(a.project.project_id)).toBe(rootA);
+      expect((await mcp.call('qap_status', { targetPath: rootA })).isError).toBe(true);
+      expect((await mcp.call('qap_project', { action: 'recover', project_id: a.project.project_id })).data.status).toBe('blocked');
+      expect((await mcp.call('qap_project', { ...args, confirmation_token: 'invalid' })).data.status).toBe('blocked');
+      expect((await mcp.call('qap_status', { targetPath: rootB })).data.knowledge.state).toBe('incompatible');
+    } finally { registryFault.path = ''; }
+    // A later request reconciles the durable tombstone after the registry is repaired.
+    expect((await mcp.call('qap_status', { targetPath: rootA })).isError).toBe(true);
+    expect(JSON.parse(readFileSync(registry, 'utf8'))).toEqual([rootB]);
+    expect((await mcp.call('qap_project', { action: 'recover', project_id: a.project.project_id })).data.status).toBe('recovered');
+    writeFileSync(registry, JSON.stringify([rootA, rootB]));
+    expect((await mcp.call('qap_status', { targetPath: rootA })).data.knowledge.state).toBe('unbound');
+    expect((await mcp.call('qap_status', { targetPath: rootB })).data.knowledge.state).toBe('incompatible');
+  });
+
+  it.each(['before-binding-removal', 'registry-still-present', 'registry-already-updated'])(
+    'reconciles tombstones and bindings across independent server instances: %s', async stage => {
+      const host = mkTemp('qap-restart-host-'), rootA = mkTemp('qap-restart-a-'), rootB = mkTemp('qap-restart-b-');
+      const registry = join(host, 'roots.json');
+      writeFileSync(registry, JSON.stringify([rootA, rootB]));
+      let service = new QapApplicationService({ hostRootDir: host });
+      const a = service.createProject({ name: 'A', canonicalRoot: rootA });
+      const b = service.createProject({ name: 'B', canonicalRoot: rootB });
+      const bindings = (current: QapApplicationService) => [
+        { projectRoot: rootA, applicationId: a.project.application_id, environmentId: a.environment!.env_id, store: current.openKnowledgeStore(a.project.project_id) },
+        { projectRoot: rootB, applicationId: b.project.application_id, environmentId: b.environment!.env_id, store: current.openKnowledgeStore(b.project.project_id) },
+      ];
+      const first = await openMcpClient({ service, projectRoots: [rootA, rootB], hostRegistryPath: registry, knowledgeBindings: bindings(service) });
+      const preview = await first.call('qap_project', { action: 'delete_preview', project_id: a.project.project_id });
+      const args = { action: 'delete_confirm', project_id: a.project.project_id, confirmation_token: preview.data.preview.confirmation_token, decision: 'confirm_delete' };
+      const lookupFault = stage === 'before-binding-removal'
+        ? vi.spyOn(service, 'getDeletedProjectRoot').mockImplementationOnce(() => { throw new Error('injected interruption'); })
+        : undefined;
+      if (!lookupFault) registryFault.path = registry;
+      try {
+        expect((await first.call('qap_project', args)).data.code).toBe('project_delete_registry_cleanup_failed');
+      } finally { registryFault.path = ''; lookupFault?.mockRestore(); }
+      expect(service.getDeletedProjectRoot(a.project.project_id)).toBe(rootA);
+      await first.close(); service.close();
+      if (stage === 'registry-already-updated') writeFileSync(registry, JSON.stringify([rootB]));
+      service = new QapApplicationService({ hostRootDir: host });
+      cleanups.push(() => service.close());
+      // The host can reconstruct stale bindings even when the previous process removed them.
+      const staleStore = { } as any;
+      const next = await openMcpClient({ service, projectRoots: [rootA, rootB], hostRegistryPath: registry,
+        knowledgeBindings: [
+          { projectRoot: rootA, applicationId: a.project.application_id, environmentId: a.environment!.env_id, store: staleStore },
+          { projectRoot: rootB, applicationId: b.project.application_id, environmentId: b.environment!.env_id, store: service.openKnowledgeStore(b.project.project_id) },
+        ] });
+      if (stage === 'registry-still-present') registryFault.path = registry;
+      try {
+        const blocked = await next.call('qap_status', { targetPath: rootA });
+        expect(blocked.isError).toBe(true);
+        if (stage === 'registry-still-present') {
+          expect(blocked.data.code).toBe('project_delete_registry_cleanup_failed');
+          expect((await next.call('qap_project', { action: 'recover', project_id: a.project.project_id })).data.code).toBe('project_delete_registry_cleanup_failed');
+          expect(service.getDeletedProjectRoot(a.project.project_id)).toBe(rootA);
+        }
+        expect((await next.call('qap_status', { targetPath: rootB })).data.knowledge.state).toBe('incompatible');
+      } finally { registryFault.path = ''; }
+      expect((await next.call('qap_status', { targetPath: rootA })).isError).toBe(true);
+      expect(JSON.parse(readFileSync(registry, 'utf8'))).toEqual([rootB]);
+      expect((await next.call('qap_status', { targetPath: rootA })).isError).toBe(true);
+      expect(JSON.parse(readFileSync(registry, 'utf8'))).toEqual([rootB]);
+      expect((await next.call('qap_project', { action: 'recover', project_id: a.project.project_id })).data.status).toBe('recovered');
+      const afterRecovery = await next.call('qap_status', { targetPath: rootA });
+      expect(afterRecovery.data.status).toBe('blocked');
+      writeFileSync(registry, JSON.stringify([rootA, rootB]));
+      expect((await next.call('qap_status', { targetPath: rootA })).data.knowledge.state).toBe('unbound');
+      expect((await next.call('qap_status', { targetPath: rootB })).data.knowledge.state).toBe('incompatible');
+    });
+
+  it('reconciles a tombstone across two Stdio server processes', async () => {
+    const host = mkTemp('qap-restart-stdio-host-'), rootA = mkTemp('qap-restart-stdio-a-'), rootB = mkTemp('qap-restart-stdio-b-');
+    const workspaceHost = join(host, 'workspaces'), appHost = join(host, 'application');
+    mkdirSync(workspaceHost);
+    const registry = join(workspaceHost, 'authorized-roots.json');
+    writeFileSync(registry, JSON.stringify([rootA, rootB]));
+    let service = new QapApplicationService({ hostRootDir: appHost });
+    const a = service.createProject({ name: 'A', canonicalRoot: rootA });
+    service.createProject({ name: 'B', canonicalRoot: rootB });
+    service.close();
+    const connect = async () => {
+      const client = new Client({ name: 'restart-stdio-test', version: '1' }, {});
+      const transport = new StdioClientTransport({ command: process.execPath, args: [join(process.cwd(), 'dist', 'server.js')],
+        env: { ...process.env as Record<string, string>, QAP_MCP_WORKSPACE_HOST_DIR: workspaceHost, QAP_MCP_APP_SERVICE_DIR: appHost,
+          QAP_DISABLE_INTERACTIVE_AUTH: '1', NODE_ENV: 'test' }, stderr: 'pipe' });
+      await client.connect(transport);
+      const call = async (name: string, args: Record<string, unknown>) => {
+        const response = await client.callTool({ name, arguments: args });
+        return JSON.parse((response.content as Array<{ text: string }>)[0].text);
+      };
+      return { client, call };
+    };
+    const first = await connect();
+    try {
+      const preview = await first.call('qap_project', { action: 'delete_preview', project_id: a.project.project_id });
+      writeFileSync(registry, '{');
+      expect((await first.call('qap_project', { action: 'delete_confirm', project_id: a.project.project_id,
+        confirmation_token: preview.preview.confirmation_token, decision: 'confirm_delete' })).code).toBe('project_delete_registry_cleanup_failed');
+    } catch (error) { await first.client.close(); throw error; }
+    service = new QapApplicationService({ hostRootDir: appHost });
+    expect(service.getDeletedProjectRoot(a.project.project_id)).toBe(rootA);
+    service.close();
+    writeFileSync(registry, JSON.stringify([rootA, rootB]));
+    expect((await first.call('qap_status', { targetPath: rootA })).code).toBe('project_deleted_tombstone');
+    const second = await connect();
+    try {
+      expect((await second.call('qap_status', { targetPath: rootA })).code).toBe('project_deleted_tombstone');
+      expect(JSON.parse(readFileSync(registry, 'utf8'))).toEqual([rootB]);
+      expect((await second.call('qap_status', { targetPath: rootA })).code).toBe('project_deleted_tombstone');
+      expect((await second.call('qap_status', { targetPath: rootB })).status).not.toBe('blocked');
+      expect((await second.call('qap_project', { action: 'recover', project_id: a.project.project_id })).status).toBe('recovered');
+      expect((await second.call('qap_status', { targetPath: rootA })).status).toBe('blocked');
+      const cleanupService = new QapApplicationService({ hostRootDir: appHost });
+      try {
+        const state = cleanupService.getRootDeletionState(rootA);
+        if (!state || state.version !== 1) throw new Error('expected deletion generation');
+        expect(cleanupService.completeRootDeletionCleanup(rootA, state.generation)).toBe(true);
+      } finally { cleanupService.close(); }
+      execFileSync(process.execPath, [join(process.cwd(), '..', '..', 'scripts', 'qap-authorize-workspace.mjs'), rootA],
+        { env: { ...process.env, QAP_MCP_WORKSPACE_HOST_DIR: workspaceHost, QAP_MCP_APP_SERVICE_DIR: appHost } });
+      expect((await second.call('qap_status', { targetPath: rootA })).status).not.toBe('blocked');
+      expect((await first.call('qap_status', { targetPath: rootA })).status).not.toBe('blocked');
+      expect(JSON.parse(readFileSync(registry, 'utf8'))).toEqual([rootB, rootA]);
+      expect((await first.call('qap_status', { targetPath: rootB })).status).not.toBe('blocked');
+    } finally { await second.client.close(); await first.client.close(); }
+  }, 30000);
+
+  it('removes a deleted root through the default Stdio host', async () => {
+    const host = mkTemp('qap-stdio-host-'), aRoot = mkTemp('qap-stdio-a-'), bRoot = mkTemp('qap-stdio-b-');
+    const workspaceHost = join(host, 'workspaces'), appHost = join(host, 'application');
+    mkdirSync(workspaceHost);
+    const registry = join(workspaceHost, 'authorized-roots.json');
+    writeFileSync(registry, JSON.stringify([aRoot, bRoot]));
+    const service = new QapApplicationService({ hostRootDir: appHost });
+    const a = service.createProject({ name: 'A', canonicalRoot: aRoot });
+    service.createProject({ name: 'B', canonicalRoot: bRoot });
+    service.close();
+    const client = new Client({ name: 'stdio-delete-test', version: '1' }, {});
+    const transport = new StdioClientTransport({ command: process.execPath, args: [join(process.cwd(), 'dist', 'server.js')],
+      env: { ...process.env as Record<string, string>, QAP_MCP_WORKSPACE_HOST_DIR: workspaceHost, QAP_MCP_APP_SERVICE_DIR: appHost,
+        QAP_DISABLE_INTERACTIVE_AUTH: '1', NODE_ENV: 'test' }, stderr: 'pipe' });
+    await client.connect(transport);
+    try {
+      const call = async (name: string, args: Record<string, unknown>) => {
+        const response = await client.callTool({ name, arguments: args });
+        return { isError: Boolean(response.isError), data: JSON.parse((response.content as Array<{text: string}>)[0].text) };
+      };
+      const preview = await call('qap_project', { action: 'delete_preview', project_id: a.project.project_id, targetPath: aRoot });
+      const deleted = await call('qap_project', { action: 'delete_confirm', project_id: a.project.project_id, targetPath: aRoot,
+        confirmation_token: preview.data.preview.confirmation_token, decision: 'confirm_delete' });
+      expect(deleted.data.status).toBe('deleted');
+      expect(JSON.parse(readFileSync(registry, 'utf8'))).toEqual([bRoot]);
+      expect((await call('qap_status', { targetPath: aRoot })).isError).toBe(true);
+      expect((await call('qap_status', { targetPath: bRoot })).isError).toBe(false);
+      expect((await call('qap_project', { action: 'recover', project_id: a.project.project_id })).data.status).toBe('recovered');
+      expect((await call('qap_status', { targetPath: aRoot })).data.status).toBe('blocked');
+      writeFileSync(registry, JSON.stringify([aRoot, bRoot]));
+      expect((await call('qap_status', { targetPath: aRoot })).data.status).not.toBe('blocked');
+      expect((await call('qap_status', { targetPath: bRoot })).data.status).not.toBe('blocked');
+    } finally { await client.close(); }
+  }, 20000);
+
+  it('removes the deleted root and its knowledge binding while retaining a neighboring binding', async () => {
+    const host = mkTemp('qap-enc-bind-host-');
+    const rootA = mkTemp('qap-enc-bind-a-');
+    const rootB = mkTemp('qap-enc-bind-b-');
+    const registry = join(mkTemp('qap-enc-reg-'), 'roots.json');
+    writeFileSync(registry, '[]');
+    const service = new QapApplicationService({ hostRootDir: host });
+    cleanups.push(() => service.close());
+    const a = service.createProject({ name: 'A', canonicalRoot: rootA });
+    const b = service.createProject({ name: 'B', canonicalRoot: rootB });
+    const mcp = await openMcpClient({ service, projectRoots: [rootA, rootB], hostRegistryPath: registry,
+      knowledgeBindings: [
+        { projectRoot: rootA, applicationId: a.project.application_id, environmentId: a.environment!.env_id, store: service.openKnowledgeStore(a.project.project_id) },
+        { projectRoot: rootB, applicationId: b.project.application_id, environmentId: b.environment!.env_id, store: service.openKnowledgeStore(b.project.project_id) },
+      ] });
+    expect((await mcp.call('qap_status', { targetPath: rootA })).data.knowledge.state).toBe('incompatible');
+    expect((await mcp.call('qap_status', { targetPath: rootB })).data.knowledge.state).toBe('incompatible');
+    const preview = await mcp.call('qap_project', { action: 'delete_preview', project_id: a.project.project_id });
+    const deleted = await mcp.call('qap_project', { action: 'delete_confirm', project_id: a.project.project_id,
+      confirmation_token: preview.data.preview.confirmation_token, decision: 'confirm_delete' });
+    expect(deleted.data.status).toBe('deleted');
+    expect(service.getDeletedProjectRoot(a.project.project_id)).toBe(rootA);
+    expect((await mcp.call('qap_status', { targetPath: rootA })).isError).toBe(true);
+    expect((await mcp.call('qap_status', { targetPath: rootB })).data.knowledge.state).toBe('incompatible');
+    expect((await mcp.call('qap_project', { action: 'recover', project_id: a.project.project_id })).data.status).toBe('recovered');
+    // The host explicitly authorizes the recovered root again. Its old binding must not return.
+    writeFileSync(registry, JSON.stringify([rootA]));
+    expect((await mcp.call('qap_status', { targetPath: rootA })).data.knowledge.state).toBe('unbound');
+    expect((await mcp.call('qap_status', { targetPath: rootB })).data.knowledge.state).toBe('incompatible');
+  });
+
   it('isolates two projects A and B: explicit delete of A drains work, revokes access, removes owned files only, preserves A source and B intact, blocks auto-recreation, and supports recovery', async () => {
     const hostDir = mkTemp('qap-b1-iso-host-');
     const bootstrapDir = mkTemp('qap-b1-iso-boot-');
@@ -438,6 +697,8 @@ describe('Bloque 1 — Identidad, estado duradero, aislamiento, autoridad y borr
       decision: 'confirm_delete',
     });
     expect(deleted.isError).toBe(false);
+    expect(service.getDeletedProjectRoot(idA)).toBe(wsA);
+    expect(service.getDeletedProjectRoot(idB)).toBeNull();
     expect(deleted.data).toMatchObject({
       status: 'deleted',
       project_id: idA,

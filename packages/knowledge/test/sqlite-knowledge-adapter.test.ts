@@ -42,6 +42,20 @@ describe('IKnowledgeStore contract — physical SQLite files', () => {
 });
 
 describe('SqliteKnowledgeAdapter physical guarantees', () => {
+  it('keeps the fence timeout private against SQL injection and still acquires the fence', async () => {
+    const { path } = fixture();
+    const store = open(path);
+    const db = new DatabaseSync(path);
+    try {
+      db.exec("CREATE TABLE fence_canary (value TEXT); INSERT INTO fence_canary VALUES ('safe')");
+      (store as unknown as { lockTimeoutMs: unknown }).lockTimeoutMs = "0; DELETE FROM fence_canary; --";
+      let called = false;
+      await store.withWriteFence('a', async () => { called = true; });
+      expect(called).toBe(true);
+      expect(db.prepare('SELECT value FROM fence_canary').all()).toEqual([{ value: 'safe' }]);
+    } finally { db.close(); }
+  });
+
   it('rejects reentrant writes and nested fences without waiting, then permits writes after release', async () => {
     const { path } = fixture();
     const store = open(path);
