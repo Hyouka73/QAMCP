@@ -10,7 +10,8 @@ import {
 } from '@qap/shared';
 
 import {
-  buildPublishedModuleDocRepoPath,
+  existingDiscoveryArtifact,
+  existingDiscoveryDocument,
   renderDiscoveryIndexMarkdown,
   renderModuleDossierMarkdown,
   type DiscoveryRevisionRecord,
@@ -468,7 +469,9 @@ export class ProjectHandler implements IMcpToolHandler {
             const allowed = new Set(projects.map(project => project.project_id));
             const tombstones = listing.tombstones?.filter(item => allowed.has(item.project_id));
             return result({ status: 'success', projects,
-              active_project_id: listing.active_project_id && allowed.has(listing.active_project_id) ? listing.active_project_id : null,
+              active_project_id: this.dependencies.enforceSessionWorkspace
+                ? projects.find(project => project.status === 'active')?.project_id ?? null
+                : listing.active_project_id && allowed.has(listing.active_project_id) ? listing.active_project_id : null,
               ...(tombstones ? { tombstones } : {}) });
           });
         }
@@ -727,28 +730,34 @@ export class ProjectHandler implements IMcpToolHandler {
             selectedRevision = revisions[0];
           }
 
-          const indexMarkdown = renderDiscoveryIndexMarkdown(projectId, latestByScope);
+          const root = resolved.project.canonical_root;
+          const indexMarkdown = renderDiscoveryIndexMarkdown(projectId, latestByScope, root);
           const moduleMarkdown = selectedRevision ? renderModuleDossierMarkdown(selectedRevision) : undefined;
-          const moduleDocPath = selectedRevision ? buildPublishedModuleDocRepoPath(selectedRevision) : undefined;
+          const indexPath = existingDiscoveryArtifact(root, '.qa/discovery/INDEX.md');
+          const moduleDocPath = selectedRevision ? existingDiscoveryDocument(root, selectedRevision) : undefined;
 
           return result({
             status: 'success',
             read_only: true,
             project_id: projectId,
-            index_path: '.qa/discovery/INDEX.md',
+            ...(indexPath ? { index_path: indexPath } : {}),
             index_markdown: indexMarkdown,
-            published_revisions: latestByScope.map((r) => ({
-              revision_id: r.revision_id,
-              module_key: r.module_key,
-              module_title: r.module_title,
-              environment_name: r.environment_name,
-              tenant_id: r.tenant_id,
-              profile_id: r.profile_id,
-              role: r.role,
-              doc_path: buildPublishedModuleDocRepoPath(r),
-              created_at: r.created_at,
-            })),
-            ...(selectedRevision ? { selected_revision: selectedRevision, module_doc_path: moduleDocPath, module_markdown: moduleMarkdown } : {}),
+            published_revisions: latestByScope.map((r) => {
+              const docPath = existingDiscoveryDocument(root, r);
+              return {
+                revision_id: r.revision_id,
+                module_key: r.module_key,
+                module_title: r.module_title,
+                environment_name: r.environment_name,
+                tenant_id: r.tenant_id,
+                profile_id: r.profile_id,
+                role: r.role,
+                ...(docPath ? { doc_path: docPath } : {}),
+                created_at: r.created_at,
+              };
+            }),
+            ...(selectedRevision ? { selected_revision: selectedRevision, module_markdown: moduleMarkdown } : {}),
+            ...(moduleDocPath ? { module_doc_path: moduleDocPath } : {}),
             revisions: revisions.map((r) => ({
               revision_id: r.revision_id,
               module_key: r.module_key,

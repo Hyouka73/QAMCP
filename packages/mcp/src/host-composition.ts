@@ -334,7 +334,9 @@ export async function loadHostComposition(
     const bootstrap = new WorkspaceBootstrap(directory, applicationService);
     if (existsSync(registry)) {
       const values: unknown = JSON.parse(readFileSync(existingFile(registry, 'workspace registry'), 'utf8'));
-      if (!Array.isArray(values) || values.some(value => typeof value !== 'string' || !isAbsolute(value) || realpathSync(value) !== value)) throw new Error('Invalid workspace registry');
+      // A historical root may have been removed outside QAP. Validate the
+      // selected root at admission instead of making other projects unstartable.
+      if (!Array.isArray(values) || values.some(value => typeof value !== 'string' || !isAbsolute(value))) throw new Error('Invalid workspace registry');
     }
     const persistedDiscoveryAuthorizations = existsSync(discoveryRegistry)
       ? loadDiscoveryAuthorizationsFromDisk(discoveryRegistry)

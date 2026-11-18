@@ -59,6 +59,7 @@ export interface StateDependencies {
   readonly allowSpaReadOnly?: boolean;
   /** Silently resolve non-production, same-origin QA scope from host-bound roots without interactive dialogs. */
   readonly silentBoundScope?: boolean;
+  readonly enforceSessionWorkspace?: boolean;
   /** Internal host runtime, never tool arguments. */
   readonly canonicalInterviews?: ReadonlyMap<string, CanonicalInterviewService>;
   readonly canonicalClosures?: ReadonlyMap<string, CanonicalClosureService>;
