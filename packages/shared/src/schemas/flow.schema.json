@@ -51,7 +51,8 @@
             "type": "array",
             "description": "Other modules this module depends on within the flow",
             "items": {
-              "type": "string"
+              "type": "string",
+              "pattern": "^[^:\\s]+(:[^:\\s]+)?$"
             },
             "default": []
           }
@@ -102,25 +103,26 @@
       "additionalProperties": false,
       "properties": {
         "on_failure": {
-          "type": "array",
-          "description": "Actions to execute when flow fails",
-          "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["type"],
-            "properties": {
-              "type": {
-                "type": "string",
-                "description": "Type of teardown action"
-              },
-              "action": {
-                "type": "string",
-                "description": "Specific action to perform"
+        "description": "Actions to execute when flow fails, or the literal 'rollback_storage_state'",
+        "oneOf": [
+          {
+            "type": "string",
+            "const": "rollback_storage_state"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["type"],
+              "properties": {
+                "type": { "type": "string", "description": "Type of teardown action" },
+                "action": { "type": "string", "description": "Specific action to perform" }
               }
             }
-          },
-          "default": []
-        }
+          }
+        ]
+      }
       },
       "default": null
     }

@@ -252,8 +252,8 @@ describe('FileSystemStorage (S3-002)', () => {
     });
 
     it('debe guardar y leer un flow', async () => {
-      const flow = { _version: '1', name: 'checkout-flow', modules: ['checkout'] };
-      await storage.saveFlow('checkout-flow', flow as never);
+      const flow = { _version: '1.0', name: 'checkout-flow', modules: [{ module: 'auth' }, { module: 'checkout' }] };
+      await storage.saveFlow('checkout-flow', flow);
       const result = await storage.getFlow('checkout-flow');
       expect(result).toEqual(flow);
     });

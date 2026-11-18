@@ -7,7 +7,14 @@ import type {
   TestPlan,
 } from '@qap/shared';
 
-import type { IFlowLockProvider, IFlowRunner, IFlowStateStore, IRunner, IStorage } from './ports.js';
+import type {
+  IFlowLockProvider,
+  IFlowRunner,
+  IFlowStateStore,
+  IFlowTelemetry,
+  IRunner,
+  IStorage,
+} from './ports.js';
 
 interface FlowStepRef {
   module: string;
@@ -82,8 +89,89 @@ export class FlowOrchestrator implements IFlowRunner {
     private readonly storage: IStorage,
     private readonly runner: IRunner,
     private readonly lockProvider?: IFlowLockProvider,
-    private readonly flowStore?: IFlowStateStore
+    private readonly flowStore?: IFlowStateStore,
+    private readonly telemetry?: IFlowTelemetry
   ) {}
+
+  private interpolateValue(
+    value: unknown,
+    sharedVars: Record<string, string>,
+    contextType: 'text' | 'selector' | 'url'
+  ): unknown {
+    if (typeof value !== 'string') return value;
+
+    return value.replace(/\$\{flow\.([a-zA-Z0-9_.-]+)\}/g, (_, varName: string) => {
+      const val = sharedVars[varName];
+      if (val === undefined) {
+        throw new Error(`flow_context_missing: Variable de flujo '${varName}' no encontrada en el contexto.`);
+      }
+
+      if (contextType === 'selector') {
+        const globalCSS = (globalThis as Record<string, unknown>).CSS as
+          | { escape?: (s: string) => string }
+          | undefined;
+        return globalCSS?.escape ? globalCSS.escape(val) : escapeCssManual(val);
+      }
+      if (contextType === 'url') {
+        return encodeURIComponent(val);
+      }
+      return val;
+    });
+  }
+
+  private interpolateStep(
+    step: Record<string, unknown>,
+    sharedVars: Record<string, string>
+  ): Record<string, unknown> {
+    const interpolated: Record<string, unknown> = {};
+    for (const [key, val] of Object.entries(step)) {
+      if (typeof val === 'string') {
+        const cType = key === 'selector' || key === 'target' ? 'selector' : key === 'url' ? 'url' : 'text';
+        interpolated[key] = this.interpolateValue(val, sharedVars, cType);
+      } else if (val && typeof val === 'object') {
+        interpolated[key] = JSON.parse(
+          JSON.stringify(val, (_: string, subVal: unknown): unknown =>
+            typeof subVal === 'string' ? this.interpolateValue(subVal, sharedVars, 'text') : subVal
+          )
+        );
+      } else {
+        interpolated[key] = val;
+      }
+    }
+    return interpolated;
+  }
+
+  private emitTelemetry(flowName: string, moduleName: string, res: unknown): void {
+    if (!this.telemetry) return;
+    const rec = (res ?? {}) as Record<string, unknown>;
+    const toStatus = (v: unknown): 'passed' | 'failed' | 'skipped' =>
+      v === 'passed' || v === 'success' ? 'passed' : v === 'skipped' || v === 'not_run' ? 'skipped' : 'failed';
+    const text = (v: unknown, fallback: string): string =>
+      typeof v === 'string' || typeof v === 'number' ? String(v) : fallback;
+    const num = (v: unknown): number => (typeof v === 'number' ? v : 0);
+
+    const cases = Array.isArray(rec.cases) ? (rec.cases as Array<Record<string, unknown>>) : [];
+    if (cases.length === 0) {
+      const topStatus = rec.result ?? (rec.success === true ? 'passed' : rec.status);
+      this.telemetry.onCaseEnd({
+        flowName,
+        module: moduleName,
+        caseId: moduleName,
+        status: toStatus(topStatus),
+        durationMs: 0,
+      });
+      return;
+    }
+    for (const c of cases) {
+      this.telemetry.onCaseEnd({
+        flowName,
+        module: moduleName,
+        caseId: text(c.case_id ?? c.id, moduleName),
+        status: toStatus(c.result ?? c.status),
+        durationMs: num(c.duration_ms ?? c.durationMs),
+      });
+    }
+  }
 
   async executeFlow(flow: FlowDefinition, options: FlowOptions = {}): Promise<FlowExecutionResult> {
     const extFlow: FlowWithOptionalExtensions = flow;
@@ -95,6 +183,7 @@ export class FlowOrchestrator implements IFlowRunner {
 
     const extOptions: FlowOptionsWithContext = options;
     const baseContextData = extOptions.context_data ?? {};
+    const requestedTags = extOptions.tags ?? [];
 
     const executionLogic = async (): Promise<FlowExecutionResult> => {
       // Lectura de estado y respaldo de sesiones cifradas bajo el lock del flujo
@@ -118,11 +207,39 @@ export class FlowOrchestrator implements IFlowRunner {
           }
 
           const testPlan = await this.storage.getTestPlan(moduleName);
+          const testPlanRecord = testPlan as unknown as Record<string, unknown>;
+          const rawCases = Array.isArray(testPlanRecord.cases) ? testPlanRecord.cases : [];
+          const hasInlineCases = rawCases.some((tc) => typeof tc === 'object' && tc !== null);
+          const effectiveTags = rawStep.tags && rawStep.tags.length > 0 ? rawStep.tags : requestedTags;
+
+          let preparedCases: unknown[] | undefined = Array.isArray(testPlanRecord.cases) ? rawCases : undefined;
+          if (rawStep.cases && rawStep.cases.length > 0) {
+            preparedCases = rawStep.cases;
+          } else if (hasInlineCases) {
+            const filteredCases = (rawCases as Array<Record<string, unknown>>).filter((tc) => {
+              if (effectiveTags.length === 0) return true;
+              const caseTags = (tc.tags ?? []) as string[];
+              return effectiveTags.some((tag) => caseTags.includes(tag));
+            });
+
+            preparedCases = filteredCases.map((tc) => {
+              const tcSteps = Array.isArray(tc.steps) ? (tc.steps as Array<Record<string, unknown>>) : [];
+              return {
+                ...tc,
+                steps: tcSteps.map((s) => this.interpolateStep(s, sharedVariables)),
+              };
+            });
+          }
+
           const modulePlan: TestPlan = {
             ...testPlan,
             modules: testPlan.modules && testPlan.modules.length > 0 ? testPlan.modules : [moduleName],
-            ...(rawStep.cases && rawStep.cases.length > 0 ? { cases: rawStep.cases } : {}),
-            ...(rawStep.tags && rawStep.tags.length > 0 ? { tags: rawStep.tags } : {}),
+            ...(preparedCases !== undefined ? { cases: preparedCases as TestPlan['cases'] } : {}),
+            ...(rawStep.tags && rawStep.tags.length > 0
+              ? { tags: rawStep.tags }
+              : !hasInlineCases && requestedTags.length > 0
+                ? { tags: requestedTags }
+                : {}),
           };
 
           const stepContextData: Record<string, unknown> = {
@@ -139,6 +256,7 @@ export class FlowOrchestrator implements IFlowRunner {
 
           const res = await this.runner.execute(modulePlan, runnerOptions);
           moduleResults[moduleName] = res;
+          this.emitTelemetry(flowName, moduleName, res);
 
           if (isRunnerPassed(res)) {
             completedModules.push(moduleName);
@@ -163,6 +281,16 @@ export class FlowOrchestrator implements IFlowRunner {
             }
 
             if (failFast) {
+              const failedIdx = rawSteps.findIndex((s) => s.module === moduleName);
+              for (const pending of rawSteps.slice(failedIdx + 1)) {
+                if (!completedModules.includes(pending.module)) {
+                  moduleResults[pending.module] = {
+                    result: 'skipped',
+                    failure_type: 'flow_step_failed',
+                    message: `Omitido: el módulo '${moduleName}' falló y fail_fast está activo.`,
+                  } as unknown as ExecutionResult;
+                }
+              }
               break;
             }
           }
@@ -173,6 +301,7 @@ export class FlowOrchestrator implements IFlowRunner {
           status: completedModules.length === rawSteps.length ? 'passed' : 'failed',
           started_at: startedAt,
           completed_modules: completedModules,
+          shared_variables: sharedVariables,
           results: moduleResults,
         } as unknown as FlowExecutionResult;
       } catch (err: unknown) {
@@ -187,16 +316,29 @@ export class FlowOrchestrator implements IFlowRunner {
           status: 'error',
           started_at: startedAt,
           completed_modules: completedModules,
+          shared_variables: sharedVariables,
           error: msg,
           results: moduleResults,
         } as unknown as FlowExecutionResult;
       }
     };
 
-    if (this.lockProvider && modulesToLock.length > 0) {
-      return await this.lockProvider.withModulesLock(modulesToLock, executionLogic);
-    }
+    try {
+      if (this.lockProvider && modulesToLock.length > 0) {
+        return await this.lockProvider.withModulesLock(modulesToLock, executionLogic);
+      }
 
-    return await executionLogic();
+      return await executionLogic();
+    } finally {
+      try {
+        this.telemetry?.finish();
+      } catch {
+        // La telemetría nunca debe romper la ejecución del flujo
+      }
+    }
   }
+}
+
+function escapeCssManual(str: string): string {
+  return str.replace(/([ !"#$%&'()*+,./:;<=>?@[\\\]^`{|}~])/g, '\\$1');
 }
