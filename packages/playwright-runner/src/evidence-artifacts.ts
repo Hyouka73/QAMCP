@@ -899,7 +899,7 @@ export function persistRuntimeEvidenceBundle(params: {
           run_id TEXT NOT NULL REFERENCES runs(run_id) ON DELETE CASCADE,
           step_index INTEGER NOT NULL,
           capability_id TEXT NOT NULL,
-          status TEXT NOT NULL CHECK (status IN ('passed','failed','blocked','skipped')),
+          status TEXT NOT NULL CHECK (status IN ('passed','failed','blocked','skipped','not_run')),
           duration_ms INTEGER NOT NULL,
           screenshot_file TEXT,
           PRIMARY KEY (run_id, step_index)

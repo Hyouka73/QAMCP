@@ -38,6 +38,8 @@ CREATE TABLE IF NOT EXISTS runs (
   started_at TEXT NOT NULL,
   finished_at TEXT NOT NULL,
   overall_status TEXT NOT NULL CHECK (overall_status IN ('passed','failed','partial')),
+  terminal_status TEXT DEFAULT NULL CHECK (terminal_status IS NULL OR terminal_status IN ('passed','failed','partial')),
+  case_classification TEXT DEFAULT NULL CHECK (case_classification IS NULL OR case_classification IN ('passed','failed','partial')),
   total_duration_ms INTEGER NOT NULL,
   git_commit TEXT,
   git_branch TEXT,
@@ -54,9 +56,10 @@ CREATE TABLE IF NOT EXISTS step_results (
   run_id TEXT NOT NULL REFERENCES runs(run_id) ON DELETE CASCADE,
   step_index INTEGER NOT NULL,
   capability_id TEXT NOT NULL,
-  status TEXT NOT NULL CHECK (status IN ('passed','failed','blocked','skipped')),
+  status TEXT NOT NULL CHECK (status IN ('passed','failed','blocked','skipped','not_run')),
   duration_ms INTEGER NOT NULL,
   screenshot_file TEXT,
+  error_message TEXT DEFAULT NULL,
   PRIMARY KEY (run_id, step_index)
 );
 
@@ -70,6 +73,10 @@ const ALLOWED_RUN_KEYS = new Set([
   'finishedAt',
   'totalDurationMs',
   'overallStatus',
+  'terminalStatus',
+  'caseClassification',
+  'caseSummary',
+  'resumeNoOp',
   'environment',
   'steps',
   'artifacts',
@@ -97,8 +104,9 @@ const ALLOWED_STEP_KEYS = new Set([
   'screenshotFile',
 ]);
 const ALLOWED_SUMMARY_KEYS = new Set(['totalCases', 'passed', 'failed', 'skipped']);
+const ALLOWED_CASE_SUMMARY_KEYS = new Set(['totalCases', 'passed', 'failed', 'skipped', 'notRun', 'blocked']);
 const VALID_OVERALL_STATUS = new Set(['passed', 'failed', 'partial']);
-const VALID_STEP_STATUS = new Set(['passed', 'failed', 'blocked', 'skipped']);
+const VALID_STEP_STATUS = new Set(['passed', 'failed', 'blocked', 'skipped', 'not_run']);
 const SAFE_RUN_DIR_RE = /^[a-zA-Z0-9_-][a-zA-Z0-9._-]*$/;
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -138,6 +146,16 @@ function isValidRunRecordStructure(
     return false;
   }
   if (typeof raw.overallStatus !== 'string' || !VALID_OVERALL_STATUS.has(raw.overallStatus)) return false;
+  if (raw.terminalStatus !== undefined && (typeof raw.terminalStatus !== 'string' || !VALID_OVERALL_STATUS.has(raw.terminalStatus))) {
+    return false;
+  }
+  if (
+    raw.caseClassification !== undefined &&
+    (typeof raw.caseClassification !== 'string' || !VALID_OVERALL_STATUS.has(raw.caseClassification))
+  ) {
+    return false;
+  }
+  if (raw.resumeNoOp !== undefined && typeof raw.resumeNoOp !== 'boolean') return false;
 
   if (!isPlainObject(raw.environment) || !hasOnlyAllowedKeys(raw.environment, ALLOWED_ENV_KEYS)) return false;
   for (const key of ALLOWED_ENV_KEYS) {
@@ -243,6 +261,15 @@ function isValidRunRecordStructure(
     }
   }
 
+  if (raw.caseSummary !== undefined) {
+    if (!isPlainObject(raw.caseSummary) || !hasOnlyAllowedKeys(raw.caseSummary, ALLOWED_CASE_SUMMARY_KEYS)) {
+      return false;
+    }
+    for (const key of ALLOWED_CASE_SUMMARY_KEYS) {
+      if (!isNonNegativeSafeInteger(raw.caseSummary[key])) return false;
+    }
+  }
+
   return true;
 }
 
@@ -282,6 +309,8 @@ export interface RunRow {
   started_at: string;
   finished_at: string;
   overall_status: 'passed' | 'failed' | 'partial';
+  terminal_status?: 'passed' | 'failed' | 'partial' | null;
+  case_classification?: 'passed' | 'failed' | 'partial' | null;
   total_duration_ms: number;
   git_commit: string | null;
   git_branch: string | null;
@@ -321,9 +350,43 @@ export class QapDatabase {
     this.init();
   }
 
+  private ensureColumn(tableName: 'runs' | 'step_results', columnName: string, columnDef: string): void {
+    const columns = this.db.prepare(`PRAGMA table_info(${tableName});`).all() as Array<{ name: string }>;
+    if (!columns.some((col) => col.name === columnName)) {
+      this.db.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnDef};`);
+    }
+  }
+
   private init(): void {
     this.db.exec('PRAGMA foreign_keys = ON;');
     this.db.exec(SCHEMA_DDL);
+    const stepTableMeta = this.db
+      .prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'step_results';")
+      .get() as { sql?: string } | undefined;
+    if (stepTableMeta?.sql && !stepTableMeta.sql.includes("'not_run'")) {
+      this.db.exec(`
+        BEGIN IMMEDIATE TRANSACTION;
+        ALTER TABLE step_results RENAME TO step_results_old;
+        CREATE TABLE step_results (
+          run_id TEXT NOT NULL REFERENCES runs(run_id) ON DELETE CASCADE,
+          step_index INTEGER NOT NULL,
+          capability_id TEXT NOT NULL,
+          status TEXT NOT NULL CHECK (status IN ('passed','failed','blocked','skipped','not_run')),
+          duration_ms INTEGER NOT NULL,
+          screenshot_file TEXT,
+          error_message TEXT DEFAULT NULL,
+          PRIMARY KEY (run_id, step_index)
+        );
+        INSERT INTO step_results (run_id, step_index, capability_id, status, duration_ms, screenshot_file)
+        SELECT run_id, step_index, capability_id, status, duration_ms, screenshot_file FROM step_results_old;
+        DROP TABLE step_results_old;
+        CREATE INDEX IF NOT EXISTS idx_steps_capability ON step_results(capability_id);
+        COMMIT;
+      `);
+    }
+    this.ensureColumn('runs', 'terminal_status', 'TEXT DEFAULT NULL');
+    this.ensureColumn('runs', 'case_classification', 'TEXT DEFAULT NULL');
+    this.ensureColumn('step_results', 'error_message', 'TEXT DEFAULT NULL');
   }
 
   getDbPath(): string {
@@ -370,14 +433,17 @@ export class QapDatabase {
       const insertRunStmt = this.db.prepare(`
         INSERT INTO runs (
           run_id, flow_id, started_at, finished_at, overall_status,
+          terminal_status, case_classification,
           total_duration_ms, git_commit, git_branch,
           total_disk_usage_bytes, pinned, expires_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(run_id) DO UPDATE SET
           flow_id = excluded.flow_id,
           started_at = excluded.started_at,
           finished_at = excluded.finished_at,
           overall_status = excluded.overall_status,
+          terminal_status = excluded.terminal_status,
+          case_classification = excluded.case_classification,
           total_duration_ms = excluded.total_duration_ms,
           git_commit = excluded.git_commit,
           git_branch = excluded.git_branch,
@@ -392,6 +458,8 @@ export class QapDatabase {
         run.startedAt,
         run.finishedAt,
         run.overallStatus,
+        run.terminalStatus ?? null,
+        run.caseClassification ?? null,
         run.totalDurationMs,
         run.environment.gitCommit ?? null,
         run.environment.gitBranch ?? null,
@@ -405,8 +473,8 @@ export class QapDatabase {
       deleteStepsStmt.run(run.runId);
 
       const insertStepStmt = this.db.prepare(`
-        INSERT INTO step_results (run_id, step_index, capability_id, status, duration_ms, screenshot_file)
-        VALUES (?, ?, ?, ?, ?, ?);
+        INSERT INTO step_results (run_id, step_index, capability_id, status, duration_ms, screenshot_file, error_message)
+        VALUES (?, ?, ?, ?, ?, ?, ?);
       `);
 
       for (const step of run.steps) {
@@ -416,7 +484,8 @@ export class QapDatabase {
           step.capabilityId,
           step.status,
           step.durationMs,
-          step.screenshotFile ?? null
+          step.screenshotFile ?? null,
+          step.error?.message ?? null
         );
       }
 
@@ -469,9 +538,10 @@ export class QapDatabase {
     const stepRows = stepsStmt.all(runId) as Array<{
       step_index: number;
       capability_id: string;
-      status: 'passed' | 'failed' | 'blocked' | 'skipped';
+      status: 'passed' | 'failed' | 'blocked' | 'skipped' | 'not_run';
       duration_ms: number;
       screenshot_file: string | null;
+      error_message?: string | null;
     }>;
 
     return {
@@ -481,6 +551,8 @@ export class QapDatabase {
       finishedAt: row.finished_at,
       totalDurationMs: row.total_duration_ms,
       overallStatus: row.overall_status,
+      ...(row.terminal_status ? { terminalStatus: row.terminal_status } : {}),
+      ...(row.case_classification ? { caseClassification: row.case_classification } : {}),
       environment: {
         gitCommit: row.git_commit ?? '',
         gitBranch: row.git_branch ?? '',
@@ -495,6 +567,9 @@ export class QapDatabase {
         timestamp: row.started_at,
         assertions: [],
         screenshotFile: s.screenshot_file ?? undefined,
+        ...(s.error_message
+          ? { error: { message: s.error_message, capturedAtStepMs: s.duration_ms } }
+          : {}),
       })),
       artifacts: {
         totalDiskUsageBytes: row.total_disk_usage_bytes,

@@ -323,12 +323,19 @@ export function registerCommands(program: Command): void {
       await handleMcpRegister(options);
     });
 
-  // 7.5 Comando `flow` (S82-004)
+  // 7.5 Comando `flow` (S82-004) + alias compatible `qap flow <name>` (P1)
+  type FlowCliOptions = { env?: string; tags?: string; headed?: boolean; all?: boolean };
+
   const flowCmd = program
     .command('flow')
-    .description('Ejecuta y administra flujos multimódulo.');
-
-  type FlowCliOptions = { env?: string; tags?: string; headed?: boolean; all?: boolean };
+    .argument('<name>', 'Nombre del flujo a ejecutar (alias compatible de run)')
+    .description('Ejecuta y administra flujos multimódulo.')
+    .option('--env <env>', 'Entorno de ejecución')
+    .option('--tags <tags>', 'Etiquetas separadas por coma')
+    .option('--headed', 'Navegador visible')
+    .action(async (name: string, options: FlowCliOptions) => {
+      await handleFlowCommand('run', name, options);
+    });
 
   flowCmd
     .command('run <name>')
@@ -337,7 +344,7 @@ export function registerCommands(program: Command): void {
     .option('--tags <tags>', 'Etiquetas separadas por coma')
     .option('--headed', 'Navegador visible')
     .action(async (name: string, options: FlowCliOptions) => {
-      await handleFlowCommand('run', name, options);
+      await handleFlowCommand('run', name, { ...flowCmd.opts<FlowCliOptions>(), ...options });
     });
 
   flowCmd
@@ -347,7 +354,7 @@ export function registerCommands(program: Command): void {
     .option('--tags <tags>', 'Etiquetas separadas por coma')
     .option('--headed', 'Navegador visible')
     .action(async (name: string, options: FlowCliOptions) => {
-      await handleFlowCommand('resume', name, options);
+      await handleFlowCommand('resume', name, { ...flowCmd.opts<FlowCliOptions>(), ...options });
     });
 
   flowCmd

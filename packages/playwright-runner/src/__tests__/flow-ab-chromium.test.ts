@@ -5,10 +5,10 @@ import * as path from 'node:path';
 
 import { FlowOrchestrator } from '@qap/engine';
 import { FileSystemStorage, FlowContextStore, LockManager } from '@qap/knowledge';
-import type { FlowDefinition, TCCase } from '@qap/shared';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import type { FlowDefinition, TCCase, TestPlan } from '@qap/shared';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { PlaywrightRunner } from '../runner.js';
+import { PlaywrightRunner, type PlaywrightRunnerOptions } from '../runner.js';
 
 describe('P0.1 · Transferencia A→B con Chromium real', () => {
   let server: http.Server;
@@ -203,5 +203,343 @@ describe('P0.1 · Transferencia A→B con Chromium real', () => {
     const failedStep = failedCaseB?.steps?.find((s) => s.status === 'failed');
     expect(failedStep?.action).toBe('navigate');
     expect(failedStep?.message).toMatch(/MISSING_SYNTH_ID.*no definida/i);
+  }, 60000);
+
+  it('P1-A & P1-B: FlowOrchestrator + PlaywrightRunner filtra IDs por tags, evita lanzar Chromium sin coincidencias y preserva blocked_missing_oracle como not_run', async () => {
+    const storage = new FileSystemStorage({ rootDir: tempDir });
+    const lockManager = new LockManager({ rootDir: tempDir });
+    const flowStore = new FlowContextStore(tempDir);
+    const runner = new PlaywrightRunner({ projectRoot: tempDir });
+
+    const smokeCase: TCCase = {
+      _version: '1',
+      id: 'TC-SMOKE',
+      name: 'Smoke Test',
+      tags: ['smoke'],
+      steps: [{ type: 'navigate', url: `${baseUrl}/module-a` }],
+    };
+
+    const regressionCase: TCCase = {
+      _version: '1',
+      id: 'TC-REGRESSION',
+      name: 'Regression Test',
+      tags: ['regression'],
+      steps: [{ type: 'navigate', url: `${baseUrl}/module-a` }],
+    };
+
+    await storage.saveTestPlan('mod_a', { modules: ['mod_a'], cases: ['TC-SMOKE', 'TC-REGRESSION'] });
+    await storage.saveTestCase('mod_a', smokeCase);
+    await storage.saveTestCase('mod_a', regressionCase);
+
+    const receivedPlans: TestPlan[] = [];
+    const execSpy = vi.spyOn(runner, 'execute').mockImplementation(async (plan: TestPlan, opts?: PlaywrightRunnerOptions) => {
+      receivedPlans.push(plan);
+      return runner.executeInternal(plan, opts);
+    });
+
+    const flowDef: FlowDefinition = {
+      name: 'flow_tagged_runner',
+      modules: [{ module: 'mod_a' }],
+      fail_fast: true,
+    };
+
+    // 1. Con filtro smoke: PlaywrightRunner recibe únicamente ['TC-SMOKE']
+    const smokeRes = (await new FlowOrchestrator(storage, runner, lockManager, flowStore).executeFlow(flowDef, {
+      headless: true,
+      tags: ['smoke'],
+      timeout_ms: 15000,
+    })) as unknown as {
+      status: string;
+      results: Record<string, { result: string; cases: Array<{ id: string; result: string }> }>;
+    };
+
+    expect(smokeRes.status).toBe('passed');
+    expect(receivedPlans).toHaveLength(1);
+    expect(receivedPlans[0]?.cases).toEqual(['TC-SMOKE']);
+    expect(smokeRes.results.mod_a?.cases.map((c) => c.id)).toEqual(['TC-SMOKE']);
+
+    // 2. Sin coincidencias: no se inicia Chromium ni se invoca runner.execute ni se genera PASS
+    execSpy.mockClear();
+    const { chromium } = await import('playwright-core');
+    const launchSpy = vi.spyOn(chromium, 'launch');
+    const noMatchRes = (await new FlowOrchestrator(storage, runner, lockManager, flowStore).executeFlow(
+      { name: 'flow_no_match_runner', modules: [{ module: 'mod_a' }] },
+      { headless: true, tags: ['nonexistent'] }
+    )) as unknown as { status: string; completed_modules: string[] };
+
+    expect(noMatchRes.status).toBe('failed');
+    expect(noMatchRes.completed_modules).toEqual([]);
+    expect(execSpy).not.toHaveBeenCalled();
+    expect(launchSpy).not.toHaveBeenCalled();
+
+    // 3. Caso bloqueado por blocked_missing_oracle: not_run sin iniciar Chromium y flujo failed
+    const blockedCase: TCCase = {
+      _version: '1',
+      id: 'TC-BLOCKED-ORACLE',
+      name: 'Blocked Oracle Candidate',
+      tags: ['bva', 'blocked_missing_oracle'],
+      steps: [{ type: 'assert', selector: '#error', assertion_type: 'not_visible' }],
+    };
+    await storage.saveTestPlan('mod_blocked', { modules: ['mod_blocked'], cases: ['TC-BLOCKED-ORACLE'] });
+    await storage.saveTestCase('mod_blocked', blockedCase);
+
+    const telemetryEvents: Array<Record<string, unknown>> = [];
+    const telemetryFinishes: unknown[] = [];
+    const blockedRes = (await new FlowOrchestrator(storage, runner, lockManager, flowStore, {
+      onCaseEnd: (e) => telemetryEvents.push(e as unknown as Record<string, unknown>),
+      finish: (o) => telemetryFinishes.push(o),
+    }).executeFlow(
+      { name: 'flow_oracle_blocked_runner', modules: [{ module: 'mod_blocked' }] },
+      { headless: true, tags: ['bva'] }
+    )) as unknown as {
+      status: string;
+      results: Record<string, { result: string; cases: Array<{ id: string; result: string; not_run_reason?: string }> }>;
+    };
+
+    expect(launchSpy).not.toHaveBeenCalled();
+    expect(blockedRes.status).toBe('failed');
+    expect(blockedRes.results.mod_blocked?.cases[0]).toMatchObject({
+      id: 'TC-BLOCKED-ORACLE',
+      result: 'not_run',
+      not_run_reason: expect.stringContaining('blocked_missing_oracle'),
+    });
+    expect(telemetryEvents).toEqual([
+      expect.objectContaining({
+        caseId: 'TC-BLOCKED-ORACLE',
+        status: 'not_run',
+        error: expect.stringContaining('blocked_missing_oracle'),
+      }),
+    ]);
+    expect(telemetryFinishes).toEqual([expect.objectContaining({ status: 'failed' })]);
+    launchSpy.mockRestore();
+    execSpy.mockRestore();
+  }, 60000);
+
+  it('Fallo A & Fallo B: IDs explícitos + tags, casos inline en Chromium real, sin filtro, cero coincidencias y resume intacto', async () => {
+    const storage = new FileSystemStorage({ rootDir: tempDir });
+    const lockManager = new LockManager({ rootDir: tempDir });
+    const flowStore = new FlowContextStore(tempDir);
+    const runner = new PlaywrightRunner({ projectRoot: tempDir });
+
+    const smokeCase: TCCase = {
+      _version: '1',
+      id: 'TC-SMOKE',
+      name: 'Smoke ID Case',
+      tags: ['smoke'],
+      steps: [{ type: 'navigate', url: `${baseUrl}/module-a` }],
+    };
+    const regressionCase: TCCase = {
+      _version: '1',
+      id: 'TC-REGRESSION',
+      name: 'Regression ID Case',
+      tags: ['regression'],
+      steps: [{ type: 'navigate', url: `${baseUrl}/module-a` }],
+    };
+
+    await storage.saveTestPlan('mod_ids', { modules: ['mod_ids'], cases: ['TC-SMOKE', 'TC-REGRESSION'] });
+    await storage.saveTestCase('mod_ids', smokeCase);
+    await storage.saveTestCase('mod_ids', regressionCase);
+
+    const inlinePlans: Record<string, unknown> = {
+      mod_inline: {
+        modules: ['mod_inline'],
+        cases: [
+          {
+            id: 'tc_inline_smoke',
+            name: 'Inline Smoke Case',
+            tags: ['smoke'],
+            steps: [
+              { type: 'navigate', url: `${baseUrl}/module-a` },
+              { type: 'capture', selector: '#created-record-id', capture_as: 'INLINE_ID' },
+            ],
+          },
+          {
+            id: 'tc_inline_reg',
+            name: 'Inline Regression Case',
+            tags: ['regression'],
+            steps: [{ type: 'navigate', url: `${baseUrl}/module-a` }],
+          },
+        ],
+      },
+      mod_inline_consume: {
+        modules: ['mod_inline_consume'],
+        cases: [
+          {
+            id: 'tc_inline_use',
+            tags: ['smoke'],
+            steps: [
+              { type: 'navigate', url: `${baseUrl}/module-b?id=\${flow.INLINE_ID}` },
+              {
+                type: 'assert',
+                selector: '#record-status',
+                assertion_type: 'equals',
+                expected: 'VERIFIED:${flow.INLINE_ID}',
+              },
+            ],
+          },
+        ],
+      },
+    };
+
+    const hybridStorage = {
+      getTestPlan: async (mod: string) =>
+        (inlinePlans[mod] as TestPlan | undefined) ?? storage.getTestPlan(mod),
+      getTestCase: (mod: string, id: string) => storage.getTestCase(mod, id),
+      listTestCases: (mod: string) => storage.listTestCases(mod),
+    };
+
+    const receivedPlans: TestPlan[] = [];
+    const execSpy = vi
+      .spyOn(runner, 'execute')
+      .mockImplementation(async (plan: TestPlan, opts?: PlaywrightRunnerOptions) => {
+        receivedPlans.push(plan);
+        return runner.executeInternal(plan, opts);
+      });
+
+    // 1. IDs explícitos (rawStep.cases = ['TC-SMOKE', 'TC-REGRESSION']) + --tags smoke => solo ['TC-SMOKE']
+    const explicitSmokeRes = (await new FlowOrchestrator(
+      hybridStorage as unknown as FileSystemStorage,
+      runner,
+      lockManager,
+      flowStore
+    ).executeFlow(
+      {
+        name: 'flow_explicit_smoke',
+        modules: [{ module: 'mod_ids', cases: ['TC-SMOKE', 'TC-REGRESSION'] }],
+      },
+      { headless: true, tags: ['smoke'], timeout_ms: 15000 }
+    )) as unknown as {
+      status: string;
+      results: Record<string, { result: string; cases: Array<{ id: string; result: string }> }>;
+    };
+
+    expect(explicitSmokeRes.status).toBe('passed');
+    expect(receivedPlans).toHaveLength(1);
+    expect(receivedPlans[0]?.cases).toEqual(['TC-SMOKE']);
+    expect(explicitSmokeRes.results.mod_ids?.cases.map((c) => c.id)).toEqual(['TC-SMOKE']);
+
+    // 2. Caso inline válido + captura en Chromium real + inline + etiquetas => únicamente los casos seleccionados, IDs string en Runner
+    receivedPlans.length = 0;
+    const inlineFlowRes = (await new FlowOrchestrator(
+      hybridStorage as unknown as FileSystemStorage,
+      runner,
+      lockManager,
+      flowStore
+    ).executeFlow(
+      {
+        name: 'flow_inline_chromium',
+        modules: [{ module: 'mod_inline' }, { module: 'mod_inline_consume' }],
+      },
+      { headless: true, tags: ['smoke'], timeout_ms: 15000 }
+    )) as unknown as {
+      status: string;
+      completed_modules: string[];
+      results: Record<string, { result: string; cases: Array<{ id: string; result: string }> }>;
+    };
+
+    expect(inlineFlowRes.status).toBe('passed');
+    expect(inlineFlowRes.completed_modules).toEqual(['mod_inline', 'mod_inline_consume']);
+    expect(receivedPlans.map((p) => p.cases)).toEqual([['tc_inline_smoke'], ['tc_inline_use']]);
+    expect(
+      receivedPlans.every((p) => (p.cases ?? []).every((id) => typeof id === 'string'))
+    ).toBe(true);
+    expect(inlineFlowRes.results.mod_inline?.cases.map((c) => c.id)).toEqual(['tc_inline_smoke']);
+    expect(inlineFlowRes.results.mod_inline_consume?.cases.map((c) => c.id)).toEqual(['tc_inline_use']);
+
+    // 3. Sin filtro: comportamiento previo (recibe ambos IDs en mod_ids y ambos inline IDs en mod_inline)
+    receivedPlans.length = 0;
+    const unfilteredRes = (await new FlowOrchestrator(
+      hybridStorage as unknown as FileSystemStorage,
+      runner,
+      lockManager,
+      flowStore
+    ).executeFlow(
+      {
+        name: 'flow_unfiltered_both',
+        modules: [{ module: 'mod_ids' }, { module: 'mod_inline' }],
+      },
+      { headless: true, timeout_ms: 15000 }
+    )) as unknown as { status: string };
+
+    expect(unfilteredRes.status).toBe('passed');
+    expect(receivedPlans.map((p) => p.cases)).toEqual([
+      ['TC-SMOKE', 'TC-REGRESSION'],
+      ['tc_inline_smoke', 'tc_inline_reg'],
+    ]);
+
+    // 4. Cero coincidencias en intersección explícita + tags: sin Chromium ni PASS y sin dañar checkpoint previo
+    const { chromium } = await import('playwright-core');
+    const launchSpy = vi.spyOn(chromium, 'launch');
+    execSpy.mockClear();
+
+    flowStore.backupSessions('flow_resume_selection');
+    flowStore.saveState({
+      flow_name: 'flow_resume_selection',
+      started_at: '2026-11-18T12:00:00.000Z',
+      completed_modules: ['mod_inline'],
+      shared_variables: { INLINE_ID: 'SYNTH-RESUME-1' },
+    });
+
+    const disjointResumeRes = (await new FlowOrchestrator(
+      hybridStorage as unknown as FileSystemStorage,
+      runner,
+      lockManager,
+      flowStore
+    ).executeFlow(
+      {
+        name: 'flow_resume_selection',
+        modules: [
+          { module: 'mod_inline' },
+          { module: 'mod_ids', cases: ['TC-REGRESSION'] },
+        ],
+      },
+      { headless: true, tags: ['smoke'], timeout_ms: 15000 }
+    )) as unknown as { status: string; completed_modules: string[] };
+
+    expect(disjointResumeRes.status).toBe('failed');
+    expect(disjointResumeRes.completed_modules).toEqual(['mod_inline']);
+    expect(execSpy).not.toHaveBeenCalled();
+    expect(launchSpy).not.toHaveBeenCalled();
+    expect(flowStore.loadState('flow_resume_selection')?.completed_modules).toEqual(['mod_inline']);
+    expect(flowStore.loadState('flow_resume_selection')?.shared_variables).toEqual({
+      INLINE_ID: 'SYNTH-RESUME-1',
+    });
+
+    // 5. Resume exitoso tras selección: mod_inline se omite y mod_ids ejecuta únicamente ['TC-SMOKE']
+    receivedPlans.length = 0;
+    const resumePassRes = (await new FlowOrchestrator(
+      hybridStorage as unknown as FileSystemStorage,
+      runner,
+      lockManager,
+      flowStore
+    ).executeFlow(
+      {
+        name: 'flow_resume_selection',
+        modules: [
+          { module: 'mod_inline' },
+          { module: 'mod_ids', cases: ['TC-SMOKE', 'TC-REGRESSION'] },
+        ],
+      },
+      { headless: true, tags: ['smoke'], timeout_ms: 15000 }
+    )) as unknown as { status: string; completed_modules: string[] };
+
+    expect(resumePassRes.status).toBe('passed');
+    expect(resumePassRes.completed_modules).toEqual(['mod_inline', 'mod_ids']);
+    expect(receivedPlans.map((p) => p.cases)).toEqual([['TC-SMOKE']]);
+    expect(flowStore.loadState('flow_resume_selection')?.completed_modules).toEqual([
+      'mod_inline',
+      'mod_ids',
+    ]);
+
+    // 6. Llamada directa a PlaywrightRunner con objeto fuera de contrato en plan.cases falla explícitamente
+    await expect(
+      runner.execute(
+        { modules: ['mod_ids'], cases: [{ id: 'obj', steps: [] }] as unknown as string[] },
+        { headless: true }
+      )
+    ).rejects.toThrow(/Contrato inválido en TestPlan\.cases/);
+
+    launchSpy.mockRestore();
+    execSpy.mockRestore();
   }, 60000);
 });

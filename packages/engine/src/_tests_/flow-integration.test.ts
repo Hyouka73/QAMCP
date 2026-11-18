@@ -455,3 +455,481 @@ describe('S8-004: Integración End-to-End de FlowOrchestrator + FileSystemStorag
     expect(reacquired).toBe('ok');
   });
 });
+
+describe('P1-A & P1-B: Selección efectiva de casos referenciados por ID y propagación de telemetría', () => {
+  const testCasesById: Record<string, { id: string; name: string; tags: string[]; steps: unknown[] }> = {
+    'TC-SMOKE': {
+      id: 'TC-SMOKE',
+      name: 'Smoke Case',
+      tags: ['smoke'],
+      steps: [{ type: 'navigate', url: 'https://example.test/smoke' }],
+    },
+    'TC-REGRESSION': {
+      id: 'TC-REGRESSION',
+      name: 'Regression Case',
+      tags: ['regression'],
+      steps: [{ type: 'navigate', url: 'https://example.test/regression' }],
+    },
+  };
+
+  function createTaggedStorage() {
+    return {
+      getTestPlan: async (moduleName: string) => ({
+        modules: [moduleName],
+        cases: ['TC-SMOKE', 'TC-REGRESSION'],
+      }),
+      getTestCase: async (_moduleName: string, caseId: string) => testCasesById[caseId] ?? null,
+    };
+  }
+
+  it('1) Filtro smoke: resuelve metadatos de casos referenciados por ID y envía únicamente ["TC-SMOKE"] al Runner', async () => {
+    const receivedCases: unknown[] = [];
+    const mockRunner = {
+      execute: async (plan: { cases?: unknown[] }) => {
+        receivedCases.push(plan.cases);
+        return {
+          result: 'passed',
+          cases: [{ id: 'TC-SMOKE', result: 'passed', duration_ms: 15 }],
+        };
+      },
+    };
+
+    const orchestrator = new FlowOrchestrator(createTaggedStorage() as any, mockRunner as any);
+    const result = (await orchestrator.executeFlow(
+      { _version: '1.0', name: 'flow_smoke_only', modules: [{ module: 'auth' }] } as any,
+      { tags: ['smoke'] }
+    )) as unknown as Record<string, unknown>;
+
+    expect(result.status).toBe('passed');
+    expect(receivedCases).toEqual([['TC-SMOKE']]);
+    expect((receivedCases[0] as unknown[]).every((id) => typeof id === 'string')).toBe(true);
+  });
+
+  it('2) Sin etiquetas: envía ambos IDs ["TC-SMOKE", "TC-REGRESSION"] al Runner', async () => {
+    const receivedCases: unknown[] = [];
+    const mockRunner = {
+      execute: async (plan: { cases?: unknown[] }) => {
+        receivedCases.push(plan.cases);
+        return {
+          result: 'passed',
+          cases: [
+            { id: 'TC-SMOKE', result: 'passed', duration_ms: 10 },
+            { id: 'TC-REGRESSION', result: 'passed', duration_ms: 20 },
+          ],
+        };
+      },
+    };
+
+    const orchestrator = new FlowOrchestrator(createTaggedStorage() as any, mockRunner as any);
+    const result = (await orchestrator.executeFlow(
+      { _version: '1.0', name: 'flow_unfiltered', modules: [{ module: 'auth' }] } as any,
+      {}
+    )) as unknown as Record<string, unknown>;
+
+    expect(result.status).toBe('passed');
+    expect(receivedCases).toEqual([['TC-SMOKE', 'TC-REGRESSION']]);
+  });
+
+  it('3) Selección explícita por módulo: intersecta rawStep.cases con etiquetas efectivas y respeta tags explícitos', async () => {
+    const receivedByModule: Record<string, unknown> = {};
+    const mockRunner = {
+      execute: async (plan: { modules: string[]; cases?: unknown[] }) => {
+        receivedByModule[plan.modules[0]] = plan.cases;
+        return { result: 'passed' };
+      },
+    };
+
+    const orchestrator = new FlowOrchestrator(createTaggedStorage() as any, mockRunner as any);
+    const result = (await orchestrator.executeFlow(
+      {
+        _version: '1.0',
+        name: 'flow_explicit_module_selection',
+        modules: [
+          { module: 'mod_explicit_cases', cases: ['TC-SMOKE', 'TC-REGRESSION'] },
+          { module: 'mod_explicit_tags', tags: ['regression'] },
+        ],
+      } as any,
+      { tags: ['smoke'] }
+    )) as unknown as Record<string, unknown>;
+
+    expect(result.status).toBe('passed');
+    expect(receivedByModule['mod_explicit_cases']).toEqual(['TC-SMOKE']);
+    expect(receivedByModule['mod_explicit_tags']).toEqual(['TC-REGRESSION']);
+
+    const disjointRes = (await orchestrator.executeFlow(
+      {
+        _version: '1.0',
+        name: 'flow_explicit_disjoint',
+        modules: [{ module: 'mod_disjoint', cases: ['TC-REGRESSION'] }],
+      } as any,
+      { tags: ['smoke'] }
+    )) as unknown as Record<string, unknown>;
+
+    expect(disjointRes.status).toBe('failed');
+    expect(receivedByModule['mod_disjoint']).toBeUndefined();
+
+    const unfilteredRes = (await orchestrator.executeFlow(
+      {
+        _version: '1.0',
+        name: 'flow_explicit_unfiltered',
+        modules: [{ module: 'mod_explicit_only', cases: ['TC-REGRESSION'] }],
+      } as any,
+      {}
+    )) as unknown as Record<string, unknown>;
+
+    expect(unfilteredRes.status).toBe('passed');
+    expect(receivedByModule['mod_explicit_only']).toEqual(['TC-REGRESSION']);
+  });
+
+  it('3b) Fallo A: casos inline pasan IDs string en TestPlan.cases + storageResolver y rechazan entradas fuera de contrato', async () => {
+    const receivedPlans: Array<{ cases?: unknown[] }> = [];
+    const resolvedCases: unknown[] = [];
+
+    const inlineStorage = {
+      getTestPlan: async (moduleName: string) => ({
+        modules: [moduleName],
+        cases: [
+          {
+            id: 'tc_inline_smoke',
+            name: 'Inline Smoke',
+            tags: ['smoke'],
+            steps: [{ type: 'navigate', url: 'https://example.test/smoke' }],
+          },
+          {
+            id: 'tc_inline_reg',
+            name: 'Inline Regression',
+            tags: ['regression'],
+            steps: [{ type: 'navigate', url: 'https://example.test/reg' }],
+          },
+        ],
+      }),
+    };
+
+    const mockRunner = {
+      execute: async (plan: { modules: string[]; cases?: unknown[] }, opts: { storageResolver?: (m: string, id: string) => Promise<unknown> }) => {
+        receivedPlans.push({ cases: plan.cases });
+        expect(plan.cases?.every((id) => typeof id === 'string')).toBe(true);
+        for (const id of (plan.cases ?? []) as string[]) {
+          resolvedCases.push(await opts.storageResolver?.(plan.modules[0], id));
+        }
+        return { result: 'passed' };
+      },
+    };
+
+    const orchestrator = new FlowOrchestrator(inlineStorage as any, mockRunner as any);
+    const taggedResult = (await orchestrator.executeFlow(
+      {
+        _version: '1.0',
+        name: 'flow_inline_tagged',
+        modules: [{ module: 'mod_inline' }],
+      } as any,
+      { tags: ['smoke'] }
+    )) as unknown as Record<string, unknown>;
+
+    expect(taggedResult.status).toBe('passed');
+    expect(receivedPlans).toEqual([{ cases: ['tc_inline_smoke'] }]);
+    expect(resolvedCases).toEqual([
+      expect.objectContaining({ id: 'tc_inline_smoke', name: 'Inline Smoke' }),
+    ]);
+
+    // Representaciones históricas o malformadas fuera de contrato no se ejecutan silenciosamente
+    const badInputs = [
+      [{ name: 'sin-id', steps: [] }],
+      [{ case_id: 'legacy-id', steps: [{ type: 'navigate', url: '/' }] }],
+      [{ id: 'tc-no-steps' }],
+      [{ id: 'tc-legacy-action', steps: [{ action: 'navigate', target: '/' }] }],
+      [123],
+    ];
+
+    for (const badCases of badInputs) {
+      let runnerCalled = 0;
+      const badOrchestrator = new FlowOrchestrator(
+        {
+          getTestPlan: async (moduleName: string) => ({ modules: [moduleName], cases: badCases }),
+        } as any,
+        {
+          execute: async () => {
+            runnerCalled += 1;
+            return { result: 'passed' };
+          },
+        } as any
+      );
+      const badRes = (await badOrchestrator.executeFlow(
+        { _version: '1.0', name: 'flow_bad_inline', modules: [{ module: 'mod_bad' }] } as any,
+        {}
+      )) as unknown as Record<string, unknown>;
+      expect(badRes.status).toBe('error');
+      expect(runnerCalled).toBe(0);
+    }
+
+    // Objetos dentro de rawStep.cases también se rechazan sin llegar al Runner
+    let explicitBadRunnerCalls = 0;
+    const explicitBadOrch = new FlowOrchestrator(
+      { getTestPlan: async (m: string) => ({ modules: [m], cases: [] }) } as any,
+      {
+        execute: async () => {
+          explicitBadRunnerCalls += 1;
+          return { result: 'passed' };
+        },
+      } as any
+    );
+    const explicitBadRes = (await explicitBadOrch.executeFlow(
+      {
+        _version: '1.0',
+        name: 'flow_bad_step_cases',
+        modules: [{ module: 'mod_a', cases: [{ id: 'tc_obj', steps: [] }] }],
+      } as any,
+      {}
+    )) as unknown as Record<string, unknown>;
+    expect(explicitBadRes.status).toBe('error');
+    expect(String(explicitBadRes.error)).toContain('Contrato inválido');
+    expect(explicitBadRunnerCalls).toBe(0);
+  });
+
+  it('4) Ningún caso coincidente: no invoca al Runner ni genera PASS ficticio', async () => {
+    let runnerCalls = 0;
+    const mockRunner = {
+      execute: async () => {
+        runnerCalls += 1;
+        return { result: 'passed' };
+      },
+    };
+
+    const telemetryEvents: unknown[] = [];
+    const finishCalls: unknown[] = [];
+    const mockTelemetry = {
+      onCaseEnd: (ev: unknown) => telemetryEvents.push(ev),
+      finish: (opts?: unknown) => finishCalls.push(opts),
+    };
+
+    const orchestrator = new FlowOrchestrator(
+      createTaggedStorage() as any,
+      mockRunner as any,
+      undefined,
+      undefined,
+      mockTelemetry as any
+    );
+
+    const result = (await orchestrator.executeFlow(
+      { _version: '1.0', name: 'flow_no_match', modules: [{ module: 'auth' }] } as any,
+      { tags: ['nonexistent-tag'] }
+    )) as unknown as Record<string, unknown>;
+
+    expect(runnerCalls).toBe(0);
+    expect(result.status).toBe('failed');
+    expect(result.completed_modules).toEqual([]);
+    expect((result.results as Record<string, { result: string }>).auth.result).toBe('failed');
+    expect(telemetryEvents).toEqual([]);
+    expect(finishCalls).toEqual([expect.objectContaining({ status: 'failed' })]);
+  });
+
+  it('5) P1-B en FlowOrchestrator: conserva not_run, skipped y failed con motivo original de bloqueo y propaga estado terminal', async () => {
+    const mockStorage = {
+      getTestPlan: async (moduleName: string) => ({
+        modules: [moduleName],
+        cases: ['TC-ORACLE-BLOCKED'],
+      }),
+      getTestCase: async () => ({
+        id: 'TC-ORACLE-BLOCKED',
+        name: 'Blocked BVA Case',
+        tags: ['smoke', 'blocked_missing_oracle'],
+        steps: [],
+      }),
+    };
+
+    const mockRunner = {
+      execute: async () => ({
+        result: 'failed',
+        summary: { total: 1, passed: 0, failed: 0, skipped: 0, not_run: 1 },
+        cases: [
+          {
+            id: 'TC-ORACLE-BLOCKED',
+            title: 'Blocked BVA Case',
+            result: 'not_run',
+            not_run_reason: 'blocked_missing_oracle: Caso generado sin oráculo de negocio acreditado.',
+            duration_ms: 0,
+          },
+        ],
+      }),
+    };
+
+    const telemetryEvents: Array<Record<string, unknown>> = [];
+    const finishCalls: unknown[] = [];
+    const mockTelemetry = {
+      onCaseEnd: (ev: Record<string, unknown>) => telemetryEvents.push(ev),
+      finish: (opts?: unknown) => finishCalls.push(opts),
+    };
+
+    const orchestrator = new FlowOrchestrator(
+      mockStorage as any,
+      mockRunner as any,
+      undefined,
+      undefined,
+      mockTelemetry as any
+    );
+
+    const result = (await orchestrator.executeFlow(
+      {
+        _version: '1.0',
+        name: 'flow_blocked_oracle',
+        fail_fast: true,
+        modules: [{ module: 'mod_blocked' }, { module: 'mod_downstream' }],
+      } as any,
+      { tags: ['smoke'] }
+    )) as unknown as Record<string, unknown>;
+
+    expect(result.status).toBe('failed');
+    expect(telemetryEvents).toHaveLength(2);
+    expect(telemetryEvents[0]).toMatchObject({
+      flowName: 'flow_blocked_oracle',
+      module: 'mod_blocked',
+      caseId: 'TC-ORACLE-BLOCKED',
+      status: 'not_run',
+      error: expect.stringContaining('blocked_missing_oracle'),
+    });
+    expect(telemetryEvents[1]).toMatchObject({
+      flowName: 'flow_blocked_oracle',
+      module: 'mod_downstream',
+      caseId: 'mod_downstream',
+      status: 'skipped',
+      error: expect.stringContaining('fail_fast'),
+    });
+    expect(finishCalls).toEqual([expect.objectContaining({ status: 'failed' })]);
+  });
+
+  it('6) Resume con checkpoint completo emite finish({ status: passed, resumeNoOp: true }) sin eventos PASS ficticios; flujo vacío emite failed sin resumeNoOp', async () => {
+    const flowDef = {
+      _version: '1.0',
+      name: 'auditflow',
+      modules: [{ module: 'auth' }],
+    };
+
+    const existingState = {
+      flow_name: 'auditflow',
+      started_at: '2026-11-18T10:00:00.000Z',
+      completed_modules: ['auth'],
+      shared_variables: { TOKEN: 'keep-me' },
+    };
+
+    let runnerCalls = 0;
+    const savedStates: unknown[] = [];
+    const telemetryEvents: unknown[] = [];
+    const finishCalls: unknown[] = [];
+
+    const orchestrator = new FlowOrchestrator(
+      { getTestPlan: async () => ({ modules: ['auth'], cases: ['TC-SMOKE'] }) } as any,
+      {
+        execute: async () => {
+          runnerCalls++;
+          return { result: 'passed' };
+        },
+      } as any,
+      undefined,
+      {
+        loadState: () => existingState,
+        saveState: (s: unknown) => savedStates.push(s),
+        hasSessionBackup: () => true,
+        backupSessions: () => {},
+        restoreSessions: () => false,
+      },
+      {
+        onCaseEnd: (ev: unknown) => telemetryEvents.push(ev),
+        finish: (opts?: unknown) => finishCalls.push(opts),
+      } as any
+    );
+
+    const resumeRes = (await orchestrator.executeFlow(flowDef as any, { tags: ['smoke'] })) as unknown as Record<
+      string,
+      unknown
+    >;
+    expect(resumeRes.status).toBe('passed');
+    expect(runnerCalls).toBe(0);
+    expect(savedStates).toEqual([]);
+    expect(telemetryEvents).toEqual([]);
+    expect(finishCalls).toEqual([{ status: 'passed', resumeNoOp: true }]);
+
+    // Flujo sin módulos (sin casos ejecutados y sin checkpoint completo) -> failed, sin resumeNoOp
+    const emptyFinishCalls: unknown[] = [];
+    const emptyOrch = new FlowOrchestrator(
+      {} as any,
+      {} as any,
+      undefined,
+      undefined,
+      {
+        onCaseEnd: () => {},
+        finish: (opts?: unknown) => emptyFinishCalls.push(opts),
+      } as any
+    );
+    const emptyRes = (await emptyOrch.executeFlow({ _version: '1.0', name: 'empty_flow', modules: [] } as any, {})) as unknown as Record<string, unknown>;
+    expect(emptyRes.status).toBe('failed');
+    expect(emptyFinishCalls).toEqual([{ status: 'failed' }]);
+  });
+
+  it('7) Regresión R3: cases: [] por selección vacía no fabrica caso ficticio en telemetría, mientras fallo sin campo cases conserva evento de módulo', async () => {
+    let runnerCalls = 0;
+    const telemetryEvents: unknown[] = [];
+    const finishCalls: unknown[] = [];
+
+    const orchestrator = new FlowOrchestrator(
+      createTaggedStorage() as any,
+      {
+        execute: async () => {
+          runnerCalls += 1;
+          return { result: 'passed', cases: [] };
+        },
+      } as any,
+      undefined,
+      undefined,
+      {
+        onCaseEnd: (ev: unknown) => telemetryEvents.push(ev),
+        finish: (opts?: unknown) => finishCalls.push(opts),
+      } as any
+    );
+
+    const emptyFilterRes = (await orchestrator.executeFlow(
+      { _version: '1.0', name: 'auditflow', modules: [{ module: 'audit_mod' }] } as any,
+      { tags: ['absent'] }
+    )) as unknown as Record<string, unknown>;
+
+    expect(runnerCalls).toBe(0);
+    expect(emptyFilterRes.status).toBe('failed');
+    expect(telemetryEvents).toEqual([]);
+    expect(finishCalls).toEqual([{ status: 'failed' }]);
+
+    // Negativo: fallo de módulo sin campo `cases` continúa siendo failed y conserva su evento de módulo
+    const modErrEvents: unknown[] = [];
+    const modErrFinishes: unknown[] = [];
+    const errOrchestrator = new FlowOrchestrator(
+      createTaggedStorage() as any,
+      {
+        execute: async () => ({
+          result: 'failed',
+          error: 'Module initialization crashed',
+        }),
+      } as any,
+      undefined,
+      undefined,
+      {
+        onCaseEnd: (ev: unknown) => modErrEvents.push(ev),
+        finish: (opts?: unknown) => modErrFinishes.push(opts),
+      } as any
+    );
+
+    const modErrRes = (await errOrchestrator.executeFlow(
+      { _version: '1.0', name: 'auditflow', modules: [{ module: 'audit_mod' }] } as any,
+      {}
+    )) as unknown as Record<string, unknown>;
+
+    expect(modErrRes.status).toBe('failed');
+    expect(modErrEvents).toEqual([
+      expect.objectContaining({
+        flowName: 'auditflow',
+        module: 'audit_mod',
+        caseId: 'audit_mod',
+        status: 'failed',
+        error: 'Module initialization crashed',
+      }),
+    ]);
+    expect(modErrFinishes).toEqual([{ status: 'failed' }]);
+  });
+});

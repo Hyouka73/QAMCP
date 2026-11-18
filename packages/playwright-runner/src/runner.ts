@@ -205,6 +205,12 @@ export class PlaywrightRunner implements IRunner {
     let timedOut = false;
     let unexpectedlyInterrupted = false;
     const plannedCaseIds = plan.cases ?? [];
+    if (
+      plan.cases !== undefined &&
+      (!Array.isArray(plan.cases) || plan.cases.some((id) => typeof id !== 'string' || id.trim().length === 0))
+    ) {
+      throw new Error('Contrato inválido en TestPlan.cases: cada entrada debe ser un ID string no vacío.');
+    }
 
     // Cancellation interrupts browser work, but ownership of the module lock
     // lasts until execute has drained. A launch/context acquired after abort

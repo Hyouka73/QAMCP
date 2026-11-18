@@ -10,7 +10,7 @@ import type { RunRecord, StepResult } from '../types.js';
 export interface TestEvent {
   file: string;
   title: string;
-  status: 'passed' | 'failed' | 'skipped';
+  status: 'passed' | 'failed' | 'skipped' | 'not_run';
   durationMs: number;
   error?: {
     message: string;
@@ -18,6 +18,12 @@ export interface TestEvent {
   };
   screenshotFile?: string;
   annotations?: Array<{ type: string; description: string; durationMs?: number }>;
+}
+
+export interface QapFinishRunOptions {
+  status?: 'passed' | 'failed' | 'partial' | 'error' | (string & {});
+  error?: string;
+  resumeNoOp?: boolean;
 }
 
 export interface QapReporterOptions {
@@ -173,31 +179,103 @@ export class QapReporter {
    * 2. Calcula métricas globales de la corrida.
    * 3. Ejecuta la persistencia dual atómica (Reglas 9 y 10).
    */
-  finishRun(): RunRecord {
+  finishRun(options?: QapFinishRunOptions | string): RunRecord {
     const finishedAt = new Date().toISOString();
+    const finishOpts: QapFinishRunOptions =
+      typeof options === 'string' ? { status: options } : (options ?? {});
 
     // Derivar estado 'blocked' sobre los pasos recogidos
     const processedSteps = processBlockedSteps(this.collectedSteps, this.capabilities);
 
     let totalDurationMs = 0;
-    let hasFailed = false;
-    let hasPassed = false;
+    let passedCount = 0;
+    let failedCount = 0;
+    let blockedCount = 0;
+    let skippedCount = 0;
+    let notRunCount = 0;
 
     for (const step of processedSteps) {
       totalDurationMs += step.durationMs;
-      if (step.status === 'failed' || step.status === 'blocked') {
-        hasFailed = true;
-      }
       if (step.status === 'passed') {
-        hasPassed = true;
+        passedCount++;
+      } else if (step.status === 'failed') {
+        failedCount++;
+      } else if (step.status === 'blocked') {
+        blockedCount++;
+      } else if (step.status === 'skipped') {
+        skippedCount++;
+      } else if (step.status === 'not_run') {
+        notRunCount++;
       }
     }
 
+    const hasFailed = failedCount > 0 || blockedCount > 0 || notRunCount > 0;
+    const hasPassed = passedCount > 0;
+    const isFlowContext = this.flowId !== undefined || options !== undefined;
+
     let overallStatus: 'passed' | 'failed' | 'partial' = 'passed';
-    if (hasFailed && hasPassed) {
-      overallStatus = 'partial';
-    } else if (hasFailed) {
-      overallStatus = 'failed';
+    let flowMetadata:
+      | Pick<RunRecord, 'terminalStatus' | 'caseClassification' | 'caseSummary' | 'resumeNoOp'>
+      | undefined;
+
+    if (!isFlowContext) {
+      // Contrato tradicional fuera de Flow: no alterar para corridas ajenas a Flow.
+      if (hasFailed && hasPassed) {
+        overallStatus = 'partial';
+      } else if (hasFailed) {
+        overallStatus = 'failed';
+      }
+    } else {
+      const rawTerminal = finishOpts.status;
+      const terminalFailed =
+        rawTerminal !== undefined &&
+        rawTerminal !== 'passed' &&
+        rawTerminal !== 'success' &&
+        rawTerminal !== 'partial';
+      const isValidResumeNoOp =
+        finishOpts.resumeNoOp === true &&
+        (rawTerminal === 'passed' || rawTerminal === 'success') &&
+        !hasFailed &&
+        processedSteps.length === 0;
+
+      const caseClassification: 'passed' | 'failed' | 'partial' = isValidResumeNoOp
+        ? 'passed'
+        : hasFailed && hasPassed
+          ? 'partial'
+          : hasFailed
+            ? 'failed'
+            : hasPassed
+              ? 'passed'
+              : 'failed';
+
+      if (terminalFailed || hasFailed) {
+        overallStatus = 'failed';
+      } else if (rawTerminal === 'partial') {
+        overallStatus = 'partial';
+      } else if (isValidResumeNoOp) {
+        overallStatus = 'passed';
+      } else if (processedSteps.length === 0 || !hasPassed) {
+        overallStatus = 'failed';
+      } else {
+        overallStatus = 'passed';
+      }
+
+      const terminalStatus: 'passed' | 'failed' | 'partial' =
+        overallStatus === 'partial' ? 'partial' : overallStatus;
+
+      flowMetadata = {
+        terminalStatus,
+        caseClassification,
+        caseSummary: {
+          totalCases: processedSteps.length,
+          passed: passedCount,
+          failed: failedCount,
+          skipped: skippedCount,
+          notRun: notRunCount,
+          blocked: blockedCount,
+        },
+        ...(isValidResumeNoOp ? { resumeNoOp: true } : {}),
+      };
     }
 
     const runRecord: RunRecord = {
@@ -207,6 +285,7 @@ export class QapReporter {
       finishedAt,
       totalDurationMs,
       overallStatus,
+      ...(flowMetadata ?? {}),
       environment: {
         gitCommit: this.gitCommit,
         gitBranch: this.gitBranch,

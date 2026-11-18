@@ -680,8 +680,21 @@ export class FileSystemStorage implements IStorage {
     }
   }
 
+  private normalizeLegacyFlow(data: unknown): unknown {
+    if (typeof data !== 'object' || data === null || Array.isArray(data)) {
+      return data;
+    }
+    const record = data as Record<string, unknown>;
+    if (record._version !== undefined) {
+      return data;
+    }
+    // Retrocompatibilidad en memoria para flujos históricos anteriores a `_version`; no reescribe el YAML en disco.
+    return { _version: '1.0', ...record };
+  }
+
   async getFlow(flowName: string): Promise<FlowDefinition> {
-    const flow = await this.readYaml<unknown>(join('.qa/flows', `${flowName}.yaml`));
+    const rawFlow = await this.readYaml<unknown>(join('.qa/flows', `${flowName}.yaml`));
+    const flow = this.normalizeLegacyFlow(rawFlow);
     this.assertValidFlow(flowName, flow);
     return flow as FlowDefinition;
   }
