@@ -1,11 +1,23 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { realpathSync } from 'node:fs';
 
 import { SessionStore, readProfile } from '@qap/auth';
 import { FileSystemStorage } from '@qap/knowledge';
 import { SchemaValidator, type ExecutionResult, type TCCase } from '@qap/shared';
 import type { IRunner } from '@qap/engine';
-import { PlaywrightRunner, isUrlAllowedByPolicy, type PlaywrightRunnerOptions } from '@qap/playwright-runner';
+import {
+  PlaywrightRunner,
+  isUrlAllowedByPolicy,
+  publishProvisionalExecution,
+  discardProvisionalExecution,
+  stageProvisionalMcpFinalization,
+  completeProvisionalPublication,
+  markProvisionalPublicationInterrupted,
+  isPostCommitPublicationError,
+  type ProvisionalExecution,
+  type ProvisionalMcpFinalization,
+  type PlaywrightRunnerOptions,
+} from '@qap/playwright-runner';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
 import {
@@ -243,10 +255,14 @@ export class TestHandler implements IMcpToolHandler {
       }
     }
 
+    let admittedAccessId: string | undefined;
+    let admittedExecuteId: string | undefined;
+    let admittedLoginId: string | undefined;
     if (appProject && appService) {
       const accessCheck = appService.authority.check(appProject.project_id, 'access', {
         root_path: rootDir,
       });
+      admittedAccessId = accessCheck.allowed ? accessCheck.grant.grant_id : undefined;
       if (!accessCheck.allowed && (accessCheck.reason === 'revoked' || accessCheck.reason === 'expired')) {
         return result(
           {
@@ -266,6 +282,7 @@ export class TestHandler implements IMcpToolHandler {
         ...(envOrigin ? { origin: envOrigin } : {}),
         ...(appSnapshot?.environment?.env_id ? { env_id: appSnapshot.environment.env_id } : {}),
       });
+      admittedExecuteId = executeCheck.allowed ? executeCheck.grant.grant_id : undefined;
       if (!executeCheck.allowed && (executeCheck.reason === 'revoked' || executeCheck.reason === 'expired')) {
         return result(
           {
@@ -286,6 +303,7 @@ export class TestHandler implements IMcpToolHandler {
           ...(envOrigin ? { origin: envOrigin } : {}),
           profile_id: args.profile,
         });
+        admittedLoginId = loginCheck.allowed ? loginCheck.grant.grant_id : undefined;
         if (!loginCheck.allowed && (loginCheck.reason === 'revoked' || loginCheck.reason === 'expired')) {
           return result(
             {
@@ -468,7 +486,7 @@ export class TestHandler implements IMcpToolHandler {
         !isProductionEnv &&
         authorizations.length === 0
       ) {
-        protectedAction(() => appService.authority.grant({
+        admittedExecuteId = protectedAction(() => appService.authority.grant({
           project_id: appProject.project_id,
           capability: 'execute',
           scope: {
@@ -478,7 +496,7 @@ export class TestHandler implements IMcpToolHandler {
           },
           granted_by: 'host_bound_scope',
           policy_hash: createHash('sha256').update(envOrigin).digest('hex'),
-        }));
+        })).grant_id;
         const grantedAuth: TestNavigationAuthorization = {
           projectRoot: canonicalRoot,
           allowedOrigins: [envOrigin],
@@ -542,7 +560,7 @@ export class TestHandler implements IMcpToolHandler {
         }
 
         const approvedOrigins = authRes.allowedOrigins.length > 0 ? authRes.allowedOrigins : [requestedOrigin];
-        protectedAction(() => appService.authority.grant({
+        admittedExecuteId = protectedAction(() => appService.authority.grant({
           project_id: appProject.project_id,
           capability: 'execute',
           scope: {
@@ -552,7 +570,7 @@ export class TestHandler implements IMcpToolHandler {
           },
           granted_by: 'interactive_test_authorizer',
           policy_hash: createHash('sha256').update(approvedOrigins.join('|')).digest('hex'),
-        }));
+        })).grant_id;
 
         const approvedAuth: TestNavigationAuthorization = {
           projectRoot: canonicalRoot,
@@ -669,6 +687,30 @@ export class TestHandler implements IMcpToolHandler {
       }
     }
 
+    // Pin the grants admitted for this operation. Never select replacements after navigation.
+    const accessScope = { root_path: rootDir };
+    const executeScope = { root_path: rootDir, ...(envOrigin ? { origin: envOrigin } : {}),
+      ...(appSnapshot?.environment?.env_id ? { env_id: appSnapshot.environment.env_id } : {}) };
+    const loginScope = { ...(envOrigin ? { origin: envOrigin } : {}), ...(args.profile ? { profile_id: args.profile } : {}) };
+    const grants = appProject && appService ? {
+      access: appService.authority.check(appProject.project_id, 'access', accessScope),
+      execute: appService.authority.check(appProject.project_id, 'execute', executeScope),
+      login: args.profile ? appService.authority.check(appProject.project_id, 'login', loginScope) : undefined,
+    } : undefined;
+    const authorityValid = () => {
+      if (this.dependencies.validateKnowledgeBinding && (!admitted || !this.dependencies.validateKnowledgeBinding(admitted))) return false;
+      if (!grants || !appProject || !appService) return !this.dependencies.validateKnowledgeBinding;
+      const valid = (cap: 'access' | 'execute' | 'login', grant: typeof grants.access | undefined, scope: { root_path?: string; origin?: string; env_id?: string; profile_id?: string }) =>
+        !!grant?.allowed && appService.authority.isGrantValid(appProject.project_id, cap, grant.grant.grant_id, scope);
+      return grants.access.allowed && grants.access.grant.grant_id === admittedAccessId &&
+        grants.execute.allowed && grants.execute.grant.grant_id === admittedExecuteId &&
+        (!args.profile || (grants.login?.allowed && grants.login.grant.grant_id === admittedLoginId)) &&
+        valid('access', grants.access, accessScope) && valid('execute', grants.execute, executeScope) &&
+        (!args.profile || valid('login', grants.login, loginScope));
+    };
+    if (appService && appProject && !appService.withProjectOperation(authorityValid))
+      return result({ status: 'blocked', code: 'operation_grant_revoked' }, true);
+
     const lifecycle = await storage.getLifecycleState();
     const bound = binding(rootDir, this.dependencies);
     const activeEnvName = appProject && appService ? appService.resumeProject(appProject.project_id).environment?.name : undefined;
@@ -774,7 +816,6 @@ export class TestHandler implements IMcpToolHandler {
     catch { return result({ status: 'blocked', code: 'case_approval_unavailable' }, true); }
     if (!approval.allowed) return result({ status: 'blocked', ...approval }, true);
 
-    // Pre-launch durable execution attempt persistence BEFORE invoking browser runner (Block 3)
     const serviceCasesById = new Map(
       appProject && appService
         ? appService
@@ -782,28 +823,8 @@ export class TestHandler implements IMcpToolHandler {
             .map(c => [canonicalizeCaseId(c.case_id), c])
         : [],
     );
-    const attemptRecord =
-      appProject && appService
-        ? protectedAction(() => appService.createExecutionAttempt({
-            projectId: appProject.project_id,
-            moduleKey: moduleName,
-            envId: appSnapshot?.environment?.env_id ?? environment,
-            profileId: resolvedProfileId ?? null,
-            cases: [...snapshotMap.values()].map(c => {
-              const svc = serviceCasesById.get(canonicalizeCaseId(c.id));
-              return {
-                case_id: c.id,
-                version: svc?.version ?? 1,
-                requirement_id: svc?.requirement_id ?? c.source_rule_id ?? null,
-                requirement_revision: svc?.requirement_revision ?? 1,
-                title: c.name ?? svc?.title ?? c.id,
-              };
-            }),
-          }))
-        : null;
-    if (attemptRecord && appService) {
-      protectedAction(() => appService.markAttemptRunning(attemptRecord.attempt_id));
-    }
+    const attemptId = appProject && appService ? `att_${randomUUID().replace(/-/g, '').slice(0, 16)}` : undefined;
+    let attemptRecord: ReturnType<NonNullable<typeof appService>['createExecutionAttempt']> | null = null;
 
     // 8. Safe Runner Execution (R2 / F7 / F8)
     const runner = this.options.runner ?? new PlaywrightRunner();
@@ -820,43 +841,34 @@ export class TestHandler implements IMcpToolHandler {
       extraHTTPHeaders: runnerExtraHeaders,
       storageResolver,
       allowedOrigins,
-      ...(attemptRecord ? { attemptId: attemptRecord.attempt_id } : {}),
+      ...(attemptId ? { attemptId } : {}),
     };
 
     let executionResult: ExecutionResult;
+    let provisional: ProvisionalExecution | undefined;
     try {
-      executionResult = await runner.execute(
-        {
-          modules: [moduleName],
-          cases: selectedPlanCaseIds,
-          environment,
-        },
-        runnerOptions
-      );
+      if (appService && appProject && !appService.withProjectOperation(authorityValid))
+        return result({ status: 'blocked', code: 'operation_grant_revoked' }, true);
+      const plan = { modules: [moduleName], cases: selectedPlanCaseIds, environment };
+      if (runner instanceof PlaywrightRunner) {
+        provisional = await runner.prepare(plan, runnerOptions);
+        executionResult = provisional.result;
+      } else {
+        // Never run a non-provisional injected implementation for an authorized project.
+        if (appService || this.dependencies.validateKnowledgeBinding) return result({ status: 'blocked', code: 'provisional_runner_required' }, true);
+        executionResult = await runner.execute(plan, runnerOptions);
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      if (attemptRecord && appService) appService.withProjectOperation(() => {
-        if (this.dependencies.validateKnowledgeBinding && (!admitted || !this.dependencies.validateKnowledgeBinding(admitted))) return;
-        appService.finalizeExecutionAttempt({
-          attemptId: attemptRecord.attempt_id,
-          technicalError: { code: 'execution_failed', message: msg },
-        });
-      });
-      return result(
-        {
-          status: 'error',
-          code: 'execution_failed',
-          module: moduleName,
-          environment,
-          ...(attemptRecord ? { attempt_id: attemptRecord.attempt_id } : {}),
-          message: `Fallo crítico durante la ejecución del runner: ${msg}`,
-        },
-        true
-      );
+      return result({ status: 'error', code: 'execution_failed', module: moduleName, environment,
+        message: `Fallo crítico durante la ejecución del runner: ${msg}` }, true);
     }
 
     const publishExecution = async (): Promise<CallToolResult> => {
-    if (this.dependencies.validateKnowledgeBinding && (!admitted || !this.dependencies.validateKnowledgeBinding(admitted))) return result({ status: 'blocked', code: 'workspace_persistent_authority_required' }, true);
+    if (appService && appProject && !authorityValid()) {
+      if (provisional) { discardProvisionalExecution(provisional); provisional = undefined; }
+      return result({ status: 'blocked', code: 'operation_grant_revoked' }, true);
+    }
     if (appService) {
       try {
         appService.assertNoLineagedCaseIds(
@@ -996,6 +1008,61 @@ export class TestHandler implements IMcpToolHandler {
       );
     }
 
+    const usedProvisional = Boolean(provisional);
+    const runtimeRunId = attemptId ?? executionId;
+
+    if (appProject && appService) {
+      appService.reconcileCommittedProjectExecutions(appProject.project_id, canonicalRoot);
+    }
+
+    const stagedCases = [...snapshotMap.values()].map(c => {
+      const svc = serviceCasesById.get(canonicalizeCaseId(c.id));
+      return {
+        case_id: c.id,
+        version: svc?.version ?? 1,
+        requirement_id: svc?.requirement_id ?? c.source_rule_id ?? null,
+        requirement_revision: svc?.requirement_revision ?? 1,
+        title: c.name ?? svc?.title ?? c.id,
+      };
+    });
+
+    const mcpFinalization: ProvisionalMcpFinalization = {
+      executionId,
+      ...(attemptId ? { attemptId } : {}),
+      moduleName,
+      environment,
+      ...(appProject ? { projectId: appProject.project_id } : {}),
+      envId: appSnapshot?.environment?.env_id ?? environment,
+      profileId: resolvedProfileId ?? null,
+      cases: stagedCases,
+      ...(approval.request_digest
+        ? {
+            trace: {
+              case_approval_digest: approval.request_digest,
+              requirements: approval.requirements,
+              cases: [...snapshotMap.values()].map(c => ({ id: c.id, source_rule_id: c.source_rule_id })),
+            },
+          }
+        : {}),
+    };
+
+    if (provisional) {
+      provisional = stageProvisionalMcpFinalization(provisional, mcpFinalization);
+    }
+
+    if (appProject && appService && attemptId) {
+      attemptRecord = appService.createExecutionAttempt({
+        projectId: appProject.project_id,
+        moduleKey: moduleName,
+        envId: appSnapshot?.environment?.env_id ?? environment,
+        profileId: resolvedProfileId ?? null,
+        attemptId,
+        executionId,
+        cases: stagedCases,
+      });
+      appService.markAttemptRunning(attemptRecord.attempt_id);
+    }
+
     if (attemptRecord && !executionResult.attempt_id) {
       executionResult = {
         ...executionResult,
@@ -1003,10 +1070,119 @@ export class TestHandler implements IMcpToolHandler {
       };
     }
 
+    if (provisional) {
+      try {
+        executionResult = publishProvisionalExecution(provisional, {
+          deferPendingCleanup: true,
+          mcp: mcpFinalization,
+        });
+      } catch (err) {
+        if (!isPostCommitPublicationError(err)) {
+          if (attemptRecord && appService) {
+            appService.discardUncommittedAttempt(attemptRecord.attempt_id);
+          }
+          if (provisional) {
+            discardProvisionalExecution(provisional);
+            provisional = undefined;
+          }
+          return result({ status: 'error', code: 'execution_not_persisted', message: String(err) }, true);
+        }
+
+        const postCommitResult = err.executionResult;
+        provisional = undefined;
+        try {
+          await storage.saveExecutionResult(executionId, postCommitResult);
+        } catch {
+          // Best-effort; recovery will repair from pending marker
+        }
+        if (approval.request_digest) {
+          try {
+            await storage.writeJson(`.qa/executions/${executionId}.trace.json`, {
+              execution_id: executionId,
+              ...(attemptRecord ? { attempt_id: attemptRecord.attempt_id } : {}),
+              case_approval_digest: approval.request_digest,
+              requirements: approval.requirements,
+              cases: [...snapshotMap.values()].map(c => ({ id: c.id, source_rule_id: c.source_rule_id })),
+              ...(postCommitResult.artifacts ? { artifacts: postCommitResult.artifacts } : {}),
+              ...(postCommitResult.timeline ? { timeline: postCommitResult.timeline } : {}),
+            });
+          } catch {
+            // Best-effort
+          }
+        }
+        try {
+          await storage.appendHistory(moduleName, {
+            execution_id: executionId,
+            timestamp: postCommitResult.finished_at,
+            result: postCommitResult.result,
+            summary: postCommitResult.summary,
+          });
+        } catch {
+          // Best-effort
+        }
+        if (attemptRecord && appService) {
+          appService.markAttemptFinalizationPending(
+            attemptRecord.attempt_id,
+            executionId,
+            err instanceof Error ? err.message : String(err),
+          );
+        }
+        return result(
+          {
+            status: 'partial',
+            code: 'execution_finalization_pending',
+            module: moduleName,
+            environment,
+            execution_id: executionId,
+            ...(attemptId ? { attempt_id: attemptId } : {}),
+            execution_saved: true,
+            committed: true,
+            finalization_pending: true,
+            result: postCommitResult.result,
+            summary: postCommitResult.summary,
+            message:
+              'La ejecución quedó confirmada en SQLite; la finalización de comprobantes o metadatos quedó pendiente de recuperación sin relanzar el navegador.',
+            desbloquear_con: 'qap_status',
+          },
+          true,
+        );
+      }
+    }
+
     try {
       await storage.saveExecutionResult(executionId, executionResult);
 
     } catch {
+      if (usedProvisional) {
+        markProvisionalPublicationInterrupted(rootDir, runtimeRunId, 'execution_not_persisted');
+        provisional = undefined;
+        if (attemptRecord && appService) {
+          appService.markAttemptFinalizationPending(
+            attemptRecord.attempt_id,
+            executionId,
+            'Fallo al guardar el resultado de ejecución en disco tras confirmar SQLite.',
+          );
+        }
+        return result(
+          {
+            status: 'partial',
+            code: 'execution_finalization_pending',
+            module: moduleName,
+            environment,
+            execution_id: executionId,
+            ...(attemptRecord ? { attempt_id: attemptRecord.attempt_id } : {}),
+            execution_saved: false,
+            committed: true,
+            finalization_pending: true,
+            result: executionResult.result,
+            summary: executionResult.summary,
+            message:
+              'La ejecución quedó confirmada en SQLite; falló la escritura de metadatos en disco y quedó pendiente de recuperación.',
+            desbloquear_con: 'qap_status',
+          },
+          true,
+        );
+      }
       if (attemptRecord && appService) {
         appService.finalizeExecutionAttempt({
           attemptId: attemptRecord.attempt_id,
@@ -1044,7 +1220,17 @@ export class TestHandler implements IMcpToolHandler {
           ...(executionResult.timeline ? { timeline: executionResult.timeline } : {}),
         });
       } catch {
-        if (attemptRecord && appService) {
+        if (usedProvisional) {
+          markProvisionalPublicationInterrupted(rootDir, runtimeRunId, 'execution_trace_not_persisted');
+          provisional = undefined;
+          if (attemptRecord && appService) {
+            appService.markAttemptFinalizationPending(
+              attemptRecord.attempt_id,
+              executionId,
+              'Fallo al persistir la trazabilidad tras confirmar SQLite.',
+            );
+          }
+        } else if (attemptRecord && appService) {
           appService.finalizeExecutionAttempt({
             attemptId: attemptRecord.attempt_id,
             executionResult,
@@ -1087,6 +1273,10 @@ export class TestHandler implements IMcpToolHandler {
         summary: executionResult.summary,
       });
     } catch {
+      if (usedProvisional) {
+        markProvisionalPublicationInterrupted(rootDir, runtimeRunId, 'execution_history_not_persisted');
+        provisional = undefined;
+      }
       // A report can use the saved execution, but the history is incomplete.
       // Do not claim full success or retry the browser execution implicitly.
       return result(
@@ -1106,6 +1296,11 @@ export class TestHandler implements IMcpToolHandler {
         },
         true
       );
+    }
+
+    if (provisional) {
+      completeProvisionalPublication(provisional, runtimeRunId);
+      provisional = undefined;
     }
 
     const canonicalExecutionSummary =
@@ -1151,6 +1346,7 @@ export class TestHandler implements IMcpToolHandler {
       finished_at: executionResult.finished_at,
     });
     };
-    return appService && this.dependencies.validateKnowledgeBinding ? appService.withProjectOperation(publishExecution) : publishExecution();
+    try { return await (appService && appProject ? appService.withProjectOperation(publishExecution) : publishExecution()); }
+    finally { if (provisional) discardProvisionalExecution(provisional); }
   }
 }

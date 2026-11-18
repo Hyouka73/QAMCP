@@ -161,4 +161,189 @@ describe('Capa SQLite WAL, Concurrencia y Persistencia Dual (QAP v3.0)', () => {
 
     freshDb.close();
   });
+
+  it('recupera respaldos históricos legítimos formato 85e5d52 sin .qap-committed y rechaza publicaciones pendientes, cuarentenas y archivos ambiguos', () => {
+    // 1. Respaldo histórico formato 85e5d52 (sin .qap-committed): creado por saveRun()
+    const legacyDir = path.join(tempDir, 'runs', 'legacy-run-85e5d52');
+    fs.mkdirSync(path.join(legacyDir, 'artifacts'), { recursive: true });
+    const legacyRun: RunRecord = {
+      runId: 'legacy-run-85e5d52',
+      flowId: 'checkout-e2e',
+      startedAt: '2026-10-01T10:00:00.000Z',
+      finishedAt: '2026-10-01T10:00:05.000Z',
+      totalDurationMs: 5000,
+      overallStatus: 'passed',
+      environment: {
+        gitCommit: '85e5d52',
+        gitBranch: 'feat/qap-vnext-architecture',
+        hostOs: 'linux',
+        runnerFramework: 'playwright-core',
+      },
+      steps: [
+        {
+          stepIndex: 0,
+          capabilityId: 'TC-1:navigate:0',
+          status: 'passed',
+          durationMs: 120,
+          timestamp: '2026-10-01T10:00:01.000Z',
+          assertions: [],
+        },
+      ],
+      artifacts: { totalDiskUsageBytes: 256, screenshots: [] },
+      lifecycle: { pinned: false, createdAt: '2026-10-01T10:00:00.000Z' },
+    };
+    fs.writeFileSync(path.join(legacyDir, 'run.json'), JSON.stringify(legacyRun, null, 2), 'utf-8');
+
+    // 2. Respaldo histórico formato 85e5d52 con summary y timeline.json (persistRuntimeEvidenceBundle)
+    const legacyBundleDir = path.join(tempDir, 'runs', 'legacy-bundle-85e5d52');
+    fs.mkdirSync(path.join(legacyBundleDir, 'artifacts'), { recursive: true });
+    fs.writeFileSync(
+      path.join(legacyBundleDir, 'artifacts', 'timeline.json'),
+      JSON.stringify({
+        _version: '1',
+        run_id: 'legacy-bundle-85e5d52',
+        module: 'orders',
+        generated_at: '2026-10-01T11:00:02.000Z',
+        steps: [
+          {
+            step_index: 0,
+            case_id: 'TC-2',
+            action: 'assert',
+            status: 'passed',
+            started_at: '2026-10-01T11:00:00.000Z',
+            finished_at: '2026-10-01T11:00:01.000Z',
+            duration_ms: 50,
+            expected: 'OK',
+            observed: 'OK',
+          },
+        ],
+        artifact_errors: [],
+      }),
+      'utf-8',
+    );
+    fs.writeFileSync(
+      path.join(legacyBundleDir, 'run.json'),
+      JSON.stringify({
+        ...legacyRun,
+        runId: 'legacy-bundle-85e5d52',
+        flowId: 'orders',
+        steps: [
+          {
+            stepIndex: 0,
+            capabilityId: 'TC-2:assert:0',
+            status: 'passed',
+            durationMs: 50,
+            timestamp: '2026-10-01T11:00:00.000Z',
+            assertions: [{ expected: 'OK', observed: 'OK', passed: true }],
+          },
+        ],
+        summary: { totalCases: 1, passed: 1, failed: 0, skipped: 0 },
+      }),
+      'utf-8',
+    );
+
+    // 3. Publicación nueva pendiente o interrumpida (.qap-publication-pending)
+    const pendingDir = path.join(tempDir, 'runs', 'pending-run');
+    fs.mkdirSync(path.join(pendingDir, 'artifacts'), { recursive: true });
+    fs.writeFileSync(path.join(pendingDir, '.qap-publication-pending'), JSON.stringify({ runId: 'pending-run', pid: 999999 }));
+    fs.writeFileSync(path.join(pendingDir, 'run.json'), JSON.stringify({ ...legacyRun, runId: 'pending-run' }), 'utf-8');
+
+    // 4. Cuarentena (.qap-recovery-*)
+    const quarantineDir = path.join(tempDir, 'runs', '.qap-recovery-qap-provisional-abc');
+    fs.mkdirSync(path.join(quarantineDir, 'artifacts'), { recursive: true });
+    fs.writeFileSync(
+      path.join(quarantineDir, 'run.json'),
+      JSON.stringify({ ...legacyRun, runId: '.qap-recovery-qap-provisional-abc' }),
+      'utf-8',
+    );
+
+    // 5. Archivos ambiguos o incompletos sin procedencia verificable
+    const emptyJsonDir = path.join(tempDir, 'runs', 'ambiguous-empty');
+    fs.mkdirSync(path.join(emptyJsonDir, 'artifacts'), { recursive: true });
+    fs.writeFileSync(path.join(emptyJsonDir, 'run.json'), '{}', 'utf-8');
+
+    const noArtifactsDir = path.join(tempDir, 'runs', 'no-artifacts');
+    fs.mkdirSync(noArtifactsDir, { recursive: true });
+    fs.writeFileSync(path.join(noArtifactsDir, 'run.json'), JSON.stringify({ ...legacyRun, runId: 'no-artifacts' }), 'utf-8');
+
+    const mismatchedIdDir = path.join(tempDir, 'runs', 'mismatched-dir');
+    fs.mkdirSync(path.join(mismatchedIdDir, 'artifacts'), { recursive: true });
+    fs.writeFileSync(path.join(mismatchedIdDir, 'run.json'), JSON.stringify({ ...legacyRun, runId: 'different-id' }), 'utf-8');
+
+    const missingTimelineDir = path.join(tempDir, 'runs', 'missing-timeline');
+    fs.mkdirSync(path.join(missingTimelineDir, 'artifacts'), { recursive: true });
+    fs.writeFileSync(
+      path.join(missingTimelineDir, 'run.json'),
+      JSON.stringify({ ...legacyRun, runId: 'missing-timeline', summary: { totalCases: 1, passed: 1, failed: 0, skipped: 0 } }),
+      'utf-8',
+    );
+
+    const provisionalLeakDir = path.join(tempDir, 'runs', 'provisional-leak');
+    fs.mkdirSync(path.join(provisionalLeakDir, 'artifacts'), { recursive: true });
+    fs.writeFileSync(
+      path.join(provisionalLeakDir, 'run.json'),
+      JSON.stringify({
+        ...legacyRun,
+        runId: 'provisional-leak',
+        artifacts: { totalDiskUsageBytes: 100, screenshots: ['.qa/reports/screenshots/qap-provisional-xyz/s.png'] },
+      }),
+      'utf-8',
+    );
+
+    const freshDb = new QapDatabase(tempDir);
+    // Las consultas normales exigen una fila SQLite confirmada
+    expect(freshDb.listRuns()).toHaveLength(0);
+    expect(freshDb.getRun('legacy-run-85e5d52')).toBeNull();
+    expect(freshDb.getRun('pending-run')).toBeNull();
+
+    const count = freshDb.reindex();
+    expect(count).toBe(2);
+
+    const recoveredIds = freshDb.listRuns().map((r) => r.run_id).sort();
+    expect(recoveredIds).toEqual(['legacy-bundle-85e5d52', 'legacy-run-85e5d52']);
+    expect(freshDb.getRun('legacy-run-85e5d52')?.flowId).toBe('checkout-e2e');
+    expect(freshDb.getRun('legacy-bundle-85e5d52')?.steps).toHaveLength(1);
+    expect(freshDb.getRun('pending-run')).toBeNull();
+    expect(freshDb.getRun('ambiguous-empty')).toBeNull();
+    expect(freshDb.getRun('no-artifacts')).toBeNull();
+
+    // Idempotencia al repetir reindex()
+    expect(freshDb.reindex()).toBe(2);
+    expect(freshDb.listRuns().map((r) => r.run_id).sort()).toEqual(['legacy-bundle-85e5d52', 'legacy-run-85e5d52']);
+    freshDb.close();
+  });
+
+  it('saveRun identifica nuevas publicaciones con .qap-publication-pending antes de escribir run.json', () => {
+    const db = new QapDatabase(tempDir);
+    let sawPendingBeforeRunJson = false;
+    const origWrite = fs.writeFileSync;
+    const runsRoot = path.join(tempDir, 'runs', 'save-run-order');
+    const spy = (...args: Parameters<typeof fs.writeFileSync>) => {
+      const target = String(args[0]);
+      if (target === path.join(runsRoot, 'run.json')) {
+        sawPendingBeforeRunJson = fs.existsSync(path.join(runsRoot, '.qap-publication-pending'));
+      }
+      return origWrite(...args);
+    };
+    fs.writeFileSync = spy as typeof fs.writeFileSync;
+    try {
+      db.saveRun({
+        runId: 'save-run-order',
+        startedAt: '2026-10-01T12:00:00.000Z',
+        finishedAt: '2026-10-01T12:00:01.000Z',
+        totalDurationMs: 1000,
+        overallStatus: 'passed',
+        environment: { gitCommit: '', gitBranch: '', hostOs: '', runnerFramework: '' },
+        steps: [],
+        artifacts: { totalDiskUsageBytes: 0, screenshots: [] },
+        lifecycle: { pinned: false, createdAt: '2026-10-01T12:00:00.000Z' },
+      });
+    } finally {
+      fs.writeFileSync = origWrite;
+    }
+    expect(sawPendingBeforeRunJson).toBe(true);
+    expect(fs.existsSync(path.join(runsRoot, '.qap-publication-pending'))).toBe(false);
+    expect(fs.existsSync(path.join(runsRoot, '.qap-committed'))).toBe(true);
+    db.close();
+  });
 });

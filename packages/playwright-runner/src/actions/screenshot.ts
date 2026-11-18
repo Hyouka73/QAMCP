@@ -15,8 +15,10 @@ export async function executeScreenshotWithMetadata(
   page: Page,
   step: TCStep,
   outputDir: string = '.qa/reports/screenshots',
+  confined = false,
 ): Promise<ScreenshotCaptureMetadata> {
-  const filename = step.filename ?? `screenshot_${Date.now()}.png`;
+  const requestedName = step.filename ?? `screenshot_${Date.now()}.png`;
+  const filename = confined ? requestedName.replace(/[^a-zA-Z0-9._-]/g, '_').replace(/^\.+$/, '_') : requestedName;
   const targetPath = path.isAbsolute(filename) ? filename : path.join(outputDir, filename);
 
   const dir = path.dirname(targetPath);

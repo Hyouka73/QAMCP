@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse, type Server } from 'node:http';
 import { existsSync, createReadStream, statSync } from 'node:fs';
-import { join, normalize, extname, isAbsolute } from 'node:path';
+import { join, normalize, extname, isAbsolute, relative, sep } from 'node:path';
 
 import type { IStorage } from '@qap/engine';
 import { validateDefinitions } from '@qap/knowledge';
@@ -289,6 +289,26 @@ export function startViewerServer(options: ViewerServerOptions): Promise<ViewerS
       }
 
       if (targetFile) {
+        const parts = relative(join(projectRoot, '.qa'), targetFile).split(sep);
+        let visible = true;
+        if (parts[0] === 'runtime' && parts[1] === 'runs' && parts.length >= 4) {
+          // A run directory can exist before its SQLite transaction commits.
+          if (parts[2].startsWith('.qap-recovery-')) visible = false;
+          else {
+            try {
+              const runtime = join(projectRoot, '.qa', 'runtime');
+              const db = new QapDatabase(runtime, false, { readOnly: true });
+              try { visible = Boolean(db.getRunRow(parts[2])); } finally { db.close(); }
+            } catch { visible = false; }
+          }
+        } else if (parts[0] === 'reports' && parts[1] === 'screenshots' && parts[2]?.startsWith('qap-provisional-')) {
+          visible = existsSync(join(projectRoot, '.qa', 'reports', 'screenshots', parts[2], '.qap-committed'));
+        }
+        if (!visible) {
+          res.writeHead(404, { 'Content-Type': 'text/plain' });
+          res.end('Artifact Not Found');
+          return;
+        }
         const mime = getMimeType(targetFile);
         res.writeHead(200, {
           'Content-Type': mime,

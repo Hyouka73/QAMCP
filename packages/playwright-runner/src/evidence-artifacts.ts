@@ -728,7 +728,9 @@ export function persistRuntimeEvidenceBundle(params: {
   timelineRelativePath: string | null;
   timeline: readonly ExecutionTimelineStep[];
   artifactErrors: readonly ExecutionArtifactError[];
-}): { timelineRelativePath: string | null; error: string | null } {
+  /** Reject an existing run instead of updating it, for isolated publication. */
+  insertOnly?: boolean;
+}): { timelineRelativePath: string | null; error: string | null; committed?: boolean; receiptError?: string | null } {
   const {
     projectRoot,
     runId,
@@ -750,9 +752,29 @@ export function persistRuntimeEvidenceBundle(params: {
   const runDirRel = `.qa/runtime/runs/${safeRunId}`;
   const artifactsDirRel = `${runDirRel}/artifacts`;
   const timelineRel = params.timelineRelativePath ?? `${artifactsDirRel}/timeline.json`;
+  let committed = false;
+  let createdPending = false;
+  let pendingAbs: string | null = null;
 
   try {
     ensureConfinedDir(projectRoot, artifactsDirRel);
+    const receiptAbs = resolveConfinedArtifactPath(projectRoot, `${runDirRel}/.qap-committed`);
+    pendingAbs = resolveConfinedArtifactPath(projectRoot, `${runDirRel}/.qap-publication-pending`);
+    if (!fs.existsSync(pendingAbs) && !fs.existsSync(receiptAbs)) {
+      try {
+        const pid = (globalThis as unknown as { process?: { pid?: number } }).process?.pid ?? 0;
+        fs.writeFileSync(
+          pendingAbs,
+          JSON.stringify({ runId: safeRunId, pid }),
+          { flag: 'wx', mode: 0o600, flush: true },
+        );
+        createdPending = true;
+      } catch (markerErr: unknown) {
+        if ((markerErr as { code?: string } | null)?.code !== 'EEXIST') {
+          throw markerErr;
+        }
+      }
+    }
     const timelineAbs = resolveConfinedArtifactPath(projectRoot, timelineRel);
     fs.writeFileSync(
       timelineAbs,
@@ -884,19 +906,21 @@ export function persistRuntimeEvidenceBundle(params: {
         );
         CREATE INDEX IF NOT EXISTS idx_steps_capability ON step_results(capability_id);
       `);
+      db.exec('BEGIN IMMEDIATE');
+      try {
       db.prepare(`
         INSERT INTO runs (
           run_id, flow_id, started_at, finished_at, overall_status,
           total_duration_ms, git_commit, git_branch,
           total_disk_usage_bytes, pinned, expires_at
         ) VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, ?, 0, NULL)
-        ON CONFLICT(run_id) DO UPDATE SET
+        ${params.insertOnly ? '' : `ON CONFLICT(run_id) DO UPDATE SET
           flow_id = excluded.flow_id,
           started_at = excluded.started_at,
           finished_at = excluded.finished_at,
           overall_status = excluded.overall_status,
           total_duration_ms = excluded.total_duration_ms,
-          total_disk_usage_bytes = excluded.total_disk_usage_bytes
+          total_disk_usage_bytes = excluded.total_disk_usage_bytes`}
       `).run(
         runRecord.runId,
         runRecord.flowId,
@@ -921,13 +945,46 @@ export function persistRuntimeEvidenceBundle(params: {
           st.screenshotFile ?? null,
         );
       }
+      db.exec('COMMIT');
+      committed = true;
+      } catch (error) {
+        db.exec('ROLLBACK');
+        throw error;
+      }
     } finally {
       db.close();
     }
 
-    return { timelineRelativePath: timelineRel, error: null };
+    // SQLite commit is the publication point; this receipt supports later reindexing.
+    try {
+      fs.writeFileSync(resolveConfinedArtifactPath(projectRoot, `${runDirRel}/.qap-committed`), '1', { mode: 0o600 });
+    } catch (receiptErr: unknown) {
+      const receiptMsg = sanitizeEvidenceText(
+        receiptErr instanceof Error ? receiptErr.message : String(receiptErr),
+      );
+      if (params.insertOnly) {
+        return {
+          timelineRelativePath: timelineRel,
+          error: receiptMsg,
+          committed: true,
+          receiptError: receiptMsg,
+        };
+      }
+    }
+    if (createdPending && pendingAbs) {
+      try {
+        fs.rmSync(pendingAbs, { force: true });
+      } catch {
+        // Best-effort cleanup after SQLite commit
+      }
+    }
+    return { timelineRelativePath: timelineRel, error: null, committed: true };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    return { timelineRelativePath: null, error: sanitizeEvidenceText(msg) };
+    return {
+      timelineRelativePath: committed ? timelineRel : null,
+      error: sanitizeEvidenceText(msg),
+      committed,
+    };
   }
 }

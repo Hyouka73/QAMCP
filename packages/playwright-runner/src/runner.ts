@@ -45,6 +45,7 @@ import {
   sanitizePlaywrightTraceZip,
 } from './evidence-artifacts.js';
 import { resolveModuleSession } from './session-resolver.js';
+import { prepareProvisionalExecution, type EvidenceBundle, type ProvisionalExecution } from './provisional-execution.js';
 
 function classifyError(error: unknown): { category: FailureType; message: string } {
   const message =
@@ -156,11 +157,25 @@ export class PlaywrightRunner implements IRunner {
     plan: TestPlan,
     options: PlaywrightRunnerOptions = {}
   ): Promise<ExecutionResult> {
+    return this.executeInternal(plan, options);
+  }
+
+  /** Execute with evidence isolated from the project until publication. */
+  public async prepare(plan: TestPlan, options: PlaywrightRunnerOptions = {}): Promise<ProvisionalExecution> {
+    return prepareProvisionalExecution(this, plan, options, this.defaults?.projectRoot);
+  }
+
+  public async executeInternal(
+    plan: TestPlan,
+    options: PlaywrightRunnerOptions = {},
+    provisional?: { root: string; operationId: string; saveBundle: (bundle: EvidenceBundle) => void },
+  ): Promise<ExecutionResult> {
     const startedAt = new Date().toISOString();
     // One stable collision-resistant identifier for every exit path of this run.
     const executionId = `exec_${Date.now()}_${randomUUID().replace(/-/g, '')}`;
     const rawProjectRoot = options.projectRoot ?? this.defaults?.projectRoot;
     const projectRoot = rawProjectRoot ? path.resolve(rawProjectRoot) : process.cwd();
+    const artifactRoot = provisional?.root ?? projectRoot;
     const storage = new FileSystemStorage({ rootDir: projectRoot });
 
     const isHeadless = options.headless ?? true;
@@ -168,10 +183,10 @@ export class PlaywrightRunner implements IRunner {
     const failFast = options.fail_fast ?? plan.fail_fast ?? false;
     const moduleName = plan.modules[0] ?? '';
     const env = options.environment ?? plan.environment ?? 'local';
-    const rawScreenshotsDir = options.screenshotsDir ?? '.qa/reports/screenshots';
+    const rawScreenshotsDir = provisional ? `.qa/reports/screenshots/${provisional.operationId}` : options.screenshotsDir ?? '.qa/reports/screenshots';
     const screenshotsDir = path.isAbsolute(rawScreenshotsDir)
       ? rawScreenshotsDir
-      : path.resolve(projectRoot, rawScreenshotsDir);
+      : path.resolve(artifactRoot, rawScreenshotsDir);
 
     const flowVariables = extractFlowVariables(options.context_data);
 
@@ -420,7 +435,7 @@ export class PlaywrightRunner implements IRunner {
           });
         } else if (isRealBrowser) {
           try {
-            rawVideoDirAbs = ensureConfinedDir(projectRoot, rawVideoDirRel);
+            rawVideoDirAbs = ensureConfinedDir(artifactRoot, rawVideoDirRel);
           } catch (videoDirErr: unknown) {
             const msg = videoDirErr instanceof Error ? videoDirErr.message : String(videoDirErr);
             artifactErrors.push({
@@ -671,7 +686,8 @@ export class PlaywrightRunner implements IRunner {
             const stepRes = await this.executeStep(page, step, screenshotsDir, contextVariables, {
               caseId,
               stepIndex: sIdx,
-              projectRoot,
+              projectRoot: artifactRoot,
+              confinedScreenshots: Boolean(provisional),
               shouldRecordPhysicalArtifacts,
               captureFocusedOnAssert: options.captureFocusedOnAssert !== false,
               failScreenshot: Boolean(options.artifactFaultInjection?.failScreenshot),
@@ -794,9 +810,10 @@ export class PlaywrightRunner implements IRunner {
                   timeout: 2000,
                 },
                 screenshotsDir,
+                Boolean(provisional),
               );
               failureScreenshotPath = shotMeta.targetPath
-                ? path.relative(projectRoot, shotMeta.targetPath).replace(/\\/g, '/')
+                ? path.relative(artifactRoot, shotMeta.targetPath).replace(/\\/g, '/')
                 : undefined;
               failureFocusedScreenshot = shotMeta.focused;
               if (failureScreenshotPath) {
@@ -938,9 +955,9 @@ export class PlaywrightRunner implements IRunner {
           })?.tracing;
           if (ctxTracing && typeof ctxTracing.stop === 'function') {
             try {
-              ensureConfinedDir(projectRoot, runtimeArtifactsDirRel);
+              ensureConfinedDir(artifactRoot, runtimeArtifactsDirRel);
               const traceRel = `${runtimeArtifactsDirRel}/trace.zip`;
-              const traceAbs = resolveConfinedArtifactPath(projectRoot, traceRel);
+              const traceAbs = resolveConfinedArtifactPath(artifactRoot, traceRel);
               await ctxTracing.stop({ path: traceAbs });
               sanitizePlaywrightTraceZip(traceAbs, collectedSecrets);
               traceZipRelativePath = traceRel;
@@ -964,9 +981,9 @@ export class PlaywrightRunner implements IRunner {
 
         if (options.recordVideo !== false && !options.artifactFaultInjection?.failVideo && pageVideo) {
           try {
-            ensureConfinedDir(projectRoot, runtimeArtifactsDirRel);
+            ensureConfinedDir(artifactRoot, runtimeArtifactsDirRel);
             const videoRel = `${runtimeArtifactsDirRel}/attempt.webm`;
-            const videoAbs = resolveConfinedArtifactPath(projectRoot, videoRel);
+            const videoAbs = resolveConfinedArtifactPath(artifactRoot, videoRel);
             if (typeof pageVideo.saveAs === 'function') {
               await pageVideo.saveAs(videoAbs);
             } else if (typeof pageVideo.path === 'function') {
@@ -1019,8 +1036,8 @@ export class PlaywrightRunner implements IRunner {
                 : totalFailed === 0 && totalPassed > 0
                   ? 'passed'
                   : 'partial';
-          const bundleRes = persistRuntimeEvidenceBundle({
-            projectRoot,
+          const bundle: EvidenceBundle = {
+            projectRoot: artifactRoot,
             runId: runArtifactId,
             moduleKey: moduleName || 'default',
             status: runtimeStatus,
@@ -1035,7 +1052,10 @@ export class PlaywrightRunner implements IRunner {
             timelineRelativePath: `${runtimeArtifactsDirRel}/timeline.json`,
             timeline: attemptTimeline,
             artifactErrors,
-          });
+          };
+          const bundleRes = provisional
+            ? (provisional.saveBundle(bundle), { timelineRelativePath: bundle.timelineRelativePath, error: null })
+            : persistRuntimeEvidenceBundle(bundle);
           if (bundleRes.timelineRelativePath) {
             timelineRelativePath = bundleRes.timelineRelativePath;
           }
@@ -1228,6 +1248,7 @@ export class PlaywrightRunner implements IRunner {
       caseId?: string;
       stepIndex?: number;
       projectRoot?: string;
+      confinedScreenshots?: boolean;
       shouldRecordPhysicalArtifacts?: boolean;
       captureFocusedOnAssert?: boolean;
       failScreenshot?: boolean;
@@ -1285,6 +1306,7 @@ export class PlaywrightRunner implements IRunner {
                 timeout: 2000,
               },
               screenshotsDir,
+              captureContext.confinedScreenshots,
             );
             stepScreenshot = shotMeta.targetPath
               ? path.relative(projectRoot, shotMeta.targetPath).replace(/\\/g, '/')
@@ -1305,7 +1327,7 @@ export class PlaywrightRunner implements IRunner {
           if (captureContext?.failScreenshot) {
             throw new Error('Fallo inyectado al ejecutar paso screenshot.');
           }
-          const shotMeta = await executeScreenshotWithMetadata(page, step, screenshotsDir);
+          const shotMeta = await executeScreenshotWithMetadata(page, step, screenshotsDir, captureContext?.confinedScreenshots);
           stepScreenshot = shotMeta.targetPath
             ? path.relative(projectRoot, shotMeta.targetPath).replace(/\\/g, '/')
             : null;

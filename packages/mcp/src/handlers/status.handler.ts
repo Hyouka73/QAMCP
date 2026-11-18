@@ -2,8 +2,8 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve, join, basename } from 'node:path';
 
 import { SchemaValidator, filterValidRoles, normalizeSlug, type ProjectContext, type AuthProfile, type RuleEntry, type CategoryWaiver, type ModuleCandidate } from '@qap/shared';
-import { FileSystemStorage, detectarServiciosConEvidencia, generarScan, detectarDocumentosProyecto, parsePrdContent } from '@qap/knowledge';
-import { canExitOnboarding, canExitScoping, obtenerSiguientePreguntaOnboarding, computeApplicableCategories, computeCoverage, generateNextInterviewBatch, sanitizeDomString, type ViewDiscoveryContext } from '@qap/engine';
+import { FileSystemStorage, detectarServiciosConEvidencia, generarScan, detectarDocumentosProyecto } from '@qap/knowledge';
+import { canExitOnboarding, canExitScoping, obtenerSiguientePreguntaOnboarding, computeApplicableCategories, computeCoverage, generateNextInterviewBatch, type ViewDiscoveryContext } from '@qap/engine';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
 import { getPhaseGuidance, buildInterviewNextAction, type SiguienteAccion } from '../guidance.js';
@@ -11,7 +11,7 @@ import type { IMcpToolHandler } from '../dispatcher.js';
 import type { InteractiveAccess } from '../interactive-access.js';
 import { getVersionDiagnostic } from '../version-diagnostic.js';
 
-import { binding, definition, validateBase, projectRoot, readContext, readEnvironment, isObject, type StateDependencies, type LegacyEnvironment, knowledgeStatus, result, safeDocument, assertProjectSegment } from './state-services.js';
+import { binding, definition, validateBase, projectRoot, readContext, readEnvironment, isObject, type StateDependencies, type LegacyEnvironment, knowledgeStatus, result, assertProjectSegment } from './state-services.js';
 import { ModuleObservationBridge } from './module-observation-bridge.js';
 import { PLAYWRIGHT_INSTALL_COMMAND, detectarSubcarpetaWorkspace } from './state-runtime.js';
 import { discoveryIntegration, hasLegacyViewContext, legacyInterviewBlocked } from './legacy-discovery-contract.js';
@@ -278,23 +278,6 @@ export class StatusHandler implements IMcpToolHandler {
       advertencias.push(
         `targetPath parece una subcarpeta del repositorio ${subcarpetaRepo}; para analizar todo el proyecto usa la raíz como targetPath`
       );
-    }
-
-    if (scan.documentos.length > 0) {
-      const topDoc = scan.documentos[0];
-      try {
-        const fullDocPath = safeDocument(rootDir, topDoc.path);
-        if (existsSync(fullDocPath)) {
-          const docRaw = readFileSync(fullDocPath, 'utf-8');
-          const parsed = parsePrdContent(docRaw, topDoc.path);
-          if (parsed.objective) {
-            hallazgos.preliminar = {
-              docPath: topDoc.path,
-              objetivo: sanitizeDomString(parsed.objective).slice(0, 150).trim(),
-            };
-          }
-        }
-      } catch { /* ignore */ }
     }
 
     const browserCheck = await this.dependencies.browser();

@@ -1,17 +1,17 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { resolve, join, basename } from 'node:path';
 import { randomUUID } from 'node:crypto';
 
 import YAML from 'yaml';
 import { SchemaValidator, type ProjectContext, type ProjectPhase, type ContextSource, type BusinessRole, type CriticalFlow, type SourceOfTruthType } from '@qap/shared';
-import { FileSystemStorage, resolverDocumento, parsePrdContent, detectarServiciosConEvidencia, detectarDocumentosProyecto } from '@qap/knowledge';
-import { canExitOnboarding, generarRenderTexto, guardPregunta, sanitizeDomString, type Pregunta } from '@qap/engine';
+import { FileSystemStorage, detectarServiciosConEvidencia, detectarDocumentosProyecto } from '@qap/knowledge';
+import { canExitOnboarding, generarRenderTexto, guardPregunta, type Pregunta } from '@qap/engine';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
 import { getPhaseGuidance } from '../guidance.js';
 import type { IMcpToolHandler, McpInvocationContext } from '../dispatcher.js';
 
-import { definition, validateContextArguments, projectRoot, binding, readContext, readEnvironment, readCorrections, type ProjectKnowledgeBinding, type LegacyEnvironment, type ContextArguments, type StateDependencies, contextKnowledge, result, ContextFiles, safeDocument, StateOperationError } from './state-services.js';
+import { definition, validateContextArguments, projectRoot, binding, readContext, readEnvironment, readCorrections, type ProjectKnowledgeBinding, type LegacyEnvironment, type ContextArguments, type StateDependencies, contextKnowledge, result, ContextFiles, StateOperationError } from './state-services.js';
 import { buildCorrectionQuestion } from './state-runtime.js';
 
 export class ContextHandler implements IMcpToolHandler {
@@ -20,6 +20,10 @@ export class ContextHandler implements IMcpToolHandler {
   validateArguments(args: unknown): boolean { return validateContextArguments(args); }
   private readonly pending = new Map<string, Promise<void>>();
   async execute(raw: unknown, invocation: McpInvocationContext): Promise<CallToolResult> {
+    const source = (raw as ContextArguments | undefined)?.source_of_truth;
+    if ((typeof source === 'string' && source.trim()) || (source && typeof source === 'object' && source.ref)) {
+      return result({ status: 'error', code: 'direct_document_path_unavailable', error: 'La lectura directa de documentos por ruta no está disponible en este corte. Proporciona el contenido mediante docContent.' }, true);
+    }
     const rootDir = projectRoot(raw, this.dependencies, true);
     const admitted = binding(rootDir, this.dependencies);
     const previous = this.pending.get(rootDir) ?? Promise.resolve();
@@ -335,95 +339,7 @@ export class ContextHandler implements IMcpToolHandler {
         : (callerSource ?? (sot.source === 'inferred' ? 'inferred' : defaultSource));
     }
 
-    if (sotRef) {
-      const resolved = resolverDocumento(rootDir, sotRef);
-      if (resolved) {
-        if (existingContext.source_of_truth?.source === 'user' && sotSource !== 'user') {
-          ignoredDowngrades.push({
-            field: 'source_of_truth',
-            reason: 'No se puede sobrescribir una fuente de verdad con source "user" por una con source "prd" o "inferred"',
-          });
-        } else {
-          existingContext.source_of_truth = {
-            type: 'prd',
-            ref: resolved.path,
-            declared: true,
-            notes: sotNotes || existingContext.source_of_truth?.notes,
-            source: sotSource,
-          };
-        }
-
-        // Auto-ingesta determinista (E2a)
-        try {
-          const docAbsPath = safeDocument(rootDir, resolved.path);
-          const rawContent = readFileSync(docAbsPath, 'utf-8');
-          const parsed = parsePrdContent(rawContent, resolved.path);
-          if (parsed.objective && existingContext.objective_source !== 'user') {
-            existingContext.objective = sanitizeDomString(parsed.objective, 2000).trim();
-            existingContext.objective_source = 'inferred';
-          }
-          if (parsed.users && parsed.users.length > 0) {
-            existingContext.roles = existingContext.roles || [];
-            for (const u of parsed.users) {
-              const cleanName = sanitizeDomString(u).slice(0, 50).trim();
-              if (!cleanName) continue;
-              const exIdx = existingContext.roles.findIndex((er) => er.name === cleanName);
-              if (exIdx >= 0) {
-                if (existingContext.roles[exIdx].source !== 'user') {
-                  existingContext.roles[exIdx].source = 'inferred';
-                }
-              } else {
-                existingContext.roles.push({ name: cleanName, source: 'inferred' });
-              }
-            }
-          }
-          // Flujos críticos solo si encabezado explícito (B1)
-          if (parsed.critical_flows && parsed.critical_flows.length > 0) {
-            existingContext.critical_flows = existingContext.critical_flows || [];
-            for (const cf of parsed.critical_flows) {
-              const cleanName = sanitizeDomString(cf.name, 100).trim();
-              if (!cleanName) continue;
-              const cleanEvidence = cf.evidence ? sanitizeDomString(cf.evidence, 200).trim() : undefined;
-              const exIdx = existingContext.critical_flows.findIndex((ef) => ef.name === cleanName);
-              if (exIdx >= 0) {
-                if (existingContext.critical_flows[exIdx].source !== 'user') {
-                  existingContext.critical_flows[exIdx].source = 'inferred';
-                  if (cleanEvidence) existingContext.critical_flows[exIdx].evidence = cleanEvidence;
-                }
-              } else {
-                existingContext.critical_flows.push({
-                  name: cleanName,
-                  priority: 'medium',
-                  source: 'inferred',
-                  ...(cleanEvidence ? { evidence: cleanEvidence } : {}),
-                });
-              }
-            }
-          }
-          existingContext.ingest = {
-            doc_ref: resolved.path,
-            analyzed_by: 'heuristic',
-            analyzed_at: new Date().toISOString(),
-          };
-        } catch { /* ignore parse error */ }
-      } else {
-        // No resolvió a archivo físico
-        if (existingContext.source_of_truth?.source === 'user' && sotSource !== 'user') {
-          ignoredDowngrades.push({
-            field: 'source_of_truth',
-            reason: 'No se puede sobrescribir una fuente de verdad con source "user" por una con source "prd" o "inferred"',
-          });
-        } else {
-          existingContext.source_of_truth = {
-            type: sotType,
-            ref: sotRef,
-            declared: sotDeclared,
-            notes: sotNotes || existingContext.source_of_truth?.notes,
-            source: sotSource,
-          };
-        }
-      }
-    } else if (args.source_of_truth) {
+    if (args.source_of_truth) {
       if (existingContext.source_of_truth?.source === 'user' && sotSource !== 'user') {
         ignoredDowngrades.push({
           field: 'source_of_truth',

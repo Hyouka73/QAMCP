@@ -1102,6 +1102,7 @@ export class Block3ExecutionRepo {
     envId: string;
     profileId?: string | null;
     executionId?: string;
+    attemptId?: string;
     cases: readonly {
       case_id: string;
       version?: number;
@@ -1119,7 +1120,16 @@ export class Block3ExecutionRepo {
       canonicalCases.map((c) => c.case_id),
       'create_attempt',
     );
-    const attemptId = `att_${randomUUID().replace(/-/g, '').slice(0, 16)}`;
+    const attemptId = params.attemptId ?? `att_${randomUUID().replace(/-/g, '').slice(0, 16)}`;
+    if (params.attemptId) {
+      const existing = this.getExecutionAttempt(attemptId);
+      if (existing) {
+        if (existing.project_id !== params.projectId) {
+          throw new Error(`Execution attempt '${attemptId}' belongs to another project.`);
+        }
+        return existing;
+      }
+    }
     const executionId = params.executionId?.trim() || `exec_${Date.now()}_${randomUUID().slice(0, 6)}`;
     const caseIds = canonicalCases.map((c) => c.case_id);
     const caseVersions: Record<string, number> = {};
@@ -1161,6 +1171,40 @@ export class Block3ExecutionRepo {
     return this.getExecutionAttempt(attemptId);
   }
 
+  discardUncommittedAttempt(attemptId: string): boolean {
+    let removed = false;
+    this.#store.transaction('IMMEDIATE', () => {
+      const existing = this.getExecutionAttempt(attemptId);
+      if (!existing || (existing.status !== 'prepared' && existing.status !== 'running')) {
+        return;
+      }
+      this.#store.run('DELETE FROM execution_case_results WHERE attempt_id = ?', attemptId);
+      this.#store.run('DELETE FROM host_session_state WHERE key = ?', `attempt_evidence:${attemptId}`);
+      const res = this.#store.run(
+        "DELETE FROM execution_attempts WHERE attempt_id = ? AND status IN ('prepared', 'running')",
+        attemptId,
+      );
+      removed = Number(res.changes) > 0;
+    });
+    return removed;
+  }
+
+  markAttemptFinalizationPending(
+    attemptId: string,
+    executionId: string,
+    message: string,
+  ): ExecutionAttemptRecord | null {
+    this.#store.run(
+      `UPDATE execution_attempts
+       SET execution_id = ?, status = 'running', error_code = 'execution_finalization_pending', error_message = ?
+       WHERE attempt_id = ? AND status IN ('prepared', 'running')`,
+      executionId,
+      message,
+      attemptId,
+    );
+    return this.getExecutionAttempt(attemptId);
+  }
+
   finalizeExecutionAttempt(params: {
     attemptId: string;
     executionResult?: ExecutionResult;
@@ -1195,6 +1239,55 @@ export class Block3ExecutionRepo {
     const reqByIndex = attempt.requirement_revisions;
 
     this.#store.transaction('IMMEDIATE', () => {
+      const existingCaseRows = this.#store.all<{ result_row_id: unknown }>(
+        'SELECT result_row_id FROM execution_case_results WHERE attempt_id = ? ORDER BY created_at ASC',
+        attempt.attempt_id,
+      );
+      if (
+        attempt.status !== 'prepared' &&
+        attempt.status !== 'running' &&
+        existingCaseRows.length > 0
+      ) {
+        this.#store.run(
+          `UPDATE execution_attempts
+           SET raw_execution_path = COALESCE(?, raw_execution_path),
+               trace_path = COALESCE(?, trace_path),
+               result_digest = COALESCE(?, result_digest)
+           WHERE attempt_id = ?`,
+          params.rawExecutionPath ?? null,
+          params.tracePath ?? null,
+          resultDigest,
+          attempt.attempt_id,
+        );
+        if (params.executionResult) {
+          const artifactsMeta = {
+            video_path: params.executionResult.artifacts?.video_path ?? null,
+            trace_zip_path: params.executionResult.artifacts?.trace_zip_path ?? null,
+            timeline_path: params.executionResult.artifacts?.timeline_path ?? null,
+            screenshots: Array.from(
+              new Set([
+                ...(params.executionResult.artifacts?.screenshots ?? []),
+                ...params.executionResult.cases.flatMap((item) => item.screenshots ?? []),
+              ]),
+            ),
+            artifact_errors: params.executionResult.artifacts?.artifact_errors ?? [],
+          };
+          this.#store.run(
+            `INSERT INTO host_session_state (key, value, updated_at)
+             VALUES (?, ?, ?)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+            `attempt_evidence:${attempt.attempt_id}`,
+            JSON.stringify(artifactsMeta),
+            now,
+          );
+        }
+        for (const r of existingCaseRows) {
+          const loaded = this.getCaseResultRow(rowStr(r.result_row_id));
+          if (loaded) caseResults.push(loaded);
+        }
+        return;
+      }
+
       this.#store.run(
         `UPDATE execution_attempts
          SET execution_id = ?, status = ?, finished_at = ?, error_code = ?, error_message = ?,
@@ -1210,6 +1303,8 @@ export class Block3ExecutionRepo {
         resultDigest,
         attempt.attempt_id,
       );
+
+      this.#store.run('DELETE FROM execution_case_results WHERE attempt_id = ?', attempt.attempt_id);
 
       if (params.executionResult) {
         for (const [idx, c] of params.executionResult.cases.entries()) {

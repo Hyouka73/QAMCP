@@ -326,6 +326,8 @@ export async function loadHostComposition(
       },
     });
     const reconciledDeletions = await applicationService.reconcilePendingDeletion();
+    // An unbound host uses an ephemeral provider, but interrupted bound sessions used the keychain.
+    await applicationService.reconcileReplacedCredentials(workspaceRoot ? applicationService.credentialProvider : new KeychainCredentialProvider());
     for (const item of reconciledDeletions) {
       if (item.status === 'blocked') console.error(`QAP deletion reconciliation blocked for ${item.project_id}: ${item.reason}`);
     }

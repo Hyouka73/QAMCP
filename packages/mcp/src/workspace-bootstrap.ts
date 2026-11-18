@@ -71,6 +71,9 @@ export class WorkspaceBootstrap {
         const current = this.appService!.findActiveProjectByRoot(root);
         const currentAccess = current && this.appService!.authority.check(current.project_id, 'access', { root_path: current.canonical_root }, undefined, Date.now(), false);
         if ((access && (current?.project_id !== access.projectId || !currentAccess?.allowed || currentAccess.grant?.grant_id !== access.grantId)) || (!access && current)) throw new ApplicationServiceError('capability_access_revoked', 'El acceso al proyecto no está vigente.');
+        if (current && current.canonical_root === reference.canonical_root && resolve(realpathSync(root)) === resolve(reference.canonical_root)) {
+          this.appService!.reconcileCommittedProjectExecutions(current.project_id, reference.canonical_root);
+        }
         const result = await this.publish(root, reference, url);
         if (result) this.initializationRevision.set(root, 1);
         return result;
@@ -81,6 +84,32 @@ export class WorkspaceBootstrap {
     if (observed) this.pendingWarm.set(requestKey, completed);
     this.preparation = completed;
     return completed;
+  }
+
+  recoverProject(root: string): void {
+    const reference = this.appService?.getRootAuthorizationReference(root, this.registered);
+    if (!reference) {
+      throw new ApplicationServiceError('workspace_persistent_authority_required', 'La autoridad de la raíz no está vigente.');
+    }
+    const active = this.appService?.findActiveProjectByRoot(root);
+    const admitted = active && this.appService!.authority.check(active.project_id, 'access', { root_path: active.canonical_root }, undefined, Date.now(), false);
+    if (active && (!admitted?.allowed || !admitted.grant)) {
+      throw new ApplicationServiceError('capability_access_revoked', 'El acceso al proyecto no está vigente.');
+    }
+    const access = active && admitted?.grant ? { projectId: active.project_id, grantId: admitted.grant.grant_id } : undefined;
+    withProjectOperation(this.directory, () => {
+      if (!this.appService!.validateRootAuthorizationReference(reference, this.registered)) {
+        throw new ApplicationServiceError('workspace_persistent_authority_required', 'La autoridad de la raíz no está vigente.');
+      }
+      const current = this.appService!.findActiveProjectByRoot(root);
+      const currentAccess = current && this.appService!.authority.check(current.project_id, 'access', { root_path: current.canonical_root }, undefined, Date.now(), false);
+      if ((access && (current?.project_id !== access.projectId || !currentAccess?.allowed || currentAccess.grant?.grant_id !== access.grantId)) || (!access && current)) {
+        throw new ApplicationServiceError('capability_access_revoked', 'El acceso al proyecto no está vigente.');
+      }
+      if (current && current.canonical_root === reference.canonical_root && resolve(realpathSync(root)) === resolve(reference.canonical_root)) {
+        this.appService!.reconcileCommittedProjectExecutions(current.project_id, reference.canonical_root);
+      }
+    });
   }
 
   private async publish(root: string, reference: RootAuthorizationReference, url?: string): Promise<ProjectKnowledgeBinding | undefined> {

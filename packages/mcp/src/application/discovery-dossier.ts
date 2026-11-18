@@ -481,7 +481,6 @@ export function writeDiscoveryMarkdownFiles(
   latestByScope: readonly DiscoveryRevisionRecord[],
   options?: {
     readonly updatedPublishedRevision?: DiscoveryRevisionRecord;
-    readonly regenerateAll?: boolean;
   },
 ): {
   readonly index_path: string;
@@ -496,9 +495,7 @@ export function writeDiscoveryMarkdownFiles(
   const writtenPaths: string[] = [indexRel];
   let moduleDocPath: string | undefined;
 
-  const publishedToWrite: DiscoveryRevisionRecord[] = options?.regenerateAll
-    ? [...latestByScope]
-    : options?.updatedPublishedRevision
+  const publishedToWrite: DiscoveryRevisionRecord[] = options?.updatedPublishedRevision
       ? [
           latestByScope.find((r) => r.scope_hash === options.updatedPublishedRevision!.scope_hash) ??
             options.updatedPublishedRevision,

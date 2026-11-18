@@ -265,6 +265,19 @@ export class PermissionAuthority {
     return this.#store.all<GrantRow>(sql, projectId).map(rowToRecord);
   }
 
+  /** Validate the particular grant admitted by an operation, without selecting a replacement. */
+  isGrantValid(projectId: string, capability: QapCapability, grantId: string, requestedScope?: PermissionScope, nowMs = Date.now()): boolean {
+    const project = this.#store.get<{ status: string }>('SELECT status FROM projects WHERE project_id = ?', projectId);
+    if (!project || project.status !== 'active') return false;
+    const row = this.#store.get<GrantRow>(
+      'SELECT * FROM permission_grants WHERE project_id = ? AND capability = ? AND grant_id = ?',
+      projectId, capability, grantId,
+    );
+    if (!row || row.status !== 'active') return false;
+    if (row.expires_at && (!Number.isFinite(Date.parse(row.expires_at)) || Date.parse(row.expires_at) <= nowMs)) return false;
+    return scopeMatches(rowToRecord(row).scope, requestedScope);
+  }
+
   revokeGrant(projectId: string, grantId: string, reason = 'explicit_revocation'): PermissionGrantRecord | null {
     return this.#operations.run(() => {
       return this.#store.transaction('IMMEDIATE', () => {

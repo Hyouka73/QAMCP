@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 
 import { AuthManager, isValidUsernameIdentifier, readProfiles, type StorageState } from '@qap/auth';
 import { isAuthPath, type AuthProfile, type EnvironmentRecord } from '@qap/shared';
@@ -40,6 +40,14 @@ export async function authenticateScopedPassword(
   const access = service.authority.check(projectId, 'access', { root_path: root });
   const login = service.authority.check(projectId, 'login', scope);
   if (!access.allowed || (!login.allowed && ['revoked', 'expired'].includes(login.reason))) return blocked('login_permission_unavailable');
+  const accessGrantId = access.grant?.grant_id;
+  const authorized = () => {
+    const current = service.authority.check(projectId, 'access', { root_path: root });
+    const currentLogin = service.authority.check(projectId, 'login', scope);
+    return authority() && current.allowed && !!accessGrantId && current.grant?.grant_id === accessGrantId &&
+      (login.allowed ? currentLogin.allowed && currentLogin.grant?.grant_id === login.grant?.grant_id :
+        !currentLogin.allowed && currentLogin.reason === login.reason);
+  };
 
   const suppliedPassword = typeof args.password === 'string' ? args.password : undefined;
   if (!suppliedPassword && previous?.login_mode === 'handoff') return blocked('handoff_required');
@@ -67,7 +75,7 @@ export async function authenticateScopedPassword(
   let password = suppliedPassword;
   if (!password) {
     try {
-      if (existing?.credential_ref_key === account) password = (await service.readProfileSecret(projectId, existing.profile_id))?.password;
+      if (existing?.credential_ref_key === account || existing?.credential_ref_key?.startsWith(account + ':')) password = (await service.readProfileSecret(projectId, existing.profile_id))?.password;
       if (!password && previous?.credential_source === 'keychain' && login.allowed &&
           (!previous.login_origin || previous.login_origin === origin)) {
         const manager = new AuthManager(root);
@@ -88,52 +96,104 @@ export async function authenticateScopedPassword(
     credential_source: 'keychain', session_cache: { enabled: true }, verified: false,
     verified_at: undefined, verified_route: undefined,
   };
-  const persist = () => atomicWritePrivateFile(profilesPath, JSON.stringify({
-    _version: '1', profiles: [...profiles.filter(item => item.id !== id || item.env !== environment.name), profile],
-  }, null, 2));
-  const row = service.withProjectOperation(() => authority() ? service.upsertProfile({ projectId, envId: environment.env_id, label: id, roleName: profile.role,
-    tenantId: tenant.tenant_id, loginMode: 'auto', credentialAccount: account, status: 'pending' }) : undefined);
-  if (!row) return blocked('capability_access_revoked');
-  try { await service.storeProfileSecret(projectId, row.profile_id, { password }); }
-  catch {
-    service.withProjectOperation(() => {
-      if (authority() && existing) service.upsertProfile({ projectId, envId: environment.env_id, label: id, loginMode: existing.login_mode,
-        credentialAccount: existing.credential_ref_key, status: existing.status });
-    });
-    return blocked('keychain_unavailable');
-  }
-  const prepared = service.withProjectOperation(() => {
-    if (!authority()) return false;
-    if (!login.allowed) service.authority.grant({ project_id: projectId, env_id: environment.env_id,
-      capability: 'login', scope, granted_by: 'host_bound_scope' });
-    persist();
-    return true;
+  const persist = () => {
+    const currentProfiles = readProfiles(root);
+    atomicWritePrivateFile(profilesPath, JSON.stringify({
+      _version: '1', profiles: [...currentProfiles.filter(item => item.id !== id || item.env !== environment.name), profile],
+    }, null, 2));
+  };
+  const admitted = service.withProjectOperation(() => {
+    if (!authorized()) return { ok: false as const, code: 'capability_access_revoked' };
+    const latest = service.resolveProfileAlias(projectId, id, environment.env_id);
+    if (latest.status === 'ambiguous') return { ok: false as const, code: 'ambiguous_auth_profile' };
+    if (latest.status === 'matched') {
+      if (latest.profile.status === 'revoked' || latest.profile.revoked_at) return { ok: false as const, code: 'auth_session_revoked' };
+      if (existing
+        ? (latest.profile.profile_id !== existing.profile_id || latest.profile.credential_ref_key !== existing.credential_ref_key)
+        : (latest.profile.status !== 'pending' || latest.profile.credential_ref_key !== account)) {
+        return { ok: false as const, code: 'auth_profile_changed' };
+      }
+      return { ok: true as const, row: latest.profile };
+    }
+    if (existing) return { ok: false as const, code: 'auth_profile_changed' };
+    return {
+      ok: true as const,
+      row: service.upsertProfile({
+        projectId, envId: environment.env_id, label: id, roleName: profile.role,
+        tenantId: tenant.tenant_id, loginMode: 'auto', credentialAccount: account, status: 'pending',
+      }),
+    };
   });
-  if (!prepared) return blocked('capability_access_revoked');
+  if (!admitted.ok) return blocked(admitted.code);
+  const { row } = admitted;
+  const project = service.resumeProject(projectId).project;
+  const temporaryAccount = account + ':' + randomUUID();
+  const ref = { projectId, applicationId: project.application_id, environment: environment.env_id, auth_profile_id: row.profile_id, account: temporaryAccount };
+  let secretWritten = false;
+  const cleanup = async () => {
+    try {
+      await service.credentialProvider.delete(ref);
+      return true;
+    } catch {
+      if (secretWritten) {
+        try { service.withProjectOperation(() => service.stageReplacedCredential(ref)); } catch { /* best-effort */ }
+      }
+      return false;
+    }
+  };
+  try {
+    await service.credentialProvider.set(ref, { password });
+    secretWritten = true;
+  } catch {
+    return blocked(await cleanup() ? 'keychain_unavailable' : 'credential_cleanup_failed');
+  }
+  let committed = false;
+  try {
+  if (!service.withProjectOperation(authorized)) return blocked(await cleanup() ? 'capability_access_revoked' : 'credential_cleanup_failed');
   const timeout = typeof args.timeout_ms === 'number' && Number.isFinite(args.timeout_ms) ? args.timeout_ms : 30_000;
-  const captured = await captureVerifiedPassword({
+  let captured: Awaited<ReturnType<typeof captureVerifiedPassword>>;
+  try { captured = await captureVerifiedPassword({
     origin, loginUrl: new URL(loginPath, origin).href, timeoutMs: Math.min(45_000, Math.max(5_000, timeout)),
     ...(verificationPath ? { verificationUrl: new URL(verificationPath, origin).href } : {}),
     selector: profile.post_login_condition?.value,
-  }, profile, { username, password }, signal);
-  return service.withProjectOperation(() => {
-    if (!authority()) return blocked('capability_access_revoked');
+  }, profile, { username, password }, signal); }
+  catch { return blocked(await cleanup() ? 'authentication_required' : 'credential_cleanup_failed'); }
+  const outcome = service.withProjectOperation(() => {
+    if (!authorized()) return blocked('capability_access_revoked');
+    const current = service.resolveProfileAlias(projectId, id, environment.env_id);
+    if (current.status !== 'matched' || current.profile.profile_id !== row.profile_id ||
+        current.profile.credential_ref_key !== row.credential_ref_key || current.profile.status === 'revoked') return blocked('auth_profile_changed');
     if (!captured.state || !captured.verificationPath) {
-      service.expireProfileSession(projectId, row.profile_id);
       return blocked(captured.code ?? 'authentication_required', {
       ...(captured.failureReason ? { login_result: captured.failureReason } : {}),
-      perfil: id, secretSaved: true, downgraded_to_anonymous: false,
+      perfil: id, secretSaved: false, downgraded_to_anonymous: false,
       });
     }
+    if (!login.allowed) service.authority.grant({ project_id: projectId, env_id: environment.env_id,
+      capability: 'login', scope, granted_by: 'host_bound_scope' });
     profile.verified = true;
   profile.verified_at = new Date().toISOString();
   profile.verified_route = captured.verificationPath;
   service.saveProfileSession(projectId, row.profile_id, captured.state, { verifiedAt: profile.verified_at });
   persist();
+    if (row.credential_ref_key && row.credential_ref_key !== temporaryAccount &&
+        (row.credential_ref_key !== account || row.status !== 'pending')) {
+      service.stageReplacedCredential({ ...ref, account: row.credential_ref_key });
+    }
+    service.upsertProfile({ projectId, envId: environment.env_id, label: id, roleName: profile.role,
+      tenantId: tenant.tenant_id, loginMode: 'auto', credentialAccount: temporaryAccount, status: 'verified' });
+    committed = true;
     return { status: 'success', code: 'authentication_verified', secretSaved: true, profile: {
     id, env: environment.name, role: profile.role, verified: true, verified_at: profile.verified_at, verified_route: profile.verified_route,
     } };
   });
+  if (outcome.status !== 'success' && !(await cleanup())) return blocked('credential_cleanup_failed');
+  if (outcome.status === 'success') await service.reconcileReplacedCredentials();
+  return outcome;
+  } catch {
+    if (!committed && !(await cleanup())) return blocked('credential_cleanup_failed');
+    return blocked('authentication_publication_failed');
+  }
 }
 
 export function usableScopedSession(

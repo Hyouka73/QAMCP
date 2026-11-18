@@ -138,9 +138,11 @@ export class DiscoveryHandler implements IMcpToolHandler {
       const root = projectRoot(args, this.dependencies, true);
       const bound = binding(root, this.dependencies);
       if (!bound) return blocked('knowledge_unbound');
+      let grantGuard = () => true;
       const protectedAction = <T>(action: () => T): T => {
         const run = () => {
           if (this.dependencies.validateKnowledgeBinding && !this.dependencies.validateKnowledgeBinding(bound)) throw new Error('workspace_persistent_authority_required');
+          if (!grantGuard()) throw new Error('operation_grant_revoked');
           return action();
         };
         return this.dependencies.applicationService && this.dependencies.validateKnowledgeBinding ? this.dependencies.applicationService.withProjectOperation(run) : run();
@@ -204,6 +206,8 @@ export class DiscoveryHandler implements IMcpToolHandler {
         }
       }
       let resolvedTenantId: string | undefined;
+      let observeGrantId: string | undefined;
+      let loginGuard = () => true;
       if (appService && appProject) {
         let initialProfileRef = requestedProfileRaw;
         if (requestedProfileRaw) {
@@ -233,6 +237,12 @@ export class DiscoveryHandler implements IMcpToolHandler {
         resolvedTenantId = tenantCheck.tenant_id;
         const observeScope = { origin: baseOrigin, ...(effectiveActiveEnvId ? { env_id: effectiveActiveEnvId } : {}) };
         const activeObserve = appService.authority.check(appProject.project_id, 'observe', observeScope);
+        observeGrantId = activeObserve.grant?.grant_id;
+        grantGuard = () => {
+          const current = appService.authority.check(appProject.project_id, 'observe', observeScope);
+          return (observeGrantId ? appService.authority.isGrantValid(appProject.project_id, 'observe', observeGrantId, observeScope) :
+            !activeObserve.allowed && !current.allowed && current.reason === activeObserve.reason) && loginGuard();
+        };
         const revokedObserve = appService.authority.listGrants(appProject.project_id, true)
           .some(g => g.capability === 'observe' && g.status === 'revoked');
         if (revokedObserve && !activeObserve.allowed) {
@@ -391,7 +401,7 @@ export class DiscoveryHandler implements IMcpToolHandler {
         : config.authorization;
 
       protectedAction(() => { if (appService && appProject) {
-        const observeScope = { origin: baseOrigin, ...(appProject.active_env_id ? { env_id: appProject.active_env_id } : {}) };
+        const observeScope = { origin: baseOrigin, ...(effectiveActiveEnvId ? { env_id: effectiveActiveEnvId } : {}) };
         const activeObserve = appService.authority.check(appProject.project_id, 'observe', observeScope);
         if (!activeObserve.allowed) {
           appService.authority.grant({
@@ -401,6 +411,8 @@ export class DiscoveryHandler implements IMcpToolHandler {
             granted_by: 'host_operator',
           });
         }
+        observeGrantId ??= appService.authority.check(appProject.project_id, 'observe', observeScope).grant?.grant_id;
+        if (!observeGrantId) throw new Error('operation_grant_revoked');
       } });
 
       const lifecycle = await new FileSystemStorage({ rootDir: root }).getLifecycleState();
@@ -511,9 +523,15 @@ export class DiscoveryHandler implements IMcpToolHandler {
             appProject.project_id,
             resolvedProfileRecord?.profile_id ?? resolvedProfileName,
           );
-          const loginCap = appService.authority.check(appProject.project_id, 'login', { origin: baseOrigin,
+          const loginScope = { origin: baseOrigin,
             profile_id: hostProfile?.profile.label ?? resolvedProfileName,
-            ...(resolvedTenantId ? { tenant_id: resolvedTenantId } : {}) });
+            ...(resolvedTenantId ? { tenant_id: resolvedTenantId } : {}) };
+          const loginCap = appService.authority.check(appProject.project_id, 'login', loginScope);
+          loginGuard = () => {
+            const current = appService.authority.check(appProject.project_id, 'login', loginScope);
+            return loginCap.allowed ? appService.authority.isGrantValid(appProject.project_id, 'login', loginCap.grant.grant_id, loginScope) :
+              !current.allowed && current.reason === loginCap.reason;
+          };
           if (hostProfile) {
             resolvedProfileRecord = hostProfile.profile;
             resolvedProfileName = hostProfile.profile.label;
@@ -581,7 +599,7 @@ export class DiscoveryHandler implements IMcpToolHandler {
         ? (authenticated_session ? 'fresh_authenticated_spa_readonly' : 'fresh_anonymous_spa_readonly')
         : (authenticated_session ? 'fresh_authenticated_static' : 'fresh_anonymous_static');
 
-      const guard = () => !this.dependencies.validateKnowledgeBinding || this.dependencies.validateKnowledgeBinding(bound);
+      const guard = () => (!this.dependencies.validateKnowledgeBinding || this.dependencies.validateKnowledgeBinding(bound)) && grantGuard();
       const guardedStore = new Proxy(bound.store, { get: (target, property) => {
         const value = Reflect.get(target, property, target);
         if (property === 'commit' && typeof value === 'function' && this.dependencies.applicationService && this.dependencies.validateKnowledgeBinding) {
@@ -1076,6 +1094,7 @@ export class DiscoveryHandler implements IMcpToolHandler {
       if (error instanceof McpToolError && error.code === 'invalid_arguments') {
         return blocked('invalid_project_scope');
       }
+      if (error instanceof Error && error.message === 'operation_grant_revoked') return blocked('operation_grant_revoked');
       const code = error instanceof BlackBoxCrawlerError ? error.code : 'DISCOVERY_UNAVAILABLE';
       return result({ status: 'indeterminate', code,
         acquisition_status: 'indeterminate', acquisition_persistence: code === 'PERSISTENCE_FAILED' ? 'failed' : 'not_attempted',

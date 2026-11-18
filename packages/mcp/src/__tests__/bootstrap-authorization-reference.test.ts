@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -81,4 +81,29 @@ it('does not regrant revoked application access on preparation', async () => {
   f.service.authority.revokeGrant(project.project_id, grant.grant_id);
   await expect(f.bootstrap.prepare(f.a, 'https://example.invalid/')).rejects.toMatchObject({ code: 'capability_access_revoked' });
   expect(f.service.authority.listGrants(project.project_id).filter(g => g.capability === 'access')).toHaveLength(1);
+});
+
+it('recovers abandoned publications only when the authorized project is reopened', async () => {
+  const f = fixture(); f.helper(f.a); f.helper(f.b);
+  await f.bootstrap.prepare(f.a, 'https://example.invalid/');
+  await f.bootstrap.prepare(f.b, 'https://example.invalid/');
+  const dead = spawnSync(process.execPath, ['-e', '']);
+  expect(dead.status).toBe(0);
+  const seed = (root: string) => {
+    const run = join(root, '.qa', 'runtime', 'runs', 'interrupted');
+    mkdirSync(run, { recursive: true });
+    writeFileSync(join(run, '.qap-publication-pending'), JSON.stringify({ operationId: 'qap-provisional-test123', runId: 'interrupted', pid: dead.pid }));
+    writeFileSync(join(run, 'run.json'), '{}');
+    return run;
+  };
+  const aRun = seed(f.a), bRun = seed(f.b);
+  const restarted = new WorkspaceBootstrap(f.host, f.service);
+  try {
+    await restarted.prepare(f.a);
+    expect(existsSync(aRun)).toBe(false);
+    expect(existsSync(bRun)).toBe(true);
+    await restarted.prepare(f.a);
+    expect(existsSync(aRun)).toBe(false);
+    expect(existsSync(bRun)).toBe(true);
+  } finally { restarted.close(); }
 });

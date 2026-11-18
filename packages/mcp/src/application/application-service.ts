@@ -1,7 +1,7 @@
 import { OperationDomain } from './operation-domain.js';
 import type { ProjectOperationContext } from '../project-reset.js';
 import { createHash, randomUUID } from 'node:crypto';
-import { existsSync, lstatSync, mkdirSync, readdirSync } from 'node:fs';
+import { appendFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, parse } from 'node:path';
 
 import {
@@ -11,6 +11,12 @@ import {
   type ICredentialProvider,
 } from '@qap/auth';
 import { SqliteKnowledgeAdapter } from '@qap/knowledge';
+import {
+  hasCommittedRun,
+  inspectRecoverableProvisionalPublications,
+  recoverProvisionalPublications,
+  type ProvisionalMcpFinalization,
+} from '@qap/playwright-runner';
 import {
   normalizeSlug,
   type AuthProfileLifecycleStatus,
@@ -87,10 +93,12 @@ import { PermissionAuthority } from './permission-authority.js';
 import {
   assertDisjointFromWorkspace,
   assertSafeHostPath,
+  atomicWritePrivateFile,
   hashCanonicalRoot,
   isPathWithin,
   normalizePathKey,
   listSafeFiles,
+  resolveContainedPath,
   safeDeleteOwnedPath,
 } from './safe-storage.js';
 import {
@@ -1294,6 +1302,41 @@ export class QapApplicationService {
       }
       return parseProfileRow(this.#store.get<Record<string, unknown>>('SELECT * FROM profiles WHERE profile_id = ?', profileId)!);
     });
+  }
+
+  /** Record only the replaced credential reference, before publishing its replacement. */
+  stageReplacedCredential(reference: CredentialReference): void {
+    const key = `credential_cleanup:v1:${randomUUID()}`;
+    this.#store.run('INSERT INTO host_session_state (key,value,updated_at) VALUES (?,?,?)',
+      key, JSON.stringify(reference), new Date().toISOString());
+  }
+
+  /** Retry interrupted rotations without ever deleting a profile's current reference. */
+  async reconcileReplacedCredentials(provider: ICredentialProvider = this.credentialProvider): Promise<void> {
+    const keys = this.#store.all<{ key: string }>(
+      "SELECT key FROM host_session_state WHERE key LIKE 'credential_cleanup:v1:%' ORDER BY key");
+    for (const { key } of keys) {
+      try {
+        const ref = this.withProjectOperation(() => {
+          const record = this.#store.get<{ value: string }>('SELECT value FROM host_session_state WHERE key = ?', key);
+          if (!record) return null;
+          const parsed = JSON.parse(record.value) as CredentialReference;
+          const profile = this.#store.get<{ credential_ref_key: string | null }>(
+            'SELECT credential_ref_key FROM profiles WHERE project_id = ? AND env_id = ? AND profile_id = ?',
+            parsed.projectId, parsed.environment, parsed.auth_profile_id);
+          if (profile?.credential_ref_key === parsed.account) {
+            this.#store.run('DELETE FROM host_session_state WHERE key = ?', key);
+            return null;
+          }
+          return parsed;
+        });
+        if (!ref) continue;
+        await provider.delete(ref);
+        this.withProjectOperation(() => {
+          this.#store.run('DELETE FROM host_session_state WHERE key = ?', key);
+        });
+      } catch { /* Keep the reference for the next administrative start or rotation. */ }
+    }
   }
 
   async storeProfileSecret(
@@ -3946,6 +3989,7 @@ export class QapApplicationService {
     envId?: string;
     profileId?: string | null;
     executionId?: string;
+    attemptId?: string;
     cases: readonly {
       case_id: string;
       version?: number;
@@ -3982,12 +4026,276 @@ export class QapApplicationService {
       envId,
       profileId: params.profileId ?? null,
       executionId: params.executionId,
+      attemptId: params.attemptId,
       cases: params.cases,
     });
   }
 
   markAttemptRunning(attemptId: string): ExecutionAttemptRecord | null {
     return this.block3.markAttemptRunning(attemptId);
+  }
+
+  discardUncommittedAttempt(attemptId: string): boolean {
+    return this.block3.discardUncommittedAttempt(attemptId);
+  }
+
+  markAttemptFinalizationPending(
+    attemptId: string,
+    executionId: string,
+    message: string,
+  ): ExecutionAttemptRecord | null {
+    return this.block3.markAttemptFinalizationPending(attemptId, executionId, message);
+  }
+
+  private hasCommittedRuntimeRun(canonicalRoot: string, runId: string): boolean {
+    if (!runId) return false;
+    try {
+      return hasCommittedRun(canonicalRoot, runId);
+    } catch {
+      return false;
+    }
+  }
+
+  private ensureCommittedRuntimeReceipts(canonicalRoot: string, runId: string): void {
+    if (!runId || !/^[a-zA-Z0-9_-][a-zA-Z0-9._-]*$/.test(runId) || runId === '..') return;
+    try {
+      const runDir = resolveContainedPath(canonicalRoot, join('.qa', 'runtime', 'runs', runId));
+      if (!existsSync(runDir) || lstatSync(runDir).isSymbolicLink() || !lstatSync(runDir).isDirectory()) return;
+      const receiptPath = join(runDir, '.qap-committed');
+      if (!existsSync(receiptPath)) {
+        writeFileSync(receiptPath, '1', { mode: 0o600 });
+      }
+    } catch {
+      // Best-effort receipt repair
+    }
+  }
+
+  private ensureExecutionArtifactsOnDisk(
+    canonicalRoot: string,
+    executionResult: ExecutionResult,
+    traceMeta?: ProvisionalMcpFinalization['trace'],
+  ): { rawExecutionPath: string | null; tracePath: string | null } {
+    const executionId = executionResult.execution_id;
+    if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(executionId)) {
+      return { rawExecutionPath: null, tracePath: null };
+    }
+    const execDir = resolveContainedPath(canonicalRoot, join('.qa', 'executions'));
+    if (!existsSync(execDir)) {
+      mkdirSync(execDir, { recursive: true, mode: 0o700 });
+    }
+    const rawExecutionPath = `.qa/executions/${executionId}.json`;
+    const rawAbs = resolveContainedPath(canonicalRoot, rawExecutionPath);
+    if (!existsSync(rawAbs)) {
+      atomicWritePrivateFile(rawAbs, JSON.stringify(executionResult, null, 2));
+    }
+
+    let tracePath: string | null = null;
+    const candidateTracePath = `.qa/executions/${executionId}.trace.json`;
+    const traceAbs = resolveContainedPath(canonicalRoot, candidateTracePath);
+    if (!existsSync(traceAbs) && traceMeta) {
+      atomicWritePrivateFile(
+        traceAbs,
+        JSON.stringify(
+          {
+            execution_id: executionId,
+            ...(executionResult.attempt_id ? { attempt_id: executionResult.attempt_id } : {}),
+            case_approval_digest: traceMeta.case_approval_digest,
+            requirements: traceMeta.requirements,
+            cases: traceMeta.cases,
+            ...(executionResult.artifacts ? { artifacts: executionResult.artifacts } : {}),
+            ...(executionResult.timeline ? { timeline: executionResult.timeline } : {}),
+          },
+          null,
+          2,
+        ),
+      );
+    }
+    if (existsSync(traceAbs)) {
+      tracePath = candidateTracePath;
+    }
+
+    const moduleName = executionResult.module;
+    if (
+      moduleName &&
+      typeof moduleName === 'string' &&
+      moduleName.trim().length > 0 &&
+      !/[\\/:]/.test(moduleName) &&
+      moduleName !== '.' &&
+      moduleName !== '..'
+    ) {
+      const historyDir = resolveContainedPath(canonicalRoot, join('.qa', 'cache', 'history'));
+      if (!existsSync(historyDir)) {
+        mkdirSync(historyDir, { recursive: true, mode: 0o700 });
+      }
+      const historyAbs = resolveContainedPath(canonicalRoot, join('.qa', 'cache', 'history', `${moduleName}.jsonl`));
+      let alreadyRecorded = false;
+      if (existsSync(historyAbs)) {
+        try {
+          for (const line of readFileSync(historyAbs, 'utf8').split(/\r?\n/)) {
+            const trimmed = line.trim();
+            if (!trimmed) continue;
+            try {
+              const parsed = JSON.parse(trimmed) as { execution_id?: unknown };
+              if (parsed.execution_id === executionId) {
+                alreadyRecorded = true;
+                break;
+              }
+            } catch {
+              // Ignore malformed line
+            }
+          }
+        } catch {
+          // Ignore unreadable history
+        }
+      }
+      if (!alreadyRecorded) {
+        appendFileSync(
+          historyAbs,
+          `${JSON.stringify({
+            execution_id: executionId,
+            timestamp: executionResult.finished_at,
+            result: executionResult.result,
+            summary: executionResult.summary,
+          })}\n`,
+          'utf8',
+        );
+      }
+    }
+
+    return { rawExecutionPath, tracePath };
+  }
+
+  reconcileCommittedProjectExecutions(
+    projectId: string,
+    canonicalRoot: string,
+  ): { removed: number; confirmed: number; finalizedAttempts: number } {
+    const project = this.assertActiveProject(projectId);
+    if (normalizePathKey(project.canonical_root) !== normalizePathKey(canonicalRoot)) {
+      throw new ApplicationServiceError(
+        'project_root_mismatch',
+        `La raíz '${canonicalRoot}' no coincide con el proyecto '${projectId}'.`,
+      );
+    }
+
+    const inspectable = inspectRecoverableProvisionalPublications(canonicalRoot);
+    for (const item of inspectable) {
+      if (!item.committed && item.attemptId) {
+        this.block3.discardUncommittedAttempt(item.attemptId);
+      }
+    }
+
+    const recovered = recoverProvisionalPublications(canonicalRoot);
+    let finalizedAttempts = 0;
+    const processedAttempts = new Set<string>();
+
+    const reconcileAttempt = (params: {
+      attemptId: string;
+      executionId: string;
+      executionResult: ExecutionResult;
+      mcp?: ProvisionalMcpFinalization;
+      allowCreateFromResult?: boolean;
+    }): void => {
+      if (processedAttempts.has(params.attemptId)) return;
+      const runtimeRunId = this.hasCommittedRuntimeRun(canonicalRoot, params.attemptId)
+        ? params.attemptId
+        : this.hasCommittedRuntimeRun(canonicalRoot, params.executionId)
+          ? params.executionId
+          : null;
+      if (!runtimeRunId) return;
+
+      let attempt = this.block3.getExecutionAttempt(params.attemptId);
+      if (!attempt && !params.mcp && !params.allowCreateFromResult) {
+        return;
+      }
+      if (attempt && attempt.project_id !== projectId) {
+        return;
+      }
+
+      this.ensureCommittedRuntimeReceipts(canonicalRoot, runtimeRunId);
+
+      const execResult: ExecutionResult =
+        params.attemptId && params.executionResult.attempt_id !== params.attemptId
+          ? { ...params.executionResult, attempt_id: params.attemptId }
+          : params.executionResult;
+
+      const { rawExecutionPath, tracePath } = this.ensureExecutionArtifactsOnDisk(
+        canonicalRoot,
+        execResult,
+        params.mcp?.trace,
+      );
+
+      if (!attempt && (params.mcp || params.allowCreateFromResult)) {
+        attempt = this.createExecutionAttempt({
+          projectId,
+          moduleKey: params.mcp?.moduleName || execResult.module,
+          envId: params.mcp?.envId ?? project.active_env_id ?? execResult.env,
+          profileId: params.mcp?.profileId ?? null,
+          attemptId: params.attemptId,
+          executionId: params.executionId,
+          cases:
+            params.mcp?.cases ??
+            execResult.cases.map((c) => ({ case_id: c.id, title: c.title })),
+        });
+        attempt = this.markAttemptRunning(attempt.attempt_id) ?? attempt;
+      }
+      if (!attempt) return;
+
+      const needsFinalize =
+        attempt.status === 'prepared' ||
+        attempt.status === 'running' ||
+        !attempt.raw_execution_path ||
+        (Boolean(tracePath) && !attempt.trace_path);
+
+      if (needsFinalize) {
+        this.finalizeExecutionAttempt({
+          attemptId: attempt.attempt_id,
+          executionResult: execResult,
+          rawExecutionPath,
+          tracePath,
+        });
+        finalizedAttempts++;
+      }
+      processedAttempts.add(attempt.attempt_id);
+    };
+
+    for (const item of inspectable) {
+      if (!item.committed || !item.result || !item.executionId) continue;
+      const attemptId = item.attemptId ?? item.mcp?.attemptId ?? item.result.attempt_id;
+      if (!attemptId) continue;
+      reconcileAttempt({
+        attemptId,
+        executionId: item.executionId,
+        executionResult: item.result,
+        mcp: item.mcp,
+        allowCreateFromResult: Boolean(item.mcp || item.attemptId),
+      });
+    }
+
+    for (const attempt of this.block3.listExecutionAttempts(projectId)) {
+      if (processedAttempts.has(attempt.attempt_id)) continue;
+      if (attempt.status !== 'prepared' && attempt.status !== 'running') continue;
+      if (!this.hasCommittedRuntimeRun(canonicalRoot, attempt.attempt_id)) continue;
+      if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(attempt.execution_id)) continue;
+      const rawAbs = resolveContainedPath(canonicalRoot, join('.qa', 'executions', `${attempt.execution_id}.json`));
+      if (!existsSync(rawAbs)) continue;
+      try {
+        const parsed = JSON.parse(readFileSync(rawAbs, 'utf8')) as ExecutionResult;
+        if (parsed.execution_id !== attempt.execution_id) continue;
+        reconcileAttempt({
+          attemptId: attempt.attempt_id,
+          executionId: attempt.execution_id,
+          executionResult: parsed,
+        });
+      } catch {
+        // Ignore unreadable execution JSON
+      }
+    }
+
+    return {
+      removed: recovered.removed,
+      confirmed: recovered.confirmed,
+      finalizedAttempts,
+    };
   }
 
   finalizeExecutionAttempt(params: {

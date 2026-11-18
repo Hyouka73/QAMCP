@@ -7,7 +7,6 @@ import {
   readFileSync,
   readdirSync,
   rmSync,
-  statSync,
   realpathSync,
 } from 'node:fs';
 import { resolve, join, basename, extname, dirname, parse } from 'node:path';
@@ -51,7 +50,6 @@ import {
   parsePrdContent,
   detectarDocumentosProyecto,
   generarScan,
-  resolverDocumento,
   detectarServiciosConEvidencia,
   scanProjectRoutes,
   generateModuleCandidates,
@@ -125,7 +123,7 @@ import { hasLegacyViewContext, legacyInterviewBlocked } from './handlers/legacy-
 import { ProjectHandler } from './handlers/project.handler.js';
 import { ApplicationServiceError } from './application/application-service.js';
 import { authenticateScopedPassword, scopedRoute, usableScopedSession } from './scoped-password.js';
-import { buildPublishedModuleDocRepoPath, sanitizeTargetPathname, writeDiscoveryMarkdownFiles } from './application/discovery-dossier.js';
+import { buildPublishedModuleDocRepoPath, sanitizeTargetPathname } from './application/discovery-dossier.js';
 import { atomicWritePrivateFile, normalizePathKey, resolveContainedPath } from './application/safe-storage.js';
 import { PlanHandler } from './handlers/plan.handler.js';
 import { TestHandler, type TestNavigationAuthorization } from './handlers/test.handler.js';
@@ -406,6 +404,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         const existing = workspaceBindings.find(b => realpathSync(b.projectRoot) === root);
         if (existing) {
           if (!options.workspaceBootstrap!.validateBinding(existing)) throw new ApplicationServiceError('workspace_persistent_authority_required', 'El binding no tiene una autorización vigente.');
+          options.workspaceBootstrap!.recoverProject(root);
           return;
         }
         const bound = await options.workspaceBootstrap!.prepare(root, url);
@@ -661,6 +660,13 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
     const operation = (async (): Promise<CallToolResult> => {
     const { name, arguments: { conversation_id, ...argsWithoutConversation } = {} } = request.params;
     const rawArgs = request.params.arguments === undefined ? undefined : argsWithoutConversation;
+    const sourceRef = rawArgs?.source_of_truth;
+    if (name === 'qap_context_set' && ((typeof sourceRef === 'string' && sourceRef.trim()) || (sourceRef && typeof sourceRef === 'object' && 'ref' in sourceRef && sourceRef.ref))) {
+      return canonicalResult({ status: 'error', code: 'direct_document_path_unavailable', error: 'La lectura directa de documentos por ruta no está disponible en este corte. Proporciona el contenido mediante docContent.' }, true);
+    }
+    if (name === 'qap_context_ingest' && (rawArgs?.docPath || rawArgs?.path)) {
+      return canonicalResult({ status: 'error', code: 'direct_document_path_unavailable', error: 'La lectura directa de documentos por ruta no está disponible en este corte. Proporciona el contenido mediante docContent.' }, true);
+    }
     // G0-01: flow execution remains excluded until it has qap_test authority controls.
     if (name === 'qap_server' || name === 'qap_flow_run' || name === 'qap_validate') return canonicalResult({ status: 'blocked', code: 'operation_disabled' }, true);
     if (Object.keys(rawArgs ?? {}).some(key => ['password', 'secret', 'storageState', 'credentials'].includes(key) &&
@@ -1063,11 +1069,17 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         rawArgs?.method !== 'handoff' && rawArgs?.login_mode !== 'handoff') {
       const scopedEnv = applicationService.resumeProject(scopedProject.project_id).environment;
       if (!scopedEnv) return canonicalResult({ status: 'blocked', code: 'login_outside_configured_qa_environment' }, true);
-      const bound = workspaceBindings.find(item => item.projectRoot === eventWorkspace);
+      const selectedBinding = workspaceBindings.find(item => item.projectRoot === eventWorkspace);
+      const bound = selectedBinding && { ...selectedBinding, rootAuthorization: selectedBinding.rootAuthorization && { ...selectedBinding.rootAuthorization }, projectAccess: selectedBinding.projectAccess && { ...selectedBinding.projectAccess } };
       const authority = () => !!bound && bound.projectAccess?.projectId === scopedProject.project_id && !!options.workspaceBootstrap?.validateBinding(bound);
       const auth = await authenticateScopedPassword(applicationService, scopedProject.project_id, scopedEnv,
         eventWorkspace, rawArgs ?? {}, context.signal, authority);
       return canonicalResult(auth, auth.status !== 'success');
+    }
+    // The legacy branch below writes profiles and secrets without an exact project
+    // authority reference. Keep it inaccessible until it can honor that contract.
+    if (name === 'qap_auth_add' && !interactiveAccess && !unauthenticatedInteractiveAccess) {
+      return canonicalResult({ status: 'blocked', code: 'legacy_auth_operation_disabled' }, true);
     }
     if (name === 'qap_start') {
       if (!eventWorkspace || !options.workspaceBootstrap || !applicationService || !conversationId) {
@@ -1101,7 +1113,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
       const runScopedLogin = async (args: Record<string, unknown>, label: string) => {
         if (!scopedProject || !applicationService || !environment || !eventWorkspace) return false;
         const started = Date.now();
-        const bound = eventBinding;
+        const bound = eventBinding && { ...eventBinding, rootAuthorization: eventBinding.rootAuthorization && { ...eventBinding.rootAuthorization }, projectAccess: eventBinding.projectAccess && { ...eventBinding.projectAccess } };
         const authority = () => !!bound && bound.projectAccess?.projectId === scopedProject.project_id && !!options.workspaceBootstrap?.validateBinding(bound);
         const outcome = await authenticateScopedPassword(applicationService, scopedProject.project_id, environment,
           eventWorkspace, args, context.signal, authority);
@@ -1192,15 +1204,9 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
       const publicRevisions = revisions.filter(revision => revision.profile_id === null);
       const firstObservation = authenticatedObservation ?? publicRevisions.find(revision => revision.dossier.target_pathname === entryPath &&
         revision.dossier.views.length) ?? publicRevisions.find(revision => revision.dossier.views.length) ?? publicRevisions[0];
-      let indexPath: string | undefined;
-      if (project && applicationService && revisions.length) {
-        indexPath = '.qa/discovery/INDEX.md';
-        if (!existsSync(join(startWorkspace, indexPath)) ||
-            (firstObservation && !existsSync(join(startWorkspace, buildPublishedModuleDocRepoPath(firstObservation))))) {
-          writeDiscoveryMarkdownFiles(startWorkspace, project.project_id,
-            applicationService.listLatestDiscoveryRevisionsByScope(project.project_id), { regenerateAll: true });
-        }
-      }
+      const indexPath = existsSync(join(startWorkspace, '.qa/discovery/INDEX.md')) ? '.qa/discovery/INDEX.md' : undefined;
+      const firstDocPath = firstObservation && buildPublishedModuleDocRepoPath(firstObservation);
+      const availableFirstDocPath = firstDocPath && existsSync(join(startWorkspace, firstDocPath)) ? firstDocPath : undefined;
       const diagnostic = typeof auth?.code === 'string' ? auth.code
         : typeof discoveryAttempt.code === 'string' && (!auth || discoveryAttempt.code !== 'auth_required') ? discoveryAttempt.code
           : !auth ? firstObservation?.dossier.gaps.find(gap => gap.code === 'auth_required')?.code : undefined;
@@ -1212,7 +1218,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         ...(indexPath ? { index_path: indexPath } : {}),
         ...(firstObservation && dossier ? {
           revision_id: firstObservation.revision_id,
-          doc_path: buildPublishedModuleDocRepoPath(firstObservation),
+          ...(availableFirstDocPath ? { doc_path: availableFirstDocPath } : {}),
           reused: !discoveryAttempt.discovery_revision_id,
           counts: { ...dossier.route_counts, views: dossier.views.length,
             controls: dossier.views.reduce((sum, view) => sum + view.controls.length, 0),
@@ -1227,7 +1233,8 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         ...(revisions.length ? { documented_scopes: revisions.slice(0, 8).map(revision => ({
           revision_id: revision.revision_id, module: revision.module_key,
           access: revision.profile_id ? 'authenticated' : 'public',
-          doc_path: buildPublishedModuleDocRepoPath(revision),
+          ...(existsSync(join(startWorkspace, buildPublishedModuleDocRepoPath(revision)))
+            ? { doc_path: buildPublishedModuleDocRepoPath(revision) } : {}),
         })) } : {}),
       };
       const scan = state.scan as ReturnType<typeof generarScan> | undefined;
@@ -1247,7 +1254,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
           '- Vistas: ' + dossier.views.length,
           '- Rutas visitadas / candidatas / bloqueadas: ' +
             [dossier.route_counts.visited, dossier.route_counts.candidate, dossier.route_counts.blocked].join(' / '),
-          ...(firstObservation ? ['- [Expediente de la vista](' + buildPublishedModuleDocRepoPath(firstObservation).replace(/^\.qa\/discovery\//, '') + ')'] : []),
+          ...(availableFirstDocPath ? ['- [Expediente de la vista](' + availableFirstDocPath.replace(/^\.qa\/discovery\//, '') + ')'] : []),
           ...(indexPath ? ['- [Índice de Discovery](INDEX.md)'] : []),
           ...(discoverySummary.routes ?? []).map(route => '- Ruta ' + route.path.replace(/[^a-z\d/_.~-]/gi, '') + ' · ' + route.state +
             (route.reason === 'AUTH_REQUIRED' ? ' (pantalla de acceso)' : '')),
@@ -1464,23 +1471,6 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
             advertencias.push(
               `targetPath parece una subcarpeta del repositorio ${subcarpetaRepo}; para analizar todo el proyecto usa la raíz como targetPath`
             );
-          }
-
-          if (scan.documentos.length > 0) {
-            const topDoc = scan.documentos[0];
-            try {
-              const fullDocPath = resolve(rootDir, topDoc.path);
-              if (existsSync(fullDocPath)) {
-                const docRaw = readFileSync(fullDocPath, 'utf-8');
-                const parsed = parsePrdContent(docRaw, topDoc.path);
-                if (parsed.objective) {
-                  hallazgos.preliminar = {
-                    docPath: topDoc.path,
-                    objetivo: sanitizeDomString(parsed.objective).slice(0, 150).trim(),
-                  };
-                }
-              }
-            } catch { /* ignore */ }
           }
 
           const detectedService = serviciosConEvidencia.length > 0
@@ -2365,7 +2355,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
           }
 
           let inputDocPath = args.docPath || args.path;
-          if (!inputDocPath && !args.docContent && currentContext.source_of_truth?.ref) {
+          if (!inputDocPath && !args.docContent && !args.propuesta && currentContext.source_of_truth?.ref) {
             inputDocPath = currentContext.source_of_truth.ref;
           }
           const hasDocPath = Boolean(inputDocPath);
@@ -2401,86 +2391,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
             : undefined;
 
           if (hasDocPath) {
-            const rawPath = String(inputDocPath);
-            const ext = extname(rawPath).toLowerCase();
-            if (!['.md', '.markdown', '.txt'].includes(ext)) {
-              return {
-                isError: true,
-                content: [
-                  {
-                    type: 'text',
-                    text: JSON.stringify(
-                      {
-                        status: 'error',
-                        isError: true,
-                        code: 'unsupported_document_format',
-                        directorio_objetivo: rootDir,
-                        error: `Formato '${ext || '(sin extensión)'}' no admitido en este corte. Solo se admiten texto o Markdown (.md, .markdown, .txt).`,
-                        format_limits: scopeLimits ?? {
-                          supported_doc_formats: ['.md', '.markdown', '.txt'],
-                          max_doc_bytes: 512 * 1024,
-                        },
-                      },
-                      null,
-                      2
-                    ),
-                  },
-                ],
-              };
-            }
-
-            const resolved = resolverDocumento(rootDir, rawPath);
-            if (!resolved) {
-              return {
-                isError: true,
-                content: [
-                  {
-                    type: 'text',
-                    text: JSON.stringify(
-                      {
-                        status: 'error',
-                        isError: true,
-                        directorio_objetivo: rootDir,
-                        error: `Archivo no encontrado o fuera del workspace: ${rawPath}`,
-                      },
-                      null,
-                      2
-                    ),
-                  },
-                ],
-              };
-            }
-
-            const docAbsPath = resolve(rootDir, resolved.path);
-            const stats = statSync(docAbsPath);
-            if (stats.size > 512 * 1024) {
-              return {
-                isError: true,
-                content: [
-                  {
-                    type: 'text',
-                    text: JSON.stringify(
-                      {
-                        status: 'error',
-                        isError: true,
-                        code: 'document_size_limit_exceeded',
-                        directorio_objetivo: rootDir,
-                        error: 'Tamaño de archivo excedido: máximo 512 KB.',
-                        format_limits: scopeLimits ?? {
-                          supported_doc_formats: ['.md', '.markdown', '.txt'],
-                          max_doc_bytes: 512 * 1024,
-                        },
-                      },
-                      null,
-                      2
-                    ),
-                  },
-                ],
-              };
-            }
-
-            rawContent = readFileSync(docAbsPath, 'utf-8');
-            docRef = resolved.path;
+            return canonicalResult({ status: 'error', code: 'direct_document_path_unavailable', error: 'La lectura directa de documentos por ruta no está disponible en este corte. Proporciona el contenido mediante docContent.' }, true);
           } else if (hasDocContent) {
             rawContent = String(args.docContent);
             if (Buffer.byteLength(rawContent, 'utf-8') > 512 * 1024) {

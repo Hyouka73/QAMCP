@@ -3,18 +3,24 @@ import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { execFileSync } from 'node:child_process';
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { expect, it } from 'vitest';
 
 const serverPath = resolve(dirname(fileURLToPath(import.meta.url)), '../../dist/server.js');
+function authorize(workspace: string, host: string) {
+  execFileSync(process.execPath, [resolve(dirname(fileURLToPath(import.meta.url)), '../../../../scripts/qap-authorize-workspace.mjs'), workspace],
+    { env: { ...process.env, QAP_MCP_APP_SERVICE_DIR: join(host, 'application'), QAP_MCP_WORKSPACE_HOST_DIR: join(host, 'workspaces') }, windowsHide: true });
+}
 
 it.runIf(process.platform === 'win32')('persists the scoped login across Stdio restarts and renews an expired session from the keychain', async () => {
   const base = realpathSync(mkdtempSync(join(tmpdir(), 'qap-start-auth-')));
   const workspace = join(base, 'workspace');
   mkdirSync(workspace);
   const host = join(base, 'host');
+  authorize(workspace, host);
   const username = 'qap-fixture-user';
   const password = 'qap-fixture-pass';
   let posts = 0;
@@ -101,6 +107,7 @@ it('starts from a client without roots or elicitation and persists separate MCP 
   const outside = join(base, 'outside');
   mkdirSync(workspace);
   mkdirSync(outside);
+  authorize(workspace, join(base, 'host'));
   let siteRequests = 0;
   const requestedMethods: string[] = [];
   const site = createServer((request, response) => {
@@ -146,7 +153,7 @@ it('starts from a client without roots or elicitation and persists separate MCP 
     expect(existsSync(join(outside, '.qa'))).toBe(false);
     expect(await call('qap_start', { base_url: 'https://fixture:private@example.test/' })).toMatchObject({ code: 'invalid_arguments' });
     const start = await call('qap_start', { base_url: 'http://127.0.0.1:' + address.port });
-    expect(start).toMatchObject({ status: 'success', initialized: true, fase: 'ONBOARDING',
+    expect(start, JSON.stringify(start)).toMatchObject({ status: 'success', initialized: true, fase: 'ONBOARDING',
       conversation_id: expect.any(String), discovery_inicial: {
         status: 'partial', code: 'auth_required', notes_path: '.qa/discovery/INICIO.md',
         counts: { views: 1, forms: 1 }, routes: expect.arrayContaining([
@@ -171,13 +178,17 @@ it('starts from a client without roots or elicitation and persists separate MCP 
     writeFileSync(join(workspace, 'pages', 'report.tsx'), 'export default function Report() { return null; }');
     writeFileSync(join(workspace, 'manual.md'), '# Manual de operaciones\n\nConsulta de reportes por oficina y fecha.');
     rmSync(join(workspace, first.doc_path));
+    rmSync(join(workspace, '.qa/discovery/INDEX.md'));
     await connect();
     expect(await call('qap_status', { targetPath: workspace, conversation_id: start.conversation_id })).toMatchObject({ initialized: true });
     const second = await call('qap_start', { targetPath: workspace });
     expect(second.conversation_id).not.toBe(start.conversation_id);
     expect(second.discovery_inicial).toMatchObject({ revision_id: first.revision_id, reused: true });
     expect(siteRequests).toBe(previousRequests);
-    expect(existsSync(join(workspace, first.doc_path))).toBe(true);
+    expect(existsSync(join(workspace, first.doc_path))).toBe(false);
+    expect(existsSync(join(workspace, '.qa/discovery/INDEX.md'))).toBe(false);
+    expect(second.discovery_inicial).not.toHaveProperty('doc_path');
+    expect(second.discovery_inicial).not.toHaveProperty('index_path');
     const resumeNotes = readFileSync(join(workspace, '.qa/discovery/INICIO.md'), 'utf8');
     expect(resumeNotes).toContain('manual.md');
     expect(resumeNotes).toContain('/report');
@@ -189,4 +200,41 @@ it('starts from a client without roots or elicitation and persists separate MCP 
     await new Promise<void>((done, reject) => site.close(error => error ? reject(error) : done()));
     rmSync(base, { recursive: true, force: true });
   }
+}, 45_000);
+
+it('does not publish discovery after observe G1 is revoked and replaced during navigation', async () => {
+  const base = realpathSync(mkdtempSync(join(tmpdir(), 'qap-observe-fence-')));
+  const workspace = join(base, 'workspace'), host = join(base, 'host'); mkdirSync(workspace); authorize(workspace, host);
+  let release!: () => void, entered!: () => void;
+  const barrier = new Promise<void>(resolve => { release = resolve; });
+  const arrived = new Promise<void>(resolve => { entered = resolve; });
+  const site = createServer(async (_request, response) => {
+    entered(); await barrier; response.writeHead(200, { 'content-type': 'text/html' }).end('<h1>Visible</h1>');
+  });
+  await new Promise<void>(done => site.listen(0, '127.0.0.1', done));
+  const client = new Client({ name: 'observe-fence', version: '1' });
+  try {
+    await client.connect(new StdioClientTransport({ command: process.execPath, args: [serverPath], stderr: 'pipe',
+      env: { PATH: process.env.PATH ?? '', NODE_ENV: 'test', QAP_MCP_HOST_DATA_DIR: host, QAP_MCP_WORKSPACE_ROOT: workspace,
+        ...(process.env.PLAYWRIGHT_BROWSERS_PATH ? { PLAYWRIGHT_BROWSERS_PATH: process.env.PLAYWRIGHT_BROWSERS_PATH } : {}) } }));
+    const url = 'http://127.0.0.1:' + (site.address() as { port: number }).port;
+    const pending = client.callTool({ name: 'qap_start', arguments: { targetPath: workspace, base_url: url } });
+    await arrived;
+    const { QapApplicationService } = await import('../application/application-service.js');
+    const service = new QapApplicationService({ hostRootDir: join(host, 'application'), projectOperationDirectory: join(host, 'workspaces') });
+    const project = service.findActiveProjectByRoot(workspace)!;
+    const grant = service.authority.listGrants(project.project_id).find(item => item.capability === 'observe')!;
+    service.authority.revokeGrant(project.project_id, grant.grant_id);
+    service.authority.grant({ project_id: project.project_id, capability: 'observe', scope: grant.scope, granted_by: 'test' });
+    release();
+    await pending;
+    expect(service.listLatestDiscoveryRevisionsByScope(project.project_id)).toHaveLength(0);
+    expect(existsSync(join(workspace, '.qa/discovery/INDEX.md'))).toBe(false);
+    const { workspaceStorageKey } = await import('../project-reset.js');
+    const { DatabaseSync } = await import('node:sqlite');
+    const knowledge = new DatabaseSync(join(host, 'workspaces', workspaceStorageKey(workspace), 'knowledge.sqlite'));
+    expect(knowledge.prepare("SELECT count(*) AS n FROM knowledge_revisions WHERE kind IN ('observation', 'evidence')").get()).toMatchObject({ n: 0 });
+    knowledge.close();
+    service.close();
+  } finally { release?.(); await client.close(); await new Promise<void>(done => site.close(() => done())); rmSync(base, { recursive: true, force: true }); }
 }, 45_000);

@@ -1,12 +1,16 @@
 import { createServer, type Server as HttpServer } from 'node:http';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import os from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import type { AddressInfo } from 'node:net';
 
 import YAML from 'yaml';
 import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vitest';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { FileSystemStorage, LockManager, SemanticHasher } from '@qap/knowledge';
 import { SchemaValidator, type TCCase } from '@qap/shared';
@@ -15,11 +19,15 @@ import { PlaywrightRunner } from '@qap/playwright-runner';
 import { createMcpServer } from '../server.js';
 import { PlanHandler, computeCasesFingerprint } from '../handlers/plan.handler.js';
 import { TestHandler, type TestNavigationAuthorization } from '../handlers/test.handler.js';
+import { QapApplicationService } from '../application/application-service.js';
+import { WorkspaceBootstrap } from '../workspace-bootstrap.js';
+import { workspaceStorageKey } from '../project-reset.js';
 
 const tempDirs: string[] = [];
 let localHttpServer: HttpServer | null = null;
 let localServerPort = 0;
 let localServerUrl = '';
+let navigationBarrier: { arrived: () => void; released: Promise<void> } | undefined;
 const pendingInvocations: Promise<unknown>[] = [];
 const invocationControllers: AbortController[] = [];
 const executeHandler = TestHandler.prototype.execute;
@@ -121,8 +129,9 @@ async function startLocalHttpServer(): Promise<{ server: HttpServer; port: numbe
     const server = createServer((req, res) => {
       const url = req.url || '/';
       if (url === '/approved') {
-        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-        res.end('<!DOCTYPE html><html><body><h1 id="title">Approved Page</h1></body></html>');
+        const respond = () => res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }).end('<!DOCTYPE html><html><body><h1 id="title">Approved Page</h1></body></html>');
+        const barrier = navigationBarrier;
+        if (barrier) { barrier.arrived(); void barrier.released.then(respond); } else respond();
       } else if (url === '/failed') {
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
         res.end('<!DOCTYPE html><html><body><h1 id="title">Denied Page</h1></body></html>');
@@ -362,7 +371,7 @@ describe('TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4
     await generateLegitimatePlan(root, 'orders', 'local');
 
     const auths: TestNavigationAuthorization[] = [{ allowedOrigins: ['http://127.0.0.1:*'] }];
-    const runnerSpy = vi.spyOn(PlaywrightRunner.prototype, 'execute');
+    const runnerSpy = vi.spyOn(PlaywrightRunner.prototype, 'prepare');
 
     const handler = new TestHandler({ projectRoots: [root] }, auths);
 
@@ -536,7 +545,7 @@ describe('TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4
     expect(dataRogue.code).toBe('unauthorized_profile');
 
     // 7c. Runner called with allowImplicitAuth: false
-    const runnerSpy = vi.spyOn(PlaywrightRunner.prototype, 'execute');
+    const runnerSpy = vi.spyOn(PlaywrightRunner.prototype, 'prepare');
     await handler.execute(
       { module: 'secure-mod', targetPath: root, profile: 'tester-user' },
       { requestId: 'test-scen-7c', signal: new AbortController().signal }
@@ -677,9 +686,9 @@ describe('TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4
     expect(existsSync(sqlitePath)).toBe(false);
   });
 
-  // Scenario 12: Integración mediante MCP y conservación de 18 herramientas
-  it('Scenario 12: integrates cleanly via createMcpServer preserving exact 18 tools (R4.12)', async () => {
-    const root = initProject(localServerUrl);
+  // Scenario 12: Integración mediante MCP y conservación del catálogo vigente
+  it('Scenario 12: integrates cleanly via createMcpServer preserving exact 19 tools (R4.12)', async () => {
+    const root = realpathSync(initProject(localServerUrl));
     seedModule(root, 'mcp-mod');
     seedTestCase(root, 'mcp-mod', 'TC-001', {
       steps: [
@@ -689,9 +698,36 @@ describe('TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4
     });
     await generateLegitimatePlan(root, 'mcp-mod', 'local');
 
+    const host = createTempDir('qap-host-');
+    mkdirSync(host, { recursive: true });
+    const appDir = join(host, 'application');
+    const workspaceDir = join(host, 'workspaces');
+    execFileSync(process.execPath, [resolve('../../scripts/qap-authorize-workspace.mjs'), root], {
+      env: { ...process.env, QAP_MCP_APP_SERVICE_DIR: appDir, QAP_MCP_WORKSPACE_HOST_DIR: workspaceDir }, windowsHide: true,
+    });
+    const service = new QapApplicationService({ hostRootDir: appDir, projectOperationDirectory: workspaceDir });
+    const bootstrap = new WorkspaceBootstrap(workspaceDir, service);
+    await bootstrap.prepare(root, localServerUrl);
+    const otherRoot = realpathSync(initProject(localServerUrl));
+    execFileSync(process.execPath, [resolve('../../scripts/qap-authorize-workspace.mjs'), otherRoot], {
+      env: { ...process.env, QAP_MCP_APP_SERVICE_DIR: appDir, QAP_MCP_WORKSPACE_HOST_DIR: workspaceDir }, windowsHide: true,
+    });
+    await bootstrap.prepare(otherRoot, localServerUrl);
+    const project = service.findActiveProjectByRoot(root)!;
+    const g1 = service.authority.grant({ project_id: project.project_id, capability: 'execute', scope: { root_path: root, origin: localServerUrl }, granted_by: 'test' });
+    const proposed = service.proposeModuleCases({ projectId: project.project_id, moduleKey: 'mcp-mod', proposals: [{
+      case_id: 'TC-001', title: 'Test Case TC-001', expected_outcome: 'Approved Page', oracle_source: 'user',
+      expectation_metadata: { decision_status: 'accredited' },
+      steps: [{ type: 'navigate', url: `${localServerUrl}/approved` }, { type: 'assert', selector: '#title', assertion_type: 'visible' }],
+    }] });
+    expect(proposed.proposed).toHaveLength(1);
+    expect(service.approveCaseBatch({ projectId: project.project_id, moduleKey: 'mcp-mod', caseIds: ['TC-001'], approvedBy: 'test' }).status).toBe('approved');
     const server = createMcpServer({
       projectRoots: [root],
       testAuthorizations: [{ allowedOrigins: ['http://127.0.0.1:*'] }],
+      applicationService: service,
+      workspaceBootstrap: bootstrap,
+      hostRegistryPath: join(workspaceDir, 'authorized-roots.json'),
     });
 
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
@@ -699,9 +735,9 @@ describe('TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4
     await server.connect(serverTransport);
     await client.connect(clientTransport);
 
-    // Verify exactly 20 tools
+    // Verify the current public catalog
     const tools = await client.listTools();
-    expect(tools.tools).toHaveLength(21);
+    expect(tools.tools).toHaveLength(19);
     const toolNames = tools.tools.map(t => t.name);
     expect(toolNames).toContain('qap_test');
     expect(toolNames).toContain('qap_plan');
@@ -714,14 +750,162 @@ describe('TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4
       arguments: { module: 'mcp-mod', targetPath: root, environment: 'local' },
     });
 
-    expect(callRes.isError).toBeFalsy();
+    expect(callRes.isError, JSON.stringify(callRes)).toBeFalsy();
     const data = JSON.parse((callRes.content as any)[0].text);
     expect(data.status).toBe('success');
     expect(data.result).toBe('passed');
 
     await client.close();
     await server.close();
-  });
+    const connectStdio = async () => {
+      const c = new Client({ name: 'publication-integration', version: '1' });
+      await c.connect(new StdioClientTransport({ command: process.execPath, args: [resolve('dist/server.js')], stderr: 'pipe',
+        env: { ...process.env, QAP_MCP_HOST_DATA_DIR: host, QAP_MCP_WORKSPACE_ROOT: root, NODE_ENV: 'test' } as Record<string, string> }));
+      return c;
+    };
+    const first = await connectStdio();
+    const second = await connectStdio();
+    try {
+      const call = () => first.callTool({ name: 'qap_test', arguments: { module: 'mcp-mod', targetPath: root, environment: 'local' } });
+      const positive = await call();
+      expect(positive.isError, JSON.stringify(positive)).toBeFalsy();
+      expect(JSON.parse((positive.content as any)[0].text).result).toBe('passed');
+      const { DatabaseSync } = await import('node:sqlite');
+      const runtimeDb = join(root, '.qa/runtime/qap.sqlite');
+      const rows = () => { const db = new DatabaseSync(runtimeDb, { readOnly: true }); try { return db.prepare('SELECT * FROM runs ORDER BY run_id').all(); } finally { db.close(); } };
+      const files = (p: string): string[] => existsSync(p) ? readdirSync(p, { recursive: true }).map(String).sort() : [];
+      const knowledge = () => {
+        const db = new DatabaseSync(join(workspaceDir, workspaceStorageKey(root), 'knowledge.sqlite'), { readOnly: true });
+        try { return db.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all().map(({ name }) => {
+          const table = String(name).replaceAll('"', '""');
+          return [name, db.prepare(`SELECT * FROM "${table}"`).all()];
+        }); } finally { db.close(); }
+      };
+      const otherFiles = () => files(join(otherRoot, '.qa')).filter(p => statSync(join(otherRoot, '.qa', p)).isFile()).map(p => [p, createHash('sha256').update(readFileSync(join(otherRoot, '.qa', p))).digest('hex')]);
+      const beforeRows = rows();
+      const beforeRuns = files(join(root, '.qa/runtime/runs'));
+      const beforeShots = files(join(root, '.qa/reports/screenshots'));
+      const beforeAttempts = service.listExecutionAttempts(project.project_id);
+      const beforeKnowledge = knowledge();
+      const beforeOther = otherFiles();
+      let arrived!: () => void, release!: () => void;
+      const entered = new Promise<void>(resolve => { arrived = resolve; });
+      navigationBarrier = { arrived, released: new Promise<void>(resolve => { release = resolve; }) };
+      const pending = call();
+      try {
+        await entered;
+        const revoked = await second.callTool({ name: 'qap_project', arguments: { action: 'revoke_permission', project_id: project.project_id, targetPath: root, grant_id: g1.grant_id } });
+        expect(revoked.isError, JSON.stringify(revoked)).toBeFalsy();
+        service.authority.grant({ project_id: project.project_id, capability: 'execute', scope: { root_path: root, origin: localServerUrl }, granted_by: 'test' });
+      } finally { navigationBarrier = undefined; release(); }
+      const rejected = await pending;
+      expect(rejected.isError, JSON.stringify(rejected)).toBe(true);
+      expect(JSON.parse((rejected.content as any)[0].text).code).toBe('operation_grant_revoked');
+      expect(rows()).toEqual(beforeRows);
+      expect(files(join(root, '.qa/runtime/runs'))).toEqual(beforeRuns);
+      expect(files(join(root, '.qa/reports/screenshots'))).toEqual(beforeShots);
+      expect(service.listExecutionAttempts(project.project_id)).toEqual(beforeAttempts);
+      expect(knowledge()).toEqual(beforeKnowledge);
+      expect(otherFiles()).toEqual(beforeOther);
+    } finally { await first.close(); await second.close(); }
+    // Kill a real publisher after run.json reaches disk and let a fresh MCP host recover it.
+    const { DatabaseSync } = await import('node:sqlite');
+    const reporterUrl = pathToFileURL(resolve('../reporter/dist/index.js')).href;
+    const runnerUrl = pathToFileURL(resolve('../playwright-runner/dist/index.js')).href;
+    const { QapDatabase, startViewerServer } = await import(reporterUrl);
+    const viewer = await startViewerServer({ storage: { getProjectRoot: () => root }, port: 0, host: '127.0.0.1', silent: true });
+    const runner = new PlaywrightRunner({ projectRoot: root });
+    const prepared = await runner.prepare({ modules: ['mcp-mod'], cases: ['TC-CRASH'], environment: 'local' }, {
+      attemptId: 'interrupted-host-recovery', allowImplicitAuth: false, lock_owned_by_caller: true,
+      storageResolver: async () => ({ _version: '1', id: 'TC-CRASH', name: 'Crash', steps: [
+        { type: 'navigate', url: `${localServerUrl}/approved` },
+        { type: 'assert', selector: '#title', assertion_type: 'visible' },
+        { type: 'screenshot', filename: 'crash.png' },
+      ] }) as any,
+    });
+    expect(prepared.result.result).toBe('passed');
+    const snapshot = (dir: string): Array<[string, string]> => existsSync(dir)
+      ? readdirSync(dir, { recursive: true }).map(String).sort().filter(p => statSync(join(dir, p)).isFile())
+        .map(p => [p, createHash('sha256').update(readFileSync(join(dir, p))).digest('hex')]) : [];
+    const otherBefore = snapshot(join(otherRoot, '.qa'));
+    const dbRows = () => { const db = new DatabaseSync(join(root, '.qa/runtime/qap.sqlite'), { readOnly: true });
+      try { return db.prepare('SELECT * FROM runs ORDER BY run_id').all(); } finally { db.close(); } };
+    let before = dbRows();
+    expect(before.length).toBeGreaterThan(0);
+    const committedBefore = snapshot(join(root, '.qa/runtime/runs'));
+    const childCode = `
+      import fs from 'node:fs';
+      const original = fs.writeFileSync;
+      fs.writeFileSync = function(p, ...args) {
+        const result = original.call(this, p, ...args);
+        if (typeof p === 'string' && p.endsWith('run.json')) {
+          fs.writeSync(1, 'BARRIER\\n');
+          Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0);
+        }
+        return result;
+      };
+      const m = await import(process.argv[1]);
+      m.publishProvisionalExecution(m.loadProvisionalExecution(process.argv[2]));`;
+    const child = spawn(process.execPath, ['--input-type=module', '-e', childCode, runnerUrl, prepared.operationId], { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
+    let stderr = '';
+    child.stderr.setEncoding('utf8'); child.stderr.on('data', chunk => { stderr += chunk; });
+    try {
+      await new Promise<void>((resolveBarrier, reject) => {
+        const timeout = setTimeout(() => reject(new Error(`publisher barrier timeout: ${stderr}`)), 30000);
+        child.stdout.setEncoding('utf8');
+        child.stdout.on('data', chunk => { if (chunk.includes('BARRIER')) { clearTimeout(timeout); resolveBarrier(); } });
+        child.once('exit', code => { clearTimeout(timeout); reject(new Error(`publisher exited ${code}: ${stderr}`)); });
+      });
+      const runDir = join(root, '.qa/runtime/runs/interrupted-host-recovery');
+      const runUrl = `${viewer.url}/artifacts/runtime/runs/interrupted-host-recovery/run.json`;
+      const shotUrl = `${viewer.url}/artifacts/${prepared.result.artifacts!.screenshots![0].replace(/^\.qa\//, '')}`;
+      expect(existsSync(join(runDir, 'run.json'))).toBe(true);
+      expect(existsSync(join(runDir, '.qap-publication-pending'))).toBe(true);
+      expect(dbRows()).toEqual(before);
+      expect((await fetch(runUrl)).status).toBe(404);
+      expect((await fetch(shotUrl)).status).toBe(404);
+      const preReport = new QapDatabase(join(root, '.qa/runtime'));
+      expect(preReport.getRun('interrupted-host-recovery')).toBeNull();
+      preReport.reindex();
+      expect(preReport.getRun('interrupted-host-recovery')).toBeNull();
+      preReport.close();
+      before = dbRows(); // Reporter reindex normalizes nullable git fields on existing runs.
+      const exited = new Promise(resolveExit => child.once('exit', resolveExit));
+      child.kill('SIGKILL'); await exited;
+      expect(existsSync(join(runDir, 'run.json'))).toBe(true);
+      const restarted = await connectStdio();
+      try {
+        for (let i = 0; i < 2; i++) {
+          const opened = await restarted.callTool({ name: 'qap_status', arguments: { targetPath: root } });
+          expect(opened.isError, JSON.stringify(opened)).toBeFalsy();
+          expect(existsSync(runDir)).toBe(false);
+          expect(dbRows()).toEqual(before);
+          expect(snapshot(join(root, '.qa/runtime/runs'))).toEqual(committedBefore);
+          expect(snapshot(join(otherRoot, '.qa'))).toEqual(otherBefore);
+          expect((await fetch(runUrl)).status).toBe(404);
+          expect((await fetch(shotUrl)).status).toBe(404);
+          const report = new QapDatabase(join(root, '.qa/runtime'));
+          expect(report.getRun('interrupted-host-recovery')).toBeNull();
+          report.reindex();
+          expect(report.getRun('interrupted-host-recovery')).toBeNull();
+          report.close();
+        }
+      } finally { await restarted.close(); }
+      expect(existsSync(join(root, '.qa/reports/screenshots', prepared.operationId))).toBe(false);
+      if (process.env.QAP_ACCEPTANCE_EVIDENCE) writeFileSync(process.env.QAP_ACCEPTANCE_EVIDENCE, JSON.stringify({
+        result: 'PASS', chromium: prepared.result.result, operationId: prepared.operationId,
+        barrier: 'run.json persisted before SQLite commit', physicalTermination: true,
+        reporterBeforeAndAfter: 404, sqliteRowsBeforeAndAfter: before.length,
+        automaticMcpReopenCount: 2, interruptedRunRemoved: true, committedRunFilesPreserved: committedBefore.length,
+        projectBFilesPreserved: otherBefore.length,
+      }, null, 2));
+    } finally {
+      if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
+      await viewer.close();
+    }
+    bootstrap.close();
+    service.close();
+  }, 90_000);
 
   // Scenario 13: Physical Chromium Execution against isolated local HTTP server (PASS and FAIL)
   it('Scenario 13: physical Playwright Chromium execution against isolated local HTTP fixture (Real PASS & FAIL)', async () => {
@@ -932,4 +1116,420 @@ describe('VNEXT-014-D preflight — execution evidence integrity', () => {
     expect(saved.result).toBe('error');
     expect(saved.summary.not_run).toBe(1);
   });
+});
+
+describe('Post-commit consistency & MCP crash recovery acceptance (C, D, E, F)', () => {
+  const runtimeGlobals = globalThis as unknown as {
+    process: { execPath: string; env: Record<string, string | undefined> };
+    setTimeout: (cb: () => void, ms: number) => unknown;
+    clearTimeout: (handle: unknown) => void;
+    fetch: (url: string) => Promise<{ status: number }>;
+  };
+
+  async function setupAuthorizedMcpWorkspace() {
+    const root = realpathSync(initProject(localServerUrl));
+    const otherRoot = realpathSync(initProject(localServerUrl));
+    seedModule(root, 'mcp-mod');
+    seedTestCase(root, 'mcp-mod', 'TC-001', {
+      steps: [
+        { type: 'navigate', url: `${localServerUrl}/approved` },
+        { type: 'assert', selector: '#title', assertion_type: 'visible', timeout: 2000 },
+      ],
+    });
+    await generateLegitimatePlan(root, 'mcp-mod', 'local');
+
+    const host = createTempDir('qap-postcommit-host-');
+    mkdirSync(host, { recursive: true });
+    const appDir = join(host, 'application');
+    const workspaceDir = join(host, 'workspaces');
+
+    execFileSync(runtimeGlobals.process.execPath, [resolve('../../scripts/qap-authorize-workspace.mjs'), root], {
+      env: { ...runtimeGlobals.process.env, QAP_MCP_APP_SERVICE_DIR: appDir, QAP_MCP_WORKSPACE_HOST_DIR: workspaceDir },
+      windowsHide: true,
+    });
+    execFileSync(runtimeGlobals.process.execPath, [resolve('../../scripts/qap-authorize-workspace.mjs'), otherRoot], {
+      env: { ...runtimeGlobals.process.env, QAP_MCP_APP_SERVICE_DIR: appDir, QAP_MCP_WORKSPACE_HOST_DIR: workspaceDir },
+      windowsHide: true,
+    });
+
+    const service = new QapApplicationService({ hostRootDir: appDir, projectOperationDirectory: workspaceDir });
+    const bootstrap = new WorkspaceBootstrap(workspaceDir, service);
+    await bootstrap.prepare(root, localServerUrl);
+    await bootstrap.prepare(otherRoot, localServerUrl);
+
+    const project = service.findActiveProjectByRoot(root)!;
+    const executeGrant = service.authority.grant({
+      project_id: project.project_id,
+      capability: 'execute',
+      scope: { root_path: root, origin: localServerUrl },
+      granted_by: 'test',
+    });
+    const proposed = service.proposeModuleCases({
+      projectId: project.project_id,
+      moduleKey: 'mcp-mod',
+      proposals: [
+        {
+          case_id: 'TC-001',
+          title: 'Test Case TC-001',
+          expected_outcome: 'Approved Page',
+          oracle_source: 'user',
+          expectation_metadata: { decision_status: 'accredited' },
+          steps: [
+            { type: 'navigate', url: `${localServerUrl}/approved` },
+            { type: 'assert', selector: '#title', assertion_type: 'visible' },
+          ],
+        },
+      ],
+    });
+    expect(proposed.proposed).toHaveLength(1);
+    expect(
+      service.approveCaseBatch({
+        projectId: project.project_id,
+        moduleKey: 'mcp-mod',
+        caseIds: ['TC-001'],
+        approvedBy: 'test',
+      }).status,
+    ).toBe('approved');
+
+    bootstrap.close();
+    service.close();
+
+    return { root, otherRoot, host, appDir, workspaceDir, projectId: project.project_id, executeGrantId: executeGrant.grant_id };
+  }
+
+  const snapshotTree = (dir: string): Array<[string, string]> =>
+    existsSync(dir)
+      ? readdirSync(dir, { recursive: true })
+          .map(String)
+          .sort()
+          .filter((p: string) => statSync(join(dir, p)).isFile())
+          .map((p: string) => [p, createHash('sha256').update(readFileSync(join(dir, p))).digest('hex')])
+      : [];
+
+  it('C & E: recovers a crash after SQLite COMMIT without relaunching Chromium, preserves IDs, is idempotent, and isolates neighbor projects', async () => {
+    const { root, otherRoot, host, appDir, workspaceDir, projectId } = await setupAuthorizedMcpWorkspace();
+    const otherBefore = snapshotTree(join(otherRoot, '.qa'));
+    const mcpIndexUrl = pathToFileURL(resolve('dist/index.js')).href;
+    const reporterUrl = pathToFileURL(resolve('../reporter/dist/index.js')).href;
+    const { QapDatabase, startViewerServer } = await import(reporterUrl);
+
+    // Child runs real MCP TestHandler with real Chromium, then stalls at deterministic barrier AFTER SQLite COMMIT
+    // and BEFORE FileSystemStorage.saveExecutionResult + finalizeExecutionAttempt.
+    const childScript = `
+      import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+      import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+      import { FileSystemStorage } from '@qap/knowledge';
+      import fs from 'node:fs';
+
+      const originalSave = FileSystemStorage.prototype.saveExecutionResult;
+      FileSystemStorage.prototype.saveExecutionResult = async function(...args) {
+        fs.writeSync(1, 'POST_COMMIT_BARRIER:' + args[0] + '\\n');
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0);
+        return originalSave.apply(this, args);
+      };
+
+      const { createMcpServer, QapApplicationService, WorkspaceBootstrap } = await import(process.argv[1]);
+      const [root, appDir, workspaceDir, url] = process.argv.slice(2);
+      const service = new QapApplicationService({ hostRootDir: appDir, projectOperationDirectory: workspaceDir });
+      const bootstrap = new WorkspaceBootstrap(workspaceDir, service);
+      const server = createMcpServer({
+        projectRoots: [root],
+        testAuthorizations: [{ projectRoot: root, allowedOrigins: [url] }],
+        applicationService: service,
+        workspaceBootstrap: bootstrap,
+        hostRegistryPath: workspaceDir + '/authorized-roots.json',
+      });
+      const [ct, st] = InMemoryTransport.createLinkedPair();
+      const client = new Client({ name: 'crash-post-commit', version: '1' }, { capabilities: {} });
+      await server.connect(st);
+      await client.connect(ct);
+      await client.callTool({ name: 'qap_test', arguments: { module: 'mcp-mod', targetPath: root, environment: 'local' } });
+    `;
+
+    const child = spawn(
+      runtimeGlobals.process.execPath,
+      ['--input-type=module', '-e', childScript, mcpIndexUrl, root, appDir, workspaceDir, localServerUrl],
+      { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true },
+    );
+    let stderr = '';
+    let executionId = '';
+    child.stderr.setEncoding('utf8');
+    child.stderr.on('data', (chunk: string) => { stderr += chunk; });
+
+    try {
+      await new Promise<void>((resolveBarrier, reject) => {
+        const timeout = runtimeGlobals.setTimeout(() => reject(new Error(`post-commit barrier timeout: ${stderr}`)), 45000);
+        child.stdout.setEncoding('utf8');
+        child.stdout.on('data', (chunk: string) => {
+          const match = chunk.match(/POST_COMMIT_BARRIER:([^\r\n]+)/);
+          if (match) {
+            executionId = match[1].trim();
+            runtimeGlobals.clearTimeout(timeout);
+            resolveBarrier();
+          }
+        });
+        child.once('exit', (code: number | null) => {
+          runtimeGlobals.clearTimeout(timeout);
+          reject(new Error(`child exited ${code}: ${stderr}`));
+        });
+      });
+
+      // Verify pre-kill state: runtime SQLite already has 1 committed run, attempt is still 'running' with 0 case results
+      const preDb = new QapDatabase(join(root, '.qa/runtime'), false, { readOnly: true });
+      const preRuns = preDb.listRuns() as Array<{ run_id: string }>;
+      preDb.close();
+      expect(preRuns).toHaveLength(1);
+      const attemptId = preRuns[0].run_id;
+      expect(existsSync(join(root, '.qa/executions', `${executionId}.json`))).toBe(false);
+
+      const preService = new QapApplicationService({ hostRootDir: appDir, projectOperationDirectory: workspaceDir });
+      const preAttempts = preService.listExecutionAttempts(projectId, 'mcp-mod');
+      expect(preAttempts).toHaveLength(1);
+      expect(preAttempts[0].attempt_id).toBe(attemptId);
+      expect(preAttempts[0].execution_id).toBe(executionId);
+      expect(preAttempts[0].status).toBe('running');
+      expect(preService.getExecutionSummary(projectId, 'mcp-mod').case_verdicts).toHaveLength(0);
+      preService.close();
+
+      // Physically terminate process after SQLite COMMIT
+      const exited = new Promise((resolveExit) => child.once('exit', resolveExit));
+      child.kill('SIGKILL');
+      await exited;
+    } finally {
+      if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
+    }
+
+    // Reopen fresh MCP host via stdio WITHOUT running qap_test / Chromium; repeat qap_status for idempotency
+    const restarted = new Client({ name: 'post-commit-restart', version: '1' });
+    await restarted.connect(
+      new StdioClientTransport({
+        command: runtimeGlobals.process.execPath,
+        args: [resolve('dist/server.js')],
+        stderr: 'pipe',
+        env: { ...runtimeGlobals.process.env, QAP_MCP_HOST_DATA_DIR: host, QAP_MCP_WORKSPACE_ROOT: root, NODE_ENV: 'test' } as Record<string, string>,
+      }),
+    );
+    const viewer = await startViewerServer({ storage: { getProjectRoot: () => root }, port: 0, host: '127.0.0.1', silent: true });
+    try {
+      for (let i = 0; i < 3; i++) {
+        const opened = await restarted.callTool({ name: 'qap_status', arguments: { targetPath: root } });
+        expect(opened.isError, JSON.stringify(opened)).toBeFalsy();
+      }
+
+      const postDb = new QapDatabase(join(root, '.qa/runtime'), false, { readOnly: true });
+      const postRuns = postDb.listRuns() as Array<{ run_id: string }>;
+      postDb.close();
+      expect(postRuns).toHaveLength(1);
+      const attemptId = postRuns[0].run_id;
+
+      expect(existsSync(join(root, '.qa/runtime/runs', attemptId, '.qap-committed'))).toBe(true);
+      expect(existsSync(join(root, '.qa/runtime/runs', attemptId, '.qap-publication-pending'))).toBe(false);
+      expect(existsSync(join(root, '.qa/executions', `${executionId}.json`))).toBe(true);
+      expect(existsSync(join(root, '.qa/cache/history/mcp-mod.jsonl'))).toBe(true);
+
+      const historyLines = readFileSync(join(root, '.qa/cache/history/mcp-mod.jsonl'), 'utf8')
+        .trim()
+        .split(/\r?\n/)
+        .filter(Boolean);
+      expect(historyLines).toHaveLength(1);
+
+      const reportDb = new QapDatabase(join(root, '.qa/runtime'));
+      expect(reportDb.getRun(attemptId)?.runId).toBe(attemptId);
+      reportDb.close();
+      expect((await runtimeGlobals.fetch(`${viewer.url}/api/runs/${attemptId}`)).status).toBe(200);
+
+      const postService = new QapApplicationService({ hostRootDir: appDir, projectOperationDirectory: workspaceDir });
+      const postAttempts = postService.listExecutionAttempts(projectId, 'mcp-mod');
+      expect(postAttempts).toHaveLength(1);
+      expect(postAttempts[0].attempt_id).toBe(attemptId);
+      expect(postAttempts[0].execution_id).toBe(executionId);
+      expect(postAttempts[0].status).toBe('completed');
+      expect(postAttempts[0].raw_execution_path).toBe(`.qa/executions/${executionId}.json`);
+      expect(postAttempts[0].video_path).toBe(`.qa/runtime/runs/${attemptId}/artifacts/attempt.webm`);
+      const summary = postService.getExecutionSummary(projectId, 'mcp-mod');
+      expect(summary.total_attempts).toBe(1);
+      expect(summary.case_verdicts).toHaveLength(1);
+      expect(summary.case_verdicts[0].verdict).toBe('PASS');
+      postService.close();
+
+      expect(snapshotTree(join(otherRoot, '.qa'))).toEqual(otherBefore);
+    } finally {
+      await viewer.close();
+      await restarted.close();
+    }
+  }, 90_000);
+
+  it('D: classifies post-commit .qap-committed receipt failure as execution_finalization_pending (never execution_not_persisted) and repairs idempotently', async () => {
+    const { root, host, appDir, workspaceDir, projectId } = await setupAuthorizedMcpWorkspace();
+    const mcpIndexUrl = pathToFileURL(resolve('dist/index.js')).href;
+
+    const childScript = `
+      import fs from 'node:fs';
+      import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+      import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+
+      const originalWrite = fs.writeFileSync;
+      fs.writeFileSync = function(p, ...args) {
+        if (typeof p === 'string' && p.endsWith('.qap-committed')) {
+          throw new Error('receipt write failed after commit');
+        }
+        return originalWrite.call(this, p, ...args);
+      };
+
+      const { createMcpServer, QapApplicationService, WorkspaceBootstrap } = await import(process.argv[1]);
+      const [root, appDir, workspaceDir, url] = process.argv.slice(2);
+      const service = new QapApplicationService({ hostRootDir: appDir, projectOperationDirectory: workspaceDir });
+      const bootstrap = new WorkspaceBootstrap(workspaceDir, service);
+      const server = createMcpServer({
+        projectRoots: [root],
+        testAuthorizations: [{ projectRoot: root, allowedOrigins: [url] }],
+        applicationService: service,
+        workspaceBootstrap: bootstrap,
+        hostRegistryPath: workspaceDir + '/authorized-roots.json',
+      });
+      const [ct, st] = InMemoryTransport.createLinkedPair();
+      const client = new Client({ name: 'receipt-failure-mcp', version: '1' }, { capabilities: {} });
+      await server.connect(st);
+      await client.connect(ct);
+      const res = await client.callTool({ name: 'qap_test', arguments: { module: 'mcp-mod', targetPath: root, environment: 'local' } });
+      await client.close();
+      await server.close();
+      bootstrap.close();
+      service.close();
+      console.log(JSON.stringify(JSON.parse(res.content[0].text)));
+    `;
+
+    const childRun = spawnSync(
+      runtimeGlobals.process.execPath,
+      ['--input-type=module', '-e', childScript, mcpIndexUrl, root, appDir, workspaceDir, localServerUrl],
+      { encoding: 'utf8', windowsHide: true, timeout: 60000 },
+    );
+    expect(childRun.status, childRun.stderr).toBe(0);
+    const body = JSON.parse(childRun.stdout.trim()) as Record<string, unknown>;
+    expect(body.code).toBe('execution_finalization_pending');
+    expect(body.code).not.toBe('execution_not_persisted');
+    expect(body.status).toBe('partial');
+    expect(body.committed).toBe(true);
+    expect(body.finalization_pending).toBe(true);
+    const executionId = String(body.execution_id);
+    const attemptId = String(body.attempt_id);
+    expect(existsSync(join(root, '.qa/runtime/runs', attemptId, '.qap-committed'))).toBe(false);
+    expect(existsSync(join(root, '.qa/runtime/runs', attemptId, '.qap-publication-pending'))).toBe(true);
+
+    const pendingService = new QapApplicationService({ hostRootDir: appDir, projectOperationDirectory: workspaceDir });
+    const pendingAttempt = pendingService.listExecutionAttempts(projectId, 'mcp-mod');
+    expect(pendingAttempt).toHaveLength(1);
+    expect(pendingAttempt[0].status).toBe('running');
+    expect(pendingAttempt[0].error_code).toBe('execution_finalization_pending');
+    pendingService.close();
+
+    // Recover via reopened MCP host without relaunching Chromium
+    const restarted = new Client({ name: 'receipt-recover', version: '1' });
+    await restarted.connect(
+      new StdioClientTransport({
+        command: runtimeGlobals.process.execPath,
+        args: [resolve('dist/server.js')],
+        stderr: 'pipe',
+        env: { ...runtimeGlobals.process.env, QAP_MCP_HOST_DATA_DIR: host, QAP_MCP_WORKSPACE_ROOT: root, NODE_ENV: 'test' } as Record<string, string>,
+      }),
+    );
+    try {
+      const s1 = await restarted.callTool({ name: 'qap_status', arguments: { targetPath: root } });
+      expect(s1.isError, JSON.stringify(s1)).toBeFalsy();
+      const s2 = await restarted.callTool({ name: 'qap_status', arguments: { targetPath: root } });
+      expect(s2.isError, JSON.stringify(s2)).toBeFalsy();
+    } finally {
+      await restarted.close();
+    }
+
+    expect(existsSync(join(root, '.qa/runtime/runs', attemptId, '.qap-committed'))).toBe(true);
+    expect(existsSync(join(root, '.qa/runtime/runs', attemptId, '.qap-publication-pending'))).toBe(false);
+    const recoveredService = new QapApplicationService({ hostRootDir: appDir, projectOperationDirectory: workspaceDir });
+    const attempts = recoveredService.listExecutionAttempts(projectId, 'mcp-mod');
+    expect(attempts).toHaveLength(1);
+    expect(attempts[0].attempt_id).toBe(attemptId);
+    expect(attempts[0].execution_id).toBe(executionId);
+    expect(attempts[0].status).toBe('completed');
+    expect(attempts[0].error_code).toBeNull();
+    expect(recoveredService.getExecutionSummary(projectId, 'mcp-mod').case_verdicts).toHaveLength(1);
+    recoveredService.close();
+  }, 90_000);
+
+  it('F: never reactivates an execution whose grant was revoked before commit or replaces revoked grants during recovery', async () => {
+    const { root, host, appDir, workspaceDir, projectId, executeGrantId } = await setupAuthorizedMcpWorkspace();
+    const reporterUrl = pathToFileURL(resolve('../reporter/dist/index.js')).href;
+    const { QapDatabase } = await import(reporterUrl);
+
+    // 1. Revoke execute grant before commit and seed an uncommitted pending publication from a dead pid
+    const service = new QapApplicationService({ hostRootDir: appDir, projectOperationDirectory: workspaceDir });
+    const bootstrap = new WorkspaceBootstrap(workspaceDir, service);
+    service.authority.revokeGrant(projectId, executeGrantId);
+
+    const dead = spawnSync(runtimeGlobals.process.execPath, ['-e', ''], { windowsHide: true });
+    const attempt = service.createExecutionAttempt({
+      projectId,
+      moduleKey: 'mcp-mod',
+      attemptId: 'revoked-precommit-att',
+      executionId: 'exec_revoked_precommit',
+      cases: [{ case_id: 'TC-001' }],
+    });
+    service.markAttemptRunning(attempt.attempt_id);
+    const pendingRunDir = join(root, '.qa/runtime/runs/revoked-precommit-att');
+    mkdirSync(join(pendingRunDir, 'artifacts'), { recursive: true });
+    writeFileSync(
+      join(pendingRunDir, '.qap-publication-pending'),
+      JSON.stringify({
+        operationId: 'qap-provisional-revoked123',
+        runId: 'revoked-precommit-att',
+        pid: dead.pid,
+        executionId: 'exec_revoked_precommit',
+        attemptId: 'revoked-precommit-att',
+      }),
+    );
+    writeFileSync(join(pendingRunDir, 'run.json'), JSON.stringify({ runId: 'revoked-precommit-att' }));
+
+    // Reopening via bootstrap/status reconciles uncommitted artifact away and NEVER commits or reactivates it
+    await bootstrap.prepare(root, localServerUrl);
+    expect(existsSync(pendingRunDir)).toBe(false);
+    expect(existsSync(join(root, '.qa/executions/exec_revoked_precommit.json'))).toBe(false);
+    expect(service.listExecutionAttempts(projectId, 'mcp-mod')).toHaveLength(0);
+    if (existsSync(join(root, '.qa/runtime/qap.sqlite'))) {
+      const db = new QapDatabase(join(root, '.qa/runtime'), false, { readOnly: true });
+      const rows = db.listRuns();
+      db.close();
+      expect(rows).toHaveLength(0);
+    }
+
+    // 2. Attempting qap_test with revoked execute grant remains blocked and grants are not replaced
+    const server = createMcpServer({
+      projectRoots: [root],
+      testAuthorizations: [{ projectRoot: root, allowedOrigins: [localServerUrl] }],
+      applicationService: service,
+      workspaceBootstrap: bootstrap,
+      hostRegistryPath: join(workspaceDir, 'authorized-roots.json'),
+    });
+    const [ct, st] = InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'revoked-client', version: '1' }, { capabilities: {} });
+    await server.connect(st);
+    await client.connect(ct);
+    const blockedRes = await client.callTool({
+      name: 'qap_test',
+      arguments: { module: 'mcp-mod', targetPath: root, environment: 'local' },
+    });
+    expect(blockedRes.isError).toBe(true);
+    expect(JSON.parse((blockedRes.content as Array<{ text: string }>)[0].text).code).toBe('capability_execute_revoked');
+
+    // 3. Revoking access grant blocks recoverProject without replacing grants
+    const accessGrant = service.authority.listGrants(projectId).find((g) => g.capability === 'access')!;
+    const grantsBefore = service.authority.listGrants(projectId);
+    service.authority.revokeGrant(projectId, accessGrant.grant_id);
+    expect(() => bootstrap.recoverProject(root)).toThrow();
+    expect(service.authority.listGrants(projectId).map((g) => g.grant_id)).toEqual(grantsBefore.map((g) => g.grant_id));
+
+    await client.close();
+    await server.close();
+    bootstrap.close();
+    service.close();
+    expect(existsSync(host)).toBe(true);
+  }, 60_000);
 });
