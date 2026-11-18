@@ -423,4 +423,98 @@ describe('PlaywrightRunner Safety & Honesty Regressions — VNEXT-014-C1 (R2)', 
     expect(fs.existsSync(path.join(root, '.qa/cache/locks/checkout.lock'))).toBe(false);
   });
 
+  it('P2-2: passed + not_run (blocked_missing_oracle) never marks secondary runtime bundle as passed', async () => {
+    const createCaseMap = (cases: Array<{ id: string; steps: any[]; case_category?: string }>) => {
+      const map = new Map<string, any>();
+      for (const c of cases) {
+        map.set(c.id, {
+          _version: '1',
+          id: c.id,
+          name: c.id,
+          ...(c.case_category ? { case_category: c.case_category } : {}),
+          steps: c.steps,
+        });
+      }
+      return map;
+    };
+
+    const makeMockBrowser = () => {
+      const page = {
+        setDefaultTimeout: vi.fn(),
+        on: vi.fn(),
+        goto: vi.fn().mockResolvedValue(undefined),
+        url: vi.fn().mockReturnValue('http://localhost:3000'),
+        screenshot: vi.fn().mockResolvedValue(Buffer.from('png')),
+        video: vi.fn().mockReturnValue(null),
+        close: vi.fn().mockResolvedValue(undefined),
+      };
+      const context = {
+        tracing: { start: vi.fn().mockResolvedValue(undefined), stop: vi.fn().mockResolvedValue(undefined) },
+        newPage: vi.fn().mockResolvedValue(page),
+        storageState: vi.fn().mockResolvedValue({ cookies: [], origins: [] }),
+        close: vi.fn().mockResolvedValue(undefined),
+      };
+      return {
+        newContext: vi.fn().mockResolvedValue(context),
+        close: vi.fn().mockResolvedValue(undefined),
+      };
+    };
+
+    const readTimelineStatus = (root: string, timelinePath?: string | null) => {
+      if (!timelinePath) return undefined;
+      const raw = JSON.parse(fs.readFileSync(path.join(root, timelinePath), 'utf8'));
+      return raw.status;
+    };
+
+    const passedStep = { type: 'navigate', url: 'http://localhost:3000' };
+    const blockedStep = { type: 'assert', selector: '#error', assertion_type: 'not_visible' };
+
+    // 1) passed + not_run -> partial (never passed)
+    const mixedRoot = createTempDir('p2-2-mixed-');
+    const mixedMap = createCaseMap([
+      { id: 'TC-PASS', steps: [passedStep] },
+      { id: 'TC-BLOCKED', steps: [blockedStep], case_category: 'bva' },
+    ]);
+    vi.spyOn(chromium, 'launch').mockResolvedValueOnce(makeMockBrowser() as any);
+    const mixedRes = await new PlaywrightRunner().execute(
+      { modules: ['checkout'], cases: ['TC-PASS', 'TC-BLOCKED'] },
+      { projectRoot: mixedRoot, allowImplicitAuth: false, storageResolver: async (_m, id) => mixedMap.get(id)! }
+    );
+    expect(mixedRes.result).toBe('partial');
+    expect(mixedRes.summary).toEqual({ total: 2, passed: 1, failed: 0, skipped: 0, not_run: 1 });
+    expect(mixedRes.cases.find(c => c.id === 'TC-BLOCKED')).toMatchObject({
+      result: 'not_run',
+      not_run_reason: expect.stringContaining('blocked_missing_oracle'),
+    });
+    const mixedTimeline = readTimelineStatus(mixedRoot, mixedRes.artifacts?.timeline_path);
+    if (mixedTimeline !== undefined) expect(mixedTimeline).toBe('partial');
+
+    // 2) all blocked -> failed (never passed)
+    const blockedRoot = createTempDir('p2-2-blocked-');
+    const blockedMap = createCaseMap([
+      { id: 'TC-BLOCKED-ONLY', steps: [blockedStep], case_category: 'bva' },
+    ]);
+    const blockedRes = await new PlaywrightRunner().execute(
+      { modules: ['checkout'], cases: ['TC-BLOCKED-ONLY'] },
+      { projectRoot: blockedRoot, allowImplicitAuth: false, storageResolver: async (_m, id) => blockedMap.get(id)! }
+    );
+    expect(blockedRes.result).toBe('failed');
+    expect(blockedRes.summary).toEqual({ total: 1, passed: 0, failed: 0, skipped: 0, not_run: 1 });
+    const blockedTimeline = readTimelineStatus(blockedRoot, blockedRes.artifacts?.timeline_path);
+    if (blockedTimeline !== undefined) expect(blockedTimeline).toBe('failed');
+
+    // 3) all passed -> passed
+    const passedRoot = createTempDir('p2-2-passed-');
+    const passedMap = createCaseMap([{ id: 'TC-PASS-ONLY', steps: [passedStep] }]);
+    vi.spyOn(chromium, 'launch').mockResolvedValueOnce(makeMockBrowser() as any);
+    const passedRes = await new PlaywrightRunner().execute(
+      { modules: ['checkout'], cases: ['TC-PASS-ONLY'] },
+      { projectRoot: passedRoot, allowImplicitAuth: false, storageResolver: async (_m, id) => passedMap.get(id)! }
+    );
+    expect(passedRes.result).toBe('passed');
+    expect(passedRes.summary).toEqual({ total: 1, passed: 1, failed: 0, skipped: 0, not_run: 0 });
+    const passedTimeline = readTimelineStatus(passedRoot, passedRes.artifacts?.timeline_path);
+    if (passedTimeline !== undefined) expect(passedTimeline).toBe('passed');
+  });
+
 });

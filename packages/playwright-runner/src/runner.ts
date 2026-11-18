@@ -1037,9 +1037,9 @@ export class PlaywrightRunner implements IRunner {
           const runtimeStatus =
             unexpectedlyInterrupted
               ? 'error'
-              : totalFailed > 0 && totalPassed === 0
+              : totalPassed === 0
                 ? 'failed'
-                : totalFailed === 0 && totalPassed > 0
+                : totalFailed === 0 && totalNotRun === 0 && totalSkipped === 0
                   ? 'passed'
                   : 'partial';
           const bundle: EvidenceBundle = {
