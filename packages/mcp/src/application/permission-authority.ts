@@ -1,3 +1,4 @@
+import type { OperationDomain } from './operation-domain.js';
 import { randomUUID } from 'node:crypto';
 
 import {
@@ -82,52 +83,55 @@ function recoveryHintFor(capability: QapCapability): string {
  */
 export class PermissionAuthority {
   readonly #store: AppServiceSqliteStore;
-  constructor(store: AppServiceSqliteStore) { this.#store = store; }
+  readonly #operations: OperationDomain;
+  constructor(store: AppServiceSqliteStore, operations: OperationDomain) { this.#store = store; this.#operations = operations; }
 
   grant(input: PermissionGrantInput): PermissionGrantRecord {
-    const projectRow = this.#store.get<{ status: string }>(
-      'SELECT status FROM projects WHERE project_id = ?',
-      input.project_id,
-    );
-    if (!projectRow || projectRow.status === 'deleting' || projectRow.status === 'deleted') {
-      throw new Error('Cannot grant permission to a missing, deleting, or deleted project');
-    }
-    if (!QAP_CAPABILITIES.includes(input.capability)) {
-      throw new Error(`Unknown capability: ${String(input.capability)}`);
-    }
-    const grantId = randomUUID();
-    const now = new Date().toISOString();
-    const scope = input.scope ?? {};
-    const policyHash = input.policy_hash ?? 'default-policy-v1';
-    const expiresAt = input.expires_at ?? null;
+    return this.#operations.run(() => {
+      const projectRow = this.#store.get<{ status: string }>(
+        'SELECT status FROM projects WHERE project_id = ?',
+        input.project_id,
+      );
+      if (!projectRow || projectRow.status === 'deleting' || projectRow.status === 'deleted') {
+        throw new Error('Cannot grant permission to a missing, deleting, or deleted project');
+      }
+      if (!QAP_CAPABILITIES.includes(input.capability)) {
+        throw new Error(`Unknown capability: ${String(input.capability)}`);
+      }
+      const grantId = randomUUID();
+      const now = new Date().toISOString();
+      const scope = input.scope ?? {};
+      const policyHash = input.policy_hash ?? 'default-policy-v1';
+      const expiresAt = input.expires_at ?? null;
 
-    this.#store.run(
-      `INSERT INTO permission_grants
+      this.#store.run(
+        `INSERT INTO permission_grants
         (grant_id, project_id, env_id, capability, scope_json, status, granted_by, policy_hash, granted_at, expires_at)
        VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?, ?)`,
-      grantId,
-      input.project_id,
-      scope.env_id ?? null,
-      input.capability,
-      JSON.stringify(scope),
-      input.granted_by,
-      policyHash,
-      now,
-      expiresAt,
-    );
+        grantId,
+        input.project_id,
+        scope.env_id ?? null,
+        input.capability,
+        JSON.stringify(scope),
+        input.granted_by,
+        policyHash,
+        now,
+        expiresAt,
+      );
 
-    return {
-      grant_id: grantId,
-      project_id: input.project_id,
-      ...(scope.env_id ? { env_id: scope.env_id } : {}),
-      capability: input.capability,
-      scope,
-      status: 'active',
-      granted_by: input.granted_by,
-      policy_hash: policyHash,
-      granted_at: now,
-      expires_at: expiresAt,
-    };
+      return {
+        grant_id: grantId,
+        project_id: input.project_id,
+        ...(scope.env_id ? { env_id: scope.env_id } : {}),
+        capability: input.capability,
+        scope,
+        status: 'active',
+        granted_by: input.granted_by,
+        policy_hash: policyHash,
+        granted_at: now,
+        expires_at: expiresAt,
+      };
+    });
   }
 
   check(
@@ -136,6 +140,7 @@ export class PermissionAuthority {
     requestedScope?: PermissionScope,
     expectedPolicyHash?: string,
     nowMs = Date.now(),
+    persistExpiration = true,
   ): PermissionCheckResult {
     const project = this.#store.get<{ status: string }>(
       'SELECT status FROM projects WHERE project_id = ?',
@@ -179,10 +184,9 @@ export class PermissionAuthority {
       if (record.status === 'active' && record.expires_at) {
         const expMs = Date.parse(record.expires_at);
         if (!Number.isFinite(expMs) || expMs <= nowMs) {
-          this.#store.run(
-            `UPDATE permission_grants SET status = 'expired' WHERE grant_id = ? AND status = 'active'`,
-            record.grant_id,
-          );
+
+          if (persistExpiration) this.#operations.run(() => this.#store.run(
+            `UPDATE permission_grants SET status = 'expired' WHERE grant_id = ? AND status = 'active'`, record.grant_id));
           latestExpired ??= { ...record, status: 'expired' };
           continue;
         }
@@ -246,10 +250,10 @@ export class PermissionAuthority {
     };
   }
 
-  evaluateAll(projectId: string, scope?: PermissionScope): Record<QapCapability, PermissionCheckResult> {
+  evaluateAll(projectId: string, scope?: PermissionScope, persistExpiration = true): Record<QapCapability, PermissionCheckResult> {
     const result = {} as Record<QapCapability, PermissionCheckResult>;
     for (const capability of QAP_CAPABILITIES) {
-      result[capability] = this.check(projectId, capability, scope);
+      result[capability] = this.check(projectId, capability, scope, undefined, Date.now(), persistExpiration);
     }
     return result;
   }
@@ -261,19 +265,23 @@ export class PermissionAuthority {
     return this.#store.all<GrantRow>(sql, projectId).map(rowToRecord);
   }
 
-  revokeGrant(grantId: string, reason = 'explicit_revocation'): PermissionGrantRecord | null {
-    const existing = this.#store.get<GrantRow>('SELECT * FROM permission_grants WHERE grant_id = ?', grantId);
-    if (!existing) return null;
-    if (existing.status === 'active') {
-      const now = new Date().toISOString();
-      this.#store.run(
-        `UPDATE permission_grants SET status = 'revoked', revoked_at = ?, revoked_reason = ? WHERE grant_id = ?`,
-        now,
-        reason,
-        grantId,
-      );
-    }
-    return rowToRecord(this.#store.get<GrantRow>('SELECT * FROM permission_grants WHERE grant_id = ?', grantId)!);
+  revokeGrant(projectId: string, grantId: string, reason = 'explicit_revocation'): PermissionGrantRecord | null {
+    return this.#operations.run(() => {
+      return this.#store.transaction('IMMEDIATE', () => {
+        this.#store.run(
+          `UPDATE permission_grants SET status = 'revoked', revoked_at = ?, revoked_reason = ?
+         WHERE project_id = ? AND grant_id = ? AND status = 'active'`,
+          new Date().toISOString(),
+          reason,
+          projectId,
+          grantId,
+        );
+        const row = this.#store.get<GrantRow>(
+          'SELECT * FROM permission_grants WHERE project_id = ? AND grant_id = ?', projectId, grantId,
+        );
+        return row ? rowToRecord(row) : null;
+      });
+    });
   }
 
   revokeProjectAccess(
@@ -281,39 +289,41 @@ export class PermissionAuthority {
     reason = 'project_revocation',
     capabilities?: readonly QapCapability[],
   ): number {
-    if (typeof projectId !== 'string' || !projectId.trim() || typeof reason !== 'string' || !reason.trim() ||
+    return this.#operations.run(() => {
+      if (typeof projectId !== 'string' || !projectId.trim() || typeof reason !== 'string' || !reason.trim() ||
         (capabilities !== undefined && !Array.isArray(capabilities))) throw new TypeError('Invalid revocation arguments');
-    const values: QapCapability[] = [];
-    if (capabilities !== undefined) {
-      for (let i = 0; i < capabilities.length; i += 1) {
-        const value: unknown = capabilities[i];
-        if (typeof value !== 'string' || !QAP_CAPABILITIES.includes(value as QapCapability)) throw new TypeError('Invalid capability');
-        values.push(value as QapCapability);
+      const values: QapCapability[] = [];
+      if (capabilities !== undefined) {
+        for (let i = 0; i < capabilities.length; i += 1) {
+          const value: unknown = capabilities[i];
+          if (typeof value !== 'string' || !QAP_CAPABILITIES.includes(value as QapCapability)) throw new TypeError('Invalid capability');
+          values.push(value as QapCapability);
+        }
       }
-    }
-    const now = new Date().toISOString();
-    if (values.length > 0) {
-      let placeholders = '?';
-      for (let i = 1; i < values.length; i += 1) placeholders += ',?';
-      const res = this.#store.run(
-        `UPDATE permission_grants
+      const now = new Date().toISOString();
+      if (values.length > 0) {
+        let placeholders = '?';
+        for (let i = 1; i < values.length; i += 1) placeholders += ',?';
+        const res = this.#store.run(
+          `UPDATE permission_grants
          SET status = 'revoked', revoked_at = ?, revoked_reason = ?
          WHERE project_id = ? AND status = 'active' AND capability IN (${placeholders})`,
+          now,
+          reason,
+          projectId,
+          ...values,
+        );
+        return Number(res.changes);
+      }
+      const res = this.#store.run(
+        `UPDATE permission_grants
+       SET status = 'revoked', revoked_at = ?, revoked_reason = ?
+       WHERE project_id = ? AND status = 'active'`,
         now,
         reason,
         projectId,
-        ...values,
       );
       return Number(res.changes);
-    }
-    const res = this.#store.run(
-      `UPDATE permission_grants
-       SET status = 'revoked', revoked_at = ?, revoked_reason = ?
-       WHERE project_id = ? AND status = 'active'`,
-      now,
-      reason,
-      projectId,
-    );
-    return Number(res.changes);
+    });
   }
 }

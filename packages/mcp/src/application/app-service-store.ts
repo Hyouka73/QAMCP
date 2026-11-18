@@ -687,7 +687,7 @@ export class AppServiceSqliteStore {
     });
   }
 
-  transaction<T>(mode: 'DEFERRED' | 'IMMEDIATE', fn: () => T): T {
+  transaction<T>(mode: 'DEFERRED' | 'IMMEDIATE', fn: () => T, beforeRollback?: () => void): T {
     if (this.closed) {
       throw new Error('Application service SQLite store is closed');
     }
@@ -697,6 +697,7 @@ export class AppServiceSqliteStore {
       this.db.exec('COMMIT');
       return result;
     } catch (error) {
+      try { beforeRollback?.(); } catch { /* Preserve the original failure. */ }
       try {
         this.db.exec('ROLLBACK');
       } catch {

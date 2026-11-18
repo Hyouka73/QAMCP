@@ -7,6 +7,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { afterEach, expect, it, vi } from 'vitest';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { QapApplicationService } from '../application/application-service.js';
 import { createMcpServer } from '../server.js';
 
@@ -38,10 +39,46 @@ function state(service: QapApplicationService, root: string) {
 }
 const sourceHelper = resolve('../../scripts/qap-authorize-workspace.mjs');
 const bundledHelper = resolve('dist/assets/scripts/qap-authorize-workspace.mjs');
+const nodeExecutable = process.execPath;
+const delay = (ms: number) => new Promise(resolvePromise => setTimeout(resolvePromise, ms));
 function runHelper(path: string, root: string, env: NodeJS.ProcessEnv) {
-  return execFileSync(process.execPath, [path, root], { env, encoding: 'utf8', stdio: 'pipe', windowsHide: true });
+  return execFileSync(nodeExecutable, [path, root], { env, encoding: 'utf8', stdio: 'pipe', windowsHide: true, timeout: 15000 });
 }
 const roots = (path: string): string[] => existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : [];
+
+it('checks persistent authority in two compiled Stdio servers', async () => {
+  const f = fixture();
+  const clients = [0, 1].map(() => new Client({ name: 'persistent-authority-test', version: '1' }, {}));
+  try {
+    for (const client of clients) await client.connect(new StdioClientTransport({
+      command: nodeExecutable, args: [resolve('dist/server.js')],
+      env: { ...f.env, QAP_DISABLE_INTERACTIVE_AUTH: '1', NODE_ENV: 'test' } as Record<string, string>,
+      stderr: 'pipe',
+    }));
+    const status = async (index: number, root: string) => {
+      const response = await clients[index].callTool({ name: 'qap_status', arguments: { targetPath: root } });
+      return JSON.parse((response.content as Array<{ text: string }>)[0].text) as { code?: string };
+    };
+    expect((await status(0, f.b)).code).not.toBe('workspace_persistent_authority_required');
+    await remove(f.service, f.projectA.project_id);
+    const generation = state(f.service, f.a).generation;
+    f.service.recoverDeletedProject(f.projectA.project_id);
+    writeFileSync(f.registry, JSON.stringify([f.b, f.a]));
+    expect((await status(0, f.a)).code).toBe('workspace_persistent_authority_required');
+    f.service.completeRootDeletionCleanup(f.a, generation);
+    expect((await status(1, f.a)).code).toBe('workspace_persistent_authority_required');
+    runHelper(sourceHelper, f.a, f.env);
+    const grant = state(f.service, f.a).authorization_grants!.at(-1)!;
+    writeFileSync(f.registry, JSON.stringify([f.b]));
+    expect((await status(0, f.a)).code).toBe('workspace_persistent_authority_required');
+    writeFileSync(f.registry, JSON.stringify([f.b, f.a]));
+    expect((await status(1, f.a)).code).not.toBe('workspace_persistent_authority_required');
+    f.service.revokeRootAuthorizationGrant(f.a, generation, grant.grant_id);
+    expect((await status(0, f.a)).code).toBe('workspace_persistent_authority_required');
+    expect(roots(f.registry)).toContain(f.b);
+    expect((await status(1, f.b)).code).not.toBe('workspace_persistent_authority_required');
+  } finally { await Promise.all(clients.map(client => client.close())); }
+}, 30000);
 afterEach(() => {
   for (const db of dbs.splice(0)) db.close();
   for (const service of services.splice(0)) service.close();
@@ -179,7 +216,7 @@ it('serializes competing helper processes and rejects both against a newer pendi
   const f = fixture(); await remove(f.service, f.projectA.project_id);
   const gen = state(f.service, f.a).generation; f.service.completeRootDeletionCleanup(f.a, gen);
   const run = () => new Promise<number | null>((resolvePromise, reject) => {
-    const child = spawn(process.execPath, [sourceHelper, f.a], { env: f.env, windowsHide: true, stdio: 'ignore' });
+    const child = spawn(process.execPath, [sourceHelper, f.a], { env: f.env, windowsHide: true, stdio: 'ignore', timeout: 15000 });
     child.on('error', reject); child.on('exit', resolvePromise);
   });
   expect((await Promise.all([run(), run()])).some(code => code === 0)).toBe(true);
@@ -191,24 +228,88 @@ it('serializes competing helper processes and rejects both against a newer pendi
   expect(state(f.service, f.a)).toEqual(newState);
 });
 
-it('fences a helper paused after JSON when a newer deletion commits and a second helper competes', async () => {
+it('rejects helper publication after deletion has started and preserves the neighboring registry entry', async () => {
+  const f = fixture();
+  let finish!: () => void;
+  const draining = new Promise<void>(resolvePromise => { finish = resolvePromise; });
+  const controller = { abort: vi.fn() } as unknown as Parameters<QapApplicationService['registerActiveWork']>[2];
+  f.service.registerActiveWork(f.projectA.project_id, 'held', controller, draining);
+  const preview = f.service.previewDelete(f.projectA.project_id);
+  const competingPreview = f.service.previewDelete(f.projectA.project_id);
+  const other = new QapApplicationService({ hostRootDir: f.host }); services.push(other);
+  const deletion = f.service.confirmDelete(f.projectA.project_id, preview.confirmation_token, 'confirm_delete');
+  try {
+    await expect(other.confirmDelete(f.projectA.project_id, competingPreview.confirmation_token, 'confirm_delete')).rejects.toThrow();
+    expect(() => runHelper(sourceHelper, f.a, f.env)).toThrow(/root_authorization_deletion_in_progress|borrado de la raíz/i);
+    expect(roots(f.registry)).toEqual([f.b]);
+  } finally { finish(); await deletion; }
+  expect(state(f.service, f.a).cleanup_status).toBe('pending');
+  expect(f.service.findActiveProjectByRoot(f.b)?.project_id).toBe(f.projectB.project_id);
+});
+
+it('serializes deletion cleanup of A with publication of neighboring B', async () => {
+  const f = fixture(); writeFileSync(f.registry, JSON.stringify([f.a]));
+  const deleting = new QapApplicationService({ hostRootDir: f.host, onProjectDeleted: (_id, root) => {
+    writeFileSync(f.registry, JSON.stringify(roots(f.registry).filter(item => item !== root)));
+  } }); services.push(deleting);
+  let finish!: () => void;
+  const draining = new Promise<void>(resolvePromise => { finish = resolvePromise; });
+  deleting.registerActiveWork(f.projectA.project_id, 'held',
+    { abort: vi.fn() } as unknown as Parameters<QapApplicationService['registerActiveWork']>[2], draining);
+  const preview = deleting.previewDelete(f.projectA.project_id);
+  const deletion = deleting.confirmDelete(f.projectA.project_id, preview.confirmation_token, 'confirm_delete');
+  const ready = join(f.dir, 'neighbor-ready'), resume = join(f.dir, 'neighbor-resume'), preload = join(f.dir, 'neighbor-pause.cjs');
+  writeFileSync(preload, `const fs = require('node:fs'); const {syncBuiltinESMExports} = require('node:module'); const rename = fs.renameSync; fs.renameSync = function(a,b) { const result = rename.apply(this, arguments); if (String(b).endsWith('authorized-roots.json')) { fs.writeFileSync(process.env.QAP_TEST_READY, '1'); const wait = new Int32Array(new SharedArrayBuffer(4)); while (!fs.existsSync(process.env.QAP_TEST_RESUME)) Atomics.wait(wait, 0, 0, 20); } return result; }; syncBuiltinESMExports();`);
+  const child = spawn(nodeExecutable, [sourceHelper, f.b], { env: { ...f.env, NODE_OPTIONS: `--require="${preload.replaceAll('\\', '/')}"`, QAP_TEST_READY: ready, QAP_TEST_RESUME: resume }, windowsHide: true, stdio: 'ignore', timeout: 15000 });
+  const exited = new Promise<number | null>((resolvePromise, reject) => { child.on('error', reject); child.on('exit', resolvePromise); });
+  let releaser: ReturnType<typeof spawn> | undefined;
+  try {
+    const deadline = Date.now() + 10000;
+    while (!existsSync(ready) && Date.now() < deadline) await delay(25);
+    expect(existsSync(ready)).toBe(true);
+    releaser = spawn(nodeExecutable, ['-e', "setTimeout(() => require('node:fs').writeFileSync(process.argv[1], '1'), 1000)", resume], { windowsHide: true, stdio: 'ignore', timeout: 5000 });
+    finish();
+    await deletion;
+    expect(await exited).toBe(0);
+    expect(roots(f.registry)).toEqual([f.b]);
+    expect(f.service.findActiveProjectByRoot(f.b)?.project_id).toBe(f.projectB.project_id);
+  } finally {
+    finish();
+    if (!existsSync(resume)) writeFileSync(resume, '1');
+    child.kill(); releaser?.kill();
+    await exited.catch(() => undefined);
+    await deletion.catch(() => undefined);
+  }
+}, 30000);
+
+it('serializes a paused publication with recovery, deletion and a competing helper', async () => {
   const f = fixture(); await remove(f.service, f.projectA.project_id);
   const gen = state(f.service, f.a).generation; f.service.completeRootDeletionCleanup(f.a, gen);
+  const oldGrant = randomUUID();
+  f.service.recordRootAuthorizationGrant({ canonicalRoot: f.a, generation: gen, grantId: oldGrant,
+    mechanism: 'local_operator_helper', registryPublished: true });
   const ready = join(f.dir, 'ready'), resume = join(f.dir, 'resume'), preload = join(f.dir, 'pause.cjs');
   writeFileSync(preload, `const fs = require('node:fs'); const {syncBuiltinESMExports} = require('node:module'); const rename = fs.renameSync; fs.renameSync = function(a,b) { const result = rename.apply(this, arguments); if (String(b).endsWith('authorized-roots.json')) { fs.writeFileSync(process.env.QAP_TEST_READY, '1'); const wait = new Int32Array(new SharedArrayBuffer(4)); while (!fs.existsSync(process.env.QAP_TEST_RESUME)) Atomics.wait(wait, 0, 0, 20); } return result; }; syncBuiltinESMExports();`);
-  const child = spawn(process.execPath, [sourceHelper, f.a], { env: { ...f.env, NODE_OPTIONS: `--require="${preload.replaceAll('\\', '/')}"`, QAP_TEST_READY: ready, QAP_TEST_RESUME: resume }, windowsHide: true, stdio: 'ignore' });
+  const child = spawn(process.execPath, [sourceHelper, f.a], { env: { ...f.env, NODE_OPTIONS: `--require="${preload.replaceAll('\\', '/')}"`, QAP_TEST_READY: ready, QAP_TEST_RESUME: resume }, windowsHide: true, stdio: 'ignore', timeout: 25000 });
   const exited = new Promise<number | null>((resolvePromise, reject) => { child.on('error', reject); child.on('exit', resolvePromise); });
   try {
     const deadline = Date.now() + 15000;
-    while (!existsSync(ready) && Date.now() < deadline) await new Promise(resolvePromise => setTimeout(resolvePromise, 25));
+    while (!existsSync(ready) && Date.now() < deadline) await delay(25);
     expect(existsSync(ready)).toBe(true);
-    f.service.recoverDeletedProject(f.projectA.project_id); await remove(f.service, f.projectA.project_id);
-    const newer = state(f.service, f.a); expect(newer.generation).not.toBe(gen);
+    expect(() => f.service.recoverDeletedProject(f.projectA.project_id)).toThrow();
+    expect(() => f.service.revokeRootAuthorizationGrant(f.a, gen, oldGrant)).toThrow();
     expect(() => runHelper(sourceHelper, f.a, f.env)).toThrow();
     writeFileSync(resume, '1');
-    expect(await exited).not.toBe(0);
+    expect(await exited).toBe(0);
+    expect(state(f.service, f.a).authorization_grants?.at(-1)).toMatchObject({ generation: gen, status: 'active', registry_published: true });
+    expect(f.service.revokeRootAuthorizationGrant(f.a, gen, oldGrant)).toBe(true);
+    expect(f.service.recordRootAuthorizationGrant({ canonicalRoot: f.a, generation: gen, grantId: oldGrant,
+      mechanism: 'local_operator_helper', registryPublished: true }).status).toBe('revoked');
+    f.service.recoverDeletedProject(f.projectA.project_id); await remove(f.service, f.projectA.project_id);
+    const newer = state(f.service, f.a); expect(newer.generation).not.toBe(gen);
+    expect(newer.authorization_grants?.at(-1)).toMatchObject({ generation: gen, status: 'revoked' });
     expect(state(f.service, f.a)).toEqual(newer);
-    expect(roots(f.registry)).not.toContain(f.a);
+    expect(roots(f.registry)).toContain(f.a);
     expect(roots(f.registry)).toContain(f.b);
   } finally { if (!existsSync(resume)) writeFileSync(resume, '1'); child.kill(); }
 }, 30000);

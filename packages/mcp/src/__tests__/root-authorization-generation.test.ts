@@ -38,6 +38,25 @@ afterEach(() => {
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
+it('reports only a current published active grant in a durable snapshot', async () => {
+  const { host, a, b, service, projectA } = fixture();
+  expect(service.getRootAuthorizationSnapshot(a)).toEqual({ kind: 'no_retained_history' });
+  await remove(service, projectA.project_id);
+  const gen = generation(service, a);
+  expect(service.getRootAuthorizationSnapshot(a)).toMatchObject({ kind: 'generation', cleanup_status: 'pending', published_active_grant: false });
+  service.completeRootDeletionCleanup(a, gen);
+  const unpublished = randomUUID();
+  grant(service, a, gen, unpublished);
+  expect(service.getRootAuthorizationSnapshot(a)).toMatchObject({ published_active_grant: false });
+  const id = randomUUID();
+  service.recordRootAuthorizationGrant({ canonicalRoot: a, generation: gen, grantId: id, mechanism: 'local_operator_helper', registryPublished: true });
+  const other = new QapApplicationService({ hostRootDir: host }); services.push(other);
+  expect(other.getRootAuthorizationSnapshot(a)).toMatchObject({ generation: gen, published_active_grant: true });
+  other.revokeRootAuthorizationGrant(a, gen, id);
+  expect(service.getRootAuthorizationSnapshot(a)).toMatchObject({ published_active_grant: false });
+  expect(other.getRootAuthorizationSnapshot(b)).toEqual({ kind: 'no_retained_history' });
+});
+
 it('enforces completed cleanup, persists and revokes without replay reactivation', async () => {
   const { host, a, b, service, db, projectA, projectB } = fixture();
   const neighbor = db.prepare('SELECT * FROM projects WHERE project_id = ?').get(projectB.project_id);
@@ -88,11 +107,13 @@ it('distinguishes historical and corrupt state, and rejects unsupported input wi
   const before = db.prepare('SELECT * FROM deletion_tombstones WHERE project_id = ?').get(projectA.project_id);
   db.prepare("DELETE FROM host_session_state WHERE key LIKE 'root_deletion_generation:v1:%'").run();
   expect(service.getRootAuthorizationGrant(a, id)).toEqual({ kind: 'historical_tombstone' });
+  expect(service.getRootAuthorizationSnapshot(a)).toEqual({ kind: 'historical_tombstone' });
   expect(() => grant(service, a, gen, id)).toThrowError(expect.objectContaining({ code: 'root_authorization_generation_unavailable' }));
   expect(db.prepare('SELECT * FROM deletion_tombstones WHERE project_id = ?').get(projectA.project_id)).toEqual(before);
   expect(() => service.recordRootAuthorizationGrant({ canonicalRoot: a, generation: gen, grantId: 'bad', mechanism: 'local_operator_helper' })).toThrow();
   db.prepare("INSERT INTO host_session_state VALUES (?, ?, ?)").run(`root_deletion_generation:v1:${projectA.root_hash}`, '{}', new Date().toISOString());
   expect(() => service.getRootAuthorizationGrant(a, id)).toThrowError(expect.objectContaining({ code: 'invalid_deletion_generation' }));
+  expect(() => service.getRootAuthorizationSnapshot(a)).toThrowError(expect.objectContaining({ code: 'invalid_deletion_generation' }));
   expect(() => grant(service, a, gen, id)).toThrowError(expect.objectContaining({ code: 'invalid_deletion_generation' }));
 });
 
@@ -121,7 +142,7 @@ it('serializes independent process grants without lost updates', async () => {
   const moduleUrl = pathToFileURL(resolve('dist/index.js')).href;
   const script = `import { QapApplicationService } from ${JSON.stringify(moduleUrl)}; const [host, root, generation, grantId] = process.argv.slice(1); const s = new QapApplicationService({hostRootDir:host}); try { s.recordRootAuthorizationGrant({canonicalRoot:root,generation,grantId,mechanism:'local_operator_helper'}); } finally { s.close(); }`;
   const run = (id: string) => new Promise<void>((resolvePromise, reject) => {
-    const child = spawn(process.execPath, ['--input-type=module', '-e', script, host, a, gen, id], { windowsHide: true });
+    const child = spawn(process.execPath, ['--input-type=module', '-e', script, host, a, gen, id], { windowsHide: true, timeout: 15000 });
     let stderr = ''; child.stderr.setEncoding('utf8'); child.stderr.on('data', data => { stderr += data; });
     child.on('error', reject); child.on('exit', code => code === 0 ? resolvePromise() : reject(new Error(stderr)));
   });
@@ -136,7 +157,7 @@ it('rejects a delayed writer after a newer generation commits under the SQLite l
   service.completeRootDeletionCleanup(a, oldGeneration);
   const moduleUrl = pathToFileURL(resolve('dist/index.js')).href;
   const script = `import { QapApplicationService } from ${JSON.stringify(moduleUrl)}; const [host, root, generation, grantId] = process.argv.slice(1); const s = new QapApplicationService({hostRootDir:host}); console.log('ready'); process.stdin.once('data', () => { try { s.recordRootAuthorizationGrant({canonicalRoot:root,generation,grantId,mechanism:'local_operator_helper'}); console.log('unexpected success'); } catch (e) { console.log(e.code); } finally { s.close(); } });`;
-  const child = spawn(process.execPath, ['--input-type=module', '-e', script, host, a, oldGeneration, id], { windowsHide: true });
+  const child = spawn(process.execPath, ['--input-type=module', '-e', script, host, a, oldGeneration, id], { windowsHide: true, timeout: 15000 });
   let output = '', errors = '';
   child.stdout.setEncoding('utf8'); child.stderr.setEncoding('utf8');
   child.stderr.on('data', data => { errors += data; });

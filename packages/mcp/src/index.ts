@@ -22,5 +22,8 @@ export * from './workspace-authorizer.js';
 export * from './discovery-authorizer.js';
 export * from './application/index.js';
 export { ProjectHandler } from './handlers/project.handler.js';
-export { acknowledgeProjectInitialization, acquireProjectOperation, localProjectResetOptions, ProjectReset, readProjectResetState, resetHostDirectory } from './project-reset.js';
+export { acknowledgeProjectInitialization, acquireProjectOperation, assertProjectOperation, withProjectOperation, ProjectOperationError, localProjectResetOptions, ProjectReset, readProjectResetState, resetHostDirectory } from './project-reset.js';
 export { windowsProjectResetAuthorizer } from './project-reset-dialog.js';
+
+export type { ProjectOperationContext, ProjectOperationRelease } from './project-reset.js';
+export { WorkspaceBootstrap } from './workspace-bootstrap.js';

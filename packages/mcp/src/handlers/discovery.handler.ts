@@ -138,6 +138,13 @@ export class DiscoveryHandler implements IMcpToolHandler {
       const root = projectRoot(args, this.dependencies, true);
       const bound = binding(root, this.dependencies);
       if (!bound) return blocked('knowledge_unbound');
+      const protectedAction = <T>(action: () => T): T => {
+        const run = () => {
+          if (this.dependencies.validateKnowledgeBinding && !this.dependencies.validateKnowledgeBinding(bound)) throw new Error('workspace_persistent_authority_required');
+          return action();
+        };
+        return this.dependencies.applicationService && this.dependencies.validateKnowledgeBinding ? this.dependencies.applicationService.withProjectOperation(run) : run();
+      };
       if (bound.store.contract_version !== 1) return blocked('knowledge_incompatible');
       const app = await bound.store.get(bound.applicationId, 'application', bound.applicationId);
       const env = await bound.store.get(bound.applicationId, 'environment', bound.environmentId);
@@ -312,12 +319,13 @@ export class DiscoveryHandler implements IMcpToolHandler {
             },
             limits: defaultLimits,
           };
-          if (this.hostDiscoveryRegistryPath) {
+          protectedAction(() => { if (this.hostDiscoveryRegistryPath) {
             atomicRecordDiscoveryAuthorization(this.hostDiscoveryRegistryPath, approved);
           }
           if (config) this.authorizations[this.authorizations.indexOf(config)] = approved;
           else this.authorizations.push(approved);
           config = approved;
+          });
         } else if (authResult.decision === 'rejected') {
           return result({
             status: 'blocked',
@@ -382,7 +390,7 @@ export class DiscoveryHandler implements IMcpToolHandler {
           }
         : config.authorization;
 
-      if (appService && appProject) {
+      protectedAction(() => { if (appService && appProject) {
         const observeScope = { origin: baseOrigin, ...(appProject.active_env_id ? { env_id: appProject.active_env_id } : {}) };
         const activeObserve = appService.authority.check(appProject.project_id, 'observe', observeScope);
         if (!activeObserve.allowed) {
@@ -393,7 +401,7 @@ export class DiscoveryHandler implements IMcpToolHandler {
             granted_by: 'host_operator',
           });
         }
-      }
+      } });
 
       const lifecycle = await new FileSystemStorage({ rootDir: root }).getLifecycleState();
       const entryInventory = args.name === 'inventario-provisional' && this.dependencies.provisionalInventory &&
@@ -573,7 +581,18 @@ export class DiscoveryHandler implements IMcpToolHandler {
         ? (authenticated_session ? 'fresh_authenticated_spa_readonly' : 'fresh_anonymous_spa_readonly')
         : (authenticated_session ? 'fresh_authenticated_static' : 'fresh_anonymous_static');
 
-      const bridge = new ModuleObservationBridge(bound.store, { ...bound, projectRoot: root });
+      const guard = () => !this.dependencies.validateKnowledgeBinding || this.dependencies.validateKnowledgeBinding(bound);
+      const guardedStore = new Proxy(bound.store, { get: (target, property) => {
+        const value = Reflect.get(target, property, target);
+        if (property === 'commit' && typeof value === 'function' && this.dependencies.applicationService && this.dependencies.validateKnowledgeBinding) {
+          return (...parameters: unknown[]) => this.dependencies.applicationService!.withProjectOperation(() => {
+            if (!guard()) throw new Error('workspace_persistent_authority_required');
+            return value.apply(target, parameters);
+          });
+        }
+        return typeof value === 'function' ? value.bind(target) : value;
+      } });
+      const bridge = new ModuleObservationBridge(guardedStore, { ...bound, projectRoot: root });
       const planned = lifecycle.session?.plan?.filter(p => p.module === args.name) ?? [];
       const isPlannedModule = planned.length === 1 || Boolean(appServiceMod);
       const identity = planned.length === 1 ? await bridge.resolve(args.name as string) : { status: 'plan_ambiguous_or_missing' };
@@ -590,7 +609,7 @@ export class DiscoveryHandler implements IMcpToolHandler {
         navigation_timeout_ms: Math.min(baseLimits?.navigation_timeout_ms ?? 6000, 6000),
         total_timeout_ms: Math.min(baseLimits?.total_timeout_ms ?? 16000, 16000),
       } : baseLimits;
-      const output = await new BlackBoxCrawler(bound.store, { ...config.dependencies, allowCanonicalOrigin: bootstrap,
+      const output = await new BlackBoxCrawler(guardedStore, { ...config.dependencies, allowCanonicalOrigin: bootstrap,
         followEntryRedirects: Boolean(entryInventory && this.dependencies.silentBoundScope && config.navigationOrigin === baseOrigin &&
           env.entity.is_production !== true),
       }).run({
@@ -598,6 +617,8 @@ export class DiscoveryHandler implements IMcpToolHandler {
         authorization: navigationAuthorization, limits, signal: context.signal,
         isolation, authenticated_session,
       });
+      const publishDiscovery = async (): Promise<CallToolResult> => {
+      if (!guard()) return blocked('workspace_persistent_authority_required');
       if (authenticated_session && !output.observations.length && (output.warnings.includes('AUTH_SESSION_INVALID') ||
         output.routes.some(route => route.http_status === 401 || route.http_status === 403))) {
         if (appService && appProject && resolvedProfileName) {
@@ -1047,6 +1068,8 @@ export class DiscoveryHandler implements IMcpToolHandler {
           ? 'Revisa los módulos candidatos detectados con qap_project(action="promote_candidates") o qap_session_plan para crear módulos confirmables.'
           : 'Continúa revisando preguntas y expectativas sobre los módulos del alcance.',
       }, status === 'blocked' || status === 'indeterminate');
+      };
+      return appService && this.dependencies.validateKnowledgeBinding ? await appService.withProjectOperation(publishDiscovery) : await publishDiscovery();
     } catch (error: unknown) {
       // Root/symlink/host-scope rejection is not a crawler outage. Preserve a
       // fixed, non-sensitive diagnostic without disclosing forbidden paths.

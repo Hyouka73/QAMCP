@@ -277,6 +277,7 @@ export async function loadHostComposition(
     const testRegistry = resolve(directory, 'test-authorizations.json');
     const applicationService = new QapApplicationService({
       hostRootDir: appDataDir,
+      projectOperationDirectory: directory,
       ...(workspaceRoot ? { credentialProvider: new KeychainCredentialProvider() } : {}),
       onProjectDeleted: (_projectId, canonicalRoot) => {
         const targetKey = normalizePathKey(canonicalRoot);
@@ -324,6 +325,10 @@ export async function loadHostComposition(
         }
       },
     });
+    const reconciledDeletions = await applicationService.reconcilePendingDeletion();
+    for (const item of reconciledDeletions) {
+      if (item.status === 'blocked') console.error(`QAP deletion reconciliation blocked for ${item.project_id}: ${item.reason}`);
+    }
     const bootstrap = new WorkspaceBootstrap(directory, applicationService);
     if (existsSync(registry)) {
       const values: unknown = JSON.parse(readFileSync(existingFile(registry, 'workspace registry'), 'utf8'));
@@ -378,6 +383,7 @@ export async function loadHostComposition(
       },
     };
   }
+  if (manifestPath !== undefined) throw new Error('Manifest composition is disabled: persistent authority cannot be verified.');
   const path = existingFile(manifestPath, 'manifest');
   authorizationDiagnostic('host_composition', { build: process.env.QAP_BUILD_REVISION ?? 'development', manifest: true, authorizer: 'manifest_scope_only' });
   const payload: unknown = JSON.parse(readFileSync(path, 'utf8'));

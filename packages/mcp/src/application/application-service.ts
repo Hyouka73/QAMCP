@@ -1,6 +1,8 @@
+import { OperationDomain } from './operation-domain.js';
+import type { ProjectOperationContext } from '../project-reset.js';
 import { createHash, randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync } from 'node:fs';
-import { isAbsolute, join } from 'node:path';
+import { existsSync, lstatSync, mkdirSync, readdirSync } from 'node:fs';
+import { dirname, isAbsolute, join, parse } from 'node:path';
 
 import {
   EphemeralCredentialProvider,
@@ -87,6 +89,7 @@ import {
   assertSafeHostPath,
   hashCanonicalRoot,
   isPathWithin,
+  normalizePathKey,
   listSafeFiles,
   safeDeleteOwnedPath,
 } from './safe-storage.js';
@@ -123,6 +126,35 @@ export interface RootAuthorizationGrant {
   readonly registry_published?: true;
 }
 
+/** A point-in-time identity, not a bearer credential or an application permission. */
+export interface RootAuthorizationReference {
+  readonly canonical_root: string;
+  readonly coordination_domain: string;
+  readonly generation: string;
+  readonly grant_id: string;
+  readonly protected_ancestors: readonly { readonly canonical_root: string; readonly generation: string; readonly grant_id: string }[];
+}
+
+export interface ImportReadReference {
+  readonly version: 1;
+  readonly purpose: 'import_read';
+  readonly canonical_root: string;
+  readonly coordination_domain: string;
+  readonly grant_id: string;
+  readonly generation: string;
+  readonly status: 'active' | 'revoked';
+}
+
+interface InitialRootAuthority {
+  readonly version: 1;
+  readonly canonical_root: string;
+  readonly root_hash: string;
+  readonly generation: string;
+  readonly authorization_grants: readonly RootAuthorizationGrant[];
+}
+
+const initialAuthorityKey = (hash: string): string => `root_initial_authority:v1:${hash}`;
+
 /** Durable reconciliation epoch and optional, independently recorded grant history. */
 export interface RootDeletionGeneration {
   readonly version: 1;
@@ -144,10 +176,24 @@ export type RootDeletionState = RootDeletionGeneration | {
   readonly cleanup_status: 'unknown';
 };
 
+function sameDeletionEpoch(a: RootDeletionState | null, b: RootDeletionState | null): boolean {
+  if (!a || !b) return a === b;
+  if (a.version !== b.version) return false;
+  return a.version === 1 && b.version === 1
+    ? a.generation === b.generation
+    : a.project_id === b.project_id && a.deleted_at === b.deleted_at;
+}
+
 export type RootAuthorizationLookup =
   | { readonly kind: 'never_deleted' }
   | { readonly kind: 'historical_tombstone' }
   | { readonly kind: 'generation'; readonly generation: string; readonly cleanup_status: 'pending' | 'completed'; readonly grant: RootAuthorizationGrant | null };
+
+/** Snapshot only: callers must coordinate this result with registry reads and use. */
+export type RootAuthorizationSnapshot =
+  | { readonly kind: 'no_retained_history' }
+  | { readonly kind: 'historical_tombstone' }
+  | { readonly kind: 'generation'; readonly generation: string; readonly cleanup_status: 'pending' | 'completed'; readonly published_active_grant: boolean };
 
 const deletionStateKey = (rootHash: string): string => `root_deletion_generation:v1:${rootHash}`;
 const isUuidV4 = (value: unknown): value is string =>
@@ -220,6 +266,7 @@ export interface RuleConfirmationDecisionRecord {
 
 export interface QapApplicationServiceOptions {
   readonly hostRootDir: string;
+  readonly projectOperationDirectory?: string;
   readonly credentialProvider?: ICredentialProvider;
   readonly deleteTokenTtlMs?: number;
   readonly onProjectDeleted?: (projectId: string, canonicalRoot: string) => void;
@@ -470,6 +517,7 @@ function parseTaskRow(row: Record<string, unknown>): TaskRecord {
  */
 export class QapApplicationService {
   readonly #store: AppServiceSqliteStore;
+  readonly #operations: OperationDomain;
   readonly authority: PermissionAuthority;
   readonly artifacts: ManagedArtifactStore;
   readonly importer: LegacyQaImporter;
@@ -484,12 +532,21 @@ export class QapApplicationService {
     const safeHost = assertSafeHostPath(options.hostRootDir);
     this.artifacts = new ManagedArtifactStore(safeHost);
     this.#store = new AppServiceSqliteStore(join(this.artifacts.rootDir, 'app-service.sqlite'));
-    this.authority = new PermissionAuthority(this.#store);
+    this.#operations = new OperationDomain(this.#store, options.projectOperationDirectory);
+    this.authority = new PermissionAuthority(this.#store, this.#operations);
     this.importer = new LegacyQaImporter(this.#store);
     this.block3 = new Block3ExecutionRepo(this.#store);
     this.credentialProvider = options.credentialProvider ?? new EphemeralCredentialProvider();
     this.deleteTokenTtlMs = options.deleteTokenTtlMs ?? 10 * 60_000;
     this.onProjectDeleted = options.onProjectDeleted;
+  }
+
+  get projectOperationDirectory(): string { return this.#operations.directory; }
+
+  bindProjectOperationDirectory(directory: string): void { this.#operations.bind(directory); }
+
+  withProjectOperation<T>(action: (context: ProjectOperationContext) => T, context?: ProjectOperationContext): T {
+    return this.#operations.run(action, context);
   }
 
   private assertActiveProject(projectId: string): ProjectRecord {
@@ -551,13 +608,15 @@ export class QapApplicationService {
 
   /** A stale cleanup cannot complete a different deletion epoch. */
   completeRootDeletionCleanup(canonicalRoot: string, generation: string): boolean {
-    return this.#store.transaction('IMMEDIATE', () => {
-      const state = this.getRootDeletionState(canonicalRoot);
-      if (!state || state.version !== 1 || state.generation !== generation) return false;
-      if (state.cleanup_status === 'completed') return true;
-      this.#store.run('UPDATE host_session_state SET value = ?, updated_at = ? WHERE key = ?',
-        JSON.stringify({ ...state, cleanup_status: 'completed' }), new Date().toISOString(), deletionStateKey(state.root_hash));
-      return true;
+    return this.#operations.run(() => {
+      return this.#store.transaction('IMMEDIATE', () => {
+        const state = this.getRootDeletionState(canonicalRoot);
+        if (!state || state.version !== 1 || state.generation !== generation) return false;
+        if (state.cleanup_status === 'completed') return true;
+        this.#store.run('UPDATE host_session_state SET value = ?, updated_at = ? WHERE key = ?',
+          JSON.stringify({ ...state, cleanup_status: 'completed' }), new Date().toISOString(), deletionStateKey(state.root_hash));
+        return true;
+      });
     });
   }
 
@@ -572,8 +631,129 @@ export class QapApplicationService {
     });
   }
 
+  /** Read the durable half of root authority without exposing storage details. */
+  getRootAuthorizationSnapshot(canonicalRoot: string): RootAuthorizationSnapshot {
+    return this.#store.transaction('DEFERRED', () => {
+      const state = this.getRootDeletionState(canonicalRoot);
+      if (!state) return { kind: 'no_retained_history' };
+      if (state.version === 0) return { kind: 'historical_tombstone' };
+      return {
+        kind: 'generation', generation: state.generation, cleanup_status: state.cleanup_status,
+        published_active_grant: state.cleanup_status === 'completed' && (state.authorization_grants ?? []).some(
+          grant => grant.generation === state.generation && grant.status === 'active' && grant.registry_published === true,
+        ),
+      };
+    });
+  }
+
+  #initialRootAuthority(root: string): InitialRootAuthority | null {
+    const hash = hashCanonicalRoot(root);
+    const row = this.#store.get<{ value: string }>('SELECT value FROM host_session_state WHERE key = ?', initialAuthorityKey(hash));
+    if (!row) return null;
+    let value: InitialRootAuthority;
+    try { value = JSON.parse(row.value) as InitialRootAuthority; } catch {
+      throw new ApplicationServiceError('invalid_initial_root_authority', 'Autoridad inicial inválida.');
+    }
+    if (!value || typeof value !== 'object' || Array.isArray(value) ||
+        Object.keys(value).sort().join(',') !== 'authorization_grants,canonical_root,generation,root_hash,version' ||
+        value.version !== 1 || value.root_hash !== hash || typeof value.canonical_root !== 'string' ||
+        normalizePathKey(value.canonical_root) !== normalizePathKey(root) || !isUuidV4(value.generation) ||
+        !Array.isArray(value.authorization_grants)) {
+      throw new ApplicationServiceError('invalid_initial_root_authority', 'Autoridad inicial inválida.');
+    }
+    // Reuse the strict grant-history parser; the synthetic deletion fields are not persisted.
+    parseRootDeletionGeneration(JSON.stringify({ ...value, project_id: 'initial',
+      deleted_at: '2000-01-01T00:00:00.000Z', cleanup_status: 'completed' }), hash);
+    return value;
+  }
+
+  /** Historic protected ancestors must still have a published, active grant. */
+  #protectedAncestorsAllow(root: string, isRegistered?: (root: string) => boolean): boolean {
+    for (let parent = dirname(root); parent !== parse(parent).root; parent = dirname(parent)) {
+      const state = this.getRootDeletionState(parent);
+      if (state && (state.version !== 1 || state.cleanup_status !== 'completed' ||
+          !(state.authorization_grants ?? []).some(g => g.generation === state.generation && g.status === 'active' && g.registry_published === true))) return false;
+      const initial = state ? null : this.#initialRootAuthority(parent);
+      if (initial && !initial.authorization_grants.some(g => g.generation === initial.generation && g.status === 'active' && g.registry_published === true)) return false;
+      if ((state || initial) && isRegistered && isRegistered(parent) !== true) return false;
+      const deleting = this.#store.get<{ project_id: string }>(
+        "SELECT project_id FROM projects WHERE root_hash = ? AND status = 'deleting' LIMIT 1", hashCanonicalRoot(parent));
+      if (deleting) return false;
+    }
+    return true;
+  }
+
+  #ancestorReferences(root: string, isRegistered: (root: string) => boolean,
+    expected?: RootAuthorizationReference['protected_ancestors']): RootAuthorizationReference['protected_ancestors'] | null {
+    const result: Array<{ canonical_root: string; generation: string; grant_id: string }> = [];
+    for (let parent = dirname(root); parent !== parse(parent).root; parent = dirname(parent)) {
+      const state = this.getRootDeletionState(parent);
+      if (state?.version === 0 || (state?.version === 1 && state.cleanup_status !== 'completed')) return null;
+      if (this.#store.get("SELECT project_id FROM projects WHERE root_hash = ? AND status = 'deleting' LIMIT 1", hashCanonicalRoot(parent))) return null;
+      const authority = state ?? this.#initialRootAuthority(parent);
+      if (!authority) continue;
+      if (isRegistered(parent) !== true) return null;
+      const prior = expected?.[result.length];
+      if (expected && (!prior || typeof prior.canonical_root !== 'string' || normalizePathKey(prior.canonical_root) !== normalizePathKey(parent) || prior.generation !== authority.generation)) return null;
+      const grant = (authority.authorization_grants ?? []).find(g => g.generation === authority.generation && g.status === 'active' &&
+        g.registry_published === true && (!expected || g.grant_id === prior!.grant_id));
+      if (!grant) return null;
+      result.push({ canonical_root: parent, generation: authority.generation, grant_id: grant.grant_id });
+    }
+    return expected && expected.length !== result.length ? null : result;
+  }
+
+  /** Select one specific published grant under the host coordinator. */
+  getRootAuthorizationReference(canonicalRoot: string, isRegistered: (root: string) => boolean, context?: ProjectOperationContext): RootAuthorizationReference | null {
+    return this.#operations.run(() => {
+      this.#operations.assertBound();
+      const root = assertSafeHostPath(canonicalRoot);
+      const state = this.getRootDeletionState(root);
+      if (typeof isRegistered !== 'function' || isRegistered(root) !== true) return null;
+      const ancestors = this.#ancestorReferences(root, isRegistered);
+      if (!ancestors) return null;
+      if (this.#store.get("SELECT project_id FROM projects WHERE root_hash = ? AND status = 'deleting' LIMIT 1", hashCanonicalRoot(root))) return null;
+      if (state?.version === 0 || (state?.version === 1 && state.cleanup_status !== 'completed')) return null;
+      const authority = state ?? this.#initialRootAuthority(root);
+      if (!authority) return null;
+      const grant = (authority.authorization_grants ?? []).find(g => g.generation === authority.generation && g.status === 'active' && g.registry_published === true);
+      return grant ? { canonical_root: root, coordination_domain: this.#operations.directory, generation: authority.generation, grant_id: grant.grant_id, protected_ancestors: ancestors } : null;
+    }, context);
+  }
+
+  /** Validate the original identity; never substitute another live grant. */
+  validateRootAuthorizationReference(reference: RootAuthorizationReference, isRegistered: (root: string) => boolean, context?: ProjectOperationContext): boolean {
+    return this.#operations.run(() => {
+      this.#operations.assertBound();
+      if (!reference || typeof reference.canonical_root !== 'string' || typeof reference.coordination_domain !== 'string' ||
+          !isUuidV4(reference.generation) || !isUuidV4(reference.grant_id) ||
+          normalizePathKey(reference.coordination_domain) !== normalizePathKey(this.#operations.directory)) return false;
+      const root = assertSafeHostPath(reference.canonical_root);
+      if (root !== reference.canonical_root || typeof isRegistered !== 'function' || !Array.isArray(reference.protected_ancestors) || isRegistered(root) !== true ||
+          !this.#ancestorReferences(root, isRegistered, reference.protected_ancestors)) return false;
+      if (this.#store.get("SELECT project_id FROM projects WHERE root_hash = ? AND status = 'deleting' LIMIT 1", hashCanonicalRoot(root))) return false;
+      const state = this.getRootDeletionState(root);
+      if (state?.version === 0 || (state?.version === 1 && state.cleanup_status !== 'completed')) return false;
+      const authority = state ?? this.#initialRootAuthority(root);
+      return !!authority && authority.generation === reference.generation && (authority.authorization_grants ?? []).some(g =>
+        g.generation === reference.generation && g.grant_id === reference.grant_id && g.status === 'active' && g.registry_published === true);
+    }, context);
+  }
+
   /** Trusted host integration only: this records a decision, it does not solicit or verify one. */
   recordRootAuthorizationGrant(input: {
+    canonicalRoot: string;
+    generation: string;
+    grantId: string;
+    mechanism: 'local_operator_helper';
+    registryPublished?: true;
+  }): RootAuthorizationGrant {
+    return this.#operations.run(() => {
+      return this.#store.transaction('IMMEDIATE', () => this.#recordRootAuthorizationGrantInTransaction(input));
+    });
+  }
+
+  #recordRootAuthorizationGrantInTransaction(input: {
     canonicalRoot: string;
     generation: string;
     grantId: string;
@@ -584,50 +764,123 @@ export class QapApplicationService {
         (input.registryPublished !== undefined && input.registryPublished !== true)) {
       throw new ApplicationServiceError('invalid_root_authorization_grant', 'Identidad o mecanismo de concesión inválido.');
     }
-    return this.#store.transaction('IMMEDIATE', () => {
-      const state = this.getRootDeletionState(input.canonicalRoot);
-      if (!state || state.version !== 1 || state.generation !== input.generation || state.cleanup_status !== 'completed') {
-        throw new ApplicationServiceError('root_authorization_generation_unavailable', 'La generación no está disponible o su limpieza no ha terminado.');
+    const deleting = this.#store.get<{ project_id: string }>(
+      "SELECT project_id FROM projects WHERE root_hash = ? AND status = 'deleting' LIMIT 1",
+      hashCanonicalRoot(assertSafeHostPath(input.canonicalRoot)),
+    );
+    if (deleting) throw new ApplicationServiceError('root_authorization_deletion_in_progress', 'El borrado de la raíz está en curso.');
+    const state = this.getRootDeletionState(input.canonicalRoot);
+    if (!state || state.version !== 1 || state.generation !== input.generation || state.cleanup_status !== 'completed') {
+      throw new ApplicationServiceError('root_authorization_generation_unavailable', 'La generación no está disponible o su limpieza no ha terminado.');
+    }
+    const grants = state.authorization_grants ?? [];
+    const existing = grants.find(grant => grant.grant_id === input.grantId);
+    if (existing) {
+      if (existing.generation !== input.generation || existing.mechanism !== input.mechanism || existing.registry_published !== input.registryPublished) {
+        throw new ApplicationServiceError('root_authorization_grant_conflict', 'La identidad de concesión pertenece a otra operación.');
       }
-      const grants = state.authorization_grants ?? [];
-      const existing = grants.find(grant => grant.grant_id === input.grantId);
-      if (existing) {
-        if (existing.generation !== input.generation || existing.mechanism !== input.mechanism || existing.registry_published !== input.registryPublished) {
-          throw new ApplicationServiceError('root_authorization_grant_conflict', 'La identidad de concesión pertenece a otra operación.');
+      return existing;
+    }
+    const grant: RootAuthorizationGrant = {
+      grant_id: input.grantId, generation: state.generation, status: 'active',
+      granted_at: new Date().toISOString(), mechanism: input.mechanism,
+      ...(input.registryPublished ? { registry_published: true as const } : {}),
+    };
+    this.#store.run('UPDATE host_session_state SET value = ?, updated_at = ? WHERE key = ?',
+      JSON.stringify({ ...state, authorization_grants: [...grants, grant] }), new Date().toISOString(), deletionStateKey(state.root_hash));
+    return grant;
+  }
+
+  /** Trusted host only. Bind the registry's host domain before opaque synchronous registry I/O. */
+  publishRootAuthorization(canonicalRoot: string, grantId: string, publishRegistry: () => void, rollbackRegistry: () => void, context?: ProjectOperationContext): void {
+    return this.#operations.run(() => {
+      this.#operations.assertBound();
+      this.#store.transaction('IMMEDIATE', () => {
+        const root = assertSafeHostPath(canonicalRoot);
+        const rootHash = hashCanonicalRoot(root);
+        const deleting = this.#store.get<{ project_id: string }>(
+          "SELECT project_id FROM projects WHERE root_hash = ? AND status = 'deleting' LIMIT 1", rootHash,
+        );
+        if (deleting) throw new ApplicationServiceError('root_authorization_deletion_in_progress', 'El borrado de la raíz está en curso.');
+        const state = this.getRootDeletionState(root);
+        if (state && (state.version !== 1 || state.cleanup_status !== 'completed')) {
+          throw new ApplicationServiceError('root_authorization_generation_unavailable', 'La generación no está disponible o su limpieza no ha terminado.');
         }
-        return existing;
-      }
-      const grant: RootAuthorizationGrant = {
-        grant_id: input.grantId, generation: state.generation, status: 'active',
-        granted_at: new Date().toISOString(), mechanism: input.mechanism,
-        ...(input.registryPublished ? { registry_published: true as const } : {}),
-      };
-      this.#store.run('UPDATE host_session_state SET value = ?, updated_at = ? WHERE key = ?',
-        JSON.stringify({ ...state, authorization_grants: [...grants, grant] }), new Date().toISOString(), deletionStateKey(state.root_hash));
-      return grant;
-    });
+        if (!this.#protectedAncestorsAllow(root)) throw new ApplicationServiceError('root_authorization_ancestor_blocked', 'Un ancestro protegido no está autorizado.');
+        const initial = state ? null : this.#initialRootAuthority(root);
+        if (!isUuidV4(grantId) || grantId !== grantId.toLowerCase()) throw new ApplicationServiceError('invalid_root_authorization_grant', 'Identidad de concesión inválida.');
+        if (initial?.authorization_grants.some(g => g.grant_id === grantId)) throw new ApplicationServiceError('root_authorization_grant_conflict', 'La identidad de concesión ya existe.');
+        const result: unknown = publishRegistry();
+        if (result && typeof (result as { then?: unknown }).then === 'function') {
+          throw new TypeError('Registry publication must be synchronous');
+        }
+        if (state) this.#recordRootAuthorizationGrantInTransaction({
+          canonicalRoot: root, generation: state.generation,
+          grantId, mechanism: 'local_operator_helper', registryPublished: true
+        });
+        else {
+          const authority: InitialRootAuthority = initial ?? { version: 1, canonical_root: root, root_hash: rootHash, generation: randomUUID(), authorization_grants: [] };
+          const grant: RootAuthorizationGrant = { grant_id: grantId, generation: authority.generation, status: 'active',
+            granted_at: new Date().toISOString(), mechanism: 'local_operator_helper', registry_published: true };
+          this.#store.run(`INSERT INTO host_session_state (key, value, updated_at) VALUES (?, ?, ?)
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+            initialAuthorityKey(rootHash), JSON.stringify({ ...authority, authorization_grants: [...authority.authorization_grants, grant] }), new Date().toISOString());
+        }
+      }, rollbackRegistry);
+    }, context);
   }
 
   /** Revocation is scoped to one exact generation and is idempotent. */
   revokeRootAuthorizationGrant(canonicalRoot: string, generation: string, grantId: string): boolean {
-    return this.#store.transaction('IMMEDIATE', () => {
-      const state = this.getRootDeletionState(canonicalRoot);
-      if (!state || state.version !== 1 || state.generation !== generation) return false;
-      const grants = state.authorization_grants ?? [];
-      const grant = grants.find(item => item.grant_id === grantId && item.generation === generation);
-      if (!grant) return false;
-      if (grant.status === 'revoked') return true;
-      this.#store.run('UPDATE host_session_state SET value = ?, updated_at = ? WHERE key = ?',
-        JSON.stringify({ ...state, authorization_grants: grants.map(item => item.grant_id === grantId ? { ...item, status: 'revoked' } : item) }),
-        new Date().toISOString(), deletionStateKey(state.root_hash));
-      return true;
+    return this.#operations.run(() => {
+      return this.#store.transaction('IMMEDIATE', () => {
+        const state = this.getRootDeletionState(canonicalRoot);
+        if (!state) {
+          const root = assertSafeHostPath(canonicalRoot);
+          const initial = this.#initialRootAuthority(root);
+          if (!initial || initial.generation !== generation) return false;
+          const grant = initial.authorization_grants.find(item => item.grant_id === grantId && item.generation === generation);
+          if (!grant) return false;
+          if (grant.status === 'revoked') return true;
+          this.#store.run('UPDATE host_session_state SET value = ?, updated_at = ? WHERE key = ?',
+            JSON.stringify({ ...initial, authorization_grants: initial.authorization_grants.map(item => item.grant_id === grantId ? { ...item, status: 'revoked' } : item) }),
+            new Date().toISOString(), initialAuthorityKey(initial.root_hash));
+          return true;
+        }
+        if (state.version !== 1 || state.generation !== generation) return false;
+        const grants = state.authorization_grants ?? [];
+        const grant = grants.find(item => item.grant_id === grantId && item.generation === generation);
+        if (!grant) return false;
+        if (grant.status === 'revoked') return true;
+        this.#store.run('UPDATE host_session_state SET value = ?, updated_at = ? WHERE key = ?',
+          JSON.stringify({ ...state, authorization_grants: grants.map(item => item.grant_id === grantId ? { ...item, status: 'revoked' } : item) }),
+          new Date().toISOString(), deletionStateKey(state.root_hash));
+        return true;
+      });
     });
   }
 
   /** Clears a root tombstone after an explicit host-confirmed qap_project_reset so qap_init can reinitialize. */
-  clearResetTombstone(canonicalRoot: string): void {
-    const rootHash = hashCanonicalRoot(assertSafeHostPath(canonicalRoot));
-    this.#store.run('DELETE FROM deletion_tombstones WHERE root_hash = ?', rootHash);
+  clearResetTombstone(canonicalRoot: string, expected: { projectId: string; deletedAt: string; generation: string }): void {
+    return this.#operations.run(() => {
+      const rootHash = hashCanonicalRoot(assertSafeHostPath(canonicalRoot));
+      this.#store.transaction('IMMEDIATE', () => {
+        const state = this.getRootDeletionState(canonicalRoot);
+        if (!state || state.version !== 1 || state.generation !== expected.generation) {
+          throw new ApplicationServiceError('project_deletion_state_changed', 'El estado de borrado cambió; no se elimina la lápida.');
+        }
+        const result = this.#store.run('DELETE FROM deletion_tombstones WHERE root_hash = ? AND project_id = ? AND deleted_at = ?',
+          rootHash, expected.projectId, expected.deletedAt);
+        if (Number(result.changes) !== 1) {
+          throw new ApplicationServiceError('project_deletion_state_changed', 'El estado de borrado cambió; no se elimina la lápida.');
+        }
+      });
+    });
+  }
+
+  isRootDeletionInProgress(canonicalRoot: string): boolean {
+    return Boolean(this.#store.get("SELECT project_id FROM projects WHERE root_hash = ? AND status = 'deleting' LIMIT 1",
+      hashCanonicalRoot(assertSafeHostPath(canonicalRoot))));
   }
 
   findActiveProjectByRoot(canonicalRoot: string): ProjectRecord | null {
@@ -640,109 +893,118 @@ export class QapApplicationService {
   }
 
   createProject(input: CreateProjectInput): ProjectStateSnapshot {
-    const safeRoot = assertSafeHostPath(input.canonicalRoot);
-    assertDisjointFromWorkspace(this.artifacts.rootDir, safeRoot);
-    if (!existsSync(safeRoot)) {
-      mkdirSync(safeRoot, { recursive: true });
-    }
-    const rootHash = hashCanonicalRoot(safeRoot);
+    return this.#operations.run(() => {
+      const safeRoot = assertSafeHostPath(input.canonicalRoot);
+      if (this.isRootDeletionInProgress(safeRoot)) throw new ApplicationServiceError('root_authorization_deletion_in_progress', 'El borrado de la raíz está en curso.');
+      assertDisjointFromWorkspace(this.artifacts.rootDir, safeRoot);
+      if (!existsSync(safeRoot)) {
+        mkdirSync(safeRoot, { recursive: true });
+      }
+      const rootHash = hashCanonicalRoot(safeRoot);
 
-    const existing = this.findActiveProjectByRoot(safeRoot);
-    if (existing) {
-      throw new ApplicationServiceError(
-        'project_already_exists_for_root',
-        `Ya existe un proyecto activo (${existing.project_id}) para este workspace.`,
-        { existing_project_id: existing.project_id },
-      );
-    }
-
-    const tombstone = this.getTombstoneByRoot(safeRoot);
-    if (tombstone && !input.allowRecreateDeleted) {
-      throw new ApplicationServiceError(
-        'project_deleted_tombstone',
-        `El workspace tiene un borrado previo (${tombstone.project_id}). Usa recuperación o recreación explícita.`,
-        { deleted_project_id: tombstone.project_id, recovery_available: true },
-      );
-    }
-
-    const projectId = `proj-${randomUUID().slice(0, 12)}`;
-    const applicationId = `app-${projectId}`;
-    const slug = normalizeSlug(input.name || 'proyecto') || projectId;
-    const now = new Date().toISOString();
-    const envId = `env-${randomUUID().slice(0, 8)}`;
-    const campaignId = `camp-${randomUUID().slice(0, 8)}`;
-
-    let safeDomains: string[] = [];
-    const envBaseUrl = input.baseUrl ?? 'http://localhost';
-    try {
-      const parsed = new URL(envBaseUrl);
-      if (parsed.hostname) safeDomains = [parsed.hostname];
-    } catch {
-      throw new ApplicationServiceError('invalid_base_url', 'URL base de entorno inválida.');
-    }
-
-    this.artifacts.ensureProjectWorkspace(projectId);
-
-    this.#store.transaction('IMMEDIATE', () => {
-      if (tombstone && input.allowRecreateDeleted) {
-        this.#store.run('DELETE FROM deletion_tombstones WHERE root_hash = ?', rootHash);
+      const existing = this.findActiveProjectByRoot(safeRoot);
+      if (existing) {
+        throw new ApplicationServiceError(
+          'project_already_exists_for_root',
+          `Ya existe un proyecto activo (${existing.project_id}) para este workspace.`,
+          { existing_project_id: existing.project_id },
+        );
       }
 
-      this.#store.run(
-        `INSERT INTO projects
-          (project_id, name, slug, canonical_root, root_hash, application_id, status, objective, active_env_id, active_campaign_id, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?)`,
-        projectId,
-        input.name.trim() || slug,
-        slug,
-        safeRoot,
-        rootHash,
-        applicationId,
-        input.objective?.trim() || null,
-        envId,
-        campaignId,
-        now,
-        now,
-      );
+      const tombstone = this.getTombstoneByRoot(safeRoot);
+      const deletionEpoch = this.getRootDeletionState(safeRoot);
+      if (tombstone && !input.allowRecreateDeleted) {
+        throw new ApplicationServiceError(
+          'project_deleted_tombstone',
+          `El workspace tiene un borrado previo (${tombstone.project_id}). Usa recuperación o recreación explícita.`,
+          { deleted_project_id: tombstone.project_id, recovery_available: true },
+        );
+      }
 
-      this.#store.run(
-        `INSERT INTO environments
-          (env_id, project_id, name, base_url, is_production, destructive_actions_allowed, safe_domains_json, tenant_mode, default_tenant, created_at, updated_at)
-         VALUES (?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?)`,
-        envId,
-        projectId,
-        input.envName?.trim() || 'local',
-        envBaseUrl,
-        JSON.stringify(safeDomains),
-        input.tenantMode ?? 'single',
-        input.defaultTenant ?? null,
-        now,
-        now,
-      );
+      const projectId = `proj-${randomUUID().slice(0, 12)}`;
+      const applicationId = `app-${projectId}`;
+      const slug = normalizeSlug(input.name || 'proyecto') || projectId;
+      const now = new Date().toISOString();
+      const envId = `env-${randomUUID().slice(0, 8)}`;
+      const campaignId = `camp-${randomUUID().slice(0, 8)}`;
 
-      this.#store.run(
-        `INSERT INTO campaigns
-          (campaign_id, project_id, env_id, mode, phase, status, objective, target_module_ids_json, created_at, updated_at)
-         VALUES (?, ?, ?, ?, 'ONBOARDING', 'active', ?, '[]', ?, ?)`,
-        campaignId,
-        projectId,
-        envId,
-        input.mode ?? 'investigate_and_test',
-        input.objective?.trim() || null,
-        now,
-        now,
-      );
+      let safeDomains: string[] = [];
+      const envBaseUrl = input.baseUrl ?? 'http://localhost';
+      try {
+        const parsed = new URL(envBaseUrl);
+        if (parsed.hostname) safeDomains = [parsed.hostname];
+      } catch {
+        throw new ApplicationServiceError('invalid_base_url', 'URL base de entorno inválida.');
+      }
 
-      this.#store.run(
-        `INSERT INTO host_session_state (key, value, updated_at)
-         VALUES ('active_project_id', ?, ?)
-         ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
-        projectId,
-        now,
-      );
+      this.artifacts.ensureProjectWorkspace(projectId);
+
+      this.#store.transaction('IMMEDIATE', () => {
+        const currentTombstone = this.getTombstoneByRoot(safeRoot);
+        if (currentTombstone?.project_id !== tombstone?.project_id || currentTombstone?.deleted_at !== tombstone?.deleted_at ||
+          !sameDeletionEpoch(deletionEpoch, this.getRootDeletionState(safeRoot))) {
+          throw new ApplicationServiceError('project_deletion_state_changed', 'El estado de borrado cambió; solicita una nueva operación.');
+        }
+        if (tombstone && input.allowRecreateDeleted) {
+          this.#store.run('DELETE FROM deletion_tombstones WHERE root_hash = ?', rootHash);
+        }
+
+        this.#store.run(
+          `INSERT INTO projects
+            (project_id, name, slug, canonical_root, root_hash, application_id, status, objective, active_env_id, active_campaign_id, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?)`,
+          projectId,
+          input.name.trim() || slug,
+          slug,
+          safeRoot,
+          rootHash,
+          applicationId,
+          input.objective?.trim() || null,
+          envId,
+          campaignId,
+          now,
+          now,
+        );
+
+        this.#store.run(
+          `INSERT INTO environments
+            (env_id, project_id, name, base_url, is_production, destructive_actions_allowed, safe_domains_json, tenant_mode, default_tenant, created_at, updated_at)
+           VALUES (?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?)`,
+          envId,
+          projectId,
+          input.envName?.trim() || 'local',
+          envBaseUrl,
+          JSON.stringify(safeDomains),
+          input.tenantMode ?? 'single',
+          input.defaultTenant ?? null,
+          now,
+          now,
+        );
+
+        this.#store.run(
+          `INSERT INTO campaigns
+            (campaign_id, project_id, env_id, mode, phase, status, objective, target_module_ids_json, created_at, updated_at)
+           VALUES (?, ?, ?, ?, 'ONBOARDING', 'active', ?, '[]', ?, ?)`,
+          campaignId,
+          projectId,
+          envId,
+          input.mode ?? 'investigate_and_test',
+          input.objective?.trim() || null,
+          now,
+          now,
+        );
+
+        this.#store.run(
+          `INSERT INTO host_session_state (key, value, updated_at)
+           VALUES ('active_project_id', ?, ?)
+           ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+          projectId,
+          now,
+        );
+      });
+
+      return this.resumeProject(projectId);
     });
-
-    return this.resumeProject(projectId);
   }
 
   listProjects(options: { includeDeleted?: boolean } = {}): {
@@ -782,7 +1044,7 @@ export class QapApplicationService {
     return project?.status === 'active' ? row.value : null;
   }
 
-  selectProject(projectId: string): ProjectStateSnapshot {
+  selectProject(projectId: string, options: { readOnly?: boolean } = {}): ProjectStateSnapshot {
     this.assertActiveProject(projectId);
     const now = new Date().toISOString();
     this.#store.run(
@@ -792,7 +1054,7 @@ export class QapApplicationService {
       projectId,
       now,
     );
-    return this.resumeProject(projectId);
+    return this.resumeProject(projectId, options);
   }
 
   updateProjectObjective(projectId: string, objective: string): ProjectRecord {
@@ -807,7 +1069,7 @@ export class QapApplicationService {
     return parseProjectRow(this.#store.get<Record<string, unknown>>('SELECT * FROM projects WHERE project_id = ?', projectId)!);
   }
 
-  resumeProject(projectId: string): ProjectStateSnapshot {
+  resumeProject(projectId: string, options: { readOnly?: boolean } = {}): ProjectStateSnapshot {
     const project = this.assertActiveProject(projectId);
     const env = project.active_env_id
       ? this.#store.get<Record<string, unknown>>('SELECT * FROM environments WHERE env_id = ? AND project_id = ?', project.active_env_id, projectId)
@@ -835,7 +1097,7 @@ export class QapApplicationService {
     const capabilities = this.authority.evaluateAll(projectId, {
       root_path: project.canonical_root,
       ...(environment ? { env_id: environment.env_id, origin: environment.base_url } : {}),
-    });
+    }, !options.readOnly);
 
     const activeTask = tasks.find((t) =>
       t.status === 'waiting_decision' || t.status === 'blocked' || t.status === 'in_progress' || t.status === 'pending',
@@ -985,51 +1247,53 @@ export class QapApplicationService {
   }
 
   upsertProfile(input: UpsertProfileInput): AuthProfileRecord {
-    this.assertActiveProject(input.projectId);
-    const existing = this.#store.get<Record<string, unknown>>(
-      'SELECT * FROM profiles WHERE project_id = ? AND env_id = ? AND label = ?',
-      input.projectId,
-      input.envId,
-      input.label,
-    );
-    const now = new Date().toISOString();
-    const profileId = rowStr(existing?.profile_id) || `prof-${randomUUID().slice(0, 8)}`;
-    const status = input.status ?? (existing ? (existing.status as AuthProfileLifecycleStatus) : 'pending');
-    const credentialRefKey = input.credentialAccount ?? rowOptStr(existing?.credential_ref_key) ?? input.label;
-
-    if (existing) {
-      this.#store.run(
-        `UPDATE profiles
-         SET role_name = COALESCE(?, role_name), tenant_id = COALESCE(?, tenant_id),
-             login_mode = ?, credential_ref_key = ?, status = ?, updated_at = ?
-         WHERE profile_id = ?`,
-        input.roleName ?? null,
-        input.tenantId ?? null,
-        input.loginMode ?? String(existing.login_mode),
-        credentialRefKey,
-        status,
-        now,
-        profileId,
-      );
-    } else {
-      this.#store.run(
-        `INSERT INTO profiles
-          (profile_id, project_id, env_id, label, role_name, tenant_id, login_mode, credential_ref_key, status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        profileId,
+    return this.#operations.run(() => {
+      this.assertActiveProject(input.projectId);
+      const existing = this.#store.get<Record<string, unknown>>(
+        'SELECT * FROM profiles WHERE project_id = ? AND env_id = ? AND label = ?',
         input.projectId,
         input.envId,
         input.label,
-        input.roleName ?? null,
-        input.tenantId ?? null,
-        input.loginMode ?? 'auto',
-        credentialRefKey,
-        status,
-        now,
-        now,
       );
-    }
-    return parseProfileRow(this.#store.get<Record<string, unknown>>('SELECT * FROM profiles WHERE profile_id = ?', profileId)!);
+      const now = new Date().toISOString();
+      const profileId = rowStr(existing?.profile_id) || `prof-${randomUUID().slice(0, 8)}`;
+      const status = input.status ?? (existing ? (existing.status as AuthProfileLifecycleStatus) : 'pending');
+      const credentialRefKey = input.credentialAccount ?? rowOptStr(existing?.credential_ref_key) ?? input.label;
+
+      if (existing) {
+        this.#store.run(
+          `UPDATE profiles
+         SET role_name = COALESCE(?, role_name), tenant_id = COALESCE(?, tenant_id),
+             login_mode = ?, credential_ref_key = ?, status = ?, updated_at = ?
+         WHERE profile_id = ?`,
+          input.roleName ?? null,
+          input.tenantId ?? null,
+          input.loginMode ?? String(existing.login_mode),
+          credentialRefKey,
+          status,
+          now,
+          profileId,
+        );
+      } else {
+        this.#store.run(
+          `INSERT INTO profiles
+          (profile_id, project_id, env_id, label, role_name, tenant_id, login_mode, credential_ref_key, status, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          profileId,
+          input.projectId,
+          input.envId,
+          input.label,
+          input.roleName ?? null,
+          input.tenantId ?? null,
+          input.loginMode ?? 'auto',
+          credentialRefKey,
+          status,
+          now,
+          now,
+        );
+      }
+      return parseProfileRow(this.#store.get<Record<string, unknown>>('SELECT * FROM profiles WHERE profile_id = ?', profileId)!);
+    });
   }
 
   async storeProfileSecret(
@@ -1286,16 +1550,90 @@ export class QapApplicationService {
     return cleanup;
   }
 
-  importLegacyQa(projectId: string, sourceRoot?: string): LegacyQaImportReceipt {
+  /** Local host administration; never exposed as an MCP operation. */
+  issueImportReadGrant(candidate: string): ImportReadReference {
+    return this.#operations.run(() => {
+      this.#operations.assertBound();
+      const root = assertSafeHostPath(candidate);
+      if (!existsSync(root) || !lstatSync(root).isDirectory()) throw new Error('invalid_import_read_root');
+      const ref: ImportReadReference = { version: 1, purpose: 'import_read', canonical_root: root,
+        coordination_domain: this.#operations.directory, grant_id: randomUUID(), generation: randomUUID(), status: 'active' };
+      this.#store.run('INSERT INTO host_session_state (key,value,updated_at) VALUES (?,?,?)',
+        `import_read:v1:${hashCanonicalRoot(root)}:${ref.grant_id}`, JSON.stringify(ref), new Date().toISOString());
+      return ref;
+    });
+  }
+
+  revokeImportReadGrant(candidate: string, grantId: string): boolean {
+    return this.#operations.run(() => {
+      this.#operations.assertBound();
+      const root = assertSafeHostPath(candidate);
+      const ref = this.getImportReadReference(root, grantId);
+      if (!ref) return false;
+      this.#store.run('UPDATE host_session_state SET value = ?, updated_at = ? WHERE key = ?',
+        JSON.stringify({ ...ref, status: 'revoked' }), new Date().toISOString(),
+        `import_read:v1:${hashCanonicalRoot(root)}:${grantId}`);
+      return true;
+    });
+  }
+
+  getImportReadReference(candidate: string, grantId?: string): ImportReadReference | null {
+    return this.#operations.run(() => {
+      this.#operations.assertBound();
+      const root = assertSafeHostPath(candidate);
+      if (!existsSync(root) || !lstatSync(root).isDirectory()) return null;
+      const prefix = `import_read:v1:${hashCanonicalRoot(root)}:`;
+      const rows = grantId ? this.#store.all<{ key: string; value: string }>('SELECT key,value FROM host_session_state WHERE key = ?', prefix + grantId)
+        : this.#store.all<{ key: string; value: string }>('SELECT key,value FROM host_session_state WHERE key LIKE ? ORDER BY key', prefix + '%');
+      for (const row of rows) {
+        try {
+          const r = JSON.parse(row.value) as ImportReadReference;
+          if (Object.keys(r).sort().join(',') !== 'canonical_root,coordination_domain,generation,grant_id,purpose,status,version' ||
+              r.version !== 1 || r.purpose !== 'import_read' || r.status !== 'active' || !isUuidV4(r.generation) || !isUuidV4(r.grant_id) ||
+              row.key !== prefix + r.grant_id || normalizePathKey(r.canonical_root) !== normalizePathKey(root) ||
+              normalizePathKey(r.coordination_domain) !== normalizePathKey(this.#operations.directory)) continue;
+          return r;
+        } catch { return null; }
+      }
+      return null;
+    });
+  }
+
+  validateImportReadReference(ref: ImportReadReference): boolean {
+    try {
+      if (!ref || Object.keys(ref).sort().join(',') !== 'canonical_root,coordination_domain,generation,grant_id,purpose,status,version' ||
+          ref.version !== 1 || ref.purpose !== 'import_read' || ref.status !== 'active' ||
+          !isUuidV4(ref.grant_id) || !isUuidV4(ref.generation)) return false;
+      const current = this.getImportReadReference(ref.canonical_root, ref.grant_id);
+      return !!current && current.generation === ref.generation && current.coordination_domain === ref.coordination_domain &&
+        current.canonical_root === ref.canonical_root;
+    } catch { return false; }
+  }
+
+  getImportReadBinding(importId: string): ImportReadReference | null {
+    const row = this.#store.get<{ value: string }>('SELECT value FROM host_session_state WHERE key = ?', `import_read_binding:v1:${importId}`);
+    try { return row ? JSON.parse(row.value) as ImportReadReference : null; } catch { return null; }
+  }
+
+  importLegacyQa(projectId: string, sourceRoot?: string, sourceReference?: ImportReadReference): LegacyQaImportReceipt {
     const project = this.assertActiveProject(projectId);
-    return this.importer.importWorkspace(projectId, sourceRoot ?? project.canonical_root);
+    return this.importer.importWorkspace(projectId, sourceRoot ?? project.canonical_root, sourceReference ? importId => {
+      this.#store.run('INSERT INTO host_session_state (key,value,updated_at) VALUES (?,?,?)',
+        `import_read_binding:v1:${importId}`, JSON.stringify(sourceReference), new Date().toISOString());
+    } : undefined);
+  }
+
+  getLegacyImportIdentity(importId: string): { project_id: string; source_root: string } | null {
+    return this.#store.get<{ project_id: string; source_root: string }>(
+      'SELECT project_id, source_root FROM import_manifests WHERE import_id = ?', importId,
+    ) ?? null;
   }
 
   verifyLegacyImport(importId: string, sourceRoot?: string): LegacyQaVerificationResult {
     return this.importer.verifyImport(importId, sourceRoot);
   }
 
-  previewDelete(projectId: string): DeleteScopePreview {
+  previewDelete(projectId: string, options: { binding?: unknown; persist?: boolean } = {}): DeleteScopePreview {
     const project = this.assertActiveProject(projectId);
     const countOf = (table: string): number =>
       Number((this.#store.get<{ c: number }>(`SELECT COUNT(*) AS c FROM ${table} WHERE project_id = ?`, projectId))?.c ?? 0);
@@ -1339,9 +1677,16 @@ export class QapApplicationService {
       import_manifests: countOf('import_manifests'),
     };
 
+    // Counts alone miss replacement or modification of records between preview
+    // and confirmation. Keep their digest private while binding the preview.
+    const sqliteContent = Object.keys(sqliteRecords).map(table => [table,
+      this.#store.all<Record<string, unknown>>(`SELECT * FROM ${table} WHERE project_id = ? ORDER BY rowid`, projectId),
+    ]);
+
     const scopeMaterial = {
       project_id: projectId,
       sqliteRecords,
+      sqliteContent,
       hostPaths,
       credentialRefs,
       sessionArtifacts,
@@ -1376,14 +1721,14 @@ export class QapApplicationService {
       neighboring_projects_untouched: true,
     };
 
-    this.#store.run(
+    if (options.persist !== false) this.#store.run(
       `INSERT INTO pending_delete_requests
         (token_hash, project_id, scope_hash, scope_preview_json, expires_at, created_at)
        VALUES (?, ?, ?, ?, ?, ?)`,
       tokenHash,
       projectId,
       scopeHash,
-      JSON.stringify(preview),
+      JSON.stringify({ ...preview, delete_binding: options.binding }),
       expiresAt,
       now.toISOString(),
     );
@@ -1391,58 +1736,214 @@ export class QapApplicationService {
     return preview;
   }
 
+  /** Resume only a consumed, fully identified deletion. Incomplete legacy rows stay blocked. */
+  async reconcilePendingDeletion(): Promise<Array<{ project_id: string; status: 'deleted' | 'blocked'; reason?: string }>> {
+    const projects = this.#store.all<{ project_id: string }>("SELECT project_id FROM projects WHERE status = 'deleting' ORDER BY project_id");
+    const results: Array<{ project_id: string; status: 'deleted' | 'blocked'; reason?: string }> = [];
+    for (const { project_id: projectId } of projects) {
+      try {
+        await this.#operations.run(async () => {
+          const row = this.#store.get<Record<string, unknown>>('SELECT * FROM projects WHERE project_id = ?', projectId);
+          if (!row || row.status === 'deleted') return;
+          if (row.status !== 'deleting') throw new Error('project_deletion_state_changed');
+          const project = parseProjectRow(row);
+          const requests = this.#store.all<{ scope_hash: string; scope_preview_json: string; consumed_at: string }>(
+            'SELECT scope_hash, scope_preview_json, consumed_at FROM pending_delete_requests WHERE project_id = ? AND consumed_at IS NOT NULL', projectId);
+          if (requests.length !== 1) throw new Error('deletion_intent_missing_or_ambiguous');
+          const request = requests[0]!;
+          const preview = JSON.parse(request.scope_preview_json) as DeleteScopePreview & { delete_operation?: Record<string, unknown> };
+          const intent = preview.delete_operation;
+          if (!intent || intent.version !== 1 || intent.project_id !== projectId ||
+              intent.canonical_root !== project.canonical_root || intent.root_hash !== project.root_hash ||
+              hashCanonicalRoot(project.canonical_root) !== project.root_hash ||
+              intent.scope_hash !== request.scope_hash || preview.scope_hash !== request.scope_hash ||
+              preview.project_id !== projectId || preview.canonical_root !== project.canonical_root ||
+              typeof intent.generation !== 'string' || !/^[0-9a-f-]{36}$/i.test(intent.generation) ||
+              intent.started_at !== request.consumed_at || typeof intent.purge_workspace_qa !== 'boolean' ||
+              !preview.owned_resources || !Array.isArray(preview.owned_resources.host_paths) ||
+              !Array.isArray(preview.owned_resources.workspace_qa_files) || !Array.isArray(intent.file_identities) ||
+              !Array.isArray(intent.directory_identities)) {
+            throw new Error('deletion_intent_invalid');
+          }
+          assertSafeHostPath(project.canonical_root);
+          if (!existsSync(project.canonical_root)) throw new Error('deletion_root_missing');
+          // A partial deletion may remove entries, but it must never acquire new ones.
+          const identities = intent.file_identities as Array<{ path: string; dev: number; ino: number; birthtimeMs: number }>;
+          const directories = intent.directory_identities as Array<{ path: string; dev: number; ino: number; birthtimeMs: number }>;
+          const checkTree = (directory: string, approved: readonly string[]) => {
+            if (!approved.every(path => typeof path === 'string' && isPathWithin(directory, path))) throw new Error('deletion_scope_invalid');
+            if (!approved.every(path => identities.some(item => item && item.path === path &&
+              typeof item.dev === 'number' && typeof item.ino === 'number' && typeof item.birthtimeMs === 'number'))) throw new Error('deletion_file_identity_missing');
+            if (!existsSync(directory)) return;
+            const visit = (dir: string): void => {
+              assertSafeHostPath(dir);
+              const expected = directories.find(item => item && normalizePathKey(item.path) === normalizePathKey(dir));
+              const current = lstatSync(dir);
+              if (!expected || current.dev !== expected.dev || current.ino !== expected.ino || current.birthtimeMs !== expected.birthtimeMs) throw new Error('deletion_directory_changed');
+              for (const entry of readdirSync(dir, { withFileTypes: true })) {
+                const path = join(dir, entry.name);
+                if (entry.isSymbolicLink()) throw new Error('deletion_scope_link');
+                assertSafeHostPath(path);
+                if (entry.isDirectory()) visit(path);
+                else {
+                  const identity = identities.find(item => item && normalizePathKey(item.path) === normalizePathKey(path));
+                  if (!entry.isFile() || !approved.some(item => normalizePathKey(item) === normalizePathKey(path)) || !identity) throw new Error('deletion_scope_changed');
+                  const stat = lstatSync(path);
+                  if (stat.dev !== identity.dev || stat.ino !== identity.ino || stat.birthtimeMs !== identity.birthtimeMs) throw new Error('deletion_file_replaced');
+                }
+              }
+            };
+            visit(directory);
+          };
+          const hostPaths = preview.owned_resources.host_paths;
+          const projectDirectory = this.artifacts.projectDir(projectId);
+          const validateScope = () => {
+            assertSafeHostPath(project.canonical_root);
+            checkTree(projectDirectory, hostPaths);
+            if (intent.purge_workspace_qa) checkTree(join(project.canonical_root, '.qa'), preview.owned_resources.workspace_qa_files);
+          };
+          validateScope();
+          await this.finishDeletion(project, intent.started_at as string, intent.generation as string,
+            { purgeWorkspaceQa: intent.purge_workspace_qa, validateScope });
+        });
+        results.push({ project_id: projectId, status: 'deleted' });
+      } catch (error) {
+        results.push({ project_id: projectId, status: 'blocked', reason: error instanceof Error ? error.message : String(error) });
+      }
+    }
+    return results;
+  }
+
   async confirmDelete(
     projectId: string,
     confirmationToken: string,
     decision: string,
-    options: { purgeWorkspaceQa?: boolean } = {},
+    options: { purgeWorkspaceQa?: boolean; onDeletionGeneration?: (generation: string) => void; binding?: unknown; context?: ProjectOperationContext } = {},
   ): Promise<DeleteExecutionReceipt> {
-    if (decision !== 'confirm_delete') {
-      throw new ApplicationServiceError(
-        'delete_decision_not_confirmed',
-        'El borrado requiere decision explícita "confirm_delete".',
-      );
-    }
-    const project = this.assertActiveProject(projectId);
-    const tokenHash = sha256Text(confirmationToken);
-    const reqRow = this.#store.get<{
-      token_hash: string;
-      project_id: string;
-      scope_hash: string;
-      expires_at: string;
-      consumed_at: string | null;
-    }>(
-      'SELECT token_hash, project_id, scope_hash, expires_at, consumed_at FROM pending_delete_requests WHERE token_hash = ? AND project_id = ?',
-      tokenHash,
-      projectId,
-    );
+    return this.#operations.run(() => this.finishConfirmedDelete(projectId, confirmationToken, decision, options), options.context);
+  }
 
-    if (!reqRow) {
-      throw new ApplicationServiceError('delete_token_invalid', 'Token de confirmación de borrado inválido o desconocido.');
-    }
-    if (reqRow.consumed_at) {
-      throw new ApplicationServiceError('delete_token_already_used', 'El token de confirmación de borrado ya fue utilizado.');
-    }
-    if (Date.parse(reqRow.expires_at) <= Date.now()) {
-      throw new ApplicationServiceError('delete_token_expired', 'El token de confirmación de borrado ha expirado; solicita una nueva vista previa.');
-    }
-
-    const now = new Date().toISOString();
-
-    // 1. Mark deleting & consume confirmation token atomically
-    this.#store.transaction('IMMEDIATE', () => {
-      this.#store.run(
-        'UPDATE pending_delete_requests SET consumed_at = ? WHERE token_hash = ? AND consumed_at IS NULL',
-        now,
+  private async finishConfirmedDelete(
+    projectId: string,
+    confirmationToken: string,
+    decision: string,
+    options: { purgeWorkspaceQa?: boolean; onDeletionGeneration?: (generation: string) => void; binding?: unknown; context?: ProjectOperationContext },
+  ): Promise<DeleteExecutionReceipt> {
+    const { project, now, deletionGeneration } = this.#operations.run(() => {
+      if (decision !== 'confirm_delete') {
+        throw new ApplicationServiceError(
+          'delete_decision_not_confirmed',
+          'El borrado requiere decision explícita "confirm_delete".',
+        );
+      }
+      const project = this.assertActiveProject(projectId);
+      const tokenHash = sha256Text(confirmationToken);
+      const reqRow = this.#store.get<{
+        token_hash: string;
+        project_id: string;
+        scope_hash: string;
+        expires_at: string;
+        consumed_at: string | null;
+        scope_preview_json: string;
+      }>(
+        'SELECT token_hash, project_id, scope_hash, expires_at, consumed_at, scope_preview_json FROM pending_delete_requests WHERE token_hash = ? AND project_id = ?',
         tokenHash,
-      );
-      this.#store.run(
-        `UPDATE projects SET status = 'deleting', updated_at = ? WHERE project_id = ?`,
-        now,
         projectId,
       );
-    });
 
+      if (!reqRow) {
+        throw new ApplicationServiceError('delete_token_invalid', 'Token de confirmación de borrado inválido o desconocido.');
+      }
+      if (reqRow.consumed_at) {
+        throw new ApplicationServiceError('delete_token_already_used', 'El token de confirmación de borrado ya fue utilizado.');
+      }
+      if (!Number.isFinite(Date.parse(reqRow.expires_at)) || Date.parse(reqRow.expires_at) <= Date.now()) {
+        throw new ApplicationServiceError('delete_token_expired', 'El token de confirmación de borrado ha expirado; solicita una nueva vista previa.');
+      }
+
+      if (options.binding !== undefined) {
+        let binding: unknown;
+        try { binding = (JSON.parse(reqRow.scope_preview_json) as { delete_binding?: unknown }).delete_binding; } catch { /* fail closed */ }
+        if (JSON.stringify(binding) !== JSON.stringify(options.binding)) {
+          throw new ApplicationServiceError('delete_preview_stale', 'La autorización o la operación cambió; solicita una nueva vista previa.');
+        }
+      }
+      if (this.previewDelete(projectId, { persist: false }).scope_hash !== reqRow.scope_hash) {
+        throw new ApplicationServiceError('delete_preview_stale', 'El alcance cambió; solicita una nueva vista previa.');
+      }
+
+      const now = new Date().toISOString();
+
+      // 1. Mark deleting & consume confirmation token atomically
+      const deletionGeneration = randomUUID();
+      // Keep the original operation identity and requested cleanup with the
+      // consumed preview. A process restart must never invent a generation or
+      // infer whether workspace cleanup was approved.
+      const startedPreview = JSON.parse(reqRow.scope_preview_json) as Record<string, unknown>;
+      const resources = (startedPreview as unknown as DeleteScopePreview).owned_resources;
+      const fileIdentities = [...resources.host_paths, ...(options.purgeWorkspaceQa ? resources.workspace_qa_files : [])].map(path => {
+        const stat = lstatSync(assertSafeHostPath(path));
+        if (!stat.isFile()) throw new ApplicationServiceError('delete_preview_stale', 'El alcance cambió; solicita una nueva vista previa.');
+        return { path, dev: stat.dev, ino: stat.ino, birthtimeMs: stat.birthtimeMs };
+      });
+      const directoryIdentities: Array<{ path: string; dev: number; ino: number; birthtimeMs: number }> = [];
+      const recordDirectories = (path: string): void => {
+        if (!existsSync(path)) return;
+        const stat = lstatSync(assertSafeHostPath(path));
+        if (!stat.isDirectory()) throw new ApplicationServiceError('delete_preview_stale', 'El alcance cambió; solicita una nueva vista previa.');
+        directoryIdentities.push({ path, dev: stat.dev, ino: stat.ino, birthtimeMs: stat.birthtimeMs });
+        for (const entry of readdirSync(path, { withFileTypes: true })) {
+          if (entry.isSymbolicLink()) throw new ApplicationServiceError('delete_preview_stale', 'El alcance contiene un enlace no permitido.');
+          if (entry.isDirectory()) recordDirectories(join(path, entry.name));
+        }
+      };
+      recordDirectories(this.artifacts.projectDir(projectId));
+      if (options.purgeWorkspaceQa) recordDirectories(join(project.canonical_root, '.qa'));
+      startedPreview.delete_operation = {
+        version: 1,
+        project_id: projectId,
+        canonical_root: project.canonical_root,
+        root_hash: project.root_hash,
+        generation: deletionGeneration,
+        started_at: now,
+        scope_hash: reqRow.scope_hash,
+        purge_workspace_qa: options.purgeWorkspaceQa === true,
+        file_identities: fileIdentities,
+        directory_identities: directoryIdentities,
+      };
+      this.#store.transaction('IMMEDIATE', () => {
+        const consumed = this.#store.run(
+          'UPDATE pending_delete_requests SET consumed_at = ?, scope_preview_json = ? WHERE token_hash = ? AND consumed_at IS NULL',
+          now,
+          JSON.stringify(startedPreview),
+          tokenHash,
+        );
+        if (Number(consumed.changes) !== 1) {
+          throw new ApplicationServiceError('delete_token_already_used', 'El token de confirmación de borrado ya fue utilizado.');
+        }
+        const started = this.#store.run(
+          `UPDATE projects SET status = 'deleting', updated_at = ? WHERE project_id = ? AND status = 'active'`,
+          now,
+          projectId,
+        );
+        if (Number(started.changes) !== 1) {
+          throw new ApplicationServiceError('project_deletion_state_changed', 'El estado del proyecto cambió antes del borrado.');
+        }
+      });
+
+      return { project, now, deletionGeneration };
+    }, options.context);
+
+    return this.finishDeletion(project, now, deletionGeneration, options);
+  }
+
+  private async finishDeletion(
+    project: ProjectRecord,
+    now: string,
+    deletionGeneration: string,
+    options: { purgeWorkspaceQa?: boolean; onDeletionGeneration?: (generation: string) => void; validateScope?: () => void },
+  ): Promise<DeleteExecutionReceipt> {
+    const projectId = project.project_id;
     // 2. Drain live registered in-flight tasks
     const liveHandles = [...(this.activeWork.get(projectId) ?? [])];
     for (const handle of liveHandles) {
@@ -1452,23 +1953,32 @@ export class QapApplicationService {
       await Promise.allSettled(liveHandles.map((h) => h.promise));
     }
 
-    // 3. Snapshot non-secret recovery bundle BEFORE purging owned storage
-    const recoveryPayload: RecoveryBundlePayload = {
-      version: 1,
-      exported_at: now,
-      project,
-      environments: this.#store.all<Record<string, unknown>>('SELECT * FROM environments WHERE project_id = ? ORDER BY created_at ASC, rowid ASC', projectId).map(parseEnvironmentRow),
-      modules: this.#store.all<Record<string, unknown>>('SELECT * FROM modules WHERE project_id = ? ORDER BY created_at ASC, rowid ASC', projectId).map(parseModuleRow),
-      profiles: this.#store.all<Record<string, unknown>>('SELECT * FROM profiles WHERE project_id = ? ORDER BY created_at ASC, rowid ASC', projectId).map(parseProfileRow),
-      campaigns: this.#store.all<Record<string, unknown>>('SELECT * FROM campaigns WHERE project_id = ?', projectId).map(parseCampaignRow),
-    };
-    const recoveryBundle = this.artifacts.writeRecoveryBundle(projectId, recoveryPayload);
+    const { recoveryPayload, recoveryBundle, revokedGrants } = this.#operations.run(() => {
+      // 3. Snapshot non-secret recovery bundle BEFORE purging owned storage
+      const recoveryPayload: RecoveryBundlePayload = {
+        version: 1,
+        exported_at: now,
+        project,
+        environments: this.#store.all<Record<string, unknown>>('SELECT * FROM environments WHERE project_id = ? ORDER BY created_at ASC, rowid ASC', projectId).map(parseEnvironmentRow),
+        modules: this.#store.all<Record<string, unknown>>('SELECT * FROM modules WHERE project_id = ? ORDER BY created_at ASC, rowid ASC', projectId).map(parseModuleRow),
+        profiles: this.#store.all<Record<string, unknown>>('SELECT * FROM profiles WHERE project_id = ? ORDER BY created_at ASC, rowid ASC', projectId).map(parseProfileRow),
+        campaigns: this.#store.all<Record<string, unknown>>('SELECT * FROM campaigns WHERE project_id = ?', projectId).map(parseCampaignRow),
+      };
+      // Preserve a bundle written before an interrupted attempt.
+      const existingBundle = this.artifacts.readLatestRecoveryBundle<RecoveryBundlePayload>(projectId);
+      const recoveryBundle = existingBundle && existingBundle.data.exported_at === now &&
+        existingBundle.data.project.project_id === projectId && existingBundle.data.project.root_hash === project.root_hash
+        ? { bundle_path: existingBundle.path, sha256: existingBundle.sha256 }
+        : this.artifacts.writeRecoveryBundle(projectId, recoveryPayload);
 
-    // 4. Close any open Knowledge SQLite handle for this project BEFORE directory purge
-    this.closeKnowledgeStore(projectId);
+      // 4. Close any open Knowledge SQLite handle for this project BEFORE directory purge
+      this.closeKnowledgeStore(projectId);
 
-    // 5. Revoke all permissions & delete vault credentials for this project ONLY
-    const revokedGrants = this.authority.revokeProjectAccess(projectId, 'project_deleted');
+      // 5. Revoke all permissions & delete vault credentials for this project ONLY
+      const revokedGrants = this.authority.revokeProjectAccess(projectId, 'project_deleted');
+      return { recoveryPayload, recoveryBundle, revokedGrants };
+    });
+    // Vault I/O is external; the deleting status prevents new local publications.
     let deletedCredentials = 0;
     for (const profile of recoveryPayload.profiles) {
       try {
@@ -1479,233 +1989,258 @@ export class QapApplicationService {
       }
     }
 
-    // 6. Remove ONLY host-owned storage for this projectId
-    const removedHostPaths = this.artifacts.purgeProjectDirectory(projectId);
+    return this.#operations.run(() => {
+      options.validateScope?.();
+      // 6. Remove ONLY host-owned storage for this projectId
+      const removedHostPaths = this.artifacts.purgeProjectDirectory(projectId);
 
-    // 7. Optionally remove QAP-owned .qa directory inside workspace ONLY (never touching user/source files)
-    const removedWorkspaceQaPaths: string[] = [];
-    if (options.purgeWorkspaceQa) {
-      const qaDir = join(project.canonical_root, '.qa');
-      if (existsSync(qaDir) && isPathWithin(project.canonical_root, qaDir)) {
-        const qaFiles = listSafeFiles(qaDir);
-        safeDeleteOwnedPath(qaDir, project.canonical_root);
-        removedWorkspaceQaPaths.push(qaDir, ...qaFiles);
+      // 7. Optionally remove QAP-owned .qa directory inside workspace ONLY (never touching user/source files)
+      const removedWorkspaceQaPaths: string[] = [];
+      if (options.purgeWorkspaceQa) {
+        const qaDir = join(project.canonical_root, '.qa');
+        if (existsSync(qaDir) && isPathWithin(project.canonical_root, qaDir)) {
+          const qaFiles = listSafeFiles(qaDir);
+          safeDeleteOwnedPath(qaDir, project.canonical_root);
+          removedWorkspaceQaPaths.push(qaDir, ...qaFiles);
+        }
       }
-    }
 
-    // 8. Notify host authorizer registry cleanup (strictly isolated to this project/root)
-    this.onProjectDeleted?.(projectId, project.canonical_root);
+      // 8. Notify host authorizer registry cleanup (strictly isolated to this project/root)
+      if (this.onProjectDeleted) {
+        // Registry cleanup shares the SQLite writer fence with helper publication.
+        this.#store.transaction('IMMEDIATE', () => this.onProjectDeleted!(projectId, project.canonical_root));
+      }
 
-    // 9. Drain DB tasks/campaigns, record deletion tombstone, remove owned project rows except tombstone + revoked grants audit
-    let drainedDbTasks = 0;
-    let abortedCampaigns = 0;
+      // 9. Drain DB tasks/campaigns, record deletion tombstone, remove owned project rows except tombstone + revoked grants audit
+      let drainedDbTasks = 0;
+      let abortedCampaigns = 0;
 
-    this.#store.transaction('IMMEDIATE', () => {
-      const taskRes = this.#store.run(
-        `UPDATE tasks
-         SET status = 'cancelled', updated_at = ?
-         WHERE project_id = ? AND status IN ('pending', 'in_progress', 'blocked', 'waiting_decision')`,
-        now,
-        projectId,
-      );
-      drainedDbTasks = Number(taskRes.changes);
+      this.#store.transaction('IMMEDIATE', () => {
+        const taskRes = this.#store.run(
+          `UPDATE tasks
+           SET status = 'cancelled', updated_at = ?
+           WHERE project_id = ? AND status IN ('pending', 'in_progress', 'blocked', 'waiting_decision')`,
+          now,
+          projectId,
+        );
+        drainedDbTasks = Number(taskRes.changes);
 
-      const campRes = this.#store.run(
-        `UPDATE campaigns
-         SET status = 'aborted', closed_at = COALESCE(closed_at, ?), updated_at = ?
-         WHERE project_id = ? AND status IN ('active', 'paused', 'draining')`,
-        now,
-        now,
-        projectId,
-      );
-      abortedCampaigns = Number(campRes.changes);
+        const campRes = this.#store.run(
+          `UPDATE campaigns
+           SET status = 'aborted', closed_at = COALESCE(closed_at, ?), updated_at = ?
+           WHERE project_id = ? AND status IN ('active', 'paused', 'draining')`,
+          now,
+          now,
+          projectId,
+        );
+        abortedCampaigns = Number(campRes.changes);
 
-      this.#store.run(
-        `INSERT OR REPLACE INTO deletion_tombstones
-          (project_id, canonical_root, root_hash, deleted_at, reason, recovery_bundle_path, recovery_bundle_hash)
-         VALUES (?, ?, ?, ?, 'explicit_user_delete', ?, ?)`,
-        projectId,
-        project.canonical_root,
-        project.root_hash,
-        now,
-        recoveryBundle.bundle_path,
-        recoveryBundle.sha256,
-      );
+        this.#store.run(
+          `INSERT OR REPLACE INTO deletion_tombstones
+            (project_id, canonical_root, root_hash, deleted_at, reason, recovery_bundle_path, recovery_bundle_hash)
+           VALUES (?, ?, ?, ?, 'explicit_user_delete', ?, ?)`,
+          projectId,
+          project.canonical_root,
+          project.root_hash,
+          now,
+          recoveryBundle.bundle_path,
+          recoveryBundle.sha256,
+        );
 
-      const previousState = this.#store.get<{ value: string }>(
-        'SELECT value FROM host_session_state WHERE key = ?', deletionStateKey(project.root_hash),
-      );
-      const previous = previousState ? parseRootDeletionGeneration(previousState.value, project.root_hash) : null;
-      const deletionState: RootDeletionGeneration = {
-        version: 1, root_hash: project.root_hash, canonical_root: project.canonical_root,
-        project_id: projectId, deleted_at: now, generation: randomUUID(), cleanup_status: 'pending',
-        ...(previous?.authorization_grants ? {
-          authorization_grants: previous.authorization_grants.map(grant => ({ ...grant, status: 'revoked' as const })),
-        } : {}),
+        const previousState = this.#store.get<{ value: string }>(
+          'SELECT value FROM host_session_state WHERE key = ?', deletionStateKey(project.root_hash),
+        );
+        const previous = previousState ? parseRootDeletionGeneration(previousState.value, project.root_hash) : null;
+        const deletionState: RootDeletionGeneration = {
+          version: 1, root_hash: project.root_hash, canonical_root: project.canonical_root,
+          project_id: projectId, deleted_at: now, generation: deletionGeneration, cleanup_status: 'pending',
+          ...(previous?.authorization_grants ? {
+            authorization_grants: previous.authorization_grants.map(grant => ({ ...grant, status: 'revoked' as const })),
+          } : {}),
+        };
+        this.#store.run(
+          `INSERT INTO host_session_state (key, value, updated_at) VALUES (?, ?, ?)
+           ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+          deletionStateKey(project.root_hash), JSON.stringify(deletionState), now,
+        );
+
+        this.#store.run('DELETE FROM owned_artifacts WHERE project_id = ?', projectId);
+        this.#store.run(
+          `UPDATE profiles SET status = 'revoked', revoked_at = ?, session_artifact_id = NULL, updated_at = ? WHERE project_id = ?`,
+          now,
+          now,
+          projectId,
+        );
+        this.#store.run(
+          `UPDATE projects SET status = 'deleted', deleted_at = ?, active_campaign_id = NULL, updated_at = ? WHERE project_id = ?`,
+          now,
+          now,
+          projectId,
+        );
+
+        const activeRow = this.#store.get<{ value: string }>(
+          "SELECT value FROM host_session_state WHERE key = 'active_project_id'",
+        );
+        if (activeRow?.value === projectId) {
+          this.#store.run("DELETE FROM host_session_state WHERE key = 'active_project_id'");
+        }
+      });
+
+      options.onDeletionGeneration?.(deletionGeneration);
+      return {
+        status: 'deleted',
+        project_id: projectId,
+        drained_tasks: drainedDbTasks + liveHandles.length,
+        aborted_campaigns: abortedCampaigns,
+        revoked_grants: revokedGrants,
+        deleted_credentials: deletedCredentials,
+        removed_host_paths: removedHostPaths,
+        removed_workspace_qa_paths: removedWorkspaceQaPaths,
+        recovery_bundle_path: recoveryBundle.bundle_path,
+        recovery_bundle_hash: recoveryBundle.sha256,
+        auto_recreation_blocked: true,
+        deleted_at: now,
       };
-      this.#store.run(
-        `INSERT INTO host_session_state (key, value, updated_at) VALUES (?, ?, ?)
-         ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
-        deletionStateKey(project.root_hash), JSON.stringify(deletionState), now,
-      );
-
-      this.#store.run('DELETE FROM owned_artifacts WHERE project_id = ?', projectId);
-      this.#store.run(
-        `UPDATE profiles SET status = 'revoked', revoked_at = ?, session_artifact_id = NULL, updated_at = ? WHERE project_id = ?`,
-        now,
-        now,
-        projectId,
-      );
-      this.#store.run(
-        `UPDATE projects SET status = 'deleted', deleted_at = ?, active_campaign_id = NULL, updated_at = ? WHERE project_id = ?`,
-        now,
-        now,
-        projectId,
-      );
-
-      const activeRow = this.#store.get<{ value: string }>(
-        "SELECT value FROM host_session_state WHERE key = 'active_project_id'",
-      );
-      if (activeRow?.value === projectId) {
-        this.#store.run("DELETE FROM host_session_state WHERE key = 'active_project_id'");
-      }
     });
-
-    return {
-      status: 'deleted',
-      project_id: projectId,
-      drained_tasks: drainedDbTasks + liveHandles.length,
-      aborted_campaigns: abortedCampaigns,
-      revoked_grants: revokedGrants,
-      deleted_credentials: deletedCredentials,
-      removed_host_paths: removedHostPaths,
-      removed_workspace_qa_paths: removedWorkspaceQaPaths,
-      recovery_bundle_path: recoveryBundle.bundle_path,
-      recovery_bundle_hash: recoveryBundle.sha256,
-      auto_recreation_blocked: true,
-      deleted_at: now,
-    };
   }
 
-  recoverDeletedProject(projectId: string): RecoveryRestoreReceipt {
-    const tombstone = this.#store.get<{
-      project_id: string;
-      canonical_root: string;
-      root_hash: string;
-      recovery_bundle_path: string;
-      recovery_bundle_hash: string;
-    }>('SELECT * FROM deletion_tombstones WHERE project_id = ?', projectId);
+  recoverDeletedProject(projectId: string, options: { expectedDeletionGeneration?: string } = {}): RecoveryRestoreReceipt {
+    return this.#operations.run(() => {
+      const tombstone = this.#store.get<{
+        project_id: string;
+        canonical_root: string;
+        root_hash: string;
+        deleted_at: string;
+        recovery_bundle_path: string;
+        recovery_bundle_hash: string;
+      }>('SELECT * FROM deletion_tombstones WHERE project_id = ?', projectId);
 
-    if (!tombstone) {
-      throw new ApplicationServiceError('recovery_not_available', `No existe registro de borrado recuperable para '${projectId}'.`);
-    }
-    const activeConflict = this.findActiveProjectByRoot(tombstone.canonical_root);
-    if (activeConflict) {
-      throw new ApplicationServiceError(
-        'recovery_root_conflict',
-        `El workspace ya está asignado al proyecto activo '${activeConflict.project_id}'.`,
-      );
-    }
-
-    const bundle = this.artifacts.readLatestRecoveryBundle<RecoveryBundlePayload>(projectId);
-    if (!bundle || bundle.sha256 !== tombstone.recovery_bundle_hash) {
-      throw new ApplicationServiceError(
-        'recovery_bundle_corrupt_or_missing',
-        'El paquete de recuperación falta o falló la verificación de integridad SHA-256.',
-      );
-    }
-
-    const now = new Date().toISOString();
-    const { project, environments, modules, profiles, campaigns } = bundle.data;
-    this.artifacts.ensureProjectWorkspace(projectId);
-
-    this.#store.transaction('IMMEDIATE', () => {
-      this.#store.run('DELETE FROM deletion_tombstones WHERE project_id = ?', projectId);
-      this.#store.run(
-        `UPDATE projects
-         SET status = 'active', deleted_at = NULL, active_env_id = ?, updated_at = ?
-         WHERE project_id = ?`,
-        project.active_env_id ?? environments[0]?.env_id ?? null,
-        now,
-        projectId,
-      );
-      for (const env of environments) {
-        this.#store.run(
-          `INSERT OR IGNORE INTO environments
-            (env_id, project_id, name, base_url, is_production, destructive_actions_allowed, safe_domains_json, tenant_mode, default_tenant, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          env.env_id,
-          projectId,
-          env.name,
-          env.base_url,
-          env.is_production ? 1 : 0,
-          env.destructive_actions_allowed ? 1 : 0,
-          JSON.stringify(env.safe_domains),
-          env.tenant_mode,
-          env.default_tenant ?? null,
-          env.created_at,
-          now,
+      if (!tombstone) {
+        throw new ApplicationServiceError('recovery_not_available', `No existe registro de borrado recuperable para '${projectId}'.`);
+      }
+      const deletionEpoch = this.getRootDeletionState(tombstone.canonical_root);
+      if (options.expectedDeletionGeneration !== undefined &&
+          (!deletionEpoch || deletionEpoch.version !== 1 || deletionEpoch.project_id !== projectId ||
+           deletionEpoch.generation !== options.expectedDeletionGeneration || deletionEpoch.cleanup_status !== 'completed')) {
+        throw new ApplicationServiceError('project_deletion_state_changed', 'La generación de borrado no está disponible o cambió.');
+      }
+      const activeConflict = this.findActiveProjectByRoot(tombstone.canonical_root);
+      if (activeConflict) {
+        throw new ApplicationServiceError(
+          'recovery_root_conflict',
+          `El workspace ya está asignado al proyecto activo '${activeConflict.project_id}'.`,
         );
       }
-      for (const mod of modules) {
-        this.#store.run(
-          `INSERT OR IGNORE INTO modules
-            (module_id, project_id, key, title, route_hint, priority, criticality, status, knowledge_module_id, knowledge_revision, waiver_reason, closed_at, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          mod.module_id,
-          projectId,
-          mod.key,
-          mod.title,
-          mod.route_hint ?? null,
-          mod.priority,
-          mod.criticality,
-          mod.status,
-          mod.knowledge_module_id ?? null,
-          mod.knowledge_revision ?? null,
-          mod.waiver_reason ?? null,
-          mod.closed_at ?? null,
-          mod.created_at,
-          now,
+
+      const bundle = this.artifacts.readLatestRecoveryBundle<RecoveryBundlePayload>(projectId);
+      if (!bundle || bundle.sha256 !== tombstone.recovery_bundle_hash) {
+        throw new ApplicationServiceError(
+          'recovery_bundle_corrupt_or_missing',
+          'El paquete de recuperación falta o falló la verificación de integridad SHA-256.',
         );
       }
-      for (const prof of profiles) {
-        this.#store.run(
-          `UPDATE profiles SET status = 'pending', revoked_at = NULL, updated_at = ? WHERE profile_id = ?`,
-          now,
-          prof.profile_id,
+
+      const now = new Date().toISOString();
+      const { project, environments, modules, profiles, campaigns } = bundle.data;
+      this.artifacts.ensureProjectWorkspace(projectId);
+
+      this.#store.transaction('IMMEDIATE', () => {
+        if (!sameDeletionEpoch(deletionEpoch, this.getRootDeletionState(tombstone.canonical_root))) {
+          throw new ApplicationServiceError('project_deletion_state_changed', 'El estado de borrado cambió; solicita una nueva recuperación.');
+        }
+        const consumed = this.#store.run(
+          'DELETE FROM deletion_tombstones WHERE project_id = ? AND root_hash = ? AND deleted_at = ? AND recovery_bundle_hash = ?',
+          projectId, tombstone.root_hash, tombstone.deleted_at, tombstone.recovery_bundle_hash,
         );
-      }
-      if (campaigns.length > 0) {
-        const latestCamp = campaigns[campaigns.length - 1];
+        if (Number(consumed.changes) !== 1) {
+          throw new ApplicationServiceError('project_deletion_state_changed', 'El estado de borrado cambió; solicita una nueva recuperación.');
+        }
         this.#store.run(
-          `UPDATE campaigns SET status = 'paused', closed_at = NULL, updated_at = ? WHERE campaign_id = ?`,
-          now,
-          latestCamp.campaign_id,
-        );
-        this.#store.run(
-          `UPDATE projects SET active_campaign_id = ?, updated_at = ? WHERE project_id = ?`,
-          latestCamp.campaign_id,
+          `UPDATE projects
+           SET status = 'active', deleted_at = NULL, active_env_id = ?, updated_at = ?
+           WHERE project_id = ?`,
+          project.active_env_id ?? environments[0]?.env_id ?? null,
           now,
           projectId,
         );
-      }
+        for (const env of environments) {
+          this.#store.run(
+            `INSERT OR IGNORE INTO environments
+              (env_id, project_id, name, base_url, is_production, destructive_actions_allowed, safe_domains_json, tenant_mode, default_tenant, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            env.env_id,
+            projectId,
+            env.name,
+            env.base_url,
+            env.is_production ? 1 : 0,
+            env.destructive_actions_allowed ? 1 : 0,
+            JSON.stringify(env.safe_domains),
+            env.tenant_mode,
+            env.default_tenant ?? null,
+            env.created_at,
+            now,
+          );
+        }
+        for (const mod of modules) {
+          this.#store.run(
+            `INSERT OR IGNORE INTO modules
+              (module_id, project_id, key, title, route_hint, priority, criticality, status, knowledge_module_id, knowledge_revision, waiver_reason, closed_at, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            mod.module_id,
+            projectId,
+            mod.key,
+            mod.title,
+            mod.route_hint ?? null,
+            mod.priority,
+            mod.criticality,
+            mod.status,
+            mod.knowledge_module_id ?? null,
+            mod.knowledge_revision ?? null,
+            mod.waiver_reason ?? null,
+            mod.closed_at ?? null,
+            mod.created_at,
+            now,
+          );
+        }
+        for (const prof of profiles) {
+          this.#store.run(
+            `UPDATE profiles SET status = 'pending', revoked_at = NULL, updated_at = ? WHERE profile_id = ?`,
+            now,
+            prof.profile_id,
+          );
+        }
+        if (campaigns.length > 0) {
+          const latestCamp = campaigns[campaigns.length - 1];
+          this.#store.run(
+            `UPDATE campaigns SET status = 'paused', closed_at = NULL, updated_at = ? WHERE campaign_id = ?`,
+            now,
+            latestCamp.campaign_id,
+          );
+          this.#store.run(
+            `UPDATE projects SET active_campaign_id = ?, updated_at = ? WHERE project_id = ?`,
+            latestCamp.campaign_id,
+            now,
+            projectId,
+          );
+        }
+      });
+
+      const restoredRow = this.#store.get<Record<string, unknown>>('SELECT * FROM projects WHERE project_id = ?', projectId)!;
+      return {
+        status: 'recovered',
+        project_id: projectId,
+        restored_from: bundle.path,
+        project: parseProjectRow(restoredRow),
+        restored_entities: {
+          environments: environments.length,
+          modules: modules.length,
+          profiles: profiles.length,
+          campaigns: campaigns.length,
+        },
+        capabilities_reset_to_revoked: true,
+        recovered_at: now,
+      };
     });
-
-    const restoredRow = this.#store.get<Record<string, unknown>>('SELECT * FROM projects WHERE project_id = ?', projectId)!;
-    return {
-      status: 'recovered',
-      project_id: projectId,
-      restored_from: bundle.path,
-      project: parseProjectRow(restoredRow),
-      restored_entities: {
-        environments: environments.length,
-        modules: modules.length,
-        profiles: profiles.length,
-        campaigns: campaigns.length,
-      },
-      capabilities_reset_to_revoked: true,
-      recovered_at: now,
-    };
   }
 
   getDeclaredScopeLimits(projectId: string): ScopeLimitsContract {
@@ -2146,54 +2681,56 @@ export class QapApplicationService {
     sessionState: { cookies: unknown[]; origins?: unknown[] },
     options?: { ttlMs?: number; verifiedAt?: string },
   ): AuthProfileRecord {
-    this.assertActiveProject(projectId);
-    const profileRow = this.#store.get<Record<string, unknown>>(
-      'SELECT * FROM profiles WHERE project_id = ? AND (profile_id = ? OR label = ?)',
-      projectId,
-      profileId,
-      profileId,
-    );
-    if (!profileRow) {
-      throw new ApplicationServiceError('profile_not_found', `Perfil '${profileId}' no encontrado en el proyecto.`);
-    }
-    const parsedProfile = parseProfileRow(profileRow);
-    const relName = `${parsedProfile.profile_id}.session.json`;
-    const receipt = this.artifacts.writeProjectArtifact(
-      projectId,
-      'sessions',
-      relName,
-      JSON.stringify(sessionState, null, 2),
-    );
-    const now = options?.verifiedAt ?? new Date().toISOString();
-    const expiresAt = options?.ttlMs ? new Date(Date.parse(now) + options.ttlMs).toISOString() : null;
-    this.#store.run(
-      `INSERT INTO owned_artifacts (artifact_id, project_id, category, relative_path, sha256, bytes, created_at)
+    return this.#operations.run(() => {
+      this.assertActiveProject(projectId);
+      const profileRow = this.#store.get<Record<string, unknown>>(
+        'SELECT * FROM profiles WHERE project_id = ? AND (profile_id = ? OR label = ?)',
+        projectId,
+        profileId,
+        profileId,
+      );
+      if (!profileRow) {
+        throw new ApplicationServiceError('profile_not_found', `Perfil '${profileId}' no encontrado en el proyecto.`);
+      }
+      const parsedProfile = parseProfileRow(profileRow);
+      const relName = `${parsedProfile.profile_id}.session.json`;
+      const receipt = this.artifacts.writeProjectArtifact(
+        projectId,
+        'sessions',
+        relName,
+        JSON.stringify(sessionState, null, 2),
+      );
+      const now = options?.verifiedAt ?? new Date().toISOString();
+      const expiresAt = options?.ttlMs ? new Date(Date.parse(now) + options.ttlMs).toISOString() : null;
+      this.#store.run(
+        `INSERT INTO owned_artifacts (artifact_id, project_id, category, relative_path, sha256, bytes, created_at)
        VALUES (?, ?, 'sessions', ?, ?, ?, ?)
        ON CONFLICT(project_id, relative_path) DO UPDATE SET artifact_id = excluded.artifact_id, sha256 = excluded.sha256, bytes = excluded.bytes, created_at = excluded.created_at`,
-      receipt.artifact_id,
-      projectId,
-      receipt.relative_path,
-      receipt.sha256,
-      receipt.bytes,
-      now,
-    );
-    this.#store.run(
-      `UPDATE profiles
+        receipt.artifact_id,
+        projectId,
+        receipt.relative_path,
+        receipt.sha256,
+        receipt.bytes,
+        now,
+      );
+      this.#store.run(
+        `UPDATE profiles
        SET status = 'verified', session_artifact_id = ?, verified_at = ?, expires_at = ?, revoked_at = NULL, updated_at = ?
        WHERE profile_id = ? AND project_id = ?`,
-      receipt.artifact_id,
-      now,
-      expiresAt,
-      now,
-      parsedProfile.profile_id,
-      projectId,
-    );
-    const updated = this.#store.get<Record<string, unknown>>(
-      'SELECT * FROM profiles WHERE profile_id = ? AND project_id = ?',
-      parsedProfile.profile_id,
-      projectId,
-    )!;
-    return parseProfileRow(updated);
+        receipt.artifact_id,
+        now,
+        expiresAt,
+        now,
+        parsedProfile.profile_id,
+        projectId,
+      );
+      const updated = this.#store.get<Record<string, unknown>>(
+        'SELECT * FROM profiles WHERE profile_id = ? AND project_id = ?',
+        parsedProfile.profile_id,
+        projectId,
+      )!;
+      return parseProfileRow(updated);
+    });
   }
 
   readProfileSession<T = { cookies: unknown[]; origins?: unknown[] }>(
@@ -2230,30 +2767,32 @@ export class QapApplicationService {
   }
 
   expireProfileSession(projectId: string, profileIdOrLabel: string): AuthProfileRecord {
-    this.assertActiveProject(projectId);
-    const row = this.#store.get<Record<string, unknown>>(
-      'SELECT * FROM profiles WHERE project_id = ? AND (profile_id = ? OR label = ?)',
-      projectId,
-      profileIdOrLabel,
-      profileIdOrLabel,
-    );
-    if (!row) {
-      throw new ApplicationServiceError('profile_not_found', `Perfil '${profileIdOrLabel}' no encontrado.`);
-    }
-    const now = new Date().toISOString();
-    const profile = parseProfileRow(row);
-    this.#store.run(
-      `UPDATE profiles SET status = 'expired', updated_at = ? WHERE profile_id = ? AND project_id = ?`,
-      now,
-      profile.profile_id,
-      projectId,
-    );
-    const updated = this.#store.get<Record<string, unknown>>(
-      'SELECT * FROM profiles WHERE profile_id = ? AND project_id = ?',
-      profile.profile_id,
-      projectId,
-    )!;
-    return parseProfileRow(updated);
+    return this.#operations.run(() => {
+      this.assertActiveProject(projectId);
+      const row = this.#store.get<Record<string, unknown>>(
+        'SELECT * FROM profiles WHERE project_id = ? AND (profile_id = ? OR label = ?)',
+        projectId,
+        profileIdOrLabel,
+        profileIdOrLabel,
+      );
+      if (!row) {
+        throw new ApplicationServiceError('profile_not_found', `Perfil '${profileIdOrLabel}' no encontrado.`);
+      }
+      const now = new Date().toISOString();
+      const profile = parseProfileRow(row);
+      this.#store.run(
+        `UPDATE profiles SET status = 'expired', updated_at = ? WHERE profile_id = ? AND project_id = ?`,
+        now,
+        profile.profile_id,
+        projectId,
+      );
+      const updated = this.#store.get<Record<string, unknown>>(
+        'SELECT * FROM profiles WHERE profile_id = ? AND project_id = ?',
+        profile.profile_id,
+        projectId,
+      )!;
+      return parseProfileRow(updated);
+    });
   }
 
   saveIngestedDocument(input: {

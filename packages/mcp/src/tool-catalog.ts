@@ -70,7 +70,6 @@ export const TOOLS: Tool[] = [
             'discrepancies',
             'resolve_discrepancy',
             'discovery_dossier',
-            'discovery_dossier_regenerate',
           ],
           description: 'Operación explícita sobre el servicio duradero de proyectos y autoridad',
         },
@@ -633,10 +632,6 @@ export const TOOLS: Tool[] = [
       type: 'object',
       properties: {
         targetPath: TARGET_PATH_PROP,
-        path: {
-          type: 'string',
-          description: 'Ruta opcional al directorio de definiciones (por defecto: .qa/definitions)',
-        },
       },
     },
   },

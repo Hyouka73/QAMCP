@@ -1,4 +1,4 @@
-import { spawnSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
@@ -7,12 +7,15 @@ import { DatabaseSync } from 'node:sqlite';
 
 import { KnowledgeStoreError } from '@qap/engine';
 import { checkSqliteFts5Capability, SqliteKnowledgeAdapter } from '@qap/knowledge';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { logTechnicalDiagnostic } from '../technical-diagnostics.js';
 import { WorkspaceBootstrap } from '../workspace-bootstrap.js';
+import { QapApplicationService } from '../application/application-service.js';
 
 const REPO_ROOT = resolve(__dirname, '../../../..');
+// Publishing real authority starts a helper process for each temporary root.
+vi.setConfig({ testTimeout: 30000 });
 
 describe('Milestone M1 Adversarial Challenger: SQLite Preflight, Corruption & Recovery', () => {
   const tempDirs: string[] = [];
@@ -22,6 +25,17 @@ describe('Milestone M1 Adversarial Challenger: SQLite Preflight, Corruption & Re
     const dir = mkdtempSync(join(tmpdir(), `qap-challenger-${prefix}-`));
     tempDirs.push(dir);
     return dir;
+  };
+
+  const authorizedBootstrap = (host: string, roots: string[]) => {
+    const app = createTemp('authority');
+    for (const root of roots) execFileSync(process.execPath, [join(REPO_ROOT, 'scripts/qap-authorize-workspace.mjs'), root], {
+      env: { ...process.env, QAP_MCP_APP_SERVICE_DIR: app, QAP_MCP_WORKSPACE_HOST_DIR: host }, windowsHide: true, stdio: 'pipe', timeout: 15000,
+    });
+    const service = new QapApplicationService({ hostRootDir: app, projectOperationDirectory: host });
+    const bootstrap = new WorkspaceBootstrap(host, service);
+    closers.push(() => service.close(), () => bootstrap.close());
+    return bootstrap;
   };
 
   afterEach(async () => {
@@ -243,8 +257,7 @@ describe('Milestone M1 Adversarial Challenger: SQLite Preflight, Corruption & Re
       writeFileSync(dbFile + '-wal', Buffer.alloc(0));
       expect(statSync(dbFile).size).toBe(0);
 
-      const bootstrap = new WorkspaceBootstrap(hostDir);
-      closers.push(() => bootstrap.close());
+      const bootstrap = authorizedBootstrap(hostDir, [projDir]);
 
       const binding = await bootstrap.prepare(projDir, 'http://localhost:3000');
       expect(binding).toBeDefined();
@@ -289,8 +302,7 @@ describe('Milestone M1 Adversarial Challenger: SQLite Preflight, Corruption & Re
       const dbFile = join(targetHost, 'knowledge.sqlite');
       writeFileSync(dbFile, Buffer.from('NOT_A_VALID_SQLITE_DATABASE_DATA'));
 
-      const bootstrap = new WorkspaceBootstrap(hostDir);
-      closers.push(() => bootstrap.close());
+      const bootstrap = authorizedBootstrap(hostDir, [projDir]);
 
       // Attempt 1: must reject cleanly with KnowledgeStoreError
       await expect(bootstrap.prepare(projDir, 'http://localhost:3000')).rejects.toThrow(KnowledgeStoreError);
@@ -396,8 +408,7 @@ describe('Milestone M1 Adversarial Challenger: SQLite Preflight, Corruption & Re
       const hostDir = createTemp('concurrent-host');
       const projDir = createTemp('concurrent-proj');
 
-      const bootstrap = new WorkspaceBootstrap(hostDir);
-      closers.push(() => bootstrap.close());
+      const bootstrap = authorizedBootstrap(hostDir, [projDir]);
 
       // Pre-initialize workspace with initial prepare call
       const initial = await bootstrap.prepare(projDir, 'http://localhost:3000');
@@ -417,8 +428,7 @@ describe('Milestone M1 Adversarial Challenger: SQLite Preflight, Corruption & Re
       const hostDir = createTemp('multi-host');
       const projDirs = Array.from({ length: 5 }, (_, i) => createTemp(`multi-proj-${i}`));
 
-      const bootstrap = new WorkspaceBootstrap(hostDir);
-      closers.push(() => bootstrap.close());
+      const bootstrap = authorizedBootstrap(hostDir, projDirs);
 
       const bindings = await Promise.all(
         projDirs.map((p, idx) => bootstrap.prepare(p, `http://localhost:${3000 + idx}`))
@@ -436,8 +446,7 @@ describe('Milestone M1 Adversarial Challenger: SQLite Preflight, Corruption & Re
       const hostDir = createTemp('scaffold-host');
       const projDir = createTemp('scaffold-proj');
 
-      const bootstrap = new WorkspaceBootstrap(hostDir);
-      closers.push(() => bootstrap.close());
+      const bootstrap = authorizedBootstrap(hostDir, [projDir]);
 
       // Prepare initial workspace
       await bootstrap.prepare(projDir, 'http://localhost:3000');
@@ -460,8 +469,7 @@ describe('Milestone M1 Adversarial Challenger: SQLite Preflight, Corruption & Re
       const hostDir = createTemp('uninit-concurrent-host');
       const projDir = createTemp('uninit-concurrent-proj');
 
-      const bootstrap = new WorkspaceBootstrap(hostDir);
-      closers.push(() => bootstrap.close());
+      const bootstrap = authorizedBootstrap(hostDir, [projDir]);
 
       // Fire 10 concurrent prepare calls on a FRESH, uninitialized workspace with url
       const promises = Array.from({ length: 10 }, () => bootstrap.prepare(projDir, 'http://localhost:3000'));

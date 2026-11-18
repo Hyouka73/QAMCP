@@ -27,6 +27,26 @@ async function remove(service: QapApplicationService, projectId: string) {
   const preview = service.previewDelete(projectId);
   return service.confirmDelete(projectId, preview.confirmation_token, 'confirm_delete');
 }
+
+it('fences administrative recovery to the exact completed deletion generation', async () => {
+  const { a, service, db, projectA, projectB } = fixture();
+  const grant = service.authority.grant({ project_id: projectA.project_id, capability: 'access', granted_by: 'host' });
+  const neighbor = db.prepare('SELECT * FROM projects WHERE project_id = ?').get(projectB.project_id);
+  await remove(service, projectA.project_id);
+  const first = service.getRootDeletionState(a);
+  if (!first || first.version !== 1) throw new Error('expected generation');
+  expect(() => service.recoverDeletedProject(projectA.project_id, { expectedDeletionGeneration: first.generation })).toThrow();
+  expect(service.completeRootDeletionCleanup(a, first.generation)).toBe(true);
+  expect(() => service.recoverDeletedProject(projectA.project_id, { expectedDeletionGeneration: 'wrong' })).toThrow();
+  expect(() => service.recoverDeletedProject(projectB.project_id, { expectedDeletionGeneration: first.generation })).toThrow();
+  expect(service.recoverDeletedProject(projectA.project_id, { expectedDeletionGeneration: first.generation }).status).toBe('recovered');
+  expect(service.authority.check(projectA.project_id, 'access').allowed).toBe(false);
+  expect(db.prepare('SELECT status FROM permission_grants WHERE grant_id = ?').get(grant.grant_id)).toEqual({ status: 'revoked' });
+  expect(() => service.recoverDeletedProject(projectA.project_id, { expectedDeletionGeneration: first.generation })).toThrow();
+  await remove(service, projectA.project_id);
+  expect(() => service.recoverDeletedProject(projectA.project_id, { expectedDeletionGeneration: first.generation })).toThrow();
+  expect(db.prepare('SELECT * FROM projects WHERE project_id = ?').get(projectB.project_id)).toEqual(neighbor);
+});
 afterEach(() => {
   for (const db of dbs.splice(0)) db.close();
   for (const service of services.splice(0)) service.close();
@@ -56,6 +76,8 @@ it('persists generations atomically, completes idempotently across instances and
   if (!second || second.version !== 1) throw new Error('expected second generation');
   expect(second.generation).not.toBe(first.generation);
   expect(service.completeRootDeletionCleanup(a, first.generation)).toBe(false);
+  expect(() => service.clearResetTombstone(a, { projectId: first.project_id, deletedAt: first.deleted_at, generation: first.generation }))
+    .toThrowError(expect.objectContaining({ code: 'project_deletion_state_changed' }));
   expect(other.getRootDeletionState(a)).toEqual(second);
   expect(service.getRootDeletionState(b)).toBeNull();
   expect(db.prepare('SELECT * FROM projects WHERE project_id = ?').get(projectB.project_id)).toEqual(neighbor);

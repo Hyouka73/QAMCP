@@ -1,8 +1,9 @@
 import { createServer } from 'node:http';
+import { execFileSync } from 'node:child_process';
 import type { AddressInfo } from 'node:net';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
@@ -13,6 +14,10 @@ import type { DiscoveryAuthorizationRequest, DiscoveryAuthorizationResult } from
 import { InteractiveAccess, interactiveScope } from '../interactive-access.js';
 import { createMcpServer } from '../server.js';
 import { WorkspaceBootstrap } from '../workspace-bootstrap.js';
+import { QapApplicationService } from '../application/application-service.js';
+
+// The temporary root is published by the real administrative helper process.
+vi.setConfig({ testTimeout: 30000 });
 
 const cleanup: Array<() => void | Promise<void>> = [];
 afterEach(async () => {
@@ -35,11 +40,17 @@ async function fixture() {
   const dir = mkdtempSync(join(tmpdir(), 'qap-interactive-access-'));
   const root = join(dir, 'project');
   mkdirSync(root);
-  const bootstrap = new WorkspaceBootstrap(join(dir, 'host'));
-  cleanup.push(() => { bootstrap.close(); rmSync(dir, { recursive: true, force: true }); });
+  const host = join(dir, 'host'), app = join(dir, 'app');
+  const authorize = (path: string) => execFileSync(process.execPath, [resolve('../../scripts/qap-authorize-workspace.mjs'), path], {
+    env: { ...process.env, QAP_MCP_APP_SERVICE_DIR: app, QAP_MCP_WORKSPACE_HOST_DIR: host }, windowsHide: true, stdio: 'pipe', timeout: 15000,
+  });
+  authorize(root);
+  const service = new QapApplicationService({ hostRootDir: app, projectOperationDirectory: host });
+  const bootstrap = new WorkspaceBootstrap(host, service);
+  cleanup.push(() => { bootstrap.close(); service.close(); rmSync(dir, { recursive: true, force: true }); });
   const bound = (await bootstrap.prepare(root, origin))!;
   const deps = { projectRoots: [root], knowledgeBindings: [bound] };
-  return { root, bootstrap, bound, deps };
+  return { root, bootstrap, bound, deps, authorize };
 }
 
 it.each([
@@ -537,9 +548,10 @@ it('expires persisted QA authorization before reuse', async () => {
 });
 
 it('associates an existing keychain profile across authorized workspaces only after single-use consent', async () => {
-  const { root: sourceRoot, bound, bootstrap } = await fixture();
+  const { root: sourceRoot, bound, bootstrap, authorize } = await fixture();
   const destinationRoot = join(sourceRoot, '..', 'destination');
   mkdirSync(destinationRoot);
+  authorize(destinationRoot);
   const destinationBound = await bootstrap.prepare(destinationRoot, origin);
   expect(destinationBound).toBeDefined();
   const deps = { projectRoots: [sourceRoot, destinationRoot], knowledgeBindings: [bound, destinationBound!] };

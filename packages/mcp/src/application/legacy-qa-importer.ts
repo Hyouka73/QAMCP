@@ -130,7 +130,7 @@ export class LegacyQaImporter {
   readonly #store: AppServiceSqliteStore;
   constructor(store: AppServiceSqliteStore) { this.#store = store; }
 
-  importWorkspace(projectId: string, sourceRoot: string): LegacyQaImportReceipt {
+  importWorkspace(projectId: string, sourceRoot: string, bindImport?: (importId: string) => void): LegacyQaImportReceipt {
     const project = this.#store.get<{ project_id: string; status: string; active_env_id: string | null }>(
       'SELECT project_id, status, active_env_id FROM projects WHERE project_id = ?',
       projectId,
@@ -456,6 +456,7 @@ export class LegacyQaImporter {
         redaction.count,
         now,
       );
+      bindImport?.(importId);
 
       for (const file of scanned) {
         this.#store.run(

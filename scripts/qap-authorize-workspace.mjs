@@ -7,30 +7,40 @@ import { acquireProjectOperation, QapApplicationService, readProjectResetState }
 
 // Local operator entrypoint, deliberately not an MCP tool. This grants only local
 // project preparation. It never authorizes application access or human reviews.
-const candidate = process.argv[2];
+const mode = process.argv[2];
+const importRead = mode === 'import-read-grant' || mode === 'import-read-revoke';
+const candidate = importRead ? process.argv[3] : mode;
 if (!candidate || !isAbsolute(candidate)) throw new Error('Usage: node scripts/qap-authorize-workspace.mjs <absolute-workspace>');
 const root = realpathSync(candidate);
 if (root.toLowerCase() !== resolve(candidate).toLowerCase() || !lstatSync(root).isDirectory()) throw new Error('Use an existing unlinked workspace');
 const defaultHome = resolve(process.env.QAP_MCP_HOST_DATA_DIR ?? join(homedir(), '.qap'));
 const directory = resolve(process.env.QAP_MCP_WORKSPACE_HOST_DIR ?? join(defaultHome, 'workspaces'));
 const applicationDirectory = resolve(process.env.QAP_MCP_APP_SERVICE_DIR ?? join(defaultHome, 'application'));
+if (importRead) {
+  const service = new QapApplicationService({ hostRootDir: applicationDirectory, projectOperationDirectory: directory });
+  try {
+    if (mode === 'import-read-grant') {
+      if (process.argv.length !== 4) throw new Error('Usage: import-read-grant <absolute-source>');
+      console.log(JSON.stringify(service.issueImportReadGrant(root)));
+    } else {
+      if (process.argv.length !== 5 || !service.revokeImportReadGrant(root, process.argv[4])) throw new Error('Unknown or revoked import_read grant');
+      console.log('import_read grant revoked');
+    }
+  } finally { service.close(); }
+  process.exit(0);
+}
 const registry = join(directory, 'authorized-roots.json');
 let part = parse(registry).root;
 for (const segment of registry.slice(part.length).split(/[\\/]/).filter(Boolean)) {
   part = join(part, segment);
   if (existsSync(part) && (lstatSync(part).isSymbolicLink() || (lstatSync(part).isFile() && lstatSync(part).nlink !== 1))) throw new Error('Unsafe host registry');
 }
-const release = acquireProjectOperation(directory);
+let release;
 let service;
 try {
+  service = new QapApplicationService({ hostRootDir: applicationDirectory, projectOperationDirectory: directory });
+  release = acquireProjectOperation(directory);
   if (readProjectResetState(directory, root)?.state === 'pending') throw new Error('project_reset_incomplete');
-  service = new QapApplicationService({ hostRootDir: applicationDirectory });
-  const state = service.getRootDeletionState(root);
-  if (state && (state.version !== 1 || state.cleanup_status !== 'completed')) throw new Error('project_deletion_cleanup_incomplete');
-  const roots = existsSync(registry) ? JSON.parse(readFileSync(registry, 'utf8')) : [];
-  if (!Array.isArray(roots) || roots.some(r => typeof r !== 'string')) throw new Error('Invalid workspace registry');
-  const sameRoot = value => process.platform === 'win32' ? value.toLowerCase() === root.toLowerCase() : value === root;
-  const alreadyPresent = roots.some(sameRoot);
   const writeRegistry = values => {
     const staging = join(dirname(registry), randomUUID() + '.json');
     try {
@@ -38,19 +48,19 @@ try {
       renameSync(staging, registry);
     } finally { rmSync(staging, { force: true }); }
   };
-  if (!alreadyPresent) writeRegistry([...roots, root]);
-  if (state) {
-    try {
-      service.recordRootAuthorizationGrant({ canonicalRoot: root, generation: state.generation,
-        grantId: randomUUID(), mechanism: 'local_operator_helper', registryPublished: true });
-    } catch (error) {
-      // The grant transaction failed. Preserve pre-existing entries and best-effort
-      // remove only the root added by this invocation; a crash can leave JSON alone.
-      if (!alreadyPresent) {
-        try { writeRegistry(roots); } catch { /* R4-D must require the published grant as well. */ }
-      }
-      throw error;
+  let roots, added = false;
+  service.publishRootAuthorization(root, randomUUID(), () => {
+    roots = existsSync(registry) ? JSON.parse(readFileSync(registry, 'utf8')) : [];
+    if (!Array.isArray(roots) || roots.some(r => typeof r !== 'string')) throw new Error('Invalid workspace registry');
+    const sameRoot = value => process.platform === 'win32' ? value.toLowerCase() === root.toLowerCase() : value === root;
+    if (!roots.some(sameRoot)) {
+      writeRegistry([...roots, root]);
+      added = true;
     }
-  }
-} finally { try { service?.close(); } finally { release(); } }
+  }, () => {
+    // Preserve pre-existing entries. A crash can still leave JSON alone; D1-B
+    // must require the published SQLite grant as well.
+    if (added) writeRegistry(roots);
+  }, release.context);
+} finally { try { service?.close(); } finally { release?.(); } }
 console.log('Workspace authorized for local QAP preparation. Reconnect the MCP, then call qap_status. No application permissions granted.');

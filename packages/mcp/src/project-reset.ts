@@ -5,6 +5,7 @@ import { createRequire } from 'node:module';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 
 import { validateCandidateWorkspace } from './workspace-authorizer.js';
+import { AsyncLocalStorage } from 'node:async_hooks';
 
 const TTL = 120_000;
 const requireSqlite = () => createRequire(import.meta.url)('node:sqlite') as typeof import('node:sqlite');
@@ -15,7 +16,7 @@ const within = (parent: string, child: string) => {
 };
 const hash = (value: string | Buffer) => createHash('sha256').update(value).digest('hex');
 export const workspaceStorageKey = (root: string) => hash(process.platform === 'win32' ? root.toLowerCase() : root);
-export const resetHostDirectory = () => resolve(process.env.QAP_MCP_WORKSPACE_HOST_DIR ?? join(homedir(), '.qap', 'workspaces'));
+export const resetHostDirectory = () => resolve(process.env.QAP_MCP_WORKSPACE_HOST_DIR ?? join(process.env.QAP_MCP_HOST_DATA_DIR ?? join(homedir(), '.qap'), 'workspaces'));
 
 export function localProjectResetOptions(): ResetOptions {
   const directory = resetHostDirectory();
@@ -41,7 +42,7 @@ interface ResetOptions {
 interface ResetState { id: string; state: 'pending' | 'complete' | 'initialized' }
 class ResetError extends Error {}
 const fail = (code: string): never => { throw new ResetError(code); };
-const codeOf = (error: unknown) => error instanceof ResetError ? error.message : 'storage_error';
+const codeOf = (error: unknown) => error instanceof ResetError || error instanceof ProjectOperationError ? error.message : 'storage_error';
 const stat = (path: string) => {
   try { return lstatSync(path, { bigint: true }); }
   catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; return undefined; }
@@ -72,14 +73,58 @@ function atomic(path: string, value: unknown): void {
 }
 
 // SQLite releases this cross-process gate automatically if a QAP process exits.
-export function acquireProjectOperation(host: string): () => void {
+declare const operationBrand: unique symbol;
+export interface ProjectOperationContext { readonly [operationBrand]: true }
+export type ProjectOperationRelease = (() => void) & { readonly context: ProjectOperationContext };
+const operationOwners = new WeakMap<ProjectOperationContext, { host: string; active: boolean }>();
+const operationScope = new AsyncLocalStorage<ProjectOperationContext>();
+const hostKey = (host: string) => process.platform === 'win32' ? resolve(host).toLowerCase() : resolve(host);
+
+export class ProjectOperationError extends Error {
+  readonly retryable = true;
+  constructor(readonly code: string) { super(code); }
+}
+
+/** Opaque, process-local proof; a copied, forged or released context is rejected. */
+export function assertProjectOperation(host: string, context: ProjectOperationContext): void {
+  const owner = operationOwners.get(context);
+  if (!owner?.active || owner.host !== hostKey(host)) throw new ProjectOperationError('project_operation_context_invalid');
+}
+
+export function withProjectOperation<T>(host: string, action: (context: ProjectOperationContext) => T,
+  context = operationScope.getStore(), busyTimeoutMs = 0): T {
+  if (context) {
+    assertProjectOperation(host, context);
+    return operationScope.run(context, () => action(context));
+  }
+  const release = acquireProjectOperation(host, busyTimeoutMs);
+  try {
+    const result = operationScope.run(release.context, () => action(release.context));
+    if (result && typeof (result as { then?: unknown }).then === 'function') {
+      return Promise.resolve(result).finally(release) as T;
+    }
+    release();
+    return result;
+  } catch (error) { release(); throw error; }
+}
+
+export function acquireProjectOperation(host: string, busyTimeoutMs = 0): ProjectOperationRelease {
+  if (!Number.isSafeInteger(busyTimeoutMs) || busyTimeoutMs < 0 || busyTimeoutMs > 2000) throw new TypeError('Invalid coordinator timeout');
+  host = resolve(host);
   directory(host);
   const path = join(host, 'project-operations.sqlite');
   if (physical(path)?.isDirectory()) fail('unsafe_storage_path');
   const db = new (requireSqlite().DatabaseSync)(path);
-  try { db.exec('PRAGMA busy_timeout=0; BEGIN EXCLUSIVE'); }
-  catch { db.close(); return fail('project_storage_busy'); }
-  return () => { db.close(); };
+  try { db.exec(`PRAGMA busy_timeout=${busyTimeoutMs}; BEGIN EXCLUSIVE`); }
+  catch { db.close(); throw new ProjectOperationError('project_storage_busy'); }
+  const context = Object.freeze({}) as ProjectOperationContext;
+  const owner = { host: hostKey(host), active: true };
+  operationOwners.set(context, owner);
+  return Object.assign(() => {
+    if (!owner.active) return;
+    owner.active = false;
+    db.close();
+  }, { context });
 }
 export function readProjectResetState(host: string, root: string): ResetState | undefined {
   if (!physical(host)) return;
@@ -92,7 +137,7 @@ export function readProjectResetState(host: string, root: string): ResetState | 
   return value;
 }
 export function acknowledgeProjectInitialization(host: string, root: string, state: ResetState): void {
-  atomic(join(host, 'project-resets', workspaceStorageKey(root) + '.json'), { ...state, state: 'initialized' });
+  withProjectOperation(host, () => atomic(join(host, 'project-resets', workspaceStorageKey(root) + '.json'), { ...state, state: 'initialized' }));
 }
 
 function stamp(path: string, onSqlite: (path: string) => void) {

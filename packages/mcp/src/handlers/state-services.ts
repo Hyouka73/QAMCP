@@ -10,7 +10,7 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import type { HostReviewQueue } from '../host-review.js';
 import { TOOLS } from '../tool-catalog.js';
 import { McpToolError } from '../dispatcher.js';
-import type { QapApplicationService } from '../application/application-service.js';
+import type { QapApplicationService, RootAuthorizationReference } from '../application/application-service.js';
 
 import type { ModuleBinding } from './module-observation-bridge.js';
 import type {
@@ -33,6 +33,9 @@ export interface VerifiableRuleReviewGateway {
 /** Host-owned, already-open store. No filename discovery, implicit open or close. */
 export interface ProjectKnowledgeBinding {
   readonly projectRoot: string;
+  /** Exact host authorization that admitted this binding; legacy bindings lack it. */
+  readonly rootAuthorization?: RootAuthorizationReference;
+  readonly projectAccess?: { readonly projectId: string; readonly grantId: string };
   readonly applicationId: string;
   readonly environmentId: string;
   readonly store: IKnowledgeStore;
@@ -47,6 +50,8 @@ export interface StateDependencies {
   /** Host capability; no MCP argument can install or grant it. */
   readonly prepareWorkspace?: (root: string, url?: string) => Promise<void>;
   readonly applicationService?: QapApplicationService;
+  /** Read-only host registry lookup for persistent root authorization. */
+  readonly isRegisteredProjectRoot?: (root: string) => boolean;
   /** Verifiable human review gateway (MCP client elicitation or host gateway). */
   readonly ruleReviewGateway?: VerifiableRuleReviewGateway;
   readonly provisionalInventory?: boolean;
@@ -60,6 +65,8 @@ export interface StateDependencies {
   /** Defaults to the server's cwd; explicit roots authorize additional projects. */
   readonly projectRoots?: readonly string[];
   readonly knowledgeBindings?: readonly ProjectKnowledgeBinding[];
+  /** Host-owned validation, checked whenever a binding is looked up. */
+  readonly validateKnowledgeBinding?: (binding: ProjectKnowledgeBinding) => boolean;
 }
 
 export class StateOperationError extends Error {
@@ -234,6 +241,7 @@ export function binding(root: string, deps: StateDependencies): ProjectKnowledge
   const matches = (deps.knowledgeBindings ?? []).filter(item => realpathSync(item.projectRoot) === root);
   if (matches.length > 1) throw new Error('Ambiguous binding.');
   const found = matches[0];
+  if (found && deps.validateKnowledgeBinding && !deps.validateKnowledgeBinding(found)) throw new Error('Binding authority is no longer valid.');
   if (found && (!/^[A-Za-z0-9_.:-]{1,128}$/.test(found.applicationId) || !/^[A-Za-z0-9_.:-]{1,128}$/.test(found.environmentId) ||
     (deps.knowledgeBindings ?? []).some(item => item.applicationId === found.applicationId && realpathSync(item.projectRoot) !== root))) throw new Error('Invalid binding.');
   return found;

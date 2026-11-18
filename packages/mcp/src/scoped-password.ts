@@ -16,9 +16,10 @@ export function scopedRoute(route: unknown, origin: string): string | undefined 
 
 export async function authenticateScopedPassword(
   service: QapApplicationService, projectId: string, environment: EnvironmentRecord, root: string,
-  args: Record<string, unknown>, signal: AbortSignal,
+  args: Record<string, unknown>, signal: AbortSignal, authority: () => boolean,
 ): Promise<Record<string, unknown>> {
   const blocked = (code: string, extra?: Record<string, unknown>) => ({ status: 'blocked', code, ...extra });
+  if (!service.withProjectOperation(authority)) return blocked('capability_access_revoked');
   const id = args.profile;
   if (typeof id !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$/.test(id)) return blocked('invalid_auth_arguments');
   const origin = new URL(environment.base_url).origin;
@@ -90,38 +91,49 @@ export async function authenticateScopedPassword(
   const persist = () => atomicWritePrivateFile(profilesPath, JSON.stringify({
     _version: '1', profiles: [...profiles.filter(item => item.id !== id || item.env !== environment.name), profile],
   }, null, 2));
-  const row = service.upsertProfile({ projectId, envId: environment.env_id, label: id, roleName: profile.role,
-    tenantId: tenant.tenant_id, loginMode: 'auto', credentialAccount: account, status: 'pending' });
+  const row = service.withProjectOperation(() => authority() ? service.upsertProfile({ projectId, envId: environment.env_id, label: id, roleName: profile.role,
+    tenantId: tenant.tenant_id, loginMode: 'auto', credentialAccount: account, status: 'pending' }) : undefined);
+  if (!row) return blocked('capability_access_revoked');
   try { await service.storeProfileSecret(projectId, row.profile_id, { password }); }
   catch {
-    if (existing) service.upsertProfile({ projectId, envId: environment.env_id, label: id, loginMode: existing.login_mode,
-      credentialAccount: existing.credential_ref_key, status: existing.status });
+    service.withProjectOperation(() => {
+      if (authority() && existing) service.upsertProfile({ projectId, envId: environment.env_id, label: id, loginMode: existing.login_mode,
+        credentialAccount: existing.credential_ref_key, status: existing.status });
+    });
     return blocked('keychain_unavailable');
   }
-  if (!login.allowed) service.authority.grant({ project_id: projectId, env_id: environment.env_id,
-    capability: 'login', scope, granted_by: 'host_bound_scope' });
-  persist();
+  const prepared = service.withProjectOperation(() => {
+    if (!authority()) return false;
+    if (!login.allowed) service.authority.grant({ project_id: projectId, env_id: environment.env_id,
+      capability: 'login', scope, granted_by: 'host_bound_scope' });
+    persist();
+    return true;
+  });
+  if (!prepared) return blocked('capability_access_revoked');
   const timeout = typeof args.timeout_ms === 'number' && Number.isFinite(args.timeout_ms) ? args.timeout_ms : 30_000;
   const captured = await captureVerifiedPassword({
     origin, loginUrl: new URL(loginPath, origin).href, timeoutMs: Math.min(45_000, Math.max(5_000, timeout)),
     ...(verificationPath ? { verificationUrl: new URL(verificationPath, origin).href } : {}),
     selector: profile.post_login_condition?.value,
   }, profile, { username, password }, signal);
-  if (!captured.state || !captured.verificationPath) {
-    service.expireProfileSession(projectId, row.profile_id);
-    return blocked(captured.code ?? 'authentication_required', {
+  return service.withProjectOperation(() => {
+    if (!authority()) return blocked('capability_access_revoked');
+    if (!captured.state || !captured.verificationPath) {
+      service.expireProfileSession(projectId, row.profile_id);
+      return blocked(captured.code ?? 'authentication_required', {
       ...(captured.failureReason ? { login_result: captured.failureReason } : {}),
       perfil: id, secretSaved: true, downgraded_to_anonymous: false,
-    });
-  }
-  profile.verified = true;
+      });
+    }
+    profile.verified = true;
   profile.verified_at = new Date().toISOString();
   profile.verified_route = captured.verificationPath;
   service.saveProfileSession(projectId, row.profile_id, captured.state, { verifiedAt: profile.verified_at });
   persist();
-  return { status: 'success', code: 'authentication_verified', secretSaved: true, profile: {
+    return { status: 'success', code: 'authentication_verified', secretSaved: true, profile: {
     id, env: environment.name, role: profile.role, verified: true, verified_at: profile.verified_at, verified_route: profile.verified_route,
-  } };
+    } };
+  });
 }
 
 export function usableScopedSession(

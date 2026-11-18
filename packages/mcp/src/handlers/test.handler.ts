@@ -174,6 +174,14 @@ export class TestHandler implements IMcpToolHandler {
       throw new McpToolError('invalid_arguments');
     }
 
+    const admitted = binding(rootDir, this.dependencies);
+    const protectedAction = <T>(action: () => T): T => {
+      const run = () => {
+        if (this.dependencies.validateKnowledgeBinding && (!admitted || !this.dependencies.validateKnowledgeBinding(admitted))) throw new Error('workspace_persistent_authority_required');
+        return action();
+      };
+      return this.dependencies.applicationService && this.dependencies.validateKnowledgeBinding ? this.dependencies.applicationService.withProjectOperation(run) : run();
+    };
     const storage = new FileSystemStorage({ rootDir });
 
     // 3. Module existence verification
@@ -460,7 +468,7 @@ export class TestHandler implements IMcpToolHandler {
         !isProductionEnv &&
         authorizations.length === 0
       ) {
-        appService.authority.grant({
+        protectedAction(() => appService.authority.grant({
           project_id: appProject.project_id,
           capability: 'execute',
           scope: {
@@ -470,7 +478,7 @@ export class TestHandler implements IMcpToolHandler {
           },
           granted_by: 'host_bound_scope',
           policy_hash: createHash('sha256').update(envOrigin).digest('hex'),
-        });
+        }));
         const grantedAuth: TestNavigationAuthorization = {
           projectRoot: canonicalRoot,
           allowedOrigins: [envOrigin],
@@ -534,7 +542,7 @@ export class TestHandler implements IMcpToolHandler {
         }
 
         const approvedOrigins = authRes.allowedOrigins.length > 0 ? authRes.allowedOrigins : [requestedOrigin];
-        appService.authority.grant({
+        protectedAction(() => appService.authority.grant({
           project_id: appProject.project_id,
           capability: 'execute',
           scope: {
@@ -544,7 +552,7 @@ export class TestHandler implements IMcpToolHandler {
           },
           granted_by: 'interactive_test_authorizer',
           policy_hash: createHash('sha256').update(approvedOrigins.join('|')).digest('hex'),
-        });
+        }));
 
         const approvedAuth: TestNavigationAuthorization = {
           projectRoot: canonicalRoot,
@@ -553,7 +561,7 @@ export class TestHandler implements IMcpToolHandler {
           ...(authRes.authorizedProfiles ? { authorizedProfiles: authRes.authorizedProfiles } : {}),
         };
         if (this.options.hostTestRegistryPath) {
-          atomicRecordTestAuthorization(this.options.hostTestRegistryPath, approvedAuth);
+          protectedAction(() => atomicRecordTestAuthorization(this.options.hostTestRegistryPath!, approvedAuth));
         }
         authorizations = [...authorizations, approvedAuth];
         matchingAuths = [...matchingAuths, approvedAuth];
@@ -776,7 +784,7 @@ export class TestHandler implements IMcpToolHandler {
     );
     const attemptRecord =
       appProject && appService
-        ? appService.createExecutionAttempt({
+        ? protectedAction(() => appService.createExecutionAttempt({
             projectId: appProject.project_id,
             moduleKey: moduleName,
             envId: appSnapshot?.environment?.env_id ?? environment,
@@ -791,10 +799,10 @@ export class TestHandler implements IMcpToolHandler {
                 title: c.name ?? svc?.title ?? c.id,
               };
             }),
-          })
+          }))
         : null;
     if (attemptRecord && appService) {
-      appService.markAttemptRunning(attemptRecord.attempt_id);
+      protectedAction(() => appService.markAttemptRunning(attemptRecord.attempt_id));
     }
 
     // 8. Safe Runner Execution (R2 / F7 / F8)
@@ -827,12 +835,13 @@ export class TestHandler implements IMcpToolHandler {
       );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      if (attemptRecord && appService) {
+      if (attemptRecord && appService) appService.withProjectOperation(() => {
+        if (this.dependencies.validateKnowledgeBinding && (!admitted || !this.dependencies.validateKnowledgeBinding(admitted))) return;
         appService.finalizeExecutionAttempt({
           attemptId: attemptRecord.attempt_id,
           technicalError: { code: 'execution_failed', message: msg },
         });
-      }
+      });
       return result(
         {
           status: 'error',
@@ -846,6 +855,8 @@ export class TestHandler implements IMcpToolHandler {
       );
     }
 
+    const publishExecution = async (): Promise<CallToolResult> => {
+    if (this.dependencies.validateKnowledgeBinding && (!admitted || !this.dependencies.validateKnowledgeBinding(admitted))) return result({ status: 'blocked', code: 'workspace_persistent_authority_required' }, true);
     if (appService) {
       try {
         appService.assertNoLineagedCaseIds(
@@ -1139,5 +1150,7 @@ export class TestHandler implements IMcpToolHandler {
       started_at: executionResult.started_at,
       finished_at: executionResult.finished_at,
     });
+    };
+    return appService && this.dependencies.validateKnowledgeBinding ? appService.withProjectOperation(publishExecution) : publishExecution();
   }
 }

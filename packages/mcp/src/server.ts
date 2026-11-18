@@ -1,5 +1,6 @@
 import {
   existsSync,
+  lstatSync,
   mkdirSync,
   writeFileSync,
   renameSync,
@@ -9,7 +10,7 @@ import {
   statSync,
   realpathSync,
 } from 'node:fs';
-import { resolve, join, basename, extname } from 'node:path';
+import { resolve, join, basename, extname, dirname, parse } from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
@@ -136,7 +137,7 @@ import {
   ClientElicitationHumanReviewGateway,
   ClientElicitationWorkspaceAuthorizer,
 } from './client-elicitation-authorizers.js';
-import { acknowledgeProjectInitialization, acquireProjectOperation, ProjectReset, readProjectResetState, type ResetAuthorizer } from './project-reset.js';
+import { acknowledgeProjectInitialization, ProjectOperationError, ProjectReset, readProjectResetState, type ResetAuthorizer } from './project-reset.js';
 import { windowsProjectResetAuthorizer } from './project-reset-dialog.js';
 import { conversationLogPath, isConversationId, QapEventLog } from './qap-event-log.js';
 export { checkPlaywrightBrowser, PLAYWRIGHT_INSTALL_COMMAND } from './handlers/state-runtime.js';
@@ -359,10 +360,41 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
   ];
   const workspaceBindings = [...(options.knowledgeBindings ?? [])];
   const pendingPreparations = new Map<string, Promise<void>>();
+  const bootstrapUsers = new Map<string, number>();
   const applicationService = options.applicationService ?? options.workspaceBootstrap?.appService;
+  if (options.workspaceBootstrap) applicationService?.bindProjectOperationDirectory(options.workspaceBootstrap.directory);
+  // This is a point-in-time check, not a fence around subsequent asynchronous work.
+  // Check ancestors as projectRoots may authorize a descendant of a deleted root.
+  const hasPersistentRootAuthority = (candidate: string): boolean => {
+    if (!applicationService) return false;
+    try {
+      const canonical = realpathSync(candidate);
+      const key = normalizePathKey;
+      if (key(resolve(candidate)) !== key(canonical)) return false;
+      for (let root = canonical; root !== parse(root).root; root = dirname(root)) {
+        const state = applicationService.getRootAuthorizationSnapshot(root);
+        if (state.kind === 'no_retained_history') continue;
+        if (state.kind !== 'generation' || state.cleanup_status !== 'completed' || !state.published_active_grant || !options.hostRegistryPath) return false;
+        const registry: unknown = JSON.parse(readFileSync(options.hostRegistryPath, 'utf8'));
+        if (!Array.isArray(registry) || registry.some(entry => typeof entry !== 'string') ||
+            !registry.some(entry => key(entry) === key(root))) return false;
+      }
+      return true;
+    } catch { return false; }
+  };
   const dependencies: StateDependencies = {
     projectRoots: authorizedRoots,
+    isRegisteredProjectRoot: root => {
+      try {
+        const registry = options.hostRegistryPath ?? (options.workspaceBootstrap ? join(options.workspaceBootstrap.directory, 'authorized-roots.json') : undefined);
+        if (!registry) return false;
+        const roots: unknown = JSON.parse(readFileSync(registry, 'utf8'));
+        return Array.isArray(roots) && roots.every(item => typeof item === 'string') &&
+          roots.some(item => normalizePathKey(resolve(item)) === normalizePathKey(resolve(root)));
+      } catch { return false; }
+    },
     knowledgeBindings: workspaceBindings,
+    ...(options.workspaceBootstrap ? { validateKnowledgeBinding: (bound: import('./handlers/state-services.js').ProjectKnowledgeBinding) => options.workspaceBootstrap!.validateBinding(bound) } : {}),
     ...(applicationService ? { applicationService } : {}),
     ruleReviewGateway,
     provisionalInventory: options.provisionalInventory ?? Boolean(options.workspaceBootstrap),
@@ -371,26 +403,35 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
     prepareWorkspace: options.workspaceBootstrap ? async (root, url) => {
       const previous = pendingPreparations.get(root) ?? Promise.resolve();
       const operation = previous.catch(() => undefined).then(async () => {
-        if (workspaceBindings.some(b => realpathSync(b.projectRoot) === root)) return;
-        const bound = await options.workspaceBootstrap!.prepare(root, url);
-        if (bound && !workspaceBindings.some(b => b.projectRoot === root)) {
-          const interview = new CanonicalInterviewService(bound.store, { projectRoot: root,
-            applicationId: bound.applicationId, environmentId: bound.environmentId, moduleBindings: bound.moduleBindings }, undefined, undefined);
-          workspaceBindings.push(bound);
-          interviews.set(root, interview);
+        const existing = workspaceBindings.find(b => realpathSync(b.projectRoot) === root);
+        if (existing) {
+          if (!options.workspaceBootstrap!.validateBinding(existing)) throw new ApplicationServiceError('workspace_persistent_authority_required', 'El binding no tiene una autorización vigente.');
+          return;
         }
+        const bound = await options.workspaceBootstrap!.prepare(root, url);
+        if (bound) applicationService!.withProjectOperation(() => {
+          if (!options.workspaceBootstrap!.validateBinding(bound)) throw new ApplicationServiceError('workspace_persistent_authority_required', 'El binding no tiene una autorización vigente.');
+          if (!workspaceBindings.some(b => b.projectRoot === root)) {
+            const interview = new CanonicalInterviewService(bound.store, { projectRoot: root,
+              applicationId: bound.applicationId, environmentId: bound.environmentId, moduleBindings: bound.moduleBindings }, undefined, undefined);
+            workspaceBindings.push(bound);
+            interviews.set(root, interview);
+          }
+        });
       });
       pendingPreparations.set(root, operation);
       try { await operation; } finally { if (pendingPreparations.get(root) === operation) pendingPreparations.delete(root); }
     } : undefined,
   };
-  workspaceBindings.splice(0, workspaceBindings.length, ...(options.knowledgeBindings ?? []).map(binding => Object.freeze({ ...binding,
+  // A manifest/configuration binding without host-verifiable authority is not an
+  // authorization. Hosts without a bootstrap authority cannot adopt it here.
+  workspaceBindings.splice(0, workspaceBindings.length, ...(options.workspaceBootstrap ? options.knowledgeBindings ?? [] : []).map(binding => Object.freeze({ ...binding,
       moduleBindings: binding.moduleBindings && Object.freeze(binding.moduleBindings.map(link => Object.freeze({ ...link }))),
     })));
   const interviews = new Map<string, CanonicalInterviewService>();
   const closures = new Map<string, CanonicalClosureService>();
   const interviewBindings = (dependencies.knowledgeBindings ?? []).flatMap(bound => {
-    try { return [{ bound, root: realpathSync(bound.projectRoot) }]; } catch { return []; }
+    try { return options.workspaceBootstrap?.validateBinding(bound) ? [{ bound, root: realpathSync(bound.projectRoot) }] : []; } catch { return []; }
   });
   for (const { bound, root } of interviewBindings) {
     // Binding selection elsewhere rejects duplicates; never create an ambiguous runtime.
@@ -476,7 +517,8 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
     if (index >= 0) workspaceBindings.splice(index, 1);
     interviews.delete(root);
   };
-  const cleanupDeletedRoot = (root: string) => {
+  const cleanupDeletedRoot = (root: string) => applicationService!.withProjectOperation(() => {
+    if (!applicationService!.getTombstoneByRoot(root)) return;
     const targetKey = normalizePathKey(root);
     deletedRootKeys.add(targetKey);
     for (const roots of [configuredRoots, authorizedRoots]) {
@@ -495,7 +537,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
       const retained = roots.filter(root => normalizePathKey(root) !== targetKey);
       if (retained.length !== roots.length) atomicWritePrivateFile(options.hostRegistryPath, JSON.stringify(retained, null, 2));
     }
-  };
+  });
   dispatcher.register(new PlanHandler(dependencies));
   dispatcher.register(new TestHandler(dependencies, {
     testAuthorizations: authorizedTestAuths,
@@ -538,7 +580,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
   // Manejador de lista de tools
   const authInputProperties = TOOLS.find(tool => tool.name === 'qap_auth_add')?.inputSchema.properties ?? {};
   server.setRequestHandler(ListToolsRequestSchema, () => {
-    const tools = [...TOOLS, ...dispatcher.listTools().filter(tool => !migrated.has(tool.name))];
+    const tools = [...TOOLS, ...dispatcher.listTools().filter(tool => !migrated.has(tool.name))].filter(tool => !['qap_server', 'qap_flow_run', 'qap_validate'].includes(tool.name));
     if (!options.configuredWorkspaceRoot) return Promise.resolve({ tools });
     return Promise.resolve({ tools: tools.map(tool => ({
       ...tool,
@@ -611,27 +653,43 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
     const controller = new AbortController();
     const context = { ...sdkContext, signal: AbortSignal.any([controller.signal, ...(sdkContext.signal ? [sdkContext.signal] : [])]) };
     let eventWorkspace: string | undefined;
+    let eventBinding: import('./handlers/state-services.js').ProjectKnowledgeBinding | undefined;
     let conversationId: string | undefined;
-    let releaseStorage: (() => void) | undefined;
     let resetState: ReturnType<typeof readProjectResetState>;
     let guardedRoot: string | undefined;
     const eventStartedAt = Date.now();
     const operation = (async (): Promise<CallToolResult> => {
     const { name, arguments: { conversation_id, ...argsWithoutConversation } = {} } = request.params;
     const rawArgs = request.params.arguments === undefined ? undefined : argsWithoutConversation;
+    // G0-01: flow execution remains excluded until it has qap_test authority controls.
+    if (name === 'qap_server' || name === 'qap_flow_run' || name === 'qap_validate') return canonicalResult({ status: 'blocked', code: 'operation_disabled' }, true);
+    if (Object.keys(rawArgs ?? {}).some(key => ['password', 'secret', 'storageState', 'credentials'].includes(key) &&
+      !((name === 'qap_auth_add' && key === 'password' && options.configuredWorkspaceRoot && options.silentBoundScope) ||
+        (name === 'qap_start' && key === 'credentials' && options.configuredWorkspaceRoot && options.silentBoundScope)))) return canonicalResult({ status: 'error', code: 'invalid_auth_arguments' }, true);
+    if (name === 'qap_auth_add' && Object.keys(rawArgs ?? {}).some(key => !Object.hasOwn(authInputProperties, key) && !(key === 'password' && options.configuredWorkspaceRoot && options.silentBoundScope))) return canonicalResult({ status: 'error', code: 'invalid_auth_arguments' }, true);
+    if (name === 'qap_validate' && rawArgs?.path !== undefined) return canonicalResult({ status: 'error', code: 'invalid_arguments' }, true);
     if (conversation_id !== undefined && (!isConversationId(conversation_id) || name === 'qap_project_reset')) {
       return canonicalResult({ status: 'error', code: 'invalid_conversation_id' }, true);
     }
     if (rawArgs) request.params.arguments = rawArgs;
+    const scopedProjectAction = name === 'qap_project' &&
+      ['create', 'list', 'select', 'resume', 'delete_preview', 'delete_confirm', 'recover', 'revoke_permission', 'import_qa', 'verify_import'].includes(String(rawArgs?.action));
+    if (name === 'qap_project' && rawArgs?.action === 'recover') {
+      return canonicalResult({ status: 'blocked', code: 'administrative_recovery_unavailable' }, true);
+    }
+    const idOnlyProjectAction = scopedProjectAction || (name === 'qap_project' && !rawArgs?.targetPath && !rawArgs?.canonical_root &&
+      ['list', 'select', 'resume', 'delete_preview', 'delete_confirm', 'recover', 'import_qa', 'verify_import', 'permissions', 'revoke_permission'].includes(String(rawArgs?.action)));
+    const initialCandidate = typeof rawArgs?.targetPath === 'string' ? rawArgs.targetPath :
+      typeof rawArgs?.canonical_root === 'string' ? rawArgs.canonical_root :
+      authorizedRoots.length === 1 ? authorizedRoots[0] : undefined;
+    if (!idOnlyProjectAction && initialCandidate && !hasPersistentRootAuthority(initialCandidate)) {
+      return canonicalResult({ status: 'blocked', code: 'workspace_persistent_authority_required' }, true);
+    }
     // Tombstones are the durable authority for both a completed deletion and
     // an interrupted root cleanup. Reconcile before any tool can use a root.
     if (applicationService) {
-      // Serialize the tombstone read and registry cleanup with recovery and the
-      // local authorization helper. Otherwise an old read can revoke a new grant.
-      if (options.workspaceBootstrap) {
-        try { releaseStorage = acquireProjectOperation(options.workspaceBootstrap.directory); }
-        catch { return canonicalResult({ status: 'blocked', code: 'project_storage_busy_or_unavailable' }, true); }
-      }
+      // Each registry cleanup below rechecks the tombstone under the host gate;
+      // this listing alone is not a publication fence.
       let tombstones: NonNullable<ReturnType<typeof applicationService.listProjects>['tombstones']>;
       try { tombstones = applicationService.listProjects({ includeDeleted: true }).tombstones ?? []; }
       catch { return canonicalResult({ status: 'blocked', code: 'project_delete_state_unavailable' }, true); }
@@ -644,21 +702,21 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
       const requestedPath = typeof rawArgs?.targetPath === 'string' ? rawArgs.targetPath :
         typeof rawArgs?.canonical_root === 'string' ? rawArgs.canonical_root : undefined;
       for (const tombstone of tombstones) {
-        let failed = false;
-        try {
-          cleanupDeletedRoot(tombstone.canonical_root);
-          const pending = pendingDeleteCleanup.get(tombstone.project_id);
-          if (pending) pending.cleaned = true;
-        } catch { failed = true; }
         const matches = requestedId === tombstone.project_id ||
           (requestedPath !== undefined && normalizePathKey(requestedPath) === normalizePathKey(tombstone.canonical_root));
-        if (failed && matches) return canonicalResult({ status: 'blocked', code: 'project_delete_registry_cleanup_failed' }, true);
-        if (matches && requestedPath !== undefined && !(name === 'qap_project' && rawArgs?.action === 'delete_confirm')) {
+        // Reconciliation is a deletion/recovery operation, never a side effect of
+        // checking another workspace's authority.
+        if (matches && name === 'qap_project' && rawArgs?.action === 'delete_confirm') {
+          try {
+            cleanupDeletedRoot(tombstone.canonical_root);
+            const pending = pendingDeleteCleanup.get(tombstone.project_id);
+            if (pending) pending.cleaned = true;
+          } catch { return canonicalResult({ status: 'blocked', code: 'project_delete_registry_cleanup_failed' }, true); }
+        }
+        if (matches && requestedPath !== undefined && !scopedProjectAction && !(name === 'qap_project' && rawArgs?.action === 'delete_confirm')) {
           return canonicalResult({ status: 'blocked', code: 'project_deleted_tombstone', deleted_project_id: tombstone.project_id }, true);
         }
       }
-      // Reset acquires the same gate internally.
-      if (name === 'qap_project_reset' && releaseStorage) { releaseStorage(); releaseStorage = undefined; }
     }
     const startCredentials = name === 'qap_start' ? rawArgs?.credentials as Record<string, unknown> | undefined : undefined;
     if (name === 'qap_start' && (
@@ -716,13 +774,16 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         const activeProject = applicationService.findActiveProjectByRoot(targetPath);
         if (activeProject) {
           const delPreview = applicationService.previewDelete(activeProject.project_id);
-          await applicationService.confirmDelete(
+          let deletionGeneration: string | undefined;
+          const deletion = await applicationService.confirmDelete(
             activeProject.project_id,
             delPreview.confirmation_token,
             'confirm_delete',
-            { purgeWorkspaceQa: false },
+            { purgeWorkspaceQa: false, onDeletionGeneration: generation => { deletionGeneration = generation; } },
           );
-          applicationService.clearResetTombstone(activeProject.canonical_root);
+          if (!deletionGeneration) throw new Error('Deletion generation unavailable');
+          applicationService.clearResetTombstone(activeProject.canonical_root,
+            { projectId: deletion.project_id, deletedAt: deletion.deleted_at, generation: deletionGeneration });
         }
       }
       return canonicalResult(outcome, outcome.status !== 'preview' && outcome.status !== 'success');
@@ -743,15 +804,6 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         Object.keys(rawArgs ?? {}).some(key => !Object.hasOwn(authInputProperties, key))) {
       return interactiveBlocked('agent_auth_material_not_supported');
     }
-    const acquireHostStorageLock = () => {
-      if (releaseStorage || !options.workspaceBootstrap) return undefined;
-      try {
-        releaseStorage = acquireProjectOperation(options.workspaceBootstrap.directory);
-        return undefined;
-      } catch {
-        return canonicalResult({ status: 'blocked', code: 'project_storage_busy_or_unavailable' }, true);
-      }
-    };
     if (options.workspaceBootstrap) {
       interactiveAccess?.refreshPersistedAuthorizations();
       if (options.hostRegistryPath) authorizedRoots.splice(0, authorizedRoots.length, ...(options.projectRoots === undefined ? [] : configuredRoots));
@@ -772,16 +824,23 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         }
       } catch { return canonicalResult({ status: 'blocked', category: 'technical_error', code: 'workspace_roots_unavailable', retryable: true }); }
     }
-    if (options.hostRegistryPath) syncAuthorizedRootsFromDisk(options.hostRegistryPath, authorizedRoots);
+    // A client's explicit roots narrow these ID-based operations. The registry is
+    // still consulted independently when validating each persistent grant.
+    if (options.hostRegistryPath && !(scopedProjectAction && options.clientWorkspaceRoots && server.getClientCapabilities()?.roots)) {
+      syncAuthorizedRootsFromDisk(options.hostRegistryPath, authorizedRoots);
+    }
     for (let i = authorizedRoots.length - 1; i >= 0; i -= 1) {
       if (deletedRootKeys.has(normalizePathKey(authorizedRoots[i]))) authorizedRoots.splice(i, 1);
     }
     if (options.workspaceBootstrap) {
       const host = options.workspaceBootstrap.directory;
-      const candidate = typeof rawArgs?.targetPath === 'string' ? rawArgs.targetPath : authorizedRoots.length === 1 ? authorizedRoots[0] : undefined;
+      const candidate = scopedProjectAction
+        ? (authorizedRoots.length === 1 ? authorizedRoots[0] : undefined)
+        : (typeof rawArgs?.targetPath === 'string' ? rawArgs.targetPath : authorizedRoots.length === 1 ? authorizedRoots[0] : undefined);
       if (typeof candidate === 'string') {
         try { guardedRoot = validateCandidateWorkspace(candidate, host); } catch { /* Existing workspace checks classify invalid targets. */ }
         if (guardedRoot) {
+          bootstrapUsers.set(guardedRoot, (bootstrapUsers.get(guardedRoot) ?? 0) + 1);
           try { resetState = readProjectResetState(host, guardedRoot); }
           catch { return canonicalResult({ status: 'blocked', code: 'reset_state_unavailable' }, true); }
           if (resetState && seenResets.get(guardedRoot) !== resetState.id) {
@@ -804,8 +863,6 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
     }
     if (name === 'qap_auth_provision') {
       if (!provisionAccess) return canonicalResult({ status: 'blocked', code: 'credential_dialog_host_unavailable' }, true);
-      const lockError = acquireHostStorageLock();
-      if (lockError) return lockError;
       if (options.workspaceBootstrap && typeof rawArgs?.targetPath === 'string') {
         try {
           const authRoot = authorizedProjectRoot({ targetPath: rawArgs.targetPath }, dependencies, true);
@@ -831,14 +888,12 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         'revoke_permission',
       ]);
       const actionName = typeof rawArgs?.action === 'string' ? rawArgs.action : '';
-      const skipWorkspaceGate =
+      const skipWorkspaceGate = scopedProjectAction || (
         name === 'qap_project' &&
         !rawArgs?.targetPath &&
         !rawArgs?.canonical_root &&
-        idScopedProjectActions.has(actionName);
+        idScopedProjectActions.has(actionName));
       if (skipWorkspaceGate) {
-        const lockError = acquireHostStorageLock();
-        if (lockError) return lockError;
       } else {
         const candidate = rawArgs?.targetPath ?? (name === 'qap_project' ? rawArgs?.canonical_root : undefined);
         let targetPath = typeof candidate === 'string' ? candidate : authorizedRoots.length === 1 ? authorizedRoots[0] : undefined;
@@ -890,8 +945,9 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
             ).catch(() => ({ decision: 'unavailable' as const, code: 'workspace_dialog_start_failed' as const, reason: 'Dialog launch failed.' }));
             const diagnosticId = authorizationDiagnostic('authorization_result', { decision: authResult.decision, code: 'code' in authResult ? authResult.code : undefined });
             if (authResult.decision === 'approved') {
-              const lockError = acquireHostStorageLock();
-              if (lockError) return lockError;
+              if (!hasPersistentRootAuthority(authResult.root)) {
+                return canonicalResult({ status: 'blocked', code: 'workspace_persistent_authority_required' }, true);
+              }
               const compare = (p: string) => (process.platform === 'win32' ? p.toLowerCase() : p);
               if (!authorizedRoots.some(r => compare(r) === compare(authResult.root))) {
                 authorizedRoots.push(authResult.root);
@@ -927,8 +983,13 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
               desbloquear_con: { mecanismo: 'local_host', comando: preparationCommand, descripcion: 'El host no configuró un autorizador interactivo. Revisa su configuración o autoriza localmente mediante el mecanismo administrativo del host; reintenta sin reiniciar.' } });
           }
         }
-        const lockError = acquireHostStorageLock();
-        if (lockError) return lockError;
+        if (!hasPersistentRootAuthority(targetPath)) {
+          return canonicalResult({ status: 'blocked', code: 'workspace_persistent_authority_required' }, true);
+        }
+        const existingBinding = workspaceBindings.find(b => normalizePathKey(b.projectRoot) === normalizePathKey(targetPath));
+        if (existingBinding && !options.workspaceBootstrap.validateBinding(existingBinding)) {
+          return canonicalResult({ status: 'blocked', code: 'workspace_persistent_authority_required' }, true);
+        }
         eventWorkspace = targetPath;
         request.params.arguments = { ...rawArgs, targetPath };
         const isBootstrapTrigger = ['qap_start', 'qap_status', 'qap_init', 'qap_context_set'].includes(name);
@@ -993,6 +1054,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         }
       }
     }
+    eventBinding = workspaceBindings.find(item => item.projectRoot === eventWorkspace);
     const scopedProject = options.configuredWorkspaceRoot && options.silentBoundScope && eventWorkspace
       ? applicationService?.findActiveProjectByRoot(eventWorkspace) : undefined;
     if (name === 'qap_auth_add' && scopedProject && applicationService && eventWorkspace &&
@@ -1001,12 +1063,14 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         rawArgs?.method !== 'handoff' && rawArgs?.login_mode !== 'handoff') {
       const scopedEnv = applicationService.resumeProject(scopedProject.project_id).environment;
       if (!scopedEnv) return canonicalResult({ status: 'blocked', code: 'login_outside_configured_qa_environment' }, true);
+      const bound = workspaceBindings.find(item => item.projectRoot === eventWorkspace);
+      const authority = () => !!bound && bound.projectAccess?.projectId === scopedProject.project_id && !!options.workspaceBootstrap?.validateBinding(bound);
       const auth = await authenticateScopedPassword(applicationService, scopedProject.project_id, scopedEnv,
-        eventWorkspace, rawArgs ?? {}, context.signal);
+        eventWorkspace, rawArgs ?? {}, context.signal, authority);
       return canonicalResult(auth, auth.status !== 'success');
     }
     if (name === 'qap_start') {
-      if (!eventWorkspace || !options.workspaceBootstrap || !conversationId) {
+      if (!eventWorkspace || !options.workspaceBootstrap || !applicationService || !conversationId) {
         return canonicalResult({ status: 'blocked', code: 'workspace_not_bound' }, true);
       }
       const invocation = { requestId: context.requestId, signal: context.signal };
@@ -1037,11 +1101,13 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
       const runScopedLogin = async (args: Record<string, unknown>, label: string) => {
         if (!scopedProject || !applicationService || !environment || !eventWorkspace) return false;
         const started = Date.now();
+        const bound = eventBinding;
+        const authority = () => !!bound && bound.projectAccess?.projectId === scopedProject.project_id && !!options.workspaceBootstrap?.validateBinding(bound);
         const outcome = await authenticateScopedPassword(applicationService, scopedProject.project_id, environment,
-          eventWorkspace, args, context.signal);
-        qapEventLog.record({ workspace: eventWorkspace, conversationId, requestId: String(context.requestId) + ':auth',
+          eventWorkspace, args, context.signal, authority);
+        applicationService.withProjectOperation(() => { if (eventBinding && options.workspaceBootstrap?.validateBinding(eventBinding)) qapEventLog.record({ workspace: eventWorkspace, conversationId, requestId: String(context.requestId) + ':auth',
           tool: 'qap_auth_add', args: { profile: label, action: args.action }, result: canonicalResult(outcome, outcome.status !== 'success'),
-          durationMs: Date.now() - started });
+          durationMs: Date.now() - started }); });
         const success = outcome.status === 'success';
         auth = success ? { status: startCredentials ? 'verified' : 'renewed', profile: label, secretSaved: true }
           : { ...outcome, profile: label };
@@ -1077,8 +1143,8 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
               description: 'Inventario inicial del sistema', ...(selectedProfile ? { profile: selectedProfile } : {}) };
             const started = Date.now();
             const discovery = await dispatcher.dispatch({ name: 'qap_discover', arguments: args }, invocation);
-            qapEventLog.record({ workspace: eventWorkspace, conversationId, requestId: String(context.requestId) + ':discovery',
-              tool: 'qap_discover', args, result: discovery, durationMs: Date.now() - started });
+            applicationService.withProjectOperation(() => { if (eventBinding && options.workspaceBootstrap!.validateBinding(eventBinding)) qapEventLog.record({ workspace: eventWorkspace, conversationId, requestId: String(context.requestId) + ':discovery',
+              tool: 'qap_discover', args, result: discovery, durationMs: Date.now() - started }); });
             return discovery.content[0]?.type === 'text' ? JSON.parse(discovery.content[0].text) as Record<string, unknown> : {};
           };
           const renew = async () => {
@@ -1115,20 +1181,23 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         const started = Date.now();
         const discovery = await dispatcher.dispatch({ name: 'qap_discover', arguments: args }, invocation);
         if (discovery.content[0]?.type === 'text') discoveryAttempt = JSON.parse(discovery.content[0].text) as Record<string, unknown>;
-        qapEventLog.record({ workspace: eventWorkspace, conversationId, requestId: String(context.requestId) + ':discovery',
-          tool: 'qap_discover', args, result: discovery, durationMs: Date.now() - started });
+        applicationService.withProjectOperation(() => { if (eventBinding && options.workspaceBootstrap!.validateBinding(eventBinding)) qapEventLog.record({ workspace: eventWorkspace, conversationId, requestId: String(context.requestId) + ':discovery',
+          tool: 'qap_discover', args, result: discovery, durationMs: Date.now() - started }); });
         revisions = applicationService.listLatestDiscoveryRevisionsByScope(project.project_id)
           .filter(revision => revision.environment_id === environment.env_id);
       }
+      const startWorkspace = eventWorkspace;
+      return applicationService!.withProjectOperation(() => {
+      if (!eventBinding || !options.workspaceBootstrap!.validateBinding(eventBinding)) return canonicalResult({ status: 'blocked', code: 'workspace_persistent_authority_required' }, true);
       const publicRevisions = revisions.filter(revision => revision.profile_id === null);
       const firstObservation = authenticatedObservation ?? publicRevisions.find(revision => revision.dossier.target_pathname === entryPath &&
         revision.dossier.views.length) ?? publicRevisions.find(revision => revision.dossier.views.length) ?? publicRevisions[0];
       let indexPath: string | undefined;
       if (project && applicationService && revisions.length) {
         indexPath = '.qa/discovery/INDEX.md';
-        if (!existsSync(join(eventWorkspace, indexPath)) ||
-            (firstObservation && !existsSync(join(eventWorkspace, buildPublishedModuleDocRepoPath(firstObservation))))) {
-          writeDiscoveryMarkdownFiles(eventWorkspace, project.project_id,
+        if (!existsSync(join(startWorkspace, indexPath)) ||
+            (firstObservation && !existsSync(join(startWorkspace, buildPublishedModuleDocRepoPath(firstObservation))))) {
+          writeDiscoveryMarkdownFiles(startWorkspace, project.project_id,
             applicationService.listLatestDiscoveryRevisionsByScope(project.project_id), { regenerateAll: true });
         }
       }
@@ -1162,7 +1231,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         })) } : {}),
       };
       const scan = state.scan as ReturnType<typeof generarScan> | undefined;
-      const codeRoutes = scanProjectRoutes(eventWorkspace, scan?.subproyectos ?? []).rutas;
+      const codeRoutes = scanProjectRoutes(startWorkspace, scan?.subproyectos ?? []).rutas;
       const candidates = (scan?.documentos ?? []).flatMap(document =>
         typeof document.path === 'string' && document.es_ingerible !== false &&
           !/(^|[/\\])(?:scripts|metadata)([/\\]|$)/i.test(document.path)
@@ -1192,12 +1261,13 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         ...(codeRoutes.length ? ['', '## Rutas encontradas en código', '',
           ...codeRoutes.slice(0, 10).map(route => '- ' + route.path.replace(/[\x00-\x1f\x7f<>]/g, '')),
           '- Rutas candidatas en el despliegue: ' + codeRoutes.length] : []), ''];
-      atomicWritePrivateFile(resolveContainedPath(eventWorkspace, notesPath), summaryLines.join('\n'));
+      atomicWritePrivateFile(resolveContainedPath(startWorkspace, notesPath), summaryLines.join('\n'));
       return canonicalResult({ ...state, status: state.status ?? 'success', conversation_id: conversationId,
         ...(auth ? { autenticacion: auth } : {}),
         discovery_inicial: { ...discoverySummary, notes_path: notesPath,
           ...(diagnostic === 'auth_required' ? { continuation: 'Usa un perfil verificado para documentar áreas internas.' } : {}) },
-        conversation_log: conversationLogPath(eventWorkspace, conversationId) });
+        conversation_log: conversationLogPath(startWorkspace, conversationId!) });
+      });
     }
     if (name === 'qap_status' && applicationService && !options.workspaceBootstrap) {
       try { authorizedProjectRoot(rawArgs, dependencies, true); }
@@ -3546,6 +3616,16 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
 
 
         case 'qap_validate': {
+          // Reject links before the legacy definitions loader follows fixed subdirectories.
+          const safeTree = (entry: string): boolean => {
+            if (!existsSync(entry)) return true;
+            const stat = lstatSync(entry);
+            if (stat.isSymbolicLink() || (stat.isFile() && stat.nlink !== 1)) return false;
+            return !stat.isDirectory() || readdirSync(entry).every(child => safeTree(join(entry, child)));
+          };
+          try {
+            if (!safeTree(resolve(rootDir, '.qa'))) return canonicalResult({ status: 'blocked', code: 'unsafe_validation_path' }, true);
+          } catch { return canonicalResult({ status: 'blocked', code: 'unsafe_validation_path' }, true); }
           const targetDefsDir = args.path ? resolve(String(args.path)) : resolve(rootDir, '.qa');
           const definitionsDir = existsSync(join(targetDefsDir, 'definitions')) ? join(targetDefsDir, 'definitions') : targetDefsDir;
 
@@ -5441,27 +5521,35 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
       if (request.params.name === 'qap_init' && !result.isError && resetState?.state === 'complete' && guardedRoot && options.workspaceBootstrap) {
         acknowledgeProjectInitialization(options.workspaceBootstrap.directory, guardedRoot, resetState);
       }
-      if (options.workspaceBootstrap) {
-        const recorded = qapEventLog.record({ workspace: eventWorkspace, conversationId, requestId: String(context.requestId),
-          tool: request.params.name, args: request.params.arguments, result, durationMs: Date.now() - eventStartedAt });
+      if (options.workspaceBootstrap && applicationService && eventBinding) {
+        const recorded = applicationService.withProjectOperation(() => options.workspaceBootstrap!.validateBinding(eventBinding!) && qapEventLog.record({ workspace: eventWorkspace, conversationId, requestId: String(context.requestId),
+          tool: request.params.name, args: request.params.arguments, result, durationMs: Date.now() - eventStartedAt }));
         if (request.params.name === 'qap_start' && eventWorkspace && !result.isError && !recorded) {
           return canonicalResult({ status: 'partial', code: 'conversation_log_unavailable', conversation_id: conversationId }, true);
         }
       }
       return result;
     }, error => {
+      if (error instanceof ProjectOperationError) return canonicalResult({ status: 'blocked', code: error.code, retryable: true }, true);
       if (request.params.name === 'qap_project_reset') throw error;
-      if (options.workspaceBootstrap) qapEventLog.record({ workspace: eventWorkspace, conversationId, requestId: String(context.requestId),
-        tool: request.params.name, args: request.params.arguments,
-        errorCode: error instanceof McpToolError ? error.code : error instanceof Error ? error.name : 'unknown_error',
-        durationMs: Date.now() - eventStartedAt });
+      if (options.workspaceBootstrap && applicationService && eventBinding) applicationService.withProjectOperation(() => {
+        if (options.workspaceBootstrap!.validateBinding(eventBinding!)) qapEventLog.record({ workspace: eventWorkspace, conversationId, requestId: String(context.requestId),
+          tool: request.params.name, args: request.params.arguments,
+          errorCode: error instanceof McpToolError ? error.code : error instanceof Error ? error.name : 'unknown_error',
+          durationMs: Date.now() - eventStartedAt });
+      });
       throw error;
     });
     activeCalls.set(controller, operation);
     try { return await operation; }
     finally {
-      try { if (releaseStorage && guardedRoot) forgetBootstrapBinding(guardedRoot); }
-      finally { releaseStorage?.(); activeCalls.delete(controller); }
+      try {
+        if (guardedRoot) {
+          const users = (bootstrapUsers.get(guardedRoot) ?? 1) - 1;
+          if (users) bootstrapUsers.set(guardedRoot, users);
+          else { bootstrapUsers.delete(guardedRoot); forgetBootstrapBinding(guardedRoot); }
+        }
+      } finally { activeCalls.delete(controller); }
     }
   });
 

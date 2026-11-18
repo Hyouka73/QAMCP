@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { DatabaseSync } from 'node:sqlite';
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
@@ -89,6 +90,68 @@ afterEach(async () => {
 });
 
 describe('Bloque 1 — Identidad, estado duradero, aislamiento, autoridad y borrado seguro', () => {
+  it('scopes individual MCP revocation to the requested project and preserves persisted rows on retries', async () => {
+    const hostDir = mkTemp('qap-revoke-host-');
+    const rootA = mkTemp('qap-revoke-a-');
+    const rootB = mkTemp('qap-revoke-b-');
+    const operationDir = join(hostDir, 'operations');
+    mkdirSync(operationDir);
+    const service = new QapApplicationService({ hostRootDir: hostDir, projectOperationDirectory: operationDir });
+    cleanups.push(() => service.close());
+    const a = service.createProject({ name: 'A', canonicalRoot: rootA }).project.project_id;
+    const b = service.createProject({ name: 'B', canonicalRoot: rootB }).project.project_id;
+    for (const root of [rootA, rootB]) execFileSync(process.execPath,
+      [join(process.cwd(), '..', '..', 'scripts', 'qap-authorize-workspace.mjs'), root],
+      { env: { ...process.env, QAP_MCP_WORKSPACE_HOST_DIR: operationDir, QAP_MCP_APP_SERVICE_DIR: hostDir }, timeout: 12000, windowsHide: true });
+    service.authority.grant({ project_id: a, capability: 'access', scope: { root_path: rootA }, granted_by: 'host' });
+    service.authority.grant({ project_id: b, capability: 'access', scope: { root_path: rootB }, granted_by: 'host' });
+    const grantA = service.authority.grant({ project_id: a, capability: 'observe', granted_by: 'host' });
+    const grantB = service.authority.grant({ project_id: b, capability: 'observe', granted_by: 'host' });
+    const db = new DatabaseSync(join(service.artifacts.rootDir, 'app-service.sqlite'));
+    cleanups.push(() => db.close());
+    const row = (id: string) => db.prepare('SELECT * FROM permission_grants WHERE grant_id = ?').get(id);
+    const beforeA = row(grantA.grant_id);
+    const beforeB = row(grantB.grant_id);
+    const mcp = await openMcpClient({ service, projectRoots: [rootA, rootB], hostRegistryPath: join(operationDir, 'authorized-roots.json') });
+    const revoke = (grantId: string, reason = 'first') => mcp.call('qap_project', {
+      action: 'revoke_permission', project_id: a, grant_id: grantId, reason,
+    });
+
+    const foreign = await revoke(grantB.grant_id);
+    const missing = await revoke('missing-grant');
+    expect(foreign.data.code).toBe('grant_not_found');
+    expect(missing.data.code).toBe('grant_not_found');
+    expect(foreign.data).toEqual(missing.data);
+    expect(row(grantB.grant_id)).toEqual(beforeB);
+    expect(row(grantA.grant_id)).toEqual(beforeA);
+
+    const own = await revoke(grantA.grant_id);
+    expect(own.data.status).toBe('success');
+    expect(own.data.revoked_grant.status).toBe('revoked');
+    const after = row(grantA.grant_id);
+    expect(after).toMatchObject({ status: 'revoked', revoked_reason: 'first' });
+    const retry = await revoke(grantA.grant_id, 'retry');
+    expect(retry.data.status).toBe('success');
+    expect(row(grantA.grant_id)).toEqual(after);
+    expect(row(grantB.grant_id)).toEqual(beforeB);
+
+    const concurrent = service.authority.grant({ project_id: a, capability: 'execute', granted_by: 'host' });
+    const beforeConcurrent = row(concurrent.grant_id);
+    expect(beforeConcurrent).toMatchObject({ status: 'active', revoked_at: null, revoked_reason: null });
+    const attempts = await Promise.all([
+      revoke(concurrent.grant_id, 'concurrent-one'),
+      revoke(concurrent.grant_id, 'concurrent-two'),
+    ]);
+    const afterConcurrent = row(concurrent.grant_id);
+    expect(afterConcurrent).toMatchObject({ status: 'revoked' });
+    expect(['concurrent-one', 'concurrent-two']).toContain(afterConcurrent?.revoked_reason);
+    for (const attempt of attempts) {
+      expect(attempt.data.status).toBe('success');
+      expect(attempt.data.revoked_grant.revoked_reason).toBe(afterConcurrent?.revoked_reason);
+      expect(attempt.data.revoked_grant.revoked_at).toBe(afterConcurrent?.revoked_at);
+    }
+    expect(row(grantB.grant_id)).toEqual(beforeB);
+  }, 20000);
   it('replaces contradictory qap_clean with qap_project in published catalog and rejects legacy qap_clean calls', async () => {
     const hostDir = mkTemp('qap-b1-host-');
     const ws = mkTemp('qap-b1-ws-');
@@ -300,6 +363,8 @@ describe('Bloque 1 — Identidad, estado duradero, aislamiento, autoridad y borr
   it('integrates existing .qa files via versioned, idempotent, secret-redacting, checksum-verifiable import', async () => {
     const hostDir = mkTemp('qap-b1-imp-host-');
     const ws = mkTemp('qap-b1-imp-ws-');
+    const operationDir = join(hostDir, 'operations');
+    mkdirSync(operationDir);
     mkdirSync(join(ws, '.qa', 'project', 'auth'), { recursive: true });
     mkdirSync(join(ws, '.qa', 'modules', 'pagos'), { recursive: true });
     writeFileSync(join(ws, '.qa', 'project', 'context.yaml'), YAML.stringify({
@@ -326,10 +391,13 @@ describe('Bloque 1 — Identidad, estado duradero, aislamiento, autoridad y borr
       path: '/pagos',
     }));
 
-    const service = new QapApplicationService({ hostRootDir: hostDir });
+    const service = new QapApplicationService({ hostRootDir: hostDir, projectOperationDirectory: operationDir });
     cleanups.push(() => service.close());
     const snap = service.createProject({ name: 'Import Target', canonicalRoot: ws });
-    const mcp = await openMcpClient({ service, projectRoots: [ws] });
+    execFileSync(process.execPath, [join(process.cwd(), '..', '..', 'scripts', 'qap-authorize-workspace.mjs'), ws],
+      { env: { ...process.env, QAP_MCP_WORKSPACE_HOST_DIR: operationDir, QAP_MCP_APP_SERVICE_DIR: hostDir }, timeout: 12000, windowsHide: true });
+    service.authority.grant({ project_id: snap.project.project_id, capability: 'access', scope: { root_path: ws }, granted_by: 'host' });
+    const mcp = await openMcpClient({ service, projectRoots: [ws], hostRegistryPath: join(operationDir, 'authorized-roots.json') });
 
     const first = await mcp.call('qap_project', { action: 'import_qa', project_id: snap.project.project_id });
     expect(first.isError).toBe(false);
@@ -359,7 +427,7 @@ describe('Bloque 1 — Identidad, estado duradero, aislamiento, autoridad y borr
 
     const updated = await mcp.call('qap_project', { action: 'import_qa', project_id: snap.project.project_id });
     expect(updated.data.receipt.status).toBe('updated');
-  });
+  }, 20000);
 
   it('rejects adversarial capability methods and isolates revocations', () => {
     const service = new QapApplicationService({ hostRootDir: mkTemp('qap-enc-authority-') });

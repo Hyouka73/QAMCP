@@ -11,7 +11,7 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { getPhaseGuidance } from '../guidance.js';
 import type { IMcpToolHandler, McpInvocationContext } from '../dispatcher.js';
 
-import { definition, validateContextArguments, projectRoot, readContext, readEnvironment, readCorrections, type LegacyEnvironment, type ContextArguments, type StateDependencies, contextKnowledge, result, ContextFiles, safeDocument, StateOperationError } from './state-services.js';
+import { definition, validateContextArguments, projectRoot, binding, readContext, readEnvironment, readCorrections, type ProjectKnowledgeBinding, type LegacyEnvironment, type ContextArguments, type StateDependencies, contextKnowledge, result, ContextFiles, safeDocument, StateOperationError } from './state-services.js';
 import { buildCorrectionQuestion } from './state-runtime.js';
 
 export class ContextHandler implements IMcpToolHandler {
@@ -21,30 +21,36 @@ export class ContextHandler implements IMcpToolHandler {
   private readonly pending = new Map<string, Promise<void>>();
   async execute(raw: unknown, invocation: McpInvocationContext): Promise<CallToolResult> {
     const rootDir = projectRoot(raw, this.dependencies, true);
+    const admitted = binding(rootDir, this.dependencies);
     const previous = this.pending.get(rootDir) ?? Promise.resolve();
     let release = () => {};
     const current = new Promise<void>(done => { release = done; });
     this.pending.set(rootDir, current);
     await previous;
-    try { return await this.executeLocked(rootDir, raw, invocation); }
+    try { return await this.executeLocked(rootDir, raw, invocation, admitted); }
     finally { release(); if (this.pending.get(rootDir) === current) this.pending.delete(rootDir); }
   }
-  private async executeLocked(rootDir: string, raw: unknown, invocation: McpInvocationContext): Promise<CallToolResult> {
+  private async executeLocked(rootDir: string, raw: unknown, invocation: McpInvocationContext, admitted?: ProjectKnowledgeBinding): Promise<CallToolResult> {
     const args = { ...(raw ?? {}) as ContextArguments };
     if (typeof args.roles === 'string') args.roles = args.roles.split(',').map(name => ({ name: name.trim() }));
     if (typeof args.critical_flows === 'string') args.critical_flows = args.critical_flows.split(',').map(name => ({ name: name.trim() }));
     const knowledge = await contextKnowledge(rootDir, args, this.dependencies);
     if (knowledge.state === 'incompatible' || knowledge.state === 'unavailable') return result({ status: 'blocked', code: 'knowledge_context_unavailable', knowledge }, true);
+    const publish = async () => {
+    if (this.dependencies.validateKnowledgeBinding && (!admitted || !this.dependencies.validateKnowledgeBinding(admitted))) return result({ status: 'blocked', code: 'workspace_persistent_authority_required' }, true);
     if (!existsSync(join(rootDir, '.qa'))) return result({ status: 'error', code: 'project_not_initialized' }, true);
     let staged: ContextFiles;
     try { staged = new ContextFiles(rootDir, invocation.signal); }
     catch (error) { return result({ status: 'blocked', code: error instanceof StateOperationError ? error.code : 'legacy_storage_unavailable' }, true); }
     try {
       const response = await this.update(rootDir, args, staged);
-      return { ...response, content: response.content.map(item => item.type === 'text' ? { type: 'text', text: JSON.stringify({ ...JSON.parse(item.text) as Record<string, unknown>, knowledge, persistence: staged.state }) } : item) };
+      return { ...response, content: response.content.map(item => item.type === 'text' ? { type: 'text' as const, text: JSON.stringify({ ...JSON.parse(item.text) as Record<string, unknown>, knowledge, persistence: staged.state }) } : item) };
     } catch (error) {
       return result({ status: staged.state !== 'staged' ? 'partial' : 'error', code: staged.state === 'committed' ? 'legacy_lifecycle_incomplete' : staged.state === 'partial' ? 'legacy_publication_incomplete' : error instanceof StateOperationError ? error.code : 'legacy_write_failed', persistence: staged.state }, true);
     } finally { staged.close(); }
+    };
+    return this.dependencies.applicationService && this.dependencies.validateKnowledgeBinding
+      ? this.dependencies.applicationService.withProjectOperation(publish) : publish();
   }
   private async update(rootDir: string, args: ContextArguments, staged: ContextFiles): Promise<CallToolResult> {
 

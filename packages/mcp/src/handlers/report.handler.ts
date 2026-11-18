@@ -16,6 +16,7 @@ import { McpToolError, type IMcpToolHandler, type McpInvocationContext } from '.
 
 import { isInternallyConsistentExecution } from './execution-evidence.js';
 import {
+  binding,
   definition,
   isObject,
   projectRoot,
@@ -118,6 +119,7 @@ export class ReportHandler implements IMcpToolHandler {
     const args = raw as ReportArguments;
     const format = args.format ?? 'all';
     const root = projectRoot(args, this.dependencies, true);
+    const admitted = binding(root, this.dependencies);
     const storage = new FileSystemStorage({ rootDir: root });
     const validator = new SchemaValidator();
     const executeDirectory = '.qa/executions';
@@ -247,6 +249,12 @@ export class ReportHandler implements IMcpToolHandler {
       }, true);
     }
 
+    const verifiedEvidence = evidence;
+    const verifiedExecutionId = executionId;
+    const publishReport = async (): Promise<CallToolResult> => {
+    if (this.dependencies.validateKnowledgeBinding && (!admitted || !this.dependencies.validateKnowledgeBinding(admitted))) return result({ status: 'blocked', code: 'workspace_persistent_authority_required' }, true);
+    const evidence = verifiedEvidence;
+    const executionId = verifiedExecutionId;
     const paths: Record<string, string> = {};
     const requestedFormats: Array<'html' | 'markdown' | 'junit' | 'json'> =
       format === 'all'
@@ -396,5 +404,7 @@ export class ReportHandler implements IMcpToolHandler {
       traceability_file: existsSync(resolve(root, '.qa/executions/' + executionId + '.trace.json')) ? resolve(root, '.qa/executions/' + executionId + '.trace.json') : null,
       viewer_url: null,
     });
+    };
+    return appService && this.dependencies.validateKnowledgeBinding ? appService.withProjectOperation(publishReport) : publishReport();
   }
 }
