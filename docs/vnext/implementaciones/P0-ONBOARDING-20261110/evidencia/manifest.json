@@ -1,0 +1,28 @@
+{
+  "baseline": "d3190dfc5edaac7f3f8ad7b35d9d9799150b9a69",
+  "branch": "feat/qap-vnext-architecture",
+  "human_acceptance": "NOT_PERFORMED",
+  "codex_T09": "NOT_ACCREDITED",
+  "verdict": "NO_GO",
+  "files": {
+    "evidencia/build.txt": "f6e64d8bac1845d69ea664bfffcf335a64e55d9c14f467daf9af44ddebf355b2",
+    "evidencia/stdio-onboarding.json": "0ae64e014c88b2144c84c6170e3a195d6a2895707ccff120bc78a23fdc891f3a",
+    "evidencia/onboarding-autonomous-final.json": "37013842dac804a15d82d87e269906701eab037eb58608f893fbe6b5761e1db5",
+    "evidencia/lint.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "evidencia/dev-mvp02.txt": "65943c9fe79a76300737b05ace688a25685074001be14566e805011c12fd0011",
+    "evidencia/regression-focused.json": "8804548cbfb665e6275097716774afd309ce6dae11fc58f524aa59f08348b1a6",
+    "evidencia/source-workingtree-sha256.json": "92890a4886fe3d91f3e61e9a11fd4b26aaef76eb1bd966be9f3a21e7f53caedc",
+    "evidencia/dev-mvp02-result.json": "6ad4a7acd25db5c076d069329ab0193779369636785fbe4511c8341b4d774fce",
+    "evidencia/suite-comparison.json": "4d847d27124d067ab250db5290d64270dcee349994621e37a24f3db41730957f",
+    "evidencia/onboarding-baseline-support-fixed.json": "0466cd1734d62161b487ec9891f1606e679f8a6664b2f5de5afc4461b85d91ad",
+    "evidencia/mcp-suite-final.json": "7ab89f5d924d2625f3f4264ddbb13280c2e62b48506e800f0f01309088241cec",
+    "evidencia/codex-registration.json": "16d0ab8530c140b602ad8efa076995352bf3c7392cd166e4d3e88d80f71eb25d",
+    "ENTREGA.md": "b0b46b20b3a85b80bb42b1a4b1348a1959aeabddc06b647573df66d1aa1e4bbf",
+    "evidencia/onboarding-baseline-exact-final.json": "23e8967f77ac2110ed163e1dd57ddca19fa4820e4f07d20a2153c2bbf5b9c99d",
+    "evidencia/stdio-historical.txt": "08cdd6b73bedd26d629d002266bc8e543ebbc7bcc5634b9cff45c6acb9b6efa2",
+    "evidencia/baseline-summary.json": "ec6670930f24852c4856edac79e5d1af5d4d8ae62502458ea2e2cc32da98ac36",
+    "evidencia/mcp-suite-pending-retry.json": "4696c953f35a002d8b5f0ceca797d26fa645c442829b40d0ee14135e114980de",
+    "evidencia/build-assets-sha256.json": "8a84a3be0910bc70a1b9eafbe0e2def84f18d1eaa98c5cf15897e13874b29368",
+    "CONTRATO.md": "7dcafacda11dfa1a8c5c000929ff398866c15a718c267470645f6a6f656678a1"
+  }
+}

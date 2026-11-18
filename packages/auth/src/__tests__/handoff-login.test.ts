@@ -30,7 +30,7 @@ describe('executeHandoffLogin (S2-005)', () => {
   });
 
   it('debe reanudar automaticamente en cuanto la pagina alcanza la url destino, sin intervencion de teclado', async () => {
-    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     const profile: AuthProfile = {
       id: 'perfil-handoff',
@@ -56,12 +56,12 @@ describe('executeHandoffLogin (S2-005)', () => {
 
     const storageState = await executeHandoffLogin(profile, context);
 
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('2FA/SSO simulado'));
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('2FA/SSO simulado'));
     expect(storageState).toBeDefined();
   }, 20000);
 
   it('debe lanzar timeout si la post_login_condition nunca se cumple', async () => {
-    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
 
     const profile: AuthProfile = {
       id: 'perfil-handoff-timeout',

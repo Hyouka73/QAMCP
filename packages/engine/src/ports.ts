@@ -34,6 +34,8 @@ import type {
   LifecycleState,
 } from '@qap/shared';
 
+export * from './knowledge-store.port.js';
+
 // ---------------------------------------------------------------------------
 // Auxiliary type aliases — bridge between plan naming and @qap/shared types
 // These keep the IStorage contract readable while reusing shared schemas.
@@ -196,14 +198,43 @@ export interface FlowTelemetryEvent {
   flowName: string;
   module: string;
   caseId: string;
-  status: 'passed' | 'failed' | 'skipped';
+  status: 'passed' | 'failed' | 'skipped' | 'not_run';
   durationMs: number;
   error?: string;
 }
 
+export interface FlowTelemetryFinishOptions {
+  status?: 'passed' | 'failed' | 'partial' | 'error' | (string & {});
+  error?: string;
+  resumeNoOp?: boolean;
+}
+
 export interface IFlowTelemetry {
   onCaseEnd(event: FlowTelemetryEvent): void;
-  finish(): unknown;
+  finish(options?: FlowTelemetryFinishOptions | string): unknown;
+}
+
+/**
+ * Persisted state snapshot for resumable multi-module flows.
+ */
+export interface IFlowState {
+  flow_name: string;
+  started_at: string;
+  completed_modules: string[];
+  shared_variables: Record<string, string>;
+}
+
+/**
+ * FlowStateStore Port
+ *
+ * Abstracts flow checkpoint persistence and session backup/restore for rollback.
+ */
+export interface IFlowStateStore {
+  loadState(flowName: string): IFlowState | null;
+  saveState(state: IFlowState): void;
+  hasSessionBackup(flowName: string): boolean;
+  backupSessions(flowName: string): void;
+  restoreSessions(flowName: string): boolean;
 }
 
 /**

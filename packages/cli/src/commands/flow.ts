@@ -2,26 +2,31 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 import { FlowOrchestrator } from '@qap/engine';
-import { FileSystemStorage } from '@qap/knowledge';
+import { FileSystemStorage, FlowContextStore, LockManager } from '@qap/knowledge';
 import { PlaywrightRunner } from '@qap/playwright-runner';
-import type { FlowDefinition } from '@qap/shared';
 import { createFlowTelemetry, normalizeFlowResult, writeFlowReports } from '@qap/reporter';
+import type { FlowDefinition } from '@qap/shared';
 
-interface FlowCommandOptions {
+export interface FlowCommandOptions {
   env?: string;
   tags?: string;
   headed?: boolean;
   all?: boolean;
+  projectRoot?: string;
 }
 
-type FlowAction = 'run' | 'resume' | 'list' | 'validate' | 'debug';
+export type FlowAction = 'run' | 'resume' | 'list' | 'validate' | 'debug';
 
-async function loadFlowDefinition(storage: FileSystemStorage, flowName: string): Promise<FlowDefinition> {
-  try {
-    return await storage.getFlow(flowName);
-  } catch {
+async function loadFlowDefinition(
+  storage: FileSystemStorage,
+  flowName: string,
+  rootDir: string
+): Promise<FlowDefinition> {
+  const flowFile = path.join(rootDir, '.qa', 'flows', `${flowName}.yaml`);
+  if (!fs.existsSync(flowFile)) {
     throw new Error(`No se encontró el flujo '${flowName}' en .qa/flows/${flowName}.yaml`);
   }
+  return await storage.getFlow(flowName);
 }
 
 function requireName(name: string | undefined, usage: string): string {
@@ -32,7 +37,8 @@ function requireName(name: string | undefined, usage: string): string {
 }
 
 function isPassed(result: unknown): boolean {
-  return (result as { status?: string }).status === 'passed';
+  const status = (result as { status?: string }).status;
+  return status === 'passed' || status === 'success';
 }
 
 export async function handleFlowCommand(
@@ -40,17 +46,19 @@ export async function handleFlowCommand(
   flowName?: string,
   options: FlowCommandOptions = {}
 ): Promise<void> {
-  const rootDir = process.cwd();
+  const rootDir = options.projectRoot ?? process.cwd();
   const flowStatesDir = path.join(rootDir, '.qa', 'cache', 'flow_states');
   const storage = new FileSystemStorage({ rootDir });
 
-    const buildOrchestrator = (name: string): FlowOrchestrator => {
-    const runner = new PlaywrightRunner();
+  const buildOrchestrator = (name: string): FlowOrchestrator => {
+    const runner = new PlaywrightRunner({ projectRoot: rootDir });
+    const lockManager = new LockManager({ rootDir });
+    const flowStore = new FlowContextStore(rootDir);
     const telemetry = createFlowTelemetry({
       runtimeDir: path.join(rootDir, '.qa', 'runtime'),
       flowName: name,
     });
-    return new FlowOrchestrator(storage, runner, undefined, rootDir, telemetry);
+    return new FlowOrchestrator(storage, runner, lockManager, flowStore, telemetry);
   };
 
   switch (action) {
@@ -86,7 +94,7 @@ export async function handleFlowCommand(
       let hasErrors = false;
       for (const n of names) {
         try {
-          const def = (await loadFlowDefinition(storage, n)) as unknown as Record<string, unknown>;
+          const def = (await loadFlowDefinition(storage, n, rootDir)) as unknown as Record<string, unknown>;
           const modules = def.modules ?? def.steps;
           if (!Array.isArray(modules) || modules.length === 0) {
             throw new Error("el flujo no define 'modules' (o está vacío)");
@@ -104,7 +112,7 @@ export async function handleFlowCommand(
 
     case 'run': {
       const name = requireName(flowName, 'Debe especificar el nombre del flujo a ejecutar: qap flow run <flow>');
-      const flowDef = await loadFlowDefinition(storage, name);
+      const flowDef = await loadFlowDefinition(storage, name, rootDir);
       console.log(`Ejecutando flujo '${name}'...`);
 
       // `run` empieza de cero: borra checkpoint y respaldo previos
@@ -115,7 +123,7 @@ export async function handleFlowCommand(
       const result = await buildOrchestrator(name).executeFlow(flowDef, {
         environment: options.env,
         headless: !options.headed,
-        tags: options.tags ? options.tags.split(',').map((t) => t.trim()) : undefined,
+        tags: options.tags ? options.tags.split(',').map((t) => t.trim()).filter(Boolean) : undefined,
       });
       console.log('Resultado de ejecución:', JSON.stringify(result, null, 2));
       const runPaths = writeFlowReports(normalizeFlowResult(result), rootDir);
@@ -126,7 +134,7 @@ export async function handleFlowCommand(
 
     case 'resume': {
       const name = requireName(flowName, 'Debe especificar el nombre del flujo a reanudar: qap flow resume <flow>');
-      const flowDef = await loadFlowDefinition(storage, name);
+      const flowDef = await loadFlowDefinition(storage, name, rootDir);
 
       const checkpointPath = path.join(flowStatesDir, `${name}.state.json`);
       if (!fs.existsSync(checkpointPath)) {
@@ -138,7 +146,7 @@ export async function handleFlowCommand(
       const result = await buildOrchestrator(name).executeFlow(flowDef, {
         environment: options.env,
         headless: !options.headed,
-        tags: options.tags ? options.tags.split(',').map((t) => t.trim()) : undefined,
+        tags: options.tags ? options.tags.split(',').map((t) => t.trim()).filter(Boolean) : undefined,
       });
 
       console.log('Resultado de reanudación:', JSON.stringify(result, null, 2));
@@ -168,4 +176,8 @@ export async function handleFlowCommand(
     default:
       throw new Error(`Acción desconocida para flow: ${String(action)}`);
   }
+}
+
+export async function handleFlow(flowName: string, options: FlowCommandOptions = {}): Promise<void> {
+  await handleFlowCommand('run', flowName, options);
 }

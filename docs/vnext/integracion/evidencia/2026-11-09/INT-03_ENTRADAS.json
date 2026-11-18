@@ -1,0 +1,61 @@
+{
+  "purpose": "Original local Codex inputs preserved; historical assertions not overwritten",
+  "inputs": [
+    {
+      "file": "C:\\Users\\Judirico\\.codex\\visualizations\\2026\\11\\09\\01a1c137-807b-7280-99b9-4fd80df77148\\INT-01E_RESOLUCION_COMPLETA.patch",
+      "bytes": 78808,
+      "sha256": "3a9496064dbf74226362a74e4ec2d0a649ad1e99852247083d6df36fd1230df5"
+    },
+    {
+      "file": "C:\\Users\\Judirico\\.codex\\visualizations\\2026\\11\\09\\01a1c137-807b-7280-99b9-4fd80df77148\\INT-01E_MANIFIESTO.json",
+      "bytes": 2179,
+      "sha256": "3598d7d56ef744a94bf18e87b0cabf37f5d0390a497c4aa20de131251496c3d9"
+    },
+    {
+      "file": "C:\\Users\\Judirico\\.codex\\visualizations\\2026\\11\\09\\01a1c137-807b-7280-99b9-4fd80df77148\\INT-01E_ACTUALIZACION_HEAD_REMOTO.md",
+      "bytes": 1256,
+      "sha256": "ae28223f62d2db735b23aac59e87d725c08a6d98e8056c9102734e1dc09de827"
+    },
+    {
+      "file": "C:\\Users\\Judirico\\.codex\\visualizations\\2026\\11\\09\\01a1c137-807b-7280-99b9-4fd80df77148\\INT-01_AUDITORIA_MVP_2026-11-09.md",
+      "bytes": 30395,
+      "sha256": "4fd821e61cbe576240854ec276756d4879dd8229853158970debe8daf5716beb"
+    },
+    {
+      "file": "C:\\Users\\Judirico\\.codex\\visualizations\\2026\\11\\09\\01a1c137-807b-7280-99b9-4fd80df77148\\INT-01_INVENTARIO_RUTAS.tsv",
+      "bytes": 11354,
+      "sha256": "d7de270cd5d4a3d5dc050b6292fd1ec8a99a6db3fbbce72e1bbb46316b42ea3f"
+    },
+    {
+      "file": "C:\\Users\\Judirico\\.codex\\visualizations\\2026\\11\\09\\01a1c137-807b-7280-99b9-4fd80df77148\\INT-01_REPLAN_MVP_16NOV_2026.md",
+      "bytes": 27896,
+      "sha256": "9b330ce602b89f0d96618287bbca0aae74ada98498a221fd50838a1a7f4ec27c"
+    },
+    {
+      "file": "C:/Users/Judirico/.codex/worktrees/int01-mvp-lab/QAMCP/docs/vnext/integracion/INT-01E_CANDIDATO_TECNICO.md",
+      "bytes": 19397,
+      "sha256": "64de8fb4fc0a55a1498dda10779649230e93c63d0a825c02b352d6b673ca4358"
+    },
+    {
+      "file": "C:\\Users\\Judirico\\.codex\\worktrees\\int03-mvp-fixes\\QAMCP\\AGENTS.md",
+      "bytes": 3551,
+      "sha256": "1128a7f17af3cd522cfcad7148f732a5b8a8097f6d1c17d50e90308a7be90036"
+    },
+    {
+      "file": "C:\\Users\\Judirico\\.codex\\worktrees\\int03-mvp-fixes\\QAMCP\\docs\\vnext\\08_WBS_MICROTAREAS_Y_COMPUERTAS.md",
+      "bytes": 44766,
+      "sha256": "27f6577d02b5fbde60543832f7bc5c45c4576142ae96172053cb4f90882bd089"
+    },
+    {
+      "file": "C:\\Users\\Judirico\\.codex\\worktrees\\int03-mvp-fixes\\QAMCP\\docs\\vnext\\06_AUDITORIA_CRUCE_DEVELOP_VNEXT.md",
+      "bytes": 11540,
+      "sha256": "51c4130f812fb9291bfda9ffdfe93dc3a0712ef2d8a30d3f0d19126b85f4df55"
+    }
+  ],
+  "remoteHeadsConfirmedTwice": {
+    "develop": "b50453f27470b49a88623c6617cb4d16e49180a8",
+    "vnext": "dda870e4695a8a27db07ea32b81c1efbbf6ba39e"
+  },
+  "hostGate": "User confirms Gemini processes active; separate worktree authorized, shared host not released",
+  "functionalTestsRun": 0
+}

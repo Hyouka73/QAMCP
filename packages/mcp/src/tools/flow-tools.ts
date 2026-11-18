@@ -2,7 +2,7 @@ import * as path from 'node:path';
 
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { FlowOrchestrator } from '@qap/engine';
-import { FileSystemStorage } from '@qap/knowledge';
+import { FileSystemStorage, FlowContextStore, LockManager } from '@qap/knowledge';
 import { PlaywrightRunner } from '@qap/playwright-runner';
 import { createFlowTelemetry, normalizeFlowResult, writeFlowReports } from '@qap/reporter';
 
@@ -34,12 +34,14 @@ export async function qapFlowRunTool(
   rootDir: string = process.cwd()
 ): Promise<{ content: Array<{ type: 'text'; text: string }>; isError?: boolean }> {
   const storage = new FileSystemStorage({ rootDir });
-  const runner = new PlaywrightRunner();
+  const runner = new PlaywrightRunner({ projectRoot: rootDir });
+  const lockManager = new LockManager({ rootDir });
+  const flowStore = new FlowContextStore(rootDir);
   const telemetry = createFlowTelemetry({
     runtimeDir: path.join(rootDir, '.qa', 'runtime'),
     flowName: args.flow,
   });
-  const orchestrator = new FlowOrchestrator(storage, runner, undefined, rootDir, telemetry);
+  const orchestrator = new FlowOrchestrator(storage, runner, lockManager, flowStore, telemetry);
 
   const flowDef = await storage.getFlow(args.flow);
   const result = await orchestrator.executeFlow(flowDef, {

@@ -1,0 +1,406 @@
+[
+  {
+    "name": "qap_init",
+    "args": {
+      "baseUrl": "http://localhost:3000"
+    },
+    "payload": {
+      "status": "success",
+      "directorio_objetivo": "C:\\Users\\Judirico\\Documents\\QAMCP\\rescate-evidence\\20261105-integracion\\lifecycle-first-cause-S7RWXk",
+      "message": "✔ Proyecto inicializado con éxito en .qa/",
+      "projectName": "lifecycle-first-cause-S7RWXk",
+      "preflight": {
+        "navegador_qap": "ok",
+        "comando_instalacion": "npx playwright install chromium"
+      },
+      "navegador_qap": "ok",
+      "repo_map_resumen": {
+        "total_rutas": 0,
+        "advertencias": []
+      },
+      "environments": [
+        "local"
+      ],
+      "directories": [
+        "\\.qa\\project",
+        "\\.qa\\modules",
+        "\\.qa\\cache",
+        "\\.qa\\executions",
+        "\\.qa\\plans"
+      ],
+      "ya_existia": false,
+      "hallazgos_workspace": {
+        "documentos": [],
+        "subproyectos": [],
+        "servicios": []
+      },
+      "scan": {
+        "_version": "1",
+        "scanned_at": "2026-11-05T23:56:24.653Z",
+        "workspace_root": "C:/Users/Judirico/Documents/QAMCP/rescate-evidence/20261105-integracion/lifecycle-first-cause-S7RWXk",
+        "documentos": [],
+        "subproyectos": [],
+        "servicios": []
+      },
+      "advertencias": [],
+      "roles_descartados": [],
+      "lifecycle": {
+        "phase": "ONBOARDING"
+      },
+      "fase": "ONBOARDING",
+      "siguiente_accion": {
+        "tipo": "entrevista",
+        "descripcion": "Pregunta pendiente de onboarding (onboarding.fuente_de_verdad). Preséntala al usuario usando la herramienta interactiva ask_question.",
+        "tool": "qap_context_set",
+        "pregunta": {
+          "id": "onboarding.fuente_de_verdad",
+          "texto": "Selecciona la fuente de verdad del proyecto para extraer el alcance y especificación:",
+          "formato": "una_opcion",
+          "opciones": [
+            {
+              "id": "custom",
+              "etiqueta": "Sí existe (indicaré la ruta)",
+              "recomendada": true,
+              "efecto": {
+                "accion": "declarar_fuente"
+              }
+            },
+            {
+              "id": "none",
+              "etiqueta": "No, definimos desde cero",
+              "efecto": {
+                "accion": "sin_documento"
+              }
+            }
+          ],
+          "permite_otra": true,
+          "registrar_con": {
+            "tool": "qap_context_set",
+            "campo": "source_of_truth"
+          },
+          "render_texto": "Selecciona la fuente de verdad del proyecto para extraer el alcance y especificación:\n\n1. Sí existe (indicaré la ruta) [Recomendada]\n2. No, definimos desde cero\n\n(Responde con el número de tu opción o escribe una respuesta libre)"
+        }
+      },
+      "_guidance_for_assistant": "Fase actual: ONBOARDING. Siguiente acción: Pregunta pendiente de onboarding (onboarding.fuente_de_verdad). Preséntala al usuario usando la herramienta interactiva ask_question."
+    }
+  },
+  {
+    "name": "qap_context_set",
+    "args": {
+      "framework": "react",
+      "app_type": "spa",
+      "objective": "Validar flujo de compras y autenticación",
+      "critical_flows": [
+        {
+          "name": "login",
+          "description": "Flujo de login"
+        },
+        {
+          "name": "checkout",
+          "description": "Flujo de checkout"
+        }
+      ],
+      "roles": [
+        {
+          "name": "admin",
+          "description": "Administrador"
+        },
+        {
+          "name": "customer",
+          "description": "Cliente"
+        }
+      ],
+      "source_of_truth": {
+        "type": "prd",
+        "declared": true,
+        "ref": "prd-inline"
+      }
+    },
+    "payload": {
+      "status": "success",
+      "directorio_objetivo": "C:\\Users\\Judirico\\Documents\\QAMCP\\rescate-evidence\\20261105-integracion\\lifecycle-first-cause-S7RWXk",
+      "fase": "SCOPING",
+      "transicion_automatica": true,
+      "faltantes": [],
+      "context": {
+        "_version": "1",
+        "project_name": "lifecycle-first-cause-S7RWXk",
+        "description": "Configuración base de QA para lifecycle-first-cause-S7RWXk",
+        "tech_stack": [],
+        "base_url": "http://localhost:3000",
+        "manually_edited": false,
+        "objective": "Validar flujo de compras y autenticación",
+        "objective_source": "user",
+        "roles": [
+          {
+            "name": "admin",
+            "description": "Administrador",
+            "source": "user"
+          },
+          {
+            "name": "customer",
+            "description": "Cliente",
+            "source": "user"
+          }
+        ],
+        "critical_flows": [
+          {
+            "name": "login",
+            "description": "Flujo de login",
+            "source": "user"
+          },
+          {
+            "name": "checkout",
+            "description": "Flujo de checkout",
+            "source": "user"
+          }
+        ],
+        "source_of_truth": {
+          "type": "prd",
+          "ref": "prd-inline",
+          "declared": true,
+          "source": "user"
+        }
+      },
+      "siguiente_accion": {
+        "tipo": "decision",
+        "descripcion": "Define los módulos prioritarios a verificar en esta sesión de trabajo.",
+        "tool": "qap_session_plan",
+        "pregunta": {
+          "id": "scoping.modulos_a_probar",
+          "texto": "Indica los módulos a probar con su nombre y ruta (por ejemplo: Catálogo /catalog, Pagos /checkout):",
+          "formato": "abierta",
+          "opciones": [],
+          "permite_otra": true,
+          "registrar_con": {
+            "tool": "qap_session_plan",
+            "campo": "modules"
+          },
+          "render_texto": "Indica los módulos a probar con su nombre y ruta (por ejemplo: Catálogo /catalog, Pagos /checkout):\n\n(Escribe tu respuesta libremente)"
+        }
+      },
+      "knowledge": {
+        "state": "unbound"
+      },
+      "persistence": "committed"
+    }
+  },
+  {
+    "name": "qap_session_plan",
+    "args": {
+      "plan": [
+        {
+          "module": "auth",
+          "path": "/login",
+          "priority": "high"
+        },
+        {
+          "module": "pagos",
+          "path": "/pay",
+          "priority": "medium"
+        }
+      ],
+      "auth": {
+        "required": false
+      }
+    },
+    "payload": {
+      "status": "success",
+      "directorio_objetivo": "C:\\Users\\Judirico\\Documents\\QAMCP\\rescate-evidence\\20261105-integracion\\lifecycle-first-cause-S7RWXk",
+      "fase": "WORKING",
+      "transicion_automatica": true,
+      "plan": [
+        {
+          "module": "auth",
+          "path": "/login",
+          "priority": "high",
+          "status": "planned",
+          "acceso": true,
+          "flujos": []
+        },
+        {
+          "module": "pagos",
+          "path": "/pay",
+          "priority": "medium",
+          "status": "planned",
+          "flujos": []
+        }
+      ],
+      "auth": {
+        "required": false,
+        "source": "user"
+      },
+      "faltantes": [],
+      "siguiente_accion": {
+        "tipo": "trabajo",
+        "descripcion": "Siguiente módulo planificado para exploración: 'auth' en ruta '/login'. Ejecuta qap_discover para iniciar.",
+        "tool": "qap_discover",
+        "module": "auth",
+        "modulo": "auth"
+      }
+    }
+  },
+  {
+    "name": "qap_discover",
+    "args": {
+      "name": "auth",
+      "path": "/login"
+    },
+    "isError": true,
+    "payload": {
+      "status": "blocked",
+      "code": "knowledge_unbound",
+      "persistence": "not_attempted",
+      "next_safe_action": "Revisar la configuración explícita del host.",
+      "acquisition_status": "blocked",
+      "acquisition_persistence": "not_attempted",
+      "association_status": "not_attempted",
+      "module_identity_status": "not_resolved",
+      "coverage": "partial"
+    }
+  },
+  {
+    "name": "qap_status",
+    "args": {},
+    "isError": false,
+    "payload": {
+      "status": "success",
+      "directorio_objetivo": "C:\\Users\\Judirico\\Documents\\QAMCP\\rescate-evidence\\20261105-integracion\\lifecycle-first-cause-S7RWXk",
+      "initialized": true,
+      "context_state": "available",
+      "preflight": {
+        "navegador_qap": "ok",
+        "comando_instalacion": "npx playwright install chromium"
+      },
+      "navegador_qap": "ok",
+      "fase": "WORKING",
+      "estados_modulos": {
+        "auth": "planned",
+        "pagos": "planned"
+      },
+      "faltantes": [],
+      "siguiente_accion": {
+        "tipo": "trabajo",
+        "descripcion": "Siguiente módulo planificado para exploración: 'auth' en ruta '/login'. Ejecuta qap_discover para iniciar.",
+        "tool": "qap_discover",
+        "module": "auth",
+        "modulo": "auth"
+      },
+      "scan": {
+        "_version": "1",
+        "scanned_at": "2026-11-05T23:56:25.482Z",
+        "workspace_root": "C:/Users/Judirico/Documents/QAMCP/rescate-evidence/20261105-integracion/lifecycle-first-cause-S7RWXk",
+        "documentos": [],
+        "subproyectos": [],
+        "servicios": []
+      },
+      "hallazgos_workspace": {
+        "documentos": [],
+        "subproyectos": [],
+        "servicios": []
+      },
+      "advertencias": [],
+      "projectName": "lifecycle-first-cause-S7RWXk",
+      "environments": [
+        "local"
+      ],
+      "stats": {
+        "modules": 2,
+        "authProfiles": 0,
+        "executions": 0
+      },
+      "validatorReady": true,
+      "_guidance_for_assistant": "Fase actual: WORKING. Siguiente acción: Siguiente módulo planificado para exploración: 'auth' en ruta '/login'. Ejecuta qap_discover para iniciar.",
+      "knowledge": {
+        "state": "unbound"
+      },
+      "canonical_modules": [],
+      "canonical_bridge": {
+        "absence_does_not_imply_no_observations": true,
+        "coverage": "partial",
+        "human_review_required": true
+      },
+      "integration": {
+        "discovery_advances_lifecycle": false,
+        "canonical_interview": "unavailable",
+        "observations_are_confirmed_requirements": false,
+        "module_association": "inspect_canonical_modules",
+        "next_safe_action": "Revisar el inventario con qap_status. Para entrevistar se requiere contexto legacy previamente revisado o una integración futura expresamente autorizada; repetir discovery no crea ese contexto."
+      },
+      "provenance": {
+        "knowledge": "IKnowledgeStore",
+        "onboarding": "legacy_files",
+        "hallazgos_workspace": "workspace_inspection",
+        "preflight": "runtime"
+      },
+      "coverage": "partial_inventory_not_test_verdicts"
+    }
+  },
+  {
+    "name": "qap_rules_set",
+    "args": {
+      "module": "auth",
+      "view": "default",
+      "category_waivers": [
+        {
+          "category": "proposito",
+          "reason": "Razón suficientemente larga de waiver"
+        }
+      ]
+    },
+    "isError": true,
+    "payload": {
+      "status": "blocked",
+      "code": "legacy_interview_unavailable",
+      "persistence": "not_attempted",
+      "razon": "El módulo permanece planned. Falta el contexto de vista requerido por la entrevista legacy. Las observaciones canónicas no lo sustituyen ni acreditan cobertura.",
+      "desbloquear_con": {
+        "tool": "qap_status",
+        "descripcion": "Revisar el inventario con qap_status. Para entrevistar se requiere contexto legacy previamente revisado o una integración futura expresamente autorizada; repetir discovery no crea ese contexto."
+      },
+      "siguiente_accion": {
+        "tipo": "trabajo",
+        "tool": "qap_status",
+        "descripcion": "Revisar el inventario con qap_status. Para entrevistar se requiere contexto legacy previamente revisado o una integración futura expresamente autorizada; repetir discovery no crea ese contexto."
+      },
+      "integration": {
+        "discovery_advances_lifecycle": false,
+        "canonical_interview": "unavailable",
+        "observations_are_confirmed_requirements": false,
+        "module_association": "not_persisted_by_discovery",
+        "next_safe_action": "Revisar el inventario con qap_status. Para entrevistar se requiere contexto legacy previamente revisado o una integración futura expresamente autorizada; repetir discovery no crea ese contexto."
+      }
+    }
+  },
+  {
+    "name": "qap_module_close",
+    "args": {
+      "module": "auth",
+      "action": "close",
+      "user_confirmed": true
+    },
+    "isError": true,
+    "payload": {
+      "status": "blocked",
+      "code": "legacy_interview_unavailable",
+      "persistence": "not_attempted",
+      "razon": "Falta el contexto de vista requerido por la entrevista legacy. Las observaciones canónicas no lo sustituyen ni acreditan cobertura.",
+      "desbloquear_con": {
+        "tool": "qap_status",
+        "descripcion": "Revisar el inventario con qap_status. Para entrevistar se requiere contexto legacy previamente revisado o una integración futura expresamente autorizada; repetir discovery no crea ese contexto."
+      },
+      "siguiente_accion": {
+        "tipo": "trabajo",
+        "tool": "qap_status",
+        "descripcion": "Revisar el inventario con qap_status. Para entrevistar se requiere contexto legacy previamente revisado o una integración futura expresamente autorizada; repetir discovery no crea ese contexto."
+      },
+      "integration": {
+        "discovery_advances_lifecycle": false,
+        "canonical_interview": "unavailable",
+        "observations_are_confirmed_requirements": false,
+        "module_association": "not_persisted_by_discovery",
+        "next_safe_action": "Revisar el inventario con qap_status. Para entrevistar se requiere contexto legacy previamente revisado o una integración futura expresamente autorizada; repetir discovery no crea ese contexto."
+      }
+    }
+  }
+]

@@ -1,0 +1,16 @@
+{
+  "arguments": [
+    "--filter",
+    "@qap/mcp",
+    "exec",
+    "vitest",
+    "run",
+    "--reporter=default",
+    "--reporter=json",
+    "--outputFile=../../docs/vnext/implementaciones/VNEXT-014-E01/evidencia/lazy-normal-1.json"
+  ],
+  "exit_code": 1,
+  "name": "lazy-normal-1",
+  "finished_at": "2026-11-06T18:09:41.7960861Z",
+  "started_at": "2026-11-06T18:08:45.8893980Z"
+}

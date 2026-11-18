@@ -1,0 +1,32 @@
+{
+  "unchanged_identities": true,
+  "count": 12,
+  "actual": [
+    "FAIL  src/__tests__/p4-4-auth-lifecycle.test.ts > P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) > 1. qap_discover protegido sin perfil: blocked auth_required y cero escrituras en disco",
+    "FAIL  src/__tests__/p4-4-auth-lifecycle.test.ts > P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) > 15. Guard de cliente asíncrono lento (~1200ms) en qap_discover: responde blocked auth_required y cero escrituras en .qa/modules (C3c)",
+    "FAIL  src/__tests__/p4-4-auth-lifecycle.test.ts > P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) > 2. qap_discover con redirección HTTP 302 a login: detecta auth_wall determinista y bloquea sin escribir",
+    "FAIL  src/__tests__/p4-4-auth-lifecycle.test.ts > P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) > 3. qap_discover con login embebido en ruta no-acceso: bloquea como auth_required sin persistir",
+    "FAIL  src/__tests__/p4-4-auth-lifecycle.test.ts > P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) > 4. qap_discover con sesión expirada: blocked session_invalid y desverifica el perfil",
+    "FAIL  src/__tests__/p4-4-auth-lifecycle.test.ts > P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) > 5. qap_discover con perfil verificado y storageState válido: devuelve app y transiciona a observed",
+    "FAIL  src/__tests__/p4-4-auth-lifecycle.test.ts > P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) > 6. qap_discover en módulo de acceso: selectors.json incluye auth_selectors y omite valores y atributos sensibles de password",
+    "FAIL  src/__tests__/p4-5a-integrity.test.ts > P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) > C4-d: plan con auth.required true sin roles queda bloqueado con pregunta de roles y bloquea discover (V4)",
+    "FAIL  src/__tests__/p4-5a2-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C1: Clasificación honesta con adaptador real > C1-a: módulo de acceso pedido en login sin redirección NO se bloquea (page_kind login, success)",
+    "FAIL  src/__tests__/p4-5a2-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C1: Clasificación honesta con adaptador real > C1-b: ruta protegida con redirección HTTP 302 a /login detecta auth_wall determinista y bloquea",
+    "FAIL  src/__tests__/p4-5a2-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C1: Clasificación honesta con adaptador real > C1-c: ruta protegida con guard del lado del cliente detecta auth_wall con redirección al login",
+    "FAIL  src/__tests__/server.test.ts > Suite MCP Server QAP v2.1 / v2.1.2 > E0b: qap_discover valida contra module-view.schema.json en vista de autenticacion con session_saved true"
+  ],
+  "baseline": [
+    "FAIL  src/__tests__/p4-4-auth-lifecycle.test.ts > P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) > 1. qap_discover protegido sin perfil: blocked auth_required y cero escrituras en disco",
+    "FAIL  src/__tests__/p4-4-auth-lifecycle.test.ts > P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) > 15. Guard de cliente asíncrono lento (~1200ms) en qap_discover: responde blocked auth_required y cero escrituras en .qa/modules (C3c)",
+    "FAIL  src/__tests__/p4-4-auth-lifecycle.test.ts > P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) > 2. qap_discover con redirección HTTP 302 a login: detecta auth_wall determinista y bloquea sin escribir",
+    "FAIL  src/__tests__/p4-4-auth-lifecycle.test.ts > P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) > 3. qap_discover con login embebido en ruta no-acceso: bloquea como auth_required sin persistir",
+    "FAIL  src/__tests__/p4-4-auth-lifecycle.test.ts > P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) > 4. qap_discover con sesión expirada: blocked session_invalid y desverifica el perfil",
+    "FAIL  src/__tests__/p4-4-auth-lifecycle.test.ts > P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) > 5. qap_discover con perfil verificado y storageState válido: devuelve app y transiciona a observed",
+    "FAIL  src/__tests__/p4-4-auth-lifecycle.test.ts > P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) > 6. qap_discover en módulo de acceso: selectors.json incluye auth_selectors y omite valores y atributos sensibles de password",
+    "FAIL  src/__tests__/p4-5a-integrity.test.ts > P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) > C4-d: plan con auth.required true sin roles queda bloqueado con pregunta de roles y bloquea discover (V4)",
+    "FAIL  src/__tests__/p4-5a2-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C1: Clasificación honesta con adaptador real > C1-a: módulo de acceso pedido en login sin redirección NO se bloquea (page_kind login, success)",
+    "FAIL  src/__tests__/p4-5a2-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C1: Clasificación honesta con adaptador real > C1-b: ruta protegida con redirección HTTP 302 a /login detecta auth_wall determinista y bloquea",
+    "FAIL  src/__tests__/p4-5a2-integrity.test.ts > P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) > C1: Clasificación honesta con adaptador real > C1-c: ruta protegida con guard del lado del cliente detecta auth_wall con redirección al login",
+    "FAIL  src/__tests__/server.test.ts > Suite MCP Server QAP v2.1 / v2.1.2 > E0b: qap_discover valida contra module-view.schema.json en vista de autenticacion con session_saved true"
+  ]
+}

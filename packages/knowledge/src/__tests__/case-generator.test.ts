@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+
 import { CaseGenerator, generateDeterministicUuid } from '../plan/case-generator.js';
 
 describe('Suite S6-002: CaseGenerator', () => {

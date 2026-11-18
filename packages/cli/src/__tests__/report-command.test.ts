@@ -101,7 +101,7 @@ describe('CLI report & serve commands (S5-006)', () => {
 
   it('debe generar y persistir el reporte HTML si la ejecución existe', async () => {
     const mockExecutionResult = {
-      _version: '1',
+      _version: '1' as const,
       execution_id: 'exec-123',
       module: 'checkout',
       env: 'staging',

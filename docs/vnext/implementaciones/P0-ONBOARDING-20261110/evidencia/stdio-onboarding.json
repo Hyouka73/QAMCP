@@ -1,0 +1,10 @@
+{
+  "test_type": "synthetic_protocol_not_Codex_acceptance",
+  "actual_Codex_client": false,
+  "results": [
+    "No roots: targetPath cannot authorize writes",
+    "Client roots: empty workspace prepared, one question, idempotent initialization, URL registered",
+    "Local authorization + reconnection: Knowledge recovered, no repeated URL, no modules fabricated"
+  ],
+  "status": "PASS_PROTOCOL"
+}

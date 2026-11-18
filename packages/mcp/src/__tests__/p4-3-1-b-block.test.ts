@@ -1,14 +1,16 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'node:fs';
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import YAML from 'yaml';
 import { CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
-import { createMcpServer } from '../server.js';
-import { QAP_CORE_DIRECTIVES, getPhaseGuidance } from '../guidance.js';
 import { sanitizeDomString } from '@qap/engine';
 import { parsePrdContent, detectarDocumentosProyecto } from '@qap/knowledge';
+
+import { QAP_CORE_DIRECTIVES, getPhaseGuidance } from '../guidance.js';
+import { createMcpServer } from '../server.js';
 
 describe('P4.3.1 Bloque B - Verificación y Cobertura de Correcciones', () => {
   let tempDir: string;
@@ -17,7 +19,7 @@ describe('P4.3.1 Bloque B - Verificación y Cobertura de Correcciones', () => {
 
   beforeEach(() => {
     tempDir = mkdtempSync(join(tmpdir(), 'qap-b-block-'));
-    server = createMcpServer();
+    server = createMcpServer({ projectRoots: [tempDir] });
     // @ts-expect-error accessing internal request handler
     handler = server._requestHandlers.get(CallToolRequestSchema.shape.method.value);
   }, 15000);
@@ -228,7 +230,14 @@ Plataforma SaaS B2B que digitaliza y centraliza el ciclo de vida del reclutamien
       expect(forbiddenTools).not.toContain(rPlan.parsed.siguiente_accion.tool);
     }
 
-    const rDisc = await call('qap_discover', { name: 'auth', path: '/login' });
+    // VNEXT-013 requires a host binding; the blocked result still obeys B6.
+    const rawDisc = await handler({ method: 'tools/call', params: {
+      name: 'qap_discover', arguments: { targetPath: tempDir, name: 'auth', path: '/login' },
+    } }, {});
+    expect(rawDisc.isError).toBe(true);
+    const rDisc = { parsed: JSON.parse(rawDisc.content[0].text) };
+    expect(rDisc.parsed).toMatchObject({ status: 'blocked', code: 'knowledge_unbound', persistence: 'not_attempted' });
+    expect(existsSync(join(tempDir, '.qa', 'modules', 'auth'))).toBe(false);
     if (rDisc.parsed.siguiente_accion?.tipo === 'trabajo') {
       expect(forbiddenTools).not.toContain(rDisc.parsed.siguiente_accion.tool);
     }

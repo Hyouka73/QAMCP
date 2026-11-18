@@ -14,7 +14,9 @@ describe('P4.3 Suite: Investigar antes de preguntar, Auto-ingesta, Confirmación
 
   beforeEach(() => {
     tempDir = mkdtempSync(join(tmpdir(), 'qap-p43-test-'));
-    server = createMcpServer();
+    // The server captures allowed roots when it is constructed. Temporary
+    // fixture paths must be explicitly authorized by the host, not by tool args.
+    server = createMcpServer({ projectRoots: [tempDir] });
   });
 
   afterEach(() => {
@@ -331,7 +333,7 @@ Sistema de gestión de pruebas y calidad continua para aplicaciones web compleja
 
     it('valida respuestas y payloads de regresión P4.3', async () => {
       // 1. Fixture con PRD_diff.md, front/ con vite, back/, docs/
-      const fixDir = mkdtempSync(join(tmpdir(), 'qap-rep-fix-'));
+      const fixDir = mkdtempSync(join(tempDir, 'qap-rep-fix-'));
       mkdirSync(join(fixDir, 'front'), { recursive: true });
       mkdirSync(join(fixDir, 'back'), { recursive: true });
       mkdirSync(join(fixDir, 'docs'), { recursive: true });
@@ -369,7 +371,7 @@ Sistema de gestión de pruebas automatizadas y trazabilidad.
       expect(setRes.parsed.status).toBe('success');
 
       // Escenario para JSON 3 y JSON 4: Documento sin objetivo claro
-      const noObjDir = mkdtempSync(join(tmpdir(), 'qap-rep-noobj-'));
+      const noObjDir = mkdtempSync(join(tempDir, 'qap-rep-noobj-'));
       writeFileSync(join(noObjDir, 'spec.txt'), 'Notas breves sin encabezados ni estructura formal', 'utf-8');
       await callTool('qap_init', { targetPath: noObjDir, baseUrl: 'http://localhost:3000' });
       const setNoObj = await callTool('qap_context_set', {
@@ -390,7 +392,7 @@ Sistema de gestión de pruebas automatizadas y trazabilidad.
       expect(ingestRes.parsed.status).toBe('success');
 
       // Escenario: qap_status sin evidencia de URL
-      const noUrlDir = mkdtempSync(join(tmpdir(), 'qap-rep-nourl-'));
+      const noUrlDir = mkdtempSync(join(tempDir, 'qap-rep-nourl-'));
       await callTool('qap_init', { targetPath: noUrlDir });
       const statusNoUrl = await callTool('qap_status', { targetPath: noUrlDir });
       expect(statusNoUrl.parsed.detectedService).toBeUndefined();

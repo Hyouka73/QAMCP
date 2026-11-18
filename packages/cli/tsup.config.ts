@@ -1,4 +1,6 @@
 import { defineConfig } from 'tsup';
+import { resolve } from 'node:path';
+import { copyPackagedAssets } from '../../scripts/copy-dialog-assets.mjs';
 
 export default defineConfig({
   entry: ['src/entrypoint.ts'],
@@ -14,4 +16,7 @@ import { createRequire as __qapCreateRequire } from 'node:module';
 const require = __qapCreateRequire(import.meta.url);`,
   },
   noExternal: [/@qap\/.*/, 'ajv', 'ajv-formats'],
+  onSuccess: async () => {
+    copyPackagedAssets(resolve('dist'), { includeReporterTemplate: true });
+  },
 });

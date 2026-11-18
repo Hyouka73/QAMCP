@@ -1,0 +1,18 @@
+[
+  {
+    "Path": "<repo>\\packages\\mcp\\dist\\server.js",
+    "Hash": "3457541827D1F601591BD090CD8A929440B310ED223CFDDCE37BCEF0CA68AAA4"
+  },
+  {
+    "Path": "<repo>\\packages\\playwright-adapter\\dist\\index.js",
+    "Hash": "7992F3711E30DB7938389C8BC6ADA306D628DB881FE1E93E0B9C2B172209A640"
+  },
+  {
+    "Path": "<repo>\\packages\\knowledge\\dist\\index.js",
+    "Hash": "F5F53A04CEDE07E0A078A19EEB2CEE7D13D64FA7093593AFA037B256DAE3DCE2"
+  },
+  {
+    "Path": "<repo>\\packages\\shared\\dist\\index.js",
+    "Hash": "0AC145490635870C3D52AFB9B738608148EEEA35DFD9695E941A6662EDAEBDD7"
+  }
+]

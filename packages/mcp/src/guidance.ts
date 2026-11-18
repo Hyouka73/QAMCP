@@ -39,7 +39,10 @@ export interface SiguienteAccion {
   tipo: AccionTipo;
   descripcion: string;
   tool?: string;
+  parametros?: Record<string, unknown>;
   comando?: string;
+  /** Exact, non-authorizing canonical interview continuation command for qap_rules_set. */
+  canonical_interview?: { action: 'next' };
   module?: string;
   modulo?: string;
   view?: string;
@@ -115,6 +118,7 @@ export function buildInterviewNextAction(params: BuildInterviewActionParams): Si
 }
 
 export interface PhaseGuidanceOptions {
+  investigateBeforeScoping?: boolean;
   context?: CanExitOnboardingContext | null;
   lifecycle?: LifecycleState | null;
   hallazgos?: HallazgosProyectoMin | null;
@@ -124,6 +128,8 @@ export interface PhaseGuidanceOptions {
   plan?: Array<{ module: string; path: string; priority: string; status: string }>;
   modules?: Record<string, { state: string; hasPendingHypotheses?: boolean }>;
   interviewAction?: SiguienteAccion;
+  modulesWithInventory?: ReadonlySet<string>;
+  modulesWithCases?: ReadonlySet<string>;
   reportPath?: string;
   environments?: CanExitOnboardingEnvironments | null;
   profiles?: AuthProfile[];
@@ -141,6 +147,11 @@ export function getPhaseGuidance(
 ): GuidanceResult {
   switch (phase) {
     case 'ONBOARDING': {
+      const configuredUrl = options.environments?.environments && Object.values(options.environments.environments).some(env => Boolean(env.url));
+      if (options.investigateBeforeScoping && configuredUrl && !options.hallazgos?.documentos?.length) {
+        return { fase: 'ONBOARDING', siguiente_accion: { tipo: 'trabajo', tool: 'qap_discover',
+          descripcion: 'Investiga primero la URL registrada con qap_discover (name: inventario-provisional, path: URL registrada), sin exigir módulos, roles ni requisitos. Solo procede con autorización de navegación del host; de lo contrario sigue su acción local de autorización.' } };
+      }
       // E3a: Con fuente declarada e ingerible (existente en workspace) y campos sin propuesta, siguiente_accion es tipo "trabajo"
       const sot = options.context?.source_of_truth;
       const isIngestibleDoc = Boolean(
@@ -210,6 +221,10 @@ export function getPhaseGuidance(
       const hasPlan = Array.isArray(plan) && plan.length > 0;
 
       if (!hasPlan) {
+        if (options.investigateBeforeScoping && !options.moduleCandidates?.length && !options.suggestedModules?.length) {
+          return { fase: 'SCOPING', siguiente_accion: { tipo: 'trabajo', tool: 'qap_discover',
+            descripcion: 'Investiga la aplicación con qap_discover (name: inventario-provisional, path: URL registrada) antes de pedir módulos. Es un inventario provisional, sin crear módulos confirmados. Si falta autorización de navegación, solicita al host esa autorización y conserva el estado.' } };
+        }
         const candidateModules: Array<{ module: string; path: string; flujos?: string[]; id?: string }> = [];
         if (options.moduleCandidates && options.moduleCandidates.length > 0) {
           for (const c of options.moduleCandidates) {
@@ -468,31 +483,20 @@ export function getPhaseGuidance(
               descripcion: `Inicia sesión en la ventana del navegador que se abrirá llamando a qap_auth_add con method handoff para el rol '${pendingRole}'.`,
               tool: 'qap_auth_add',
               parametros: {
-                role: pendingRole,
+                profile: pendingRole,
                 method: 'handoff',
               },
             },
           };
         }
 
-        let capturePregunta: Pregunta = {
-          id: `scoping.capturar_perfil_credentials_${pendingRole}`,
-          texto: `Indica el usuario y contraseña de prueba para el rol '${pendingRole}' (por ejemplo: tester_${pendingRole}, clave_segura):`,
-          formato: 'abierta',
-          opciones: [],
-          permite_otra: false,
-          registrar_con: { tool: 'qap_auth_add', campo: 'credentials' },
-        };
-        capturePregunta.render_texto = generarRenderTexto(capturePregunta);
-        capturePregunta = guardPregunta(capturePregunta) as Pregunta;
-
         return {
           fase: 'SCOPING',
           siguiente_accion: {
-            tipo: 'decision',
-            descripcion: `Captura y verifica el perfil con credenciales para el rol '${pendingRole}'.`,
+            tipo: 'trabajo',
+            descripcion: `Solicita qap_auth_add con method auto y el identificador del perfil local para el rol '${pendingRole}'. Si falta el perfil, indica al operador que lo aprovisione en el host.`,
             tool: 'qap_auth_add',
-            pregunta: capturePregunta,
+            parametros: { profile: pendingRole, method: 'auto' },
           },
         };
       }
@@ -574,8 +578,8 @@ export function getPhaseGuidance(
           return a.index - b.index;
         });
 
-      if (plannedItems.length > 0) {
-        const nextPlanned = plannedItems[0].item;
+      const nextPlanned = plannedItems.find(({ item }) => !options.modulesWithInventory?.has(item.module))?.item;
+      if (nextPlanned) {
         return {
           fase: 'WORKING',
           siguiente_accion: {
@@ -584,6 +588,35 @@ export function getPhaseGuidance(
             tool: 'qap_discover',
             module: nextPlanned.module,
             modulo: nextPlanned.module,
+            parametros: { name: nextPlanned.module, path: nextPlanned.path },
+          },
+        };
+      }
+
+      const nextToPlan = plannedItems.find(({ item }) => options.modulesWithInventory?.has(item.module) &&
+        !options.modulesWithCases?.has(item.module))?.item;
+      if (nextToPlan) {
+        return {
+          fase: 'WORKING',
+          siguiente_accion: {
+            tipo: 'trabajo',
+            descripcion: `Propón casos para el módulo del plan '${nextToPlan.module}' usando su inventario.`,
+            tool: 'qap_plan',
+            module: nextToPlan.module,
+            parametros: { module: nextToPlan.module, case_workflow: { action: 'propose_from_observations' } },
+          },
+        };
+      }
+
+      if (plannedItems.length > 0) {
+        const module = plannedItems[0].item.module;
+        return {
+          fase: 'WORKING',
+          siguiente_accion: {
+            tipo: 'decision',
+            descripcion: `Presenta los casos ya preparados y las decisiones de negocio pendientes, siguiendo el orden del plan desde '${module}'.`,
+            tool: 'qap_plan',
+            module,
           },
         };
       }

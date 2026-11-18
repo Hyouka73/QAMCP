@@ -1,0 +1,30 @@
+[
+  {
+    "elapsed_ms": 2619.759,
+    "started_at": "2026-11-06T21:50:25.4726948Z",
+    "command": "pnpm --filter @qap/mcp exec vitest run src/__tests__/p3-canonical-discovery.test.ts --reporter=verbose --reporter=json --outputFile.json=<repo>\\docs\\vnext\\implementaciones\\VNEXT-014-TEST-MODERNIZATION\\evidencia\\r2-2026-11-06/p3-canonical-discovery.json",
+    "name": "p3-canonical-discovery",
+    "exit_code": 1
+  },
+  {
+    "elapsed_ms": 2543.266,
+    "started_at": "2026-11-06T21:50:28.1280216Z",
+    "command": "pnpm --filter @qap/mcp exec vitest run src/__tests__/p4-2-canonical-contract.test.ts --reporter=verbose --reporter=json --outputFile.json=<repo>\\docs\\vnext\\implementaciones\\VNEXT-014-TEST-MODERNIZATION\\evidencia\\r2-2026-11-06/p4-2-canonical-contract.json",
+    "name": "p4-2-canonical-contract",
+    "exit_code": 1
+  },
+  {
+    "elapsed_ms": 2536.9652,
+    "started_at": "2026-11-06T21:50:30.6788686Z",
+    "command": "pnpm --filter @qap/mcp exec vitest run src/__tests__/p4-5a2-canonical-integrity.test.ts --reporter=verbose --reporter=json --outputFile.json=<repo>\\docs\\vnext\\implementaciones\\VNEXT-014-TEST-MODERNIZATION\\evidencia\\r2-2026-11-06/p4-5a2-canonical-integrity.json",
+    "name": "p4-5a2-canonical-integrity",
+    "exit_code": 1
+  },
+  {
+    "elapsed_ms": 1975.1277,
+    "started_at": "2026-11-06T21:50:33.2222662Z",
+    "command": "pnpm --filter @qap/mcp exec vitest run src/__tests__/server-canonical-discovery.test.ts --reporter=verbose --reporter=json --outputFile.json=<repo>\\docs\\vnext\\implementaciones\\VNEXT-014-TEST-MODERNIZATION\\evidencia\\r2-2026-11-06/server-canonical-discovery.json",
+    "name": "server-canonical-discovery",
+    "exit_code": 1
+  }
+]

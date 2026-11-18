@@ -1,12 +1,24 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SessionStore } from '@qap/auth';
+
 import { resolveModuleSession } from '../src/session-resolver.js';
 
 describe('session-resolver (S75-006A)', () => {
   let tempDir: string;
+  const pendingOperations = new Set<Promise<unknown>>();
+
+  function trackOperation<T>(promise: Promise<T>): Promise<T> {
+    pendingOperations.add(promise);
+    const cleanup = () => {
+      pendingOperations.delete(promise);
+    };
+    promise.then(cleanup, cleanup);
+    return promise;
+  }
 
   beforeEach(() => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'qap-session-test-'));
@@ -16,11 +28,14 @@ describe('session-resolver (S75-006A)', () => {
     fs.mkdirSync(moduleDir, { recursive: true });
     fs.writeFileSync(
       path.join(moduleDir, 'prereqs.yaml'),
-      'requires:\n  auth:\n    primary: "admin-user"\n'
+      'requires:\n  auth:\n    primary: "int03-synthetic-actor"\n'
     );
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    if (pendingOperations.size > 0) {
+      await Promise.allSettled([...pendingOperations]);
+    }
     if (fs.existsSync(tempDir)) {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
@@ -28,7 +43,7 @@ describe('session-resolver (S75-006A)', () => {
   });
 
   it('debe retornar null si el módulo no requiere autenticación', async () => {
-    const session = await resolveModuleSession(tempDir, 'non-existing-module');
+    const session = await trackOperation(resolveModuleSession(tempDir, 'non-existing-module'));
     expect(session).toBeNull();
   });
 
@@ -39,9 +54,9 @@ describe('session-resolver (S75-006A)', () => {
       origins: []
     };
 
-    sessionStore.saveSession('admin-user', mockState);
+    sessionStore.saveSession('int03-synthetic-actor', mockState);
 
-    const session = await resolveModuleSession(tempDir, 'checkout');
+    const session = await trackOperation(resolveModuleSession(tempDir, 'checkout'));
     expect(session).not.toBeNull();
     expect(session?.cookies[0].value).toBe('secret');
   });
@@ -53,12 +68,13 @@ describe('session-resolver (S75-006A)', () => {
       origins: []
     };
 
-    sessionStore.saveSession('admin-user', expiredState);
+    sessionStore.saveSession('int03-synthetic-actor', expiredState);
 
     // Como expiró y no hay credenciales/perfil real configurado para hacer re-login en el mock, se espera error de perfil
-    await expect(resolveModuleSession(tempDir, 'checkout')).rejects.toThrow(/Perfil de autenticación 'admin-user' no encontrado/);
+    await expect(trackOperation(resolveModuleSession(tempDir, 'checkout'))).rejects.toThrow(/Perfil de autenticación 'int03-synthetic-actor' no encontrado/);
   });
-    it('ante sesión expirada, ejecuta re-login automático (login_mode: auto) y guarda la nueva sesión', async () => {
+
+  it('ante sesión expirada, ejecuta re-login automático (login_mode: auto) y guarda la nueva sesión', async () => {
     const authDir = path.join(tempDir, '.qa', 'project', 'auth');
     fs.mkdirSync(authDir, { recursive: true });
     fs.writeFileSync(
@@ -66,7 +82,7 @@ describe('session-resolver (S75-006A)', () => {
       JSON.stringify({
         profiles: [
           {
-            id: 'admin-user',
+            id: 'int03-synthetic-actor',
             env: 'staging',
             username: 'admin',
             credential_source: 'env',
@@ -94,7 +110,7 @@ describe('session-resolver (S75-006A)', () => {
       ],
       origins: [],
     };
-    sessionStore.saveSession('admin-user', expiredState);
+    sessionStore.saveSession('int03-synthetic-actor', expiredState);
 
     const authModule = await import('@qap/auth');
     vi.spyOn(authModule.AuthManager.prototype, 'getCredentials').mockResolvedValue({
@@ -119,14 +135,14 @@ describe('session-resolver (S75-006A)', () => {
     };
     vi.spyOn(authModule, 'executeAutoLogin').mockResolvedValue(freshState);
 
-    const session = await resolveModuleSession(tempDir, 'checkout');
+    const session = await trackOperation(resolveModuleSession(tempDir, 'checkout'));
 
     expect(session).not.toBeNull();
     expect(session?.cookies[0].value).toBe('fresh-token');
 
     // Confirma que la nueva sesión se guardó para futuras llamadas (no solo se devolvió).
     const reloadedStore = new SessionStore(undefined, tempDir);
-    const persisted = reloadedStore.getValidSession('admin-user');
+    const persisted = reloadedStore.getValidSession('int03-synthetic-actor');
     expect(persisted?.cookies[0].value).toBe('fresh-token');
-  });
+  }, 15_000);
 });

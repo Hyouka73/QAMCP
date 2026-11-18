@@ -1,0 +1,26 @@
+{
+  "execution_id": "exec_1794327888235_c9d99b576ed14a6c843880d408d125e1",
+  "case_approval_digest": "cfd0804640e452605bb627ea9066d2ab08ece08147233aa23e94986b45335f3d",
+  "requirements": [
+    {
+      "id": "requirement:e557240d3fd59a7fff211819b665c30544e71514f5ffabf5f8bdede0e331bc33",
+      "revision": 1,
+      "digest": "8776eb0d56dbf634de2d8a4d908215044047e78be36bdf4583c80345f5676379"
+    },
+    {
+      "id": "requirement:e557240d3fd59a7fff211819b665c30544e71514f5ffabf5f8bdede0e331bc33",
+      "revision": 1,
+      "digest": "8776eb0d56dbf634de2d8a4d908215044047e78be36bdf4583c80345f5676379"
+    }
+  ],
+  "cases": [
+    {
+      "id": "132f144b-2fc9-4b9d-a8b7-1c2f5ab7b82b",
+      "source_rule_id": "requirement:e557240d3fd59a7fff211819b665c30544e71514f5ffabf5f8bdede0e331bc33"
+    },
+    {
+      "id": "9d174543-61b2-4f69-a60b-af73a33e1085",
+      "source_rule_id": "requirement:e557240d3fd59a7fff211819b665c30544e71514f5ffabf5f8bdede0e331bc33"
+    }
+  ]
+}

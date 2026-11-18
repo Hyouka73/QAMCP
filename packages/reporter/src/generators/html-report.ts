@@ -103,17 +103,31 @@ async function renderStep(
   const message = step.message ? `<p class="step-message">${escapeHtml(step.message)}</p>` : '';
   const selector = step.selector ? `<code class="step-selector">${escapeHtml(step.selector)}</code>` : '';
   const duration = typeof step.duration_ms === 'number' ? `${step.duration_ms} ms` : '—';
+  const expectedObservedHtml =
+    step.expected !== undefined || step.observed !== undefined
+      ? `<p class="step-message step-expectation">Esperado: <code>${escapeHtml(String(step.expected ?? '—'))}</code> · Observado: <code>${escapeHtml(String(step.observed ?? '—'))}</code></p>`
+      : '';
+  const artifactErrorHtml = step.artifact_error
+    ? `<p class="step-message step-artifact-error">Evidencia advertencia: ${escapeHtml(step.artifact_error)}</p>`
+    : '';
+  const focusedBadge =
+    step.focused_screenshot === true
+      ? `<span class="step-duration">[captura enfocada]</span>`
+      : '';
 
   return `
-    <li class="step" data-step-status="${escapeHtml(step.status)}">
+    <li class="step" data-step-status="${escapeHtml(step.status)}" data-step-index="${step.step_index ?? index}">
       <div class="step-header">
         <span class="step-index">#${index + 1}</span>
         <span class="step-action">${escapeHtml(step.action)}</span>
         ${selector}
         <span class="step-duration">${duration}</span>
+        ${focusedBadge}
         ${statusBadge(step.status)}
       </div>
+      ${expectedObservedHtml}
       ${message}
+      ${artifactErrorHtml}
       ${screenshotHtml}
     </li>`;
 }
@@ -248,6 +262,21 @@ export async function generateHtmlReport(
   ).join('\n');
 
   const { summary } = result;
+  const artifacts = result.artifacts;
+  const attemptMetaHtml =
+    result.attempt_id || artifacts?.video_path || artifacts?.trace_zip_path || artifacts?.timeline_path
+      ? `<div class="summary attempt-artifacts">
+          ${result.attempt_id ? `<div class="stat">Intento: <code>${escapeHtml(result.attempt_id)}</code></div>` : ''}
+          ${artifacts?.video_path ? `<div class="stat">Video WebM: <code>${escapeHtml(artifacts.video_path)}</code></div>` : ''}
+          ${artifacts?.trace_zip_path ? `<div class="stat">Playwright Trace: <code>${escapeHtml(artifacts.trace_zip_path)}</code></div>` : ''}
+          ${artifacts?.timeline_path ? `<div class="stat">Timeline: <code>${escapeHtml(artifacts.timeline_path)}</code></div>` : ''}
+          ${
+            artifacts?.artifact_errors && artifacts.artifact_errors.length > 0
+              ? `<div class="stat">Errores de artefacto: <code>${escapeHtml(artifacts.artifact_errors.map((e) => `${e.artifact}: ${e.message}`).join(' | '))}</code></div>`
+              : ''
+          }
+        </div>`
+      : '';
 
   return `<!DOCTYPE html>
 <html lang="es">
@@ -259,6 +288,7 @@ export async function generateHtmlReport(
 <body>
   <h1>Reporte de ejecución: ${escapeHtml(result.module)}</h1>
   <p>Entorno: <strong>${escapeHtml(result.env)}</strong> · Resultado global: ${statusBadge(result.result)}</p>
+  ${attemptMetaHtml}
 
   <div class="summary">
     <div class="stat">Total: <strong>${summary.total}</strong></div>

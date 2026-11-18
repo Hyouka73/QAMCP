@@ -9,7 +9,7 @@ export default tseslint.config(
   },
   {
     // Scripts JS y MJS de utilidad (generate-types, test scripts, etc.) — entorno Node puro sin tsconfig
-    files: ['**/scripts/**/*.{js,mjs}', 'scripts/**/*.{js,mjs}'],
+    files: ['**/scripts/**/*.{js,mjs}', 'scripts/**/*.{js,mjs}', 'docs/vnext/implementaciones/VNEXT-014-E01/**/*.{js,mjs}'],
     languageOptions: {
       globals: {
         ...globals.node,

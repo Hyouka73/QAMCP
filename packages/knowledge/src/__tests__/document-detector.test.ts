@@ -34,7 +34,7 @@ describe('E2a: detectarDocumentosProyecto (Criterio 3)', () => {
 
   it('detecta README y PRD, y no devuelve el contenido del archivo', () => {
     writeFileSync(join(tempDir, 'README.md'), '# Mi Proyecto\nContenido confidencial o extenso', 'utf-8');
-    writeFileSync(join(tempDir, 'PRD.txt'), 'Especificación de requisitos', 'utf-8');
+    writeFileSync(join(tempDir, 'PRD.txt'), 'Especificación de requisitos funcionales del sistema de pagos y facturación.', 'utf-8');
 
     const hallazgos = detectarDocumentosProyecto(tempDir);
     expect(hallazgos.documentos.length).toBeGreaterThanOrEqual(2);
@@ -45,8 +45,8 @@ describe('E2a: detectarDocumentosProyecto (Criterio 3)', () => {
     expect(readme?.es_ingerible).toBe(true);
     expect(readme?.tamano_bytes).toBeGreaterThan(0);
     // NUNCA devuelve contenido
-    expect((readme as Record<string, unknown>).content).toBeUndefined();
-    expect((readme as Record<string, unknown>).contenido).toBeUndefined();
+    expect(readme).not.toHaveProperty('content');
+    expect(readme).not.toHaveProperty('contenido');
 
     const prd = hallazgos.documentos.find((d) => d.nombre === 'PRD.txt');
     expect(prd).toBeDefined();
@@ -186,10 +186,10 @@ describe('E2a: detectarDocumentosProyecto (Criterio 3)', () => {
       mkdirSync(join(tempDir, 'docs'), { recursive: true });
       mkdirSync(join(tempDir, 'sub'), { recursive: true });
 
-      writeFileSync(join(tempDir, 'README.md'), '# Readme raíz', 'utf-8');
-      writeFileSync(join(tempDir, 'PRD.md'), '# PRD raíz', 'utf-8');
-      writeFileSync(join(tempDir, 'docs', 'spec.md'), '# Especificación en docs', 'utf-8');
-      writeFileSync(join(tempDir, 'sub', 'README.md'), '# Readme subproyecto', 'utf-8');
+      writeFileSync(join(tempDir, 'README.md'), '# Readme raíz\nInstrucciones de instalación y comandos del proyecto', 'utf-8');
+      writeFileSync(join(tempDir, 'PRD.md'), '# PRD raíz\nEspecificación funcional del producto y reglas de negocio', 'utf-8');
+      writeFileSync(join(tempDir, 'docs', 'spec.md'), '# Especificación en docs\nEspecificación técnica de módulos y flujos', 'utf-8');
+      writeFileSync(join(tempDir, 'sub', 'README.md'), '# Readme subproyecto\nInstrucciones de instalación de submódulo', 'utf-8');
 
       const hallazgos = detectarDocumentosProyecto(tempDir);
       const paths = hallazgos.documentos.map((d) => d.path);
@@ -216,8 +216,8 @@ describe('E2a: detectarDocumentosProyecto (Criterio 3)', () => {
     });
 
     it('resolverDocumento: resuelve nombre exacto, sin extensión, libre, inexistente y fuera de workspace', () => {
-      writeFileSync(join(tempDir, 'PRD_diff.md'), '# Especificación PRD', 'utf-8');
-      writeFileSync(join(tempDir, 'README.md'), '# Documentación', 'utf-8');
+      writeFileSync(join(tempDir, 'PRD_diff.md'), '# Especificación PRD\nRequisitos detallados y reglas de negocio del sistema', 'utf-8');
+      writeFileSync(join(tempDir, 'README.md'), '# Documentación\nGuía de uso y despliegue del sistema', 'utf-8');
 
       // 1. Nombre exacto
       const r1 = resolverDocumento(tempDir, 'PRD_diff.md');
@@ -305,7 +305,7 @@ describe('E2a: detectarDocumentosProyecto (Criterio 3)', () => {
       expect(scanStr).not.toContain('9999');
 
       // 3. Evidencia cita archivo y clave, no valor sensible
-      const envServicio = hallazgos.servicios.find((s) => s.url === 'http://localhost:8085');
+      const envServicio = (hallazgos.servicios ?? []).find((s) => s.url === 'http://localhost:8085');
       expect(envServicio).toBeDefined();
       expect(envServicio?.evidencia).toBe('.env.example (PORT)');
 
@@ -318,9 +318,9 @@ describe('E2a: detectarDocumentosProyecto (Criterio 3)', () => {
         expect(getNombreScore('PRD_bak.md')).toBe(6);
         expect(getNombreScore('PRD.md')).toBe(0);
 
-        writeFileSync(join(tempDir, 'PRD_bak.md'), '# PRD Backup', 'utf-8');
-        writeFileSync(join(tempDir, 'PRD.md'), '# PRD Oficial', 'utf-8');
-        writeFileSync(join(tempDir, 'PRD_diff.md'), '# PRD Diff', 'utf-8');
+        writeFileSync(join(tempDir, 'PRD_bak.md'), '# PRD Backup\nCopia de respaldo con requisitos antiguos del sistema', 'utf-8');
+        writeFileSync(join(tempDir, 'PRD.md'), '# PRD Oficial\nEspecificación de requisitos funcionales y reglas de negocio', 'utf-8');
+        writeFileSync(join(tempDir, 'PRD_diff.md'), '# PRD Diff\nRequisitos diferenciales y casos de uso del sistema', 'utf-8');
 
         const hallazgos = detectarDocumentosProyecto(tempDir);
         expect(hallazgos.documentos.length).toBe(3);
@@ -328,7 +328,7 @@ describe('E2a: detectarDocumentosProyecto (Criterio 3)', () => {
       });
 
       it('con solo PRD_diff.md aparece primero igualmente', () => {
-        writeFileSync(join(tempDir, 'PRD_diff.md'), '# PRD Diff', 'utf-8');
+        writeFileSync(join(tempDir, 'PRD_diff.md'), '# PRD Diff\nRequisitos diferenciales y casos de uso del sistema', 'utf-8');
 
         const hallazgos = detectarDocumentosProyecto(tempDir);
         expect(hallazgos.documentos.length).toBe(1);

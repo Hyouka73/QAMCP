@@ -1,0 +1,20 @@
+{
+  "name": "serial",
+  "instrumented": false,
+  "arguments": [
+    "--filter",
+    "@qap/mcp",
+    "exec",
+    "vitest",
+    "run",
+    "--no-file-parallelism",
+    "--reporter=verbose",
+    "--reporter=json",
+    "--outputFile.json=<repo>\\docs\\vnext\\implementaciones\\VNEXT-014-E01\\r5/serial.json"
+  ],
+  "started_at": "2026-11-06T23:55:37.9470664Z",
+  "finished_at": "2026-11-06T23:59:06.0306011Z",
+  "elapsed_ms": 208088.6548,
+  "exit_code": 1,
+  "sha": "9e9d2c8062b908d936ae090bbe9cb5c4ca2b0772"
+}

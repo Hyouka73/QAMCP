@@ -1,64 +1,21 @@
-import { existsSync, rmSync, readdirSync } from 'node:fs';
-import { resolve, join } from 'node:path';
+import { realpathSync } from 'node:fs';
 
-import { confirm } from '@inquirer/prompts';
+import { localProjectResetOptions, ProjectReset, windowsProjectResetAuthorizer } from '@qap/mcp';
 
-export interface CleanOptions {
-  yes?: boolean;
-  force?: boolean;
-}
+import { CliError, UsageError } from '../errors.js';
 
-/**
- * Elimina de forma segura todo el árbol .qa/ del proyecto actual y limpia locks remanentes.
- */
+export interface CleanOptions { preview?: boolean; yes?: boolean; force?: boolean }
+
 export async function handleClean(options: CleanOptions = {}): Promise<void> {
-  const rootDir = process.cwd();
-  const qaDir = resolve(rootDir, '.qa');
-
-  // Si no existe .qa/, informar y terminar
-  if (!existsSync(qaDir)) {
-    console.log('✔ Directorio .qa/ no existe. El proyecto ya está limpio.');
-    return;
-  }
-
-  // Verificación de seguridad de ruta para prevenir eliminaciones accidentales
-  if (!qaDir.endsWith('.qa')) {
-    throw new Error(`Ruta inválida para limpieza: ${qaDir}`);
-  }
-
-  // Confirmación interactiva si no se proporciona -y/--yes ni -f/--force
-  const isForce = Boolean(options.force || options.yes);
-  if (!isForce) {
-    if (process.stdin.isTTY) {
-      const shouldProceed = await confirm({
-        message: '¿Está seguro de que desea eliminar todo el directorio .qa/ y sus datos?',
-        default: false,
-      });
-
-      if (!shouldProceed) {
-        console.log('Operación de limpieza cancelada por el usuario.');
-        return;
-      }
-    } else {
-      console.warn('Advertencia: Ejecución en modo no-TTY sin flag -y/--force. Use --force para omitir confirmación.');
-    }
-  }
-
-  // 1. Limpieza de locks remanentes en .qa/cache/locks/ si existen
-  const locksDir = join(qaDir, 'cache', 'locks');
-  if (existsSync(locksDir)) {
-    try {
-      const lockFiles = readdirSync(locksDir);
-      for (const file of lockFiles) {
-        rmSync(join(locksDir, file), { force: true });
-      }
-    } catch {
-      // Ignorar errores al vaciar locks individualmente si luego se eliminará todo el directorio
-    }
-  }
-
-  // 2. Eliminación segura de todo el árbol .qa/
-  rmSync(qaDir, { recursive: true, force: true });
-
-  console.log('✔ Directorio .qa/ eliminado. Proyecto listo para inicialización limpia.');
+  if (options.force || options.yes) throw new UsageError('El borrado de proyectos requiere autorización humana local. Usa qap clean --preview o qap clean.');
+  if (process.env.QAP_MCP_HOST_CONFIG_PATH !== undefined) throw new CliError('reset_host_ownership_unavailable');
+  const root = realpathSync(process.cwd());
+  const reset = new ProjectReset(localProjectResetOptions(), windowsProjectResetAuthorizer);
+  const preview = reset.preview(root);
+  console.log(JSON.stringify(preview, null, 2));
+  if (preview.status !== 'preview') throw new CliError(preview.code);
+  if (options.preview) return;
+  const result = await reset.confirm(root, preview.reset_id, new AbortController().signal);
+  console.log(JSON.stringify(result, null, 2));
+  if (result.status !== 'success') throw new CliError(result.code);
 }

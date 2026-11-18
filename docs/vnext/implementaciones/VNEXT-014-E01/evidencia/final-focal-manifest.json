@@ -1,0 +1,20 @@
+{
+  "finished_at": "2026-11-06T18:25:22.4253982Z",
+  "arguments": [
+    "--filter",
+    "@qap/mcp",
+    "exec",
+    "vitest",
+    "run",
+    "lifecycle-v3-e2e",
+    "test-handler",
+    "host-composition",
+    "dispatcher-integration",
+    "--reporter=default",
+    "--reporter=json",
+    "--outputFile=../../docs/vnext/implementaciones/VNEXT-014-E01/evidencia/final-focal.json"
+  ],
+  "exit_code": 0,
+  "name": "final-focal",
+  "started_at": "2026-11-06T18:24:58.9406245Z"
+}

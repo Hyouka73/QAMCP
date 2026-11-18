@@ -87,6 +87,64 @@
         }
       }
     },
+    "attempt_id": {
+      "type": ["string", "null"],
+      "description": "Identificador del intento de ejecución asociado"
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Artefactos físicos de evidencia Playwright asociados al intento",
+      "properties": {
+        "video_path": { "type": ["string", "null"] },
+        "trace_zip_path": { "type": ["string", "null"] },
+        "timeline_path": { "type": ["string", "null"] },
+        "screenshots": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "artifact_errors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["artifact", "message"],
+            "properties": {
+              "artifact": { "type": "string" },
+              "case_id": { "type": ["string", "null"] },
+              "step_index": { "type": ["integer", "null"], "minimum": 0 },
+              "message": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "timeline": {
+      "type": "array",
+      "description": "Timeline cronológico de pasos del intento",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["step_index", "case_id", "action", "status", "started_at", "finished_at", "duration_ms"],
+        "properties": {
+          "step_index": { "type": "integer", "minimum": 0 },
+          "case_id": { "type": "string" },
+          "action": { "type": "string" },
+          "selector": { "type": ["string", "null"] },
+          "expected": { "type": ["string", "null"] },
+          "observed": { "type": ["string", "null"] },
+          "status": { "type": "string" },
+          "started_at": { "type": "string" },
+          "finished_at": { "type": "string" },
+          "duration_ms": { "type": "number", "minimum": 0 },
+          "message": { "type": ["string", "null"] },
+          "screenshot": { "type": ["string", "null"] },
+          "focused_screenshot": { "type": "boolean" },
+          "redacted_selectors_count": { "type": "integer", "minimum": 0 },
+          "artifact_error": { "type": ["string", "null"] }
+        }
+      }
+    },
     "cases": {
       "type": "array",
       "description": "Lista de casos ejecutados en el módulo",
@@ -129,6 +187,22 @@
             "minimum": 0,
             "description": "Duración de la ejecución del caso en milisegundos"
           },
+          "attempt_id": {
+            "type": ["string", "null"]
+          },
+          "video_path": {
+            "type": ["string", "null"]
+          },
+          "trace_zip_path": {
+            "type": ["string", "null"]
+          },
+          "timeline_path": {
+            "type": ["string", "null"]
+          },
+          "artifact_errors": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
           "steps": {
             "type": "array",
             "description": "Pasos detallados ejecutados dentro del caso",
@@ -137,6 +211,11 @@
               "additionalProperties": false,
               "required": ["action", "status"],
               "properties": {
+                "step_index": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Índice del paso dentro del caso"
+                },
                 "action": {
                   "type": "string",
                   "description": "Acción ejecutada en el paso"
@@ -144,6 +223,22 @@
                 "selector": {
                   "type": ["string", "null"],
                   "description": "Selector objetivo de la acción si aplica"
+                },
+                "expected": {
+                  "type": ["string", "null"],
+                  "description": "Valor o condición esperada en el paso"
+                },
+                "observed": {
+                  "type": ["string", "null"],
+                  "description": "Valor o estado observado en el paso"
+                },
+                "started_at": {
+                  "type": ["string", "null"],
+                  "description": "Timestamp ISO 8601 de inicio del paso"
+                },
+                "finished_at": {
+                  "type": ["string", "null"],
+                  "description": "Timestamp ISO 8601 de fin del paso"
                 },
                 "redacted_selectors_count": {
                   "type": "integer",
@@ -166,6 +261,14 @@
                 "screenshot": {
                   "type": ["string", "null"],
                   "description": "Ruta relativa a captura de pantalla tomada en este paso"
+                },
+                "focused_screenshot": {
+                  "type": "boolean",
+                  "description": "Indica si la captura fue enfocada sobre el elemento objetivo"
+                },
+                "artifact_error": {
+                  "type": ["string", "null"],
+                  "description": "Causa del fallo de captura de evidencia en este paso, si ocurrió"
                 }
               }
             }

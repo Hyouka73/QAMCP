@@ -1,622 +1,259 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-return */
-import { existsSync, mkdtempSync, rmSync, readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
-import { SchemaValidator } from '@qap/shared';
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import YAML from 'yaml';
+import { validarPregunta } from '@qap/engine';
+import { SqliteKnowledgeAdapter } from '@qap/knowledge';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { createMcpServer } from '../server.js';
-
-vi.mock('playwright-core', () => ({
-  chromium: {
-    launch: vi.fn().mockImplementation(async () => ({
-      newPage: vi.fn().mockResolvedValue({
-        goto: vi.fn().mockResolvedValue(null),
-        title: vi.fn().mockResolvedValue('Mocked Page Title'),
-      }),
-      close: vi.fn().mockResolvedValue(undefined),
-    })),
-  },
-}));
-
-vi.mock('@qap/playwright-adapter', () => ({
-  PlaywrightAdapter: class {
-    constructor(public options: any = {}) {}
-    async discover(spec: { name: string; path: string; tags?: string[] }) {
-      const isLogin = spec.path === '/login';
-      return {
-        name: spec.name,
-        path: spec.path,
-        description: `Módulo ${spec.name}`,
-        tags: spec.tags ?? [],
-        cases: [],
-        context: {
-          discovered_routes: [spec.path, `${spec.path}/sub`],
-          forms: [
-            {
-              id: `${spec.name}-form`,
-              selector: `#${spec.name}-form`,
-              fields: [
-                { key: 'user', name: 'user', id: 'user', type: 'text', required: true, label: 'Usuario' },
-                { key: 'pass', name: 'pass', id: 'pass', type: 'password', required: true, label: 'Contraseña' },
-              ],
-            },
-          ],
-          buttons: [{ key: 'enviar', text: 'Iniciar sesión', selector: 'button:has-text("Iniciar sesión")' }],
-          links: [{ key: 'home', text: 'Inicio', href: '/', selector: 'a:has-text("Inicio")' }],
-          is_auth_view: isLogin && !this.options.credentials,
-          session_saved: isLogin && Boolean(this.options.credentials),
-          storage_state_used: Boolean(this.options.sessionPath),
-        },
-      };
-    }
-  },
-}));
+import { createLifecycleFixture, type LifecycleFixture } from './fixtures/lifecycle-canonical.js';
 
 describe('Lifecycle V3 E2E & Verification Suite (E0 - E3)', () => {
-  let tempDir: string;
-  let originalCwd: () => string;
-  let server: any;
-  let handler: any;
-  const validator = new SchemaValidator();
-
-  beforeEach(() => {
-    tempDir = mkdtempSync(join(tmpdir(), 'qap-v3-e2e-'));
-    originalCwd = process.cwd;
-    process.cwd = () => tempDir;
-
-    server = createMcpServer();
-    // @ts-expect-error accessing internal handler
-    handler = server._requestHandlers.get(CallToolRequestSchema.shape.method.value);
+  let f: LifecycleFixture;
+  const cleanup: Array<() => Promise<void>> = [];
+  beforeEach(async () => { f = await createLifecycleFixture(close => cleanup.push(close)); });
+  afterEach(async () => {
+    const results = await Promise.allSettled(cleanup.splice(0).map(close => close()));
+    for (const result of results) if (result.status === 'rejected') throw result.reason;
   });
 
-  afterEach(() => {
-    process.cwd = originalCwd;
-    try {
-      rmSync(tempDir, { recursive: true, force: true });
-    } catch {
-      // ignore
-    }
-  });
-
-  async function callTool(name: string, args: Record<string, unknown> = {}) {
-    const finalArgs = name === 'qap_init' && !args.baseUrl ? { baseUrl: 'http://localhost:3000', ...args } : args;
-    const res = await handler({ method: 'tools/call', params: { name, arguments: finalArgs } }, {});
-    const text = res.content?.[0]?.text ?? '';
-    let parsed: any = null;
-    try {
-      parsed = JSON.parse(text);
-    } catch {
-      // no-op
-    }
-    return { res, text, parsed };
-  }
-
-  function validateLifecycleState() {
-    const statePath = join(tempDir, '.qa', 'project', 'lifecycle.json');
-    if (!existsSync(statePath)) return;
-    const raw = readFileSync(statePath, 'utf-8');
-    const json = JSON.parse(raw);
-    const res = validator.validateLifecycleState(json);
-    if (!res.valid) {
-      throw new Error(`lifecycle.json no valida contra lifecycle-state.schema.json: ${JSON.stringify(res.errors)}`);
-    }
-  }
-
-  async function advanceToWorking(plan: Array<{ module: string; path: string; priority?: string }> = [{ module: 'auth', path: '/login', priority: 'high' }]) {
-    await callTool('qap_init', { targetPath: tempDir });
-    validateLifecycleState();
-
-    await callTool('qap_context_set', {
-      targetPath: tempDir,
-      framework: 'react',
-      app_type: 'spa',
-      objective: 'Validar flujo de compras y autenticación',
-      critical_flows: [{ name: 'login', description: 'Flujo de login' }, { name: 'checkout', description: 'Flujo de checkout' }],
-      roles: [{ name: 'admin', description: 'Administrador' }, { name: 'customer', description: 'Cliente' }],
-      source_of_truth: { type: 'prd', declared: true, ref: 'prd-inline' },
-    });
-    validateLifecycleState();
-
-    await callTool('qap_session_plan', {
-      targetPath: tempDir,
-      plan,
-      auth: { required: false },
-    });
-    validateLifecycleState();
-  }
-
-  // Criterio 1: E0a
+  // Historical identities remain stable; equivalence is recorded in MATRIZ_55.md.
   it('E0a: qap_status en WORKING para módulo con cobertura incompleta devuelve module, view y preguntas no vacías idénticas a qap_rules_set', async () => {
-    await advanceToWorking([{ module: 'auth', path: '/login', priority: 'high' }]);
-    const discRes = await callTool('qap_discover', { name: 'auth', path: '/login' });
-    validateLifecycleState();
-
-    // Estado observed con hipótesis pendientes
-    const statusObs = await callTool('qap_status', {});
-    expect(statusObs.parsed.siguiente_accion.tipo).toBe('entrevista_vista');
-    expect(statusObs.parsed.siguiente_accion.module).toBe('auth');
-    expect(statusObs.parsed.siguiente_accion.view).toBe('default');
-    expect(statusObs.parsed.siguiente_accion.pregunta).toBeDefined();
-    expect(statusObs.parsed.siguiente_accion.preguntas).toBeUndefined();
-    expect(statusObs.parsed.siguiente_accion.cobertura).toBeDefined();
-
-    // Transicionar a interviewing con una regla parcial
-    const rulesPartial = await callTool('qap_rules_set', {
-      module: 'auth',
-      view: 'default',
-      rules: [{ category: 'proposito', description: 'Módulo de autenticación', source: 'user', status: 'confirmed' }],
+    await f.working(); await f.discover();
+    expect((await f.knowledge.query(f.scope.applicationId, 'observation')).items.length).toBeGreaterThan(0);
+    expect((await f.knowledge.query(f.scope.applicationId, 'requirement')).items).toHaveLength(0);
+    const first = await f.interview('catalog', { action: 'next' });
+    expect(first).toMatchObject({ status: 'interviewing', question: { module: 'catalog', category: 'proposito', human_review_required: true } });
+    await f.confirm('catalog', first.question, f.proposal);
+    const partial = await f.interview('catalog', { action: 'next' });
+    expect(partial).toMatchObject({ status: 'interviewing', question: { category: 'actor' } });
+    const stateBefore = readFileSync(f.lifecyclePath, 'utf8'), authorityBefore = f.durable();
+    const reviewsBefore = f.inbox.interviews.length;
+    const coverageBefore = (await f.close('catalog', { action: 'evaluate' })).assessment;
+    expect(coverageBefore.specification_coverage).toMatchObject({ status: 'incomplete', confirmed_requirements_count: 1 });
+    const status = await f.call('qap_status');
+    expect(status).toMatchObject({ fase: 'WORKING', siguiente_accion: {
+      tipo: 'trabajo', tool: 'qap_rules_set', module: 'catalog', canonical_interview: { action: 'next' },
+    } });
+    expect(status).toHaveProperty('canonical_modules', expect.arrayContaining([
+      expect.objectContaining({ plannedName: 'catalog', interview: expect.objectContaining({ pending_proposals: 0, confirmed_requirements: 1 }) }),
+    ]));
+    const resumed = await f.call(status.siguiente_accion.tool, {
+      module: status.siguiente_accion.module, canonical_interview: status.siguiente_accion.canonical_interview,
     });
-    validateLifecycleState();
-
-    expect(rulesPartial.parsed.status).toBe('success');
-    expect(rulesPartial.parsed.siguiente_accion.tipo).toBe('entrevista_vista');
-    expect(rulesPartial.parsed.siguiente_accion.module).toBe('auth');
-    expect(rulesPartial.parsed.siguiente_accion.view).toBe('default');
-    expect(rulesPartial.parsed.siguiente_accion.pregunta).toBeDefined();
-    expect(rulesPartial.parsed.siguiente_accion.preguntas).toBeUndefined();
-
-    // Llamar a qap_status: debe devolver EXACTAMENTE la misma siguiente_accion que qap_rules_set
-    const statusInterviewing = await callTool('qap_status', {});
-    expect(statusInterviewing.parsed.siguiente_accion.tipo).toBe('entrevista_vista');
-    expect(statusInterviewing.parsed.siguiente_accion.module).toBe('auth');
-    expect(statusInterviewing.parsed.siguiente_accion.view).toBe('default');
-    expect(statusInterviewing.parsed.siguiente_accion.pregunta).toEqual(rulesPartial.parsed.siguiente_accion.pregunta);
-    expect(statusInterviewing.parsed.siguiente_accion.cobertura).toEqual(rulesPartial.parsed.siguiente_accion.cobertura);
+    expect(resumed.question).toEqual(partial.question);
+    expect((await f.call('qap_status')).siguiente_accion).toEqual(status.siguiente_accion);
+    expect((await f.close('catalog', { action: 'evaluate' })).assessment.coverage_digest).toBe(coverageBefore.coverage_digest);
+    expect(readFileSync(f.lifecyclePath, 'utf8')).toBe(stateBefore);
+    expect(f.durable()).toEqual(authorityBefore);
+    expect(f.inbox.interviews).toHaveLength(reviewsBefore);
+    f.integrity();
   });
 
-  // Criterio 2: E0b
   it('E0b: contrato estricto de opciones y preguntas en todo el flujo', async () => {
-    const responses: any[] = [];
-
-    responses.push(await callTool('qap_init', {}));
-    responses.push(await callTool('qap_status', {}));
-    responses.push(await callTool('qap_context_set', {
-      framework: 'react',
-      app_type: 'spa',
-      objective: 'Verificación estricta de contratos',
-    }));
-    responses.push(await callTool('qap_session_plan', {
-      plan: [{ module: 'auth', path: '/login', priority: 'high' }],
-      auth: { auth_required: false },
-    }));
-    responses.push(await callTool('qap_status', {}));
-    responses.push(await callTool('qap_discover', { name: 'auth', path: '/login' }));
-    responses.push(await callTool('qap_status', {}));
-    responses.push(await callTool('qap_rules_set', {
-      module: 'auth',
-      view: 'default',
-      rules: [{ category: 'proposito', description: 'Módulo de autenticación', source: 'user', status: 'confirmed' }],
-    }));
-    responses.push(await callTool('qap_status', {}));
-
-    for (const r of responses) {
-      if (!r.parsed) continue;
-      const sa = r.parsed.siguiente_accion;
-      if (!sa) continue;
-
-      // P4.2: En respuestas con siguiente_accion, no existen top-level pregunta ni opciones
-      expect(r.parsed.pregunta).toBeUndefined();
-      expect(r.parsed.opciones).toBeUndefined();
-      expect(sa.preguntas).toBeUndefined();
-
-      // En decisión, sa.pregunta lleva >= 2 opciones
-      if (sa.tipo === 'decision') {
-        expect(sa.pregunta).toBeDefined();
-        expect(sa.pregunta.opciones.length).toBeGreaterThanOrEqual(2);
-      }
-
-      // En entrevista o entrevista_vista, sa.pregunta debe existir
-      if (sa.tipo === 'entrevista' || sa.tipo === 'entrevista_vista') {
-        expect(sa.pregunta).toBeDefined();
-      }
+    const init = await f.working();
+    expect(init).toMatchObject({ status: 'success', siguiente_accion: { tipo: 'entrevista' } });
+    expect(validarPregunta(init.siguiente_accion.pregunta!).valid).toBe(true);
+    expect(init).not.toHaveProperty('pregunta'); expect(init).not.toHaveProperty('opciones');
+    await f.discover();
+    let current = await f.interview('catalog', { action: 'next' });
+    expect(current.status).toBe('interviewing');
+    const categories = new Set<string>();
+    for (let i = 0; i < 7; i++) {
+      const q = current.question;
+      expect(q.id).toMatch(/^interview:[a-f0-9]{64}$/);
+      expect(q.module).toBe('catalog'); expect(q.text.length).toBeGreaterThan(15);
+      expect(q.options.map(o => o.id)).toEqual(['propose', 'correct', 'defer', 'review']);
+      expect(q.options.every(o => o.label.length > 0)).toBe(true);
+      expect(q.human_review_required).toBe(true);
+      expect(current).toMatchObject({ coverage: 'not_certified' });
+      expect(current).not.toHaveProperty('pregunta'); expect(current).not.toHaveProperty('opciones');
+      categories.add(q.category);
+      await f.confirm('catalog', q, { ...f.proposal, title: `Consulta sintética revisada de ${q.category}`,
+        description: `El alcance sintético de ${q.category} requiere consulta pública sin modificar datos.` });
+      current = await f.interview('catalog', { action: 'next' });
     }
+    expect(categories).toEqual(new Set(['proposito', 'actor', 'dato', 'sensibilidad', 'campo', 'accion', 'error']));
+    expect(current.status).toBe('reviewed_questions_only');
+    expect((await f.knowledge.query(f.scope.applicationId, 'requirement')).items).toHaveLength(7);
+    expect(await f.close('catalog', { action: 'close' })).toMatchObject({ status: 'blocked', code: 'closure_preconditions_not_met' });
   });
 
-  // Criterio 3: E0c
   it('E0c: qap_report sin ejecuciones responde blocked y no escribe archivos; ninguna siguiente_accion recomienda qap_report sin ejecuciones', async () => {
-    await callTool('qap_init', {});
-    const reportRes = await callTool('qap_report', { format: 'all' });
-    expect(reportRes.parsed.status).toBe('blocked');
-    expect(reportRes.parsed.razon).toContain('ejecuciones');
-
-    // No debe haber generado archivos en .qa/executions
-    const execDir = join(tempDir, '.qa', 'executions');
-    if (existsSync(execDir)) {
-      const files = readdirSync(execDir);
-      expect(files.filter((f: string) => f.endsWith('.report.html') || f.endsWith('.report.json'))).toHaveLength(0);
-    }
-
-    // Ninguna siguiente_accion recomienda qap_report sin ejecuciones
-    expect(reportRes.parsed.siguiente_accion.tool).not.toBe('qap_report');
-    const statusRes = await callTool('qap_status', {});
-    expect(statusRes.parsed.siguiente_accion.tool).not.toBe('qap_report');
+    expect(await f.call('qap_init', { baseUrl: 'http://localhost:3000' })).toMatchObject({ status: 'success' });
+    const report = await f.call('qap_report', { format: 'all' });
+    expect(report).toMatchObject({ status: 'blocked' });
+    expect(report).toHaveProperty('razon', expect.stringContaining('ejecuciones'));
+    const execDir = join(f.root, '.qa', 'executions');
+    if (existsSync(execDir)) expect(readdirSync(execDir).filter(file => /\.report\.(html|json)$/.test(file))).toHaveLength(0);
+    expect(report.siguiente_accion.tool).not.toBe('qap_report');
+    expect((await f.call('qap_status')).siguiente_accion.tool).not.toBe('qap_report');
   });
 
-  // Criterio 6: E1
   it('E1: regresión consolidated -> interviewing tras re-discover y política de waivers', async () => {
-    await advanceToWorking([{ module: 'auth', path: '/login', priority: 'high' }]);
-    await callTool('qap_discover', { name: 'auth', path: '/login' });
-    validateLifecycleState();
-
-    // 1. Rechazo de waiver con categoría 'proposito'
-    const resPropWaiver = await callTool('qap_rules_set', {
-      module: 'auth',
-      view: 'default',
-      category_waivers: [{ category: 'proposito', reason: 'Razón suficientemente larga de waiver' }],
-    });
-    expect(resPropWaiver.res.isError).toBe(true);
-    expect(resPropWaiver.text).toContain("La categoría 'proposito' no se puede renunciar");
-
-    // 2. Rechazo de waiver con reason < 15 caracteres
-    const resShortReason = await callTool('qap_rules_set', {
-      module: 'auth',
-      view: 'default',
-      category_waivers: [{ category: 'sensibilidad', reason: 'Muy corta' }],
-    });
-    expect(resShortReason.res.isError).toBe(true);
-    expect(resShortReason.text).toContain('al menos 15 caracteres');
-
-    // 3. Completar cobertura para alcanzar 'consolidated'
-    const doc = YAML.parse(readFileSync(join(tempDir, '.qa', 'modules', 'auth', 'rules.yaml'), 'utf-8'));
-    const inferred = doc.rules.map((r: any) => ({ ...r, status: 'confirmed', source: 'user' }));
-    const completeRules = await callTool('qap_rules_set', {
-      module: 'auth',
-      view: 'default',
-      rules: [
-        ...inferred,
-        { category: 'proposito', description: 'Módulo de autenticación de usuarios', source: 'user', status: 'confirmed' },
-      ],
-      category_waivers: [
-        { category: 'actor', reason: 'Módulo disponible para todos los actores' },
-        { category: 'accion', reason: 'Acciones estándar cubiertas por DOM' },
-        { category: 'error', reason: 'Errores no aplican en esta vista específica' },
-        { category: 'dato', reason: 'No hay datos adicionales requeridos' },
-        { category: 'sensibilidad', reason: 'No hay campos sensibles adicionales' },
-      ],
-    });
-    validateLifecycleState();
-    expect(completeRules.parsed.status).toBe('success');
-    expect(completeRules.parsed.modulo_estado).toBe('consolidated');
-    expect(completeRules.parsed.resumen_cierre).toBeDefined();
-
-    // 4. Regresión: re-discover introduce una nueva hipótesis inferida -> cobertura incompleta -> vuelve a interviewing
-    // Simulamos agregando una nueva regla inferred en rules.yaml y llamando re-discover
-    const rulesPath = join(tempDir, '.qa', 'modules', 'auth', 'rules.yaml');
-    const currRules = YAML.parse(readFileSync(rulesPath, 'utf-8'));
-    currRules.rules.push({
-      id: 'default.extra_field.required',
-      view: 'default',
-      category: 'campo',
-      description: 'Campo extra requerido',
-      status: 'inferred',
-      source: 'dom',
-    });
-    writeFileSync(rulesPath, YAML.stringify(currRules), 'utf-8');
-
-    // Al llamar qap_discover para refrescar
-    await callTool('qap_discover', { name: 'auth', path: '/login' });
-    validateLifecycleState();
-
-    const statePostRediscover = JSON.parse(readFileSync(join(tempDir, '.qa', 'project', 'lifecycle.json'), 'utf-8'));
-    expect(statePostRediscover.modules.auth.state).toBe('interviewing');
-
-    // History contiene el nombre del módulo en la transición de regresión
-    const lastHistory = statePostRediscover.history[statePostRediscover.history.length - 1];
-    expect(lastHistory.module).toBe('auth');
-    expect(lastHistory.from).toBe('auth:consolidated');
-    expect(lastHistory.to).toBe('auth:interviewing');
-
-    // qap_status reanuda la entrevista
-    const statusAfterReg = await callTool('qap_status', {});
-    expect(statusAfterReg.parsed.siguiente_accion.tipo).toBe('entrevista_vista');
-    expect(statusAfterReg.parsed.siguiente_accion.module).toBe('auth');
+    await f.working(); await f.discover();
+    const confirmed = await f.ready();
+    const before = (await f.close('catalog', { action: 'evaluate' })).assessment;
+    const requirements = (await f.knowledge.query(f.scope.applicationId, 'requirement')).items, history = f.lifecycle().history;
+    await f.discover();
+    // DOM acquisition cannot invent requirements or regress lifecycle authority.
+    expect((await f.knowledge.query(f.scope.applicationId, 'requirement')).items).toEqual(requirements);
+    expect((await f.close('catalog', { action: 'evaluate' })).assessment.coverage_digest).toBe(before.coverage_digest);
+    expect(f.lifecycle().history).toEqual(history);
+    await f.confirm('catalog', confirmed.question, { ...f.proposal,
+      description: 'La consulta debe incluir también productos aprobados por revisión independiente.', acceptance_criteria: [] }, 1);
+    const changed = (await f.close('catalog', { action: 'evaluate' })).assessment;
+    expect(changed.coverage_digest).not.toBe(before.coverage_digest);
+    expect(changed).toMatchObject({ closure_verdict: 'blocked_by_gaps', specification_coverage: { status: 'incomplete' } });
+    expect(changed.gaps).toEqual(expect.arrayContaining([expect.objectContaining({ absence_type: 'incomplete_acceptance_criterion', status: 'unaddressed' })]));
+    expect(await f.close('catalog', { action: 'close' })).toMatchObject({ status: 'blocked', code: 'closure_preconditions_not_met' });
+    expect(f.durable().closures).toEqual({});
+    expect(f.lifecycle().modules.catalog.state).toBe('planned');
+    expect((await f.interview('catalog', { action: 'next' })).question.category).toBe('actor');
+    expect(await f.call('qap_status')).toMatchObject({ siguiente_accion: { tool: 'qap_rules_set', module: 'catalog' } });
+    f.integrity();
   });
 
-  // Criterio 7: E2
+  it('E1 canonical: applicability rejects legacy categories and short reasons; wire waivers cannot replace host review', async () => {
+    await f.working();
+    const before = f.durable(), lifecycle = readFileSync(f.lifecyclePath, 'utf8');
+    for (const decisions of [
+      [{ category: 'proposito', reason: 'Una categoría legacy no es una categoría formal' }],
+      [{ category: 'security', reason: 'Muy corta' }],
+    ]) expect(await f.call('qap_module_close', { module: 'catalog', canonical_closure: { action: 'declare_non_applicable', decisions } }))
+      .toMatchObject({ status: 'blocked', code: 'invalid_canonical_arguments' });
+    expect(await f.close('catalog', { action: 'declare_non_applicable', decisions: [
+      { category: 'security', reason: 'El alcance sintético excluye expresamente seguridad.' },
+    ] })).toMatchObject({ status: 'blocked', code: 'closure_review_pending' });
+    expect(await f.call('qap_rules_set', { module: 'catalog', category_waivers: [
+      { category: 'proposito', reason: 'El texto del cliente no concede una autorización' },
+    ] })).toMatchObject({ status: 'blocked', code: 'legacy_interview_unavailable' });
+    expect(f.durable()).toEqual(before);
+    expect(readFileSync(f.lifecyclePath, 'utf8')).toBe(lifecycle);
+    expect((await f.knowledge.query(f.scope.applicationId, 'requirement')).items).toHaveLength(0);
+  });
+
+  it('E1 canonical: a reviewed specification revision invalidates an earlier pending closure authorization', async () => {
+    await f.working();
+    const confirmed = await f.ready();
+    expect(await f.close('catalog', { action: 'close' })).toMatchObject({ status: 'blocked', code: 'closure_review_pending' });
+    const oldRequest = f.inbox.closures.at(-1)!;
+    await f.confirm('catalog', confirmed.question, { ...f.proposal,
+      description: 'La consulta pública debe devolver exclusivamente productos activos y disponibles.' }, 1);
+    f.inbox.approveClosure(oldRequest);
+    const before = f.durable();
+    expect(await f.close('catalog', { action: 'close' })).toMatchObject({ status: 'blocked', code: 'closure_review_pending' });
+    expect(f.inbox.closures.at(-1)!.coverageDigest).not.toBe(oldRequest.coverageDigest);
+    expect(f.inbox.closures.at(-1)!.requestDigest).not.toBe(oldRequest.requestDigest);
+    expect(f.durable()).toEqual(before); expect(f.durable().closures).toEqual({});
+    expect(f.lifecycle().modules.catalog.state).toBe('planned');
+    expect((await f.knowledge.query(f.scope.applicationId, 'relation')).items.filter(r => r.trace.source === 'canonical_module_closure_v1')).toHaveLength(0);
+  });
+
   it('E2: qap_module_close validaciones, compuertas y transiciones', async () => {
-    await advanceToWorking([
-      { module: 'auth', path: '/login', priority: 'high' },
-      { module: 'pagos', path: '/pay', priority: 'medium' },
-    ]);
-
-    // 1. Bloqueo: módulo no registrado
-    const rNoReg = await callTool('qap_module_close', { module: 'no_existe', action: 'close', user_confirmed: true });
-    expect(rNoReg.parsed.status).toBe('blocked');
-    expect(rNoReg.parsed.razon).toContain('no está registrado');
-
-    // 2. Bloqueo: sin user_confirmed
-    const rNoConf = await callTool('qap_module_close', { module: 'auth', action: 'close', user_confirmed: false });
-    expect(rNoConf.parsed.status).toBe('blocked');
-    expect(rNoConf.parsed.razon).toContain('confirmación explícita');
-
-    // 3. Bloqueo: acción close en módulo no consolidated (auth está en planned)
-    const rNotConsolidated = await callTool('qap_module_close', { module: 'auth', action: 'close', user_confirmed: true });
-    expect(rNotConsolidated.parsed.status).toBe('blocked');
-    expect(rNotConsolidated.parsed.razon).toContain('consolidated');
-
-    // Descubrir auth y completarlo
-    await callTool('qap_discover', { name: 'auth', path: '/login' });
-    const doc = YAML.parse(readFileSync(join(tempDir, '.qa', 'modules', 'auth', 'rules.yaml'), 'utf-8'));
-    const inferred = doc.rules.map((r: any) => ({ ...r, status: 'confirmed', source: 'user' }));
-    await callTool('qap_rules_set', {
-      module: 'auth',
-      view: 'default',
-      rules: [
-        ...inferred,
-        { category: 'proposito', description: 'Propósito confirmado', source: 'user', status: 'confirmed' },
-      ],
-      category_waivers: [
-        { category: 'actor', reason: 'Categoría no aplicable para este módulo' },
-        { category: 'accion', reason: 'Categoría no aplicable para este módulo' },
-        { category: 'error', reason: 'Categoría no aplicable para este módulo' },
-        { category: 'dato', reason: 'Categoría no aplicable para este módulo' },
-        { category: 'sensibilidad', reason: 'Categoría no aplicable para este módulo' },
-      ],
-    });
-    validateLifecycleState();
-
-    // 4. Cierre exitoso de auth
-    const rClose = await callTool('qap_module_close', { module: 'auth', action: 'close', user_confirmed: true });
-    validateLifecycleState();
-    expect(rClose.parsed.status).toBe('success');
-    expect(rClose.parsed.estado).toBe('closed');
-    expect(rClose.parsed.resumen).toBeDefined();
-    expect(rClose.parsed.siguiente_accion.tool).toBe('qap_discover'); // Siguiente módulo del plan: pagos
-
-    // 5. Bloqueo: módulo ya terminal (closed)
-    const rAlreadyClosed = await callTool('qap_module_close', { module: 'auth', action: 'close', user_confirmed: true });
-    expect(rAlreadyClosed.parsed.status).toBe('blocked');
-    expect(rAlreadyClosed.parsed.razon).toContain('terminal');
-
-    // 6. Waive de pagos sin razón suficiente -> blocked
-    const rWaiveShort = await callTool('qap_module_close', { module: 'pagos', action: 'waive', user_confirmed: true, reason: 'corta' });
-    expect(rWaiveShort.parsed.status).toBe('blocked');
-    expect(rWaiveShort.parsed.razon).toContain('15 caracteres');
-
-    // 7. Waive de pagos con razón válida -> waived
-    const rWaive = await callTool('qap_module_close', {
-      module: 'pagos',
-      action: 'waive',
-      user_confirmed: true,
-      reason: 'El módulo de pagos queda diferido para un sprint futuro',
-    });
-    validateLifecycleState();
-    expect(rWaive.parsed.status).toBe('success');
-    expect(rWaive.parsed.estado).toBe('waived');
-    expect(rWaive.parsed.siguiente_accion.tool).toBe('qap_session_close'); // No quedan módulos pendientes
+    await f.working(['catalog', 'orders']);
+    const initial = f.durable();
+    expect(await f.close('missing', { action: 'close' })).toMatchObject({ status: 'blocked', code: 'unbound' });
+    expect(await f.call('qap_module_close', { module: 'catalog', action: 'close', user_confirmed: true }))
+      .toMatchObject({ status: 'blocked', code: 'canonical_closure_required' });
+    expect(await f.close('catalog', { action: 'close' })).toMatchObject({ status: 'blocked', code: 'closure_preconditions_not_met' });
+    expect(f.durable()).toEqual(initial);
+    await f.discover(); await f.ready();
+    expect(await f.approvedClosure('catalog', { action: 'close' })).toMatchObject({ status: 'closed' });
+    expect(f.lifecycle().modules.catalog.state).toBe('closed');
+    const snapshot = f.durable(), receipts = (await f.knowledge.query(f.scope.applicationId, 'relation')).items;
+    expect(receipts.filter(r => r.trace.source === 'canonical_module_closure_v1')).toHaveLength(1);
+    expect(await f.close('catalog', { action: 'close' })).toMatchObject({ status: 'closed', idempotent: true });
+    expect(await f.close('catalog', { action: 'waive', reason: 'Intento de cambiar un cierre ya autorizado' })).toMatchObject({ status: 'closed', idempotent: true });
+    expect(f.durable()).toEqual(snapshot);
+    expect((await f.knowledge.query(f.scope.applicationId, 'relation')).items).toEqual(receipts);
+    expect(await f.call('qap_status')).toMatchObject({ siguiente_accion: { tool: 'qap_discover' } });
+    expect(await f.close('orders', { action: 'waive', reason: 'corta' })).toMatchObject({ status: 'blocked', code: 'invalid_canonical_arguments' });
+    expect(await f.approvedClosure('orders', { action: 'waive', reason: 'El equipo pospone explícitamente las órdenes de este alcance sintético.' })).toMatchObject({ status: 'waived' });
+    expect(f.lifecycle().modules.orders.state).toBe('waived');
+    expect((await f.knowledge.query(f.scope.applicationId, 'relation')).items.filter(r => r.trace.source === 'canonical_module_waiver_v1')).toHaveLength(1);
+    expect(await f.call('qap_status')).toMatchObject({ siguiente_accion: { tool: 'qap_session_close' } });
+    f.integrity();
   });
 
-  // Criterio 8: E3
   it('E3: canExitWorking, qap_session_close, reporte de brechas y nueva sesión desde WRAP_UP', async () => {
-    await advanceToWorking([
-      { module: 'auth', path: '/login', priority: 'high' },
-      { module: 'checkout', path: '/cart', priority: 'medium' },
-    ]);
-
-    // 1. qap_session_close bloqueada mientras haya módulos sin cerrar
-    const rCloseBlocked = await callTool('qap_session_close', {});
-    expect(rCloseBlocked.parsed.status).toBe('blocked');
-    expect(rCloseBlocked.parsed.faltantes.length).toBeGreaterThan(0);
-
-    // Completar y cerrar auth
-    await callTool('qap_discover', { name: 'auth', path: '/login' });
-    const doc = YAML.parse(readFileSync(join(tempDir, '.qa', 'modules', 'auth', 'rules.yaml'), 'utf-8'));
-    const inferred = doc.rules.map((r: any) => ({ ...r, status: 'confirmed', source: 'user' }));
-    await callTool('qap_rules_set', {
-      module: 'auth',
-      view: 'default',
-      rules: [
-        ...inferred,
-        { category: 'proposito', description: 'Propósito confirmado de auth', source: 'user', status: 'confirmed' },
-      ],
-      category_waivers: [
-        { category: 'actor', reason: 'Categoría no aplicable para este módulo' },
-        { category: 'accion', reason: 'Categoría no aplicable para este módulo' },
-        { category: 'error', reason: 'Categoría no aplicable para este módulo' },
-        { category: 'dato', reason: 'Categoría no aplicable para este módulo' },
-        { category: 'sensibilidad', reason: 'Categoría no aplicable para este módulo' },
-      ],
-    });
-    await callTool('qap_module_close', { module: 'auth', action: 'close', user_confirmed: true });
-
-    // Renunciar a checkout
-    await callTool('qap_module_close', {
-      module: 'checkout',
-      action: 'waive',
-      user_confirmed: true,
-      reason: 'El módulo checkout fue despriorizado por el equipo de producto',
-    });
-    validateLifecycleState();
-
-    // 2. qap_session_close exitosa
-    const rCloseSuccess = await callTool('qap_session_close', {});
-    validateLifecycleState();
-    expect(rCloseSuccess.parsed.status).toBe('success');
-    expect(rCloseSuccess.parsed.fase).toBe('WRAP_UP');
-    expect(rCloseSuccess.parsed.reporte_brechas_path).toBeDefined();
-
-    // Verificar reporte .md generado
-    const reportMdPath = rCloseSuccess.parsed.reporte_brechas_path;
-    expect(existsSync(reportMdPath)).toBe(true);
-    const reportContent = readFileSync(reportMdPath, 'utf-8');
-    expect(reportContent).toContain('# Reporte de Brechas de Calidad');
-    expect(reportContent).toContain('**Objetivo**');
-    expect(reportContent).toContain('## Resumen por Módulo');
-    expect(reportContent).toContain('## Brechas');
-    expect(reportContent).toContain('checkout');
-    // Sin afirmación de cobertura por flujo crítico
-    expect(reportContent).not.toContain('cobertura por flujo crítico');
-
-    // 3. qap_status en WRAP_UP
-    const statusWrapUp = await callTool('qap_status', {});
-    expect(statusWrapUp.parsed.fase).toBe('WRAP_UP');
-    expect(statusWrapUp.parsed.siguiente_accion.tipo).toBe('decision');
-    expect(statusWrapUp.parsed.siguiente_accion.pregunta.opciones.length).toBeGreaterThanOrEqual(2);
-    expect(statusWrapUp.parsed.opciones).toBeUndefined();
-    expect(statusWrapUp.parsed.siguiente_accion.descripcion).toContain(reportMdPath);
-
-    // 4. qap_discover y qap_rules_set bloqueadas en WRAP_UP
-    const rDiscBlocked = await callTool('qap_discover', { name: 'otro', path: '/otro' });
-    expect(rDiscBlocked.parsed.status).toBe('blocked');
-    expect(rDiscBlocked.parsed.desbloquear_con.tool).toBe('qap_session_plan');
-
-    const rRulesBlocked = await callTool('qap_rules_set', { module: 'auth', rules: [] });
-    expect(rRulesBlocked.parsed.status).toBe('blocked');
-    expect(rRulesBlocked.parsed.desbloquear_con.tool).toBe('qap_session_plan');
-
-    // 5. Nueva sesión desde WRAP_UP con qap_session_plan
-    // Intento con módulo ya cerrado (auth) -> rechazado
-    const rPlanClosed = await callTool('qap_session_plan', {
-      plan: [{ module: 'auth', path: '/login', priority: 'high' }],
-    });
-    expect(rPlanClosed.res.isError).toBe(true);
-    expect(rPlanClosed.parsed.error).toContain("ya se encuentra cerrado formalmente (closed)");
-
-    // Plan válido con nuevo módulo
-    const rNewSession = await callTool('qap_session_plan', {
-      plan: [{ module: 'dashboard', path: '/admin', priority: 'high' }],
-    });
-    validateLifecycleState();
-    expect(rNewSession.parsed.status).toBe('success');
-    expect(rNewSession.parsed.fase).toBe('WORKING');
-
-    const stateNewSession = JSON.parse(readFileSync(join(tempDir, '.qa', 'project', 'lifecycle.json'), 'utf-8'));
-    // Modules mapa conservado
-    expect(stateNewSession.modules.auth).toBeDefined();
-    expect(stateNewSession.modules.checkout).toBeDefined();
-    expect(stateNewSession.modules.dashboard).toBeDefined();
-
-    // Historial con doble transición (WRAP_UP -> SCOPING -> WORKING)
-    const history = stateNewSession.history;
-    const toScoping = history.find((h: any) => h.to === 'SCOPING');
-    const toWorking = history.find((h: any) => h.to === 'WORKING');
-    expect(toScoping).toBeDefined();
-    expect(toWorking).toBeDefined();
+    await f.working(['catalog', 'orders']);
+    expect(await f.call('qap_session_close')).toMatchObject({ status: 'blocked', code: 'canonical_module_closure_required', unclosed_modules: ['catalog', 'orders'] });
+    await f.discover(); await f.ready();
+    expect(await f.approvedClosure('catalog', { action: 'close' })).toMatchObject({ status: 'closed' });
+    expect(await f.call('qap_session_close')).toMatchObject({ status: 'blocked', unclosed_modules: ['orders'] });
+    const reason = 'El equipo pospone las órdenes hasta disponer del backend del entorno.';
+    expect(await f.approvedClosure('orders', { action: 'waive', reason })).toMatchObject({ status: 'waived' });
+    const durable = f.durable();
+    await f.restart(); expect(f.durable()).toEqual(durable);
+    const closed = await f.call('qap_session_close');
+    expect(closed).toMatchObject({ status: 'success', fase: 'WRAP_UP' });
+    const report = readFileSync(closed.report_path, 'utf8');
+    expect(report).toContain('# Reporte de cierre canónico de sesión');
+    expect(report).toContain('catalog'); expect(report).toContain('orders'); expect(report).toContain(reason);
+    expect(report).toContain('Consultar el catálogo público');
+    for (const record of Object.values(durable.closures)) expect(report).toContain(record.decisionId);
+    expect(report).toContain('no certificada por este reporte'); expect(report).not.toContain('cobertura por flujo crítico');
+    expect(f.lifecycle().phase).toBe('WRAP_UP');
+    const status = await f.call('qap_status');
+    expect(status).toMatchObject({ fase: 'WRAP_UP', siguiente_accion: { tipo: 'decision' } });
+    expect(status.siguiente_accion.pregunta!.opciones.length).toBeGreaterThanOrEqual(2);
+    expect(status.siguiente_accion.descripcion).toContain(closed.report_path);
+    const before = readFileSync(f.lifecyclePath, 'utf8');
+    expect(await f.call('qap_discover', { name: 'dashboard', path: '/dashboard' })).toMatchObject({ status: 'blocked', persistence: 'not_attempted' });
+    expect(await f.call('qap_rules_set', { module: 'catalog', rules: [] })).toMatchObject({ status: 'blocked' });
+    expect(await f.call('qap_session_plan', { plan: [{ module: 'catalog', path: '/catalog', priority: 'high' }] })).toMatchObject({ status: 'error' });
+    expect(readFileSync(f.lifecyclePath, 'utf8')).toBe(before);
+    const oldSession = f.lifecycle().session.id, oldHistory = f.lifecycle().history;
+    expect(await f.call('qap_session_plan', { plan: [{ module: 'dashboard', path: '/dashboard', priority: 'high' }] })).toMatchObject({ status: 'success', fase: 'WORKING' });
+    const next = f.lifecycle();
+    expect(next.modules).toMatchObject({ catalog: { state: 'closed' }, orders: { state: 'waived' }, dashboard: { state: 'planned' } });
+    expect(next.session.id).not.toBe(oldSession);
+    expect(next.history.slice(0, oldHistory.length)).toEqual(oldHistory);
+    expect(next.history.slice(oldHistory.length).map(h => [h.from, h.to])).toEqual([['WRAP_UP', 'SCOPING'], ['SCOPING', 'WORKING']]);
+    expect(readFileSync(closed.report_path, 'utf8')).toBe(report); expect(f.durable()).toEqual(durable);
+    f.integrity();
   });
 
-  // Criterio 9: E2E Completo en @qap/mcp con validación de schema en cada mutación
   it('Criterio 9: E2E completo: init -> onboarding -> scoping -> working -> discover A -> rules_set parcial -> status (reanuda) -> rules_set completa -> module_close A -> discover B -> module_close waive B -> session_close -> status WRAP_UP -> session_plan nueva sesión', async () => {
-    // 1. init
-    const r1 = await callTool('qap_init', {});
-    validateLifecycleState();
-    expect(r1.parsed.status).toBe('success');
-    expect(r1.parsed.fase).toBe('ONBOARDING');
+    await f.working(['catalog', 'orders']); await f.discover('catalog');
+    const question = (await f.interview('catalog', { action: 'next' })).question;
+    expect(await f.interview('catalog', { action: 'propose', question_id: question.id, version: question.version,
+      expected_revision: 0, proposal: f.proposal })).toMatchObject({ status: 'pending_review' });
+    expect((await f.knowledge.query(f.scope.applicationId, 'requirement')).items).toHaveLength(0);
+    const drafts = f.drafts(); await f.restart(); expect(f.drafts()).toEqual(drafts);
+    expect(await f.call('qap_status')).toMatchObject({ siguiente_accion: { tool: 'qap_rules_set', module: 'catalog', canonical_interview: { action: 'next' } } });
+    expect((await f.interview('catalog', { action: 'next' })).question).toMatchObject({ id: question.id, version: 1, state: 'pending_review' });
+    await f.ready();
+    expect(await f.approvedClosure('catalog', { action: 'close' })).toMatchObject({ status: 'closed' });
+    await f.discover('orders');
+    expect((await f.knowledge.query(f.scope.applicationId, 'requirement')).items.every(r => r.entity.module_key === 'catalog')).toBe(true);
+    expect(await f.approvedClosure('orders', { action: 'waive', reason: 'El host difiere las órdenes sin afirmar cobertura de pruebas.' })).toMatchObject({ status: 'waived' });
+    const report = await f.call('qap_session_close');
+    expect(report).toMatchObject({ status: 'success', fase: 'WRAP_UP' }); expect(existsSync(report.report_path)).toBe(true);
+    expect(await f.call('qap_status')).toMatchObject({ fase: 'WRAP_UP' });
+    const physical = new SqliteKnowledgeAdapter(f.path);
+    try {
+      expect((await physical.query(f.scope.applicationId, 'requirement')).items).toHaveLength(1);
+      const receipts = (await physical.query(f.scope.applicationId, 'relation')).items;
+      for (const source of ['human_review_authorization_v1', 'canonical_module_closure_v1', 'canonical_module_waiver_v1'])
+        expect(receipts.filter(r => r.trace.source === source)).toHaveLength(1);
+      expect((await physical.query('other-app', 'observation')).items).toHaveLength(0);
+    } finally { physical.close(); }
+    expect(await f.call('qap_session_plan', { plan: [{ module: 'dashboard', path: '/dashboard', priority: 'high' }] })).toMatchObject({ status: 'success', fase: 'WORKING' });
+    await f.restart(true, ['catalog', 'orders', 'dashboard']);
+    expect(await f.interview('dashboard', { action: 'next' })).toMatchObject({ status: 'interviewing', question: { module: 'dashboard' } });
+    f.integrity();
+  });
 
-    // 2. onboarding -> scoping (context_set)
-    const r2 = await callTool('qap_context_set', {
-      targetPath: tempDir,
-      framework: 'nextjs',
-      app_type: 'ssr',
-      objective: 'Validar catálogo y órdenes',
-      critical_flows: [{ name: 'catalogo', description: 'Catálogo de productos' }, { name: 'ordenes', description: 'Órdenes' }],
-      roles: [{ name: 'comprador', description: 'Comprador' }, { name: 'vendedor', description: 'Vendedor' }],
-      source_of_truth: { type: 'prd', declared: true, ref: 'prd-inline' },
-    });
-    validateLifecycleState();
-    expect(r2.parsed.fase).toBe('SCOPING');
-
-    // 3. scoping -> working (session_plan)
-    const r3 = await callTool('qap_session_plan', {
-      targetPath: tempDir,
-      plan: [
-        { module: 'moduloA', path: '/catalogo', priority: 'high' },
-        { module: 'moduloB', path: '/ordenes', priority: 'medium' },
-      ],
-      auth: { required: false },
-    });
-    validateLifecycleState();
-    expect(r3.parsed.fase).toBe('WORKING');
-
-    // 4. discover A
-    const r4 = await callTool('qap_discover', { name: 'moduloA', path: '/catalogo' });
-    validateLifecycleState();
-    expect(r4.parsed.status).toBe('success');
-    expect(r4.parsed.siguiente_accion.tipo).toBe('entrevista_vista');
-
-    // 5. rules_set parcial
-    const r5 = await callTool('qap_rules_set', {
-      module: 'moduloA',
-      view: 'default',
-      rules: [{ category: 'proposito', description: 'Catálogo de productos', source: 'user', status: 'confirmed' }],
-    });
-    validateLifecycleState();
-    expect(r5.parsed.status).toBe('success');
-    expect(r5.parsed.modulo_estado).toBe('interviewing');
-
-    // 6. status (reanuda con preguntas)
-    const r6 = await callTool('qap_status', {});
-    expect(r6.parsed.siguiente_accion.tipo).toBe('entrevista_vista');
-    expect(r6.parsed.siguiente_accion.module).toBe('moduloA');
-    expect(r6.parsed.siguiente_accion.pregunta).toBeDefined();
-    expect(r6.parsed.siguiente_accion.preguntas).toBeUndefined();
-
-    // 7. rules_set que completa (consolidated + resumen)
-    const docA = YAML.parse(readFileSync(join(tempDir, '.qa', 'modules', 'moduloA', 'rules.yaml'), 'utf-8'));
-    const inferredA = docA.rules.map((r: any) => ({ ...r, status: 'confirmed', source: 'user' }));
-    const r7 = await callTool('qap_rules_set', {
-      module: 'moduloA',
-      view: 'default',
-      rules: inferredA,
-      category_waivers: [
-        { category: 'actor', reason: 'Categoría no aplicable para este módulo' },
-        { category: 'campo', reason: 'Categoría no aplicable para este módulo' },
-        { category: 'accion', reason: 'Categoría no aplicable para este módulo' },
-        { category: 'error', reason: 'Categoría no aplicable para este módulo' },
-        { category: 'dato', reason: 'Categoría no aplicable para este módulo' },
-        { category: 'sensibilidad', reason: 'Categoría no aplicable para este módulo' },
-      ],
-    });
-    validateLifecycleState();
-    expect(r7.parsed.status).toBe('success');
-    expect(r7.parsed.modulo_estado).toBe('consolidated');
-    expect(r7.parsed.resumen_cierre).toBeDefined();
-
-    // 8. module_close A
-    const r8 = await callTool('qap_module_close', { module: 'moduloA', action: 'close', user_confirmed: true });
-    validateLifecycleState();
-    expect(r8.parsed.status).toBe('success');
-    expect(r8.parsed.estado).toBe('closed');
-    expect(r8.parsed.siguiente_accion.tool).toBe('qap_discover'); // Proponer moduloB
-
-    // 9. discover B
-    const r9 = await callTool('qap_discover', { name: 'moduloB', path: '/ordenes' });
-    validateLifecycleState();
-    expect(r9.parsed.status).toBe('success');
-
-    // 10. module_close waive B
-    const r10 = await callTool('qap_module_close', {
-      module: 'moduloB',
-      action: 'waive',
-      user_confirmed: true,
-      reason: 'El módulo ordenes no cuenta con backend listo en este entorno',
-    });
-    validateLifecycleState();
-    expect(r10.parsed.status).toBe('success');
-    expect(r10.parsed.estado).toBe('waived');
-    expect(r10.parsed.siguiente_accion.tool).toBe('qap_session_close');
-
-    // 11. session_close -> WRAP_UP
-    const r11 = await callTool('qap_session_close', {});
-    validateLifecycleState();
-    expect(r11.parsed.status).toBe('success');
-    expect(r11.parsed.fase).toBe('WRAP_UP');
-
-    // 12. status WRAP_UP
-    const r12 = await callTool('qap_status', {});
-    expect(r12.parsed.fase).toBe('WRAP_UP');
-    expect(r12.parsed.siguiente_accion.pregunta.opciones.length).toBeGreaterThanOrEqual(2);
-    expect(r12.parsed.opciones).toBeUndefined();
-
-    // 13. session_plan nueva sesión
-    const r13 = await callTool('qap_session_plan', {
-      plan: [{ module: 'moduloC', path: '/facturas', priority: 'high' }],
-    });
-    validateLifecycleState();
-    expect(r13.parsed.status).toBe('success');
-    expect(r13.parsed.fase).toBe('WORKING');
+  it('E0 authorization: removing host consent blocks navigation and leaves Knowledge, drafts and lifecycle intact', async () => {
+    await f.working(); await f.restart(false);
+    const lifecycle = readFileSync(f.lifecyclePath, 'utf8'), durable = f.durable(), drafts = f.drafts();
+    expect(await f.call('qap_discover', { name: 'catalog', path: '/catalog' }))
+      .toMatchObject({ status: 'blocked', code: 'discovery_authorization_required', persistence: 'not_attempted' });
+    for (const kind of ['observation', 'requirement', 'relation'] as const)
+      expect((await f.knowledge.query(f.scope.applicationId, kind)).items).toHaveLength(0);
+    expect(readFileSync(f.lifecyclePath, 'utf8')).toBe(lifecycle);
+    expect(f.durable()).toEqual(durable); expect(f.drafts()).toEqual(drafts);
+    expect(existsSync(join(f.root, '.qa', 'modules', 'catalog'))).toBe(false);
   });
 });

@@ -12,6 +12,20 @@ export interface DocumentoCandidatoMin {
   es_ingerible?: boolean;
   tamano_bytes?: number;
   razon?: string;
+  categoria?: string;
+  advertencia?: string;
+}
+
+/**
+ * Evalúa si un candidato a documento es genuinamente sustantivo e ingerible (F9).
+ * Archivos con es_ingerible === false, tamaño 0, o categoría placeholder/archivo_vacio
+ * son estrictamente descartados de ser recomendados.
+ */
+export function esDocumentoSubstantivo(d: DocumentoCandidatoMin): boolean {
+  if (d.es_ingerible === false) return false;
+  if (typeof d.tamano_bytes === 'number' && d.tamano_bytes <= 0) return false;
+  if (d.categoria === 'placeholder' || d.categoria === 'archivo_vacio') return false;
+  return true;
 }
 
 
@@ -85,9 +99,10 @@ export function obtenerSiguientePreguntaOnboarding(
   if (faltantesCampos.has('source_of_truth') || faltantesCampos.has('context')) {
     const rawDocs = (hallazgos?.documentos ?? [])
       .map((d: unknown) => (typeof d === 'string' ? { path: d, nombre: d } : (d as DocumentoCandidatoMin)))
-      .filter((d) => d && d.es_ingerible !== false && Boolean(d.path));
+      .filter((d) => d && Boolean(d.path));
 
-    const docs = rawDocs.slice(0, 5);
+    const substantiveDocs = rawDocs.filter((d) => esDocumentoSubstantivo(d));
+    const docs = substantiveDocs.slice(0, 5);
     let opciones: Opcion[];
     if (docs.length >= 1) {
       opciones = docs.map((d, idx) => {
@@ -95,7 +110,7 @@ export function obtenerSiguientePreguntaOnboarding(
         return {
           id: sanitizeDomString(d.path, 500),
           etiqueta: sanitizeDomString(label, 120),
-          recomendada: idx === 0,
+          recomendada: idx === 0 && esDocumentoSubstantivo(d),
           efecto: { accion: 'declarar_fuente' as const },
         };
       });
@@ -130,10 +145,13 @@ export function obtenerSiguientePreguntaOnboarding(
       });
     }
 
+  const STUB_OBJECTIVE_PATTERNS = /^(documento\s+vac[ií]o|sin\s+objetivo|todo|tbd|placeholder|none|null|n\/a)$/i;
+
   // Comprobar si los 3 campos clave (objetivo, roles, flujos) tienen propuesta
   const hasObjectiveProposal = Boolean(
     contexto?.objective &&
     !/^Configuración base de QA para\s+.*$/i.test(contexto.objective.trim()) &&
+    !STUB_OBJECTIVE_PATTERNS.test(contexto.objective.trim()) &&
     contexto.objective.trim().length >= 10
   );
   const hasRolesProposal = Array.isArray(contexto?.roles) && contexto.roles.length > 0;
@@ -211,13 +229,13 @@ export function obtenerSiguientePreguntaOnboarding(
 
   // 3. Fallback: Objetivo
   if (faltantesCampos.has('objective')) {
-    const rawHypothesis = (contexto?.objective && !/^Configuración base de QA para\s+.*$/i.test(contexto.objective.trim()))
+    const rawHypothesis = (contexto?.objective && !/^Configuración base de QA para\s+.*$/i.test(contexto.objective.trim()) && !STUB_OBJECTIVE_PATTERNS.test(contexto.objective.trim()))
       ? contexto.objective
       : (hallazgos?.package_json?.description || '');
 
     const cleanHypothesis = sanitizeSnippet(rawHypothesis) || (rawHypothesis.trim().length >= 10 && !/^[|+-]/.test(rawHypothesis.trim()) ? truncarTexto(rawHypothesis, 120) : '');
 
-    if (cleanHypothesis.length >= 10) {
+    if (cleanHypothesis.length >= 10 && !STUB_OBJECTIVE_PATTERNS.test(cleanHypothesis)) {
       return crearPregunta({
         id: 'onboarding.objetivo',
         texto: `El objetivo propuesto para el proyecto es: "${cleanHypothesis}". Confirma si es correcto o si requiere ajustes:`,

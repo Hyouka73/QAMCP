@@ -8,14 +8,20 @@ export interface FlowTelemetryEvent {
   flowName: string;
   module: string;
   caseId: string;
-  status: 'passed' | 'failed' | 'skipped';
+  status: 'passed' | 'failed' | 'skipped' | 'not_run';
   durationMs: number;
   error?: string;
 }
 
+export interface FlowTelemetryFinishOptions {
+  status?: 'passed' | 'failed' | 'partial' | 'error' | (string & {});
+  error?: string;
+  resumeNoOp?: boolean;
+}
+
 export interface FlowTelemetry {
   onCaseEnd(event: FlowTelemetryEvent): void;
-  finish(): RunRecord;
+  finish(options?: FlowTelemetryFinishOptions | string): RunRecord;
 }
 
 export interface FlowTelemetryOptions {
@@ -53,8 +59,8 @@ export function createFlowTelemetry(options: FlowTelemetryOptions): FlowTelemetr
         ],
       });
     },
-    finish() {
-      const run = reporter.finishRun();
+    finish(finishOptions) {
+      const run = reporter.finishRun(finishOptions);
       reporter.close();
       return run;
     },

@@ -49,7 +49,7 @@ export async function executeHandoffLogin(
   try {
     await page.goto(profile.login_route, { waitUntil: 'domcontentloaded' });
 
-    console.log(message);
+    console.error(message);
 
     const startTime = Date.now();
 

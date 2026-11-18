@@ -1,3 +1,5 @@
+import type { TCCase } from './tc-case.type.js';
+
 /**
  * Test Options Type
  * 
@@ -13,4 +15,14 @@ export interface TestOptions {
   trace?: 'on' | 'off' | 'on-first-retry';
   retries?: number;
   context_data?: Record<string, unknown>;
+  /**
+   * True when the caller (e.g. FlowOrchestrator) already holds the module lock(s),
+   * so the runner must not re-acquire the module lock internally.
+   */
+  lock_owned_by_caller?: boolean;
+  /**
+   * Optional case resolver override (used e.g. to resolve valid inline cases
+   * while preserving TestPlan.cases as string IDs).
+   */
+  storageResolver?: (moduleName: string, caseId: string) => Promise<TCCase>;
 }

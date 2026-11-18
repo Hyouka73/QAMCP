@@ -1,0 +1,27 @@
+{
+  "arguments": [
+    "--filter",
+    "@qap/mcp",
+    "exec",
+    "vitest",
+    "run",
+    "lifecycle-v3-e2e",
+    "p3-canonical-discovery",
+    "p4-2-canonical-contract",
+    "p4-5a-canonical-integrity",
+    "p4-5a2-canonical-integrity",
+    "server-canonical-discovery",
+    "server-canonical-operations",
+    "test-handler",
+    "--reporter=verbose",
+    "--reporter=json",
+    "--outputFile.json=<repo>\\docs\\vnext\\implementaciones\\VNEXT-014-E01\\r5/reduced-normal.json"
+  ],
+  "started_at": "2026-11-07T00:05:43.9675247Z",
+  "sha": "9e9d2c8062b908d936ae090bbe9cb5c4ca2b0772",
+  "elapsed_ms": 29713.1792,
+  "name": "reduced-normal",
+  "finished_at": "2026-11-07T00:06:13.6760008Z",
+  "instrumented": false,
+  "exit_code": 1
+}

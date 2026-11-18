@@ -236,5 +236,59 @@ describe('E2c: obtenerSiguientePreguntaOnboarding (Criterio 2)', () => {
     expect(q?.id).toBe('onboarding.objetivo');
     expect(q?.texto).toContain("No encontré objetivo en 'PRD_diff.md'");
   });
+
+  describe('F9: Filtrado y no-recomendación de documentos stub o vacíos', () => {
+    it('nunca marca recomendada: true a documentos con es_ingerible: false, tamaño 0 o placeholder', () => {
+      const hallazgos = {
+        documentos: [
+          { path: 'PRD.md', nombre: 'PRD.md', es_ingerible: false, tamano_bytes: 0, categoria: 'placeholder' },
+          { path: 'README.md', nombre: 'README.md', es_ingerible: true, tamano_bytes: 1200, categoria: 'documento_funcional' },
+        ],
+      };
+      const q = obtenerSiguientePreguntaOnboarding({}, null, hallazgos);
+      expect(q?.id).toBe('onboarding.fuente_de_verdad');
+
+      const prdOpt = q?.opciones.find((o) => o.id === 'PRD.md');
+      expect(prdOpt).toBeUndefined(); // Descartado de las opciones de ingesta
+
+      const readmeOpt = q?.opciones.find((o) => o.id === 'README.md');
+      expect(readmeOpt).toBeDefined();
+      expect(readmeOpt?.recomendada).toBe(true);
+    });
+
+    it('si solo existen archivos vacíos o stub, ofrece indicar ruta manual ("custom") como recomendada', () => {
+      const hallazgos = {
+        documentos: [
+          { path: 'PRD.md', nombre: 'PRD.md', es_ingerible: false, tamano_bytes: 0, categoria: 'placeholder' },
+          { path: 'TODO.txt', nombre: 'TODO.txt', es_ingerible: false, tamano_bytes: 10, categoria: 'placeholder' },
+        ],
+      };
+      const q = obtenerSiguientePreguntaOnboarding({}, null, hallazgos);
+      expect(q?.id).toBe('onboarding.fuente_de_verdad');
+
+      // No debe contener PRD.md ni TODO.txt
+      expect(q?.opciones.some((o) => o.id === 'PRD.md')).toBe(false);
+      expect(q?.opciones.some((o) => o.id === 'TODO.txt')).toBe(false);
+
+      // Debe ofrecer ruta custom como recomendada
+      const customOpt = q?.opciones.find((o) => o.id === 'custom');
+      expect(customOpt).toBeDefined();
+      expect(customOpt?.recomendada).toBe(true);
+    });
+
+    it('ignora hipótesis de objetivo que sean stubs como "Documento vacío" y formula pregunta abierta', () => {
+      const ctx = {
+        source_of_truth: { type: 'prd' as const, declared: true, ref: 'PRD.md', source: 'user' as const },
+        objective: 'Documento vacío',
+        objective_source: 'inferred' as const,
+      };
+      const q = obtenerSiguientePreguntaOnboarding(ctx, null, null);
+      expect(q?.id).toBe('onboarding.objetivo');
+      // Debe ser pregunta abierta, NO confirmación de "Documento vacío"
+      expect(q?.formato).toBe('abierta');
+      expect(q?.texto).not.toContain('El objetivo propuesto para el proyecto es: "Documento vacío"');
+      expect(q?.texto).toContain('Describe el objetivo central del proyecto');
+    });
+  });
 });
 

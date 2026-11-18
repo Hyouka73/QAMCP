@@ -1,0 +1,30 @@
+[
+  {
+    "file": "analyze.mjs",
+    "sha256": "17531f84c738528eca91dcc30a03acdcc192c04128343d04c4fdbd805f634110"
+  },
+  {
+    "file": "baseline-1.json",
+    "sha256": "f7dc29755388aad5f2d656c58b3460cd29dcfe2c0961da4cccb7468ce4ac87ac"
+  },
+  {
+    "file": "baseline-2.json",
+    "sha256": "4bb4f9c712b3f5585aa2778d5d270866d7b112662a6666553c5cf87c4194f7fb"
+  },
+  {
+    "file": "capacity-summary.json",
+    "sha256": "dbd4fb282dc9d8d3ec987333df2a52eb9c9e76cbe1de3bef7f9ef33f4a29d281"
+  },
+  {
+    "file": "capacity.ps1",
+    "sha256": "2956364f75c01a16630085ff0e1e6f71197537c39515c9a2229db123cbdf122a"
+  },
+  {
+    "file": "identity-register.json",
+    "sha256": "f5e7a39218d7b37a0f97478faab5a82fcc47f6d1417669dd330e046fe590a66a"
+  },
+  {
+    "file": "preparation.json",
+    "sha256": "7033304e6b00bf0c80ce13e49e07fa971521526350b2735d5eafb86eb67ab17a"
+  }
+]

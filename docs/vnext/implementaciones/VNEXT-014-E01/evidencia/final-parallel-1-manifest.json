@@ -1,0 +1,16 @@
+{
+  "started_at": "2026-11-06T18:11:22.4801526Z",
+  "exit_code": 1,
+  "finished_at": "2026-11-06T18:12:15.6679323Z",
+  "name": "final-parallel-1",
+  "arguments": [
+    "--filter",
+    "@qap/mcp",
+    "exec",
+    "vitest",
+    "run",
+    "--reporter=default",
+    "--reporter=json",
+    "--outputFile=../../docs/vnext/implementaciones/VNEXT-014-E01/evidencia/final-parallel-1.json"
+  ]
+}

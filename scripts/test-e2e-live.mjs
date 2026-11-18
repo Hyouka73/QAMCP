@@ -5,16 +5,19 @@
  * 2. Validación de árbol .qa/ y esquemas generados
  * 3. Registro de perfil de autenticación (qap auth add)
  * 4. Generación de reporte inicial (qap report)
- * 5. Reseteo y limpieza completa (qap clean --force)
+ * 5. Inventario no destructivo (qap clean --preview)
  */
 
 import { execSync } from 'node:child_process';
-import { existsSync, mkdirSync, rmSync, writeFileSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { resolve, join } from 'node:path';
 
 const MONOREPO_ROOT = process.cwd();
 const CLI_BIN = resolve(MONOREPO_ROOT, 'packages', 'cli', 'dist', 'entrypoint.js');
-const SANDBOX_DIR = resolve(MONOREPO_ROOT, 'test-sandbox');
+const FIXTURE_DIR = mkdtempSync(join(tmpdir(), 'qap-live-fixture-'));
+const SANDBOX_DIR = join(FIXTURE_DIR, 'project');
+process.env.QAP_MCP_WORKSPACE_HOST_DIR = join(FIXTURE_DIR, 'host');
 
 console.log('====================================================');
 console.log('  QAP v2.1 - Test E2E Live Sandbox (Zero Prefab)    ');
@@ -27,9 +30,6 @@ try {
   }
 
   // 0. Preparar sandbox limpio
-  if (existsSync(SANDBOX_DIR)) {
-    rmSync(SANDBOX_DIR, { recursive: true, force: true });
-  }
   mkdirSync(SANDBOX_DIR, { recursive: true });
   console.log(`[Paso 0] Sandbox creado en: ${SANDBOX_DIR}`);
 
@@ -122,26 +122,24 @@ try {
   }
   console.log(`✔ Reporte HTML generado correctamente en: ${expectedReport}`);
 
-  // 5. Ejecutar qap clean --force y verificar desaparición completa de .qa/
-  console.log('\n[Paso 5] Ejecutando: qap clean --force');
-  const cleanOutput = execSync(`node "${CLI_BIN}" clean --force`, {
+  // 5. El script automático solo puede ver el inventario.
+  console.log('\n[Paso 5] Ejecutando: qap clean --preview');
+  const cleanOutput = execSync(`node "${CLI_BIN}" clean --preview`, {
     cwd: SANDBOX_DIR,
     encoding: 'utf-8',
   });
   console.log(cleanOutput.trim());
 
-  if (existsSync(qaDir)) {
-    throw new Error('FALLO: El directorio .qa/ sigue existiendo después de qap clean --force.');
+  if (JSON.parse(cleanOutput).status !== 'preview' || !existsSync(qaDir)) {
+    throw new Error('FALLO: no se obtuvo un inventario no destructivo.');
   }
-  console.log('✔ Verificación de limpieza superada: .qa/ ha desaparecido completamente sin dejar residuos.');
-
-  // Limpiar sandbox final
-  rmSync(SANDBOX_DIR, { recursive: true, force: true });
 
   console.log('\n====================================================');
   console.log('  ✔ PRUEBA E2E EN VIVO COMPLETADA EXITOSAMENTE!     ');
   console.log('====================================================\n');
 } catch (error) {
   console.error('\n❌ ERROR EN LA PRUEBA E2E:', error.message);
-  process.exit(1);
+  process.exitCode = 1;
+} finally {
+  rmSync(FIXTURE_DIR, { recursive: true, force: true });
 }

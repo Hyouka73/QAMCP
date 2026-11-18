@@ -1,0 +1,47 @@
+[
+  {
+    "exit_code": 0,
+    "started_at": "2026-11-06T17:30:29.9606787Z",
+    "log_sha256": "f690a1b5d9a29e10a3c9b650a543051be7a69f0347f579dfb85d296efe194ce3",
+    "finished_at": "2026-11-06T17:30:57.3122687Z",
+    "elapsed_ms": 27351.59,
+    "command": "pnpm run build",
+    "name": "final-build"
+  },
+  {
+    "exit_code": 0,
+    "started_at": "2026-11-06T17:30:57.4241715Z",
+    "log_sha256": "86cd6d4a30143fa4fe2ecbcc78c07dc3bd3de78ae322c825c1f8af24d5c5cb27",
+    "finished_at": "2026-11-06T17:31:00.2596516Z",
+    "elapsed_ms": 2835.4801,
+    "command": "pnpm --filter @qap/engine test",
+    "name": "final-engine"
+  },
+  {
+    "exit_code": 0,
+    "started_at": "2026-11-06T17:31:00.2750563Z",
+    "log_sha256": "af4a56b07014879904172b69484e95e1c1439c9a7215a97fa8699d0759a7098e",
+    "finished_at": "2026-11-06T17:31:10.0285816Z",
+    "elapsed_ms": 9753.5253,
+    "command": "pnpm --filter @qap/knowledge test",
+    "name": "final-knowledge"
+  },
+  {
+    "exit_code": 0,
+    "started_at": "2026-11-06T17:31:10.0500175Z",
+    "log_sha256": "65104a91afa11038eb76eac6352b821d0910e7f63feb63c02a2ca91cfe006938",
+    "finished_at": "2026-11-06T17:31:17.9917416Z",
+    "elapsed_ms": 7941.7241,
+    "command": "pnpm --filter @qap/playwright-runner test",
+    "name": "final-runner"
+  },
+  {
+    "exit_code": 0,
+    "started_at": "2026-11-06T17:31:18.0067135Z",
+    "log_sha256": "b89ba1437c053a9e048563964ecf4af364f905cc30205440c35a5e46fc17cd73",
+    "finished_at": "2026-11-06T17:31:18.1291428Z",
+    "elapsed_ms": 122.4293,
+    "command": "pnpm --filter @qap/cli test",
+    "name": "final-cli"
+  }
+]

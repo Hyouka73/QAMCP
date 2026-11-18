@@ -1,0 +1,724 @@
+[
+  {
+    "name": "qap_init",
+    "data": {
+      "status": "success",
+      "directorio_objetivo": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\INT03-R5\\vertical-final\\project",
+      "message": "✔ Proyecto inicializado con éxito en .qa/",
+      "projectName": "R5 technical fixture",
+      "preflight": {
+        "navegador_qap": "ok",
+        "comando_instalacion": "npx playwright install chromium"
+      },
+      "navegador_qap": "ok",
+      "repo_map_resumen": {
+        "total_rutas": 0,
+        "advertencias": []
+      },
+      "environments": [
+        "local"
+      ],
+      "directories": [
+        "\\.qa\\project",
+        "\\.qa\\modules",
+        "\\.qa\\cache",
+        "\\.qa\\executions",
+        "\\.qa\\plans"
+      ],
+      "ya_existia": false,
+      "hallazgos_workspace": {
+        "documentos": [],
+        "subproyectos": [],
+        "servicios": []
+      },
+      "scan": {
+        "_version": "1",
+        "scanned_at": "2026-11-09T23:20:38.257Z",
+        "workspace_root": "C:/Users/Judirico/Documents/QAMCP/audits/INT03-R5/vertical-final/project",
+        "documentos": [],
+        "subproyectos": [],
+        "servicios": []
+      },
+      "advertencias": [],
+      "roles_descartados": [],
+      "lifecycle": {
+        "phase": "ONBOARDING"
+      },
+      "fase": "ONBOARDING",
+      "siguiente_accion": {
+        "tipo": "entrevista",
+        "descripcion": "Pregunta pendiente de onboarding (onboarding.fuente_de_verdad). Preséntala al usuario usando la herramienta interactiva ask_question.",
+        "tool": "qap_context_set",
+        "pregunta": {
+          "id": "onboarding.fuente_de_verdad",
+          "texto": "Selecciona la fuente de verdad del proyecto para extraer el alcance y especificación:",
+          "formato": "una_opcion",
+          "opciones": [
+            {
+              "id": "custom",
+              "etiqueta": "Sí existe (indicaré la ruta)",
+              "recomendada": true,
+              "efecto": {
+                "accion": "declarar_fuente"
+              }
+            },
+            {
+              "id": "none",
+              "etiqueta": "No, definimos desde cero",
+              "efecto": {
+                "accion": "sin_documento"
+              }
+            }
+          ],
+          "permite_otra": true,
+          "registrar_con": {
+            "tool": "qap_context_set",
+            "campo": "source_of_truth"
+          },
+          "render_texto": "Selecciona la fuente de verdad del proyecto para extraer el alcance y especificación:\n\n1. Sí existe (indicaré la ruta) [Recomendada]\n2. No, definimos desde cero\n\n(Responde con el número de tu opción o escribe una respuesta libre)"
+        }
+      },
+      "_guidance_for_assistant": "Fase actual: ONBOARDING. Siguiente acción: Pregunta pendiente de onboarding (onboarding.fuente_de_verdad). Preséntala al usuario usando la herramienta interactiva ask_question."
+    }
+  },
+  {
+    "name": "qap_context_set",
+    "data": {
+      "status": "success",
+      "directorio_objetivo": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\INT03-R5\\vertical-final\\project",
+      "fase": "SCOPING",
+      "transicion_automatica": true,
+      "faltantes": [],
+      "context": {
+        "_version": "1",
+        "project_name": "R5 technical fixture",
+        "description": "Configuración base de QA para R5 technical fixture",
+        "tech_stack": [],
+        "manually_edited": false,
+        "base_url": "http://127.0.0.1:63440",
+        "objective": "Verify authorized technical fixture execution and reports",
+        "objective_source": "user",
+        "roles": [
+          {
+            "name": "tester",
+            "source": "user"
+          }
+        ],
+        "critical_flows": [
+          {
+            "name": "Smoke",
+            "source": "user"
+          }
+        ],
+        "source_of_truth": {
+          "type": "notes",
+          "ref": "fixture.md",
+          "declared": true,
+          "source": "user"
+        }
+      },
+      "siguiente_accion": {
+        "tipo": "decision",
+        "descripcion": "Define los módulos prioritarios a verificar en esta sesión de trabajo.",
+        "tool": "qap_session_plan",
+        "pregunta": {
+          "id": "scoping.modulos_a_probar",
+          "texto": "Indica los módulos a probar con su nombre y ruta (por ejemplo: Catálogo /catalog, Pagos /checkout):",
+          "formato": "abierta",
+          "opciones": [],
+          "permite_otra": true,
+          "registrar_con": {
+            "tool": "qap_session_plan",
+            "campo": "modules"
+          },
+          "render_texto": "Indica los módulos a probar con su nombre y ruta (por ejemplo: Catálogo /catalog, Pagos /checkout):\n\n(Escribe tu respuesta libremente)"
+        }
+      },
+      "knowledge": {
+        "state": "available",
+        "application_id": "app-r5",
+        "environment_id": "local",
+        "application_revision": 1,
+        "environment_revision": 1,
+        "counts": {
+          "module": {
+            "available": 1,
+            "complete": true
+          },
+          "observation": {
+            "available": 0,
+            "complete": true
+          },
+          "inference": {
+            "available": 0,
+            "complete": true
+          },
+          "evidence": {
+            "available": 0,
+            "complete": true
+          }
+        },
+        "coverage": "partial",
+        "consistency": "per_operation_not_snapshot",
+        "context_present": true,
+        "strategy": "legacy_only_no_canonical_projection"
+      },
+      "persistence": "committed"
+    }
+  },
+  {
+    "name": "qap_context_set",
+    "data": {
+      "status": "success",
+      "directorio_objetivo": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\INT03-R5\\vertical-final\\project",
+      "fase": "SCOPING",
+      "transicion_automatica": false,
+      "faltantes": [],
+      "context": {
+        "_version": "1",
+        "project_name": "R5 technical fixture",
+        "description": "Configuración base de QA para R5 technical fixture",
+        "tech_stack": [],
+        "manually_edited": false,
+        "base_url": "http://127.0.0.1:63440",
+        "objective": "Verify authorized technical fixture execution and reports",
+        "objective_source": "user",
+        "roles": [
+          {
+            "name": "tester",
+            "source": "user"
+          }
+        ],
+        "critical_flows": [
+          {
+            "name": "Smoke",
+            "source": "user"
+          }
+        ],
+        "source_of_truth": {
+          "type": "notes",
+          "ref": "fixture.md",
+          "declared": true,
+          "source": "user"
+        }
+      },
+      "siguiente_accion": {
+        "tipo": "decision",
+        "descripcion": "Define los módulos prioritarios a verificar en esta sesión de trabajo.",
+        "tool": "qap_session_plan",
+        "pregunta": {
+          "id": "scoping.modulos_a_probar",
+          "texto": "Indica los módulos a probar con su nombre y ruta (por ejemplo: Catálogo /catalog, Pagos /checkout):",
+          "formato": "abierta",
+          "opciones": [],
+          "permite_otra": true,
+          "registrar_con": {
+            "tool": "qap_session_plan",
+            "campo": "modules"
+          },
+          "render_texto": "Indica los módulos a probar con su nombre y ruta (por ejemplo: Catálogo /catalog, Pagos /checkout):\n\n(Escribe tu respuesta libremente)"
+        }
+      },
+      "knowledge": {
+        "state": "available",
+        "application_id": "app-r5",
+        "environment_id": "local",
+        "application_revision": 1,
+        "environment_revision": 1,
+        "counts": {
+          "module": {
+            "available": 1,
+            "complete": true
+          },
+          "observation": {
+            "available": 0,
+            "complete": true
+          },
+          "inference": {
+            "available": 0,
+            "complete": true
+          },
+          "evidence": {
+            "available": 0,
+            "complete": true
+          }
+        },
+        "coverage": "partial",
+        "consistency": "per_operation_not_snapshot",
+        "context_present": true,
+        "strategy": "legacy_only_no_canonical_projection"
+      },
+      "persistence": "committed"
+    }
+  },
+  {
+    "name": "qap_session_plan",
+    "data": {
+      "status": "success",
+      "directorio_objetivo": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\INT03-R5\\vertical-final\\project",
+      "fase": "WORKING",
+      "transicion_automatica": true,
+      "plan": [
+        {
+          "module": "smoke",
+          "path": "/smoke",
+          "priority": "high",
+          "status": "planned",
+          "flujos": []
+        }
+      ],
+      "auth": {
+        "required": false,
+        "source": "user"
+      },
+      "faltantes": [],
+      "siguiente_accion": {
+        "tipo": "trabajo",
+        "descripcion": "Siguiente módulo planificado para exploración: 'smoke' en ruta '/smoke'. Ejecuta qap_discover para iniciar.",
+        "tool": "qap_discover",
+        "module": "smoke",
+        "modulo": "smoke"
+      }
+    }
+  },
+  {
+    "name": "qap_discover",
+    "data": {
+      "status": "completed",
+      "application_id": "app-r5",
+      "environment_id": "local",
+      "status_scope": "acquisition",
+      "requested_module": "smoke",
+      "execution_id": "1a9d7c73-a623-4507-87e8-552521de4ffe",
+      "mode": "fresh_anonymous_static",
+      "acquisition_status": "completed",
+      "acquisition_persistence": "committed",
+      "module_identity_status": "resolved",
+      "association_status": "confirmed",
+      "code": "execution_scope_only",
+      "associated_observations": 2,
+      "confirmed_relations": 2,
+      "coverage": "partial",
+      "association_receipt": {
+        "version": 1,
+        "binding": "a5db439f157083a53c47880c3657e4b240f984b9fbb85e994e467adee2f02cae",
+        "execution": "1a9d7c73-a623-4507-87e8-552521de4ffe",
+        "observations": [
+          "57fbb41e-40f2-4331-9b94-5f6d0be12548",
+          "d4023789-26df-4338-83c9-7912943b5ee0"
+        ]
+      },
+      "association_next_safe_action": "Revisión humana de observaciones; cobertura parcial.",
+      "counts": {
+        "candidate_routes": 0,
+        "visited_routes": 1,
+        "blocked_routes": 0,
+        "views": 1,
+        "controls": 1,
+        "forms": 0,
+        "relations": 0
+      },
+      "routes": [
+        {
+          "reference": "urn:qap:route:836c2afad4108f2c126c3f2652c359699077e93f648a92d99b1675c93a2db12a",
+          "state": "visited",
+          "depth": 0,
+          "http_status": 200
+        }
+      ],
+      "views": [
+        {
+          "reference": "8d49e7dd-15bb-4671-95bd-64ff11a750b0",
+          "route": "urn:qap:route:836c2afad4108f2c126c3f2652c359699077e93f648a92d99b1675c93a2db12a",
+          "state": "static_snapshot",
+          "controls": 1,
+          "forms": 0,
+          "truncated": false
+        }
+      ],
+      "relations": [],
+      "limitations": [
+        "STATIC_MODE_NO_APPLICATION_JAVASCRIPT",
+        "NO_GENERAL_BROWSER_SSRF_CERTIFICATION",
+        "EXTERNAL_RESOURCES_FRAMES_DOWNLOADS_BLOCKED",
+        "ROUTE_REFERENCES_ARE_OPAQUE_PER_EXECUTION",
+        "GET_SAFETY_REQUIRES_CALLER_CONSENT",
+        "DOMAIN_IDENTITIES_DEFERRED"
+      ],
+      "budgets": {
+        "pages": 1,
+        "requests": 1,
+        "received_bytes": 248,
+        "decoded_bytes": 120,
+        "retained_bytes": 120,
+        "elapsed_ms": 1526,
+        "concurrency": 1,
+        "retries": 0,
+        "blocked_browser_requests": 0,
+        "deny_proxy_connections": 9
+      },
+      "limits": {
+        "max_pages": 10,
+        "max_depth": 3,
+        "total_timeout_ms": 30000,
+        "navigation_timeout_ms": 5000,
+        "max_requests": 20,
+        "max_bytes": 524288,
+        "max_redirects": 3,
+        "max_elements": 250
+      },
+      "cleanup": {
+        "browser_closed": true,
+        "proxy_closed": true
+      },
+      "persistence": "committed",
+      "observations": 2,
+      "evidence": 1,
+      "integration": {
+        "discovery_advances_lifecycle": false,
+        "canonical_interview": "unavailable",
+        "observations_are_confirmed_requirements": false,
+        "module_association": "confirmed",
+        "next_safe_action": "Revisar el inventario con qap_status. Para entrevistar se requiere contexto legacy previamente revisado o una integración futura expresamente autorizada; repetir discovery no crea ese contexto."
+      },
+      "next_safe_action": "Revisar observaciones; no representan requisitos ni defectos confirmados. La entrevista legacy requiere contexto propio; repetir discovery no lo crea."
+    },
+    "isError": false
+  },
+  {
+    "name": "qap_discover",
+    "data": {
+      "status": "blocked",
+      "code": "authentication_not_supported",
+      "persistence": "not_attempted",
+      "next_safe_action": "Revisar la configuración explícita del host.",
+      "acquisition_status": "blocked",
+      "acquisition_persistence": "not_attempted",
+      "association_status": "not_attempted",
+      "module_identity_status": "not_resolved",
+      "coverage": "partial"
+    },
+    "isError": true
+  },
+  {
+    "name": "qap_plan",
+    "data": {
+      "status": "success",
+      "module": "smoke",
+      "environment": "local",
+      "has_cycles": false,
+      "cycles": [],
+      "cases": [
+        "TC-FAIL",
+        "TC-PASS"
+      ],
+      "ordered_nodes": [
+        "TC-FAIL",
+        "TC-PASS"
+      ],
+      "order": [
+        "TC-FAIL",
+        "TC-PASS"
+      ],
+      "preserved_cases": [],
+      "total_cases": 2,
+      "checksum": "2f2138acda1142ebd1734a9b530e53a821937d3602acec164c60ce0596cba700",
+      "cases_fingerprint": "5516aa927671d495fa9592e3a5dc26e5c47fd6264045bf80bf1000bf68360f96",
+      "cases_fingerprint_version": "1",
+      "persisted": true,
+      "plan_file": ".qa/modules/smoke/tests/plan.json"
+    },
+    "isError": false
+  },
+  {
+    "name": "qap_test",
+    "data": {
+      "status": "completed",
+      "result": "partial",
+      "module": "smoke",
+      "environment": "local",
+      "execution_id": "exec_1794266440404_cf8e0ba2d0b14480ab86b5b0c6cc1204",
+      "summary": {
+        "total": 2,
+        "passed": 1,
+        "failed": 1,
+        "skipped": 0,
+        "not_run": 0
+      },
+      "cases": [
+        {
+          "id": "TC-FAIL",
+          "title": "TC-FAIL",
+          "result": "failed",
+          "duration_ms": 292,
+          "failure_type": "assertion_failed",
+          "steps": [
+            {
+              "action": "execute",
+              "status": "failed",
+              "message": "Assertion failed: Se esperaba que '#title' fuera igual a 'Deliberately wrong', pero fue 'Fixture ready'.",
+              "screenshot": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\INT03-R5\\vertical-final\\project\\.qa\\reports\\screenshots\\failure_TC-FAIL_1794266441264.png"
+            }
+          ]
+        },
+        {
+          "id": "TC-PASS",
+          "title": "TC-PASS",
+          "result": "passed",
+          "duration_ms": 157
+        }
+      ],
+      "started_at": "2026-11-09T23:20:40.404Z",
+      "finished_at": "2026-11-09T23:20:41.723Z"
+    },
+    "isError": false
+  },
+  {
+    "name": "qap_report",
+    "data": {
+      "status": "success",
+      "directorio_objetivo": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\INT03-R5\\vertical-final\\project",
+      "executionId": "exec_1794266440404_cf8e0ba2d0b14480ab86b5b0c6cc1204",
+      "module": "smoke",
+      "result": "partial",
+      "summary": {
+        "total": 2,
+        "passed": 1,
+        "failed": 1,
+        "skipped": 0,
+        "not_run": 0
+      },
+      "reports": {
+        "html": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\INT03-R5\\vertical-final\\project\\.qa\\executions\\exec_1794266440404_cf8e0ba2d0b14480ab86b5b0c6cc1204.report.html",
+        "markdown": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\INT03-R5\\vertical-final\\project\\.qa\\executions\\exec_1794266440404_cf8e0ba2d0b14480ab86b5b0c6cc1204.report.md",
+        "junit": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\INT03-R5\\vertical-final\\project\\.qa\\executions\\exec_1794266440404_cf8e0ba2d0b14480ab86b5b0c6cc1204.report.xml",
+        "json": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\INT03-R5\\vertical-final\\project\\.qa\\executions\\exec_1794266440404_cf8e0ba2d0b14480ab86b5b0c6cc1204.report.json"
+      },
+      "evidence_source": "persisted_execution",
+      "viewer_url": null
+    },
+    "isError": false
+  },
+  {
+    "name": "qap_report",
+    "data": {
+      "status": "success",
+      "directorio_objetivo": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\INT03-R5\\vertical-final\\project",
+      "executionId": "exec_1794266440404_cf8e0ba2d0b14480ab86b5b0c6cc1204",
+      "module": "smoke",
+      "result": "partial",
+      "summary": {
+        "total": 2,
+        "passed": 1,
+        "failed": 1,
+        "skipped": 0,
+        "not_run": 0
+      },
+      "reports": {
+        "html": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\INT03-R5\\vertical-final\\project\\.qa\\executions\\exec_1794266440404_cf8e0ba2d0b14480ab86b5b0c6cc1204.report.html",
+        "markdown": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\INT03-R5\\vertical-final\\project\\.qa\\executions\\exec_1794266440404_cf8e0ba2d0b14480ab86b5b0c6cc1204.report.md",
+        "junit": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\INT03-R5\\vertical-final\\project\\.qa\\executions\\exec_1794266440404_cf8e0ba2d0b14480ab86b5b0c6cc1204.report.xml",
+        "json": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\INT03-R5\\vertical-final\\project\\.qa\\executions\\exec_1794266440404_cf8e0ba2d0b14480ab86b5b0c6cc1204.report.json"
+      },
+      "evidence_source": "persisted_execution",
+      "viewer_url": null
+    },
+    "isError": false
+  },
+  {
+    "name": "qap_status",
+    "data": {
+      "status": "success",
+      "directorio_objetivo": "C:\\Users\\Judirico\\Documents\\QAMCP\\audits\\INT03-R5\\vertical-final\\project",
+      "initialized": true,
+      "context_state": "available",
+      "preflight": {
+        "navegador_qap": "ok",
+        "comando_instalacion": "npx playwright install chromium"
+      },
+      "navegador_qap": "ok",
+      "fase": "WORKING",
+      "estados_modulos": {
+        "smoke": "planned"
+      },
+      "faltantes": [],
+      "siguiente_accion": {
+        "tipo": "trabajo",
+        "descripcion": "Siguiente módulo planificado para exploración: 'smoke' en ruta '/smoke'. Ejecuta qap_discover para iniciar.",
+        "tool": "qap_discover",
+        "module": "smoke",
+        "modulo": "smoke"
+      },
+      "scan": {
+        "_version": "1",
+        "scanned_at": "2026-11-09T23:20:43.492Z",
+        "workspace_root": "C:/Users/Judirico/Documents/QAMCP/audits/INT03-R5/vertical-final/project",
+        "documentos": [],
+        "subproyectos": [],
+        "servicios": []
+      },
+      "hallazgos_workspace": {
+        "documentos": [],
+        "subproyectos": [],
+        "servicios": []
+      },
+      "advertencias": [],
+      "projectName": "R5 technical fixture",
+      "environments": [
+        "local"
+      ],
+      "stats": {
+        "modules": 1,
+        "authProfiles": 0,
+        "executions": 2
+      },
+      "validatorReady": true,
+      "_guidance_for_assistant": "Fase actual: WORKING. Siguiente acción: Siguiente módulo planificado para exploración: 'smoke' en ruta '/smoke'. Ejecuta qap_discover para iniciar.",
+      "knowledge": {
+        "state": "available",
+        "application_id": "app-r5",
+        "environment_id": "local",
+        "application_revision": 1,
+        "environment_revision": 1,
+        "counts": {
+          "module": {
+            "available": 1,
+            "complete": true
+          },
+          "observation": {
+            "available": 2,
+            "complete": true
+          },
+          "inference": {
+            "available": 0,
+            "complete": true
+          },
+          "evidence": {
+            "available": 1,
+            "complete": true
+          }
+        },
+        "coverage": "partial",
+        "consistency": "per_operation_not_snapshot",
+        "context_present": true
+      },
+      "canonical_modules": [
+        {
+          "plannedName": "smoke",
+          "module_identity_status": "resolved",
+          "module_reference": "1664998ae673c579716c919ab3d650a8a789eef1d886d86bd78d3b1c34cc13cd",
+          "association_status": "available",
+          "absence_does_not_imply_no_observations": true,
+          "truncated": false,
+          "executions": [
+            {
+              "execution_id": "1a9d7c73-a623-4507-87e8-552521de4ffe",
+              "association_status": "confirmed",
+              "associated_observations": 2,
+              "expected_observations": 2,
+              "observation_types": {
+                "navigation_route": 1,
+                "dom_element": 1
+              },
+              "candidate_views": 1,
+              "forms": 0,
+              "controls": 1,
+              "html_required_controls": 0,
+              "navigation_candidates": 0,
+              "evidence_available": true,
+              "evidence_refs": [
+                {
+                  "id": "94fe5627-a5ad-4acc-a637-ac37f85315d1",
+                  "revision": 1
+                },
+                {
+                  "id": "94fe5627-a5ad-4acc-a637-ac37f85315d1",
+                  "revision": 1
+                }
+              ],
+              "context_revision": {
+                "application": 1,
+                "environment": 1,
+                "module": 1
+              },
+              "coverage": "partial",
+              "limitations": [
+                "static_anonymous_only",
+                "functional_membership_unconfirmed",
+                "selectors_unverified"
+              ],
+              "human_review_required": true
+            }
+          ],
+          "coverage": "partial",
+          "human_review_required": true,
+          "interview": {
+            "availability": "general_questions_available",
+            "association_status": "available",
+            "association_completeness": "execution_scope_only",
+            "pending_questions": 0,
+            "reviewed_answers": 0,
+            "pending_proposals": 0,
+            "draft_requirements": 0,
+            "confirmed_requirements": 0,
+            "rejected_proposals": 0,
+            "active_questions": 0,
+            "deferred_questions": 0,
+            "corrected_proposals": 0,
+            "confirmed_with_pending_correction": 0,
+            "stale_questions": 0,
+            "context": "current",
+            "stale": [],
+            "recovery": "process_memory",
+            "reconciled_confirmations": 0,
+            "revisions": [],
+            "canonical_requirements": 0,
+            "conflicts": "reported_per_operation",
+            "truncated": false,
+            "gateway": "absent",
+            "pending_storage": "not_configured_host_memory_until_restart",
+            "human_review_required": true,
+            "coverage": "not_certified"
+          },
+          "closure": {
+            "state": "working",
+            "ready_for_closure": false
+          }
+        }
+      ],
+      "canonical_bridge": {
+        "absence_does_not_imply_no_observations": true,
+        "coverage": "partial",
+        "human_review_required": true
+      },
+      "integration": {
+        "discovery_advances_lifecycle": false,
+        "canonical_interview": "unavailable",
+        "observations_are_confirmed_requirements": false,
+        "module_association": "inspect_canonical_modules",
+        "next_safe_action": "Revisar el inventario con qap_status. Para entrevistar se requiere contexto legacy previamente revisado o una integración futura expresamente autorizada; repetir discovery no crea ese contexto."
+      },
+      "provenance": {
+        "knowledge": "IKnowledgeStore",
+        "onboarding": "legacy_files",
+        "hallazgos_workspace": "workspace_inspection",
+        "preflight": "runtime"
+      },
+      "coverage": "partial_inventory_not_test_verdicts"
+    },
+    "isError": false
+  },
+  {
+    "name": "qap_session_close",
+    "data": {
+      "status": "blocked",
+      "code": "canonical_closure_store_required",
+      "razon": "El host vinculó módulos canónicos pero no configuró un almacén durable de cierre.",
+      "desbloquear_con": {
+        "tool": "qap_status",
+        "descripcion": "Revisar la composición del host MCP."
+      }
+    },
+    "isError": true
+  }
+]

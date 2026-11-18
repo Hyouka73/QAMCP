@@ -1,0 +1,21 @@
+{
+  "scope": "authorized technical loopback fixture only; NOT human or business acceptance",
+  "source_head": "501a098c68ea7aa62a07f3fe914dbef996025c26",
+  "physical_root": "C:\\Users\\Judirico\\Documents\\QAMCP\\cierre-evidence\\consolidacion-2026-11-10\\vertical",
+  "execution_id": "exec_1794327888235_c9d99b576ed14a6c843880d408d125e1",
+  "screenshots": [
+    {
+      "source": "C:\\Users\\Judirico\\Documents\\QAMCP\\cierre-evidence\\consolidacion-2026-11-10\\vertical\\project\\.qa\\reports\\screenshots\\failure_9d174543-61b2-4f69-a60b-af73a33e1085_1794327889059.png",
+      "copy": "screenshot-0.png",
+      "sha256": "3c105115e140897ee09acb1a6d019917939d6e6bb8a7f7f5b938d413fa3b66e2"
+    }
+  ],
+  "reports": [
+    "C:\\Users\\Judirico\\Documents\\QAMCP\\cierre-evidence\\consolidacion-2026-11-10\\vertical\\project\\.qa\\executions\\exec_1794327888235_c9d99b576ed14a6c843880d408d125e1.report.html",
+    "C:\\Users\\Judirico\\Documents\\QAMCP\\cierre-evidence\\consolidacion-2026-11-10\\vertical\\project\\.qa\\executions\\exec_1794327888235_c9d99b576ed14a6c843880d408d125e1.report.md",
+    "C:\\Users\\Judirico\\Documents\\QAMCP\\cierre-evidence\\consolidacion-2026-11-10\\vertical\\project\\.qa\\executions\\exec_1794327888235_c9d99b576ed14a6c843880d408d125e1.report.json",
+    "C:\\Users\\Judirico\\Documents\\QAMCP\\cierre-evidence\\consolidacion-2026-11-10\\vertical\\project\\.qa\\executions\\exec_1794327888235_c9d99b576ed14a6c843880d408d125e1.report.xml"
+  ],
+  "all_local_checkouts_retained": true,
+  "cleanup": "No worktree, branch, or unsaved file deleted; Antigravity reconciliation remains pending."
+}

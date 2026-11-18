@@ -15,12 +15,12 @@ describe('Criterio 6: Guardia de emisión central de preguntas (guardPregunta)',
     expect(() => guardPregunta(qNoDocs!)).not.toThrow();
 
     // 2. Con 1 documento encontrado (README.md)
-    const qOneDoc = obtenerSiguientePreguntaOnboarding({}, null, { documentos: ['README.md'] });
+    const qOneDoc = obtenerSiguientePreguntaOnboarding({}, null, { documentos: [{ path: 'README.md' }] });
     expect(qOneDoc).not.toBeNull();
     expect(() => guardPregunta(qOneDoc!)).not.toThrow();
 
     // 3. Con 3 documentos encontrados
-    const qMultiDocs = obtenerSiguientePreguntaOnboarding({}, null, { documentos: ['docs/prd.md', 'README.md', 'SPEC.md'] });
+    const qMultiDocs = obtenerSiguientePreguntaOnboarding({}, null, { documentos: ['docs/prd.md', 'README.md', 'SPEC.md'].map(path => ({ path })) });
     expect(qMultiDocs).not.toBeNull();
     expect(() => guardPregunta(qMultiDocs!)).not.toThrow();
 

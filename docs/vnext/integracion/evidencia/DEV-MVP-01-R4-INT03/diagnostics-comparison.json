@@ -1,0 +1,79 @@
+{
+  "method": "Diagnostic multiset by relative file, code/rule and message; ignores shifted positions. No diagnostics suppressed.",
+  "lint": {
+    "baseline": 0,
+    "consolidated": 0,
+    "retained": 0,
+    "resolved": {},
+    "addedVsINT03": {},
+    "addedInheritedFromR4": {},
+    "newNotInEitherParent": {}
+  },
+  "rootTypecheck": {
+    "baseline": 1918,
+    "consolidated": 1923,
+    "retained": 1918,
+    "resolved": {},
+    "addedVsINT03": {
+      "packages/knowledge/src/__tests__/challenger-rbac-stress.test.ts TS2304 Cannot find name 'performance'.": 2,
+      "packages/playwright-runner/src/__tests__/generated-oracle-integration.test.ts TS2307 Cannot find module 'node:fs/promises' or its corresponding type declarations.": 1,
+      "packages/playwright-runner/src/__tests__/generated-oracle-integration.test.ts TS2307 Cannot find module 'node:os' or its corresponding type declarations.": 1,
+      "packages/playwright-runner/src/__tests__/generated-oracle-integration.test.ts TS2307 Cannot find module 'node:path' or its corresponding type declarations.": 1
+    },
+    "addedInheritedFromR4": {
+      "packages/knowledge/src/__tests__/challenger-rbac-stress.test.ts TS2304 Cannot find name 'performance'.": 2
+    },
+    "newNotInEitherParent": {
+      "packages/playwright-runner/src/__tests__/generated-oracle-integration.test.ts TS2307 Cannot find module 'node:fs/promises' or its corresponding type declarations.": 1,
+      "packages/playwright-runner/src/__tests__/generated-oracle-integration.test.ts TS2307 Cannot find module 'node:os' or its corresponding type declarations.": 1,
+      "packages/playwright-runner/src/__tests__/generated-oracle-integration.test.ts TS2307 Cannot find module 'node:path' or its corresponding type declarations.": 1
+    }
+  },
+  "packageTypecheck": {
+    "shared": {
+      "baseline": 0,
+      "consolidated": 0,
+      "retained": 0,
+      "resolved": {},
+      "addedVsINT03": {},
+      "addedInheritedFromR4": {},
+      "newNotInEitherParent": {}
+    },
+    "engine": {
+      "baseline": 0,
+      "consolidated": 0,
+      "retained": 0,
+      "resolved": {},
+      "addedVsINT03": {},
+      "addedInheritedFromR4": {},
+      "newNotInEitherParent": {}
+    },
+    "knowledge": {
+      "baseline": 0,
+      "consolidated": 0,
+      "retained": 0,
+      "resolved": {},
+      "addedVsINT03": {},
+      "addedInheritedFromR4": {},
+      "newNotInEitherParent": {}
+    },
+    "playwright-runner": {
+      "baseline": 0,
+      "consolidated": 0,
+      "retained": 0,
+      "resolved": {},
+      "addedVsINT03": {},
+      "addedInheritedFromR4": {},
+      "newNotInEitherParent": {}
+    },
+    "mcp": {
+      "baseline": 116,
+      "consolidated": 116,
+      "retained": 116,
+      "resolved": {},
+      "addedVsINT03": {},
+      "addedInheritedFromR4": {},
+      "newNotInEitherParent": {}
+    }
+  }
+}

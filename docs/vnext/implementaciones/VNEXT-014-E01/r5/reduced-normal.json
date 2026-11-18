@@ -1,0 +1,956 @@
+{
+  "numTotalTestSuites": 21,
+  "numPassedTestSuites": 15,
+  "numFailedTestSuites": 6,
+  "numPendingTestSuites": 0,
+  "numTotalTests": 69,
+  "numPassedTests": 63,
+  "numFailedTests": 6,
+  "numPendingTests": 0,
+  "numTodoTests": 0,
+  "snapshot": {
+    "added": 0,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0,
+    "didUpdate": false
+  },
+  "startTime": 1794009944848,
+  "success": false,
+  "testResults": [
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "Lifecycle V3 E2E & Verification Suite (E0 - E3)"
+          ],
+          "fullName": "Lifecycle V3 E2E & Verification Suite (E0 - E3) E0a: qap_status en WORKING para módulo con cobertura incompleta devuelve module, view y preguntas no vacías idénticas a qap_rules_set",
+          "status": "failed",
+          "title": "E0a: qap_status en WORKING para módulo con cobertura incompleta devuelve module, view y preguntas no vacías idénticas a qap_rules_set",
+          "duration": 5861.0674,
+          "failureMessages": [
+            "Error: STACK_TRACE_ERROR\n    at task (file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1784:27)\n    at Object.<anonymous> (file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1817:16)\n    at Object.<anonymous> (file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1563:28)\n    at chain (file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:599:14)\n    at <repo>/packages/mcp/src/__tests__/lifecycle-v3-e2e.test.ts:20:3\n    at file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1889:40\n    at runWithSuite (file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2258:8)\n    at Object.collect (file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1889:10)\n    at Object.collect (file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1893:54)\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)"
+          ],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Lifecycle V3 E2E & Verification Suite (E0 - E3)"
+          ],
+          "fullName": "Lifecycle V3 E2E & Verification Suite (E0 - E3) E0b: contrato estricto de opciones y preguntas en todo el flujo",
+          "status": "failed",
+          "title": "E0b: contrato estricto de opciones y preguntas en todo el flujo",
+          "duration": 5255.402099999999,
+          "failureMessages": [
+            "Error: STACK_TRACE_ERROR\n    at task (file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1784:27)\n    at Object.<anonymous> (file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1817:16)\n    at Object.<anonymous> (file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1563:28)\n    at chain (file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:599:14)\n    at <repo>/packages/mcp/src/__tests__/lifecycle-v3-e2e.test.ts:52:3\n    at file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1889:40\n    at runWithSuite (file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2258:8)\n    at Object.collect (file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1889:10)\n    at Object.collect (file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1893:54)\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)"
+          ],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Lifecycle V3 E2E & Verification Suite (E0 - E3)"
+          ],
+          "fullName": "Lifecycle V3 E2E & Verification Suite (E0 - E3) E0c: qap_report sin ejecuciones responde blocked y no escribe archivos; ninguna siguiente_accion recomienda qap_report sin ejecuciones",
+          "status": "passed",
+          "title": "E0c: qap_report sin ejecuciones responde blocked y no escribe archivos; ninguna siguiente_accion recomienda qap_report sin ejecuciones",
+          "duration": 523.8541999999998,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Lifecycle V3 E2E & Verification Suite (E0 - E3)"
+          ],
+          "fullName": "Lifecycle V3 E2E & Verification Suite (E0 - E3) E1: regresión consolidated -> interviewing tras re-discover y política de waivers",
+          "status": "failed",
+          "title": "E1: regresión consolidated -> interviewing tras re-discover y política de waivers",
+          "duration": 5186.505599999999,
+          "failureMessages": [
+            "Error: STACK_TRACE_ERROR\n    at task (file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1784:27)\n    at Object.<anonymous> (file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1817:16)\n    at Object.<anonymous> (file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1563:28)\n    at chain (file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:599:14)\n    at <repo>/packages/mcp/src/__tests__/lifecycle-v3-e2e.test.ts:92:3\n    at file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1889:40\n    at runWithSuite (file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2258:8)\n    at Object.collect (file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1889:10)\n    at Object.collect (file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1893:54)\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)"
+          ],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Lifecycle V3 E2E & Verification Suite (E0 - E3)"
+          ],
+          "fullName": "Lifecycle V3 E2E & Verification Suite (E0 - E3) E1 canonical: applicability rejects legacy categories and short reasons; wire waivers cannot replace host review",
+          "status": "passed",
+          "title": "E1 canonical: applicability rejects legacy categories and short reasons; wire waivers cannot replace host review",
+          "duration": 489.0034000000014,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Lifecycle V3 E2E & Verification Suite (E0 - E3)"
+          ],
+          "fullName": "Lifecycle V3 E2E & Verification Suite (E0 - E3) E1 canonical: a reviewed specification revision invalidates an earlier pending closure authorization",
+          "status": "passed",
+          "title": "E1 canonical: a reviewed specification revision invalidates an earlier pending closure authorization",
+          "duration": 1353.9121000000014,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Lifecycle V3 E2E & Verification Suite (E0 - E3)"
+          ],
+          "fullName": "Lifecycle V3 E2E & Verification Suite (E0 - E3) E2: qap_module_close validaciones, compuertas y transiciones",
+          "status": "passed",
+          "title": "E2: qap_module_close validaciones, compuertas y transiciones",
+          "duration": 2684.2943000000014,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Lifecycle V3 E2E & Verification Suite (E0 - E3)"
+          ],
+          "fullName": "Lifecycle V3 E2E & Verification Suite (E0 - E3) E3: canExitWorking, qap_session_close, reporte de brechas y nueva sesión desde WRAP_UP",
+          "status": "passed",
+          "title": "E3: canExitWorking, qap_session_close, reporte de brechas y nueva sesión desde WRAP_UP",
+          "duration": 1649.7131000000008,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Lifecycle V3 E2E & Verification Suite (E0 - E3)"
+          ],
+          "fullName": "Lifecycle V3 E2E & Verification Suite (E0 - E3) Criterio 9: E2E completo: init -> onboarding -> scoping -> working -> discover A -> rules_set parcial -> status (reanuda) -> rules_set completa -> module_close A -> discover B -> module_close waive B -> session_close -> status WRAP_UP -> session_plan nueva sesión",
+          "status": "passed",
+          "title": "Criterio 9: E2E completo: init -> onboarding -> scoping -> working -> discover A -> rules_set parcial -> status (reanuda) -> rules_set completa -> module_close A -> discover B -> module_close waive B -> session_close -> status WRAP_UP -> session_plan nueva sesión",
+          "duration": 2667.1585000000014,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Lifecycle V3 E2E & Verification Suite (E0 - E3)"
+          ],
+          "fullName": "Lifecycle V3 E2E & Verification Suite (E0 - E3) E0 authorization: removing host consent blocks navigation and leaves Knowledge, drafts and lifecycle intact",
+          "status": "passed",
+          "title": "E0 authorization: removing host consent blocks navigation and leaves Knowledge, drafts and lifecycle intact",
+          "duration": 265.3686999999991,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        }
+      ],
+      "startTime": 1794009947607,
+      "endTime": 1794009973547.3687,
+      "status": "failed",
+      "message": "",
+      "name": "<repo>/packages/mcp/src/__tests__/lifecycle-v3-e2e.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "P3 Suite de Verificación MCP (T3 - T15)"
+          ],
+          "fullName": "P3 Suite de Verificación MCP (T3 - T15) T6: qap_discover éxito: no contiene \"Descubrir otro módulo\", \"pregunta_doc\" ni \"opciones_doc\"; siguiente_accion tipo entrevista_vista (<= 5 preguntas) con tool qap_rules_set, categorias_aplicables y rutas_detectadas_fuera_del_plan",
+          "status": "passed",
+          "title": "T6: qap_discover éxito: no contiene \"Descubrir otro módulo\", \"pregunta_doc\" ni \"opciones_doc\"; siguiente_accion tipo entrevista_vista (<= 5 preguntas) con tool qap_rules_set, categorias_aplicables y rutas_detectadas_fuera_del_plan",
+          "duration": 5091.5306,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "P3 Suite de Verificación MCP (T3 - T15)"
+          ],
+          "fullName": "P3 Suite de Verificación MCP (T3 - T15) T7: rules.yaml tras discover: reglas inferred/dom con ids deterministas; re-discover idempotente (sin duplicados, reglas confirmadas intactas)",
+          "status": "failed",
+          "title": "T7: rules.yaml tras discover: reglas inferred/dom con ids deterministas; re-discover idempotente (sin duplicados, reglas confirmadas intactas)",
+          "duration": 5439.447099999999,
+          "failureMessages": [
+            "Error: STACK_TRACE_ERROR\n    at task (file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1784:27)\n    at Object.<anonymous> (file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1817:16)\n    at Object.<anonymous> (file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1563:28)\n    at chain (file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:599:14)\n    at <repo>/packages/mcp/src/__tests__/p3-canonical-discovery.test.ts:45:3\n    at file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1889:40\n    at runWithSuite (file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2258:8)\n    at Object.collect (file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1889:10)\n    at Object.collect (file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1893:54)\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)"
+          ],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "P3 Suite de Verificación MCP (T3 - T15)"
+          ],
+          "fullName": "P3 Suite de Verificación MCP (T3 - T15) T9: Fallo de Playwright: no inserta reglas; siguiente_accion tipo decision",
+          "status": "passed",
+          "title": "T9: Fallo de Playwright: no inserta reglas; siguiente_accion tipo decision",
+          "duration": 869.452299999999,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "P3 Suite de Verificación MCP (T3 - T15)"
+          ],
+          "fullName": "P3 Suite de Verificación MCP (T3 - T15) T14: qap_status WORKING: (a) observed con hipótesis reanuda entrevista; (b) interviewing incompleto reanuda; (c) planned elige high > medium > low luego orden; (d) todos completos tipo decision",
+          "status": "failed",
+          "title": "T14: qap_status WORKING: (a) observed con hipótesis reanuda entrevista; (b) interviewing incompleto reanuda; (c) planned elige high > medium > low luego orden; (d) todos completos tipo decision",
+          "duration": 5299.861000000001,
+          "failureMessages": [
+            "Error: STACK_TRACE_ERROR\n    at task (file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1784:27)\n    at Object.<anonymous> (file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1817:16)\n    at Object.<anonymous> (file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1563:28)\n    at chain (file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:599:14)\n    at <repo>/packages/mcp/src/__tests__/p3-canonical-discovery.test.ts:83:3\n    at file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1889:40\n    at runWithSuite (file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2258:8)\n    at Object.collect (file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1889:10)\n    at Object.collect (file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1893:54)\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)"
+          ],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "P3 Suite de Verificación MCP (T3 - T15)"
+          ],
+          "fullName": "P3 Suite de Verificación MCP (T3 - T15) T15: E2E: flujo de P2 hasta WORKING -> discover A -> rules_set parcial -> status (reanuda A) -> rules_set completa cobertura -> status (propone B) -> discover B; ninguna respuesta del flujo contiene texto del bucle",
+          "status": "passed",
+          "title": "T15: E2E: flujo de P2 hasta WORKING -> discover A -> rules_set parcial -> status (reanuda A) -> rules_set completa cobertura -> status (propone B) -> discover B; ninguna respuesta del flujo contiene texto del bucle",
+          "duration": 3701.6150000000016,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        }
+      ],
+      "startTime": 1794009947606,
+      "endTime": 1794009968008.615,
+      "status": "failed",
+      "message": "",
+      "name": "<repo>/packages/mcp/src/__tests__/p3-canonical-discovery.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "P4.2 Suite: Contrato Canónico de Pregunta y Verificación E2E (Criterio 4 y Criterio 6)"
+          ],
+          "fullName": "P4.2 Suite: Contrato Canónico de Pregunta y Verificación E2E (Criterio 4 y Criterio 6) Criterio 4.4: Ninguna respuesta con siguiente_accion trae preguntas como cadenas ni pregunta aplanada",
+          "status": "passed",
+          "title": "Criterio 4.4: Ninguna respuesta con siguiente_accion trae preguntas como cadenas ni pregunta aplanada",
+          "duration": 5443.9457,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "P4.2 Suite: Contrato Canónico de Pregunta y Verificación E2E (Criterio 4 y Criterio 6)"
+          ],
+          "fullName": "P4.2 Suite: Contrato Canónico de Pregunta y Verificación E2E (Criterio 4 y Criterio 6) Criterio 6: E2E Completo donde TODA siguiente_accion de tipo entrevista, entrevista_vista o decision trae Pregunta válida",
+          "status": "failed",
+          "title": "Criterio 6: E2E Completo donde TODA siguiente_accion de tipo entrevista, entrevista_vista o decision trae Pregunta válida",
+          "duration": 5448.230300000001,
+          "failureMessages": [
+            "Error: STACK_TRACE_ERROR\n    at task (file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1784:27)\n    at Object.<anonymous> (file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1817:16)\n    at Object.<anonymous> (file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1563:28)\n    at chain (file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:599:14)\n    at <repo>/packages/mcp/src/__tests__/p4-2-canonical-contract.test.ts:42:3\n    at file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1889:40\n    at runWithSuite (file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:2258:8)\n    at Object.collect (file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1889:10)\n    at Object.collect (file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1893:54)\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)"
+          ],
+          "meta": {},
+          "tags": []
+        }
+      ],
+      "startTime": 1794009947605,
+      "endTime": 1794009958497.2302,
+      "status": "failed",
+      "message": "",
+      "name": "<repo>/packages/mcp/src/__tests__/p4-2-canonical-contract.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a)"
+          ],
+          "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) Criterio 2: regla redactada por agente sin user_text ni from_option se guarda como inferred/agent y no cuenta en cobertura",
+          "status": "passed",
+          "title": "Criterio 2: regla redactada por agente sin user_text ni from_option se guarda como inferred/agent y no cuenta en cobertura",
+          "duration": 1552.8813000000005,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a)"
+          ],
+          "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) Criterio 3: una etiqueta de opción predefinida del motor NO cubre una categoría",
+          "status": "passed",
+          "title": "Criterio 3: una etiqueta de opción predefinida del motor NO cubre una categoría",
+          "duration": 736.6772000000001,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a)"
+          ],
+          "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) Criterio 4: un módulo con 2 reglas de 7 categorías no cierra sin accept_gaps, y cierra con él dejando registro",
+          "status": "passed",
+          "title": "Criterio 4: un módulo con 2 reglas de 7 categorías no cierra sin accept_gaps, y cierra con él dejando registro",
+          "duration": 2557.2326000000003,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a)"
+          ],
+          "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) C9a: blocked de qap_discover con auth_required incluye razon auth_required y directorio_objetivo, con claves alineadas a session_invalid",
+          "status": "passed",
+          "title": "C9a: blocked de qap_discover con auth_required incluye razon auth_required y directorio_objetivo, con claves alineadas a session_invalid",
+          "duration": 463.15010000000075,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a)"
+          ],
+          "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) C4-a: from_option con pregunta_id inexistente, opcion_id inexistente o sin texto sustantivo (rechazo o degradación a agent/inferred)",
+          "status": "passed",
+          "title": "C4-a: from_option con pregunta_id inexistente, opcion_id inexistente o sin texto sustantivo (rechazo o degradación a agent/inferred)",
+          "duration": 796.6269000000002,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a)"
+          ],
+          "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) C4-b: límites de sustantividad (2 palabras o 19 caracteres no cubren; 3 palabras y 20 caracteres sí)",
+          "status": "passed",
+          "title": "C4-b: límites de sustantividad (2 palabras o 19 caracteres no cubren; 3 palabras y 20 caracteres sí)",
+          "duration": 2015.7201000000005,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a)"
+          ],
+          "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) C4-c: accept_gaps con razón de 14 caracteres bloquea y con 15 cierra y deja el registro",
+          "status": "passed",
+          "title": "C4-c: accept_gaps con razón de 14 caracteres bloquea y con 15 cierra y deja el registro",
+          "duration": 1198.0869999999995,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a)"
+          ],
+          "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) C1: campos honestos en bloqueos previos a navegar y navegación real",
+          "status": "passed",
+          "title": "C1: campos honestos en bloqueos previos a navegar y navegación real",
+          "duration": 4056.2608999999993,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a)"
+          ],
+          "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) C3: flujo real de preguntas de categoría, formato una_opcion, persistencia y respuestas user_text y deferred",
+          "status": "passed",
+          "title": "C3: flujo real de preguntas de categoría, formato una_opcion, persistencia y respuestas user_text y deferred",
+          "duration": 2990.6160999999993,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        }
+      ],
+      "startTime": 1794009947611,
+      "endTime": 1794009963983.6162,
+      "status": "passed",
+      "message": "",
+      "name": "<repo>/packages/mcp/src/__tests__/p4-5a-canonical-integrity.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10)",
+            "C3: Integridad de categoría en from_option y regla de cobertura completa"
+          ],
+          "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C3: Integridad de categoría en from_option y regla de cobertura completa C3-a: la categoría de from_option se toma siempre de la pregunta pendiente persistida",
+          "status": "passed",
+          "title": "C3-a: la categoría de from_option se toma siempre de la pregunta pendiente persistida",
+          "duration": 1694.6831999999995,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10)",
+            "C3: Integridad de categoría en from_option y regla de cobertura completa"
+          ],
+          "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C3: Integridad de categoría en from_option y regla de cobertura completa C3-b: si la petición declara una categoría distinta a la de la pregunta pendiente se rechaza con blocked",
+          "status": "passed",
+          "title": "C3-b: si la petición declara una categoría distinta a la de la pregunta pendiente se rechaza con blocked",
+          "duration": 1431.6282,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10)",
+            "C4: Flujo de respuestas cortas como borrador y propuesta de enunciado"
+          ],
+          "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C4: Flujo de respuestas cortas como borrador y propuesta de enunciado C4-a: respuesta corta se guarda como borrador (status inferred, source user_text, borrador true) y no cubre",
+          "status": "passed",
+          "title": "C4-a: respuesta corta se guarda como borrador (status inferred, source user_text, borrador true) y no cubre",
+          "duration": 1495.6652999999997,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10)",
+            "C4: Flujo de respuestas cortas como borrador y propuesta de enunciado"
+          ],
+          "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C4: Flujo de respuestas cortas como borrador y propuesta de enunciado C4-b: derivación determinista en categoría actor que nombra roles emite Pregunta una_opcion directamente",
+          "status": "passed",
+          "title": "C4-b: derivación determinista en categoría actor que nombra roles emite Pregunta una_opcion directamente",
+          "duration": 1164.5689000000002,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10)",
+            "C4: Flujo de respuestas cortas como borrador y propuesta de enunciado"
+          ],
+          "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C4: Flujo de respuestas cortas como borrador y propuesta de enunciado C4-c: envío de propuesta_enunciado válida para un borrador emite Pregunta una_opcion con las 3 opciones",
+          "status": "passed",
+          "title": "C4-c: envío de propuesta_enunciado válida para un borrador emite Pregunta una_opcion con las 3 opciones",
+          "duration": 1405.7306000000008,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10)",
+            "C4: Flujo de respuestas cortas como borrador y propuesta de enunciado"
+          ],
+          "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C4: Flujo de respuestas cortas como borrador y propuesta de enunciado C4-d: resolver con \"Es correcto\" guarda regla confirmed user_confirmed con enunciado exacto y cubre",
+          "status": "passed",
+          "title": "C4-d: resolver con \"Es correcto\" guarda regla confirmed user_confirmed con enunciado exacto y cubre",
+          "duration": 2194.3680000000004,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10)",
+            "C4: Flujo de respuestas cortas como borrador y propuesta de enunciado"
+          ],
+          "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C4: Flujo de respuestas cortas como borrador y propuesta de enunciado C4-e: resolver con \"Lo defino después\" guarda regla deferred y no cubre",
+          "status": "passed",
+          "title": "C4-e: resolver con \"Lo defino después\" guarda regla deferred y no cubre",
+          "duration": 945.8804,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10)",
+            "C4: Flujo de respuestas cortas como borrador y propuesta de enunciado"
+          ],
+          "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C4: Flujo de respuestas cortas como borrador y propuesta de enunciado C4-f: propuesta_enunciado corta o genérica es rechazada con status error",
+          "status": "passed",
+          "title": "C4-f: propuesta_enunciado corta o genérica es rechazada con status error",
+          "duration": 1142.3033999999989,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10)",
+            "C10: Detección y advertencia de extracción vacía"
+          ],
+          "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C10: Detección y advertencia de extracción vacía C10-a: página app/login sin elementos interactivos genera advertencia extraccion_vacia y trabajo",
+          "status": "passed",
+          "title": "C10-a: página app/login sin elementos interactivos genera advertencia extraccion_vacia y trabajo",
+          "duration": 3811.709999999999,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10)",
+            "C10: Detección y advertencia de extracción vacía"
+          ],
+          "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C10: Detección y advertencia de extracción vacía C10-b: página con al menos un elemento interactivo no genera advertencia extraccion_vacia",
+          "status": "passed",
+          "title": "C10-b: página con al menos un elemento interactivo no genera advertencia extraccion_vacia",
+          "duration": 1669.6597000000002,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10)",
+            "C10: Detección y advertencia de extracción vacía"
+          ],
+          "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C10: Detección y advertencia de extracción vacía C10-c: la advertencia extraccion_vacia es agnóstica de la aplicación",
+          "status": "passed",
+          "title": "C10-c: la advertencia extraccion_vacia es agnóstica de la aplicación",
+          "duration": 2351.322,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10)",
+            "C3: Transliteración NFD de slugs y prevención de módulos fuera del plan"
+          ],
+          "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C3: Transliteración NFD de slugs y prevención de módulos fuera del plan C1-c: módulo con tilde preserva nombre en lifecycle, crea directorio y normaliza pending_questions con transliteración NFD",
+          "status": "passed",
+          "title": "C1-c: módulo con tilde preserva nombre en lifecycle, crea directorio y normaliza pending_questions con transliteración NFD",
+          "duration": 2038.0963999999985,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10)",
+            "C3: Transliteración NFD de slugs y prevención de módulos fuera del plan"
+          ],
+          "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C3: Transliteración NFD de slugs y prevención de módulos fuera del plan C2-seguimiento: selección de \"Corregir\" emite pregunta de seguimiento y no persiste regla espuria en rules.yaml",
+          "status": "passed",
+          "title": "C2-seguimiento: selección de \"Corregir\" emite pregunta de seguimiento y no persiste regla espuria en rules.yaml",
+          "duration": 376.673700000003,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        }
+      ],
+      "startTime": 1794009947615,
+      "endTime": 1794009969349.6736,
+      "status": "passed",
+      "message": "",
+      "name": "<repo>/packages/mcp/src/__tests__/p4-5a2-canonical-integrity.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "Suite MCP Server QAP v2.1 / v2.1.2"
+          ],
+          "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 el contexto de vista generado por qap_discover debe validar contra module-view.schema.json (Criterio 4)",
+          "status": "passed",
+          "title": "el contexto de vista generado por qap_discover debe validar contra module-view.schema.json (Criterio 4)",
+          "duration": 4555.1297,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Suite MCP Server QAP v2.1 / v2.1.2"
+          ],
+          "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 qap_discover con contexto de vista inválido no debe escribir archivos y debe retornar error (Criterio 4)",
+          "status": "passed",
+          "title": "qap_discover con contexto de vista inválido no debe escribir archivos y debe retornar error (Criterio 4)",
+          "duration": 4151.536999999999,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Suite MCP Server QAP v2.1 / v2.1.2"
+          ],
+          "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 E0a: qap_discover valida contra module-view.schema.json en camino de fallo de Playwright",
+          "status": "passed",
+          "title": "E0a: qap_discover valida contra module-view.schema.json en camino de fallo de Playwright",
+          "duration": 774.4499000000014,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Suite MCP Server QAP v2.1 / v2.1.2"
+          ],
+          "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 E0c: qap_discover valida contra module-view.schema.json en vista con routes_found vacio",
+          "status": "passed",
+          "title": "E0c: qap_discover valida contra module-view.schema.json en vista con routes_found vacio",
+          "duration": 2303.3773,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        }
+      ],
+      "startTime": 1794009947613,
+      "endTime": 1794009959398.3772,
+      "status": "passed",
+      "message": "",
+      "name": "<repo>/packages/mcp/src/__tests__/server-canonical-discovery.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "Suite MCP Server QAP v2.1 / v2.1.2"
+          ],
+          "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 debe descubrir modulos y responder en desarrollo para qap_plan y qap_test",
+          "status": "passed",
+          "title": "debe descubrir modulos y responder en desarrollo para qap_plan y qap_test",
+          "duration": 4618.088400000001,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Suite MCP Server QAP v2.1 / v2.1.2"
+          ],
+          "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 qap_discover: gating por fase y estado de modulo, actualizacion planned -> observed",
+          "status": "passed",
+          "title": "qap_discover: gating por fase y estado de modulo, actualizacion planned -> observed",
+          "duration": 3827.2358000000004,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Suite MCP Server QAP v2.1 / v2.1.2"
+          ],
+          "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 Criterio 7: Proyecto legacy sin campos de negocio valida contra el schema y qap_status responde con fase WORKING derivada",
+          "status": "passed",
+          "title": "Criterio 7: Proyecto legacy sin campos de negocio valida contra el schema y qap_status responde con fase WORKING derivada",
+          "duration": 431.6778000000013,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Suite MCP Server QAP v2.1 / v2.1.2"
+          ],
+          "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 Criterio 8 (E2E): init -> status (entrevista) -> ingest -> context_set compuerta -> auto-SCOPING -> session_plan -> auto-WORKING -> discover",
+          "status": "passed",
+          "title": "Criterio 8 (E2E): init -> status (entrevista) -> ingest -> context_set compuerta -> auto-SCOPING -> session_plan -> auto-WORKING -> discover",
+          "duration": 2775.1174999999985,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Suite MCP Server QAP v2.1 / v2.1.2"
+          ],
+          "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 qap_rules_set: actualiza reglas, transiciona observed -> interviewing, recalcula cobertura y actualiza guidance",
+          "status": "passed",
+          "title": "qap_rules_set: actualiza reglas, transiciona observed -> interviewing, recalcula cobertura y actualiza guidance",
+          "duration": 4299.4326,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        }
+      ],
+      "startTime": 1794009947609,
+      "endTime": 1794009963561.4326,
+      "status": "passed",
+      "message": "",
+      "name": "<repo>/packages/mcp/src/__tests__/server-canonical-operations.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4)"
+          ],
+          "fullName": "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) 014-CODEX-004: an overlapping cleanup owns only its original roots until locks drain",
+          "status": "passed",
+          "title": "014-CODEX-004: an overlapping cleanup owns only its original roots until locks drain",
+          "duration": 96.4339,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4)"
+          ],
+          "fullName": "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) Scenario 1: executes valid and authorized plan, persisting authentic result (R4.1)",
+          "status": "passed",
+          "title": "Scenario 1: executes valid and authorized plan, persisting authentic result (R4.1)",
+          "duration": 1969.4785000000002,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4)"
+          ],
+          "fullName": "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) Scenario 2: rejects missing, historical, corrupt, or obsolete plans without executing runner (R4.2)",
+          "status": "passed",
+          "title": "Scenario 2: rejects missing, historical, corrupt, or obsolete plans without executing runner (R4.2)",
+          "duration": 230.09090000000015,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4)"
+          ],
+          "fullName": "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) Scenario 3: rejects environment mismatch, module mismatch, and missing module (R4.3)",
+          "status": "passed",
+          "title": "Scenario 3: rejects environment mismatch, module mismatch, and missing module (R4.3)",
+          "duration": 576.0766000000003,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4)"
+          ],
+          "fullName": "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) Scenario 4: in-memory snapshot prevents TOCTOU tampering of YAML files after verification (R4.4)",
+          "status": "passed",
+          "title": "Scenario 4: in-memory snapshot prevents TOCTOU tampering of YAML files after verification (R4.4)",
+          "duration": 1899.8127000000004,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4)"
+          ],
+          "fullName": "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) Scenario 5: blocks unauthorized URLs, unconfigured host policy, and redirects (R4.5)",
+          "status": "passed",
+          "title": "Scenario 5: blocks unauthorized URLs, unconfigured host policy, and redirects (R4.5)",
+          "duration": 2492.4653,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4)"
+          ],
+          "fullName": "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) Scenario 6: classifies missing browser launch failure as infrastructure block (R4.6)",
+          "status": "passed",
+          "title": "Scenario 6: classifies missing browser launch failure as infrastructure block (R4.6)",
+          "duration": 567.8899999999994,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4)"
+          ],
+          "fullName": "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) Scenario 7: rejects unauthorized profiles and disables implicit session recovery (R4.7)",
+          "status": "passed",
+          "title": "Scenario 7: rejects unauthorized profiles and disables implicit session recovery (R4.7)",
+          "duration": 1652.881300000001,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4)"
+          ],
+          "fullName": "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) Scenario 8: distinguishes real functional failure from infrastructure failure (R4.8)",
+          "status": "passed",
+          "title": "Scenario 8: distinguishes real functional failure from infrastructure failure (R4.8)",
+          "duration": 1720.7834999999995,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4)"
+          ],
+          "fullName": "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) Scenario 9: zero cases executed never returns fake PASS verdict (R4.9)",
+          "status": "passed",
+          "title": "Scenario 9: zero cases executed never returns fake PASS verdict (R4.9)",
+          "duration": 200.8736000000008,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4)"
+          ],
+          "fullName": "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) Scenario 10: supports cancellation and resource cleanup under AbortSignal (R4.10)",
+          "status": "passed",
+          "title": "Scenario 10: supports cancellation and resource cleanup under AbortSignal (R4.10)",
+          "duration": 144.41740000000027,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4)"
+          ],
+          "fullName": "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) Scenario 11: persists execution results adhering to schema without automatic SQLite ConformityAssessment (R4.11)",
+          "status": "passed",
+          "title": "Scenario 11: persists execution results adhering to schema without automatic SQLite ConformityAssessment (R4.11)",
+          "duration": 953.9365999999991,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4)"
+          ],
+          "fullName": "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) Scenario 12: integrates cleanly via createMcpServer preserving exact 18 tools (R4.12)",
+          "status": "passed",
+          "title": "Scenario 12: integrates cleanly via createMcpServer preserving exact 18 tools (R4.12)",
+          "duration": 1657.1874000000007,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4)"
+          ],
+          "fullName": "TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4) Scenario 13: physical Playwright Chromium execution against isolated local HTTP fixture (Real PASS & FAIL)",
+          "status": "passed",
+          "title": "Scenario 13: physical Playwright Chromium execution against isolated local HTTP fixture (Real PASS & FAIL)",
+          "duration": 1308.7870000000003,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "VNEXT-014-D preflight — execution evidence integrity"
+          ],
+          "fullName": "VNEXT-014-D preflight — execution evidence integrity D-01: does not persist schema-invalid runner outputs",
+          "status": "passed",
+          "title": "D-01: does not persist schema-invalid runner outputs",
+          "duration": 180.92079999999987,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "VNEXT-014-D preflight — execution evidence integrity"
+          ],
+          "fullName": "VNEXT-014-D preflight — execution evidence integrity D-02: refuses traversal-capable execution IDs despite schema v1 accepting strings",
+          "status": "passed",
+          "title": "D-02: refuses traversal-capable execution IDs despite schema v1 accepting strings",
+          "duration": 223.3878999999979,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "VNEXT-014-D preflight — execution evidence integrity"
+          ],
+          "fullName": "VNEXT-014-D preflight — execution evidence integrity D-03: failed execution persistence cannot be reported as success or recorded in history",
+          "status": "passed",
+          "title": "D-03: failed execution persistence cannot be reported as success or recorded in history",
+          "duration": 207.98459999999977,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "VNEXT-014-D preflight — execution evidence integrity"
+          ],
+          "fullName": "VNEXT-014-D preflight — execution evidence integrity D-04: history failure preserves saved evidence but returns an explicit partial error",
+          "status": "passed",
+          "title": "D-04: history failure preserves saved evidence but returns an explicit partial error",
+          "duration": 288.332699999999,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "VNEXT-014-D preflight — execution evidence integrity"
+          ],
+          "fullName": "VNEXT-014-D preflight — execution evidence integrity D-05: rejects a schema-valid execution associated with a different module",
+          "status": "passed",
+          "title": "D-05: rejects a schema-valid execution associated with a different module",
+          "duration": 189.76239999999962,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "VNEXT-014-D preflight — execution evidence integrity"
+          ],
+          "fullName": "VNEXT-014-D preflight — execution evidence integrity D-06: rejects summary totals that disagree with executed cases",
+          "status": "passed",
+          "title": "D-06: rejects summary totals that disagree with executed cases",
+          "duration": 192.10420000000158,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "VNEXT-014-D preflight — execution evidence integrity"
+          ],
+          "fullName": "VNEXT-014-D preflight — execution evidence integrity D-07: a critical runner error persists not_run evidence without reporting MCP success",
+          "status": "passed",
+          "title": "D-07: a critical runner error persists not_run evidence without reporting MCP success",
+          "duration": 187.63760000000184,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        }
+      ],
+      "startTime": 1794009947612,
+      "endTime": 1794009964555.6377,
+      "status": "passed",
+      "message": "",
+      "name": "<repo>/packages/mcp/src/__tests__/test-handler.test.ts"
+    }
+  ]
+}

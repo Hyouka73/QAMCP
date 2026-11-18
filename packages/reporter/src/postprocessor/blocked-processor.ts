@@ -62,8 +62,8 @@ export function processBlockedSteps(
       }
     }
 
-    // Si el paso falló naturalmente en ejecución
-    if (step.status === 'failed') {
+    // Si el paso falló naturalmente en ejecución o quedó not_run por bloqueo
+    if (step.status === 'failed' || step.status === 'not_run') {
       failedOrBlockedCaps.add(step.capabilityId);
       runtimeState[step.capabilityId] = false;
     } else if (step.status === 'passed') {

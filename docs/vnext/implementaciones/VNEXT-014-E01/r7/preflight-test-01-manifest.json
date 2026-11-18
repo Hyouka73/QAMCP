@@ -1,0 +1,1305 @@
+{
+    "$schema":  "https://json-schema.org/draft-07/schema#",
+    "schema_version":  "1.0.0",
+    "executor_id":  "executor-windows-host-01",
+    "timestamp_utc":  "2026-11-07T17:35:39.196Z",
+    "status":  "EJECUTOR_NO_APTO",
+    "status_reason":  "PREPARADO / RESERVA NO ACREDITADA",
+    "os_info":  {
+                    "name":  "Microsoft Windows 11 Home",
+                    "release":  "10.0.26200",
+                    "build":  "26200",
+                    "arch":  "x64"
+                },
+    "toolchain":  {
+                      "node_version":  "v24.15.0",
+                      "pnpm_version":  "12.3.4",
+                      "chromium_version":  "151.0.7922.34"
+                  },
+    "git":  {
+                "commit_sha":  "8dc020e3e2a7d1ab701b94ae2473b0cd49ba69b0",
+                "branch_name":  "feat/qap-vnext-architecture",
+                "clean_working_tree":  true,
+                "allowed_untracked_or_modified":  [
+                                                      "packages/playwright-runner/.qa/cache/sessions/admin-user.json"
+                                                  ]
+            },
+    "dist_hashes":  {
+                        "packages/mcp/dist/server.js":  "3457541827D1F601591BD090CD8A929440B310ED223CFDDCE37BCEF0CA68AAA4",
+                        "packages/playwright-adapter/dist/index.js":  "7992F3711E30DB7938389C8BC6ADA306D628DB881FE1E93E0B9C2B172209A640",
+                        "packages/knowledge/dist/index.js":  "F5F53A04CEDE07E0A078A19EEB2CEE7D13D64FA7093593AFA037B256DAE3DCE2",
+                        "packages/shared/dist/index.js":  "0AC145490635870C3D52AFB9B738608148EEEA35DFD9695E941A6662EDAEBDD7"
+                    },
+    "resource_reservation":  {
+                                 "provenance":  "none",
+                                 "evidence_doc":  null,
+                                 "type":  "unreserved_shared",
+                                 "allocated_cores":  16,
+                                 "allocated_ram_mb":  14181,
+                                 "swap_policy":  "host_managed",
+                                 "accredited":  false
+                             },
+    "predeclared_interference_limits":  {
+                                            "max_external_cpu_percent":  10,
+                                            "max_disk_queue":  2,
+                                            "max_pages_input_per_sec":  500,
+                                            "min_available_ram_mb":  2048
+                                        },
+    "telemetry_window":  {
+                             "duration_ms":  76581.5,
+                             "interval_ms":  1000,
+                             "max_gap_ms":  5000,
+                             "start_time":  "2026-11-07T17:34:22.505Z",
+                             "end_time":  "2026-11-07T17:35:39.073Z",
+                             "sample_count":  30,
+                             "cpu_stats":  {
+                                               "min":  6,
+                                               "max":  26,
+                                               "mean":  16
+                                           },
+                             "mem_stats":  {
+                                               "min_available_mb":  728,
+                                               "max_available_mb":  1143,
+                                               "mean_available_mb":  901.13,
+                                               "committed_bytes_mean":  36728034645.33,
+                                               "commit_limit_bytes":  49581215744
+                                           },
+                             "page_faults":  {
+                                                 "max_pages_input_per_sec":  61982,
+                                                 "mean_pages_input_per_sec":  2264.97,
+                                                 "max_pages_output_per_sec":  0
+                                             },
+                             "samples":  [
+                                             {
+                                                 "started_at":  "2026-11-07T17:34:22.505Z",
+                                                 "finished_at":  "2026-11-07T17:34:25.529Z",
+                                                 "cpu_percent":  13,
+                                                 "available_mb":  908,
+                                                 "committed_bytes":  36836732928,
+                                                 "commit_limit_bytes":  49581215744,
+                                                 "pages_input_per_sec":  0,
+                                                 "pages_output_per_sec":  0,
+                                                 "disk_queue":  0,
+                                                 "groups":  [
+                                                                {
+                                                                    "category":  "node",
+                                                                    "count":  16,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  16957440,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "chromium",
+                                                                    "count":  29,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  1265033216,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "observer",
+                                                                    "count":  1,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  42463232,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "other",
+                                                                    "count":  351,
+                                                                    "cpu_percent_logical_capacity":  22.5,
+                                                                    "working_set_private_bytes":  7740461056,
+                                                                    "page_faults_per_sec":  11729
+                                                                }
+                                                            ]
+                                             },
+                                             {
+                                                 "started_at":  "2026-11-07T17:34:26.565Z",
+                                                 "finished_at":  "2026-11-07T17:34:28.110Z",
+                                                 "cpu_percent":  22,
+                                                 "available_mb":  899,
+                                                 "committed_bytes":  36870782976,
+                                                 "commit_limit_bytes":  49581215744,
+                                                 "pages_input_per_sec":  122,
+                                                 "pages_output_per_sec":  0,
+                                                 "disk_queue":  0,
+                                                 "groups":  [
+                                                                {
+                                                                    "category":  "node",
+                                                                    "count":  16,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  16957440,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "chromium",
+                                                                    "count":  29,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  1250447360,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "observer",
+                                                                    "count":  1,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  40693760,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "other",
+                                                                    "count":  351,
+                                                                    "cpu_percent_logical_capacity":  24.62,
+                                                                    "working_set_private_bytes":  7751016448,
+                                                                    "page_faults_per_sec":  2648
+                                                                }
+                                                            ]
+                                             },
+                                             {
+                                                 "started_at":  "2026-11-07T17:34:29.125Z",
+                                                 "finished_at":  "2026-11-07T17:34:30.667Z",
+                                                 "cpu_percent":  26,
+                                                 "available_mb":  896,
+                                                 "committed_bytes":  36873256960,
+                                                 "commit_limit_bytes":  49581215744,
+                                                 "pages_input_per_sec":  255,
+                                                 "pages_output_per_sec":  0,
+                                                 "disk_queue":  0,
+                                                 "groups":  [
+                                                                {
+                                                                    "category":  "node",
+                                                                    "count":  16,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  16957440,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "chromium",
+                                                                    "count":  29,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  1250746368,
+                                                                    "page_faults_per_sec":  2305
+                                                                },
+                                                                {
+                                                                    "category":  "observer",
+                                                                    "count":  1,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  50601984,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "other",
+                                                                    "count":  351,
+                                                                    "cpu_percent_logical_capacity":  16.56,
+                                                                    "working_set_private_bytes":  7769669632,
+                                                                    "page_faults_per_sec":  7353
+                                                                }
+                                                            ]
+                                             },
+                                             {
+                                                 "started_at":  "2026-11-07T17:34:31.681Z",
+                                                 "finished_at":  "2026-11-07T17:34:33.222Z",
+                                                 "cpu_percent":  17,
+                                                 "available_mb":  880,
+                                                 "committed_bytes":  36870086656,
+                                                 "commit_limit_bytes":  49581215744,
+                                                 "pages_input_per_sec":  0,
+                                                 "pages_output_per_sec":  0,
+                                                 "disk_queue":  0,
+                                                 "groups":  [
+                                                                {
+                                                                    "category":  "node",
+                                                                    "count":  16,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  16957440,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "chromium",
+                                                                    "count":  29,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  1251983360,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "observer",
+                                                                    "count":  1,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  52219904,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "other",
+                                                                    "count":  351,
+                                                                    "cpu_percent_logical_capacity":  12.5,
+                                                                    "working_set_private_bytes":  7768977408,
+                                                                    "page_faults_per_sec":  1699
+                                                                }
+                                                            ]
+                                             },
+                                             {
+                                                 "started_at":  "2026-11-07T17:34:34.225Z",
+                                                 "finished_at":  "2026-11-07T17:34:35.747Z",
+                                                 "cpu_percent":  8,
+                                                 "available_mb":  886,
+                                                 "committed_bytes":  36821823488,
+                                                 "commit_limit_bytes":  49581215744,
+                                                 "pages_input_per_sec":  0,
+                                                 "pages_output_per_sec":  0,
+                                                 "disk_queue":  0,
+                                                 "groups":  [
+                                                                {
+                                                                    "category":  "node",
+                                                                    "count":  16,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  16957440,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "chromium",
+                                                                    "count":  29,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  1250054144,
+                                                                    "page_faults_per_sec":  1473
+                                                                },
+                                                                {
+                                                                    "category":  "observer",
+                                                                    "count":  1,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  53616640,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "other",
+                                                                    "count":  351,
+                                                                    "cpu_percent_logical_capacity":  12.94,
+                                                                    "working_set_private_bytes":  7757074432,
+                                                                    "page_faults_per_sec":  2515
+                                                                }
+                                                            ]
+                                             },
+                                             {
+                                                 "started_at":  "2026-11-07T17:34:36.754Z",
+                                                 "finished_at":  "2026-11-07T17:34:38.273Z",
+                                                 "cpu_percent":  25,
+                                                 "available_mb":  913,
+                                                 "committed_bytes":  36771299328,
+                                                 "commit_limit_bytes":  49581215744,
+                                                 "pages_input_per_sec":  0,
+                                                 "pages_output_per_sec":  0,
+                                                 "disk_queue":  0,
+                                                 "groups":  [
+                                                                {
+                                                                    "category":  "node",
+                                                                    "count":  16,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  16957440,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "chromium",
+                                                                    "count":  28,
+                                                                    "cpu_percent_logical_capacity":  0.31,
+                                                                    "working_set_private_bytes":  1218580480,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "observer",
+                                                                    "count":  1,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  55242752,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "other",
+                                                                    "count":  351,
+                                                                    "cpu_percent_logical_capacity":  26.88,
+                                                                    "working_set_private_bytes":  7769108480,
+                                                                    "page_faults_per_sec":  3549
+                                                                }
+                                                            ]
+                                             },
+                                             {
+                                                 "started_at":  "2026-11-07T17:34:39.289Z",
+                                                 "finished_at":  "2026-11-07T17:34:40.793Z",
+                                                 "cpu_percent":  15,
+                                                 "available_mb":  908,
+                                                 "committed_bytes":  36782358528,
+                                                 "commit_limit_bytes":  49581215744,
+                                                 "pages_input_per_sec":  3,
+                                                 "pages_output_per_sec":  0,
+                                                 "disk_queue":  0,
+                                                 "groups":  [
+                                                                {
+                                                                    "category":  "node",
+                                                                    "count":  16,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  16957440,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "chromium",
+                                                                    "count":  28,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  1220714496,
+                                                                    "page_faults_per_sec":  1876
+                                                                },
+                                                                {
+                                                                    "category":  "observer",
+                                                                    "count":  1,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  57331712,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "other",
+                                                                    "count":  351,
+                                                                    "cpu_percent_logical_capacity":  13.44,
+                                                                    "working_set_private_bytes":  7770365952,
+                                                                    "page_faults_per_sec":  2647
+                                                                }
+                                                            ]
+                                             },
+                                             {
+                                                 "started_at":  "2026-11-07T17:34:41.806Z",
+                                                 "finished_at":  "2026-11-07T17:34:43.327Z",
+                                                 "cpu_percent":  15,
+                                                 "available_mb":  902,
+                                                 "committed_bytes":  36788875264,
+                                                 "commit_limit_bytes":  49581215744,
+                                                 "pages_input_per_sec":  34,
+                                                 "pages_output_per_sec":  0,
+                                                 "disk_queue":  0,
+                                                 "groups":  [
+                                                                {
+                                                                    "category":  "node",
+                                                                    "count":  16,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  16908288,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "chromium",
+                                                                    "count":  28,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  1220964352,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "observer",
+                                                                    "count":  1,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  60882944,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "other",
+                                                                    "count":  351,
+                                                                    "cpu_percent_logical_capacity":  12.5,
+                                                                    "working_set_private_bytes":  7777046528,
+                                                                    "page_faults_per_sec":  2141
+                                                                }
+                                                            ]
+                                             },
+                                             {
+                                                 "started_at":  "2026-11-07T17:34:44.340Z",
+                                                 "finished_at":  "2026-11-07T17:34:45.841Z",
+                                                 "cpu_percent":  14,
+                                                 "available_mb":  896,
+                                                 "committed_bytes":  36751269888,
+                                                 "commit_limit_bytes":  49581215744,
+                                                 "pages_input_per_sec":  141,
+                                                 "pages_output_per_sec":  0,
+                                                 "disk_queue":  0,
+                                                 "groups":  [
+                                                                {
+                                                                    "category":  "node",
+                                                                    "count":  16,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  16875520,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "chromium",
+                                                                    "count":  28,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  1220706304,
+                                                                    "page_faults_per_sec":  1947
+                                                                },
+                                                                {
+                                                                    "category":  "observer",
+                                                                    "count":  1,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  64000000,
+                                                                    "page_faults_per_sec":  6
+                                                                },
+                                                                {
+                                                                    "category":  "other",
+                                                                    "count":  351,
+                                                                    "cpu_percent_logical_capacity":  19.88,
+                                                                    "working_set_private_bytes":  7779704832,
+                                                                    "page_faults_per_sec":  3468
+                                                                }
+                                                            ]
+                                             },
+                                             {
+                                                 "started_at":  "2026-11-07T17:34:46.850Z",
+                                                 "finished_at":  "2026-11-07T17:34:48.362Z",
+                                                 "cpu_percent":  13,
+                                                 "available_mb":  895,
+                                                 "committed_bytes":  36744486912,
+                                                 "commit_limit_bytes":  49581215744,
+                                                 "pages_input_per_sec":  0,
+                                                 "pages_output_per_sec":  0,
+                                                 "disk_queue":  0,
+                                                 "groups":  [
+                                                                {
+                                                                    "category":  "node",
+                                                                    "count":  16,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  16830464,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "chromium",
+                                                                    "count":  28,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  1220923392,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "observer",
+                                                                    "count":  1,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  66768896,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "other",
+                                                                    "count":  351,
+                                                                    "cpu_percent_logical_capacity":  24.62,
+                                                                    "working_set_private_bytes":  7769329664,
+                                                                    "page_faults_per_sec":  3200
+                                                                }
+                                                            ]
+                                             },
+                                             {
+                                                 "started_at":  "2026-11-07T17:34:49.366Z",
+                                                 "finished_at":  "2026-11-07T17:34:50.868Z",
+                                                 "cpu_percent":  13,
+                                                 "available_mb":  944,
+                                                 "committed_bytes":  36686036992,
+                                                 "commit_limit_bytes":  49581215744,
+                                                 "pages_input_per_sec":  0,
+                                                 "pages_output_per_sec":  0,
+                                                 "disk_queue":  0,
+                                                 "groups":  [
+                                                                {
+                                                                    "category":  "node",
+                                                                    "count":  16,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  16797696,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "chromium",
+                                                                    "count":  28,
+                                                                    "cpu_percent_logical_capacity":  1.19,
+                                                                    "working_set_private_bytes":  1215938560,
+                                                                    "page_faults_per_sec":  2279
+                                                                },
+                                                                {
+                                                                    "category":  "observer",
+                                                                    "count":  1,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  69554176,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "other",
+                                                                    "count":  350,
+                                                                    "cpu_percent_logical_capacity":  17.12,
+                                                                    "working_set_private_bytes":  7704981504,
+                                                                    "page_faults_per_sec":  1967
+                                                                }
+                                                            ]
+                                             },
+                                             {
+                                                 "started_at":  "2026-11-07T17:34:51.873Z",
+                                                 "finished_at":  "2026-11-07T17:34:53.390Z",
+                                                 "cpu_percent":  13,
+                                                 "available_mb":  955,
+                                                 "committed_bytes":  36662231040,
+                                                 "commit_limit_bytes":  49581215744,
+                                                 "pages_input_per_sec":  3,
+                                                 "pages_output_per_sec":  0,
+                                                 "disk_queue":  0,
+                                                 "groups":  [
+                                                                {
+                                                                    "category":  "node",
+                                                                    "count":  16,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  16769024,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "chromium",
+                                                                    "count":  28,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  1215873024,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "observer",
+                                                                    "count":  1,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  72265728,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "other",
+                                                                    "count":  350,
+                                                                    "cpu_percent_logical_capacity":  23.44,
+                                                                    "working_set_private_bytes":  7711825920,
+                                                                    "page_faults_per_sec":  5095
+                                                                }
+                                                            ]
+                                             },
+                                             {
+                                                 "started_at":  "2026-11-07T17:34:54.400Z",
+                                                 "finished_at":  "2026-11-07T17:34:55.915Z",
+                                                 "cpu_percent":  11,
+                                                 "available_mb":  944,
+                                                 "committed_bytes":  36668620800,
+                                                 "commit_limit_bytes":  49581215744,
+                                                 "pages_input_per_sec":  0,
+                                                 "pages_output_per_sec":  0,
+                                                 "disk_queue":  0,
+                                                 "groups":  [
+                                                                {
+                                                                    "category":  "node",
+                                                                    "count":  16,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  16769024,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "chromium",
+                                                                    "count":  28,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  1216561152,
+                                                                    "page_faults_per_sec":  1916
+                                                                },
+                                                                {
+                                                                    "category":  "observer",
+                                                                    "count":  1,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  74215424,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "other",
+                                                                    "count":  350,
+                                                                    "cpu_percent_logical_capacity":  12.81,
+                                                                    "working_set_private_bytes":  7706333184,
+                                                                    "page_faults_per_sec":  2617
+                                                                }
+                                                            ]
+                                             },
+                                             {
+                                                 "started_at":  "2026-11-07T17:34:56.920Z",
+                                                 "finished_at":  "2026-11-07T17:34:58.426Z",
+                                                 "cpu_percent":  13,
+                                                 "available_mb":  951,
+                                                 "committed_bytes":  36667981824,
+                                                 "commit_limit_bytes":  49581215744,
+                                                 "pages_input_per_sec":  0,
+                                                 "pages_output_per_sec":  0,
+                                                 "disk_queue":  0,
+                                                 "groups":  [
+                                                                {
+                                                                    "category":  "node",
+                                                                    "count":  16,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  16723968,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "chromium",
+                                                                    "count":  28,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  1217568768,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "observer",
+                                                                    "count":  1,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  76533760,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "other",
+                                                                    "count":  350,
+                                                                    "cpu_percent_logical_capacity":  16.25,
+                                                                    "working_set_private_bytes":  7724081152,
+                                                                    "page_faults_per_sec":  7589
+                                                                }
+                                                            ]
+                                             },
+                                             {
+                                                 "started_at":  "2026-11-07T17:34:59.431Z",
+                                                 "finished_at":  "2026-11-07T17:35:00.935Z",
+                                                 "cpu_percent":  14,
+                                                 "available_mb":  934,
+                                                 "committed_bytes":  36683173888,
+                                                 "commit_limit_bytes":  49581215744,
+                                                 "pages_input_per_sec":  63,
+                                                 "pages_output_per_sec":  0,
+                                                 "disk_queue":  0,
+                                                 "groups":  [
+                                                                {
+                                                                    "category":  "node",
+                                                                    "count":  16,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  16723968,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "chromium",
+                                                                    "count":  28,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  1219088384,
+                                                                    "page_faults_per_sec":  1917
+                                                                },
+                                                                {
+                                                                    "category":  "observer",
+                                                                    "count":  1,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  80359424,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "other",
+                                                                    "count":  350,
+                                                                    "cpu_percent_logical_capacity":  15.62,
+                                                                    "working_set_private_bytes":  7725821952,
+                                                                    "page_faults_per_sec":  4820
+                                                                }
+                                                            ]
+                                             },
+                                             {
+                                                 "started_at":  "2026-11-07T17:35:01.949Z",
+                                                 "finished_at":  "2026-11-07T17:35:03.474Z",
+                                                 "cpu_percent":  20,
+                                                 "available_mb":  923,
+                                                 "committed_bytes":  36686307328,
+                                                 "commit_limit_bytes":  49581215744,
+                                                 "pages_input_per_sec":  430,
+                                                 "pages_output_per_sec":  0,
+                                                 "disk_queue":  0,
+                                                 "groups":  [
+                                                                {
+                                                                    "category":  "node",
+                                                                    "count":  16,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  16723968,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "chromium",
+                                                                    "count":  28,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  1215709184,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "observer",
+                                                                    "count":  1,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  86482944,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "other",
+                                                                    "count":  350,
+                                                                    "cpu_percent_logical_capacity":  18.44,
+                                                                    "working_set_private_bytes":  7721271296,
+                                                                    "page_faults_per_sec":  4412
+                                                                }
+                                                            ]
+                                             },
+                                             {
+                                                 "started_at":  "2026-11-07T17:35:04.475Z",
+                                                 "finished_at":  "2026-11-07T17:35:05.984Z",
+                                                 "cpu_percent":  22,
+                                                 "available_mb":  923,
+                                                 "committed_bytes":  36687704064,
+                                                 "commit_limit_bytes":  49581215744,
+                                                 "pages_input_per_sec":  31,
+                                                 "pages_output_per_sec":  0,
+                                                 "disk_queue":  0,
+                                                 "groups":  [
+                                                                {
+                                                                    "category":  "node",
+                                                                    "count":  16,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  16723968,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "chromium",
+                                                                    "count":  28,
+                                                                    "cpu_percent_logical_capacity":  0.5,
+                                                                    "working_set_private_bytes":  1218244608,
+                                                                    "page_faults_per_sec":  2659
+                                                                },
+                                                                {
+                                                                    "category":  "observer",
+                                                                    "count":  1,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  87674880,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "other",
+                                                                    "count":  350,
+                                                                    "cpu_percent_logical_capacity":  10.5,
+                                                                    "working_set_private_bytes":  7727960064,
+                                                                    "page_faults_per_sec":  1523
+                                                                }
+                                                            ]
+                                             },
+                                             {
+                                                 "started_at":  "2026-11-07T17:35:06.985Z",
+                                                 "finished_at":  "2026-11-07T17:35:08.516Z",
+                                                 "cpu_percent":  14,
+                                                 "available_mb":  956,
+                                                 "committed_bytes":  36647501824,
+                                                 "commit_limit_bytes":  49581215744,
+                                                 "pages_input_per_sec":  0,
+                                                 "pages_output_per_sec":  0,
+                                                 "disk_queue":  0,
+                                                 "groups":  [
+                                                                {
+                                                                    "category":  "node",
+                                                                    "count":  16,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  16723968,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "chromium",
+                                                                    "count":  28,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  1219657728,
+                                                                    "page_faults_per_sec":  602
+                                                                },
+                                                                {
+                                                                    "category":  "observer",
+                                                                    "count":  1,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  45002752,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "other",
+                                                                    "count":  350,
+                                                                    "cpu_percent_logical_capacity":  13.69,
+                                                                    "working_set_private_bytes":  7732908032,
+                                                                    "page_faults_per_sec":  4842
+                                                                }
+                                                            ]
+                                             },
+                                             {
+                                                 "started_at":  "2026-11-07T17:35:09.523Z",
+                                                 "finished_at":  "2026-11-07T17:35:11.007Z",
+                                                 "cpu_percent":  16,
+                                                 "available_mb":  940,
+                                                 "committed_bytes":  36664135680,
+                                                 "commit_limit_bytes":  49581215744,
+                                                 "pages_input_per_sec":  0,
+                                                 "pages_output_per_sec":  0,
+                                                 "disk_queue":  0,
+                                                 "groups":  [
+                                                                {
+                                                                    "category":  "node",
+                                                                    "count":  16,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  16723968,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "chromium",
+                                                                    "count":  28,
+                                                                    "cpu_percent_logical_capacity":  0.31,
+                                                                    "working_set_private_bytes":  1222660096,
+                                                                    "page_faults_per_sec":  2270
+                                                                },
+                                                                {
+                                                                    "category":  "observer",
+                                                                    "count":  1,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  50450432,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "other",
+                                                                    "count":  350,
+                                                                    "cpu_percent_logical_capacity":  11.88,
+                                                                    "working_set_private_bytes":  7717822464,
+                                                                    "page_faults_per_sec":  3593
+                                                                }
+                                                            ]
+                                             },
+                                             {
+                                                 "started_at":  "2026-11-07T17:35:12.021Z",
+                                                 "finished_at":  "2026-11-07T17:35:13.531Z",
+                                                 "cpu_percent":  15,
+                                                 "available_mb":  937,
+                                                 "committed_bytes":  36669288448,
+                                                 "commit_limit_bytes":  49581215744,
+                                                 "pages_input_per_sec":  154,
+                                                 "pages_output_per_sec":  0,
+                                                 "disk_queue":  0,
+                                                 "groups":  [
+                                                                {
+                                                                    "category":  "node",
+                                                                    "count":  16,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  16723968,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "chromium",
+                                                                    "count":  28,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  1223434240,
+                                                                    "page_faults_per_sec":  12
+                                                                },
+                                                                {
+                                                                    "category":  "observer",
+                                                                    "count":  1,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  51986432,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "other",
+                                                                    "count":  350,
+                                                                    "cpu_percent_logical_capacity":  15.94,
+                                                                    "working_set_private_bytes":  7723462656,
+                                                                    "page_faults_per_sec":  2192
+                                                                }
+                                                            ]
+                                             },
+                                             {
+                                                 "started_at":  "2026-11-07T17:35:14.544Z",
+                                                 "finished_at":  "2026-11-07T17:35:16.064Z",
+                                                 "cpu_percent":  12,
+                                                 "available_mb":  922,
+                                                 "committed_bytes":  36689477632,
+                                                 "commit_limit_bytes":  49581215744,
+                                                 "pages_input_per_sec":  0,
+                                                 "pages_output_per_sec":  0,
+                                                 "disk_queue":  0,
+                                                 "groups":  [
+                                                                {
+                                                                    "category":  "node",
+                                                                    "count":  16,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  16723968,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "chromium",
+                                                                    "count":  28,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  1233227776,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "observer",
+                                                                    "count":  1,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  51412992,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "other",
+                                                                    "count":  350,
+                                                                    "cpu_percent_logical_capacity":  16.56,
+                                                                    "working_set_private_bytes":  7741865984,
+                                                                    "page_faults_per_sec":  4360
+                                                                }
+                                                            ]
+                                             },
+                                             {
+                                                 "started_at":  "2026-11-07T17:35:17.065Z",
+                                                 "finished_at":  "2026-11-07T17:35:18.606Z",
+                                                 "cpu_percent":  20,
+                                                 "available_mb":  920,
+                                                 "committed_bytes":  36688674816,
+                                                 "commit_limit_bytes":  49581215744,
+                                                 "pages_input_per_sec":  0,
+                                                 "pages_output_per_sec":  0,
+                                                 "disk_queue":  0,
+                                                 "groups":  [
+                                                                {
+                                                                    "category":  "node",
+                                                                    "count":  16,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  16756736,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "chromium",
+                                                                    "count":  28,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  1233911808,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "observer",
+                                                                    "count":  1,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  52326400,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "other",
+                                                                    "count":  351,
+                                                                    "cpu_percent_logical_capacity":  20.94,
+                                                                    "working_set_private_bytes":  7795335168,
+                                                                    "page_faults_per_sec":  33313
+                                                                }
+                                                            ]
+                                             },
+                                             {
+                                                 "started_at":  "2026-11-07T17:35:19.620Z",
+                                                 "finished_at":  "2026-11-07T17:35:21.126Z",
+                                                 "cpu_percent":  15,
+                                                 "available_mb":  874,
+                                                 "committed_bytes":  36736040960,
+                                                 "commit_limit_bytes":  49581215744,
+                                                 "pages_input_per_sec":  0,
+                                                 "pages_output_per_sec":  0,
+                                                 "disk_queue":  0,
+                                                 "groups":  [
+                                                                {
+                                                                    "category":  "node",
+                                                                    "count":  16,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  16756736,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "chromium",
+                                                                    "count":  28,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  1235288064,
+                                                                    "page_faults_per_sec":  1898
+                                                                },
+                                                                {
+                                                                    "category":  "observer",
+                                                                    "count":  1,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  53407744,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "other",
+                                                                    "count":  351,
+                                                                    "cpu_percent_logical_capacity":  14.06,
+                                                                    "working_set_private_bytes":  7799742464,
+                                                                    "page_faults_per_sec":  1254
+                                                                }
+                                                            ]
+                                             },
+                                             {
+                                                 "started_at":  "2026-11-07T17:35:22.140Z",
+                                                 "finished_at":  "2026-11-07T17:35:23.658Z",
+                                                 "cpu_percent":  16,
+                                                 "available_mb":  857,
+                                                 "committed_bytes":  36730875904,
+                                                 "commit_limit_bytes":  49581215744,
+                                                 "pages_input_per_sec":  407,
+                                                 "pages_output_per_sec":  0,
+                                                 "disk_queue":  0,
+                                                 "groups":  [
+                                                                {
+                                                                    "category":  "node",
+                                                                    "count":  16,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  16740352,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "chromium",
+                                                                    "count":  28,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  1236946944,
+                                                                    "page_faults_per_sec":  408
+                                                                },
+                                                                {
+                                                                    "category":  "observer",
+                                                                    "count":  1,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  57622528,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "other",
+                                                                    "count":  351,
+                                                                    "cpu_percent_logical_capacity":  15.31,
+                                                                    "working_set_private_bytes":  7805464576,
+                                                                    "page_faults_per_sec":  3466
+                                                                }
+                                                            ]
+                                             },
+                                             {
+                                                 "started_at":  "2026-11-07T17:35:24.671Z",
+                                                 "finished_at":  "2026-11-07T17:35:26.199Z",
+                                                 "cpu_percent":  19,
+                                                 "available_mb":  856,
+                                                 "committed_bytes":  36741091328,
+                                                 "commit_limit_bytes":  49581215744,
+                                                 "pages_input_per_sec":  107,
+                                                 "pages_output_per_sec":  0,
+                                                 "disk_queue":  0,
+                                                 "groups":  [
+                                                                {
+                                                                    "category":  "node",
+                                                                    "count":  16,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  16740352,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "chromium",
+                                                                    "count":  28,
+                                                                    "cpu_percent_logical_capacity":  0.25,
+                                                                    "working_set_private_bytes":  1222328320,
+                                                                    "page_faults_per_sec":  1886
+                                                                },
+                                                                {
+                                                                    "category":  "observer",
+                                                                    "count":  1,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  62693376,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "other",
+                                                                    "count":  353,
+                                                                    "cpu_percent_logical_capacity":  12.75,
+                                                                    "working_set_private_bytes":  7810101248,
+                                                                    "page_faults_per_sec":  5417
+                                                                }
+                                                            ]
+                                             },
+                                             {
+                                                 "started_at":  "2026-11-07T17:35:27.201Z",
+                                                 "finished_at":  "2026-11-07T17:35:28.759Z",
+                                                 "cpu_percent":  25,
+                                                 "available_mb":  781,
+                                                 "committed_bytes":  36748210176,
+                                                 "commit_limit_bytes":  49581215744,
+                                                 "pages_input_per_sec":  61982,
+                                                 "pages_output_per_sec":  0,
+                                                 "disk_queue":  0,
+                                                 "groups":  [
+                                                                {
+                                                                    "category":  "node",
+                                                                    "count":  16,
+                                                                    "cpu_percent_logical_capacity":  0.25,
+                                                                    "working_set_private_bytes":  16740352,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "chromium",
+                                                                    "count":  28,
+                                                                    "cpu_percent_logical_capacity":  0.25,
+                                                                    "working_set_private_bytes":  1222266880,
+                                                                    "page_faults_per_sec":  16
+                                                                },
+                                                                {
+                                                                    "category":  "observer",
+                                                                    "count":  1,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  64450560,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "other",
+                                                                    "count":  355,
+                                                                    "cpu_percent_logical_capacity":  23.56,
+                                                                    "working_set_private_bytes":  7826968576,
+                                                                    "page_faults_per_sec":  9958
+                                                                }
+                                                            ]
+                                             },
+                                             {
+                                                 "started_at":  "2026-11-07T17:35:29.765Z",
+                                                 "finished_at":  "2026-11-07T17:35:31.419Z",
+                                                 "cpu_percent":  19,
+                                                 "available_mb":  735,
+                                                 "committed_bytes":  36857442304,
+                                                 "commit_limit_bytes":  49581215744,
+                                                 "pages_input_per_sec":  733,
+                                                 "pages_output_per_sec":  0,
+                                                 "disk_queue":  0,
+                                                 "groups":  [
+                                                                {
+                                                                    "category":  "node",
+                                                                    "count":  16,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  16740352,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "chromium",
+                                                                    "count":  28,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  1223409664,
+                                                                    "page_faults_per_sec":  1855
+                                                                },
+                                                                {
+                                                                    "category":  "observer",
+                                                                    "count":  1,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  56295424,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "other",
+                                                                    "count":  355,
+                                                                    "cpu_percent_logical_capacity":  13,
+                                                                    "working_set_private_bytes":  7881125888,
+                                                                    "page_faults_per_sec":  4214
+                                                                }
+                                                            ]
+                                             },
+                                             {
+                                                 "started_at":  "2026-11-07T17:35:32.423Z",
+                                                 "finished_at":  "2026-11-07T17:35:33.999Z",
+                                                 "cpu_percent":  21,
+                                                 "available_mb":  728,
+                                                 "committed_bytes":  36824481792,
+                                                 "commit_limit_bytes":  49581215744,
+                                                 "pages_input_per_sec":  917,
+                                                 "pages_output_per_sec":  0,
+                                                 "disk_queue":  0,
+                                                 "groups":  [
+                                                                {
+                                                                    "category":  "node",
+                                                                    "count":  16,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  16740352,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "chromium",
+                                                                    "count":  28,
+                                                                    "cpu_percent_logical_capacity":  2.38,
+                                                                    "working_set_private_bytes":  1223110656,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "observer",
+                                                                    "count":  1,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  50651136,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "other",
+                                                                    "count":  355,
+                                                                    "cpu_percent_logical_capacity":  7.62,
+                                                                    "working_set_private_bytes":  7751802880,
+                                                                    "page_faults_per_sec":  916
+                                                                }
+                                                            ]
+                                             },
+                                             {
+                                                 "started_at":  "2026-11-07T17:35:35.011Z",
+                                                 "finished_at":  "2026-11-07T17:35:36.561Z",
+                                                 "cpu_percent":  6,
+                                                 "available_mb":  828,
+                                                 "committed_bytes":  36667113472,
+                                                 "commit_limit_bytes":  49581215744,
+                                                 "pages_input_per_sec":  2379,
+                                                 "pages_output_per_sec":  0,
+                                                 "disk_queue":  0,
+                                                 "groups":  [
+                                                                {
+                                                                    "category":  "node",
+                                                                    "count":  16,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  16740352,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "chromium",
+                                                                    "count":  28,
+                                                                    "cpu_percent_logical_capacity":  0.25,
+                                                                    "working_set_private_bytes":  1223147520,
+                                                                    "page_faults_per_sec":  1488
+                                                                },
+                                                                {
+                                                                    "category":  "observer",
+                                                                    "count":  1,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  55918592,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "other",
+                                                                    "count":  355,
+                                                                    "cpu_percent_logical_capacity":  5.88,
+                                                                    "working_set_private_bytes":  7752642560,
+                                                                    "page_faults_per_sec":  12143
+                                                                }
+                                                            ]
+                                             },
+                                             {
+                                                 "started_at":  "2026-11-07T17:35:37.569Z",
+                                                 "finished_at":  "2026-11-07T17:35:39.073Z",
+                                                 "cpu_percent":  8,
+                                                 "available_mb":  1143,
+                                                 "committed_bytes":  36323676160,
+                                                 "commit_limit_bytes":  49581215744,
+                                                 "pages_input_per_sec":  188,
+                                                 "pages_output_per_sec":  0,
+                                                 "disk_queue":  0,
+                                                 "groups":  [
+                                                                {
+                                                                    "category":  "node",
+                                                                    "count":  16,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  16740352,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "chromium",
+                                                                    "count":  28,
+                                                                    "cpu_percent_logical_capacity":  0.25,
+                                                                    "working_set_private_bytes":  1223741440,
+                                                                    "page_faults_per_sec":  96
+                                                                },
+                                                                {
+                                                                    "category":  "observer",
+                                                                    "count":  1,
+                                                                    "cpu_percent_logical_capacity":  0,
+                                                                    "working_set_private_bytes":  43888640,
+                                                                    "page_faults_per_sec":  0
+                                                                },
+                                                                {
+                                                                    "category":  "other",
+                                                                    "count":  355,
+                                                                    "cpu_percent_logical_capacity":  11.75,
+                                                                    "working_set_private_bytes":  7438061568,
+                                                                    "page_faults_per_sec":  3152
+                                                                }
+                                                            ]
+                                             }
+                                         ]
+                         }
+}

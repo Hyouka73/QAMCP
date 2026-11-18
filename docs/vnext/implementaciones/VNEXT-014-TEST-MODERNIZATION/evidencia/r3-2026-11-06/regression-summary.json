@@ -1,0 +1,34 @@
+{
+  "sha": "bdafeeb834549fc13c5d952c1f341098c2592468",
+  "total": 102,
+  "passed": 101,
+  "failed": 1,
+  "skip": 0,
+  "vs_r1": {
+    "pass_to_fail": [],
+    "fail_to_pass": [
+      "P3 Suite de Verificación MCP (T3 - T15) T14: qap_status WORKING: (a) observed con hipótesis reanuda entrevista; (b) interviewing incompleto reanuda; (c) planned elige high > medium > low luego orden; (d) todos completos tipo decision",
+      "P4.2 Suite: Contrato Canónico de Pregunta y Verificación E2E (Criterio 4 y Criterio 6) Criterio 6: E2E Completo donde TODA siguiente_accion de tipo entrevista, entrevista_vista o decision trae Pregunta válida",
+      "Suite MCP Server QAP v2.1 / v2.1.2 debe descubrir modulos y responder en desarrollo para qap_plan y qap_test",
+      "Suite MCP Server QAP v2.1 / v2.1.2 qap_discover: gating por fase y estado de modulo, actualizacion planned -> observed",
+      "Suite MCP Server QAP v2.1 / v2.1.2 Criterio 7: Proyecto legacy sin campos de negocio valida contra el schema y qap_status responde con fase WORKING derivada",
+      "Suite MCP Server QAP v2.1 / v2.1.2 Criterio 8 (E2E): init -> status (entrevista) -> ingest -> context_set compuerta -> auto-SCOPING -> session_plan -> auto-WORKING -> discover",
+      "Suite MCP Server QAP v2.1 / v2.1.2 qap_rules_set: actualiza reglas, transiciona observed -> interviewing, recalcula cobertura y actualiza guidance"
+    ],
+    "persistent_fail": [
+      "Suite MCP Server QAP v2.1 / v2.1.2 E0b: qap_discover valida contra module-view.schema.json en vista de autenticacion con session_saved true"
+    ]
+  },
+  "vs_r2": {
+    "matched": 24,
+    "pass_to_fail": []
+  },
+  "historical_55": {
+    "executed": 39,
+    "passed": 38,
+    "failed": 1,
+    "not_executed": 16,
+    "sufficient": 27,
+    "partial": 11
+  }
+}

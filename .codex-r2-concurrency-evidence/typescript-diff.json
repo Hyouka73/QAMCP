@@ -1,0 +1,1496 @@
+{
+  "baseline": [
+    {
+      "identity": [
+        "packages/engine/src/__tests__/mocks/knowledge-store.mock.ts",
+        "TS6059",
+        "File 'C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/engine/src/knowledge-store.port.ts' is not under 'rootDir' 'C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src'. 'rootDir' is expected to contain all source files."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/adversarial-r5-guarantees.test.ts",
+        "TS18046",
+        "'closeRes.content' is of type 'unknown'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/adversarial-r5-guarantees.test.ts",
+        "TS18046",
+        "'res.content' is of type 'unknown'."
+      ],
+      "count": 3
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/adversarial-r5-guarantees.test.ts",
+        "TS18046",
+        "'sessionRes.content' is of type 'unknown'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/adversarial-r5-guarantees.test.ts",
+        "TS2322",
+        "Type '\"active_probe\"' is not assignable to type 'RequirementProvenance | undefined'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/adversarial-r5-guarantees.test.ts",
+        "TS2322",
+        "Type '\"alcance\"' is not assignable to type 'RequirementCategory'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/adversarial-r5-guarantees.test.ts",
+        "TS2322",
+        "Type '\"crawler\"' is not assignable to type 'RequirementProvenance | undefined'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/adversarial-r5-guarantees.test.ts",
+        "TS2322",
+        "Type '\"proposito\"' is not assignable to type 'RequirementCategory'."
+      ],
+      "count": 3
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/adversarial-r5-guarantees.test.ts",
+        "TS2322",
+        "Type '\"seguridad_y_permisos\"' is not assignable to type 'RequirementCategory'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/adversarial-r5-guarantees.test.ts",
+        "TS2322",
+        "Type '{ id: string; application_id: string; module_key: string; category: string; statement: string; validation_status: string; provenance: string; verified_by: string; is_active: boolean; }' is not assignable to type 'KnowledgeRelation | DomainModule | EnvironmentPolicy | ApplicationObservation | MultimodalEvidenceRef | ... 7 more ... | FlowScenario'.\n  Type '{ id: string; application_id: string; module_key: string; category: string; statement: string; validation_status: string; provenance: string; verified_by: string; is_active: boolean; }' is missing the following properties from type 'ExpectedRequirement': title, description, created_at"
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/adversarial-r5-guarantees.test.ts",
+        "TS2345",
+        "Argument of type '{ kind: \"requirement\"; expected_revision: number; trace: { source: string; recorded_by: string; recorded_at: string; reason: string; review: \"unreviewed\"; evidence_refs: never[]; }; entity: Record<string, unknown>; }[]' is not assignable to parameter of type 'readonly KnowledgeWrite[]'.\n  Type '{ kind: \"requirement\"; expected_revision: number; trace: { source: string; recorded_by: string; recorded_at: string; reason: string; review: \"unreviewed\"; evidence_refs: never[]; }; entity: Record<string, unknown>; }' is not assignable to type 'KnowledgeWrite'.\n    Type '{ kind: \"requirement\"; expected_revision: number; trace: { source: string; recorded_by: string; recorded_at: string; reason: string; review: \"unreviewed\"; evidence_refs: never[]; }; entity: Record<string, unknown>; }' is not assignable to type '{ kind: \"requirement\"; entity: ExpectedRequirement; expected_revision: number; trace: KnowledgeTrace; }'.\n      Types of property 'entity' are incompatible.\n        Type 'Record<string, unknown>' is missing the following properties from type 'ExpectedRequirement': id, application_id, module_key, title, and 4 more."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/adversarial-r5-guarantees.test.ts",
+        "TS2353",
+        "Object literal may only specify known properties, and 'coverageDigest' does not exist in type 'ModuleClosureReviewDecision'."
+      ],
+      "count": 2
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/adversarial-r5-guarantees.test.ts",
+        "TS2540",
+        "Cannot assign to 'requests' because it is a read-only property."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/adversarial-r5-guarantees.test.ts",
+        "TS6059",
+        "File 'C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/engine/src/__tests__/mocks/knowledge-store.mock.ts' is not under 'rootDir' 'C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src'. 'rootDir' is expected to contain all source files."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/block1-application-service.test.ts",
+        "TS18046",
+        "'res.content' is of type 'unknown'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/block2-input-auth-discovery.test.ts",
+        "TS18046",
+        "'res.content' is of type 'unknown'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/block2-input-auth-discovery.test.ts",
+        "TS2305",
+        "Module '\"@qap/shared\"' has no exported member 'CredentialProvider'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/block2-input-auth-discovery.test.ts",
+        "TS2305",
+        "Module '\"@qap/shared\"' has no exported member 'CredentialReference'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/block3-cases-execution-reports.test.ts",
+        "TS18046",
+        "'res.content' is of type 'unknown'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/block3-cases-execution-reports.test.ts",
+        "TS2305",
+        "Module '\"@qap/shared\"' has no exported member 'CredentialProvider'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/block3-cases-execution-reports.test.ts",
+        "TS2305",
+        "Module '\"@qap/shared\"' has no exported member 'CredentialReference'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/block3-cases-execution-reports.test.ts",
+        "TS2322",
+        "Type 'Mock<() => Promise<{ decision: \"approved\"; username: string; password: string; }>>' is not assignable to type '(request: AuthAuthorizationRequest, signal?: AbortSignal | undefined) => Promise<AuthAuthorizationResult>'.\n  Type 'Promise<{ decision: \"approved\"; username: string; password: string; }>' is not assignable to type 'Promise<AuthAuthorizationResult>'.\n    Type '{ decision: \"approved\"; username: string; password: string; }' is not assignable to type 'AuthAuthorizationResult'.\n      Type '{ decision: \"approved\"; username: string; password: string; }' is missing the following properties from type '{ readonly decision: \"approved\"; readonly origin: string; readonly profileLabel: string; readonly expiresAt?: string | undefined; }': origin, profileLabel"
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/block3-cases-execution-reports.test.ts",
+        "TS2741",
+        "Property 'close' is missing in type 'TestMemoryCredentialProvider' but required in type 'ICredentialProvider'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/block3-cases-execution-reports.test.ts",
+        "TS7006",
+        "Parameter 'c' implicitly has an 'any' type."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/block4-clean-package-acceptance.test.ts",
+        "TS2305",
+        "Module '\"@qap/shared\"' has no exported member 'CredentialProvider'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/block4-clean-package-acceptance.test.ts",
+        "TS2305",
+        "Module '\"@qap/shared\"' has no exported member 'CredentialReference'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/block4-clean-package-acceptance.test.ts",
+        "TS2345",
+        "Argument of type '(req: DiscoveryAuthorizationRequest) => Promise<{ decision: \"rejected\"; reason: string; root?: undefined; targetUrl?: undefined; limits?: undefined; } | { decision: \"approved\"; root: string; targetUrl: string; limits: Partial<...> | { ...; }; reason?: undefined; }>' is not assignable to parameter of type '(request: DiscoveryAuthorizationRequest, signal?: AbortSignal | undefined) => Promise<DiscoveryAuthorizationResult>'.\n  Type 'Promise<{ decision: \"rejected\"; reason: string; root?: undefined; targetUrl?: undefined; limits?: undefined; } | { decision: \"approved\"; root: string; targetUrl: string; limits: Partial<CrawlerLimits> | { ...; }; reason?: undefined; }>' is not assignable to type 'Promise<DiscoveryAuthorizationResult>'.\n    Type '{ decision: \"rejected\"; reason: string; root?: undefined; targetUrl?: undefined; limits?: undefined; } | { decision: \"approved\"; root: string; targetUrl: string; limits: Partial<CrawlerLimits> | { ...; }; reason?: undefined; }' is not assignable to type 'DiscoveryAuthorizationResult'.\n      Type '{ decision: \"approved\"; root: string; targetUrl: string; limits: Partial<CrawlerLimits> | { maxPages: number; maxDepth: number; }; reason?: undefined; }' is not assignable to type 'DiscoveryAuthorizationResult'.\n        Type '{ decision: \"approved\"; root: string; targetUrl: string; limits: Partial<CrawlerLimits> | { maxPages: number; maxDepth: number; }; reason?: undefined; }' is not assignable to type '{ readonly decision: \"approved\"; readonly root: string; readonly targetUrl: string; readonly navigationOrigin?: string | undefined; readonly limits?: Partial<CrawlerLimits> | undefined; }'.\n          Types of property 'limits' are incompatible.\n            Type 'Partial<CrawlerLimits> | { maxPages: number; maxDepth: number; }' is not assignable to type 'Partial<CrawlerLimits> | undefined'.\n              Type '{ maxPages: number; maxDepth: number; }' has no properties in common with type 'Partial<CrawlerLimits>'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/block4-clean-package-acceptance.test.ts",
+        "TS2741",
+        "Property 'close' is missing in type 'TestMemoryCredentialProvider' but required in type 'ICredentialProvider'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/canonical-coverage.test.ts",
+        "TS18046",
+        "'closeReply.content' is of type 'unknown'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/canonical-coverage.test.ts",
+        "TS18046",
+        "'evalCall.content' is of type 'unknown'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/canonical-coverage.test.ts",
+        "TS18046",
+        "'first.content' is of type 'unknown'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/canonical-coverage.test.ts",
+        "TS18046",
+        "'legacyCall.content' is of type 'unknown'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/canonical-coverage.test.ts",
+        "TS18046",
+        "'reply.content' is of type 'unknown'."
+      ],
+      "count": 2
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/canonical-coverage.test.ts",
+        "TS18046",
+        "'response.content' is of type 'unknown'."
+      ],
+      "count": 3
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/canonical-coverage.test.ts",
+        "TS18046",
+        "'result.content' is of type 'unknown'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/canonical-coverage.test.ts",
+        "TS18046",
+        "'sessionCall.content' is of type 'unknown'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/canonical-coverage.test.ts",
+        "TS18046",
+        "'statusCall.content' is of type 'unknown'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/canonical-coverage.test.ts",
+        "TS18046",
+        "'statusReply.content' is of type 'unknown'."
+      ],
+      "count": 2
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/canonical-coverage.test.ts",
+        "TS2322",
+        "Type '{ id: string; started_at: string; plan: { module: string; path: string; }[]; auth: { required: boolean; }; }' is not assignable to type 'LifecycleSession'.\n  Types of property 'plan' are incompatible.\n    Type '{ module: string; path: string; }[]' is not assignable to type 'SessionPlanItem[]'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/canonical-coverage.test.ts",
+        "TS2322",
+        "Type '{ id: string; started_at: string; plan: { module: string; path: string; }[]; auth: { required: boolean; }; }' is not assignable to type 'LifecycleSession'.\n  Types of property 'plan' are incompatible.\n    Type '{ module: string; path: string; }[]' is not assignable to type 'SessionPlanItem[]'.\n      Type '{ module: string; path: string; }' is missing the following properties from type 'SessionPlanItem': priority, status"
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/canonical-coverage.test.ts",
+        "TS2345",
+        "Argument of type '{ module: string; path: string; }' is not assignable to parameter of type 'SessionPlanItem'.\n  Type '{ module: string; path: string; }' is missing the following properties from type 'SessionPlanItem': priority, status"
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/discovery-handler.test.ts",
+        "TS18046",
+        "'opened.question' is of type 'unknown'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/guidance.test.ts",
+        "TS2352",
+        "Conversion of type 'GuidanceResult' to type 'Record<string, unknown>' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first."
+      ],
+      "count": 4
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/guidance.test.ts",
+        "TS2352",
+        "Conversion of type 'GuidanceResult' to type 'Record<string, unknown>' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.\n  Index signature for type 'string' is missing in type 'GuidanceResult'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/guidance.test.ts",
+        "TS2551",
+        "Property 'preguntas' does not exist on type 'SiguienteAccion'. Did you mean 'pregunta'?"
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/host-composition.test.ts",
+        "TS18046",
+        "'response.content' is of type 'unknown'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/interactive-access.test.ts",
+        "TS2345",
+        "Argument of type '() => Mock<() => Promise<{ state: { origins: never[]; cookies: { name: string; value: string; domain: string; path: string; expires: number; httpOnly: boolean; secure: boolean; sameSite: \"Lax\"; }[]; }; }>>' is not assignable to parameter of type '(request: HandoffRequest, signal: AbortSignal) => Promise<CaptureResult>'.\n  Type 'Mock<() => Promise<{ state: { origins: never[]; cookies: { name: string; value: string; domain: string; path: string; expires: number; httpOnly: boolean; secure: boolean; sameSite: \"Lax\"; }[]; }; }>>' is not assignable to type 'Promise<CaptureResult>'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/interactive-discovery-authorization.test.ts",
+        "TS6133",
+        "'DiscoveryAuthorizationResult' is declared but its value is never read."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/interactive-discovery-authorization.test.ts",
+        "TS6133",
+        "'discoverRes' is declared but its value is never read."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/interactive-discovery-authorization.test.ts",
+        "TS6133",
+        "'readFileSync' is declared but its value is never read."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/interactive-discovery-authorization.test.ts",
+        "TS6133",
+        "'registryPath' is declared but its value is never read."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/interactive-discovery-authorization.test.ts",
+        "TS6133",
+        "'vi' is declared but its value is never read."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/interactive-discovery-authorization.test.ts",
+        "TS6133",
+        "'writeFileSync' is declared but its value is never read."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/interactive-workspace-authorization.test.ts",
+        "TS2322",
+        "Type 'Promise<{ decision: \"cancelled\" | \"unavailable\"; code: \"workspace_authorization_expired\" | \"workspace_gui_unavailable\" | \"workspace_dialog_start_failed\"; reason: string; }>' is not assignable to type 'Promise<WorkspaceAuthorizationResult>'.\n  Type '{ decision: \"cancelled\" | \"unavailable\"; code: \"workspace_authorization_expired\" | \"workspace_gui_unavailable\" | \"workspace_dialog_start_failed\"; reason: string; }' is not assignable to type 'WorkspaceAuthorizationResult'.\n    Type '{ decision: \"cancelled\" | \"unavailable\"; code: \"workspace_authorization_expired\" | \"workspace_gui_unavailable\" | \"workspace_dialog_start_failed\"; reason: string; }' is not assignable to type '{ readonly decision: \"unavailable\"; readonly reason: string; readonly code?: \"workspace_gui_unavailable\" | \"workspace_dialog_start_failed\" | undefined; }'.\n      Types of property 'decision' are incompatible.\n        Type '\"cancelled\" | \"unavailable\"' is not assignable to type '\"unavailable\"'.\n          Type '\"cancelled\"' is not assignable to type '\"unavailable\"'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p0-2a-discovery-dossier.test.ts",
+        "TS18046",
+        "'res.content' is of type 'unknown'."
+      ],
+      "count": 3
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p0-2a-discovery-dossier.test.ts",
+        "TS2305",
+        "Module '\"@qap/shared\"' has no exported member 'CredentialProvider'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p0-2a-discovery-dossier.test.ts",
+        "TS2305",
+        "Module '\"@qap/shared\"' has no exported member 'CredentialReference'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p0-2a-discovery-dossier.test.ts",
+        "TS2322",
+        "Type 'TestMemoryCredentialProvider' is not assignable to type 'ICredentialProvider'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p0-2a-discovery-dossier.test.ts",
+        "TS2741",
+        "Property 'close' is missing in type 'TestMemoryCredentialProvider' but required in type 'ICredentialProvider'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p0-2b-scoped-business-rules.test.ts",
+        "TS2305",
+        "Module '\"@qap/shared\"' has no exported member 'CredentialProvider'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p0-2b-scoped-business-rules.test.ts",
+        "TS2305",
+        "Module '\"@qap/shared\"' has no exported member 'CredentialReference'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p0-3a-rule-authority-review.test.ts",
+        "TS2305",
+        "Module '\"@qap/shared\"' has no exported member 'CredentialProvider'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p0-3a-rule-authority-review.test.ts",
+        "TS2305",
+        "Module '\"@qap/shared\"' has no exported member 'CredentialReference'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p0-3a-rule-authority-review.test.ts",
+        "TS2322",
+        "Type 'Mock<(req: any) => Promise<{ requestDigest: any; approvalId: `${string}-${string}-${string}-${string}-${string}`; decision: string; presentedStatementDigest: any; reviewer: string; decidedAt: string; expiresAt: string; } | null>>' is not assignable to type '(request: Readonly<HumanReviewRequest>) => Promise<HumanReviewDecision | null>'.\n  Type 'Promise<{ requestDigest: any; approvalId: `${string}-${string}-${string}-${string}-${string}`; decision: string; presentedStatementDigest: any; reviewer: string; decidedAt: string; expiresAt: string; } | null>' is not assignable to type 'Promise<HumanReviewDecision | null>'.\n    Type '{ requestDigest: any; approvalId: `${string}-${string}-${string}-${string}-${string}`; decision: string; presentedStatementDigest: any; reviewer: string; decidedAt: string; expiresAt: string; } | null' is not assignable to type 'HumanReviewDecision | null'.\n      Type '{ requestDigest: any; approvalId: `${string}-${string}-${string}-${string}-${string}`; decision: string; presentedStatementDigest: any; reviewer: string; decidedAt: string; expiresAt: string; }' is not assignable to type 'HumanReviewDecision'.\n        Types of property 'decision' are incompatible.\n          Type 'string' is not assignable to type '\"confirm\" | \"reject\" | \"defer\"'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p0-4-mcp-evidence-report.test.ts",
+        "TS2305",
+        "Module '\"@qap/shared\"' has no exported member 'CredentialProvider'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p0-4-mcp-evidence-report.test.ts",
+        "TS2305",
+        "Module '\"@qap/shared\"' has no exported member 'CredentialReference'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p0-4-mcp-evidence-report.test.ts",
+        "TS2322",
+        "Type 'Mock<() => Promise<{ decision: \"approved\"; username: string; password: string; }>>' is not assignable to type '(request: AuthAuthorizationRequest, signal?: AbortSignal | undefined) => Promise<AuthAuthorizationResult>'.\n  Type 'Promise<{ decision: \"approved\"; username: string; password: string; }>' is not assignable to type 'Promise<AuthAuthorizationResult>'.\n    Type '{ decision: \"approved\"; username: string; password: string; }' is not assignable to type 'AuthAuthorizationResult'.\n      Type '{ decision: \"approved\"; username: string; password: string; }' is missing the following properties from type '{ readonly decision: \"approved\"; readonly origin: string; readonly profileLabel: string; readonly expiresAt?: string | undefined; }': origin, profileLabel"
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p0-4-mcp-evidence-report.test.ts",
+        "TS2322",
+        "Type 'TestMemoryCredentialProvider' is not assignable to type 'ICredentialProvider'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p0-4-mcp-evidence-report.test.ts",
+        "TS2741",
+        "Property 'close' is missing in type 'TestMemoryCredentialProvider' but required in type 'ICredentialProvider'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p3-verification.test.ts",
+        "TS2578",
+        "Unused '@ts-expect-error' directive."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p4-3-1-b-block.test.ts",
+        "TS2345",
+        "Argument of type '\"ONBOARDING\" | \"SCOPING\" | \"WORKING\" | \"WRAP_UP\" | \"INIT\"' is not assignable to parameter of type 'ProjectPhase'.\n  Type '\"INIT\"' is not assignable to type 'ProjectPhase'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p4-4-auth-lifecycle.test.ts",
+        "TS18048",
+        "'plan' is possibly 'undefined'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p4-4-auth-lifecycle.test.ts",
+        "TS2304",
+        "Cannot find name 'CallToolResult'."
+      ],
+      "count": 3
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p4-4-auth-lifecycle.test.ts",
+        "TS2353",
+        "Object literal may only specify known properties, and 'path' does not exist in type '{ name: string; description?: string | undefined; priority?: string | undefined; source?: \"user\" | \"inferred\" | \"prd\" | undefined; }'."
+      ],
+      "count": 4
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p4-4-auth-lifecycle.test.ts",
+        "TS2739",
+        "Type '{ id: string; env: string; username: string; role: string; verified: false; }' is missing the following properties from type 'AuthProfile': credential_source, login_mode"
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p4-4-auth-lifecycle.test.ts",
+        "TS2739",
+        "Type '{ id: string; env: string; username: string; role: string; verified: true; }' is missing the following properties from type 'AuthProfile': credential_source, login_mode"
+      ],
+      "count": 2
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p4-4-auth-lifecycle.test.ts",
+        "TS6059",
+        "File 'C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/playwright-adapter/test/fixtures/auth-fixture-server.ts' is not under 'rootDir' 'C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Imported via '../../../playwright-adapter/test/fixtures/auth-fixture-server.js' from file 'C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/p4-4-auth-lifecycle.test.ts'\n    Imported via '../../../playwright-adapter/test/fixtures/auth-fixture-server.js' from file 'C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/p4-5a2-integrity.test.ts'"
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p4-5a2-integrity.test.ts",
+        "TS2322",
+        "Type '{ _version: string; project_name: string; description: string; framework: string; app_type: string; objective: string; critical_flows: { name: string; description: string; }[]; roles: { name: string; description: string; }[]; source_of_truth: { ...; }; }' is not assignable to type 'CanExitOnboardingContext'.\n  The types of 'source_of_truth.type' are incompatible between these types.\n    Type 'string' is not assignable to type '\"prd\" | \"readme\" | \"notes\" | \"none\" | undefined'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p4-5a2-integrity.test.ts",
+        "TS2339",
+        "Property 'isError' does not exist on type '{ content: { text: string; }[]; }'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p4-5a2-integrity.test.ts",
+        "TS2345",
+        "Argument of type '{ plan: never[]; moduleRules: {}; projectContext: { _version: string; project_name: string; description: string; framework: string; app_type: string; objective: string; critical_flows: { name: string; description: string; }[]; roles: { ...; }[]; source_of_truth: { ...; }; }; profiles: never[]; }' is not assignable to parameter of type 'SessionGapReportParams'.\n  Type '{ plan: never[]; moduleRules: {}; projectContext: { _version: string; project_name: string; description: string; framework: string; app_type: string; objective: string; critical_flows: { name: string; description: string; }[]; roles: { ...; }[]; source_of_truth: { ...; }; }; profiles: never[]; }' is missing the following properties from type 'SessionGapReportParams': sessionId, startedAt, closedAt, modules"
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p4-5s1-browser-candidates.test.ts",
+        "TS18046",
+        "'initialized.content' is of type 'unknown'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/plan-handler.test.ts",
+        "TS2339",
+        "Property 'text' does not exist on type '{ type: \"text\"; text: string; annotations?: { audience?: (\"user\" | \"assistant\")[] | undefined; priority?: number | undefined; lastModified?: string | undefined; } | undefined; _meta?: { ...; } | undefined; } | { ...; } | { ...; } | { ...; } | { ...; }'.\n  Property 'text' does not exist on type '{ type: \"image\"; data: string; mimeType: string; annotations?: { audience?: (\"user\" | \"assistant\")[] | undefined; priority?: number | undefined; lastModified?: string | undefined; } | undefined; _meta?: { ...; } | undefined; }'."
+      ],
+      "count": 12
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/qap-start.test.ts",
+        "TS18046",
+        "'response.content' is of type 'unknown'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/qap-start.test.ts",
+        "TS7030",
+        "Not all code paths return a value."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/report-handler.test.ts",
+        "TS2339",
+        "Property 'text' does not exist on type '{ type: \"text\"; text: string; annotations?: { audience?: (\"user\" | \"assistant\")[] | undefined; priority?: number | undefined; lastModified?: string | undefined; } | undefined; _meta?: { ...; } | undefined; } | { ...; } | { ...; } | { ...; } | { ...; }'.\n  Property 'text' does not exist on type '{ type: \"image\"; data: string; mimeType: string; annotations?: { audience?: (\"user\" | \"assistant\")[] | undefined; priority?: number | undefined; lastModified?: string | undefined; } | undefined; _meta?: { ...; } | undefined; }'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/test-handler.test.ts",
+        "TS2339",
+        "Property 'text' does not exist on type '{ type: \"text\"; text: string; annotations?: { audience?: (\"user\" | \"assistant\")[] | undefined; priority?: number | undefined; lastModified?: string | undefined; } | undefined; _meta?: { ...; } | undefined; } | { ...; } | { ...; } | { ...; } | { ...; }'.\n  Property 'text' does not exist on type '{ type: \"image\"; data: string; mimeType: string; annotations?: { audience?: (\"user\" | \"assistant\")[] | undefined; priority?: number | undefined; lastModified?: string | undefined; } | undefined; _meta?: { ...; } | undefined; }'."
+      ],
+      "count": 19
+    },
+    {
+      "identity": [
+        "packages/mcp/src/guidance.ts",
+        "TS18048",
+        "'sot' is possibly 'undefined'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/handlers/conversational-case-workflow.ts",
+        "TS2322",
+        "Type '{ kind: \"oracle_decision\"; prompt: string; options: string[]; blocking: false; } | null' is not assignable to type 'PendingDecisionContract | null | undefined'.\n  Property 'decision_id' is missing in type '{ kind: \"oracle_decision\"; prompt: string; options: string[]; blocking: false; }' but required in type 'PendingDecisionContract'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/handlers/plan.handler.ts",
+        "TS6133",
+        "'normalizeSlug' is declared but its value is never read."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/handlers/rule-resolution-handler.ts",
+        "TS2345",
+        "Argument of type '{ project_id: string; environment_name: string; tenant_id: string; role: string; module_key: string; }' is not assignable to parameter of type 'DiscoveryDossierScope'.\n  Type '{ project_id: string; environment_name: string; tenant_id: string; role: string; module_key: string; }' is missing the following properties from type 'DiscoveryDossierScope': application_id, environment_id, profile_id, module_title"
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/handlers/status.handler.ts",
+        "TS18048",
+        "'currentKnowledge.counts' is possibly 'undefined'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/host-composition.ts",
+        "TS2769",
+        "No overload matches this call.\n  Overload 1 of 4, '(arrayBuffer: WithImplicitCoercion<ArrayBufferLike>, byteOffset?: number | undefined, length?: number | undefined): Buffer', gave the following error.\n    Argument of type 'string | undefined' is not assignable to parameter of type 'WithImplicitCoercion<ArrayBufferLike>'.\n      Type 'undefined' is not assignable to type 'WithImplicitCoercion<ArrayBufferLike>'.\n  Overload 2 of 4, '(string: WithImplicitCoercion<string>, encoding?: BufferEncoding | undefined): Buffer', gave the following error.\n    Argument of type 'string | undefined' is not assignable to parameter of type 'WithImplicitCoercion<string>'.\n      Type 'undefined' is not assignable to type 'WithImplicitCoercion<string>'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/scoped-password.ts",
+        "TS2353",
+        "Object literal may only specify known properties, and 'env_id' does not exist in type 'PermissionGrantInput'."
+      ],
+      "count": 1
+    }
+  ],
+  "current": [
+    {
+      "identity": [
+        "packages/engine/src/__tests__/mocks/knowledge-store.mock.ts",
+        "TS6059",
+        "File 'C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/engine/src/knowledge-store.port.ts' is not under 'rootDir' 'C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src'. 'rootDir' is expected to contain all source files."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/adversarial-r5-guarantees.test.ts",
+        "TS18046",
+        "'closeRes.content' is of type 'unknown'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/adversarial-r5-guarantees.test.ts",
+        "TS18046",
+        "'res.content' is of type 'unknown'."
+      ],
+      "count": 3
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/adversarial-r5-guarantees.test.ts",
+        "TS18046",
+        "'sessionRes.content' is of type 'unknown'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/adversarial-r5-guarantees.test.ts",
+        "TS2322",
+        "Type '\"active_probe\"' is not assignable to type 'RequirementProvenance | undefined'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/adversarial-r5-guarantees.test.ts",
+        "TS2322",
+        "Type '\"alcance\"' is not assignable to type 'RequirementCategory'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/adversarial-r5-guarantees.test.ts",
+        "TS2322",
+        "Type '\"crawler\"' is not assignable to type 'RequirementProvenance | undefined'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/adversarial-r5-guarantees.test.ts",
+        "TS2322",
+        "Type '\"proposito\"' is not assignable to type 'RequirementCategory'."
+      ],
+      "count": 3
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/adversarial-r5-guarantees.test.ts",
+        "TS2322",
+        "Type '\"seguridad_y_permisos\"' is not assignable to type 'RequirementCategory'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/adversarial-r5-guarantees.test.ts",
+        "TS2322",
+        "Type '{ id: string; application_id: string; module_key: string; category: string; statement: string; validation_status: string; provenance: string; verified_by: string; is_active: boolean; }' is not assignable to type 'KnowledgeRelation | DomainModule | EnvironmentPolicy | ApplicationObservation | MultimodalEvidenceRef | ... 7 more ... | FlowScenario'.\n  Type '{ id: string; application_id: string; module_key: string; category: string; statement: string; validation_status: string; provenance: string; verified_by: string; is_active: boolean; }' is missing the following properties from type 'ExpectedRequirement': title, description, created_at"
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/adversarial-r5-guarantees.test.ts",
+        "TS2345",
+        "Argument of type '{ kind: \"requirement\"; expected_revision: number; trace: { source: string; recorded_by: string; recorded_at: string; reason: string; review: \"unreviewed\"; evidence_refs: never[]; }; entity: Record<string, unknown>; }[]' is not assignable to parameter of type 'readonly KnowledgeWrite[]'.\n  Type '{ kind: \"requirement\"; expected_revision: number; trace: { source: string; recorded_by: string; recorded_at: string; reason: string; review: \"unreviewed\"; evidence_refs: never[]; }; entity: Record<string, unknown>; }' is not assignable to type 'KnowledgeWrite'.\n    Type '{ kind: \"requirement\"; expected_revision: number; trace: { source: string; recorded_by: string; recorded_at: string; reason: string; review: \"unreviewed\"; evidence_refs: never[]; }; entity: Record<string, unknown>; }' is not assignable to type '{ kind: \"requirement\"; entity: ExpectedRequirement; expected_revision: number; trace: KnowledgeTrace; }'.\n      Types of property 'entity' are incompatible.\n        Type 'Record<string, unknown>' is missing the following properties from type 'ExpectedRequirement': id, application_id, module_key, title, and 4 more."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/adversarial-r5-guarantees.test.ts",
+        "TS2353",
+        "Object literal may only specify known properties, and 'coverageDigest' does not exist in type 'ModuleClosureReviewDecision'."
+      ],
+      "count": 2
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/adversarial-r5-guarantees.test.ts",
+        "TS2540",
+        "Cannot assign to 'requests' because it is a read-only property."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/adversarial-r5-guarantees.test.ts",
+        "TS6059",
+        "File 'C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/engine/src/__tests__/mocks/knowledge-store.mock.ts' is not under 'rootDir' 'C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src'. 'rootDir' is expected to contain all source files."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/block1-application-service.test.ts",
+        "TS18046",
+        "'res.content' is of type 'unknown'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/block2-input-auth-discovery.test.ts",
+        "TS18046",
+        "'res.content' is of type 'unknown'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/block2-input-auth-discovery.test.ts",
+        "TS2305",
+        "Module '\"@qap/shared\"' has no exported member 'CredentialProvider'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/block2-input-auth-discovery.test.ts",
+        "TS2305",
+        "Module '\"@qap/shared\"' has no exported member 'CredentialReference'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/block3-cases-execution-reports.test.ts",
+        "TS18046",
+        "'res.content' is of type 'unknown'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/block3-cases-execution-reports.test.ts",
+        "TS2305",
+        "Module '\"@qap/shared\"' has no exported member 'CredentialProvider'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/block3-cases-execution-reports.test.ts",
+        "TS2305",
+        "Module '\"@qap/shared\"' has no exported member 'CredentialReference'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/block3-cases-execution-reports.test.ts",
+        "TS2322",
+        "Type 'Mock<() => Promise<{ decision: \"approved\"; username: string; password: string; }>>' is not assignable to type '(request: AuthAuthorizationRequest, signal?: AbortSignal | undefined) => Promise<AuthAuthorizationResult>'.\n  Type 'Promise<{ decision: \"approved\"; username: string; password: string; }>' is not assignable to type 'Promise<AuthAuthorizationResult>'.\n    Type '{ decision: \"approved\"; username: string; password: string; }' is not assignable to type 'AuthAuthorizationResult'.\n      Type '{ decision: \"approved\"; username: string; password: string; }' is missing the following properties from type '{ readonly decision: \"approved\"; readonly origin: string; readonly profileLabel: string; readonly expiresAt?: string | undefined; }': origin, profileLabel"
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/block3-cases-execution-reports.test.ts",
+        "TS2741",
+        "Property 'close' is missing in type 'TestMemoryCredentialProvider' but required in type 'ICredentialProvider'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/block3-cases-execution-reports.test.ts",
+        "TS7006",
+        "Parameter 'c' implicitly has an 'any' type."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/block4-clean-package-acceptance.test.ts",
+        "TS2305",
+        "Module '\"@qap/shared\"' has no exported member 'CredentialProvider'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/block4-clean-package-acceptance.test.ts",
+        "TS2305",
+        "Module '\"@qap/shared\"' has no exported member 'CredentialReference'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/block4-clean-package-acceptance.test.ts",
+        "TS2345",
+        "Argument of type '(req: DiscoveryAuthorizationRequest) => Promise<{ decision: \"rejected\"; reason: string; root?: undefined; targetUrl?: undefined; limits?: undefined; } | { decision: \"approved\"; root: string; targetUrl: string; limits: Partial<...> | { ...; }; reason?: undefined; }>' is not assignable to parameter of type '(request: DiscoveryAuthorizationRequest, signal?: AbortSignal | undefined) => Promise<DiscoveryAuthorizationResult>'.\n  Type 'Promise<{ decision: \"rejected\"; reason: string; root?: undefined; targetUrl?: undefined; limits?: undefined; } | { decision: \"approved\"; root: string; targetUrl: string; limits: Partial<CrawlerLimits> | { ...; }; reason?: undefined; }>' is not assignable to type 'Promise<DiscoveryAuthorizationResult>'.\n    Type '{ decision: \"rejected\"; reason: string; root?: undefined; targetUrl?: undefined; limits?: undefined; } | { decision: \"approved\"; root: string; targetUrl: string; limits: Partial<CrawlerLimits> | { ...; }; reason?: undefined; }' is not assignable to type 'DiscoveryAuthorizationResult'.\n      Type '{ decision: \"approved\"; root: string; targetUrl: string; limits: Partial<CrawlerLimits> | { maxPages: number; maxDepth: number; }; reason?: undefined; }' is not assignable to type 'DiscoveryAuthorizationResult'.\n        Type '{ decision: \"approved\"; root: string; targetUrl: string; limits: Partial<CrawlerLimits> | { maxPages: number; maxDepth: number; }; reason?: undefined; }' is not assignable to type '{ readonly decision: \"approved\"; readonly root: string; readonly targetUrl: string; readonly navigationOrigin?: string | undefined; readonly limits?: Partial<CrawlerLimits> | undefined; }'.\n          Types of property 'limits' are incompatible.\n            Type 'Partial<CrawlerLimits> | { maxPages: number; maxDepth: number; }' is not assignable to type 'Partial<CrawlerLimits> | undefined'.\n              Type '{ maxPages: number; maxDepth: number; }' has no properties in common with type 'Partial<CrawlerLimits>'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/block4-clean-package-acceptance.test.ts",
+        "TS2741",
+        "Property 'close' is missing in type 'TestMemoryCredentialProvider' but required in type 'ICredentialProvider'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/canonical-coverage.test.ts",
+        "TS18046",
+        "'closeReply.content' is of type 'unknown'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/canonical-coverage.test.ts",
+        "TS18046",
+        "'evalCall.content' is of type 'unknown'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/canonical-coverage.test.ts",
+        "TS18046",
+        "'first.content' is of type 'unknown'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/canonical-coverage.test.ts",
+        "TS18046",
+        "'legacyCall.content' is of type 'unknown'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/canonical-coverage.test.ts",
+        "TS18046",
+        "'reply.content' is of type 'unknown'."
+      ],
+      "count": 2
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/canonical-coverage.test.ts",
+        "TS18046",
+        "'response.content' is of type 'unknown'."
+      ],
+      "count": 3
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/canonical-coverage.test.ts",
+        "TS18046",
+        "'result.content' is of type 'unknown'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/canonical-coverage.test.ts",
+        "TS18046",
+        "'sessionCall.content' is of type 'unknown'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/canonical-coverage.test.ts",
+        "TS18046",
+        "'statusCall.content' is of type 'unknown'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/canonical-coverage.test.ts",
+        "TS18046",
+        "'statusReply.content' is of type 'unknown'."
+      ],
+      "count": 2
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/canonical-coverage.test.ts",
+        "TS2322",
+        "Type '{ id: string; started_at: string; plan: { module: string; path: string; }[]; auth: { required: boolean; }; }' is not assignable to type 'LifecycleSession'.\n  Types of property 'plan' are incompatible.\n    Type '{ module: string; path: string; }[]' is not assignable to type 'SessionPlanItem[]'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/canonical-coverage.test.ts",
+        "TS2322",
+        "Type '{ id: string; started_at: string; plan: { module: string; path: string; }[]; auth: { required: boolean; }; }' is not assignable to type 'LifecycleSession'.\n  Types of property 'plan' are incompatible.\n    Type '{ module: string; path: string; }[]' is not assignable to type 'SessionPlanItem[]'.\n      Type '{ module: string; path: string; }' is missing the following properties from type 'SessionPlanItem': priority, status"
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/canonical-coverage.test.ts",
+        "TS2345",
+        "Argument of type '{ module: string; path: string; }' is not assignable to parameter of type 'SessionPlanItem'.\n  Type '{ module: string; path: string; }' is missing the following properties from type 'SessionPlanItem': priority, status"
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/discovery-handler.test.ts",
+        "TS18046",
+        "'opened.question' is of type 'unknown'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/guidance.test.ts",
+        "TS2352",
+        "Conversion of type 'GuidanceResult' to type 'Record<string, unknown>' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first."
+      ],
+      "count": 4
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/guidance.test.ts",
+        "TS2352",
+        "Conversion of type 'GuidanceResult' to type 'Record<string, unknown>' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.\n  Index signature for type 'string' is missing in type 'GuidanceResult'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/guidance.test.ts",
+        "TS2551",
+        "Property 'preguntas' does not exist on type 'SiguienteAccion'. Did you mean 'pregunta'?"
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/host-composition.test.ts",
+        "TS18046",
+        "'response.content' is of type 'unknown'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/interactive-access.test.ts",
+        "TS2345",
+        "Argument of type '() => Mock<() => Promise<{ state: { origins: never[]; cookies: { name: string; value: string; domain: string; path: string; expires: number; httpOnly: boolean; secure: boolean; sameSite: \"Lax\"; }[]; }; }>>' is not assignable to parameter of type '(request: HandoffRequest, signal: AbortSignal) => Promise<CaptureResult>'.\n  Type 'Mock<() => Promise<{ state: { origins: never[]; cookies: { name: string; value: string; domain: string; path: string; expires: number; httpOnly: boolean; secure: boolean; sameSite: \"Lax\"; }[]; }; }>>' is not assignable to type 'Promise<CaptureResult>'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/interactive-discovery-authorization.test.ts",
+        "TS6133",
+        "'DiscoveryAuthorizationResult' is declared but its value is never read."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/interactive-discovery-authorization.test.ts",
+        "TS6133",
+        "'discoverRes' is declared but its value is never read."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/interactive-discovery-authorization.test.ts",
+        "TS6133",
+        "'readFileSync' is declared but its value is never read."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/interactive-discovery-authorization.test.ts",
+        "TS6133",
+        "'registryPath' is declared but its value is never read."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/interactive-discovery-authorization.test.ts",
+        "TS6133",
+        "'vi' is declared but its value is never read."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/interactive-discovery-authorization.test.ts",
+        "TS6133",
+        "'writeFileSync' is declared but its value is never read."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/interactive-workspace-authorization.test.ts",
+        "TS2322",
+        "Type 'Promise<{ decision: \"cancelled\" | \"unavailable\"; code: \"workspace_authorization_expired\" | \"workspace_gui_unavailable\" | \"workspace_dialog_start_failed\"; reason: string; }>' is not assignable to type 'Promise<WorkspaceAuthorizationResult>'.\n  Type '{ decision: \"cancelled\" | \"unavailable\"; code: \"workspace_authorization_expired\" | \"workspace_gui_unavailable\" | \"workspace_dialog_start_failed\"; reason: string; }' is not assignable to type 'WorkspaceAuthorizationResult'.\n    Type '{ decision: \"cancelled\" | \"unavailable\"; code: \"workspace_authorization_expired\" | \"workspace_gui_unavailable\" | \"workspace_dialog_start_failed\"; reason: string; }' is not assignable to type '{ readonly decision: \"unavailable\"; readonly reason: string; readonly code?: \"workspace_gui_unavailable\" | \"workspace_dialog_start_failed\" | undefined; }'.\n      Types of property 'decision' are incompatible.\n        Type '\"cancelled\" | \"unavailable\"' is not assignable to type '\"unavailable\"'.\n          Type '\"cancelled\"' is not assignable to type '\"unavailable\"'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p0-2a-discovery-dossier.test.ts",
+        "TS18046",
+        "'res.content' is of type 'unknown'."
+      ],
+      "count": 3
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p0-2a-discovery-dossier.test.ts",
+        "TS2305",
+        "Module '\"@qap/shared\"' has no exported member 'CredentialProvider'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p0-2a-discovery-dossier.test.ts",
+        "TS2305",
+        "Module '\"@qap/shared\"' has no exported member 'CredentialReference'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p0-2a-discovery-dossier.test.ts",
+        "TS2322",
+        "Type 'TestMemoryCredentialProvider' is not assignable to type 'ICredentialProvider'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p0-2a-discovery-dossier.test.ts",
+        "TS2741",
+        "Property 'close' is missing in type 'TestMemoryCredentialProvider' but required in type 'ICredentialProvider'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p0-2b-scoped-business-rules.test.ts",
+        "TS2305",
+        "Module '\"@qap/shared\"' has no exported member 'CredentialProvider'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p0-2b-scoped-business-rules.test.ts",
+        "TS2305",
+        "Module '\"@qap/shared\"' has no exported member 'CredentialReference'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p0-3a-rule-authority-review.test.ts",
+        "TS2305",
+        "Module '\"@qap/shared\"' has no exported member 'CredentialProvider'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p0-3a-rule-authority-review.test.ts",
+        "TS2305",
+        "Module '\"@qap/shared\"' has no exported member 'CredentialReference'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p0-3a-rule-authority-review.test.ts",
+        "TS2322",
+        "Type 'Mock<(req: any) => Promise<{ requestDigest: any; approvalId: `${string}-${string}-${string}-${string}-${string}`; decision: string; presentedStatementDigest: any; reviewer: string; decidedAt: string; expiresAt: string; } | null>>' is not assignable to type '(request: Readonly<HumanReviewRequest>) => Promise<HumanReviewDecision | null>'.\n  Type 'Promise<{ requestDigest: any; approvalId: `${string}-${string}-${string}-${string}-${string}`; decision: string; presentedStatementDigest: any; reviewer: string; decidedAt: string; expiresAt: string; } | null>' is not assignable to type 'Promise<HumanReviewDecision | null>'.\n    Type '{ requestDigest: any; approvalId: `${string}-${string}-${string}-${string}-${string}`; decision: string; presentedStatementDigest: any; reviewer: string; decidedAt: string; expiresAt: string; } | null' is not assignable to type 'HumanReviewDecision | null'.\n      Type '{ requestDigest: any; approvalId: `${string}-${string}-${string}-${string}-${string}`; decision: string; presentedStatementDigest: any; reviewer: string; decidedAt: string; expiresAt: string; }' is not assignable to type 'HumanReviewDecision'.\n        Types of property 'decision' are incompatible.\n          Type 'string' is not assignable to type '\"confirm\" | \"reject\" | \"defer\"'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p0-4-mcp-evidence-report.test.ts",
+        "TS2305",
+        "Module '\"@qap/shared\"' has no exported member 'CredentialProvider'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p0-4-mcp-evidence-report.test.ts",
+        "TS2305",
+        "Module '\"@qap/shared\"' has no exported member 'CredentialReference'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p0-4-mcp-evidence-report.test.ts",
+        "TS2322",
+        "Type 'Mock<() => Promise<{ decision: \"approved\"; username: string; password: string; }>>' is not assignable to type '(request: AuthAuthorizationRequest, signal?: AbortSignal | undefined) => Promise<AuthAuthorizationResult>'.\n  Type 'Promise<{ decision: \"approved\"; username: string; password: string; }>' is not assignable to type 'Promise<AuthAuthorizationResult>'.\n    Type '{ decision: \"approved\"; username: string; password: string; }' is not assignable to type 'AuthAuthorizationResult'.\n      Type '{ decision: \"approved\"; username: string; password: string; }' is missing the following properties from type '{ readonly decision: \"approved\"; readonly origin: string; readonly profileLabel: string; readonly expiresAt?: string | undefined; }': origin, profileLabel"
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p0-4-mcp-evidence-report.test.ts",
+        "TS2322",
+        "Type 'TestMemoryCredentialProvider' is not assignable to type 'ICredentialProvider'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p0-4-mcp-evidence-report.test.ts",
+        "TS2741",
+        "Property 'close' is missing in type 'TestMemoryCredentialProvider' but required in type 'ICredentialProvider'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p3-verification.test.ts",
+        "TS2578",
+        "Unused '@ts-expect-error' directive."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p4-3-1-b-block.test.ts",
+        "TS2345",
+        "Argument of type '\"ONBOARDING\" | \"SCOPING\" | \"WORKING\" | \"WRAP_UP\" | \"INIT\"' is not assignable to parameter of type 'ProjectPhase'.\n  Type '\"INIT\"' is not assignable to type 'ProjectPhase'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p4-4-auth-lifecycle.test.ts",
+        "TS18048",
+        "'plan' is possibly 'undefined'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p4-4-auth-lifecycle.test.ts",
+        "TS2304",
+        "Cannot find name 'CallToolResult'."
+      ],
+      "count": 3
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p4-4-auth-lifecycle.test.ts",
+        "TS2353",
+        "Object literal may only specify known properties, and 'path' does not exist in type '{ name: string; description?: string | undefined; priority?: string | undefined; source?: \"user\" | \"inferred\" | \"prd\" | undefined; }'."
+      ],
+      "count": 4
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p4-4-auth-lifecycle.test.ts",
+        "TS2739",
+        "Type '{ id: string; env: string; username: string; role: string; verified: false; }' is missing the following properties from type 'AuthProfile': credential_source, login_mode"
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p4-4-auth-lifecycle.test.ts",
+        "TS2739",
+        "Type '{ id: string; env: string; username: string; role: string; verified: true; }' is missing the following properties from type 'AuthProfile': credential_source, login_mode"
+      ],
+      "count": 2
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p4-4-auth-lifecycle.test.ts",
+        "TS6059",
+        "File 'C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/playwright-adapter/test/fixtures/auth-fixture-server.ts' is not under 'rootDir' 'C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Imported via '../../../playwright-adapter/test/fixtures/auth-fixture-server.js' from file 'C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/p4-4-auth-lifecycle.test.ts'\n    Imported via '../../../playwright-adapter/test/fixtures/auth-fixture-server.js' from file 'C:/Users/Judirico/Documents/QAMCP/QAMCP/packages/mcp/src/__tests__/p4-5a2-integrity.test.ts'"
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p4-5a2-integrity.test.ts",
+        "TS2322",
+        "Type '{ _version: string; project_name: string; description: string; framework: string; app_type: string; objective: string; critical_flows: { name: string; description: string; }[]; roles: { name: string; description: string; }[]; source_of_truth: { ...; }; }' is not assignable to type 'CanExitOnboardingContext'.\n  The types of 'source_of_truth.type' are incompatible between these types.\n    Type 'string' is not assignable to type '\"prd\" | \"readme\" | \"notes\" | \"none\" | undefined'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p4-5a2-integrity.test.ts",
+        "TS2339",
+        "Property 'isError' does not exist on type '{ content: { text: string; }[]; }'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p4-5a2-integrity.test.ts",
+        "TS2345",
+        "Argument of type '{ plan: never[]; moduleRules: {}; projectContext: { _version: string; project_name: string; description: string; framework: string; app_type: string; objective: string; critical_flows: { name: string; description: string; }[]; roles: { ...; }[]; source_of_truth: { ...; }; }; profiles: never[]; }' is not assignable to parameter of type 'SessionGapReportParams'.\n  Type '{ plan: never[]; moduleRules: {}; projectContext: { _version: string; project_name: string; description: string; framework: string; app_type: string; objective: string; critical_flows: { name: string; description: string; }[]; roles: { ...; }[]; source_of_truth: { ...; }; }; profiles: never[]; }' is missing the following properties from type 'SessionGapReportParams': sessionId, startedAt, closedAt, modules"
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/p4-5s1-browser-candidates.test.ts",
+        "TS18046",
+        "'initialized.content' is of type 'unknown'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/plan-handler.test.ts",
+        "TS2339",
+        "Property 'text' does not exist on type '{ type: \"text\"; text: string; annotations?: { audience?: (\"user\" | \"assistant\")[] | undefined; priority?: number | undefined; lastModified?: string | undefined; } | undefined; _meta?: { ...; } | undefined; } | { ...; } | { ...; } | { ...; } | { ...; }'.\n  Property 'text' does not exist on type '{ type: \"image\"; data: string; mimeType: string; annotations?: { audience?: (\"user\" | \"assistant\")[] | undefined; priority?: number | undefined; lastModified?: string | undefined; } | undefined; _meta?: { ...; } | undefined; }'."
+      ],
+      "count": 12
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/qap-start.test.ts",
+        "TS18046",
+        "'response.content' is of type 'unknown'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/qap-start.test.ts",
+        "TS7030",
+        "Not all code paths return a value."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/report-handler.test.ts",
+        "TS2339",
+        "Property 'text' does not exist on type '{ type: \"text\"; text: string; annotations?: { audience?: (\"user\" | \"assistant\")[] | undefined; priority?: number | undefined; lastModified?: string | undefined; } | undefined; _meta?: { ...; } | undefined; } | { ...; } | { ...; } | { ...; } | { ...; }'.\n  Property 'text' does not exist on type '{ type: \"image\"; data: string; mimeType: string; annotations?: { audience?: (\"user\" | \"assistant\")[] | undefined; priority?: number | undefined; lastModified?: string | undefined; } | undefined; _meta?: { ...; } | undefined; }'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/__tests__/test-handler.test.ts",
+        "TS2339",
+        "Property 'text' does not exist on type '{ type: \"text\"; text: string; annotations?: { audience?: (\"user\" | \"assistant\")[] | undefined; priority?: number | undefined; lastModified?: string | undefined; } | undefined; _meta?: { ...; } | undefined; } | { ...; } | { ...; } | { ...; } | { ...; }'.\n  Property 'text' does not exist on type '{ type: \"image\"; data: string; mimeType: string; annotations?: { audience?: (\"user\" | \"assistant\")[] | undefined; priority?: number | undefined; lastModified?: string | undefined; } | undefined; _meta?: { ...; } | undefined; }'."
+      ],
+      "count": 19
+    },
+    {
+      "identity": [
+        "packages/mcp/src/guidance.ts",
+        "TS18048",
+        "'sot' is possibly 'undefined'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/handlers/conversational-case-workflow.ts",
+        "TS2322",
+        "Type '{ kind: \"oracle_decision\"; prompt: string; options: string[]; blocking: false; } | null' is not assignable to type 'PendingDecisionContract | null | undefined'.\n  Property 'decision_id' is missing in type '{ kind: \"oracle_decision\"; prompt: string; options: string[]; blocking: false; }' but required in type 'PendingDecisionContract'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/handlers/plan.handler.ts",
+        "TS6133",
+        "'normalizeSlug' is declared but its value is never read."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/handlers/rule-resolution-handler.ts",
+        "TS2345",
+        "Argument of type '{ project_id: string; environment_name: string; tenant_id: string; role: string; module_key: string; }' is not assignable to parameter of type 'DiscoveryDossierScope'.\n  Type '{ project_id: string; environment_name: string; tenant_id: string; role: string; module_key: string; }' is missing the following properties from type 'DiscoveryDossierScope': application_id, environment_id, profile_id, module_title"
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/handlers/status.handler.ts",
+        "TS18048",
+        "'currentKnowledge.counts' is possibly 'undefined'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/host-composition.ts",
+        "TS2769",
+        "No overload matches this call.\n  Overload 1 of 4, '(arrayBuffer: WithImplicitCoercion<ArrayBufferLike>, byteOffset?: number | undefined, length?: number | undefined): Buffer', gave the following error.\n    Argument of type 'string | undefined' is not assignable to parameter of type 'WithImplicitCoercion<ArrayBufferLike>'.\n      Type 'undefined' is not assignable to type 'WithImplicitCoercion<ArrayBufferLike>'.\n  Overload 2 of 4, '(string: WithImplicitCoercion<string>, encoding?: BufferEncoding | undefined): Buffer', gave the following error.\n    Argument of type 'string | undefined' is not assignable to parameter of type 'WithImplicitCoercion<string>'.\n      Type 'undefined' is not assignable to type 'WithImplicitCoercion<string>'."
+      ],
+      "count": 1
+    },
+    {
+      "identity": [
+        "packages/mcp/src/scoped-password.ts",
+        "TS2353",
+        "Object literal may only specify known properties, and 'env_id' does not exist in type 'PermissionGrantInput'."
+      ],
+      "count": 1
+    }
+  ],
+  "added": [],
+  "removed": []
+}

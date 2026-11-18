@@ -5,7 +5,7 @@
  * Ubicación física de datos efímeros: .qa/runtime/ (estrictamente excluida de Git)
  */
 
-export type StepExecutionStatus = 'passed' | 'failed' | 'blocked' | 'skipped';
+export type StepExecutionStatus = 'passed' | 'failed' | 'blocked' | 'skipped' | 'not_run';
 
 export interface AssertionTelemetry {
   statement: string;
@@ -37,6 +37,15 @@ export interface ArtifactsManifest {
   totalDiskUsageBytes: number;
 }
 
+export interface CaseSummaryTelemetry {
+  totalCases: number;
+  passed: number;
+  failed: number;
+  skipped: number;
+  notRun: number;
+  blocked: number;
+}
+
 export interface RunRecord {
   runId: string;
   flowId?: string;
@@ -44,6 +53,10 @@ export interface RunRecord {
   finishedAt: string;
   totalDurationMs: number;
   overallStatus: 'passed' | 'failed' | 'partial';
+  terminalStatus?: 'passed' | 'failed' | 'partial';
+  caseClassification?: 'passed' | 'failed' | 'partial';
+  caseSummary?: CaseSummaryTelemetry;
+  resumeNoOp?: boolean;
   environment: {
     gitCommit: string;
     gitBranch: string;

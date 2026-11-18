@@ -1,0 +1,186 @@
+{
+  "numTotalTestSuites": 2,
+  "numPassedTestSuites": 0,
+  "numFailedTestSuites": 2,
+  "numPendingTestSuites": 0,
+  "numTotalTests": 12,
+  "numPassedTests": 11,
+  "numFailedTests": 1,
+  "numPendingTests": 0,
+  "numTodoTests": 0,
+  "snapshot": {
+    "added": 0,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0,
+    "didUpdate": false
+  },
+  "startTime": 1794006707701,
+  "success": false,
+  "testResults": [
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "Suite MCP Server QAP v2.1 / v2.1.2"
+          ],
+          "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 debe registrar y exponer la suite completa de 15 tools y prompts",
+          "status": "passed",
+          "title": "debe registrar y exponer la suite completa de 15 tools y prompts",
+          "duration": 24.558799999999792,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Suite MCP Server QAP v2.1 / v2.1.2"
+          ],
+          "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 debe ejecutar qap_init y crear el arbol .qa/",
+          "status": "passed",
+          "title": "debe ejecutar qap_init y crear el arbol .qa/",
+          "duration": 61.66150000000016,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Suite MCP Server QAP v2.1 / v2.1.2"
+          ],
+          "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 debe validar y mostrar estado con directivas UX en qap_status",
+          "status": "passed",
+          "title": "debe validar y mostrar estado con directivas UX en qap_status",
+          "duration": 195.29309999999987,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Suite MCP Server QAP v2.1 / v2.1.2"
+          ],
+          "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 debe registrar un perfil de autenticacion con qap_auth_add y listar con qap_auth_list",
+          "status": "passed",
+          "title": "debe registrar un perfil de autenticacion con qap_auth_add y listar con qap_auth_list",
+          "duration": 51.04580000000033,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Suite MCP Server QAP v2.1 / v2.1.2"
+          ],
+          "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 debe generar reportes con qap_report y limpiar con qap_clean",
+          "status": "passed",
+          "title": "debe generar reportes con qap_report y limpiar con qap_clean",
+          "duration": 191.53049999999985,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Suite MCP Server QAP v2.1 / v2.1.2"
+          ],
+          "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 debe operar sobre targetPath independiente de cwd y validar qap_server",
+          "status": "passed",
+          "title": "debe operar sobre targetPath independiente de cwd y validar qap_server",
+          "duration": 108.57479999999987,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Suite MCP Server QAP v2.1 / v2.1.2"
+          ],
+          "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 debe ser idempotente en qap_init sin alterar context.yaml ni environments.yaml en segunda ejecución (Criterio 3)",
+          "status": "passed",
+          "title": "debe ser idempotente en qap_init sin alterar context.yaml ni environments.yaml en segunda ejecución (Criterio 3)",
+          "duration": 66.25649999999996,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Suite MCP Server QAP v2.1 / v2.1.2"
+          ],
+          "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 E0b: qap_discover valida contra module-view.schema.json en vista de autenticacion con session_saved true",
+          "status": "failed",
+          "title": "E0b: qap_discover valida contra module-view.schema.json en vista de autenticacion con session_saved true",
+          "duration": 184.3742000000002,
+          "failureMessages": [
+            "AssertionError: expected true to be falsy\n    at <repo>/packages/mcp/src/__tests__/server.test.ts:527:25\n    at file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
+          ],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Suite MCP Server QAP v2.1 / v2.1.2"
+          ],
+          "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 qap_context_set: merge parcial, no-downgrade de user, faltantes, transicion automatica con session.id y history",
+          "status": "passed",
+          "title": "qap_context_set: merge parcial, no-downgrade de user, faltantes, transicion automatica con session.id y history",
+          "duration": 396.5621000000001,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Suite MCP Server QAP v2.1 / v2.1.2"
+          ],
+          "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 qap_context_set: dos llamadas concurrentes no pierden actualizaciones",
+          "status": "passed",
+          "title": "qap_context_set: dos llamadas concurrentes no pierden actualizaciones",
+          "duration": 205.45649999999978,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Suite MCP Server QAP v2.1 / v2.1.2"
+          ],
+          "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 qap_context_ingest: ingesta desde docPath y docContent, persistencia inferred, nunca avanza fase, rechazo de seguridad",
+          "status": "passed",
+          "title": "qap_context_ingest: ingesta desde docPath y docContent, persistencia inferred, nunca avanza fase, rechazo de seguridad",
+          "duration": 106.66829999999982,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": [
+            "Suite MCP Server QAP v2.1 / v2.1.2"
+          ],
+          "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 qap_session_plan: SCOPING define plan y auth, transiciona a WORKING, rechazo atomico, ampliacion en WORKING, bloqueada en ONBOARDING",
+          "status": "passed",
+          "title": "qap_session_plan: SCOPING define plan y auth, transiciona a WORKING, rechazo atomico, ampliacion en WORKING, bloqueada en ONBOARDING",
+          "duration": 174.53160000000025,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        }
+      ],
+      "startTime": 1794006710057,
+      "endTime": 1794006711824.5315,
+      "status": "failed",
+      "message": "",
+      "name": "<repo>/packages/mcp/src/__tests__/server.test.ts"
+    }
+  ]
+}

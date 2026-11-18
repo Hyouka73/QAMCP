@@ -1,12 +1,23 @@
-import { existsSync, readdirSync, statSync, readFileSync, realpathSync } from 'node:fs';
+import { existsSync, readdirSync, statSync, readFileSync, realpathSync, openSync, readSync, closeSync } from 'node:fs';
 import { resolve, relative, join, extname, basename } from 'node:path';
 
 import { sanitizeDomString } from '@qap/engine';
 import type { ProjectScan, ScanDocumento, ScanSubproyecto, ScanServicio } from '@qap/shared';
 
+export type DocumentCategory =
+  | 'documento_funcional'
+  | 'documento_tecnico'
+  | 'readme_instalacion'
+  | 'bitacora_qa'
+  | 'placeholder'
+  | 'qa_artifact'
+  | 'archivo_vacio';
+
 export interface FactoresPuntajeDocumento {
   nombreScore: number;
   ubicacionScore: number;
+  categoriaScore?: number;
+  categoria?: DocumentCategory;
   es_exacto: boolean;
   tiene_penalizacion: boolean;
   bonificacion: string | null;
@@ -22,6 +33,8 @@ export interface DocumentoCandidato {
   tamano_bytes: number;
   ranking?: number;
   factores?: FactoresPuntajeDocumento;
+  categoria?: DocumentCategory;
+  advertencia?: string;
 }
 
 export interface PackageJsonInfo {
@@ -117,7 +130,12 @@ export function getUbicacionScore(relPosix: string): number {
 /**
  * Obtiene el detalle de los factores de puntuación de un documento (C2).
  */
-export function getFactoresPuntaje(docNombre: string, docPath?: string): FactoresPuntajeDocumento {
+export function getFactoresPuntaje(
+  docNombre: string,
+  docPath?: string,
+  categoria?: DocumentCategory,
+  categoriaScore?: number
+): FactoresPuntajeDocumento {
   const clean = sanitizeDomString(docNombre, 200);
   const lower = clean.toLowerCase();
   const penalized = hasPenaltyToken(clean);
@@ -139,12 +157,230 @@ export function getFactoresPuntaje(docNombre: string, docPath?: string): Factore
   return {
     nombreScore: nScore,
     ubicacionScore: uScore,
+    categoriaScore,
+    categoria,
     es_exacto: exact,
     tiene_penalizacion: penalized,
     bonificacion: exact ? 'nombre exacto de especificacion (score 0)' : null,
     penalizacion: penalized ? 'token de descarte/penalizacion detectado' : null,
     coincidencia_nombre: coincidencia,
     ubicacion: uScore === 0 ? 'raíz (0)' : uScore === 1 ? 'docs (1)' : 'subproyecto (2)',
+  };
+}
+
+/**
+ * Obtiene la puntuación base de una categoría según la taxonomía canónica de 6 clases (F8).
+ */
+export function getCategoriaScore(categoria: DocumentCategory): number {
+  switch (categoria) {
+    case 'documento_funcional':
+      return 0;
+    case 'documento_tecnico':
+      return 2;
+    case 'readme_instalacion':
+      return 4;
+    case 'bitacora_qa':
+      return 14; // Penalización +10 sobre un documento estándar
+    case 'placeholder':
+    case 'archivo_vacio':
+      return 100; // Descalificado
+    case 'qa_artifact':
+      return 200; // Excluido
+    default:
+      return 6;
+  }
+}
+
+/**
+ * Realiza una lectura acotada de a lo sumo `maxBytes` (por defecto 4096 bytes) de un archivo para content sniffing (F8).
+ */
+export function sniffFileContent(filePath: string, maxBytes = 4096): string {
+  let fd: number | null = null;
+  try {
+    fd = openSync(filePath, 'r');
+    const buf = Buffer.alloc(maxBytes);
+    const bytesRead = readSync(fd, buf, 0, maxBytes, 0);
+    return buf.toString('utf-8', 0, bytesRead);
+  } catch {
+    return '';
+  } finally {
+    if (fd !== null) {
+      try {
+        closeSync(fd);
+      } catch {
+        /* empty */
+      }
+    }
+  }
+}
+
+export interface ClasificacionDocumento {
+  categoria: DocumentCategory;
+  es_ingerible: boolean;
+  categoriaScore: number;
+  advertencia?: string;
+}
+
+/**
+ * Evalúa si el texto de un archivo representa un placeholder, plantilla vacía o stub con menos de 30 caracteres sustantivos (F8).
+ */
+export function isPlaceholderContent(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return true;
+  }
+
+  // Eliminar comentarios HTML (unilínea y multilínea)
+  const withoutComments = trimmed.replace(/<!--[\s\S]*?-->/g, '').trim();
+  if (!withoutComments) {
+    return true;
+  }
+
+  // Dividir en líneas no vacías
+  const lines = withoutComments.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (lines.length === 0) {
+    return true;
+  }
+
+  // Si todas las líneas son encabezados (# ...), TODO o TBD
+  const allLinesMatchPlaceholder = lines.every((line) =>
+    /^#+\s*.*$/.test(line) ||
+    /^(TODO|TBD)(\b|:|\s|$)/i.test(line)
+  );
+
+  if (allLinesMatchPlaceholder) {
+    return true;
+  }
+
+  // Caracteres sustantivos: sin espacios ni signos de marcado
+  const substantive = withoutComments.replace(/\s+/g, '').replace(/[#*\-_~>|`]/g, '');
+  if (substantive.length < 30) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Clasifica un documento en una de las 6 categorías canónicas con content sniffing acotado (F8).
+ */
+export function clasificarDocumento(
+  fileName: string,
+  posixRel: string,
+  tamanoBytes: number,
+  snippet = ''
+): ClasificacionDocumento {
+  const lowerName = fileName.toLowerCase();
+  const lowerRel = posixRel.toLowerCase();
+
+  // 6. Artefactos de QA o pruebas anteriores (excluidos)
+  if (
+    lowerRel.includes('.qa/') ||
+    lowerRel.includes('coverage/') ||
+    /^test-results/i.test(lowerName) ||
+    /^report-.*\.json$/i.test(lowerName)
+  ) {
+    return {
+      categoria: 'qa_artifact',
+      es_ingerible: false,
+      categoriaScore: 200,
+      advertencia: 'Artefacto de QA o reporte de pruebas anteriores; no puede utilizarse como fuente de verdad.',
+    };
+  }
+
+  // 5. Archivo vacío (0 bytes) (F7)
+  if (tamanoBytes === 0) {
+    return {
+      categoria: 'placeholder',
+      es_ingerible: false,
+      categoriaScore: 100,
+      advertencia: 'Archivo vacío (0 bytes); no puede utilizarse como fuente de verdad.',
+    };
+  }
+
+  // 5. Placeholder / contenido stub (< 30 caracteres sustantivos o solo encabezados/TODO) (F8)
+  if (isPlaceholderContent(snippet)) {
+    return {
+      categoria: 'placeholder',
+      es_ingerible: false,
+      categoriaScore: 100,
+      advertencia: 'Contenido insuficiente o plantilla vacía (< 30 caracteres sustantivos); no puede utilizarse como fuente de verdad.',
+    };
+  }
+
+  // 4. Bitácoras de QA / auditorías / post-mortem (penalizada: +10 penalty)
+  const isQaFilename =
+    /^(qa[-_]|auditoria[-_]|verificacion[-_]|bitacora[-_]|test-report[-_]|audit[-_]|postmortem[-_])/i.test(lowerName) ||
+    /\b(qa|auditoria|verificacion|bitacora|test[-_]report|postmortem)\b/i.test(lowerName.replace(/\.[^/.]+$/, ''));
+
+  const isQaContent = /(\bauditor[ií]a\b|\bverificaci[oó]n\b|fix\s+motor|post-mortem|test\s+report|qa\s+report|incidencias\s+encontradas|matriz\s+de\s+pruebas|evidencia\s+de\s+pruebas)/i.test(
+    snippet
+  );
+
+  if (isQaFilename || isQaContent) {
+    return {
+      categoria: 'bitacora_qa',
+      es_ingerible: true,
+      categoriaScore: 14,
+    };
+  }
+
+  // 3. README o runbook de instalación explícito por nombre de archivo
+  const isInstallFilename = /(iniciar|setup|install|quickstart|runbook)/i.test(lowerName);
+  if (isInstallFilename) {
+    return {
+      categoria: 'readme_instalacion',
+      es_ingerible: true,
+      categoriaScore: 4,
+    };
+  }
+
+  // 1. Documentación funcional del producto (prioridad máxima: score 0)
+  const functionalRegex = /(\bobjetivo\b|\bprop[oó]sito\b|\balcance\b|reglas\s+de\s+negocio|\bm[oó]dulos\b|casos\s+de\s+uso|\broles\b|\bflujos\b|backlog\s+maestro|especificaci[oó]n\s+funcional|\brequisitos\b(?!\s+previos)|\brequirements\b(?!\s+prerequisites)|historias?\s+de\s+usuario)/i;
+  const isExactSpec = isExactSpecName(fileName);
+
+  if (isExactSpec || functionalRegex.test(snippet) || /backlog/i.test(lowerName)) {
+    return {
+      categoria: 'documento_funcional',
+      es_ingerible: true,
+      categoriaScore: 0,
+    };
+  }
+
+  // 2. Documentación técnica (prioridad secundaria: score 2)
+  const technicalRegex = /(\barquitectura\b|\bddl\b|\bschema\b|base\s+de\s+datos|\bmigraciones\b|\bmicroservicio\b|api\s+spec|\bendpoints\b|\bpipeline\b|docker-compose|\btecnolog[ií]a\b)/i;
+  if (technicalRegex.test(snippet) || /(arquitectura|architecture|schema|database|endpoints)/i.test(lowerName)) {
+    return {
+      categoria: 'documento_tecnico',
+      es_ingerible: true,
+      categoriaScore: 2,
+    };
+  }
+
+  // 3. README de instalación (prioridad terciaria: score 4)
+  const installRegex = /(\binstalaci[oó]n\b|requisitos\s+previos|\bquickstart\b|inicio\s+r[aá]pido|pnpm\s+install|npm\s+run|npm\s+install|yarn\s+install|\benv\.example\b|getting\s+started|\bsetup\b|\bdespliegue\b)/i;
+  if (installRegex.test(snippet)) {
+    return {
+      categoria: 'readme_instalacion',
+      es_ingerible: true,
+      categoriaScore: 4,
+    };
+  }
+
+  // Si contiene readme en su nombre, clasificar como readme_instalacion
+  if (lowerName.includes('readme')) {
+    return {
+      categoria: 'readme_instalacion',
+      es_ingerible: true,
+      categoriaScore: 4,
+    };
+  }
+
+  // Fallback para documentos sustantivos
+  return {
+    categoria: 'documento_funcional',
+    es_ingerible: true,
+    categoriaScore: 0,
   };
 }
 
@@ -174,7 +410,13 @@ export function detectarDocumentosProyecto(workspaceRoot: string): HallazgosProy
   }
   const normRealWorkspace = realWorkspaceRoot.replace(/\\/g, '/').toLowerCase();
 
-  const candidatosRaw: Array<DocumentoCandidato & { nombreScore: number; ubicacionScore: number }> = [];
+  const candidatosRaw: Array<
+    DocumentoCandidato & {
+      nombreScore: number;
+      ubicacionScore: number;
+      categoriaScore: number;
+    }
+  > = [];
 
   function esArchivoExcluido(fileName: string): boolean {
     return EXCLUDED_FILE_PATTERNS.some((pattern) => pattern.test(fileName));
@@ -248,9 +490,54 @@ export function detectarDocumentosProyecto(workspaceRoot: string): HallazgosProy
           continue;
         }
 
-        const esIngerible = INGESTIBLE_EXTENSIONS.has(ext) && st.size <= MAX_FILE_SIZE_BYTES;
+        // Descartar artefactos de QA o pruebas anteriores
+        if (
+          posixRel.includes('.qa/') ||
+          posixRel.includes('coverage/') ||
+          /^test-results/i.test(entry) ||
+          /^report-.*\.json$/i.test(entry)
+        ) {
+          continue;
+        }
+
         const cleanNombre = sanitizeDomString(entry, 200);
-        const nombreScore = getNombreScore(cleanNombre);
+
+        // Feature F7: 0-Byte Sanity Check
+        if (st.size === 0) {
+          candidatosRaw.push({
+            path: posixRel,
+            nombre: cleanNombre,
+            es_ingerible: false,
+            tamano_bytes: 0,
+            nombreScore: 99,
+            ubicacionScore: ubicacion,
+            categoriaScore: 100,
+            categoria: 'placeholder',
+            advertencia: 'Archivo vacío (0 bytes); no puede utilizarse como fuente de verdad.',
+          });
+          continue;
+        }
+
+        // Feature F8: Bounded Content Sniffing (first 4096 bytes)
+        const snippet = sniffFileContent(fullPath, 4096);
+        const clasificacion = clasificarDocumento(cleanNombre, posixRel, st.size, snippet);
+
+        if (clasificacion.categoria === 'qa_artifact') {
+          continue;
+        }
+
+        const esExcedidoTamano = st.size > MAX_FILE_SIZE_BYTES;
+        const esIngerible =
+          INGESTIBLE_EXTENSIONS.has(ext) &&
+          !esExcedidoTamano &&
+          clasificacion.es_ingerible;
+
+        let advertencia = clasificacion.advertencia;
+        if (!advertencia && esExcedidoTamano) {
+          advertencia = 'El archivo excede el tamaño máximo permitido (512 KB); no puede ingerirse como fuente de verdad.';
+        }
+
+        const nombreScore = clasificacion.categoria === 'placeholder' ? 99 : getNombreScore(cleanNombre);
 
         candidatosRaw.push({
           path: posixRel,
@@ -259,6 +546,9 @@ export function detectarDocumentosProyecto(workspaceRoot: string): HallazgosProy
           tamano_bytes: st.size,
           nombreScore,
           ubicacionScore: ubicacion,
+          categoriaScore: clasificacion.categoriaScore,
+          categoria: clasificacion.categoria,
+          advertencia,
         });
       }
     }
@@ -266,11 +556,19 @@ export function detectarDocumentosProyecto(workspaceRoot: string): HallazgosProy
 
   explorar(resolvedRoot, 0);
 
-  // Ordenamiento determinista:
-  // 1. nombreScore (menor a mayor)
-  // 2. ubicacionScore (raíz=0 > docs=1 > subproyecto=2)
-  // 3. ruta POSIX alfabética
+  // Ordenamiento determinista (F8):
+  // 1. es_ingerible (true antes que false)
+  // 2. finalScore = categoriaScore + nombreScore + ubicacionScore (menor a mayor)
+  // 3. nombreScore (menor a mayor)
+  // 4. ubicacionScore (raíz=0 > docs=1 > subproyecto=2)
+  // 5. ruta POSIX alfabética
   candidatosRaw.sort((a, b) => {
+    if (a.es_ingerible !== b.es_ingerible) {
+      return a.es_ingerible ? -1 : 1;
+    }
+    const finalScoreA = a.categoriaScore + a.nombreScore + a.ubicacionScore;
+    const finalScoreB = b.categoriaScore + b.nombreScore + b.ubicacionScore;
+    if (finalScoreA !== finalScoreB) return finalScoreA - finalScoreB;
     if (a.nombreScore !== b.nombreScore) return a.nombreScore - b.nombreScore;
     if (a.ubicacionScore !== b.ubicacionScore) return a.ubicacionScore - b.ubicacionScore;
     return a.path.localeCompare(b.path);
@@ -282,7 +580,13 @@ export function detectarDocumentosProyecto(workspaceRoot: string): HallazgosProy
     es_ingerible: c.es_ingerible,
     tamano_bytes: c.tamano_bytes,
     ranking: idx,
-    factores: getFactoresPuntaje(c.nombre, c.path),
+    categoria: c.categoria,
+    advertencia: c.advertencia,
+    factores: {
+      ...getFactoresPuntaje(c.nombre, c.path, c.categoria, c.categoriaScore),
+      categoria: c.categoria,
+      categoriaScore: c.categoriaScore,
+    },
   }));
 
   // Detectar package.json raíz si existe
@@ -670,14 +974,41 @@ export function resolverDocumento(workspaceRoot: string, texto: string): Documen
 
       if (st.isFile()) {
         const ext = extname(realDocPath).toLowerCase();
-        const esIngerible = INGESTIBLE_EXTENSIONS.has(ext) && st.size <= MAX_FILE_SIZE_BYTES;
+        const cleanNombre = sanitizeDomString(basename(realDocPath), 200);
         const posixRel = relative(realWorkspaceRoot, realDocPath).replace(/\\/g, '/');
+
+        if (st.size === 0) {
+          return {
+            path: posixRel,
+            nombre: cleanNombre,
+            es_ingerible: false,
+            tamano_bytes: 0,
+            categoria: 'placeholder',
+            advertencia: 'Archivo vacío (0 bytes); no puede utilizarse como fuente de verdad.',
+          };
+        }
+
+        const snippet = sniffFileContent(realDocPath, 4096);
+        const clasificacion = clasificarDocumento(cleanNombre, posixRel, st.size, snippet);
+
+        const esExcedidoTamano = st.size > MAX_FILE_SIZE_BYTES;
+        const esIngerible =
+          INGESTIBLE_EXTENSIONS.has(ext) &&
+          !esExcedidoTamano &&
+          clasificacion.es_ingerible;
+
+        let advertencia = clasificacion.advertencia;
+        if (!advertencia && esExcedidoTamano) {
+          advertencia = 'El archivo excede el tamaño máximo permitido (512 KB); no puede ingerirse como fuente de verdad.';
+        }
 
         return {
           path: posixRel,
-          nombre: sanitizeDomString(basename(realDocPath), 200),
+          nombre: cleanNombre,
           es_ingerible: esIngerible,
           tamano_bytes: st.size,
+          categoria: clasificacion.categoria,
+          advertencia,
         };
       }
     }

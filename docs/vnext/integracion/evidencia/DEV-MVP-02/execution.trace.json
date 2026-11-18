@@ -1,0 +1,26 @@
+{
+  "execution_id": "exec_1794325830504_22879cdeaa364e0382215aca390f2c8c",
+  "case_approval_digest": "d5f2a80102c26bf8a1da50063cd353f01c5b576f5f77e90da54d719e8ab94b4b",
+  "requirements": [
+    {
+      "id": "requirement:38a0b2ef91ff594d08f93995816e664bded4bd8745bfd7c0e2c5ac1415c56fcf",
+      "revision": 1,
+      "digest": "d8b14e9f4552e2dbbe3a7dbfe532a5a5f2ed5c3c2a4ba3a3c5fadb9dba45fe6a"
+    },
+    {
+      "id": "requirement:38a0b2ef91ff594d08f93995816e664bded4bd8745bfd7c0e2c5ac1415c56fcf",
+      "revision": 1,
+      "digest": "d8b14e9f4552e2dbbe3a7dbfe532a5a5f2ed5c3c2a4ba3a3c5fadb9dba45fe6a"
+    }
+  ],
+  "cases": [
+    {
+      "id": "132f144b-2fc9-4b9d-a8b7-1c2f5ab7b82b",
+      "source_rule_id": "requirement:38a0b2ef91ff594d08f93995816e664bded4bd8745bfd7c0e2c5ac1415c56fcf"
+    },
+    {
+      "id": "9d174543-61b2-4f69-a60b-af73a33e1085",
+      "source_rule_id": "requirement:38a0b2ef91ff594d08f93995816e664bded4bd8745bfd7c0e2c5ac1415c56fcf"
+    }
+  ]
+}

@@ -4,7 +4,6 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-
 import YAML from 'yaml';
 
 import { handleTest } from '../commands/test.js';

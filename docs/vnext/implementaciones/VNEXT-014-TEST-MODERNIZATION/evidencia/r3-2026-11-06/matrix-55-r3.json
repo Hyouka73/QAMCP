@@ -1,0 +1,1322 @@
+[
+  {
+    "id": "TM-01",
+    "fullName": "Lifecycle V3 E2E & Verification Suite (E0 - E3) E0a: qap_status en WORKING para módulo con cobertura incompleta devuelve module, view y preguntas no vacías idénticas a qap_rules_set",
+    "baseline": "failed",
+    "r1": "passed",
+    "r2": "not_executed",
+    "r3": "not_executed",
+    "sha": null,
+    "duration_ms": null,
+    "semantic_equivalence": "No recertificada en R3",
+    "regression": "not_evaluated",
+    "certification": "No ejecutado",
+    "capability_pending": false,
+    "first_error": null,
+    "evidence": "identity-inventory.json (solo inspección; sin ejecución)",
+    "declarations": [
+      {
+        "fullName": "Lifecycle V3 E2E & Verification Suite (E0 - E3) E0a: qap_status en WORKING para módulo con cobertura incompleta devuelve module, view y preguntas no vacías idénticas a qap_rules_set",
+        "file": "packages/mcp/src/__tests__/lifecycle-v3-e2e.test.ts",
+        "line": 20,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-02",
+    "fullName": "Lifecycle V3 E2E & Verification Suite (E0 - E3) E1: regresión consolidated -> interviewing tras re-discover y política de waivers",
+    "baseline": "failed",
+    "r1": "passed",
+    "r2": "not_executed",
+    "r3": "not_executed",
+    "sha": null,
+    "duration_ms": null,
+    "semantic_equivalence": "No recertificada en R3",
+    "regression": "not_evaluated",
+    "certification": "No ejecutado",
+    "capability_pending": false,
+    "first_error": null,
+    "evidence": "identity-inventory.json (solo inspección; sin ejecución)",
+    "declarations": [
+      {
+        "fullName": "Lifecycle V3 E2E & Verification Suite (E0 - E3) E1: regresión consolidated -> interviewing tras re-discover y política de waivers",
+        "file": "packages/mcp/src/__tests__/lifecycle-v3-e2e.test.ts",
+        "line": 92,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-03",
+    "fullName": "Lifecycle V3 E2E & Verification Suite (E0 - E3) E2: qap_module_close validaciones, compuertas y transiciones",
+    "baseline": "failed",
+    "r1": "passed",
+    "r2": "not_executed",
+    "r3": "not_executed",
+    "sha": null,
+    "duration_ms": null,
+    "semantic_equivalence": "No recertificada en R3",
+    "regression": "not_evaluated",
+    "certification": "No ejecutado",
+    "capability_pending": false,
+    "first_error": null,
+    "evidence": "identity-inventory.json (solo inspección; sin ejecución)",
+    "declarations": [
+      {
+        "fullName": "Lifecycle V3 E2E & Verification Suite (E0 - E3) E2: qap_module_close validaciones, compuertas y transiciones",
+        "file": "packages/mcp/src/__tests__/lifecycle-v3-e2e.test.ts",
+        "line": 152,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-04",
+    "fullName": "Lifecycle V3 E2E & Verification Suite (E0 - E3) E3: canExitWorking, qap_session_close, reporte de brechas y nueva sesión desde WRAP_UP",
+    "baseline": "failed",
+    "r1": "passed",
+    "r2": "not_executed",
+    "r3": "not_executed",
+    "sha": null,
+    "duration_ms": null,
+    "semantic_equivalence": "No recertificada en R3",
+    "regression": "not_evaluated",
+    "certification": "No ejecutado",
+    "capability_pending": false,
+    "first_error": null,
+    "evidence": "identity-inventory.json (solo inspección; sin ejecución)",
+    "declarations": [
+      {
+        "fullName": "Lifecycle V3 E2E & Verification Suite (E0 - E3) E3: canExitWorking, qap_session_close, reporte de brechas y nueva sesión desde WRAP_UP",
+        "file": "packages/mcp/src/__tests__/lifecycle-v3-e2e.test.ts",
+        "line": 178,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-05",
+    "fullName": "Lifecycle V3 E2E & Verification Suite (E0 - E3) Criterio 9: E2E completo: init -> onboarding -> scoping -> working -> discover A -> rules_set parcial -> status (reanuda) -> rules_set completa -> module_close A -> discover B -> module_close waive B -> session_close -> status WRAP_UP -> session_plan nueva sesión",
+    "baseline": "failed",
+    "r1": "passed",
+    "r2": "not_executed",
+    "r3": "not_executed",
+    "sha": null,
+    "duration_ms": null,
+    "semantic_equivalence": "No recertificada en R3",
+    "regression": "not_evaluated",
+    "certification": "No ejecutado",
+    "capability_pending": false,
+    "first_error": null,
+    "evidence": "identity-inventory.json (solo inspección; sin ejecución)",
+    "declarations": [
+      {
+        "fullName": "Lifecycle V3 E2E & Verification Suite (E0 - E3) Criterio 9: E2E completo: init -> onboarding -> scoping -> working -> discover A -> rules_set parcial -> status (reanuda) -> rules_set completa -> module_close A -> discover B -> module_close waive B -> session_close -> status WRAP_UP -> session_plan nueva sesión",
+        "file": "packages/mcp/src/__tests__/lifecycle-v3-e2e.test.ts",
+        "line": 217,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-06",
+    "fullName": "P3 Suite de Verificación MCP (T3 - T15) T6: qap_discover éxito: no contiene \"Descubrir otro módulo\", \"pregunta_doc\" ni \"opciones_doc\"; siguiente_accion tipo entrevista_vista (<= 5 preguntas) con tool qap_rules_set, categorias_aplicables y rutas_detectadas_fuera_del_plan",
+    "baseline": "failed",
+    "r1": "passed",
+    "r2": "passed",
+    "r3": "passed",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468",
+    "duration_ms": 3159.8304000000007,
+    "semantic_equivalence": "Discovery físico fresh_anonymous_static persiste observaciones sin requisitos ni siguiente_accion; next separado abre pregunta revisable y status la reanuda. Entrevista embebida sustituida.",
+    "regression": "none",
+    "certification": "PASS físico con equivalencia suficiente para contrato canónico sustituido",
+    "capability_pending": false,
+    "first_error": null,
+    "evidence": "p3-canonical-discovery.json",
+    "declarations": [
+      {
+        "fullName": "P3 Suite de Verificación MCP (T3 - T15) T6: qap_discover éxito: no contiene \"Descubrir otro módulo\", \"pregunta_doc\" ni \"opciones_doc\"; siguiente_accion tipo entrevista_vista (<= 5 preguntas) con tool qap_rules_set, categorias_aplicables y rutas_detectadas_fuera_del_plan",
+        "file": "packages/mcp/src/__tests__/p3-canonical-discovery.test.ts",
+        "line": 22,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-07",
+    "fullName": "P3 Suite de Verificación MCP (T3 - T15) T7: rules.yaml tras discover: reglas inferred/dom con ids deterministas; re-discover idempotente (sin duplicados, reglas confirmadas intactas)",
+    "baseline": "failed",
+    "r1": "passed",
+    "r2": "passed",
+    "r3": "passed",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468",
+    "duration_ms": 2600.5272000000004,
+    "semantic_equivalence": "Observaciones de ejecuciones únicas, conserva observaciones previas y requisito/historial revisados tras re-discover; sin rules.yaml. No idempotencia global de adquisición.",
+    "regression": "none",
+    "certification": "PASS físico con equivalencia suficiente para contrato canónico sustituido",
+    "capability_pending": false,
+    "first_error": null,
+    "evidence": "p3-canonical-discovery.json",
+    "declarations": [
+      {
+        "fullName": "P3 Suite de Verificación MCP (T3 - T15) T7: rules.yaml tras discover: reglas inferred/dom con ids deterministas; re-discover idempotente (sin duplicados, reglas confirmadas intactas)",
+        "file": "packages/mcp/src/__tests__/p3-canonical-discovery.test.ts",
+        "line": 45,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-08",
+    "fullName": "P3 Suite de Verificación MCP (T3 - T15) T9: Fallo de Playwright: no inserta reglas; siguiente_accion tipo decision",
+    "baseline": "failed",
+    "r1": "passed",
+    "r2": "passed",
+    "r3": "passed",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468",
+    "duration_ms": 350.09989999999925,
+    "semantic_equivalence": "Binario inexistente produce fallo real de adquisición, cero observaciones/requisitos, lifecycle intacto e integridad SQLite. Decision legacy retirada.",
+    "regression": "none",
+    "certification": "PASS físico con equivalencia suficiente para contrato canónico sustituido",
+    "capability_pending": false,
+    "first_error": null,
+    "evidence": "p3-canonical-discovery.json",
+    "declarations": [
+      {
+        "fullName": "P3 Suite de Verificación MCP (T3 - T15) T9: Fallo de Playwright: no inserta reglas; siguiente_accion tipo decision",
+        "file": "packages/mcp/src/__tests__/p3-canonical-discovery.test.ts",
+        "line": 67,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-09",
+    "fullName": "P3 Suite de Verificación MCP (T3 - T15) T14: qap_status WORKING: (a) observed con hipótesis reanuda entrevista; (b) interviewing incompleto reanuda; (c) planned elige high > medium > low luego orden; (d) todos completos tipo decision",
+    "baseline": "failed",
+    "r1": "failed",
+    "r2": "passed",
+    "r3": "passed",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468",
+    "duration_ms": 2349.2392,
+    "semantic_equivalence": "Prioridades y desempate MCP pasan; no construye observed legacy ni todos completos en WORKING.",
+    "regression": "FAIL→PASS",
+    "certification": "PASS físico con equivalencia parcial",
+    "capability_pending": false,
+    "first_error": null,
+    "evidence": "p3-canonical-discovery.json",
+    "declarations": [
+      {
+        "fullName": "P3 Suite de Verificación MCP (T3 - T15) T14: qap_status WORKING: (a) observed con hipótesis reanuda entrevista; (b) interviewing incompleto reanuda; (c) planned elige high > medium > low luego orden; (d) todos completos tipo decision",
+        "file": "packages/mcp/src/__tests__/p3-canonical-discovery.test.ts",
+        "line": 83,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-10",
+    "fullName": "P3 Suite de Verificación MCP (T3 - T15) T15: E2E: flujo de P2 hasta WORKING -> discover A -> rules_set parcial -> status (reanuda A) -> rules_set completa cobertura -> status (propone B) -> discover B; ninguna respuesta del flujo contiene texto del bucle",
+    "baseline": "failed",
+    "r1": "passed",
+    "r2": "passed",
+    "r3": "passed",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468",
+    "duration_ms": 2840.617199999999,
+    "semantic_equivalence": "Onboarding/plan, dos Discovery reales, entrevista/cobertura/cierre revisado y siguiente módulo; sin texto de bucle ni promoción implícita.",
+    "regression": "none",
+    "certification": "PASS físico con equivalencia suficiente para contrato canónico sustituido",
+    "capability_pending": false,
+    "first_error": null,
+    "evidence": "p3-canonical-discovery.json",
+    "declarations": [
+      {
+        "fullName": "P3 Suite de Verificación MCP (T3 - T15) T15: E2E: flujo de P2 hasta WORKING -> discover A -> rules_set parcial -> status (reanuda A) -> rules_set completa cobertura -> status (propone B) -> discover B; ninguna respuesta del flujo contiene texto del bucle",
+        "file": "packages/mcp/src/__tests__/p3-canonical-discovery.test.ts",
+        "line": 144,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-11",
+    "fullName": "P4.2 Suite: Contrato Canónico de Pregunta y Verificación E2E (Criterio 4 y Criterio 6) Criterio 4.4: Ninguna respuesta con siguiente_accion trae preguntas como cadenas ni pregunta aplanada",
+    "baseline": "failed",
+    "r1": "passed",
+    "r2": "passed",
+    "r3": "passed",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468",
+    "duration_ms": 2258.2908999999995,
+    "semantic_equivalence": "Respuestas sin campos de pregunta aplanados; opciones estructuradas y pregunta canónica por next, sin requisito implícito.",
+    "regression": "none",
+    "certification": "PASS físico con equivalencia suficiente para contrato canónico sustituido",
+    "capability_pending": false,
+    "first_error": null,
+    "evidence": "p4-2-canonical-contract.json",
+    "declarations": [
+      {
+        "fullName": "P4.2 Suite: Contrato Canónico de Pregunta y Verificación E2E (Criterio 4 y Criterio 6) Criterio 4.4: Ninguna respuesta con siguiente_accion trae preguntas como cadenas ni pregunta aplanada",
+        "file": "packages/mcp/src/__tests__/p4-2-canonical-contract.test.ts",
+        "line": 17,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-12",
+    "fullName": "P4.2 Suite: Contrato Canónico de Pregunta y Verificación E2E (Criterio 4 y Criterio 6) Criterio 6: E2E Completo donde TODA siguiente_accion de tipo entrevista, entrevista_vista o decision trae Pregunta válida",
+    "baseline": "failed",
+    "r1": "failed",
+    "r2": "passed",
+    "r3": "passed",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468",
+    "duration_ms": 2101.0409,
+    "semantic_equivalence": "Versión inicial 0 e incremento de propuesta; revisión independiente, requisito, cierre/waiver, session_close y Pregunta válida WRAP_UP.",
+    "regression": "FAIL→PASS",
+    "certification": "PASS físico con equivalencia suficiente para contrato canónico sustituido",
+    "capability_pending": false,
+    "first_error": null,
+    "evidence": "p4-2-canonical-contract.json",
+    "declarations": [
+      {
+        "fullName": "P4.2 Suite: Contrato Canónico de Pregunta y Verificación E2E (Criterio 4 y Criterio 6) Criterio 6: E2E Completo donde TODA siguiente_accion de tipo entrevista, entrevista_vista o decision trae Pregunta válida",
+        "file": "packages/mcp/src/__tests__/p4-2-canonical-contract.test.ts",
+        "line": 42,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-13",
+    "fullName": "P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) 1. qap_discover protegido sin perfil: blocked auth_required y cero escrituras en disco",
+    "baseline": "failed",
+    "r1": "failed",
+    "r2": "not_executed",
+    "r3": "not_executed",
+    "sha": null,
+    "duration_ms": null,
+    "semantic_equivalence": "No recertificada en R3",
+    "regression": "not_evaluated",
+    "certification": "No ejecutado",
+    "capability_pending": true,
+    "first_error": null,
+    "evidence": "identity-inventory.json (solo inspección; sin ejecución)",
+    "declarations": [
+      {
+        "fullName": "P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) 1. qap_discover protegido sin perfil: blocked auth_required y cero escrituras en disco",
+        "file": "packages/mcp/src/__tests__/p4-4-auth-lifecycle.test.ts",
+        "line": 152,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-14",
+    "fullName": "P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) 2. qap_discover con redirección HTTP 302 a login: detecta auth_wall determinista y bloquea sin escribir",
+    "baseline": "failed",
+    "r1": "failed",
+    "r2": "not_executed",
+    "r3": "not_executed",
+    "sha": null,
+    "duration_ms": null,
+    "semantic_equivalence": "No recertificada en R3",
+    "regression": "not_evaluated",
+    "certification": "No ejecutado",
+    "capability_pending": true,
+    "first_error": null,
+    "evidence": "identity-inventory.json (solo inspección; sin ejecución)",
+    "declarations": [
+      {
+        "fullName": "P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) 2. qap_discover con redirección HTTP 302 a login: detecta auth_wall determinista y bloquea sin escribir",
+        "file": "packages/mcp/src/__tests__/p4-4-auth-lifecycle.test.ts",
+        "line": 191,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-15",
+    "fullName": "P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) 3. qap_discover con login embebido en ruta no-acceso: bloquea como auth_required sin persistir",
+    "baseline": "failed",
+    "r1": "failed",
+    "r2": "not_executed",
+    "r3": "not_executed",
+    "sha": null,
+    "duration_ms": null,
+    "semantic_equivalence": "No recertificada en R3",
+    "regression": "not_evaluated",
+    "certification": "No ejecutado",
+    "capability_pending": true,
+    "first_error": null,
+    "evidence": "identity-inventory.json (solo inspección; sin ejecución)",
+    "declarations": [
+      {
+        "fullName": "P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) 3. qap_discover con login embebido en ruta no-acceso: bloquea como auth_required sin persistir",
+        "file": "packages/mcp/src/__tests__/p4-4-auth-lifecycle.test.ts",
+        "line": 213,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-16",
+    "fullName": "P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) 4. qap_discover con sesión expirada: blocked session_invalid y desverifica el perfil",
+    "baseline": "failed",
+    "r1": "failed",
+    "r2": "not_executed",
+    "r3": "not_executed",
+    "sha": null,
+    "duration_ms": null,
+    "semantic_equivalence": "No recertificada en R3",
+    "regression": "not_evaluated",
+    "certification": "No ejecutado",
+    "capability_pending": true,
+    "first_error": null,
+    "evidence": "identity-inventory.json (solo inspección; sin ejecución)",
+    "declarations": [
+      {
+        "fullName": "P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) 4. qap_discover con sesión expirada: blocked session_invalid y desverifica el perfil",
+        "file": "packages/mcp/src/__tests__/p4-4-auth-lifecycle.test.ts",
+        "line": 233,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-17",
+    "fullName": "P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) 5. qap_discover con perfil verificado y storageState válido: devuelve app y transiciona a observed",
+    "baseline": "failed",
+    "r1": "failed",
+    "r2": "not_executed",
+    "r3": "not_executed",
+    "sha": null,
+    "duration_ms": null,
+    "semantic_equivalence": "No recertificada en R3",
+    "regression": "not_evaluated",
+    "certification": "No ejecutado",
+    "capability_pending": true,
+    "first_error": null,
+    "evidence": "identity-inventory.json (solo inspección; sin ejecución)",
+    "declarations": [
+      {
+        "fullName": "P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) 5. qap_discover con perfil verificado y storageState válido: devuelve app y transiciona a observed",
+        "file": "packages/mcp/src/__tests__/p4-4-auth-lifecycle.test.ts",
+        "line": 306,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-18",
+    "fullName": "P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) 6. qap_discover en módulo de acceso: selectors.json incluye auth_selectors y omite valores y atributos sensibles de password",
+    "baseline": "failed",
+    "r1": "failed",
+    "r2": "not_executed",
+    "r3": "not_executed",
+    "sha": null,
+    "duration_ms": null,
+    "semantic_equivalence": "No recertificada en R3",
+    "regression": "not_evaluated",
+    "certification": "No ejecutado",
+    "capability_pending": true,
+    "first_error": null,
+    "evidence": "identity-inventory.json (solo inspección; sin ejecución)",
+    "declarations": [
+      {
+        "fullName": "P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) 6. qap_discover en módulo de acceso: selectors.json incluye auth_selectors y omite valores y atributos sensibles de password",
+        "file": "packages/mcp/src/__tests__/p4-4-auth-lifecycle.test.ts",
+        "line": 381,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-19",
+    "fullName": "P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) 15. Guard de cliente asíncrono lento (~1200ms) en qap_discover: responde blocked auth_required y cero escrituras en .qa/modules (C3c)",
+    "baseline": "failed",
+    "r1": "failed",
+    "r2": "not_executed",
+    "r3": "not_executed",
+    "sha": null,
+    "duration_ms": null,
+    "semantic_equivalence": "No recertificada en R3",
+    "regression": "not_evaluated",
+    "certification": "No ejecutado",
+    "capability_pending": true,
+    "first_error": null,
+    "evidence": "identity-inventory.json (solo inspección; sin ejecución)",
+    "declarations": [
+      {
+        "fullName": "P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP) 15. Guard de cliente asíncrono lento (~1200ms) en qap_discover: responde blocked auth_required y cero escrituras en .qa/modules (C3c)",
+        "file": "packages/mcp/src/__tests__/p4-4-auth-lifecycle.test.ts",
+        "line": 833,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-20",
+    "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) Criterio 2: regla redactada por agente sin user_text ni from_option se guarda como inferred/agent y no cuenta en cobertura",
+    "baseline": "failed",
+    "r1": "passed",
+    "r2": "not_executed",
+    "r3": "passed",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468",
+    "duration_ms": 826.0668999999998,
+    "semantic_equivalence": "Wire legacy no confiere autoridad; propuesta canónica pending_review sin requisitos ni cobertura normativa. Inferred/agent sustituido por draft sin promoción.",
+    "regression": "none",
+    "certification": "PASS físico con equivalencia suficiente para contrato canónico sustituido",
+    "capability_pending": false,
+    "first_error": null,
+    "evidence": "p4-5a-canonical-integrity.json",
+    "declarations": [
+      {
+        "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) Criterio 2: regla redactada por agente sin user_text ni from_option se guarda como inferred/agent y no cuenta en cobertura",
+        "file": "packages/mcp/src/__tests__/p4-5a-canonical-integrity.test.ts",
+        "line": 19,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-21",
+    "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) Criterio 3: una etiqueta de opción predefinida del motor NO cubre una categoría",
+    "baseline": "failed",
+    "r1": "passed",
+    "r2": "not_executed",
+    "r3": "passed",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468",
+    "duration_ms": 329.3150999999998,
+    "semantic_equivalence": "Etiqueta del motor no es texto sustantivo: propuesta no se confirma ni crea requisito; review substantive_statement_required.",
+    "regression": "none",
+    "certification": "PASS físico con equivalencia suficiente para contrato canónico sustituido",
+    "capability_pending": false,
+    "first_error": null,
+    "evidence": "p4-5a-canonical-integrity.json",
+    "declarations": [
+      {
+        "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) Criterio 3: una etiqueta de opción predefinida del motor NO cubre una categoría",
+        "file": "packages/mcp/src/__tests__/p4-5a-canonical-integrity.test.ts",
+        "line": 32,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-22",
+    "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) Criterio 4: un módulo con 2 reglas de 7 categorías no cierra sin accept_gaps, y cierra con él dejando registro",
+    "baseline": "failed",
+    "r1": "passed",
+    "r2": "not_executed",
+    "r3": "passed",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468",
+    "duration_ms": 640.3143,
+    "semantic_equivalence": "Aceptación durable de una brecha sin bypass; no prueba dos requisitos ni cierre por accept_gaps (contrato sustituido).",
+    "regression": "none",
+    "certification": "PASS físico con equivalencia parcial",
+    "capability_pending": false,
+    "first_error": null,
+    "evidence": "p4-5a-canonical-integrity.json",
+    "declarations": [
+      {
+        "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) Criterio 4: un módulo con 2 reglas de 7 categorías no cierra sin accept_gaps, y cierra con él dejando registro",
+        "file": "packages/mcp/src/__tests__/p4-5a-canonical-integrity.test.ts",
+        "line": 46,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-23",
+    "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) C9a: blocked de qap_discover con auth_required incluye razon auth_required y directorio_objetivo, con claves alineadas a session_invalid",
+    "baseline": "failed",
+    "r1": "passed",
+    "r2": "not_executed",
+    "r3": "passed",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468",
+    "duration_ms": 236.94610000000011,
+    "semantic_equivalence": "Negativo authentication_not_supported; no demuestra auth_required/session_invalid ni sus campos históricos.",
+    "regression": "none",
+    "certification": "PASS físico con equivalencia parcial",
+    "capability_pending": false,
+    "first_error": null,
+    "evidence": "p4-5a-canonical-integrity.json",
+    "declarations": [
+      {
+        "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) C9a: blocked de qap_discover con auth_required incluye razon auth_required y directorio_objetivo, con claves alineadas a session_invalid",
+        "file": "packages/mcp/src/__tests__/p4-5a-canonical-integrity.test.ts",
+        "line": 70,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-24",
+    "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) C4-a: from_option con pregunta_id inexistente, opcion_id inexistente o sin texto sustantivo (rechazo o degradación a agent/inferred)",
+    "baseline": "failed",
+    "r1": "passed",
+    "r2": "not_executed",
+    "r3": "passed",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468",
+    "duration_ms": 321.28539999999975,
+    "semantic_equivalence": "ID inventado y legacy from_option no conceden autoridad; opción falsa no existe y cero requisitos. Formato legacy explícitamente sustituido.",
+    "regression": "none",
+    "certification": "PASS físico con equivalencia suficiente para contrato canónico sustituido",
+    "capability_pending": false,
+    "first_error": null,
+    "evidence": "p4-5a-canonical-integrity.json",
+    "declarations": [
+      {
+        "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) C4-a: from_option con pregunta_id inexistente, opcion_id inexistente o sin texto sustantivo (rechazo o degradación a agent/inferred)",
+        "file": "packages/mcp/src/__tests__/p4-5a-canonical-integrity.test.ts",
+        "line": 82,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-25",
+    "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) C4-b: límites de sustantividad (2 palabras o 19 caracteres no cubren; 3 palabras y 20 caracteres sí)",
+    "baseline": "failed",
+    "r1": "passed",
+    "r2": "not_executed",
+    "r3": "passed",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468",
+    "duration_ms": 455.54150000000027,
+    "semantic_equivalence": "Umbral léxico positivo unitario; review negativo por texto y autorización; el límite positivo exacto no se confirma/persiste en este caso.",
+    "regression": "none",
+    "certification": "PASS físico con equivalencia parcial",
+    "capability_pending": false,
+    "first_error": null,
+    "evidence": "p4-5a-canonical-integrity.json",
+    "declarations": [
+      {
+        "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) C4-b: límites de sustantividad (2 palabras o 19 caracteres no cubren; 3 palabras y 20 caracteres sí)",
+        "file": "packages/mcp/src/__tests__/p4-5a-canonical-integrity.test.ts",
+        "line": 95,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-26",
+    "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) C4-c: accept_gaps con razón de 14 caracteres bloquea y con 15 cierra y deja el registro",
+    "baseline": "failed",
+    "r1": "passed",
+    "r2": "not_executed",
+    "r3": "passed",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468",
+    "duration_ms": 386.09370000000035,
+    "semantic_equivalence": "Razón 14 rechazada y 15 aceptada durable; accept_gaps no cierra automáticamente (sustitución explícita).",
+    "regression": "none",
+    "certification": "PASS físico con equivalencia parcial",
+    "capability_pending": false,
+    "first_error": null,
+    "evidence": "p4-5a-canonical-integrity.json",
+    "declarations": [
+      {
+        "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) C4-c: accept_gaps con razón de 14 caracteres bloquea y con 15 cierra y deja el registro",
+        "file": "packages/mcp/src/__tests__/p4-5a-canonical-integrity.test.ts",
+        "line": 117,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-27",
+    "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) C4-d: plan con auth.required true sin roles queda bloqueado con pregunta de roles y bloquea discover (V4)",
+    "baseline": "failed",
+    "r1": "failed",
+    "r2": "not_executed",
+    "r3": "not_executed",
+    "sha": null,
+    "duration_ms": null,
+    "semantic_equivalence": "No recertificada en R3",
+    "regression": "not_evaluated",
+    "certification": "No ejecutado",
+    "capability_pending": true,
+    "first_error": null,
+    "evidence": "identity-inventory.json (solo inspección; sin ejecución)",
+    "declarations": [
+      {
+        "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) C4-d: plan con auth.required true sin roles queda bloqueado con pregunta de roles y bloquea discover (V4)",
+        "file": "packages/mcp/src/__tests__/p4-5a-integrity.test.ts",
+        "line": 249,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-28",
+    "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) C1: campos honestos en bloqueos previos a navegar y navegación real",
+    "baseline": "failed",
+    "r1": "passed",
+    "r2": "not_executed",
+    "r3": "passed",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468",
+    "duration_ms": 1553.4081999999999,
+    "semantic_equivalence": "Autorización ausente bloquea sin escritura; recuperación autorizada adquiere realmente y conserva lifecycle.",
+    "regression": "none",
+    "certification": "PASS físico con equivalencia suficiente para contrato canónico sustituido",
+    "capability_pending": false,
+    "first_error": null,
+    "evidence": "p4-5a-canonical-integrity.json",
+    "declarations": [
+      {
+        "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) C1: campos honestos en bloqueos previos a navegar y navegación real",
+        "file": "packages/mcp/src/__tests__/p4-5a-canonical-integrity.test.ts",
+        "line": 137,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-29",
+    "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) C3: flujo real de preguntas de categoría, formato una_opcion, persistencia y respuestas user_text y deferred",
+    "baseline": "failed",
+    "r1": "passed",
+    "r2": "not_executed",
+    "r3": "passed",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468",
+    "duration_ms": 1388.8564999999999,
+    "semantic_equivalence": "Cuatro opciones canónicas, defer/resume estable sin requisitos, confirmación con gateway y un requisito; execution not_executed. User_text/una_opcion sustituidos.",
+    "regression": "none",
+    "certification": "PASS físico con equivalencia suficiente para contrato canónico sustituido",
+    "capability_pending": false,
+    "first_error": null,
+    "evidence": "p4-5a-canonical-integrity.json",
+    "declarations": [
+      {
+        "fullName": "P4.5-A Suite de Integridad de Conocimiento (Criterios 2, 3, 4, C7, C9a) C3: flujo real de preguntas de categoría, formato una_opcion, persistencia y respuestas user_text y deferred",
+        "file": "packages/mcp/src/__tests__/p4-5a-canonical-integrity.test.ts",
+        "line": 155,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-30",
+    "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C1: Clasificación honesta con adaptador real C1-a: módulo de acceso pedido en login sin redirección NO se bloquea (page_kind login, success)",
+    "baseline": "failed",
+    "r1": "failed",
+    "r2": "not_executed",
+    "r3": "not_executed",
+    "sha": null,
+    "duration_ms": null,
+    "semantic_equivalence": "No recertificada en R3",
+    "regression": "not_evaluated",
+    "certification": "No ejecutado",
+    "capability_pending": true,
+    "first_error": null,
+    "evidence": "identity-inventory.json (solo inspección; sin ejecución)",
+    "declarations": [
+      {
+        "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C1: Clasificación honesta con adaptador real C1-a: módulo de acceso pedido en login sin redirección NO se bloquea (page_kind login, success)",
+        "file": "packages/mcp/src/__tests__/p4-5a2-integrity.test.ts",
+        "line": 119,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-31",
+    "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C1: Clasificación honesta con adaptador real C1-b: ruta protegida con redirección HTTP 302 a /login detecta auth_wall determinista y bloquea",
+    "baseline": "failed",
+    "r1": "failed",
+    "r2": "not_executed",
+    "r3": "not_executed",
+    "sha": null,
+    "duration_ms": null,
+    "semantic_equivalence": "No recertificada en R3",
+    "regression": "not_evaluated",
+    "certification": "No ejecutado",
+    "capability_pending": true,
+    "first_error": null,
+    "evidence": "identity-inventory.json (solo inspección; sin ejecución)",
+    "declarations": [
+      {
+        "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C1: Clasificación honesta con adaptador real C1-b: ruta protegida con redirección HTTP 302 a /login detecta auth_wall determinista y bloquea",
+        "file": "packages/mcp/src/__tests__/p4-5a2-integrity.test.ts",
+        "line": 135,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-32",
+    "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C1: Clasificación honesta con adaptador real C1-c: ruta protegida con guard del lado del cliente detecta auth_wall con redirección al login",
+    "baseline": "failed",
+    "r1": "failed",
+    "r2": "not_executed",
+    "r3": "not_executed",
+    "sha": null,
+    "duration_ms": null,
+    "semantic_equivalence": "No recertificada en R3",
+    "regression": "not_evaluated",
+    "certification": "No ejecutado",
+    "capability_pending": true,
+    "first_error": null,
+    "evidence": "identity-inventory.json (solo inspección; sin ejecución)",
+    "declarations": [
+      {
+        "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C1: Clasificación honesta con adaptador real C1-c: ruta protegida con guard del lado del cliente detecta auth_wall con redirección al login",
+        "file": "packages/mcp/src/__tests__/p4-5a2-integrity.test.ts",
+        "line": 152,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-33",
+    "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C3: Integridad de categoría en from_option y regla de cobertura completa C3-a: la categoría de from_option se toma siempre de la pregunta pendiente persistida",
+    "baseline": "failed",
+    "r1": "passed",
+    "r2": "passed",
+    "r3": "passed",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468",
+    "duration_ms": 807.0536000000002,
+    "semantic_equivalence": "Categoría formal security en propuesta autorizada y requisito SQLite revisado; prompt proposito independiente y digest correlacionado.",
+    "regression": "none",
+    "certification": "PASS físico con equivalencia suficiente para contrato canónico sustituido",
+    "capability_pending": false,
+    "first_error": null,
+    "evidence": "p4-5a2-canonical-integrity.json",
+    "declarations": [
+      {
+        "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C3: Integridad de categoría en from_option y regla de cobertura completa C3-a: la categoría de from_option se toma siempre de la pregunta pendiente persistida",
+        "file": "packages/mcp/src/__tests__/p4-5a2-canonical-integrity.test.ts",
+        "line": 18,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-34",
+    "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C3: Integridad de categoría en from_option y regla de cobertura completa C3-b: si la petición declara una categoría distinta a la de la pregunta pendiente se rechaza con blocked",
+    "baseline": "failed",
+    "r1": "passed",
+    "r2": "passed",
+    "r3": "passed",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468",
+    "duration_ms": 493.27700000000004,
+    "semantic_equivalence": "ID/módulo/categoría inválida no crean requisito; security válida requiere host. La comparación literal con categoría del prompt fue sustituida.",
+    "regression": "none",
+    "certification": "PASS físico con equivalencia suficiente para contrato canónico sustituido",
+    "capability_pending": false,
+    "first_error": null,
+    "evidence": "p4-5a2-canonical-integrity.json",
+    "declarations": [
+      {
+        "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C3: Integridad de categoría en from_option y regla de cobertura completa C3-b: si la petición declara una categoría distinta a la de la pregunta pendiente se rechaza con blocked",
+        "file": "packages/mcp/src/__tests__/p4-5a2-canonical-integrity.test.ts",
+        "line": 47,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-35",
+    "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C4: Flujo de respuestas cortas como borrador y propuesta de enunciado C4-a: respuesta corta se guarda como borrador (status inferred, source user_text, borrador true) y no cubre",
+    "baseline": "failed",
+    "r1": "passed",
+    "r2": "passed",
+    "r3": "passed",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468",
+    "duration_ms": 356.9791,
+    "semantic_equivalence": "Snapshot de draft pending_review/título sobrevive reapertura stores/servidor; misma pregunta, cero requisitos y texto insuficiente bloqueado.",
+    "regression": "none",
+    "certification": "PASS físico con equivalencia suficiente para contrato canónico sustituido",
+    "capability_pending": false,
+    "first_error": null,
+    "evidence": "p4-5a2-canonical-integrity.json",
+    "declarations": [
+      {
+        "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C4: Flujo de respuestas cortas como borrador y propuesta de enunciado C4-a: respuesta corta se guarda como borrador (status inferred, source user_text, borrador true) y no cubre",
+        "file": "packages/mcp/src/__tests__/p4-5a2-canonical-integrity.test.ts",
+        "line": 78,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-36",
+    "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C4: Flujo de respuestas cortas como borrador y propuesta de enunciado C4-b: derivación determinista en categoría actor que nombra roles emite Pregunta una_opcion directamente",
+    "baseline": "failed",
+    "r1": "passed",
+    "r2": "passed",
+    "r3": "passed",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468",
+    "duration_ms": 428.94810000000007,
+    "semantic_equivalence": "Después de requisito revisado se emite actor estable; cuatro acciones canónicas y no se agrega otro requisito por pedir next. Una_opcion legacy sustituida.",
+    "regression": "none",
+    "certification": "PASS físico con equivalencia suficiente para contrato canónico sustituido",
+    "capability_pending": false,
+    "first_error": null,
+    "evidence": "p4-5a2-canonical-integrity.json",
+    "declarations": [
+      {
+        "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C4: Flujo de respuestas cortas como borrador y propuesta de enunciado C4-b: derivación determinista en categoría actor que nombra roles emite Pregunta una_opcion directamente",
+        "file": "packages/mcp/src/__tests__/p4-5a2-canonical-integrity.test.ts",
+        "line": 82,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-37",
+    "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C4: Flujo de respuestas cortas como borrador y propuesta de enunciado C4-c: envío de propuesta_enunciado válida para un borrador emite Pregunta una_opcion con las 3 opciones",
+    "baseline": "failed",
+    "r1": "passed",
+    "r2": "passed",
+    "r3": "passed",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468",
+    "duration_ms": 314.84029999999984,
+    "semantic_equivalence": "Propuesta enlazada a pregunta pending_review, cuatro acciones canónicas, review sin host bloquea y cero requisitos. Tres opciones legacy sustituidas.",
+    "regression": "none",
+    "certification": "PASS físico con equivalencia suficiente para contrato canónico sustituido",
+    "capability_pending": false,
+    "first_error": null,
+    "evidence": "p4-5a2-canonical-integrity.json",
+    "declarations": [
+      {
+        "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C4: Flujo de respuestas cortas como borrador y propuesta de enunciado C4-c: envío de propuesta_enunciado válida para un borrador emite Pregunta una_opcion con las 3 opciones",
+        "file": "packages/mcp/src/__tests__/p4-5a2-canonical-integrity.test.ts",
+        "line": 86,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-38",
+    "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C4: Flujo de respuestas cortas como borrador y propuesta de enunciado C4-d: resolver con \"Es correcto\" guarda regla confirmed user_confirmed con enunciado exacto y cubre",
+    "baseline": "failed",
+    "r1": "passed",
+    "r2": "passed",
+    "r3": "passed",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468",
+    "duration_ms": 583.8003000000008,
+    "semantic_equivalence": "Contenido/procedencia/recibo único revisados en SQLite; seis exclusiones revisadas completan especificación sin ejecución ficticia.",
+    "regression": "none",
+    "certification": "PASS físico con equivalencia suficiente para contrato canónico sustituido",
+    "capability_pending": false,
+    "first_error": null,
+    "evidence": "p4-5a2-canonical-integrity.json",
+    "declarations": [
+      {
+        "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C4: Flujo de respuestas cortas como borrador y propuesta de enunciado C4-d: resolver con \"Es correcto\" guarda regla confirmed user_confirmed con enunciado exacto y cubre",
+        "file": "packages/mcp/src/__tests__/p4-5a2-canonical-integrity.test.ts",
+        "line": 90,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-39",
+    "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C4: Flujo de respuestas cortas como borrador y propuesta de enunciado C4-e: resolver con \"Lo defino después\" guarda regla deferred y no cubre",
+    "baseline": "failed",
+    "r1": "passed",
+    "r2": "passed",
+    "r3": "passed",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468",
+    "duration_ms": 317.8615,
+    "semantic_equivalence": "Defer conserva pregunta/estado tras restart, cero requisitos y sin promoción; regla deferred YAML sustituida por draft.",
+    "regression": "none",
+    "certification": "PASS físico con equivalencia suficiente para contrato canónico sustituido",
+    "capability_pending": false,
+    "first_error": null,
+    "evidence": "p4-5a2-canonical-integrity.json",
+    "declarations": [
+      {
+        "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C4: Flujo de respuestas cortas como borrador y propuesta de enunciado C4-e: resolver con \"Lo defino después\" guarda regla deferred y no cubre",
+        "file": "packages/mcp/src/__tests__/p4-5a2-canonical-integrity.test.ts",
+        "line": 123,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-40",
+    "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C4: Flujo de respuestas cortas como borrador y propuesta de enunciado C4-f: propuesta_enunciado corta o genérica es rechazada con status error",
+    "baseline": "failed",
+    "r1": "passed",
+    "r2": "passed",
+    "r3": "passed",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468",
+    "duration_ms": 308.6756000000005,
+    "semantic_equivalence": "Texto genérico no sustantivo bloquea review y no persiste requisitos; se sustituye error legacy por blocked sustantivo.",
+    "regression": "none",
+    "certification": "PASS físico con equivalencia suficiente para contrato canónico sustituido",
+    "capability_pending": false,
+    "first_error": null,
+    "evidence": "p4-5a2-canonical-integrity.json",
+    "declarations": [
+      {
+        "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C4: Flujo de respuestas cortas como borrador y propuesta de enunciado C4-f: propuesta_enunciado corta o genérica es rechazada con status error",
+        "file": "packages/mcp/src/__tests__/p4-5a2-canonical-integrity.test.ts",
+        "line": 127,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-41",
+    "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C10: Detección y advertencia de extracción vacía C10-a: página app/login sin elementos interactivos genera advertencia extraccion_vacia y trabajo",
+    "baseline": "failed",
+    "r1": "passed",
+    "r2": "passed",
+    "r3": "passed",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468",
+    "duration_ms": 1532.8670999999995,
+    "semantic_equivalence": "HTML pasivo completed, cero controles y requisitos; no acredita advertencia legacy ni observaciones >0 en este caso.",
+    "regression": "none",
+    "certification": "PASS físico con equivalencia parcial",
+    "capability_pending": false,
+    "first_error": null,
+    "evidence": "p4-5a2-canonical-integrity.json",
+    "declarations": [
+      {
+        "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C10: Detección y advertencia de extracción vacía C10-a: página app/login sin elementos interactivos genera advertencia extraccion_vacia y trabajo",
+        "file": "packages/mcp/src/__tests__/p4-5a2-canonical-integrity.test.ts",
+        "line": 133,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-42",
+    "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C10: Detección y advertencia de extracción vacía C10-b: página con al menos un elemento interactivo no genera advertencia extraccion_vacia",
+    "baseline": "failed",
+    "r1": "passed",
+    "r2": "passed",
+    "r3": "passed",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468",
+    "duration_ms": 1033.1812999999993,
+    "semantic_equivalence": "Controles >0 y observaciones >0 sin requisitos; no afirma ausencia de extraccion_vacia en esta identidad.",
+    "regression": "none",
+    "certification": "PASS físico con equivalencia parcial",
+    "capability_pending": false,
+    "first_error": null,
+    "evidence": "p4-5a2-canonical-integrity.json",
+    "declarations": [
+      {
+        "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C10: Detección y advertencia de extracción vacía C10-b: página con al menos un elemento interactivo no genera advertencia extraccion_vacia",
+        "file": "packages/mcp/src/__tests__/p4-5a2-canonical-integrity.test.ts",
+        "line": 137,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-43",
+    "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C10: Detección y advertencia de extracción vacía C10-c: la advertencia extraccion_vacia es agnóstica de la aplicación",
+    "baseline": "failed",
+    "r1": "passed",
+    "r2": "passed",
+    "r3": "passed",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468",
+    "duration_ms": 1876.0693999999985,
+    "semantic_equivalence": "Dos módulos pasivos completed, cero controles y ausencia de extraccion_vacia; no prueba aviso antiguo (retirado del contrato).",
+    "regression": "none",
+    "certification": "PASS físico con equivalencia parcial",
+    "capability_pending": false,
+    "first_error": null,
+    "evidence": "p4-5a2-canonical-integrity.json",
+    "declarations": [
+      {
+        "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C10: Detección y advertencia de extracción vacía C10-c: la advertencia extraccion_vacia es agnóstica de la aplicación",
+        "file": "packages/mcp/src/__tests__/p4-5a2-canonical-integrity.test.ts",
+        "line": 141,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-44",
+    "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C3: Transliteración NFD de slugs y prevención de módulos fuera del plan C1-c: módulo con tilde preserva nombre en lifecycle, crea directorio y normaliza pending_questions con transliteración NFD",
+    "baseline": "failed",
+    "r1": "passed",
+    "r2": "passed",
+    "r3": "passed",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468",
+    "duration_ms": 1572.4514999999992,
+    "semantic_equivalence": "Positivo Operación/operacion, binding y requisito tras restart; no aserta contenido draft tras restart y Knowledge mantiene su conexión abierta.",
+    "regression": "none",
+    "certification": "PASS físico con equivalencia parcial",
+    "capability_pending": false,
+    "first_error": null,
+    "evidence": "p4-5a2-canonical-integrity.json",
+    "declarations": [
+      {
+        "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C3: Transliteración NFD de slugs y prevención de módulos fuera del plan C1-c: módulo con tilde preserva nombre en lifecycle, crea directorio y normaliza pending_questions con transliteración NFD",
+        "file": "packages/mcp/src/__tests__/p4-5a2-canonical-integrity.test.ts",
+        "line": 147,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-45",
+    "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C3: Transliteración NFD de slugs y prevención de módulos fuera del plan C2-seguimiento: selección de \"Corregir\" emite pregunta de seguimiento y no persiste regla espuria en rules.yaml",
+    "baseline": "failed",
+    "r1": "passed",
+    "r2": "passed",
+    "r3": "passed",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468",
+    "duration_ms": 367.51770000000033,
+    "semantic_equivalence": "Correct conserva ID e incrementa versión, mantiene revisión requerida y bloquea sin host; cero requisitos espurios.",
+    "regression": "none",
+    "certification": "PASS físico con equivalencia suficiente para contrato canónico sustituido",
+    "capability_pending": false,
+    "first_error": null,
+    "evidence": "p4-5a2-canonical-integrity.json",
+    "declarations": [
+      {
+        "fullName": "P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, C10) C3: Transliteración NFD de slugs y prevención de módulos fuera del plan C2-seguimiento: selección de \"Corregir\" emite pregunta de seguimiento y no persiste regla espuria en rules.yaml",
+        "file": "packages/mcp/src/__tests__/p4-5a2-canonical-integrity.test.ts",
+        "line": 191,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-46",
+    "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 debe descubrir modulos y responder en desarrollo para qap_plan y qap_test",
+    "baseline": "failed",
+    "r1": "failed",
+    "r2": "not_executed",
+    "r3": "passed",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468",
+    "duration_ms": 2900.6131,
+    "semantic_equivalence": "MCP real: plan_missing, plan.json/fingerprint, Chromium con resultado persisted passed y rechazo cases_mismatch sin nueva ejecución. No stub en_desarrollo.",
+    "regression": "FAIL→PASS",
+    "certification": "PASS físico con equivalencia suficiente para contrato canónico sustituido",
+    "capability_pending": false,
+    "first_error": null,
+    "evidence": "server-canonical-operations.json",
+    "declarations": [
+      {
+        "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 debe descubrir modulos y responder en desarrollo para qap_plan y qap_test",
+        "file": "packages/mcp/src/__tests__/server-canonical-operations.test.ts",
+        "line": 21,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-47",
+    "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 el contexto de vista generado por qap_discover debe validar contra module-view.schema.json (Criterio 4)",
+    "baseline": "failed",
+    "r1": "passed",
+    "r2": "passed",
+    "r3": "passed",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468",
+    "duration_ms": 1965.7302,
+    "semantic_equivalence": "Discovery adquirido/asociado, conteos observaciones/evidencia >0 correlacionados con SQL, unreviewed, cero requisitos y sin context.yaml legacy.",
+    "regression": "none",
+    "certification": "PASS físico con equivalencia suficiente para contrato canónico sustituido",
+    "capability_pending": false,
+    "first_error": null,
+    "evidence": "server-canonical-discovery.json",
+    "declarations": [
+      {
+        "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 el contexto de vista generado por qap_discover debe validar contra module-view.schema.json (Criterio 4)",
+        "file": "packages/mcp/src/__tests__/server-canonical-discovery.test.ts",
+        "line": 20,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-48",
+    "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 qap_discover con contexto de vista inválido no debe escribir archivos y debe retornar error (Criterio 4)",
+    "baseline": "failed",
+    "r1": "passed",
+    "r2": "passed",
+    "r3": "passed",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468",
+    "duration_ms": 1344.1853,
+    "semantic_equivalence": "Cinco familias de negativas pasan; revisión 999 frente a 1 prueba mismatch futuro, no consentimiento anterior tras actualizar Environment.",
+    "regression": "none",
+    "certification": "PASS físico con equivalencia parcial",
+    "capability_pending": false,
+    "first_error": null,
+    "evidence": "server-canonical-discovery.json",
+    "declarations": [
+      {
+        "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 qap_discover con contexto de vista inválido no debe escribir archivos y debe retornar error (Criterio 4)",
+        "file": "packages/mcp/src/__tests__/server-canonical-discovery.test.ts",
+        "line": 38,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-49",
+    "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 E0a: qap_discover valida contra module-view.schema.json en camino de fallo de Playwright",
+    "baseline": "failed",
+    "r1": "passed",
+    "r2": "passed",
+    "r3": "passed",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468",
+    "duration_ms": 311.22500000000036,
+    "semantic_equivalence": "Fallo real de lanzamiento por binario inexistente, sin adquisición completada, observaciones/requisitos ni mutación lifecycle; integridad SQLite.",
+    "regression": "none",
+    "certification": "PASS físico con equivalencia suficiente para contrato canónico sustituido",
+    "capability_pending": false,
+    "first_error": null,
+    "evidence": "server-canonical-discovery.json",
+    "declarations": [
+      {
+        "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 E0a: qap_discover valida contra module-view.schema.json en camino de fallo de Playwright",
+        "file": "packages/mcp/src/__tests__/server-canonical-discovery.test.ts",
+        "line": 81,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-50",
+    "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 E0b: qap_discover valida contra module-view.schema.json en vista de autenticacion con session_saved true",
+    "baseline": "failed",
+    "r1": "failed",
+    "r2": "not_executed",
+    "r3": "failed",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468",
+    "duration_ms": 184.3742000000002,
+    "semantic_equivalence": "Discovery autenticado/session_saved no implementado por el camino canónico.",
+    "regression": "none",
+    "certification": "Capacidad no implementada (FAIL físico legacy)",
+    "capability_pending": true,
+    "first_error": "AssertionError: expected true to be falsy\n    at <repo>/packages/mcp/src/__tests__/server.test.ts:527:25\n    at file:///<repo>/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20",
+    "evidence": "server.json",
+    "declarations": [
+      {
+        "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 E0b: qap_discover valida contra module-view.schema.json en vista de autenticacion con session_saved true",
+        "file": "packages/mcp/src/__tests__/server.test.ts",
+        "line": 479,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-51",
+    "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 E0c: qap_discover valida contra module-view.schema.json en vista con routes_found vacio",
+    "baseline": "failed",
+    "r1": "passed",
+    "r2": "passed",
+    "r3": "passed",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468",
+    "duration_ms": 1167.2622000000001,
+    "semantic_equivalence": "HTML pasivo adquirido/asociado con controls/forms=0, observaciones>0 y cero requisitos, sin inventar ausencia de vista.",
+    "regression": "none",
+    "certification": "PASS físico con equivalencia suficiente para contrato canónico sustituido",
+    "capability_pending": false,
+    "first_error": null,
+    "evidence": "server-canonical-discovery.json",
+    "declarations": [
+      {
+        "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 E0c: qap_discover valida contra module-view.schema.json en vista con routes_found vacio",
+        "file": "packages/mcp/src/__tests__/server-canonical-discovery.test.ts",
+        "line": 94,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-52",
+    "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 qap_discover: gating por fase y estado de modulo, actualizacion planned -> observed",
+    "baseline": "failed",
+    "r1": "failed",
+    "r2": "not_executed",
+    "r3": "passed",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468",
+    "duration_ms": 1176.0787,
+    "semantic_equivalence": "Gates de fase/módulo y positivo Discovery físico; observaciones sin requisitos ni transición planned→observed automática.",
+    "regression": "FAIL→PASS",
+    "certification": "PASS físico con equivalencia suficiente para contrato canónico sustituido",
+    "capability_pending": false,
+    "first_error": null,
+    "evidence": "server-canonical-operations.json",
+    "declarations": [
+      {
+        "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 qap_discover: gating por fase y estado de modulo, actualizacion planned -> observed",
+        "file": "packages/mcp/src/__tests__/server-canonical-operations.test.ts",
+        "line": 72,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-53",
+    "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 Criterio 7: Proyecto legacy sin campos de negocio valida contra el schema y qap_status responde con fase WORKING derivada",
+    "baseline": "failed",
+    "r1": "failed",
+    "r2": "not_executed",
+    "r3": "passed",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468",
+    "duration_ms": 177.91510000000017,
+    "semantic_equivalence": "Status legacy WORKING y ausencia de escritura en context.yaml; no invoca validador de schema, ni positivo Discovery legacy implícito (retirado).",
+    "regression": "FAIL→PASS",
+    "certification": "PASS físico con equivalencia parcial",
+    "capability_pending": false,
+    "first_error": null,
+    "evidence": "server-canonical-operations.json",
+    "declarations": [
+      {
+        "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 Criterio 7: Proyecto legacy sin campos de negocio valida contra el schema y qap_status responde con fase WORKING derivada",
+        "file": "packages/mcp/src/__tests__/server-canonical-operations.test.ts",
+        "line": 92,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-54",
+    "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 Criterio 8 (E2E): init -> status (entrevista) -> ingest -> context_set compuerta -> auto-SCOPING -> session_plan -> auto-WORKING -> discover",
+    "baseline": "failed",
+    "r1": "failed",
+    "r2": "not_executed",
+    "r3": "passed",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468",
+    "duration_ms": 1237.4489000000003,
+    "semantic_equivalence": "MCP init/ingest/context_set/plan/Discovery por fases, negativas prematuras, observaciones sin requisito y planned intacto.",
+    "regression": "FAIL→PASS",
+    "certification": "PASS físico con equivalencia suficiente para contrato canónico sustituido",
+    "capability_pending": false,
+    "first_error": null,
+    "evidence": "server-canonical-operations.json",
+    "declarations": [
+      {
+        "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 Criterio 8 (E2E): init -> status (entrevista) -> ingest -> context_set compuerta -> auto-SCOPING -> session_plan -> auto-WORKING -> discover",
+        "file": "packages/mcp/src/__tests__/server-canonical-operations.test.ts",
+        "line": 131,
+        "modifier": "it"
+      }
+    ]
+  },
+  {
+    "id": "TM-55",
+    "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 qap_rules_set: actualiza reglas, transiciona observed -> interviewing, recalcula cobertura y actualiza guidance",
+    "baseline": "failed",
+    "r1": "failed",
+    "r2": "not_executed",
+    "r3": "passed",
+    "sha": "bdafeeb834549fc13c5d952c1f341098c2592468",
+    "duration_ms": 1629.735999999999,
+    "semantic_equivalence": "Next/guidance, cobertura incompleta, propuesta/host/aplicabilidad, requisito revisado sin YAML y cierre explícito cambia lifecycle.",
+    "regression": "FAIL→PASS",
+    "certification": "PASS físico con equivalencia suficiente para contrato canónico sustituido",
+    "capability_pending": false,
+    "first_error": null,
+    "evidence": "server-canonical-operations.json",
+    "declarations": [
+      {
+        "fullName": "Suite MCP Server QAP v2.1 / v2.1.2 qap_rules_set: actualiza reglas, transiciona observed -> interviewing, recalcula cobertura y actualiza guidance",
+        "file": "packages/mcp/src/__tests__/server-canonical-operations.test.ts",
+        "line": 162,
+        "modifier": "it"
+      }
+    ]
+  }
+]

@@ -1,7 +1,9 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+
 import { LockManager } from '../storage/lock-manager.js';
 
 
@@ -29,8 +31,9 @@ describe('LockManager (S75-005A)', () => {
   it('debe lanzar error "lock_timeout" si se intenta bloquear concurrentemente el mismo módulo', async () => {
     const release1 = await lockManager.acquireModuleLock('checkout');
 
-    await expect(lockManager.acquireModuleLock('checkout')).rejects.toThrowError(/lock_timeout/);
-
+    const attempt = lockManager.acquireModuleLock('checkout');
+    await expect(attempt).rejects.toThrowError(/lock_timeout/);
+    await expect(attempt).rejects.toMatchObject({ cause: expect.any(Error) });
     await release1();
   });
 
@@ -59,4 +62,12 @@ describe('LockManager (S75-005A)', () => {
     await releaseCheckout();
     await releaseAuth();
   });
+  it('INT03-R1: forceUnlock reports filesystem failures as rejected promises', async () => {
+    fs.mkdirSync(path.join(tempDir, '.qa/cache'), { recursive: true });
+    fs.writeFileSync(path.join(tempDir, '.qa/cache/locks'), 'not a directory');
+    let operation!: Promise<void>;
+    expect(() => { operation = lockManager.forceUnlock(); }).not.toThrow();
+    await expect(operation).rejects.toMatchObject({ code: 'ENOTDIR' });
+  });
+
 });

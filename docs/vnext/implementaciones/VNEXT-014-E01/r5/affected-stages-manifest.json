@@ -1,0 +1,21 @@
+{
+  "instrumented": true,
+  "finished_at": "2026-11-07T00:04:23.5149228Z",
+  "started_at": "2026-11-07T00:03:19.3753233Z",
+  "elapsed_ms": 64142.7791,
+  "name": "affected-stages",
+  "arguments": [
+    "--filter",
+    "@qap/mcp",
+    "exec",
+    "vitest",
+    "run",
+    "--config",
+    "<repo>\\docs\\vnext\\implementaciones\\VNEXT-014-E01\\r5/diagnostic.config.ts",
+    "--reporter=verbose",
+    "--reporter=json",
+    "--outputFile.json=<repo>\\docs\\vnext\\implementaciones\\VNEXT-014-E01\\r5/affected-stages.json"
+  ],
+  "sha": "9e9d2c8062b908d936ae090bbe9cb5c4ca2b0772",
+  "exit_code": 1
+}

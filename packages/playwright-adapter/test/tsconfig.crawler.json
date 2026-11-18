@@ -1,0 +1,6 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": { "rootDir": ".." },
+  "include": ["../src/crawler/**/*.ts", "../src/__tests__/blackbox-crawler.test.ts"],
+  "exclude": ["../node_modules", "../dist"]
+}

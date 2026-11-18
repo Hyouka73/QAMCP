@@ -1,0 +1,32 @@
+[
+  {
+    "old": "480eed8f",
+    "retained": "a64a90a",
+    "diff_name_status": "A\tdocs/vnext/integracion/evidencia/DEV-MVP-02/.gitattributes\nM\tdocs/vnext/integracion/evidencia/DEV-MVP-02/SHA256SUMS.json\nA\tdocs/vnext/integracion/evidencia/DEV-MVP-02/dev-mvp02-adapter-full.log\nA\tdocs/vnext/integracion/evidencia/DEV-MVP-02/dev-mvp02-adapter-typecheck.log\nA\tdocs/vnext/integracion/evidencia/DEV-MVP-02/dev-mvp02-build-cli-final.log\nA\tdocs/vnext/integracion/evidencia/DEV-MVP-02/dev-mvp02-build-delivery.log\nA\tdocs/vnext/integracion/evidencia/DEV-MVP-02/dev-mvp02-build-mcp-complete.log\nA\tdocs/vnext/integracion/evidencia/DEV-MVP-02/dev-mvp02-critical-final.log\nA\tdocs/vnext/integracion/evidencia/DEV-MVP-02/dev-mvp02-lint-all-final.log\nA\tdocs/vnext/integracion/evidencia/DEV-MVP-02/dev-mvp02-lint-delivery.log\nA\tdocs/vnext/integracion/evidencia/DEV-MVP-02/dev-mvp02-mcp-final.log\nA\tdocs/vnext/integracion/evidencia/DEV-MVP-02/dev-mvp02-mcp-typecheck-final.log\nA\tdocs/vnext/integracion/evidencia/DEV-MVP-02/dev-mvp02-storage-final.log\nA\tdocs/vnext/integracion/evidencia/DEV-MVP-02/dev-mvp02-vertical-complete.log\nA\tdocs/vnext/integracion/evidencia/DEV-MVP-02/dev-mvp02-vertical-sha.log\nA\tdocs/vnext/integracion/evidencia/DEV-MVP-02/host-review-cli.log",
+    "code_delta": ""
+  },
+  {
+    "old": "eadb2f94",
+    "retained": "df107c3",
+    "diff_name_status": "M\tdocs/vnext/integracion/INT-03_R4_DICTAMEN_INDEPENDIENTE_2026-11-09.md\nM\tdocs/vnext/integracion/evidencia/DEV-MVP-01-R4-INT03/classify-diagnostics.py\nM\tdocs/vnext/integracion/evidencia/DEV-MVP-01-R4-INT03/evidence-manifest.json",
+    "code_delta": ""
+  },
+  {
+    "old": "f967d777",
+    "retained": "7a3d6dd",
+    "diff_name_status": "A\tdocs/vnext/integracion/evidencia/INT-03-R5/.gitattributes\nM\tdocs/vnext/integracion/evidencia/INT-03-R5/SHA256SUMS.txt",
+    "code_delta": ""
+  },
+  {
+    "old": "9044ceb8",
+    "retained": "6ce7472",
+    "diff_name_status": "M\tdocs/vnext/08_WBS_MICROTAREAS_Y_COMPUERTAS.md\nM\tdocs/vnext/STATE.md",
+    "code_delta": ""
+  },
+  {
+    "old": "d22036f0",
+    "retained": "8cacaa2",
+    "diff_name_status": "M\t.qa/executions/2026-09-19_checkout_e2e/01-signature-panel.png\nM\t.qa/executions/2026-09-19_checkout_e2e/02-contract-pdf.png\nM\t.qa/executions/2026-09-19_demo/01-simulation-before.png\nM\t.qa/executions/2026-09-19_demo/02-simulation-after.png\nM\t.qa/executions/2026-09-19_sim_risk_alert/01-unexpected-quote.png\nM\t.qa/modules/auth/context.yaml\nM\t.qa/modules/checkout/context.yaml\nM\t.qa/modules/simulation/context.yaml\nM\tpackages/reporter/src/template/index.html",
+    "code_delta": "packages/reporter/src/template/index.html | 52 ++++++++++++++-----------------\n 1 file changed, 23 insertions(+), 29 deletions(-)"
+  }
+]
