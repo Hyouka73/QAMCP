@@ -579,6 +579,7 @@ export class FlowOrchestrator implements IFlowRunner {
                     result: 'skipped',
                     failure_type: 'flow_step_failed',
                     message: `Omitido: el módulo '${moduleName}' falló y fail_fast está activo.`,
+                    cases: [],
                   } as unknown as ExecutionResult;
                   moduleResults[pending.module] = skippedRes;
                   this.emitTelemetry(flowName, pending.module, skippedRes);

@@ -779,7 +779,7 @@ describe('P1-A & P1-B: Selección efectiva de casos referenciados por ID y propa
     )) as unknown as Record<string, unknown>;
 
     expect(result.status).toBe('failed');
-    expect(telemetryEvents).toHaveLength(2);
+    expect(telemetryEvents).toHaveLength(1);
     expect(telemetryEvents[0]).toMatchObject({
       flowName: 'flow_blocked_oracle',
       module: 'mod_blocked',
@@ -787,12 +787,10 @@ describe('P1-A & P1-B: Selección efectiva de casos referenciados por ID y propa
       status: 'not_run',
       error: expect.stringContaining('blocked_missing_oracle'),
     });
-    expect(telemetryEvents[1]).toMatchObject({
-      flowName: 'flow_blocked_oracle',
-      module: 'mod_downstream',
-      caseId: 'mod_downstream',
-      status: 'skipped',
-      error: expect.stringContaining('fail_fast'),
+    expect((result.results as Record<string, any>).mod_downstream).toMatchObject({
+      result: 'skipped',
+      failure_type: 'flow_step_failed',
+      message: expect.stringContaining('fail_fast'),
     });
     expect(finishCalls).toEqual([expect.objectContaining({ status: 'failed' })]);
   });
@@ -931,5 +929,60 @@ describe('P1-A & P1-B: Selección efectiva de casos referenciados por ID y propa
       }),
     ]);
     expect(modErrFinishes).toEqual([{ status: 'failed' }]);
+  });
+
+  it('7) P2-1: Flow multimódulo con fail_fast y selección vacía no emite casos ficticios para módulos omitidos', async () => {
+    const telemetryEvents: unknown[] = [];
+    const finishCalls: unknown[] = [];
+    const storage = {
+      ...createTaggedStorage(),
+      getTestCases: async () => [
+        {
+          id: 'TC-SMOKE-1',
+          module: 'mod_a',
+          title: 'Smoke case',
+          tags: ['smoke'],
+          steps: [],
+        },
+      ],
+    };
+
+    const orchestrator = new FlowOrchestrator(
+      storage as any,
+      {
+        execute: async () => {
+          throw new Error('No debería ejecutar runner cuando la selección está vacía');
+        },
+      } as any,
+      undefined,
+      undefined,
+      {
+        onCaseEnd: (ev: unknown) => telemetryEvents.push(ev),
+        finish: (opts?: unknown) => finishCalls.push(opts),
+      } as any
+    );
+
+    const result = (await orchestrator.executeFlow(
+      {
+        _version: '1.0',
+        name: 'flow_empty_fail_fast',
+        fail_fast: true,
+        modules: [{ module: 'mod_a' }, { module: 'mod_b' }],
+      } as any,
+      { tags: ['does-not-exist'] }
+    )) as unknown as Record<string, unknown>;
+
+    expect(result.status).toBe('failed');
+    expect(telemetryEvents).toHaveLength(0);
+    expect((result.results as Record<string, any>).mod_a).toMatchObject({
+      result: 'failed',
+      cases: [],
+    });
+    expect((result.results as Record<string, any>).mod_b).toMatchObject({
+      result: 'skipped',
+      failure_type: 'flow_step_failed',
+      cases: [],
+    });
+    expect(finishCalls).toEqual([expect.objectContaining({ status: 'failed' })]);
   });
 });
