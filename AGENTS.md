@@ -49,26 +49,14 @@ Usa **ruta absoluta** al `server.js` de esta máquina:
 - Windows: usa `\\` o `/` en la ruta JSON.
 - Reinicia el cliente para que cargue el servidor.
 
-### Vincular el workspace de la conexión
+### Operación multiproyecto global y selección del workspace
 
-- Si el host anuncia una única raíz mediante MCP `roots/list`, QAP usa esa
-  carpeta. Si el host no anuncia raíces o anuncia varias, configura
-  `QAP_MCP_WORKSPACE_ROOT` en el bloque `env` del servidor MCP para seleccionar
-  una carpeta física existente. Cuando el host anuncia raíces, la raíz
-  configurada también debe figurar en esa lista.
-- Autoriza la carpeta seleccionada desde el host con
-  `node scripts/qap-authorize-workspace.mjs "<ruta-absoluta>"`, usando los mismos
-  directorios de datos que el servidor MCP. Esta autorización permite preparar
-  la carpeta. Los permisos de observación, autenticación y ejecución se
-  evalúan por separado.
-- Para cambiar de workspace, cambia la raíz en el host o en su configuración
-  y vuelve a conectar QAP. Una conversación nueva en una conexión existente
-  conserva la raíz. `targetPath` y `project_id` solo se usan para comprobar
-  que la llamada coincide con esa vinculación.
-- Para continuar una campaña, conecta QAP al workspace original y usa
-  `qap_project` con `action: "resume"` y su `project_id`. Para abrir una nueva
-  bitácora usa `qap_start`. Para seguir escribiendo en una bitácora previa
-  proporciona el `conversation_id` emitido en ese mismo workspace.
+- En uso normal, QAP corre como un **único servidor MCP global y multiproyecto**: no exige `QAP_MCP_WORKSPACE_ROOT` en `mcp_config.json` y puede iniciar aunque no haya proyectos previos o aunque una carpeta histórica haya sido eliminada.
+- Si el host anuncia una única raíz mediante MCP `roots/list`, QAP resuelve esa carpeta automáticamente. Si el host anuncia varias raíces o no anuncia ninguna (por ejemplo, Antigravity), QAP solicita una selección explícita sin adivinar ni reutilizar proyectos históricos.
+- La autorización persistente de una carpeta nueva se realiza mediante el diálogo nativo del host (cuando está habilitado) o desde el operador local con `node scripts/qap-authorize-workspace.mjs "<ruta-absoluta>"`, usando los mismos directorios de datos del servidor MCP.
+- Para cambiar de proyecto dentro de la misma sesión (`A -> B -> A`), no reinstales ni edites la configuración del MCP: inicia o cambia explícitamente con `qap_start` (`targetPath`) o con `qap_project` (`action: "select"` / `"resume"`). Cada proyecto mantiene su propia identidad, credenciales, bitácoras y carpeta `.qa/`.
+- Para retomar una campaña previa usa `qap_project` con `action: "resume"` y su `project_id` (o su `targetPath`). Para abrir o continuar una conversación aislada dentro de un proyecto usa `qap_start` y conserva el `conversation_id` devuelto por el servidor.
+- **Modo restringido opcional**: solo si deseas fijar una conexión MCP a una sola carpeta, configura `QAP_MCP_WORKSPACE_ROOT` en `env`. Cuando el host anuncia raíces, esa ruta también debe figurar en `roots/list`. Si dicha carpeta deja de existir, el acceso queda bloqueado de forma segura hasta restaurarla o retirar la variable.
 
 ### Solo Antigravity IDE (opcional)
 `scripts/sync-mcp-schemas.mjs` tiene una ruta **hardcodeada** (`targetDir`). Cámbiala a la del usuario actual antes de ejecutar:

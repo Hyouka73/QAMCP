@@ -239,6 +239,9 @@ export class ProjectHandler implements IMcpToolHandler {
   }
 
   private assertAuthorizedWorkspace(candidatePath: string): boolean {
+    if (this.dependencies.isRootAllowedForCall) {
+      return this.dependencies.isRootAllowedForCall(candidatePath);
+    }
     const roots = this.dependencies.projectRoots;
     if (!roots || roots.length === 0) return false;
     const target = normalizePathKey(resolve(candidatePath));
@@ -246,11 +249,18 @@ export class ProjectHandler implements IMcpToolHandler {
   }
 
   /** Admit by trusted identity, then fence the exact grant and identity under the host coordinator. */
-  private withAuthorizedProject<T>(service: QapApplicationService, projectId: string, action: (context: import('../project-reset.js').ProjectOperationContext, binding: { reference: NonNullable<ReturnType<QapApplicationService['getRootAuthorizationReference']>>; access_grant_id: string }) => T, rootHint?: string): T | null {
+  private withAuthorizedProject<T>(
+    service: QapApplicationService,
+    projectId: string,
+    action: (context: import('../project-reset.js').ProjectOperationContext, binding: { reference: NonNullable<ReturnType<QapApplicationService['getRootAuthorizationReference']>>; access_grant_id: string }) => T,
+    rootHint?: string,
+    allowWorkspace?: (candidateRoot: string) => boolean,
+  ): T | null {
     const registered = this.dependencies.isRegisteredProjectRoot;
     if (!registered) return null;
+    const isAllowed = allowWorkspace ?? ((candidate: string) => this.assertAuthorizedWorkspace(candidate));
     const identity = service.listProjects({ includeDeleted: true }).projects.find(p => p.project_id === projectId);
-    if (!identity || !this.assertAuthorizedWorkspace(identity.canonical_root) ||
+    if (!identity || !isAllowed(identity.canonical_root) ||
         (rootHint && normalizePathKey(resolve(rootHint)) !== normalizePathKey(identity.canonical_root))) return null;
     let reference;
     try { reference = service.getRootAuthorizationReference(identity.canonical_root, registered); } catch { return null; }
@@ -263,7 +273,7 @@ export class ProjectHandler implements IMcpToolHandler {
       let validReference = false;
       try { validReference = service.validateRootAuthorizationReference(reference, registered, context); } catch { return null; }
       if (!current || normalizePathKey(current.canonical_root) !== normalizePathKey(identity.canonical_root) ||
-          !this.assertAuthorizedWorkspace(current.canonical_root) ||
+          !isAllowed(current.canonical_root) ||
           !currentAccess || !currentAccess.allowed || currentAccess.grant?.grant_id !== access.grant!.grant_id ||
           !validReference) return null;
       return action(context, { reference, access_grant_id: access.grant!.grant_id });
@@ -308,8 +318,9 @@ export class ProjectHandler implements IMcpToolHandler {
     const explicitProjectId = isNonEmptyString(args.project_id, 128) ? args.project_id.trim() : undefined;
     const rootHint = isNonEmptyString(args.targetPath, 1024) ? args.targetPath.trim() : undefined;
     const authorizedRoots = this.dependencies.projectRoots;
+    const hasRootPolicy = Boolean(this.dependencies.isRootAllowedForCall || authorizedRoots);
 
-    if (rootHint && authorizedRoots && !this.assertAuthorizedWorkspace(rootHint)) {
+    if (rootHint && hasRootPolicy && !this.assertAuthorizedWorkspace(rootHint)) {
       return {
         ok: false,
         response: blocked(
@@ -336,7 +347,7 @@ export class ProjectHandler implements IMcpToolHandler {
           ),
         };
       }
-      if (authorizedRoots && !this.assertAuthorizedWorkspace(projectById.canonical_root)) {
+      if (hasRootPolicy && !this.assertAuthorizedWorkspace(projectById.canonical_root)) {
         return {
           ok: false,
           response: blocked(
@@ -351,7 +362,7 @@ export class ProjectHandler implements IMcpToolHandler {
 
     if (explicitProjectId) {
       const projectById = service.resumeProject(explicitProjectId).project;
-      if (authorizedRoots && !this.assertAuthorizedWorkspace(projectById.canonical_root)) {
+      if (hasRootPolicy && !this.assertAuthorizedWorkspace(projectById.canonical_root)) {
         return {
           ok: false,
           response: blocked(
@@ -377,6 +388,22 @@ export class ProjectHandler implements IMcpToolHandler {
         };
       }
       return { ok: true, project: projectByRoot };
+    }
+
+    if (this.dependencies.multiProjectRuntime || this.dependencies.enforceSessionWorkspace) {
+      const scopedRoot = this.dependencies.getCallWorkspaceRoot?.() ?? this.dependencies.getActiveContext?.()?.canonicalRoot;
+      if (scopedRoot) {
+        const matched = service.findActiveProjectByRoot(scopedRoot);
+        if (matched) return { ok: true, project: matched };
+      }
+      return {
+        ok: false,
+        response: blocked(
+          'workspace_not_bound',
+          'No hay un proyecto activo seleccionado para consultar el expediente de Discovery.',
+          'Selecciona un proyecto con qap_start o qap_project, o indica project_id / targetPath.',
+        ),
+      };
     }
 
     if (authorizedRoots && authorizedRoots.length > 0) {
@@ -441,7 +468,8 @@ export class ProjectHandler implements IMcpToolHandler {
       typeof args.canonical_root === 'string'
         ? args.canonical_root
         : (typeof args.targetPath === 'string' ? args.targetPath : undefined);
-    if (workspaceCandidate && this.dependencies.projectRoots && !this.assertAuthorizedWorkspace(workspaceCandidate)) {
+    const hasRootPolicy = Boolean(this.dependencies.isRootAllowedForCall || this.dependencies.projectRoots);
+    if (workspaceCandidate && args.action !== 'list' && hasRootPolicy && !this.assertAuthorizedWorkspace(workspaceCandidate)) {
       return blocked(
         'workspace_authorization_required',
         'La carpeta seleccionada no está autorizada por el host.',
@@ -464,15 +492,50 @@ export class ProjectHandler implements IMcpToolHandler {
         case 'list': {
           return service.withProjectOperation(() => {
             const listing = service.listProjects({ includeDeleted: args.include_deleted === true });
+            const visibleRoots = this.dependencies.listHostAuthorizedRoots?.();
+            const visibleSet = visibleRoots ? new Set(visibleRoots.map(r => normalizePathKey(resolve(r)))) : undefined;
+            if (workspaceCandidate && visibleSet && !visibleSet.has(normalizePathKey(resolve(workspaceCandidate)))) {
+              return blocked(
+                'workspace_authorization_required',
+                'La carpeta seleccionada no está autorizada por el host.',
+                'Autoriza el workspace mediante el host o indica una raíz autorizada.',
+              );
+            }
+            const allowForList = visibleSet
+              ? (candidate: string) => {
+                  const key = normalizePathKey(resolve(candidate));
+                  if (workspaceCandidate && key !== normalizePathKey(resolve(workspaceCandidate))) return false;
+                  return visibleSet.has(key);
+                }
+              : undefined;
             const projects = listing.projects.filter(project =>
-              this.withAuthorizedProject(service, project.project_id, () => true) === true);
+              this.withAuthorizedProject(service, project.project_id, () => true, undefined, allowForList) === true);
             const allowed = new Set(projects.map(project => project.project_id));
             const tombstones = listing.tombstones?.filter(item => allowed.has(item.project_id));
-            return result({ status: 'success', projects,
-              active_project_id: this.dependencies.enforceSessionWorkspace
-                ? projects.find(project => project.status === 'active')?.project_id ?? null
-                : listing.active_project_id && allowed.has(listing.active_project_id) ? listing.active_project_id : null,
-              ...(tombstones ? { tombstones } : {}) });
+            const activeContext = this.dependencies.getActiveContext?.();
+            const connectionScoped = Boolean(this.dependencies.multiProjectRuntime || this.dependencies.enforceSessionWorkspace);
+            const activeProjectId = connectionScoped
+              ? (activeContext?.projectId && allowed.has(activeContext.projectId)
+                  ? activeContext.projectId
+                  : activeContext
+                    ? projects.find(p => normalizePathKey(p.canonical_root) === normalizePathKey(activeContext.canonicalRoot))?.project_id ?? null
+                    : null)
+              : (listing.active_project_id && allowed.has(listing.active_project_id) ? listing.active_project_id : null);
+            const activeWorkspaceVisible = activeContext &&
+              (!visibleSet || visibleSet.has(normalizePathKey(resolve(activeContext.canonicalRoot)))) &&
+              existsSync(activeContext.canonicalRoot);
+            return result({
+              status: 'success',
+              projects,
+              active_project_id: activeProjectId,
+              ...(connectionScoped
+                ? {
+                    active_workspace: activeWorkspaceVisible ? activeContext.canonicalRoot : null,
+                    ...(visibleRoots ? { available_roots: [...visibleRoots] } : {}),
+                  }
+                : {}),
+              ...(tombstones ? { tombstones } : {}),
+            });
           });
         }
 

@@ -18,7 +18,7 @@ import { SqliteModuleClosureStore } from './handlers/module-closure-store.js';
 import type { ModuleBinding } from './handlers/module-observation-bridge.js';
 import type { McpServerOptions } from './server.js';
 import { WorkspaceBootstrap } from './workspace-bootstrap.js';
-import { validateCandidateWorkspace } from './workspace-authorizer.js';
+import { validateCandidateWorkspace, WindowsInteractiveWorkspaceAuthorizer } from './workspace-authorizer.js';
 import {
   loadDiscoveryAuthorizationsFromDisk,
   WindowsInteractiveDiscoveryAuthorizer,
@@ -263,14 +263,27 @@ export async function loadHostComposition(
   env: NodeJS.ProcessEnv = process.env
 ): Promise<HostComposition> {
   const manifestPath = env.QAP_MCP_HOST_CONFIG_PATH;
-  const isWindowsInteractive = process.platform === 'win32' && !env.QAP_DISABLE_INTERACTIVE_AUTH && env.NODE_ENV !== 'test';
+  const underVitest = Boolean(env.VITEST || process.env.VITEST) && env.QAP_ENABLE_INTERACTIVE_AUTH !== '1';
+  const isWindowsInteractive = process.platform === 'win32' && !env.QAP_DISABLE_INTERACTIVE_AUTH && env.NODE_ENV !== 'test' && !underVitest;
   if (manifestPath === undefined) {
     const defaultQapHome = resolve(env.QAP_MCP_HOST_DATA_DIR ?? resolve(homedir(), '.qap'));
     const directory = resolve(env.QAP_MCP_WORKSPACE_HOST_DIR ?? join(defaultQapHome, 'workspaces'));
     const appDataDir = resolve(env.QAP_MCP_APP_SERVICE_DIR ?? join(defaultQapHome, 'application'));
-    const workspaceRoot = env.QAP_MCP_WORKSPACE_ROOT === undefined
-      ? undefined
-      : validateCandidateWorkspace(env.QAP_MCP_WORKSPACE_ROOT, directory);
+    let workspaceRoot: string | undefined;
+    let configuredWorkspaceRootUnavailable: { readonly rawPath: string; readonly reason: string } | undefined;
+    if (env.QAP_MCP_WORKSPACE_ROOT !== undefined) {
+      try {
+        workspaceRoot = validateCandidateWorkspace(env.QAP_MCP_WORKSPACE_ROOT, directory);
+      } catch {
+        configuredWorkspaceRootUnavailable = {
+          rawPath: env.QAP_MCP_WORKSPACE_ROOT,
+          reason: 'workspace_root_unavailable',
+        };
+        console.error('[QAP MCP Server] QAP_MCP_WORKSPACE_ROOT no existe o no es válido; el acceso queda bloqueado hasta retirar o restaurar la ruta.');
+      }
+    }
+    const multiProjectRuntime = workspaceRoot === undefined && !configuredWorkspaceRootUnavailable;
+    const useKeychain = (env.NODE_ENV !== 'test' && !underVitest) || workspaceRoot !== undefined || env.QAP_MCP_ENABLE_KEYCHAIN === '1';
     const registry = resolve(directory, 'authorized-roots.json');
     const discoveryRegistry = resolve(directory, 'discovery-authorizations.json');
     const authRegistry = resolve(directory, 'auth-authorizations.json');
@@ -278,7 +291,7 @@ export async function loadHostComposition(
     const applicationService = new QapApplicationService({
       hostRootDir: appDataDir,
       projectOperationDirectory: directory,
-      ...(workspaceRoot ? { credentialProvider: new KeychainCredentialProvider() } : {}),
+      ...(useKeychain ? { credentialProvider: new KeychainCredentialProvider() } : {}),
       onProjectDeleted: (_projectId, canonicalRoot) => {
         const targetKey = normalizePathKey(canonicalRoot);
         if (existsSync(registry)) {
@@ -326,8 +339,8 @@ export async function loadHostComposition(
       },
     });
     const reconciledDeletions = await applicationService.reconcilePendingDeletion();
-    // An unbound host uses an ephemeral provider, but interrupted bound sessions used the keychain.
-    await applicationService.reconcileReplacedCredentials(workspaceRoot ? applicationService.credentialProvider : new KeychainCredentialProvider());
+    // Si el host usa proveedor efímero en pruebas, las credenciales sustituidas en sesiones previas pudieron quedar en llavero.
+    await applicationService.reconcileReplacedCredentials(useKeychain ? applicationService.credentialProvider : new KeychainCredentialProvider());
     for (const item of reconciledDeletions) {
       if (item.status === 'blocked') console.error(`QAP deletion reconciliation blocked for ${item.project_id}: ${item.reason}`);
     }
@@ -352,9 +365,12 @@ export async function loadHostComposition(
       : undefined;
     const parsedTtl = env.QAP_SESSION_AUTH_TTL_MS ? Number(env.QAP_SESSION_AUTH_TTL_MS) : undefined;
     const authorizationTtlMs = parsedTtl && Number.isInteger(parsedTtl) && parsedTtl > 0 ? parsedTtl : undefined;
+    const workspaceAuthorizer = isWindowsInteractive ? new WindowsInteractiveWorkspaceAuthorizer() : undefined;
+    const preferHostWorkspaceAuthorizer = isWindowsInteractive && env.QAP_USE_CLIENT_ELICITATION !== '1';
     authorizationDiagnostic('host_composition', {
       build: process.env.QAP_BUILD_REVISION ?? 'development',
-      authorizer: 'host_bound_scope_only',
+      authorizer: workspaceAuthorizer ? 'windows_interactive_dialog' : 'host_bound_scope_only',
+      multiProjectRuntime,
       discoveryAuthorizer: 'unconfigured',
       testAuthorizer: 'unconfigured',
       silentBoundScope: true,
@@ -364,13 +380,17 @@ export async function loadHostComposition(
       options: {
         projectRoots: workspaceRoot ? [workspaceRoot] : [],
         configuredWorkspaceRoot: workspaceRoot,
+        configuredWorkspaceRootUnavailable,
+        multiProjectRuntime,
         workspaceBootstrap: bootstrap,
         applicationService,
         allowSpaReadOnly: true,
         silentBoundScope: true,
+        workspaceAuthorizer,
+        preferHostWorkspaceAuthorizer,
         interactiveAccessAuthorizer: isWindowsInteractive ? new WindowsInteractiveDiscoveryAuthorizer() : undefined,
-        clientWorkspaceRoots: workspaceRoot === undefined,
-        hostRegistryPath: workspaceRoot === undefined ? registry : undefined,
+        clientWorkspaceRoots: multiProjectRuntime,
+        hostRegistryPath: registry,
         hostDiscoveryRegistryPath: discoveryRegistry,
         authorizationPersistencePath: resolve(directory, 'qa-session-authorizations.enc'),
         discoveryAuthorizations: persistedDiscoveryAuthorizations,
