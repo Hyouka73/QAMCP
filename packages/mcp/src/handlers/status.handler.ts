@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve, join, basename } from 'node:path';
 
 import { SchemaValidator, filterValidRoles, normalizeSlug, type ProjectContext, type AuthProfile, type RuleEntry, type CategoryWaiver, type ModuleCandidate } from '@qap/shared';
@@ -427,16 +427,14 @@ export class StatusHandler implements IMcpToolHandler {
     }
 
     let reportPath: string | undefined;
-    if (currentPhase === 'WRAP_UP') {
-      const sessionsDir = join(qaDir, 'project', 'sessions');
-      if (lifecycleState.session?.id) {
-        assertProjectSegment(lifecycleState.session.id);
-        const candidate = join(sessionsDir, `${lifecycleState.session.id}.report.md`);
-        if (existsSync(candidate)) {
-          reportPath = candidate;
-        }
+    if (currentPhase === 'WRAP_UP' && lifecycleState.session?.id) {
+      assertProjectSegment(lifecycleState.session.id);
+      const candidate = join(qaDir, 'project', 'sessions', `${lifecycleState.session.id}.report.md`);
+      try {
+        if (lstatSync(candidate).isFile()) reportPath = candidate;
+      } catch {
+        // An absent or inaccessible report cannot establish closure.
       }
-
     }
 
     let moduleCandidatesList: ModuleCandidate[] | undefined;

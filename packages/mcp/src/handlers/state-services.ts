@@ -59,6 +59,12 @@ export interface StateDependencies {
   readonly allowSpaReadOnly?: boolean;
   /** Silently resolve non-production, same-origin QA scope from host-bound roots without interactive dialogs. */
   readonly silentBoundScope?: boolean;
+  readonly enforceSessionWorkspace?: boolean;
+  readonly multiProjectRuntime?: boolean;
+  readonly getActiveContext?: () => { canonicalRoot: string; projectId?: string; conversationId?: string } | undefined;
+  readonly getCallWorkspaceRoot?: () => string | undefined;
+  readonly listHostAuthorizedRoots?: () => readonly string[];
+  readonly isRootAllowedForCall?: (root: string) => boolean;
   /** Internal host runtime, never tool arguments. */
   readonly canonicalInterviews?: ReadonlyMap<string, CanonicalInterviewService>;
   readonly canonicalClosures?: ReadonlyMap<string, CanonicalClosureService>;
@@ -188,7 +194,10 @@ export function projectRoot(raw: unknown, dependencies: StateDependencies, write
   if (compare(resolve(root)) !== compare(requested)) throw new McpToolError('invalid_arguments');
   if (!lstatSync(root).isDirectory()) throw new McpToolError('invalid_arguments');
   const roots = dependencies.projectRoots ?? [process.cwd()];
-  if (write && !roots.some(allowed => contained(realpathSync(allowed), root))) throw new McpToolError('invalid_arguments');
+  if (write && dependencies.isRootAllowedForCall && !dependencies.isRootAllowedForCall(root)) throw new McpToolError('invalid_arguments');
+  if (write && !roots.some(allowed => {
+    try { return contained(realpathSync(allowed), root); } catch { return false; }
+  })) throw new McpToolError('invalid_arguments');
   const qa = join(root, '.qa');
   noLinks(root, qa);
   // Legacy readers/writers follow nested paths; reject their link surface up front.
@@ -237,13 +246,16 @@ export function readCorrections(path: string): { pending: string[]; completed: s
     [...value.pending as unknown[], ...value.completed as unknown[]].some(v => !oneOf(v, ['objective', 'roles', 'critical_flows', 'base_url']))) throw new McpToolError('execution_failed');
   return value as { pending: string[]; completed: string[] };
 }
+const safeRealpath = (candidate: string): string | null => {
+  try { return realpathSync(candidate); } catch { return null; }
+};
 export function binding(root: string, deps: StateDependencies): ProjectKnowledgeBinding | undefined {
-  const matches = (deps.knowledgeBindings ?? []).filter(item => realpathSync(item.projectRoot) === root);
+  const matches = (deps.knowledgeBindings ?? []).filter(item => safeRealpath(item.projectRoot) === root);
   if (matches.length > 1) throw new Error('Ambiguous binding.');
   const found = matches[0];
   if (found && deps.validateKnowledgeBinding && !deps.validateKnowledgeBinding(found)) throw new Error('Binding authority is no longer valid.');
   if (found && (!/^[A-Za-z0-9_.:-]{1,128}$/.test(found.applicationId) || !/^[A-Za-z0-9_.:-]{1,128}$/.test(found.environmentId) ||
-    (deps.knowledgeBindings ?? []).some(item => item.applicationId === found.applicationId && realpathSync(item.projectRoot) !== root))) throw new Error('Invalid binding.');
+    (deps.knowledgeBindings ?? []).some(item => item.applicationId === found.applicationId && safeRealpath(item.projectRoot) !== root))) throw new Error('Invalid binding.');
   return found;
 }
 export async function knowledgeStatus(root: string, deps: StateDependencies) {

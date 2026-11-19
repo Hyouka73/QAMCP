@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync } from 'node:fs';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
@@ -12,6 +12,7 @@ import {
 } from '@qap/reporter';
 import { SchemaValidator, type ExecutionResult } from '@qap/shared';
 
+import { resolveContainedPath } from '../application/safe-storage.js';
 import { McpToolError, type IMcpToolHandler, type McpInvocationContext } from '../dispatcher.js';
 
 import { isInternallyConsistentExecution } from './execution-evidence.js';
@@ -84,6 +85,27 @@ function screenshotReferencesAreSafe(root: string, evidence: ExecutionResult): b
     }
   }
   return true;
+}
+
+function isRecordedFile(root: string, path: string): boolean {
+  try { return lstatSync(resolveContainedPath(root, path)).isFile(); }
+  catch { return false; }
+}
+
+function artifactReferenceState(root: string, evidence: ExecutionResult, artifacts: ExecutionResult['artifacts']) {
+  const refs = new Set<string>();
+  const add = (...values: (string | null | undefined)[]) => {
+    for (const value of values) if (value) refs.add(value);
+  };
+  add(artifacts?.video_path, artifacts?.trace_zip_path, artifacts?.timeline_path, ...(artifacts?.screenshots ?? []));
+  for (const step of evidence.timeline ?? []) add(step.screenshot);
+  for (const testCase of evidence.cases) {
+    add(testCase.video_path, testCase.trace_zip_path, testCase.timeline_path, ...(testCase.screenshots ?? []));
+    for (const step of testCase.steps ?? []) add(step.screenshot);
+  }
+  const available = [...refs].filter(path => isRecordedFile(root, path)).length;
+  if (!available) return 'unavailable';
+  return available === refs.size && !artifacts?.artifact_errors?.length ? 'available' : 'incomplete';
 }
 
 /** Declarative qap_report: never creates synthetic executions or coverage. */
@@ -268,6 +290,26 @@ export class ReportHandler implements IMcpToolHandler {
       appProject && appService
         ? appService.listExecutionAttempts(appProject.project_id, evidence.module).find(a => a.execution_id === executionId)
         : undefined;
+    const resolvedAttemptId = matchingAttempt?.attempt_id ?? evidence.attempt_id ?? undefined;
+    const resolvedArtifacts =
+      evidence.artifacts ??
+      (matchingAttempt &&
+      (matchingAttempt.video_path ||
+        matchingAttempt.trace_zip_path ||
+        matchingAttempt.timeline_path ||
+        (matchingAttempt.screenshots && matchingAttempt.screenshots.length > 0))
+        ? {
+            video_path: matchingAttempt.video_path ?? null,
+            trace_zip_path: matchingAttempt.trace_zip_path ?? null,
+            timeline_path: matchingAttempt.timeline_path ?? null,
+            screenshots: [...(matchingAttempt.screenshots ?? [])],
+            ...(matchingAttempt.artifact_errors && matchingAttempt.artifact_errors.length > 0
+              ? { artifact_errors: [...matchingAttempt.artifact_errors] }
+              : {}),
+          }
+        : undefined);
+    const artifactState = artifactReferenceState(root, evidence, resolvedArtifacts);
+    const tracePath = join(executeDirectory, executionId + '.trace.json');
     let publication =
       appProject && appService
         ? appService.beginReportPublication({
@@ -350,6 +392,7 @@ export class ReportHandler implements IMcpToolHandler {
           code: 'report_generation_or_persistence_failed',
           executionId,
           reports: paths,
+          artifact_reference_state: artifactState,
           ...(publication ? { publication_id: publication.publication_id, publication_status: publication.status, failed_format: requested } : {}),
           recovered_without_reexecution: reusedFormats.length > 0,
           reused_formats: reusedFormats,
@@ -363,24 +406,6 @@ export class ReportHandler implements IMcpToolHandler {
     const canonicalExecutionSummary =
       appProject && appService ? appService.getExecutionSummary(appProject.project_id, evidence.module) : undefined;
 
-    const resolvedAttemptId = matchingAttempt?.attempt_id ?? evidence.attempt_id ?? undefined;
-    const resolvedArtifacts =
-      evidence.artifacts ??
-      (matchingAttempt &&
-      (matchingAttempt.video_path ||
-        matchingAttempt.trace_zip_path ||
-        matchingAttempt.timeline_path ||
-        (matchingAttempt.screenshots && matchingAttempt.screenshots.length > 0))
-        ? {
-            video_path: matchingAttempt.video_path ?? null,
-            trace_zip_path: matchingAttempt.trace_zip_path ?? null,
-            timeline_path: matchingAttempt.timeline_path ?? null,
-            screenshots: [...(matchingAttempt.screenshots ?? [])],
-            ...(matchingAttempt.artifact_errors && matchingAttempt.artifact_errors.length > 0
-              ? { artifact_errors: [...matchingAttempt.artifact_errors] }
-              : {}),
-          }
-        : undefined);
 
     return result({
       status: 'success',
@@ -405,7 +430,8 @@ export class ReportHandler implements IMcpToolHandler {
         : {}),
       reports: paths,
       evidence_source: 'persisted_execution',
-      traceability_file: existsSync(resolve(root, '.qa/executions/' + executionId + '.trace.json')) ? resolve(root, '.qa/executions/' + executionId + '.trace.json') : null,
+      artifact_reference_state: artifactState,
+      traceability_file: isRecordedFile(root, tracePath) ? resolve(root, tracePath) : null,
       viewer_url: null,
     });
     };

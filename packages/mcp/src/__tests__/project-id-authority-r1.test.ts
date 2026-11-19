@@ -105,7 +105,8 @@ it('confirms a current preview once through compiled stdio and preserves the nei
     writeFileSync(join(root, 'protected.txt'), root);
   }
   bootstrap.close();
-  const client = new Client({ name: 'delete-confirm-stdio', version: '1' }, {});
+  const client = new Client({ name: 'delete-confirm-stdio', version: '1' }, { capabilities: { roots: {} } });
+  client.setRequestHandler(ListRootsRequestSchema, () => ({ roots: [{ uri: pathToFileURL(f.a).href }] }));
   await client.connect(new StdioClientTransport({ command: process.execPath, args: [resolve('dist/server.js')], stderr: 'pipe',
     env: { ...process.env as Record<string, string>, QAP_MCP_WORKSPACE_HOST_DIR: f.host, QAP_MCP_APP_SERVICE_DIR: f.app,
       QAP_DISABLE_INTERACTIVE_AUTH: '1', NODE_ENV: 'test' } }));
@@ -663,7 +664,7 @@ it('preserves connected Knowledge, application tables and files for rejected com
     if (roots) client.setRequestHandler(ListRootsRequestSchema, async () => ({ roots: roots.map(path => ({ uri: pathToFileURL(path).href })) }));
     const transport = new StdioClientTransport({ command: process.execPath, args: [resolve('dist/server.js')], stderr: 'pipe',
       env: { ...process.env as Record<string, string>, QAP_MCP_WORKSPACE_HOST_DIR: f.host, QAP_MCP_APP_SERVICE_DIR: f.app,
-        ...(roots ? {} : { QAP_MCP_WORKSPACE_ROOT: root }), QAP_DISABLE_INTERACTIVE_AUTH: '1', NODE_ENV: 'test' } });
+        QAP_MCP_WORKSPACE_ROOT: root, QAP_DISABLE_INTERACTIVE_AUTH: '1', NODE_ENV: 'test' } });
     await client.connect(transport); cleanup.push(() => client.close());
     const invoke = async (name: string, args: Record<string, unknown>) => {
       const response = await client.callTool({ name, arguments: args }, undefined, { timeout: 10000 });

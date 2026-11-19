@@ -274,8 +274,8 @@ function checkSqlite(path: string, exclusiveApp?: string): void {
 }
 
 export class ProjectReset {
-  // Only one pending preview per server; a new preview supersedes the previous one.
-  private pending?: ResetPreview;
+  // Vista previa pendiente por proyecto; una nueva vista previa reemplaza únicamente la de ese proyecto.
+  private readonly pendingByRoot = new Map<string, ResetPreview>();
 
   constructor(private readonly options: ResetOptions, private readonly authorize?: ResetAuthorizer) {}
 
@@ -284,15 +284,16 @@ export class ProjectReset {
   }
 
   preview(candidate: string) {
-    this.pending = undefined;
     let release: (() => void) | undefined;
     try {
       const project = this.root(candidate);
+      const key = workspaceStorageKey(project);
+      this.pendingByRoot.delete(key);
       release = acquireProjectOperation(this.options.directory);
       const snapshot = inventory(project, this.options);
       const preview = { project, reset_id: randomUUID(), inventory_digest: snapshot.digest,
         expires_at: new Date(Date.now() + TTL).toISOString(), inventory: snapshot.targets.map(t => t.summary) };
-      this.pending = structuredClone(preview);
+      this.pendingByRoot.set(key, structuredClone(preview));
       return { status: 'preview' as const, ...preview };
     } catch (error) { return { status: 'blocked' as const, code: codeOf(error) }; }
     finally { release?.(); }
@@ -300,9 +301,10 @@ export class ProjectReset {
 
   async confirm(candidate: string, id: string, signal: AbortSignal) {
     const blocked = (code: string) => ({ status: 'blocked' as const, code });
-    const preview = this.pending;
+    const lookupKey = workspaceStorageKey(resolve(candidate));
+    const preview = this.pendingByRoot.get(lookupKey);
+    this.pendingByRoot.delete(lookupKey);
     if (!preview || preview.reset_id !== id || !same(preview.project, candidate)) return blocked('reset_preview_required');
-    this.pending = undefined;
     const remaining = () => Date.parse(preview.expires_at) - Date.now();
     if (remaining() <= 0) return blocked('reset_preview_expired');
     if (!this.authorize) return blocked('reset_authorization_unavailable');

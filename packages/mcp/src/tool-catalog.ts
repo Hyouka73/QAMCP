@@ -6,7 +6,7 @@ const UX_DIRECTIVE = 'DIRECTIVA DE UX ESTRICTA: Guía al usuario paso a paso int
 
 const TARGET_PATH_PROP = {
   type: 'string',
-  description: 'Ruta absoluta del proyecto objetivo sobre el cual operar. Si se omite, usa process.cwd()',
+  description: 'Ruta absoluta del workspace del proyecto objetivo. Requerida cuando el host no anuncia una única raíz o al iniciar/cambiar de proyecto explícitamente.',
 };
 
 export const TOOLS: Tool[] = [
@@ -45,7 +45,7 @@ export const TOOLS: Tool[] = [
   },
   {
     name: 'qap_project',
-    description: `Gestiona identidad y ciclo de vida explícito de proyectos por ID: crear, listar, seleccionar, reanudar, importar .qa versionado, consultar/revocar permisos y ejecutar borrado seguro en dos pasos con vista previa de alcance y recuperación. Nunca concede permisos por argumentos MCP ni ejecuta resets generales destructivos. ${UX_DIRECTIVE}`,
+    description: `Gestiona identidad y ciclo de vida explícito multiproyecto por ID o targetPath: crear, listar raíces autorizadas, seleccionar/cambiar de proyecto activamente sin reiniciar el MCP, reanudar campaña, importar .qa versionado, consultar/revocar permisos y ejecutar borrado seguro en dos pasos con vista previa y recuperación. Nunca concede permisos por argumentos MCP ni ejecuta resets generales destructivos. ${UX_DIRECTIVE}`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -894,7 +894,7 @@ export const TOOLS: Tool[] = [
   },
   {
     name: 'qap_start',
-    description: 'Inicia una conversación de QA, recupera el acceso guardado para el entorno vinculado y documenta el inventario inicial visible. Devuelve el estado de autenticación, las rutas del expediente y de la bitácora, y el conversation_id.',
+    description: 'Inicia o cambia explícitamente a una conversación de QA en el workspace targetPath, recupera el acceso guardado para su entorno y documenta el inventario inicial visible. Devuelve el estado de autenticación, las rutas del expediente y de la bitácora, y el conversation_id aislado para ese proyecto.',
     inputSchema: {
       type: 'object',
       additionalProperties: false,

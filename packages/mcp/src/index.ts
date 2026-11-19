@@ -27,3 +27,10 @@ export { windowsProjectResetAuthorizer } from './project-reset-dialog.js';
 
 export type { ProjectOperationContext, ProjectOperationRelease } from './project-reset.js';
 export { WorkspaceBootstrap } from './workspace-bootstrap.js';
+export {
+  WorkspaceContextManager,
+  type AvailableWorkspaceOption,
+  type HostRootsSnapshot,
+  type InteractionContext,
+  type WorkspaceResolutionResult,
+} from './workspace-context-manager.js';

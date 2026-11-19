@@ -129,7 +129,7 @@ export interface RootAuthorizationGrant {
   readonly generation: string;
   readonly status: 'active' | 'revoked';
   readonly granted_at: string;
-  readonly mechanism: 'local_operator_helper';
+  readonly mechanism: 'local_operator_helper' | 'host_interactive_dialog';
   /** Present only after the helper has written the root registry. */
   readonly registry_published?: true;
 }
@@ -232,7 +232,8 @@ function parseRootDeletionGeneration(value: string, rootHash: string): RootDelet
            grantKeys !== 'generation,grant_id,granted_at,mechanism,registry_published,status') ||
           (grant.registry_published !== undefined && grant.registry_published !== true) ||
           !isUuidV4(grant.grant_id) || grant.grant_id !== grant.grant_id.toLowerCase() || ids.has(grant.grant_id) || !isUuidV4(grant.generation) ||
-          grant.mechanism !== 'local_operator_helper' || (grant.status !== 'active' && grant.status !== 'revoked') ||
+          (grant.mechanism !== 'local_operator_helper' && grant.mechanism !== 'host_interactive_dialog') ||
+          (grant.status !== 'active' && grant.status !== 'revoked') ||
           typeof grant.granted_at !== 'string' || !Number.isFinite(Date.parse(grant.granted_at)) ||
           (grant.status === 'active' && (grant.generation !== r.generation || r.cleanup_status !== 'completed'))) {
         throw new ApplicationServiceError('invalid_deletion_generation', 'Concesión de raíz inválida.');
@@ -756,6 +757,9 @@ export class QapApplicationService {
     mechanism: 'local_operator_helper';
     registryPublished?: true;
   }): RootAuthorizationGrant {
+    if (input.mechanism !== 'local_operator_helper') {
+      throw new ApplicationServiceError('invalid_root_authorization_grant', 'Identidad o mecanismo de concesión inválido.');
+    }
     return this.#operations.run(() => {
       return this.#store.transaction('IMMEDIATE', () => this.#recordRootAuthorizationGrantInTransaction(input));
     });
@@ -765,10 +769,11 @@ export class QapApplicationService {
     canonicalRoot: string;
     generation: string;
     grantId: string;
-    mechanism: 'local_operator_helper';
+    mechanism: RootAuthorizationGrant['mechanism'];
     registryPublished?: true;
   }): RootAuthorizationGrant {
-    if (!isUuidV4(input.grantId) || input.grantId !== input.grantId.toLowerCase() || input.mechanism !== 'local_operator_helper' ||
+    if (!isUuidV4(input.grantId) || input.grantId !== input.grantId.toLowerCase() ||
+        (input.mechanism !== 'local_operator_helper' && input.mechanism !== 'host_interactive_dialog') ||
         (input.registryPublished !== undefined && input.registryPublished !== true)) {
       throw new ApplicationServiceError('invalid_root_authorization_grant', 'Identidad o mecanismo de concesión inválido.');
     }
@@ -800,9 +805,19 @@ export class QapApplicationService {
   }
 
   /** Trusted host only. Bind the registry's host domain before opaque synchronous registry I/O. */
-  publishRootAuthorization(canonicalRoot: string, grantId: string, publishRegistry: () => void, rollbackRegistry: () => void, context?: ProjectOperationContext): void {
+  publishRootAuthorization(
+    canonicalRoot: string,
+    grantId: string,
+    publishRegistry: () => void,
+    rollbackRegistry: () => void,
+    context?: ProjectOperationContext,
+    mechanism: RootAuthorizationGrant['mechanism'] = 'local_operator_helper',
+  ): void {
     return this.#operations.run(() => {
       this.#operations.assertBound();
+      if (mechanism !== 'local_operator_helper' && mechanism !== 'host_interactive_dialog') {
+        throw new ApplicationServiceError('invalid_root_authorization_grant', 'Identidad o mecanismo de concesión inválido.');
+      }
       this.#store.transaction('IMMEDIATE', () => {
         const root = assertSafeHostPath(canonicalRoot);
         const rootHash = hashCanonicalRoot(root);
@@ -824,12 +839,12 @@ export class QapApplicationService {
         }
         if (state) this.#recordRootAuthorizationGrantInTransaction({
           canonicalRoot: root, generation: state.generation,
-          grantId, mechanism: 'local_operator_helper', registryPublished: true
+          grantId, mechanism, registryPublished: true,
         });
         else {
           const authority: InitialRootAuthority = initial ?? { version: 1, canonical_root: root, root_hash: rootHash, generation: randomUUID(), authorization_grants: [] };
           const grant: RootAuthorizationGrant = { grant_id: grantId, generation: authority.generation, status: 'active',
-            granted_at: new Date().toISOString(), mechanism: 'local_operator_helper', registry_published: true };
+            granted_at: new Date().toISOString(), mechanism, registry_published: true };
           this.#store.run(`INSERT INTO host_session_state (key, value, updated_at) VALUES (?, ?, ?)
             ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
             initialAuthorityKey(rootHash), JSON.stringify({ ...authority, authorization_grants: [...authority.authorization_grants, grant] }), new Date().toISOString());

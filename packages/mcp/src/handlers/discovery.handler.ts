@@ -965,21 +965,26 @@ export class DiscoveryHandler implements IMcpToolHandler {
           rule_resolution: ruleResolution,
         };
 
-        const savedRevision = appService.saveDiscoveryRevision({
-          dossier: canonicalDossier,
-          targetUrl: sanitizeTargetPathname(target),
-          executionId: output.execution_id,
-          inventoryId: inv.inventory_id,
-        });
+        const { savedRevision, mdFiles } = (() => {
+          try {
+            const savedRevision = appService.saveDiscoveryRevision({
+              dossier: canonicalDossier,
+              targetUrl: sanitizeTargetPathname(target),
+              executionId: output.execution_id,
+              inventoryId: inv.inventory_id,
+            });
+            const latestByScope = appService.listLatestDiscoveryRevisionsByScope(appProject.project_id);
+            const mdFiles = writeDiscoveryMarkdownFiles(root, appProject.project_id, latestByScope,
+              { updatedPublishedRevision: savedRevision.revision });
+            return { savedRevision, mdFiles };
+          } catch {
+            // A canonical revision can survive a failed Markdown publication.
+            // Do not return artifact paths or a successful discovery in that case.
+            throw new BlackBoxCrawlerError('PERSISTENCE_FAILED');
+          }
+        })();
         discoveryRevisionId = savedRevision.revision.revision_id;
         discoveryReused = savedRevision.reused;
-        const latestByScope = appService.listLatestDiscoveryRevisionsByScope(appProject.project_id);
-        const mdFiles = writeDiscoveryMarkdownFiles(
-          root,
-          appProject.project_id,
-          latestByScope,
-          { updatedPublishedRevision: savedRevision.revision },
-        );
         discoveryDossierSummary = {
           revision_id: savedRevision.revision.revision_id,
           reused: savedRevision.reused,

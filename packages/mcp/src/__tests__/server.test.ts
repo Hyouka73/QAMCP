@@ -802,6 +802,11 @@ describe('Suite MCP Server QAP v2.1 / v2.1.2', () => {
         { id: first.plan_revision_id, session_id: 'synthetic', plan: [approved[0]] },
         { id: response.plan_revision_id, session_id: 'synthetic', plan: approved },
       ]);
+      const sessions = join(project, 'sessions');
+      mkdirSync(sessions);
+      writeFileSync(join(sessions, 'previous-campaign.report.md'), '# Previous campaign');
+      // A report may be published before the lifecycle commit.
+      writeFileSync(join(sessions, 'synthetic.report.md'), '# Uncommitted closure');
       expect(await call('qap_status')).toMatchObject({
         fase: 'WORKING', closure_state: 'incomplete', plan_revision_id: response.plan_revision_id, session_plan: approved,
       });
@@ -818,13 +823,34 @@ describe('Suite MCP Server QAP v2.1 / v2.1.2', () => {
         status: 'blocked', code: 'session_closure_incomplete', closure_state: 'incomplete', fase: 'WORKING',
       });
       expect(readdirSync(join(tempDir, '.qa', 'executions'))).toEqual([]);
+
+      for (const item of approved) {
+        Object.assign(persisted.modules[item.module], { state: 'waived', waived_reason: 'Synthetic fixture waiver' });
+      }
+      writeFileSync(lifecyclePath, JSON.stringify(persisted));
+      const currentReport = join(sessions, 'synthetic.report.md');
+      expect(await call('qap_session_close')).toMatchObject({ status: 'success', fase: 'WRAP_UP', report_path: currentReport });
+      expect(await call('qap_status')).toMatchObject({ fase: 'WRAP_UP', closure_state: 'closed' });
+      rmSync(currentReport);
+      expect(await call('qap_status')).toMatchObject({ fase: 'WRAP_UP', closure_state: 'incomplete' });
+      mkdirSync(currentReport);
+      expect(await call('qap_status')).toMatchObject({ fase: 'WRAP_UP', closure_state: 'incomplete' });
     } finally {
       applicationService.close();
     }
   });
 
-  it('qap_session_plan: SCOPING define plan y auth, transiciona a WORKING, rechazo atomico, ampliacion en WORKING, bloqueada en ONBOARDING', async () => {
-    const server = createMcpServer();
+  it('qap_session_plan: SCOPING define plan y auth, transiciona a WORKING, rechazo atomico, ampliacion en WORKING, bloqueada en ONBOARDING', async ({ onTestFinished }) => {
+    const host = mkdtempSync(join(tmpdir(), 'qap-mcp-planning-host-'));
+    const applicationService = new QapApplicationService({ hostRootDir: host });
+    const server = createMcpServer({ applicationService });
+    onTestFinished(async () => {
+      try { await server.close(); }
+      finally {
+        applicationService.close();
+        rmSync(host, { recursive: true, force: true });
+      }
+    });
     // @ts-expect-error accessing internal request handler
     const handler = server._requestHandlers.get(CallToolRequestSchema.shape.method.value);
 
