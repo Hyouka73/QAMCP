@@ -142,6 +142,31 @@ describe('VNEXT-014-D declarative ReportHandler — persisted evidence only', ()
     expect(parse(response).code).toBe('unsafe_artifact_reference');
   });
 
+  it('distinguishes unavailable artifact references from a published report', async () => {
+    const root = workspace();
+    const storage = new FileSystemStorage({ rootDir: root });
+    const recorded = evidence('exec_missing_media');
+    const dir = '.qa/runtime/runs/exec_missing_media/artifacts';
+    recorded.artifacts = { video_path: dir + '/attempt.webm', screenshots: [dir + '/step.png'] };
+    await storage.saveExecutionResult(recorded.execution_id, recorded);
+    const handler = new ReportHandler({ projectRoots: [root] });
+    const args = { targetPath: root, executionId: recorded.execution_id, format: 'json' };
+    expect(parse(await handler.execute(args, context()))).toMatchObject({
+      status: 'success', artifact_reference_state: 'unavailable', traceability_file: null,
+    });
+
+    mkdirSync(join(root, dir), { recursive: true });
+    await storage.write(dir + '/step.png', 'fixture');
+    expect(parse(await handler.execute(args, context()))).toMatchObject({
+      status: 'success', artifact_reference_state: 'incomplete',
+    });
+
+    await storage.write(dir + '/attempt.webm', 'fixture');
+    expect(parse(await handler.execute(args, context()))).toMatchObject({
+      status: 'success', artifact_reference_state: 'available',
+    });
+  });
+
   it('D-R07: renders all four formats from one persisted partial execution', async () => {
     const root = workspace();
     const storage = new FileSystemStorage({ rootDir: root });

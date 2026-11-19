@@ -11,12 +11,55 @@ export interface QapEventInput {
   readonly args: unknown;
   readonly result?: unknown;
   readonly errorCode?: string;
+  readonly phase?: string;
+  readonly operation?: string;
+  readonly cause?: QapFailureCause;
   readonly durationMs: number;
 }
 
-const SECRET_KEY = /password|passphrase|cookie|token|secret|credential|authorization|session|header|raw|body|answer|username|account/i;
-const FREE_TEXT_KEY = /description|details|comment|message|prompt|text|content|notes|objective|expected/i;
-const OBJECT_RESULT_FIELDS = ['status', 'code', 'fase', 'phase', 'verified', 'retryable', 'session_scope', 'next_action', 'tool', 'profile', 'environment', 'discovery_revision_id'];
+const RESULT_FIELDS = ['status', 'code', 'fase', 'phase', 'verified', 'retryable', 'execution_state', 'closure_state',
+  'authorization_feature', 'client_action', 'client_error_code'];
+const REFERENCE_FIELDS = ['targetPath', 'project_id', 'campaign_id', 'session_id', 'plan_revision_id',
+  'discovery_revision_id', 'execution_id', 'executionId', 'case_id', 'module', 'error_id', 'diagnostic_id'];
+const SYSTEM_ERROR_CODES = new Set(['EACCES', 'EPERM', 'ENOENT', 'EEXIST', 'EBUSY', 'ENOSPC', 'EIO', 'EXDEV',
+  'ETIMEDOUT', 'ECONNREFUSED', 'ECONNRESET', 'ERR_SQLITE_ERROR', 'SQLITE_BUSY', 'SQLITE_LOCKED', 'SQLITE_CONSTRAINT']);
+
+export interface QapFailureCause {
+  readonly kind: 'type_error' | 'range_error' | 'syntax_error' | 'abort' | 'error' | 'non_error';
+  readonly system_code?: string;
+  readonly domain_code?: string;
+  readonly cause?: QapFailureCause;
+}
+
+export function classifyQapFailure(error: unknown, depth = 0): QapFailureCause {
+  if (!(error instanceof Error)) return { kind: 'non_error' };
+  const kind = error instanceof TypeError ? 'type_error' : error instanceof RangeError ? 'range_error'
+    : error instanceof SyntaxError ? 'syntax_error' : error.name === 'AbortError' ? 'abort' : 'error';
+  const code = (error as NodeJS.ErrnoException).code;
+  return {
+    kind,
+    ...(code && SYSTEM_ERROR_CODES.has(code) ? { system_code: code } : {}),
+    ...(depth < 2 && error.cause !== undefined ? { cause: classifyQapFailure(error.cause, depth + 1) } : {}),
+  };
+}
+
+function safeToken(value: unknown): string | undefined {
+  return typeof value === 'string' && /^[a-z][a-z0-9_]{0,79}$/i.test(value) ? value : undefined;
+}
+
+function safeReference(value: string): string {
+  return 'sha256:' + createHash('sha256').update(value).digest('hex').slice(0, 24);
+}
+
+function safeReferences(value: unknown): Record<string, string> {
+  if (!value || typeof value !== 'object') return {};
+  const fields = value as Record<string, unknown>;
+  return Object.fromEntries(REFERENCE_FIELDS.flatMap(key => {
+    const item = fields[key];
+    return typeof item === 'string' && item.length > 0 ? [[key, safeReference(item)]] : [];
+  }));
+}
+
 const loggerSessionId = randomUUID();
 const latestPhase = new Map<string, string>();
 
@@ -47,42 +90,36 @@ function ensurePrivateFile(path: string): void {
   }
 }
 
-function safeValue(value: unknown, key = ''): unknown {
-  if (SECRET_KEY.test(key) || FREE_TEXT_KEY.test(key)) return '[redacted]';
-  if (typeof value === 'string') {
-    if (/(?:targetPath|workspace|projectRoot)$/i.test(key)) return `sha256:${createHash('sha256').update(value).digest('hex').slice(0, 16)}`;
-    if (value.length > 256 || /^https?:\/\/[^/]*@/i.test(value) || /(?:https?:\/\/[^\s?#]+)[?#][^\s]*/i.test(value)) return '[redacted]';
-    return value;
-  }
-  if (typeof value === 'number' || typeof value === 'boolean' || value === null) return value;
-  if (Array.isArray(value)) return value.slice(0, 64).map(item => safeValue(item, key));
-  if (value && typeof value === 'object') {
-    return Object.fromEntries(Object.entries(value as Record<string, unknown>).slice(0, 64)
-      .map(([childKey, childValue]) => [childKey, safeValue(childValue, childKey)]));
-  }
-  return undefined;
+function parsedResult(value: unknown): { fields: Record<string, unknown>; references: Record<string, string> } {
+  const empty = { fields: {}, references: {} };
+  if (!value || typeof value !== 'object') return empty;
+  const result = value as { content?: Array<{ type?: string; text?: string }>; isError?: boolean };
+  const text = Array.isArray(result.content) ? result.content.find(item => item?.type === 'text')?.text : undefined;
+  const fallback = result.isError ? { fields: { status: 'error' }, references: {} } : empty;
+  if (typeof text !== 'string') return fallback;
+  try {
+    const details = JSON.parse(text) as Record<string, unknown> | null;
+    if (!details || typeof details !== 'object') return fallback;
+    const fields = Object.fromEntries(RESULT_FIELDS.flatMap(key => {
+      const item = details[key];
+      const safe = typeof item === 'boolean' || (key === 'client_error_code' && Number.isSafeInteger(item)) ? item : safeToken(item);
+      return safe === undefined ? [] : [[key, safe]];
+    }));
+    if (result.isError && !fields.status) fields.status = 'error';
+    if (details.authorization && typeof details.authorization === 'object') {
+      const state = safeToken((details.authorization as Record<string, unknown>).state);
+      if (state) fields.authorization_state = state;
+    }
+    return { fields, references: safeReferences(details) };
+  } catch { return fallback; }
 }
 
-function parsedResult(value: unknown): Record<string, unknown> {
-  if (!value || typeof value !== 'object') return {};
-  const contents = (value as { content?: unknown[] }).content;
-  const text = Array.isArray(contents) ? contents.find(item => item && typeof item === 'object' && (item as { type?: unknown }).type === 'text') as { text?: unknown } | undefined : undefined;
-  if (typeof text?.text !== 'string') return {};
-  try {
-    const parsed: unknown = JSON.parse(text.text);
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
-    const fields = Object.fromEntries(OBJECT_RESULT_FIELDS.filter(key => Object.hasOwn(parsed, key))
-      .map(key => [key, safeValue((parsed as Record<string, unknown>)[key], key)]));
-    const details = parsed as Record<string, unknown>;
-    if (!fields.code && typeof details.razon === 'string' && /^[a-z][a-z0-9_]{1,63}$/.test(details.razon)) {
-      fields.code = details.razon;
-    }
-    const authorization = details.authorization;
-    if (authorization && typeof authorization === 'object' && typeof (authorization as Record<string, unknown>).state === 'string') {
-      fields.authorization_state = safeValue((authorization as Record<string, unknown>).state, 'state');
-    }
-    return fields;
-  } catch { return {}; }
+function isFailure(status: unknown): boolean {
+  return status === 'error' || status === 'blocked' || status === 'partial';
+}
+
+export function isQapFailureResult(result: unknown): boolean {
+  return isFailure(parsedResult(result).fields.status);
 }
 
 function lastPhase(jsonl: string): string | undefined {
@@ -122,7 +159,7 @@ function writeSummary(jsonl: string, summary: string): void {
     const outcome = event.result && typeof event.result === 'object' ? event.result as Record<string, unknown> : {};
     const status = typeof outcome.status === 'string' ? outcome.status : 'error';
     const code = typeof outcome.code === 'string' ? outcome.code
-      : typeof event.errorCode === 'string' ? event.errorCode : 'ok';
+      : (event.error as { code?: string } | undefined)?.code ?? 'ok';
     return `| ${String(event.at)} | ${String(event.tool)} | ${status} | ${code} | ${String(event.durationMs)} ms |`;
   });
   const content = ['<!-- QAP_GENERATED_SUMMARY -->', '# Registro automático QAP', '', 'Generado por el servidor QAP desde los eventos MCP disponibles. No incluye texto de conversación.', '',
@@ -159,12 +196,12 @@ export class QapEventLog {
   }, workspace?: string): void {
     const status = diagnostic.outcome === 'approved' ? 'success' : diagnostic.outcome;
     this.record({ workspace, requestId: `authorization-${randomUUID()}`, tool: 'native_authorization',
-      args: { mechanism: 'mcp_elicitation', feature: diagnostic.feature,
-        ...(diagnostic.clientAction ? { client_action: diagnostic.clientAction } : {}),
-        ...(diagnostic.clientErrorName ? { client_error_name: diagnostic.clientErrorName } : {}),
-        ...(typeof diagnostic.clientErrorCode === 'number' ? { client_error_code: diagnostic.clientErrorCode } : {}) },
+      args: undefined,
       result: { content: [{ type: 'text', text: JSON.stringify({ status,
-        code: `native_elicitation_${diagnostic.reason}`, authorization: { state: diagnostic.outcome } }) }] },
+        code: `native_elicitation_${diagnostic.reason}`, authorization: { state: diagnostic.outcome },
+        authorization_feature: diagnostic.feature, client_action: diagnostic.clientAction,
+        client_error_code: diagnostic.clientErrorCode,
+      }) }] },
       durationMs: diagnostic.durationMs });
   }
 
@@ -173,10 +210,13 @@ export class QapEventLog {
       const paths = eventPaths(input.workspace, this.hostDirectory);
       privateDirectory(dirname(paths.jsonl));
       ensurePrivateFile(paths.jsonl);
-      const result = parsedResult(input.result);
-      const phase = typeof result.fase === 'string' ? result.fase : typeof result.phase === 'string' ? result.phase : undefined;
+      const { fields: result, references } = parsedResult(input.result);
       const previous = latestPhase.get(paths.correlation) ?? lastPhase(paths.jsonl);
-      const code = typeof result.code === 'string' ? result.code : input.errorCode;
+      const failed = isFailure(result.status) || Boolean(input.errorCode || input.cause);
+      if (failed && !result.status) result.status = 'error';
+      const reportedPhase = safeToken(result.fase ?? result.phase) ?? safeToken(input.phase);
+      const phase = reportedPhase ?? (failed && input.workspace ? previous : undefined);
+      const code = safeToken(result.code) ?? input.errorCode ?? (failed ? 'tool_failure_without_code' : undefined);
       const authorization = result.authorization_state === 'single_use_approved' ? 'granted'
         : result.authorization_state === 'rejected' ? 'rejected'
           : result.authorization_state === 'cancelled' ? 'cancelled'
@@ -190,11 +230,14 @@ export class QapEventLog {
       const event = {
         at: new Date().toISOString(), session_id: loggerSessionId, correlation_id: paths.correlation,
         ...(isConversationId(input.conversationId) ? { conversation_id: input.conversationId } : {}),
-        version: process.env.QAP_BUILD_REVISION ?? 'development', request_id: input.requestId,
-        tool: input.tool, parameters: safeValue(input.args), action: input.tool,
+        version: process.env.QAP_BUILD_REVISION ?? 'development',
+        request_id: /^\d{1,20}(?::(?:auth|discovery))?$/.test(input.requestId) ? input.requestId : safeReference(input.requestId),
+        tool: input.tool, action: input.tool, operation: input.operation ?? input.tool,
+        parameters: safeReferences(input.args), references,
         result: result, authorization: { state: authorization },
         ...(phase && previous && phase !== previous ? { phase_change: { from: previous, to: phase } } : {}),
-        ...(phase ? { phase } : {}), ...(input.errorCode ? { error: { code: input.errorCode } } : {}),
+        ...(phase ? { phase, phase_source: reportedPhase ? 'reported' : 'last_recorded' } : {}),
+        ...(failed ? { error: { code, ...(input.cause ? { cause: input.cause } : {}) } } : {}),
         evidence_refs: [], durationMs: Math.max(0, Math.round(input.durationMs)),
       };
       const line = JSON.stringify(event) + '\n';

@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve, join, basename } from 'node:path';
 
 import { SchemaValidator, filterValidRoles, normalizeSlug, type ProjectContext, type AuthProfile, type RuleEntry, type CategoryWaiver, type ModuleCandidate } from '@qap/shared';
@@ -256,7 +256,7 @@ export class StatusHandler implements IMcpToolHandler {
 
       const execDir = join(qaDir, 'executions');
       if (existsSync(execDir)) {
-        executionCount = readdirSync(execDir).filter((f) => f.endsWith('.json')).length;
+        executionCount = readdirSync(execDir).filter((f) => f.endsWith('.json') && !f.endsWith('.report.json')).length;
       }
     }
 
@@ -427,23 +427,13 @@ export class StatusHandler implements IMcpToolHandler {
     }
 
     let reportPath: string | undefined;
-    if (currentPhase === 'WRAP_UP') {
-      const sessionsDir = join(qaDir, 'project', 'sessions');
-      if (lifecycleState.session?.id) {
-        assertProjectSegment(lifecycleState.session.id);
-        const candidate = join(sessionsDir, `${lifecycleState.session.id}.report.md`);
-        if (existsSync(candidate)) {
-          reportPath = candidate;
-        }
-      }
-      if (!reportPath && existsSync(sessionsDir)) {
-        try {
-          const reports = readdirSync(sessionsDir).filter((f) => f.endsWith('.report.md'));
-          if (reports.length > 0) {
-            reports.sort().reverse();
-            reportPath = join(sessionsDir, reports[0]);
-          }
-        } catch { /* empty */ }
+    if (currentPhase === 'WRAP_UP' && lifecycleState.session?.id) {
+      assertProjectSegment(lifecycleState.session.id);
+      const candidate = join(qaDir, 'project', 'sessions', `${lifecycleState.session.id}.report.md`);
+      try {
+        if (lstatSync(candidate).isFile()) reportPath = candidate;
+      } catch {
+        // An absent or inaccessible report cannot establish closure.
       }
     }
 
@@ -579,6 +569,12 @@ export class StatusHandler implements IMcpToolHandler {
               preflight,
               navegador_qap: preflight.navegador_qap,
               fase: currentPhase,
+              session_plan: lifecycleState.session?.plan,
+              plan_revision_id: lifecycleState.plan_revisions?.at(-1)?.session_id === lifecycleState.session?.id
+                ? lifecycleState.plan_revisions?.at(-1)?.id : undefined,
+              ...(currentPhase === 'WORKING' || currentPhase === 'WRAP_UP' ? {
+                closure_state: reportPath ? 'closed' : 'incomplete',
+              } : {}),
               estados_modulos: estadosModulos,
               faltantes,
               siguiente_accion: guidance.siguiente_accion,

@@ -10,6 +10,7 @@ import {
 export interface McpInvocationContext {
   readonly requestId: RequestId;
   readonly signal: AbortSignal;
+  readonly onException?: (error: unknown) => void;
 }
 
 /** Arguments remain untrusted until the handler's own domain validation. */
@@ -108,6 +109,7 @@ export class ToolDispatcher {
       const result = CallToolResultSchema.safeParse(await handler.execute(args, context));
       return result.success ? result.data : failure('invalid_result');
     } catch (error: unknown) {
+      context.onException?.(error);
       return failure(error instanceof McpToolError && Object.hasOwn(ERROR_MESSAGES, error.code)
         ? error.code : 'execution_failed');
     }

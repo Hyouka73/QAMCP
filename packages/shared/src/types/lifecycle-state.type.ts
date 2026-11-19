@@ -20,6 +20,20 @@ export interface SessionPlanItem {
   acceso?: boolean;
   /** Flujos críticos del negocio asociados a este módulo (opcional) */
   flujos?: string[];
+  provenance?: SessionPlanProvenance;
+}
+
+export interface SessionPlanProvenance {
+  source: 'modules' | 'plan' | 'adicionales' | 'desde_candidatos' | 'reuse_modules';
+  candidate_id?: string;
+  module_id?: string;
+}
+
+export interface SessionPlanRevision {
+  id: string;
+  session_id: string;
+  recorded_at: string;
+  plan: SessionPlanItem[];
 }
 
 export interface SessionAuthConfig {
@@ -63,4 +77,5 @@ export interface LifecycleState {
   session: LifecycleSession;
   modules: Record<string, ModuleStateInfo>;
   history: TransitionHistoryEntry[];
+  plan_revisions?: SessionPlanRevision[];
 }

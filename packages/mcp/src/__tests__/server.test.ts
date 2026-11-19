@@ -728,8 +728,129 @@ describe('Suite MCP Server QAP v2.1 / v2.1.2', () => {
     expect(pInj.fase).toBe('ONBOARDING');
   });
 
-  it('qap_session_plan: SCOPING define plan y auth, transiciona a WORKING, rechazo atomico, ampliacion en WORKING, bloqueada en ONBOARDING', async () => {
-    const server = createMcpServer();
+  it('registra un bloqueo anterior al binding solo en la bitácora del host', async () => {
+    const host = join(tempDir, 'host');
+    const applicationService = new QapApplicationService({ hostRootDir: host });
+    const bootstrap = new WorkspaceBootstrap(host, applicationService);
+    const server = createMcpServer({ workspaceBootstrap: bootstrap, projectRoots: [] });
+    try {
+      // @ts-expect-error accessing internal request handler
+      const handler = server._requestHandlers.get(CallToolRequestSchema.shape.method.value);
+      const sentinel = 'private-workspace-input';
+      const response = await handler({
+        method: 'tools/call',
+        params: { name: 'qap_session_plan', arguments: { conversation_id: sentinel } },
+      }, { requestId: 41 });
+      expect(JSON.parse(response.content[0].text)).toMatchObject({ status: 'error', code: 'invalid_conversation_id' });
+      const event = readFileSync(join(host, 'logs', 'qap-events.jsonl'), 'utf8');
+      expect(JSON.parse(event)).toMatchObject({
+        request_id: '41', operation: 'qap_session_plan', error: { code: 'invalid_conversation_id' },
+      });
+      expect(event).not.toContain(sentinel);
+      expect(existsSync(join(tempDir, '.qa'))).toBe(false);
+    } finally {
+      await server.close();
+      bootstrap.close();
+      applicationService.close();
+    }
+  });
+
+  it('preserva flujos y prioridad al ampliar un plan en WORKING', async () => {
+    const applicationService = new QapApplicationService({ hostRootDir: join(tempDir, 'host') });
+    try {
+      const server = createMcpServer({ applicationService });
+      // @ts-expect-error accessing internal request handler
+      const handler = server._requestHandlers.get(CallToolRequestSchema.shape.method.value);
+      const call = async (name: string, args: Record<string, unknown> = {}) => {
+        const response = await handler({ method: 'tools/call', params: { name, arguments: args } }, {});
+        return JSON.parse(response.content[0].text);
+      };
+      const project = join(tempDir, '.qa', 'project');
+      mkdirSync(project, { recursive: true });
+      const lifecyclePath = join(project, 'lifecycle.json');
+      writeFileSync(lifecyclePath, JSON.stringify({
+        _version: '1', phase: 'WORKING', session: { id: 'synthetic', started_at: new Date().toISOString(), plan: [] },
+        modules: {}, history: [],
+      }));
+      const initial = { module: 'orders', path: '/orders', priority: 'low', flujos: ['Consultar', 'Confirmar'] };
+      const first = await call('qap_session_plan', { modules: [initial] });
+      expect(first).toMatchObject({ status: 'success', fase: 'WORKING' });
+
+      writeFileSync(join(project, 'module-candidates.json'), JSON.stringify({ candidates: [
+        { id: 'candidate-catalog', nombre: 'catalog', ruta: '/catalog', fuentes: ['doc'], flujos: ['Consultar catálogo'] },
+      ] }));
+      const args = {
+        desde_candidatos: [{ id: 'candidate-catalog', priority: 'medium' }],
+        adicionales: [{ module: 'export', path: '/export', priority: 'low', flujos: [] }],
+        modules: [{ module: 'dashboard', path: '/dashboard', priority: 'high', flujos: ['Filtrar'] }],
+      };
+      const approved = [
+        { ...initial, status: 'planned', provenance: { source: 'modules' } },
+        { module: 'catalog', path: '/catalog', priority: 'medium', flujos: ['Consultar catálogo'], status: 'planned',
+          provenance: { source: 'desde_candidatos', candidate_id: 'candidate-catalog' } },
+        { ...args.adicionales[0], status: 'planned', provenance: { source: 'adicionales' } },
+        { ...args.modules[0], status: 'planned', provenance: { source: 'modules' } },
+      ];
+      const response = await call('qap_session_plan', args);
+      expect(response).toMatchObject({ status: 'success', fase: 'WORKING' });
+      expect(response.plan).toEqual(approved);
+
+      const persisted = JSON.parse(readFileSync(lifecyclePath, 'utf8'));
+      expect(new SchemaValidator().validateLifecycleState(persisted).valid).toBe(true);
+      expect(persisted.session.plan).toEqual(approved);
+      expect(persisted.plan_revisions).toMatchObject([
+        { id: first.plan_revision_id, session_id: 'synthetic', plan: [approved[0]] },
+        { id: response.plan_revision_id, session_id: 'synthetic', plan: approved },
+      ]);
+      const sessions = join(project, 'sessions');
+      mkdirSync(sessions);
+      writeFileSync(join(sessions, 'previous-campaign.report.md'), '# Previous campaign');
+      // A report may be published before the lifecycle commit.
+      writeFileSync(join(sessions, 'synthetic.report.md'), '# Uncommitted closure');
+      expect(await call('qap_status')).toMatchObject({
+        fase: 'WORKING', closure_state: 'incomplete', plan_revision_id: response.plan_revision_id, session_plan: approved,
+      });
+      expect(await call('qap_session_plan', args)).toMatchObject({ plan_revision_id: response.plan_revision_id });
+      expect(await call('qap_session_plan', { modules: [{ ...initial, priority: 'high' }] }))
+        .toMatchObject({ status: 'blocked', code: 'working_plan_conflict', fase: 'WORKING' });
+      expect(JSON.parse(readFileSync(lifecyclePath, 'utf8')).plan_revisions).toEqual(persisted.plan_revisions);
+
+      mkdirSync(join(tempDir, '.qa', 'executions'));
+      expect(await call('qap_report')).toMatchObject({
+        status: 'blocked', code: 'no_matching_execution', execution_state: 'missing', fase: 'WORKING',
+      });
+      expect(await call('qap_session_close')).toMatchObject({
+        status: 'blocked', code: 'session_closure_incomplete', closure_state: 'incomplete', fase: 'WORKING',
+      });
+      expect(readdirSync(join(tempDir, '.qa', 'executions'))).toEqual([]);
+
+      for (const item of approved) {
+        Object.assign(persisted.modules[item.module], { state: 'waived', waived_reason: 'Synthetic fixture waiver' });
+      }
+      writeFileSync(lifecyclePath, JSON.stringify(persisted));
+      const currentReport = join(sessions, 'synthetic.report.md');
+      expect(await call('qap_session_close')).toMatchObject({ status: 'success', fase: 'WRAP_UP', report_path: currentReport });
+      expect(await call('qap_status')).toMatchObject({ fase: 'WRAP_UP', closure_state: 'closed' });
+      rmSync(currentReport);
+      expect(await call('qap_status')).toMatchObject({ fase: 'WRAP_UP', closure_state: 'incomplete' });
+      mkdirSync(currentReport);
+      expect(await call('qap_status')).toMatchObject({ fase: 'WRAP_UP', closure_state: 'incomplete' });
+    } finally {
+      applicationService.close();
+    }
+  });
+
+  it('qap_session_plan: SCOPING define plan y auth, transiciona a WORKING, rechazo atomico, ampliacion en WORKING, bloqueada en ONBOARDING', async ({ onTestFinished }) => {
+    const host = mkdtempSync(join(tmpdir(), 'qap-mcp-planning-host-'));
+    const applicationService = new QapApplicationService({ hostRootDir: host });
+    const server = createMcpServer({ applicationService });
+    onTestFinished(async () => {
+      try { await server.close(); }
+      finally {
+        applicationService.close();
+        rmSync(host, { recursive: true, force: true });
+      }
+    });
     // @ts-expect-error accessing internal request handler
     const handler = server._requestHandlers.get(CallToolRequestSchema.shape.method.value);
 

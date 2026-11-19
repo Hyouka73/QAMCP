@@ -331,6 +331,53 @@ it('D/E/F/G/H/L/O: en UNA instancia viva alterna A -> B -> A, separa URL compart
   expect(await call(dynamicClient, 'qap_status')).toMatchObject({ status: 'success', directorio_objetivo: a });
 }, 90_000);
 
+it('recovers the approved plan and scopes diagnostics to its conversation after switching projects', async () => {
+  authorizeWorkspace(a);
+  authorizeWorkspace(b);
+  const client = await connectStdio();
+  const first = await call(client, 'qap_start', { targetPath: a, base_url: url });
+  const second = await call(client, 'qap_start', { targetPath: b, base_url: url });
+  const conversation = { conversation_id: first.conversation_id };
+  expect(first).toMatchObject({ status: 'success', directorio_objetivo: a });
+  expect(second).toMatchObject({ status: 'success', directorio_objetivo: b });
+
+  const lifeA = join(a, '.qa', 'project', 'lifecycle.json');
+  const lifeB = join(b, '.qa', 'project', 'lifecycle.json');
+  const beforeB = readFileSync(lifeB, 'utf8');
+  const logB = eventLog(b);
+  const seed = JSON.parse(readFileSync(lifeA, 'utf8'));
+  seed.phase = 'WORKING';
+  seed.session = { id: 'current-campaign', started_at: new Date().toISOString(), plan: [] };
+  writeFileSync(lifeA, JSON.stringify(seed));
+  const sessions = join(a, '.qa', 'project', 'sessions');
+  mkdirSync(sessions, { recursive: true });
+  writeFileSync(join(sessions, 'previous-campaign.report.md'), '# Previous campaign');
+
+  const module = { module: 'orders', path: '/orders', priority: 'low', flujos: ['Consultar', 'Confirmar'] };
+  const approved = [{ ...module, status: 'planned', provenance: { source: 'modules' } }];
+  const plan = await call(client, 'qap_session_plan', { ...conversation, modules: [module] });
+  expect(plan).toMatchObject({ status: 'success', fase: 'WORKING', plan: approved });
+  const saved = JSON.parse(readFileSync(lifeA, 'utf8'));
+  expect(saved.session.plan).toEqual(approved);
+  expect(saved.plan_revisions.at(-1)).toMatchObject({ id: plan.plan_revision_id, plan: approved });
+
+  expect(await call(client, 'qap_status', conversation)).toMatchObject({
+    fase: 'WORKING', closure_state: 'incomplete', session_plan: approved, plan_revision_id: plan.plan_revision_id,
+  });
+  expect(await call(client, 'qap_session_plan', { ...conversation, modules: [{ ...module, priority: 'high' }] }))
+    .toMatchObject({ status: 'blocked', code: 'working_plan_conflict', fase: 'WORKING' });
+  expect(eventLog(a).trim().split(/\r?\n/).map(line => JSON.parse(line))).toContainEqual(expect.objectContaining({
+    conversation_id: first.conversation_id,
+    tool: 'qap_session_plan',
+    phase: 'WORKING',
+    operation: 'persist_plan',
+    error: { code: 'working_plan_conflict' },
+    evidence_refs: [],
+  }));
+  expect(readFileSync(lifeB, 'utf8')).toBe(beforeB);
+  expect(eventLog(b)).toBe(logB);
+}, 60_000);
+
 it('I: flujo interactivo sin roots del host solicita selección explícita y aplica rechazo/aprobación del diálogo', async () => {
   const freshRaw = join(base, 'fresh-interactive');
   mkdirSync(freshRaw, { recursive: true });

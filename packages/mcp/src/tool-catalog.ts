@@ -424,6 +424,8 @@ export const TOOLS: Tool[] = [
                 properties: {
                   id: { type: 'string' },
                   path: { type: 'string' },
+                  priority: { type: 'string', enum: ['high', 'medium', 'low'] },
+                  flujos: { type: 'array', items: { type: 'string' } },
                 },
                 required: ['id'],
               },
