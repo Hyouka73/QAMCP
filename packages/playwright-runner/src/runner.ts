@@ -114,6 +114,8 @@ export interface PlaywrightRunnerOptions extends TestOptions {
   allowedOrigins?: string[];
   /** Trusted MCP host options for a single-origin, read-only execution. */
   interactiveReadOnly?: boolean;
+  /** Exact origin and GET/HEAD transport for an evidenced canonical read-only run. */
+  readOnlyOrigin?: string;
   verifiedSession?: { state: StorageState; verificationUrl: string; selector: string };
   contextSetup?: (context: BrowserContext) => Promise<void> | void;
   /** Identificador del intento para vincular artefactos físicos (P0.4). */
@@ -351,7 +353,7 @@ export class PlaywrightRunner implements IRunner {
       try {
         const { chromium } = await import('playwright-core');
         checkCancellation();
-        const channels = options.interactiveReadOnly ? [undefined, 'chrome', 'msedge'] : [undefined];
+        const channels = (options.interactiveReadOnly || options.readOnlyOrigin) ? [undefined, 'chrome', 'msedge'] : [undefined];
         for (const channel of channels) {
           checkCancellation();
           try {
@@ -455,7 +457,7 @@ export class PlaywrightRunner implements IRunner {
       const newContextOpts: BrowserContextOptions = {
         ...(storageState ? { storageState } : {}),
         ...(options.extraHTTPHeaders ? { extraHTTPHeaders: options.extraHTTPHeaders } : {}),
-        ...(options.interactiveReadOnly ? { serviceWorkers: 'block', acceptDownloads: false } : {}),
+        ...((options.interactiveReadOnly || options.readOnlyOrigin) ? { serviceWorkers: 'block', acceptDownloads: false } : {}),
         ...(rawVideoDirAbs ? { recordVideo: { dir: rawVideoDirAbs, size: { width: 1280, height: 720 } } } : {}),
       };
       context = await browser!.newContext(Object.keys(newContextOpts).length > 0 ? newContextOpts : undefined);
@@ -492,7 +494,7 @@ export class PlaywrightRunner implements IRunner {
         }
       }
 
-      if (!options.interactiveReadOnly && options.allowedOrigins && options.allowedOrigins.length > 0) {
+      if (!options.interactiveReadOnly && !options.readOnlyOrigin && options.allowedOrigins && options.allowedOrigins.length > 0) {
         const allowedPatterns = options.allowedOrigins;
         await context.route('**/*', async (route) => {
           const reqUrl = route.request().url();
@@ -542,6 +544,7 @@ export class PlaywrightRunner implements IRunner {
       if (shouldRecordPhysicalArtifacts) {
         await installEvidenceDomSanitizer(context, page);
       }
+      if (options.readOnlyOrigin) await restrictChromiumPage(page, options.readOnlyOrigin, true);
       if (options.interactiveReadOnly) {
         const [origin] = options.allowedOrigins ?? [];
         if (!origin || options.allowedOrigins?.length !== 1) throw new Error('Falta el origen autorizado.');

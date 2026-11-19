@@ -1,11 +1,12 @@
 import { randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { FileSystemStorage } from '@qap/knowledge';
+import { PlaywrightRunner } from '@qap/playwright-runner';
 import type { CredentialProvider, CredentialReference } from '@qap/shared';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -69,13 +70,17 @@ describe('Bloque 3 — Casos epistémicos, intentos de ejecución, recuperación
 
     const appService = new QapApplicationService({
       hostRootDir: hostRoot,
+      projectOperationDirectory: hostRoot,
       credentialProvider: new TestMemoryCredentialProvider(),
     });
     const bootstrap = new WorkspaceBootstrap(hostRoot, appService);
-    const hostRegistryPath = join(hostRoot, 'authorized-workspaces.json');
+    const hostRegistryPath = join(hostRoot, 'authorized-roots.json');
     const hostDiscoveryRegistryPath = join(hostRoot, 'authorized-discoveries.json');
     const hostAuthRegistryPath = join(hostRoot, 'authorized-auth.json');
     const hostTestRegistryPath = join(hostRoot, 'authorized-tests.json');
+    appService.publishRootAuthorization(workspaceRoot, randomUUID(),
+      () => writeFileSync(hostRegistryPath, JSON.stringify([workspaceRoot])),
+      () => rmSync(hostRegistryPath, { force: true }));
 
     disposables.push(() => {
       bootstrap.close();
@@ -135,7 +140,8 @@ describe('Bloque 3 — Casos epistémicos, intentos de ejecución, recuperación
       const server = createMcpServer({
         workspaceBootstrap: bootstrap,
         applicationService: appService,
-        clientWorkspaceRoots: true,
+        configuredWorkspaceRoot: workspaceRoot,
+        silentBoundScope: true,
         workspaceAuthorizer,
         hostRegistryPath,
         discoveryAuthorizer,
@@ -207,7 +213,7 @@ describe('Bloque 3 — Casos epistémicos, intentos de ejecución, recuperación
       role: 'operador',
       login_route: '/login',
     });
-    expect(authRes.data.status).toBe('success');
+    expect(authRes.data.status, JSON.stringify(authRes.data)).toBe('success');
 
     const discoverRes = await callJson(client, 'qap_discover', {
       targetPath: workspaceRoot,
@@ -377,6 +383,27 @@ describe('Bloque 3 — Casos epistémicos, intentos de ejecución, recuperación
     expect(decideRes.data.status).toBe('updated');
     expect((decideRes.data.updated_cases as Array<unknown>).length).toBe(2);
 
+    const mutating = await callJson(client, 'qap_plan', {
+      targetPath: workspaceRoot,
+      module: 'pedidos',
+      case_workflow: { action: 'propose_from_observations', proposals: [{
+        title: 'Ejemplo sintético de operación de escritura fuera del alcance',
+        requirement_id: reqPass.requirement_id,
+        steps: [
+          { type: 'navigate', url: `${staging.origin}/app` },
+          { type: 'click', selector: '#danger-delete-btn' },
+          { type: 'assert', selector: 'body', assertion_type: 'contains', expected: 'ORD-101' },
+        ],
+      }] },
+    });
+    expect(mutating.data.status).toBe('proposed');
+    const writeCaseId = String((mutating.data.proposed_cases as Array<{ case_id: string }>)[0].case_id);
+    const writeReview = await callJson(client, 'qap_plan', {
+      targetPath: workspaceRoot, module: 'pedidos',
+      case_workflow: { action: 'approve_batch', case_ids: [writeCaseId] },
+    });
+    expect(writeReview.data.status).toBe('approved');
+
     // 4. Plan DAG + Ejecución real en Playwright con lote selectivo [TC-pass, TC-fail]
     const dagPlan = await callJson(client, 'qap_plan', {
       targetPath: workspaceRoot,
@@ -385,6 +412,43 @@ describe('Bloque 3 — Casos epistémicos, intentos de ejecución, recuperación
     });
     expect(dagPlan.data.status).toBe('success');
     expect(dagPlan.data.cases).toEqual(expect.arrayContaining(readyIds));
+
+    const executionArgs = { targetPath: workspaceRoot, module: 'pedidos', environment: 'local', profile: 'qa-spa' };
+    const requestsBeforeWrite = staging.visitedRequests.length;
+    const write = await callJson(client, 'qap_test', { ...executionArgs, case_ids: [writeCaseId] });
+    expect(write.data).toMatchObject({ status: 'blocked', code: 'mutation_scope_unavailable' });
+    expect(staging.visitedRequests).toHaveLength(requestsBeforeWrite);
+    expect(staging.mutatingRequests).toHaveLength(0);
+    expect(testAuthorizer.requestAuthorization).not.toHaveBeenCalled();
+
+    const caseStorage = new FileSystemStorage({ rootDir: workspaceRoot });
+    const reviewedCase = await caseStorage.getTestCase('pedidos', passCaseId);
+    const alteredCase = { ...reviewedCase, steps: reviewedCase.steps.map(step =>
+      step.type === 'assert' ? { ...step, expected: 'Panel de Pedidos' } : step) };
+    const caseFileId = `TC-${passCaseId}`;
+    await caseStorage.saveTestCase('pedidos', alteredCase, caseFileId);
+    await callJson(client, 'qap_plan', { targetPath: workspaceRoot, module: 'pedidos' });
+    const altered = await callJson(client, 'qap_test', { ...executionArgs, case_ids: [passCaseId] });
+    expect(altered.data).toMatchObject({ status: 'blocked', code: 'case_approval_content_mismatch' });
+    expect(staging.visitedRequests).toHaveLength(requestsBeforeWrite);
+    expect(testAuthorizer.requestAuthorization).not.toHaveBeenCalled();
+    await caseStorage.saveTestCase('pedidos', reviewedCase, caseFileId);
+    await callJson(client, 'qap_plan', { targetPath: workspaceRoot, module: 'pedidos' });
+
+    const prepare = PlaywrightRunner.prototype.prepare;
+    const noTrace = vi.spyOn(PlaywrightRunner.prototype, 'prepare').mockImplementationOnce(function (
+      this: PlaywrightRunner, plan, options,
+    ) {
+      return prepare.call(this, plan, { ...options, artifactFaultInjection: { failTrace: true } });
+    });
+    try {
+      const noEvidence = await callJson(client, 'qap_test', { ...executionArgs, case_ids: [passCaseId] });
+      expect(noEvidence.data).toMatchObject({ status: 'blocked', code: 'execution_evidence_missing' });
+      expect(noEvidence.data).not.toHaveProperty('summary');
+      expect(appService.listExecutionAttempts(projectId)).toHaveLength(0);
+    } finally {
+      noTrace.mockRestore();
+    }
 
     const testRes = await callJson(client, 'qap_test', {
       targetPath: workspaceRoot,
@@ -541,7 +605,7 @@ describe('Bloque 3 — Casos epistémicos, intentos de ejecución, recuperación
       role: 'operador',
       login_route: '/login',
     });
-    expect(authRes.data.status).toBe('success');
+    expect(authRes.data.status, JSON.stringify(authRes.data)).toBe('success');
 
     await callJson(client, 'qap_session_plan', {
       targetPath: workspaceRoot,
@@ -608,7 +672,7 @@ describe('Bloque 3 — Casos epistémicos, intentos de ejecución, recuperación
     appService.authority.grant({
       project_id: project.project_id,
       capability: 'execute',
-      scope: { root_path: workspaceRoot, origin: staging.origin },
+      scope: { root_path: workspaceRoot, origin: staging.origin, env_id: project.active_env_id! },
       granted_by: 'test_harness',
       policy_hash: 'hash-test',
     });
@@ -626,7 +690,7 @@ describe('Bloque 3 — Casos epistémicos, intentos de ejecución, recuperación
     appService.authority.grant({
       project_id: project.project_id,
       capability: 'execute',
-      scope: { root_path: workspaceRoot, origin: staging.origin },
+      scope: { root_path: workspaceRoot, origin: staging.origin, env_id: project.active_env_id! },
       granted_by: 'test_harness',
       policy_hash: 'hash-test-2',
     });
@@ -642,5 +706,5 @@ describe('Bloque 3 — Casos epistémicos, intentos de ejecución, recuperación
     expect(expiredTest.data.status).toBe('blocked');
     expect(expiredTest.data.code).toBe('auth_session_expired');
     expect(staging.visitedRequests.length).toBe(hitsBeforeExpired);
-  }, 45000);
+  }, 60000);
 });

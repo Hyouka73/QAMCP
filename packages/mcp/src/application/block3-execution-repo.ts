@@ -1573,9 +1573,15 @@ export class Block3ExecutionRepo {
     return row ? mapCaseResultRow(row) : null;
   }
 
-  getExecutionSummary(projectId: string, moduleKey?: string): CanonicalExecutionSummary {
-    const attempts = this.listExecutionAttempts(projectId, moduleKey);
-    const rows = moduleKey
+  getExecutionSummary(projectId: string, moduleKey?: string, attemptId?: string): CanonicalExecutionSummary {
+    const attempts = this.listExecutionAttempts(projectId, moduleKey).filter(attempt => !attemptId || attempt.attempt_id === attemptId);
+    const rows = attemptId
+      ? this.#store.all(
+          'SELECT * FROM execution_case_results WHERE project_id = ? AND attempt_id = ? ORDER BY created_at DESC',
+          projectId,
+          attemptId,
+        )
+      : moduleKey
       ? this.#store.all(
           'SELECT * FROM execution_case_results WHERE project_id = ? AND module_key = ? ORDER BY created_at DESC',
           projectId,

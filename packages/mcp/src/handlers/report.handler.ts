@@ -10,12 +10,13 @@ import {
   generateJsonReport,
   generateMarkdownReport,
 } from '@qap/reporter';
+import { hasCommittedRun } from '@qap/playwright-runner';
 import { SchemaValidator, type ExecutionResult } from '@qap/shared';
 
 import { resolveContainedPath } from '../application/safe-storage.js';
 import { McpToolError, type IMcpToolHandler, type McpInvocationContext } from '../dispatcher.js';
 
-import { isInternallyConsistentExecution } from './execution-evidence.js';
+import { hasPhysicalVerdictEvidence, isInternallyConsistentExecution } from './execution-evidence.js';
 import {
   binding,
   definition,
@@ -112,7 +113,10 @@ function artifactReferenceState(root: string, evidence: ExecutionResult, artifac
 export class ReportHandler implements IMcpToolHandler {
   readonly definition = definition('qap_report');
 
-  constructor(private readonly dependencies: StateDependencies) {}
+  constructor(
+    private readonly dependencies: StateDependencies,
+    private readonly requireCanonicalExecution = Boolean(dependencies.applicationService),
+  ) {}
 
   validateArguments(raw: unknown): boolean {
     if (!isObject(raw) || !validateBase(raw, ['targetPath', 'executionId', 'module', 'format', 'recover_pending'])) {
@@ -165,6 +169,25 @@ export class ReportHandler implements IMcpToolHandler {
 
     const appService = this.dependencies.applicationService;
     const appProject = appService?.findActiveProjectByRoot(root) ?? null;
+
+    const attempts = appProject && appService ? appService.listExecutionAttempts(appProject.project_id, args.module) : [];
+    const byExecutionId = new Map(attempts.map(attempt => [attempt.execution_id, attempt]));
+    const canonicalExecutionState = (candidate: ExecutionResult) => {
+      const attempt = byExecutionId.get(candidate.execution_id);
+      if (attempt?.module_key !== candidate.module || !candidate.attempt_id ||
+          attempt.attempt_id !== candidate.attempt_id || !attempt.finished_at ||
+          !attempt.raw_execution_path || !attempt.result_digest ||
+          !['completed', 'partial', 'technical_error'].includes(attempt.status)) return 'execution_not_canonical';
+      const digest = createHash('sha256').update(JSON.stringify(candidate)).digest('hex');
+      if (attempt.result_digest !== digest) return 'execution_digest_mismatch';
+      try {
+        if (!hasCommittedRun(root, attempt.attempt_id)) return 'execution_not_canonical';
+      } catch {
+        return 'execution_not_canonical';
+      }
+      if (!hasPhysicalVerdictEvidence(root, attempt.attempt_id, candidate)) return 'execution_evidence_missing';
+      return null;
+    };
 
     let executionId = args.executionId;
     if (!executionId && appProject && appService) {
@@ -230,7 +253,8 @@ export class ReportHandler implements IMcpToolHandler {
         if (!candidate || candidate.execution_id !== candidateId ||
           (args.module && candidate.module !== args.module) ||
           !validator.validateExecutionResult(candidate).valid ||
-          !validateReportEvidence(candidate)) continue;
+          !validateReportEvidence(candidate) ||
+          (this.requireCanonicalExecution && canonicalExecutionState(candidate))) continue;
         const stamp = Date.parse(candidate.finished_at);
         if (Number.isFinite(stamp) && stamp > newest) {
           newest = stamp;
@@ -281,15 +305,22 @@ export class ReportHandler implements IMcpToolHandler {
     if (this.dependencies.validateKnowledgeBinding && (!admitted || !this.dependencies.validateKnowledgeBinding(admitted))) return result({ status: 'blocked', code: 'workspace_persistent_authority_required' }, true);
     const evidence = verifiedEvidence;
     const executionId = verifiedExecutionId;
+    const evidenceError = this.requireCanonicalExecution ? canonicalExecutionState(evidence) : null;
+    if (evidenceError) return result({
+      status: 'blocked', code: evidenceError, executionId, execution_state: 'unverified',
+      ...(evidenceError === 'execution_evidence_missing' ? { artifact_reference_state: artifactReferenceState(root, evidence, evidence.artifacts) } : {}),
+      message: 'La ejecución no tiene un comprobante canónico íntegro y evidencia verificable. No se generó un reporte.',
+      desbloquear_con: 'qap_status',
+      siguiente_accion: { tipo: 'trabajo', tool: 'qap_status',
+        descripcion: 'Revisa el estado del intento y sus artefactos. Solo un intento registrado por qap_test puede acreditar la ejecución.' },
+    }, true);
+
     const paths: Record<string, string> = {};
     const requestedFormats: Array<'html' | 'markdown' | 'junit' | 'json'> =
       format === 'all'
         ? FORMATS.filter((item): item is 'html' | 'markdown' | 'junit' | 'json' => item !== 'all')
         : [format];
-    const matchingAttempt =
-      appProject && appService
-        ? appService.listExecutionAttempts(appProject.project_id, evidence.module).find(a => a.execution_id === executionId)
-        : undefined;
+    const matchingAttempt = byExecutionId.get(executionId);
     const resolvedAttemptId = matchingAttempt?.attempt_id ?? evidence.attempt_id ?? undefined;
     const resolvedArtifacts =
       evidence.artifacts ??
@@ -404,7 +435,7 @@ export class ReportHandler implements IMcpToolHandler {
     }
 
     const canonicalExecutionSummary =
-      appProject && appService ? appService.getExecutionSummary(appProject.project_id, evidence.module) : undefined;
+      appProject && appService ? appService.getExecutionSummary(appProject.project_id, evidence.module, resolvedAttemptId) : undefined;
 
 
     return result({

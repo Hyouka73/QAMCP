@@ -1,10 +1,11 @@
 import { createServer, type Server as HttpServer } from 'node:http';
 import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { execFileSync, spawn, spawnSync } from 'node:child_process';
+import { execFile, execFileSync, spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import os from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { promisify } from 'node:util';
 import type { AddressInfo } from 'node:net';
 
 import YAML from 'yaml';
@@ -17,6 +18,7 @@ import { SchemaValidator, type TCCase } from '@qap/shared';
 import { PlaywrightRunner } from '@qap/playwright-runner';
 
 import { createMcpServer } from '../server.js';
+import { materializeReviewedCase } from '../handlers/conversational-case-workflow.js';
 import { PlanHandler, computeCasesFingerprint } from '../handlers/plan.handler.js';
 import { TestHandler, type TestNavigationAuthorization } from '../handlers/test.handler.js';
 import { QapApplicationService } from '../application/application-service.js';
@@ -690,14 +692,6 @@ describe('TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4
   it('Scenario 12: integrates cleanly via createMcpServer preserving exact 19 tools (R4.12)', async () => {
     const root = realpathSync(initProject(localServerUrl));
     seedModule(root, 'mcp-mod');
-    seedTestCase(root, 'mcp-mod', 'TC-001', {
-      steps: [
-        { type: 'navigate', url: `${localServerUrl}/approved` },
-        { type: 'assert', selector: '#title', assertion_type: 'visible', timeout: 2000 },
-      ],
-    });
-    await generateLegitimatePlan(root, 'mcp-mod', 'local');
-
     const host = createTempDir('qap-host-');
     mkdirSync(host, { recursive: true });
     const appDir = join(host, 'application');
@@ -714,14 +708,17 @@ describe('TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4
     });
     await bootstrap.prepare(otherRoot, localServerUrl);
     const project = service.findActiveProjectByRoot(root)!;
-    const g1 = service.authority.grant({ project_id: project.project_id, capability: 'execute', scope: { root_path: root, origin: localServerUrl }, granted_by: 'test' });
+    const g1 = service.authority.grant({ project_id: project.project_id, capability: 'execute', scope: { root_path: root, origin: localServerUrl, env_id: project.active_env_id! }, granted_by: 'test' });
     const proposed = service.proposeModuleCases({ projectId: project.project_id, moduleKey: 'mcp-mod', proposals: [{
       case_id: 'TC-001', title: 'Test Case TC-001', expected_outcome: 'Approved Page', oracle_source: 'user',
       expectation_metadata: { decision_status: 'accredited' },
-      steps: [{ type: 'navigate', url: `${localServerUrl}/approved` }, { type: 'assert', selector: '#title', assertion_type: 'visible' }],
+      steps: [{ type: 'navigate', url: `${localServerUrl}/approved` }, { type: 'assert', selector: '#title', assertion_type: 'contains', expected: 'Approved Page' }],
     }] });
     expect(proposed.proposed).toHaveLength(1);
     expect(service.approveCaseBatch({ projectId: project.project_id, moduleKey: 'mcp-mod', caseIds: ['TC-001'], approvedBy: 'test' }).status).toBe('approved');
+    const approvedCase = service.listServiceCases(project.project_id, 'mcp-mod').find(tc => tc.case_id === 'TC-001')!;
+    await new FileSystemStorage({ rootDir: root }).saveTestCase('mcp-mod', materializeReviewedCase(approvedCase, 'mcp-mod'));
+    await generateLegitimatePlan(root, 'mcp-mod', 'local');
     const server = createMcpServer({
       projectRoots: [root],
       testAuthorizations: [{ allowedOrigins: ['http://127.0.0.1:*'] }],
@@ -796,7 +793,7 @@ describe('TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4
         await entered;
         const revoked = await second.callTool({ name: 'qap_project', arguments: { action: 'revoke_permission', project_id: project.project_id, targetPath: root, grant_id: g1.grant_id } });
         expect(revoked.isError, JSON.stringify(revoked)).toBeFalsy();
-        service.authority.grant({ project_id: project.project_id, capability: 'execute', scope: { root_path: root, origin: localServerUrl }, granted_by: 'test' });
+        service.authority.grant({ project_id: project.project_id, capability: 'execute', scope: { root_path: root, origin: localServerUrl, env_id: project.active_env_id! }, granted_by: 'test' });
       } finally { navigationBarrier = undefined; release(); }
       const rejected = await pending;
       expect(rejected.isError, JSON.stringify(rejected)).toBe(true);
@@ -1130,14 +1127,6 @@ describe('Post-commit consistency & MCP crash recovery acceptance (C, D, E, F)',
     const root = realpathSync(initProject(localServerUrl));
     const otherRoot = realpathSync(initProject(localServerUrl));
     seedModule(root, 'mcp-mod');
-    seedTestCase(root, 'mcp-mod', 'TC-001', {
-      steps: [
-        { type: 'navigate', url: `${localServerUrl}/approved` },
-        { type: 'assert', selector: '#title', assertion_type: 'visible', timeout: 2000 },
-      ],
-    });
-    await generateLegitimatePlan(root, 'mcp-mod', 'local');
-
     const host = createTempDir('qap-postcommit-host-');
     mkdirSync(host, { recursive: true });
     const appDir = join(host, 'application');
@@ -1161,7 +1150,7 @@ describe('Post-commit consistency & MCP crash recovery acceptance (C, D, E, F)',
     const executeGrant = service.authority.grant({
       project_id: project.project_id,
       capability: 'execute',
-      scope: { root_path: root, origin: localServerUrl },
+      scope: { root_path: root, origin: localServerUrl, env_id: project.active_env_id! },
       granted_by: 'test',
     });
     const proposed = service.proposeModuleCases({
@@ -1176,7 +1165,7 @@ describe('Post-commit consistency & MCP crash recovery acceptance (C, D, E, F)',
           expectation_metadata: { decision_status: 'accredited' },
           steps: [
             { type: 'navigate', url: `${localServerUrl}/approved` },
-            { type: 'assert', selector: '#title', assertion_type: 'visible' },
+            { type: 'assert', selector: '#title', assertion_type: 'contains', expected: 'Approved Page' },
           ],
         },
       ],
@@ -1190,6 +1179,10 @@ describe('Post-commit consistency & MCP crash recovery acceptance (C, D, E, F)',
         approvedBy: 'test',
       }).status,
     ).toBe('approved');
+
+    const approvedCase = service.listServiceCases(project.project_id, 'mcp-mod').find(tc => tc.case_id === 'TC-001')!;
+    await new FileSystemStorage({ rootDir: root }).saveTestCase('mcp-mod', materializeReviewedCase(approvedCase, 'mcp-mod'));
+    await generateLegitimatePlan(root, 'mcp-mod', 'local');
 
     bootstrap.close();
     service.close();
@@ -1399,12 +1392,12 @@ describe('Post-commit consistency & MCP crash recovery acceptance (C, D, E, F)',
       console.log(JSON.stringify(JSON.parse(res.content[0].text)));
     `;
 
-    const childRun = spawnSync(
+    // The loopback application runs on the parent event loop while Chromium runs in the child.
+    const childRun = await promisify(execFile)(
       runtimeGlobals.process.execPath,
       ['--input-type=module', '-e', childScript, mcpIndexUrl, root, appDir, workspaceDir, localServerUrl],
       { encoding: 'utf8', windowsHide: true, timeout: 60000 },
     );
-    expect(childRun.status, childRun.stderr).toBe(0);
     const body = JSON.parse(childRun.stdout.trim()) as Record<string, unknown>;
     expect(body.code).toBe('execution_finalization_pending');
     expect(body.code).not.toBe('execution_not_persisted');

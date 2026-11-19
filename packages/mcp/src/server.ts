@@ -686,11 +686,12 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
   });
   dispatcher.register(new PlanHandler(dependencies));
   dispatcher.register(new TestHandler(dependencies, {
+    requireCanonicalExecution: true,
     testAuthorizations: authorizedTestAuths,
     testAuthorizer: options.testAuthorizer,
     hostTestRegistryPath: options.hostTestRegistryPath,
   }));
-  dispatcher.register(new ReportHandler(dependencies));
+  dispatcher.register(new ReportHandler(dependencies, true));
   for (const handler of options.handlers ?? []) dispatcher.register(handler);
   dispatcher.seal();
 

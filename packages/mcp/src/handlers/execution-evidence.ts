@@ -1,3 +1,7 @@
+import { lstatSync } from 'node:fs';
+
+import { resolveContainedPath } from '../application/safe-storage.js';
+
 import type { ExecutionResult } from '@qap/shared';
 
 /**
@@ -41,4 +45,23 @@ export function isInternallyConsistentExecution(
     default:
       return false;
   }
+}
+
+/** Canonical verdicts require an attempt-scoped browser trace and attributed steps. */
+export function hasPhysicalVerdictEvidence(root: string, attemptId: string, evidence: ExecutionResult): boolean {
+  const executed = evidence.cases.filter(testCase => testCase.result === 'passed' || testCase.result === 'failed');
+  if (!executed.length) return true;
+  const trace = `.qa/runtime/runs/${attemptId}/artifacts/trace.zip`;
+  if (evidence.attempt_id !== attemptId || evidence.artifacts?.trace_zip_path !== trace) return false;
+  try {
+    const file = lstatSync(resolveContainedPath(root, trace));
+    if (!file.isFile() || file.size === 0) return false;
+  } catch {
+    return false;
+  }
+  return executed.every(testCase => evidence.timeline?.some(step =>
+    step.case_id === testCase.id &&
+    (testCase.result === 'passed'
+      ? step.action === 'assert' && step.status === 'passed' && step.expected != null && step.observed != null
+      : step.status === 'failed')));
 }

@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -11,6 +12,7 @@ import { ElicitRequestSchema, ListRootsRequestSchema } from '@modelcontextprotoc
 import { afterEach, describe, expect, it } from 'vitest';
 import YAML from 'yaml';
 
+import { QapApplicationService } from '../application/application-service.js';
 import { loadHostComposition } from '../host-composition.js';
 import { createMcpServer } from '../server.js';
 
@@ -18,6 +20,14 @@ import { startProtectedSpaStaging, type ProtectedSpaStagingController } from './
 
 const REPO_MCP_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const SERVER_DIST_PATH = join(REPO_MCP_ROOT, 'dist', 'server.js');
+
+function authorizeWorkspace(root: string, hostDir: string): void {
+  execFileSync(process.execPath, [resolve(REPO_MCP_ROOT, '../../scripts/qap-authorize-workspace.mjs'), root], {
+    env: { ...process.env, QAP_MCP_HOST_DATA_DIR: hostDir,
+      QAP_MCP_WORKSPACE_HOST_DIR: join(hostDir, 'workspaces'), QAP_MCP_APP_SERVICE_DIR: join(hostDir, 'application') },
+    windowsHide: true,
+  });
+}
 
 describe('Regresión: composición real Stdio/host sin diálogos QAP en flujo local vinculado', () => {
   const disposables: Array<() => Promise<void> | void> = [];
@@ -40,7 +50,7 @@ describe('Regresión: composición real Stdio/host sin diálogos QAP en flujo lo
     return { isError: Boolean(res.isError), data: JSON.parse(text) as Record<string, unknown> };
   }
 
-  it('Stdio real con roots/list: migra entrada histórica sin navigationOrigin conservando límites, ejecuta Chromium con PASS y rechaza otra raíz, otro origen y perfil revocado', async () => {
+  it('Stdio real con roots/list: migra entrada histórica sin navigationOrigin conservando límites, recupera el caso y publica un PASS canónico de Chromium con autorización explícita, y rechaza otra raíz, otro origen y perfil revocado', async () => {
     expect(existsSync(SERVER_DIST_PATH)).toBe(true);
     staging = await startProtectedSpaStaging();
 
@@ -88,37 +98,41 @@ describe('Regresión: composición real Stdio/host sin diálogos QAP en flujo lo
       'utf8',
     );
 
-    const transport = new StdioClientTransport({
-      command: process.execPath,
-      args: [SERVER_DIST_PATH],
-      cwd: REPO_MCP_ROOT,
-      env: {
-        ...process.env,
-        NODE_ENV: 'production',
-        QAP_MCP_HOST_DATA_DIR: hostDataDir,
-        QAP_MCP_WORKSPACE_HOST_DIR: workspaceHostDir,
-        QAP_MCP_APP_SERVICE_DIR: appServiceDir,
-      },
-      stderr: 'pipe',
-    });
+    disposables.push(() => rmSync(tempBase, { recursive: true, force: true }));
+    const connect = async () => {
+      const transport = new StdioClientTransport({
+        command: process.execPath,
+        args: [SERVER_DIST_PATH],
+        cwd: REPO_MCP_ROOT,
+        env: {
+          ...process.env,
+          NODE_ENV: 'production',
+          QAP_DISABLE_INTERACTIVE_AUTH: '1',
+          QAP_MCP_HOST_DATA_DIR: hostDataDir,
+          QAP_MCP_WORKSPACE_HOST_DIR: workspaceHostDir,
+          QAP_MCP_APP_SERVICE_DIR: appServiceDir,
+        },
+        stderr: 'pipe',
+      });
 
-    const client = new Client(
-      { name: 'stdio-host-client', version: '1.0.0' },
-      { capabilities: { roots: {}, elicitation: { form: {} } } },
-    );
-    client.setRequestHandler(ListRootsRequestSchema, async () => ({
-      roots: [{ uri: pathToFileURL(boundRoot).href, name: 'bound-project' }],
-    }));
-    client.setRequestHandler(ElicitRequestSchema, async () => ({
-      action: 'accept',
-      content: { decision: 'confirm' },
-    }));
+      const client = new Client(
+        { name: 'stdio-host-client', version: '1.0.0' },
+        { capabilities: { roots: {}, elicitation: { form: {} } } },
+      );
+      client.setRequestHandler(ListRootsRequestSchema, async () => ({
+        roots: [{ uri: pathToFileURL(boundRoot).href, name: 'bound-project' }],
+      }));
+      client.setRequestHandler(ElicitRequestSchema, async () => ({
+        action: 'accept',
+        content: { decision: 'confirm' },
+      }));
 
-    await client.connect(transport);
-    disposables.push(async () => {
-      await client.close();
-      rmSync(tempBase, { recursive: true, force: true });
-    });
+      await client.connect(transport);
+      disposables.push(() => client.close());
+      return client;
+    };
+    authorizeWorkspace(boundRoot, hostDataDir);
+    const client = await connect();
 
     // 1. Raíz vinculada por el host vía roots/list: inicializa sin diálogo
     const statusRes = await callJson(client, 'qap_status', { targetPath: boundRoot });
@@ -128,7 +142,7 @@ describe('Regresión: composición real Stdio/host sin diálogos QAP en flujo lo
     // 2. Otra raíz fuera del vínculo del host: rechazada sin usar targetPath como autoridad
     const otherRootRes = await callJson(client, 'qap_status', { targetPath: unboundRoot });
     expect(otherRootRes.data.status).toBe('blocked');
-    expect(otherRootRes.data.code).toBe('workspace_authorizer_not_configured');
+    expect(otherRootRes.data.code).toBe('workspace_outside_configured_root');
     expect(existsSync(join(unboundRoot, '.qa'))).toBe(false);
 
     // 3. Configurar entorno local del proyecto vinculado
@@ -206,7 +220,7 @@ describe('Regresión: composición real Stdio/host sin diálogos QAP en flujo lo
             expected_outcome: 'ORD-101',
             oracle_source: 'user',
             steps: [
-              { type: 'navigate', url: `${staging.origin}/app` },
+              { type: 'navigate', url: `${staging.origin}/app?qap_read_only_probe=1` },
               { type: 'waitFor', selector: '#spa-shell' },
               { type: 'assert', selector: 'body', assertion_type: 'contains', expected: 'ORD-101' },
             ],
@@ -216,6 +230,13 @@ describe('Regresión: composición real Stdio/host sin diálogos QAP en flujo lo
     });
     expect(proposeRes.isError, JSON.stringify(proposeRes.data)).toBe(false);
     const pendingCaseId = String((proposeRes.data.pending_oracle_cases as Array<Record<string, unknown>>)[0].case_id);
+    const testArgs = { targetPath: boundRoot, module: 'portal-pedidos', environment: 'local', profile: 'qa_local' };
+    const trafficBeforePreflight = staging.visitedRequests.length;
+    const missingOracle = await callJson(client, 'qap_test', { ...testArgs, case_ids: [pendingCaseId] });
+    expect(missingOracle.data).toMatchObject({
+      status: 'blocked', code: 'executable_oracle_required', siguiente_accion: { tool: 'qap_plan' },
+    });
+    expect(staging.visitedRequests).toHaveLength(trafficBeforePreflight);
     const decideRes = await callJson(client, 'qap_plan', {
       targetPath: boundRoot,
       module: 'portal-pedidos',
@@ -247,26 +268,89 @@ describe('Regresión: composición real Stdio/host sin diálogos QAP en flujo lo
     });
     expect(testPlanRes.isError, JSON.stringify(testPlanRes.data)).toBe(false);
 
-    const testRes = await callJson(client, 'qap_test', {
-      targetPath: boundRoot,
-      module: 'portal-pedidos',
-      environment: 'local',
-      profile: 'qa_local',
+    const withoutGrant = await callJson(client, 'qap_test', testArgs);
+    expect(withoutGrant.data).toMatchObject({
+      status: 'blocked', code: 'execution_authorization_required', siguiente_accion: { tool: 'qap_test' },
     });
+    expect(staging.visitedRequests).toHaveLength(trafficBeforePreflight);
+    const authorize = new QapApplicationService({ hostRootDir: appServiceDir, projectOperationDirectory: workspaceHostDir });
+    try {
+      const project = authorize.findActiveProjectByRoot(boundRoot)!;
+      expect(authorize.listExecutionAttempts(project.project_id)).toHaveLength(0);
+      authorize.authority.grant({
+        project_id: project.project_id,
+        capability: 'execute',
+        scope: { root_path: boundRoot, origin: staging.origin, env_id: project.active_env_id! },
+        granted_by: 'synthetic_host_operator',
+      });
+    } finally {
+      authorize.close();
+    }
+
+    await client.close();
+    const resumedClient = await connect();
+    const reviewed = await callJson(resumedClient, 'qap_plan', {
+      ...testArgs, case_workflow: { action: 'review', case_ids: [caseId] },
+    });
+    expect(reviewed.data).toMatchObject({ status: 'review', cases: [{
+      case_id: caseId, conformity_status: 'approved', expectation: { expected_outcome: 'ORD-101' },
+      steps: expect.arrayContaining([{ type: 'assert', selector: 'body', assertion_type: 'contains', expected: 'ORD-101' }]),
+    }] });
+
+    const testRes = await callJson(resumedClient, 'qap_test', testArgs);
     expect(testRes.isError, JSON.stringify(testRes.data)).toBe(false);
-    expect(testRes.data.result).toBe('passed');
-    expect((testRes.data.summary as { passed?: number; failed?: number })?.passed).toBe(1);
-    expect((testRes.data.summary as { passed?: number; failed?: number })?.failed).toBe(0);
-    expect(typeof testRes.data.attempt_id).toBe('string');
-    expect(typeof testRes.data.execution_id).toBe('string');
+    expect(testRes.data).toMatchObject({
+      result: 'passed', summary: { passed: 1, failed: 0 },
+      attempt_id: expect.any(String), execution_id: expect.any(String),
+      siguiente_accion: { tool: 'qap_report' },
+    });
+    expect(staging.visitedRequests.some(request => request.url === '/app?qap_read_only_probe=1')).toBe(true);
+    expect(staging.mutatingRequests).toHaveLength(0);
+    const executionId = String(testRes.data.execution_id);
+    const attemptId = String(testRes.data.attempt_id);
+    const reportArgs = { targetPath: boundRoot, module: testArgs.module, executionId };
+    const rawPath = join(boundRoot, '.qa', 'executions', executionId + '.json');
+    const execution = JSON.parse(readFileSync(rawPath, 'utf8'));
+    const tracePath = join(boundRoot, execution.artifacts.trace_zip_path);
+    expect(readFileSync(tracePath).byteLength).toBeGreaterThan(0);
+    expect(execution).toMatchObject({ execution_id: executionId, attempt_id: attemptId,
+      timeline: expect.arrayContaining([expect.objectContaining({
+        case_id: caseId, action: 'assert', status: 'passed', expected: 'ORD-101', observed: expect.stringContaining('ORD-101'),
+      })]),
+    });
+
+    // Un archivo estructuralmente válido no puede sustituir el resultado del intento.
+    writeFileSync(rawPath, JSON.stringify({ ...execution, timed_out: !execution.timed_out }));
+    const tampered = await callJson(resumedClient, 'qap_report', { ...reportArgs, format: 'json' });
+    expect(tampered.data).toMatchObject({ status: 'blocked', code: 'execution_digest_mismatch' });
+    writeFileSync(rawPath, JSON.stringify(execution));
+
+    const report = await callJson(resumedClient, 'qap_report', { ...reportArgs, format: 'all' });
+    expect(report.isError, JSON.stringify(report.data)).toBe(false);
+    expect(report.data).toMatchObject({
+      status: 'success', executionId, attempt_id: attemptId, summary: { passed: 1 },
+      traceability_file: expect.any(String),
+      canonical_execution_summary: { case_verdicts: [{ case_id: caseId, attempt_id: attemptId, verdict: 'PASS',
+        evidence_refs: expect.arrayContaining([execution.artifacts.trace_zip_path]) }] },
+    });
+    const reports = report.data.reports as Record<string, string>;
+    expect(Object.keys(reports).sort()).toEqual(['html', 'json', 'junit', 'markdown']);
+    expect(JSON.parse(readFileSync(reports.json, 'utf8'))).toEqual(execution);
+    expect(Object.values(reports).every(path => existsSync(path))).toBe(true);
+    rmSync(tracePath);
+    const missingEvidence = await callJson(resumedClient, 'qap_report', { ...reportArgs, format: 'json' });
+    expect(missingEvidence.data).toMatchObject({
+      status: 'blocked', code: 'execution_evidence_missing', artifact_reference_state: 'incomplete',
+    });
+    expect(missingEvidence.data).not.toHaveProperty('summary');
 
     // 9. Revocar permiso de login del perfil y verificar rechazo en login, discovery y test
-    const listProjects = await callJson(client, 'qap_project', { action: 'list' });
+    const listProjects = await callJson(resumedClient, 'qap_project', { action: 'list' });
     const projects = listProjects.data.projects as Array<{ project_id: string; canonical_root: string }>;
     const activeProject = projects.find((p) => p.canonical_root === boundRoot);
     expect(activeProject).toBeDefined();
 
-    const revokeRes = await callJson(client, 'qap_project', {
+    const revokeRes = await callJson(resumedClient, 'qap_project', {
       action: 'revoke_permission',
       project_id: activeProject!.project_id,
       capabilities: ['login'],
@@ -274,7 +358,8 @@ describe('Regresión: composición real Stdio/host sin diálogos QAP en flujo lo
     });
     expect(revokeRes.data.status).toBe('success');
 
-    const authAfterRevoke = await callJson(client, 'qap_auth_add', {
+    const hitsAtRevocation = staging.visitedRequests.length;
+    const authAfterRevoke = await callJson(resumedClient, 'qap_auth_add', {
       targetPath: boundRoot,
       profile: 'qa_local',
       username: 'qa.operator',
@@ -282,9 +367,10 @@ describe('Regresión: composición real Stdio/host sin diálogos QAP en flujo lo
       login_route: '/login',
     });
     expect(authAfterRevoke.isError).toBe(true);
-    expect(authAfterRevoke.data.code).toBe('login_permission_revoked');
+    expect(authAfterRevoke.data.code).toBe('login_permission_unavailable');
+    expect(staging.visitedRequests).toHaveLength(hitsAtRevocation);
 
-    const discAfterRevoke = await callJson(client, 'qap_discover', {
+    const discAfterRevoke = await callJson(resumedClient, 'qap_discover', {
       targetPath: boundRoot,
       name: 'portal-pedidos',
       path: '/app',
@@ -293,7 +379,7 @@ describe('Regresión: composición real Stdio/host sin diálogos QAP en flujo lo
     expect(discAfterRevoke.isError).toBe(true);
     expect(discAfterRevoke.data.code).toBe('auth_session_revoked');
 
-    const testAfterRevoke = await callJson(client, 'qap_test', {
+    const testAfterRevoke = await callJson(resumedClient, 'qap_test', {
       targetPath: boundRoot,
       module: 'portal-pedidos',
       environment: 'local',
@@ -311,6 +397,7 @@ describe('Regresión: composición real Stdio/host sin diálogos QAP en flujo lo
     const appServiceDir = join(hostDataDir, 'application');
     const boundRoot = join(tempBase, 'bound-project');
     mkdirSync(boundRoot, { recursive: true });
+    authorizeWorkspace(boundRoot, hostDataDir);
 
     const composition = await loadHostComposition({
       QAP_MCP_HOST_DATA_DIR: hostDataDir,
@@ -363,18 +450,15 @@ describe('Regresión: composición real Stdio/host sin diálogos QAP en flujo lo
       'utf8',
     );
 
-    // 1. YAML discrepante no debe obtener autorización silenciosa de login
+    // La ruta heredada de login sigue cerrada y el login explícito exige el entorno activo.
+    const requestCount = staging.visitedRequests.length;
     const discrepantAuth = await callJson(client, 'qap_auth_add', {
       targetPath: boundRoot,
       profile: 'qa_discrepant',
-      username: 'qa.operator',
-      password: 'StagingPass#2026',
       login_route: '/login',
     });
-    expect(discrepantAuth.data.status).toBe('blocked');
-    expect(discrepantAuth.data.code).toBe('authentication_authorization_required');
+    expect(discrepantAuth.data).toMatchObject({ status: 'blocked', code: 'legacy_auth_operation_disabled' });
 
-    // 2. Entorno production nunca obtiene autorización silenciosa de login
     const prodAuth = await callJson(client, 'qap_auth_add', {
       targetPath: boundRoot,
       env: 'production',
@@ -383,9 +467,15 @@ describe('Regresión: composición real Stdio/host sin diálogos QAP en flujo lo
       password: 'StagingPass#2026',
       login_route: '/login',
     });
-    expect(prodAuth.data.status).toBe('blocked');
-    expect(prodAuth.data.code).toBe('authentication_authorization_required');
-  });
+    expect(prodAuth.data).toMatchObject({ status: 'blocked', code: 'login_outside_configured_qa_environment' });
+
+    mkdirSync(join(boundRoot, '.qa', 'modules', 'pedidos', 'tests'), { recursive: true });
+    for (const environment of ['local', 'production']) {
+      const test = await callJson(client, 'qap_test', { targetPath: boundRoot, module: 'pedidos', environment });
+      expect(test.data).toMatchObject({ status: 'blocked', code: 'execution_environment_not_allowed' });
+    }
+    expect(staging.visitedRequests).toHaveLength(requestCount);
+  }, 30_000);
 
   it('bloquea con error exacto cuando la composición real carece de raíz vinculada por el host', async () => {
     const tempBase = mkdtempSync(join(tmpdir(), 'qap-host-noroot-'));
@@ -414,7 +504,7 @@ describe('Regresión: composición real Stdio/host sin diálogos QAP en flujo lo
 
     const blockedRes = await callJson(client, 'qap_status', { targetPath: arbitraryRoot });
     expect(blockedRes.data.status).toBe('blocked');
-    expect(blockedRes.data.code).toBe('workspace_authorizer_not_configured');
+    expect(blockedRes.data.code).toBe('workspace_not_bound');
     expect(existsSync(join(arbitraryRoot, '.qa'))).toBe(false);
   });
 });

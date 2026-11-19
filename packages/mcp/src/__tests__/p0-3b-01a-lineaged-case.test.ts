@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { createServer, type Server as HttpServer } from 'node:http';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
@@ -58,6 +59,7 @@ const V8_COLUMNS = ['execution_key', 'execution_lineage_json', 'execution_conten
 const V8_INDEX = 'idx_service_cases_project_execution_key';
 
 const tempDirs: string[] = [];
+const sites: HttpServer[] = [];
 const services: QapApplicationService[] = [];
 const inspectionStores = new Map<QapApplicationService, AppServiceSqliteStore>();
 function inspectionStore(service: QapApplicationService): AppServiceSqliteStore {
@@ -75,7 +77,11 @@ function mkTemp(prefix: string): string {
   return dir;
 }
 
-afterEach(() => {
+afterEach(async () => {
+  for (const site of sites.splice(0)) {
+    site.closeAllConnections();
+    await new Promise<void>(resolve => site.close(() => resolve()));
+  }
   for (const store of inspectionStores.values()) store.close();
   inspectionStores.clear();
   while (services.length > 0) {
@@ -95,7 +101,7 @@ function sha(text: string | Buffer): string {
 }
 
 function openService(hostDir: string): QapApplicationService {
-  const service = new QapApplicationService({ hostRootDir: hostDir, credentialProvider: new EphemeralCredentialProvider() });
+  const service = new QapApplicationService({ hostRootDir: hostDir, projectOperationDirectory: hostDir, credentialProvider: new EphemeralCredentialProvider() });
   services.push(service);
   return service;
 }
@@ -1490,7 +1496,7 @@ describe('R1 — aislamiento entre proyectos y preflight sin efectos secundarios
       proposals: [
         {
           title: 'Caso legacy listo',
-          expected_outcome: 'La página responde',
+          expected_outcome: 'ok',
           oracle_source: 'user',
           expectation_metadata: { decision_status: 'accredited' },
           steps: [
@@ -2140,7 +2146,16 @@ describe('R1 — aislamiento entre proyectos y preflight sin efectos secundarios
     });
 
     it('P1-2 vía TestHandler.execute: bloqueo global antes de autorización (interactiva/silenciosa), grants, registro host y runner en selección explícita, implícita y raíz legacy sin proyecto', async () => {
-      const pair = setupCrossProjectPair('http://127.0.0.1:4199');
+      let requests = 0;
+      const site = createServer((_request, response) => {
+        requests++;
+        response.setHeader('Content-Type', 'text/html');
+        response.end('<!doctype html><html><body><button id="pay">Checkout operativo confirmado</button></body></html>');
+      });
+      await new Promise<void>(resolve => site.listen(0, '127.0.0.1', resolve));
+      sites.push(site);
+      const origin = 'http://127.0.0.1:' + (site.address() as { port: number }).port;
+      const pair = setupCrossProjectPair(origin);
       const { service } = pair.ctx;
       const { wsB, projectB, envB, lineagedLower, lineagedUpper, lineagedMixed } = pair;
       const hostTestRegistryPath = join(pair.ctx.hostDir, 'authorized-tests.json');
@@ -2256,13 +2271,13 @@ describe('R1 — aislamiento entre proyectos y preflight sin efectos secundarios
       // Incluso con política estática de navegación explícita (testAuthorizations), el veto global impide ejecutar el runner.
       const wsLegacyUnreg = mkTemp('qap-01a-unreg-legacy-');
       expect(service.findActiveProjectByRoot(wsLegacyUnreg)).toBeNull();
-      seedWorkspaceFiles(wsLegacyUnreg, 'tainted-legacy', 'local', 'http://127.0.0.1:4199', [lineagedMixed]);
+      seedWorkspaceFiles(wsLegacyUnreg, 'tainted-legacy', 'local', origin, [lineagedMixed]);
       await createSignedPlan(wsLegacyUnreg, 'tainted-legacy', 'local');
 
       const unregAuthPolicy = [
         {
           projectRoot: wsLegacyUnreg,
-          allowedOrigins: ['http://127.0.0.1:4199'],
+          allowedOrigins: [origin],
           allowRedirectsToAllowedOnly: true,
         },
       ];
@@ -2288,23 +2303,25 @@ describe('R1 — aislamiento entre proyectos y preflight sin efectos secundarios
 
       // 4) Control positivo 1: raíz legacy sin proyecto con caso legacy legítimo funciona normalmente
       const legitLegacyId = 'TC-UNREG-LEGIT-1';
-      seedWorkspaceFiles(wsLegacyUnreg, 'clean-legacy', 'local', 'http://127.0.0.1:4199', [legitLegacyId]);
+      seedWorkspaceFiles(wsLegacyUnreg, 'clean-legacy', 'local', origin, [legitLegacyId]);
       await createSignedPlan(wsLegacyUnreg, 'clean-legacy', 'local');
 
+      expect(requests).toBe(0);
       const okLegacyHandler = new TestHandler(
         { projectRoots: [wsLegacyUnreg], applicationService: service },
-        { testAuthorizations: unregAuthPolicy, testAuthorizer: spyAuthorizer, hostTestRegistryPath, runner: mockRunner },
+        { testAuthorizations: unregAuthPolicy },
       );
       const okLegacyOut = await callTest(okLegacyHandler, {
         targetPath: wsLegacyUnreg,
         module: 'clean-legacy',
         environment: 'local',
       });
-      expect(okLegacyOut.status).toBe('success');
+      expect(okLegacyOut.status, JSON.stringify(okLegacyOut)).toBe('success');
       expect(okLegacyOut.result).toBe('passed');
-      expect(runnerCalls).toBe(1);
+      expect(requests).toBeGreaterThan(0);
+      const afterLegacy = requests;
 
-      // 5) Control positivo 2: proyecto registrado B con caso legacy aprobado + autorización silenciosa ejecuta con PASS
+      // 5) Control positivo 2: proyecto registrado B con caso legacy aprobado + autorización explícita ejecuta con PASS
       const cleanModKey = 'clean-b';
       const cleanLegacyCaseId = randomUUID();
       service.upsertModule({ projectId: projectB.project_id, key: cleanModKey, title: 'Clean B' });
@@ -2317,7 +2334,7 @@ describe('R1 — aislamiento entre proyectos y preflight sin efectos secundarios
             title: 'Caso limpio legacy en B',
             oracle_source: 'user',
             expected_outcome: 'Checkout operativo',
-            steps: [{ type: 'navigate', url: '/clean-b' }],
+            steps: [{ type: 'navigate', url: origin + '/clean-b' }],
           },
         ],
       });
@@ -2367,19 +2384,27 @@ describe('R1 — aislamiento entre proyectos y preflight sin efectos secundarios
       seedWorkspaceFiles(wsB, cleanModKey, envB.name, envB.base_url, []);
       await createSignedPlan(wsB, cleanModKey, envB.name);
 
-      const okRegisteredHandler = new TestHandler(
-        { projectRoots: [wsB], applicationService: service, silentBoundScope: true },
-        { hostTestRegistryPath, runner: mockRunner },
-      );
+      service.authority.grant({
+        project_id: projectB.project_id, capability: 'access',
+        scope: { root_path: wsB, env_id: envB.env_id },
+        granted_by: 'synthetic_host_operator',
+      });
+      service.authority.grant({
+        project_id: projectB.project_id, capability: 'execute',
+        scope: { root_path: wsB, env_id: envB.env_id, origin },
+        granted_by: 'synthetic_host_operator',
+      });
+      const okRegisteredHandler = new TestHandler({ projectRoots: [wsB], applicationService: service });
       const okRegisteredOut = await callTest(okRegisteredHandler, {
         targetPath: wsB,
         module: cleanModKey,
         environment: envB.name,
       });
-      expect(okRegisteredOut.status).toBe('success');
+      expect(okRegisteredOut.status, JSON.stringify(okRegisteredOut)).toBe('success');
       expect(okRegisteredOut.result).toBe('passed');
-      expect(runnerCalls).toBe(2);
-    });
+      expect(requests).toBeGreaterThan(afterLegacy);
+      expect(runnerCalls).toBe(0);
+    }, 45_000);
   });
   describe('R2-A — aislamiento de lecturas y pertenencia de evidencias', () => {
     it('lectura correcta con ámbito exacto por caseId, executionKey y listLineagedCases (con y sin routePathname)', () => {

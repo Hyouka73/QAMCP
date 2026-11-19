@@ -28,6 +28,7 @@ import {
 } from './auth-authorizer.js';
 import {
   loadTestAuthorizationsFromDisk,
+  WindowsInteractiveTestAuthorizer,
 } from './test-authorizer.js';
 import { authorizationDiagnostic } from './authorization-diagnostics.js';
 
@@ -372,7 +373,7 @@ export async function loadHostComposition(
       authorizer: workspaceAuthorizer ? 'windows_interactive_dialog' : 'host_bound_scope_only',
       multiProjectRuntime,
       discoveryAuthorizer: 'unconfigured',
-      testAuthorizer: 'unconfigured',
+      testAuthorizer: isWindowsInteractive ? 'windows_dialog' : 'unconfigured',
       silentBoundScope: true,
       disabledByFlag: Boolean(env.QAP_DISABLE_INTERACTIVE_AUTH), testEnvironment: env.NODE_ENV === 'test', manifest: false,
     });
@@ -397,6 +398,7 @@ export async function loadHostComposition(
         hostAuthRegistryPath: authRegistry,
         authAuthorizations: persistedAuthAuthorizations,
         hostTestRegistryPath: testRegistry,
+        testAuthorizer: isWindowsInteractive ? new WindowsInteractiveTestAuthorizer() : undefined,
         testAuthorizations: persistedTestAuthorizations,
         sessionPersistenceKey,
         authorizationTtlMs,
