@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { closeSync, lstatSync, openSync, readSync } from 'node:fs';
 import { dirname } from 'node:path';
 
 import { normalizeSlug } from '@qap/shared';
@@ -445,6 +446,7 @@ export function renderModuleDossierMarkdown(revision: DiscoveryRevisionRecord): 
 export function renderDiscoveryIndexMarkdown(
   projectId: string,
   latestByScope: readonly DiscoveryRevisionRecord[],
+  projectRoot?: string,
 ): string {
   const lines: string[] = [
     `# Índice del Expediente de Discovery (\`${projectId}\`)`,
@@ -461,18 +463,41 @@ export function renderDiscoveryIndexMarkdown(
     for (const rev of latestByScope) {
       const { scope, route_counts, gaps, rule_resolution } = rev.dossier;
       const docRel = buildPublishedModuleDocRelativeToIndex(rev);
+      const document = !projectRoot || existingDiscoveryDocument(projectRoot, rev)
+        ? '[' + docRel.replace(/^modules\//, '') + '](' + docRel + ')'
+        : '-';
       const safeTitle = sanitizeDossierText(scope.module_title, 80) ?? scope.module_key;
       const rulesCol = rule_resolution
         ? `${rule_resolution.summary.accredited_count} / ${rule_resolution.summary.pending_contradiction_count + rule_resolution.summary.unaccredited_pending_count + rule_resolution.summary.legacy_pending_count}`
         : '0 / 0';
       lines.push(
-        `| ${safeTitle} (\`${scope.module_key}\`) | \`${rev.revision_id}\` | \`${scope.environment_name}\` | ${scope.tenant_id ? `\`${scope.tenant_id}\`` : '-'} | ${scope.profile_id ? `\`${scope.profile_id}\`` : '-'} | ${scope.role ? `\`${scope.role}\`` : '-'} | ${route_counts.visited} / ${route_counts.candidate} / ${route_counts.blocked} | ${rulesCol} | ${gaps.length} | [${docRel.replace(/^modules\//, '')}](${docRel}) |`,
+        `| ${safeTitle} (\`${scope.module_key}\`) | \`${rev.revision_id}\` | \`${scope.environment_name}\` | ${scope.tenant_id ? `\`${scope.tenant_id}\`` : '-'} | ${scope.profile_id ? `\`${scope.profile_id}\`` : '-'} | ${scope.role ? `\`${scope.role}\`` : '-'} | ${route_counts.visited} / ${route_counts.candidate} / ${route_counts.blocked} | ${rulesCol} | ${gaps.length} | ${document} |`,
       );
     }
     lines.push('');
   }
 
   return lines.join('\n');
+}
+
+export function existingDiscoveryArtifact(root: string, path: string): string | undefined {
+  try { return lstatSync(resolveContainedPath(root, path)).isFile() ? path : undefined; }
+  catch { return undefined; }
+}
+
+export function existingDiscoveryDocument(root: string, revision: DiscoveryRevisionRecord): string | undefined {
+  const relativePath = buildPublishedModuleDocRepoPath(revision);
+  try {
+    const path = resolveContainedPath(root, relativePath);
+    if (!lstatSync(path).isFile()) return undefined;
+    const fd = openSync(path, 'r');
+    try {
+      const header = Buffer.alloc(1024);
+      const length = readSync(fd, header, 0, header.length, 0);
+      return header.toString('utf8', 0, length).split(/\r?\n/).includes('- **Revisión:** `' + revision.revision_id + '`')
+        ? relativePath : undefined;
+    } finally { closeSync(fd); }
+  } catch { return undefined; }
 }
 
 export function writeDiscoveryMarkdownFiles(
@@ -490,7 +515,6 @@ export function writeDiscoveryMarkdownFiles(
   const indexRel = '.qa/discovery/INDEX.md';
   const indexAbs = resolveContainedPath(projectRootDir, indexRel);
   ensurePrivateDir(dirname(indexAbs));
-  atomicWritePrivateFile(indexAbs, renderDiscoveryIndexMarkdown(projectId, latestByScope));
 
   const writtenPaths: string[] = [indexRel];
   let moduleDocPath: string | undefined;
@@ -512,6 +536,8 @@ export function writeDiscoveryMarkdownFiles(
       moduleDocPath = docRepoRel;
     }
   }
+  // Publish the index after the new document it links to is available.
+  atomicWritePrivateFile(indexAbs, renderDiscoveryIndexMarkdown(projectId, latestByScope, projectRootDir));
 
   return {
     index_path: indexRel,

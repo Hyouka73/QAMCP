@@ -77,7 +77,7 @@ export class WorkspaceBootstrap {
         const result = await this.publish(root, reference, url);
         if (result) this.initializationRevision.set(root, 1);
         return result;
-      }));
+      }, undefined, 2000));
     const completed = operation.finally(() => {
       if (this.pendingWarm.get(requestKey) === completed) this.pendingWarm.delete(requestKey);
     });

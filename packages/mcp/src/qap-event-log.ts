@@ -135,7 +135,15 @@ export class QapEventLog {
   constructor(private readonly hostDirectory?: string) {}
 
   forgetWorkspace(workspace: string): void {
-    latestPhase.delete(eventPaths(workspace, this.hostDirectory).correlation);
+    const candidates = new Set<string>([resolve(workspace)]);
+    try {
+      candidates.add(realpathSync(workspace));
+    } catch {
+      // El workspace ya pudo eliminarse del disco; limpia la correlación conocida sin fallar.
+    }
+    for (const candidate of candidates) {
+      latestPhase.delete(createHash('sha256').update(candidate).digest('hex').slice(0, 24));
+    }
   }
 
   /** Records a safe classification of a native authorization response without its message or form contents. */
