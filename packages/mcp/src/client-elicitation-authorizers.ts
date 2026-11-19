@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { ElicitResultSchema, McpError, type RequestId } from '@modelcontextprotocol/sdk/types.js';
 
 import type { IDiscoveryAuthorizer, DiscoveryAuthorizationRequest, DiscoveryAuthorizationResult } from './discovery-authorizer.js';
 import type {
@@ -8,6 +9,8 @@ import type {
   HumanReviewRequest,
   IHumanReviewGateway,
 } from './handlers/canonical-interview-service.js';
+import { authorizationDiagnostic } from './authorization-diagnostics.js';
+import type { NativeRuleReviewDialog, NativeRuleReviewOutcome } from './windows-rule-review.js';
 import type { IWorkspaceAuthorizer, WorkspaceAuthorizationRequest, WorkspaceAuthorizationResult } from './workspace-authorizer.js';
 
 type ServerProvider = () => Server | undefined;
@@ -131,88 +134,133 @@ export class ClientElicitationDiscoveryAuthorizer implements IDiscoveryAuthorize
   }
 }
 
-/**
- * Verifiable human confirmation gateway using MCP client form elicitation when advertised,
- * falling back to an injected host IHumanReviewGateway (e.g. HostReviewQueue).
- */
-export class ClientElicitationHumanReviewGateway implements IHumanReviewGateway {
+export type RuleReviewResult =
+  | { outcome: 'decided'; decision: HumanReviewDecision; mechanism: 'client_elicitation' | 'host_gateway' | 'windows_dialog' }
+  | { outcome: 'blocked'; code: 'human_review_gateway_required' | 'human_review_cancelled' |
+      'human_review_unavailable' | 'human_review_not_authorized' };
+
+export interface VerifiableRuleReviewGateway {
+  review(request: Readonly<HumanReviewRequest>, invocation?: RuleReviewInvocation): Promise<RuleReviewResult>;
+}
+
+export interface RuleReviewInvocation {
+  readonly signal?: AbortSignal;
+  readonly requestId?: RequestId;
+}
+
+type ClientAction = 'accept' | 'decline' | 'cancel';
+
+function reviewMessage(request: Readonly<HumanReviewRequest>): string {
+  return [
+    'Proyecto: ' + request.projectRoot,
+    'Módulo: ' + request.moduleKey,
+    'Requisito: ' + request.requirementId,
+    'Pregunta: ' + request.question.text,
+    'Propuesta: ' + request.proposal.title,
+    request.proposal.description,
+    ...(request.proposal.category ? ['Categoría: ' + request.proposal.category] : []),
+    ...(request.proposal.acceptance_criteria?.length
+      ? ['Criterios de aceptación:', ...request.proposal.acceptance_criteria] : []),
+    'Ámbito: ' + request.context,
+    ...(request.question.evidenceRefs.length
+      ? ['Referencias: ' + request.question.evidenceRefs.map(ref => ref.id + '@' + ref.revision).join(', ')] : []),
+    'Revisión: ' + request.statementVersion,
+    'Huella del contenido: ' + request.statementDigest,
+  ].join('\n');
+}
+
+/** Client form or an independently composed local host channel. Each review uses exactly one channel. */
+export class ClientElicitationHumanReviewGateway implements VerifiableRuleReviewGateway {
   constructor(
     private readonly server: ServerProvider,
     private readonly fallback?: IHumanReviewGateway,
+    private readonly windowsDialog?: NativeRuleReviewDialog,
+    private readonly preferWindowsDialog = false,
   ) {}
 
-  isAvailable(): boolean {
-    return Boolean(this.fallback) || canElicit(this.server());
-  }
-
-  lastMechanism(): 'client_elicitation' | 'host_gateway' {
-    return canElicit(this.server()) ? 'client_elicitation' : 'host_gateway';
-  }
-
-  async review(request: Readonly<HumanReviewRequest>): Promise<HumanReviewDecision | null> {
+  async review(request: Readonly<HumanReviewRequest>, invocation?: RuleReviewInvocation): Promise<RuleReviewResult> {
+    const { signal, requestId } = invocation ?? {};
     const server = this.server();
-    if (!canElicit(server)) {
-      return this.fallback ? this.fallback.review(request) : null;
-    }
+    const formAdvertised = canElicit(server);
+    const windowsDialog = this.preferWindowsDialog || !formAdvertised ? this.windowsDialog : undefined;
+    const mechanism = windowsDialog ? 'windows_dialog'
+      : formAdvertised ? 'client_elicitation'
+      : this.fallback ? 'host_gateway' : 'none';
+    const diagnostic = { review_id: randomUUID(), review_request_digest: request.requestDigest, form_advertised: formAdvertised, mechanism };
+    const start = Date.now();
+    authorizationDiagnostic('human_review_request', diagnostic);
 
-    const message = [
-      `Confirmar regla de negocio para el módulo '${request.moduleKey}':`,
-      `Pregunta: ${request.question.text}`,
-      `Regla (${request.proposal.title}): ${request.proposal.description}`,
-      `Ámbito: ${request.context}`,
-    ].join('\n');
-
-    try {
-      const answer = await server.elicitInput({
-        mode: 'form',
-        message,
-        requestedSchema: {
-          type: 'object',
-          properties: {
-            decision: {
-              type: 'string',
-              enum: ['confirm', 'reject', 'defer'],
-              title: 'Decisión de QA',
-            },
-          },
-          required: ['decision'],
-        },
+    let clientAction: ClientAction | undefined;
+    let protocolErrorCode: number | undefined;
+    let nativeOutcome: NativeRuleReviewOutcome | undefined;
+    const finish = (result: RuleReviewResult): RuleReviewResult => {
+      authorizationDiagnostic('human_review_result', {
+        ...diagnostic,
+        client_action: clientAction,
+        protocol_error_code: protocolErrorCode,
+        native_outcome: nativeOutcome,
+        outcome: result.outcome === 'decided' ? result.decision.decision : result.code,
+        duration_ms: Math.max(0, Date.now() - start),
       });
-
+      return result;
+    };
+    const cancelled = () => finish({ outcome: 'blocked', code: 'human_review_cancelled' });
+    const unavailable = () => finish({ outcome: 'blocked', code: 'human_review_unavailable' });
+    const noDecision = () => finish({ outcome: 'blocked', code: 'human_review_not_authorized' });
+    const decided = (decision: HumanReviewDecision['decision'], channel: 'client_elicitation' | 'windows_dialog') => {
       const now = new Date();
-      const decidedAt = now.toISOString();
-      const expiresAt = new Date(now.getTime() + 10 * 60_000).toISOString();
-      const base = {
+      return finish({ outcome: 'decided', mechanism: channel, decision: {
         requestDigest: request.requestDigest,
         approvalId: randomUUID(),
+        decision,
         presentedStatementDigest: request.statementDigest,
-        reviewer: 'mcp_client_elicitation',
-        decidedAt,
-        expiresAt,
-      };
+        reviewer: channel === 'windows_dialog' ? 'windows_desktop_operator' : 'mcp_client_elicitation',
+        decidedAt: now.toISOString(),
+        expiresAt: new Date(now.getTime() + 10 * 60_000).toISOString(),
+      } });
+    };
 
-      if (answer.action === 'decline') {
-        return { ...base, decision: 'reject' };
+    if (signal?.aborted) return cancelled();
+    try {
+      if (windowsDialog) {
+        nativeOutcome = await windowsDialog.review(reviewMessage(request), signal);
+        if (signal?.aborted || nativeOutcome === 'cancelled') return cancelled();
+        if (nativeOutcome === 'unavailable') return unavailable();
+        return decided(nativeOutcome, 'windows_dialog');
       }
-      if (answer.action === 'cancel') {
-        return { ...base, decision: 'defer' };
+      if (formAdvertised) {
+        // Keep the action even when a submitted field is invalid; only the explicit enum below may authorize.
+        const answer = await server.request({
+          method: 'elicitation/create',
+          params: {
+            mode: 'form',
+            message: reviewMessage(request),
+            requestedSchema: {
+              type: 'object',
+              properties: {
+                decision: { type: 'string', enum: ['confirm', 'reject', 'defer'], title: 'Decisión de QA' },
+              },
+              required: ['decision'],
+            },
+          },
+        }, ElicitResultSchema, { signal, relatedRequestId: requestId });
+        clientAction = answer.action;
+        if (signal?.aborted || answer.action === 'cancel') return cancelled();
+        if (answer.action === 'decline') return decided('reject', 'client_elicitation');
+        const decision = answer.content?.decision;
+        return decision === 'confirm' || decision === 'reject' || decision === 'defer'
+          ? decided(decision, 'client_elicitation') : noDecision();
       }
-      if (answer.action !== 'accept' || !answer.content) {
-        return null;
+      if (this.fallback) {
+        const decision = await this.fallback.review(request);
+        if (signal?.aborted) return cancelled();
+        return decision ? finish({ outcome: 'decided', decision, mechanism: 'host_gateway' }) : noDecision();
       }
-      const rawDecision = answer.content.decision;
-      if (rawDecision === 'confirm' || rawDecision === 'reject' || rawDecision === 'defer') {
-        return { ...base, decision: rawDecision };
-      }
-      if (answer.content.authorize === true) {
-        return { ...base, decision: 'confirm' };
-      }
-      if (answer.content.authorize === false) {
-        return { ...base, decision: 'reject' };
-      }
-      return null;
-    } catch {
-      return null;
+      return finish({ outcome: 'blocked', code: 'human_review_gateway_required' });
+    } catch (error) {
+      if (error instanceof McpError && Number.isSafeInteger(error.code)) protocolErrorCode = error.code;
+      if (signal?.aborted) return cancelled();
+      return unavailable();
     }
   }
 }

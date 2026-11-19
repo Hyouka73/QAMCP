@@ -31,6 +31,7 @@ import {
   WindowsInteractiveTestAuthorizer,
 } from './test-authorizer.js';
 import { authorizationDiagnostic } from './authorization-diagnostics.js';
+import { WindowsRuleReviewDialog } from './windows-rule-review.js';
 
 /**
  * Opt-in Stdio composition. The manifest comes from the HOST environment, never
@@ -367,13 +368,14 @@ export async function loadHostComposition(
     const parsedTtl = env.QAP_SESSION_AUTH_TTL_MS ? Number(env.QAP_SESSION_AUTH_TTL_MS) : undefined;
     const authorizationTtlMs = parsedTtl && Number.isInteger(parsedTtl) && parsedTtl > 0 ? parsedTtl : undefined;
     const workspaceAuthorizer = isWindowsInteractive ? new WindowsInteractiveWorkspaceAuthorizer() : undefined;
-    const preferHostWorkspaceAuthorizer = isWindowsInteractive && env.QAP_USE_CLIENT_ELICITATION !== '1';
+    const preferHostDialogs = isWindowsInteractive && env.QAP_USE_CLIENT_ELICITATION !== '1';
     authorizationDiagnostic('host_composition', {
       build: process.env.QAP_BUILD_REVISION ?? 'development',
       authorizer: workspaceAuthorizer ? 'windows_interactive_dialog' : 'host_bound_scope_only',
       multiProjectRuntime,
       discoveryAuthorizer: 'unconfigured',
       testAuthorizer: isWindowsInteractive ? 'windows_dialog' : 'unconfigured',
+      ruleReview: preferHostDialogs ? 'windows_dialog' : 'client_elicitation_if_advertised',
       silentBoundScope: true,
       disabledByFlag: Boolean(env.QAP_DISABLE_INTERACTIVE_AUTH), testEnvironment: env.NODE_ENV === 'test', manifest: false,
     });
@@ -388,7 +390,9 @@ export async function loadHostComposition(
         allowSpaReadOnly: true,
         silentBoundScope: true,
         workspaceAuthorizer,
-        preferHostWorkspaceAuthorizer,
+        preferHostWorkspaceAuthorizer: preferHostDialogs,
+        nativeRuleReviewDialog: isWindowsInteractive ? new WindowsRuleReviewDialog() : undefined,
+        preferNativeRuleReview: preferHostDialogs,
         interactiveAccessAuthorizer: isWindowsInteractive ? new WindowsInteractiveDiscoveryAuthorizer() : undefined,
         clientWorkspaceRoots: multiProjectRuntime,
         hostRegistryPath: registry,

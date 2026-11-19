@@ -19,8 +19,9 @@ import {
   type RuleAssertType,
 } from '../application/scoped-rule-resolver.js';
 import { reviewDigest } from '../host-review.js';
+import type { RuleReviewInvocation } from '../client-elicitation-authorizers.js';
 
-import type { HumanReviewDecision, HumanReviewRequest } from './canonical-interview-service.js';
+import type { HumanReviewRequest } from './canonical-interview-service.js';
 import { binding, isObject, type StateDependencies } from './state-services.js';
 
 const ALLOWED_ACTIONS = new Set([
@@ -419,7 +420,7 @@ export async function runConversationalCaseWorkflow(
   moduleName: string,
   command: Record<string, unknown>,
   deps: StateDependencies,
-  options?: { discoveryRevisionId?: string; effectiveScope?: DiscoveryDossierScope & { readonly base_url?: string } },
+  options?: { discoveryRevisionId?: string; effectiveScope?: DiscoveryDossierScope & { readonly base_url?: string }; reviewInvocation?: RuleReviewInvocation },
 ): Promise<Record<string, unknown>> {
   const action = typeof command.action === 'string' ? command.action : '';
   if (!ALLOWED_ACTIONS.has(action) || Object.keys(command).some((k) => !ALLOWED_COMMAND_KEYS.has(k))) {
@@ -807,7 +808,7 @@ export async function runConversationalCaseWorkflow(
     }
 
     const reviewGateway = deps.ruleReviewGateway;
-    if (!reviewGateway || !reviewGateway.isAvailable()) {
+    if (!reviewGateway) {
       return blocked('human_review_gateway_required', {
         human_review_required: true,
         siguiente_accion: { tipo: 'decision', tool: 'qap_plan', module: moduleName,
@@ -829,6 +830,8 @@ export async function runConversationalCaseWorkflow(
       readonly requirement_id: string;
       readonly revision: number;
       readonly approval_id: string;
+      readonly request_digest: string;
+      readonly presented_statement_digest: string;
       readonly reviewer: string;
     }> = [];
 
@@ -849,6 +852,9 @@ export async function runConversationalCaseWorkflow(
       const questionText =
         current.expectation.business_risk_question ??
         `¿Cuál es el resultado de negocio esperado para "${current.title}"?`;
+      const assertType: RuleAssertType =
+        dec.assert_type === 'visible' || dec.assert_type === 'exists' ||
+        dec.assert_type === 'contains' || dec.assert_type === 'equals' ? dec.assert_type : 'contains';
       const scopeContext = {
         action: 'decide_oracles' as const,
         case_id: current.case_id,
@@ -859,6 +865,9 @@ export async function runConversationalCaseWorkflow(
         route_pathname: routePathname,
         risk_level: current.risk_level,
         risk_accepted: Boolean(dec.risk_accepted),
+        risk_note: dec.risk_note ?? null,
+        assert_selector: dec.assert_selector ?? null,
+        assert_type: assertType,
         ...(revisionId ? { discovery_revision_id: revisionId } : {}),
       };
       const proposal = {
@@ -903,23 +912,15 @@ export async function runConversationalCaseWorkflow(
         requestDigest: reviewDigest(body),
       };
 
-      let reviewDecision: HumanReviewDecision | null;
-      try {
-        reviewDecision = await reviewGateway.review(structuredClone(request));
-      } catch {
-        return blocked('human_review_unavailable', {
+      const review = await reviewGateway.review(structuredClone(request), options?.reviewInvocation);
+      if (review.outcome === 'blocked') {
+        return blocked(review.code, {
           human_review_required: true,
           case_id: current.case_id,
           review_request_digest: request.requestDigest,
         });
       }
-      if (!reviewDecision) {
-        return blocked('human_review_not_authorized', {
-          human_review_required: true,
-          case_id: current.case_id,
-          review_request_digest: request.requestDigest,
-        });
-      }
+      const { decision: reviewDecision, mechanism } = review;
 
       const now = Date.now();
       const at = Date.parse(reviewDecision.decidedAt);
@@ -957,14 +958,11 @@ export async function runConversationalCaseWorkflow(
         );
       }
 
-      const mechanism = reviewGateway.lastMechanism?.() ?? 'host_gateway';
-      const assertType: RuleAssertType | null =
-        dec.assert_type === 'visible' ||
-        dec.assert_type === 'exists' ||
-        dec.assert_type === 'contains' ||
-        dec.assert_type === 'equals'
-          ? dec.assert_type
-          : 'contains';
+      const latestCase = appService.listServiceCases(project.project_id, modKey).find(c => c.case_id === current.case_id);
+      const latestRequirement = appService.listServiceRequirements(project.project_id, modKey).find(r => r.requirement_id === requirementId);
+      if (reviewDigest(latestCase ?? null) !== reviewDigest(current) || (latestRequirement?.revision ?? 0) !== existingRevision) {
+        return blocked('case_review_context_changed', { case_id: current.case_id, review_request_digest: request.requestDigest });
+      }
 
       const recorded = appService.recordRuleConfirmationDecision({
         projectId: project.project_id,
@@ -1002,6 +1000,8 @@ export async function runConversationalCaseWorkflow(
         requirement_id: recorded.requirement!.requirement_id,
         revision: recorded.requirement!.revision,
         approval_id: reviewDecision.approvalId,
+        request_digest: request.requestDigest,
+        presented_statement_digest: reviewDecision.presentedStatementDigest,
         reviewer: reviewDecision.reviewer.trim(),
       });
     }
@@ -1083,6 +1083,7 @@ export async function runConversationalCaseWorkflow(
       | {
           readonly approval_id: string;
           readonly request_digest: string;
+          readonly presented_statement_digest: string;
           readonly reviewer: string;
           readonly decided_at: string;
           readonly mechanism: string;
@@ -1091,7 +1092,7 @@ export async function runConversationalCaseWorkflow(
 
     if (!alreadyConfirmed) {
       const reviewGateway = deps.ruleReviewGateway;
-      if (!reviewGateway || !reviewGateway.isAvailable()) {
+      if (!reviewGateway) {
         return blocked('human_review_gateway_required', {
           human_review_required: true,
           siguiente_accion: { tipo: 'decision', tool: 'qap_plan', module: moduleName,
@@ -1133,13 +1134,13 @@ export async function runConversationalCaseWorkflow(
       const batchProposal = {
         title: `Lote de ${sortedEligible.length} caso(s) para '${moduleName}'`,
         description: sortedEligible
-          .map((c) => `${c.case_id}@v${c.version}: ${c.title} -> ${c.expectation.expected_outcome ?? ''}`)
-          .join(' | ')
-          .slice(0, 3800),
+          .map((c) => [
+            `${c.case_id}@v${c.version}: ${c.title}`,
+            c.expectation.expected_outcome ?? '',
+            JSON.stringify(c.steps),
+          ].join('\n'))
+          .join('\n\n'),
         category: 'functional' as const,
-        acceptance_criteria: sortedEligible
-          .map((c) => `${c.case_id}@v${c.version}:${c.confirmation_digest ?? ''}`)
-          .slice(0, 20),
       };
       const statementDigest = reviewDigest({
         moduleKey: modKey,
@@ -1173,21 +1174,14 @@ export async function runConversationalCaseWorkflow(
         requestDigest: reviewDigest(body),
       };
 
-      let reviewDecision: HumanReviewDecision | null;
-      try {
-        reviewDecision = await reviewGateway.review(structuredClone(request));
-      } catch {
-        return blocked('human_review_unavailable', {
+      const review = await reviewGateway.review(structuredClone(request), options?.reviewInvocation);
+      if (review.outcome === 'blocked') {
+        return blocked(review.code, {
           human_review_required: true,
           review_request_digest: request.requestDigest,
         });
       }
-      if (!reviewDecision) {
-        return blocked('human_review_not_authorized', {
-          human_review_required: true,
-          review_request_digest: request.requestDigest,
-        });
-      }
+      const { decision: reviewDecision, mechanism } = review;
 
       const now = Date.now();
       const at = Date.parse(reviewDecision.decidedAt);
@@ -1223,7 +1217,11 @@ export async function runConversationalCaseWorkflow(
         );
       }
 
-      const mechanism = reviewGateway.lastMechanism?.() ?? 'host_gateway';
+      const latestCases = appService.listServiceCases(project.project_id, targetModKey);
+      const latestRequested = caseIds ? selectRequestedCasesInScope(latestCases, caseIds) : latestCases;
+      if (!latestRequested || reviewDigest(latestRequested) !== reviewDigest(requestedCases)) {
+        return blocked('case_review_context_changed', { review_request_digest: request.requestDigest });
+      }
       appService.recordHumanApprovalReceipt({
         projectId: project.project_id,
         approvalId: reviewDecision.approvalId,
@@ -1239,6 +1237,7 @@ export async function runConversationalCaseWorkflow(
       batchApprovalEvidence = {
         approval_id: reviewDecision.approvalId,
         request_digest: request.requestDigest,
+        presented_statement_digest: reviewDecision.presentedStatementDigest,
         reviewer: approvedByReviewer,
         decided_at: reviewDecision.decidedAt,
         mechanism,

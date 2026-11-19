@@ -6,6 +6,7 @@ import { SchemaValidator, validateExpectedRequirement, type TCCase } from '@qap/
 
 import { stableStringify } from '../application/lineaged-case.js';
 import { reviewDigest } from '../host-review.js';
+import type { RuleReviewInvocation } from '../client-elicitation-authorizers.js';
 
 import type { DiscoveryDossierScope } from '../application/discovery-dossier.js';
 
@@ -90,7 +91,7 @@ export async function caseWorkflow(
   module: string,
   command: unknown,
   deps: StateDependencies,
-  options?: { discoveryRevisionId?: string; effectiveScope?: DiscoveryDossierScope & { readonly base_url?: string } },
+  options?: { discoveryRevisionId?: string; effectiveScope?: DiscoveryDossierScope & { readonly base_url?: string }; reviewInvocation?: RuleReviewInvocation },
 ) {
   const bound = binding(root, deps);
   if (

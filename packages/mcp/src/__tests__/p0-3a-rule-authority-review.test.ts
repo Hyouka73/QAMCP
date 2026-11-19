@@ -10,6 +10,7 @@ import type { CredentialProvider, CredentialReference } from '@qap/shared';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { QapApplicationService } from '../application/application-service.js';
+import * as diagnostics from '../authorization-diagnostics.js';
 import type { IAuthAuthorizer } from '../auth-authorizer.js';
 import type { IDiscoveryAuthorizer } from '../discovery-authorizer.js';
 import type {
@@ -20,6 +21,7 @@ import type {
 import { createMcpServer, type McpServerOptions } from '../server.js';
 import type { ITestAuthorizer } from '../test-authorizer.js';
 import { WorkspaceBootstrap } from '../workspace-bootstrap.js';
+import { WindowsRuleReviewDialog } from '../windows-rule-review.js';
 import type { IWorkspaceAuthorizer } from '../workspace-authorizer.js';
 
 import {
@@ -229,6 +231,151 @@ describe('P0.3a — Autoridad de reglas y revisión de solo lectura', () => {
     });
     expect(planRes.isError, JSON.stringify(planRes.data)).toBe(false);
   }
+
+
+  async function prepareReviewFixture(options: Partial<McpServerOptions> & { clientElicitation?: boolean }) {
+    const { workspaceRoot, openStack } = createHarness(new TestMemoryCredentialProvider());
+    const { client, appService } = await openStack({ ...options, projectRoots: [workspaceRoot], workspaceBootstrap: undefined });
+    const origin = 'http://127.0.0.1:1';
+    const tool = (case_workflow: Record<string, unknown>) =>
+      callJson(client, 'qap_plan', { targetPath: workspaceRoot, module: 'pedidos', case_workflow });
+
+    const { project } = appService.createProject({
+      name: 'Synthetic review fixture', canonicalRoot: workspaceRoot, baseUrl: origin, envName: 'local',
+    });
+    appService.upsertModule({ projectId: project.project_id, key: 'pedidos', routeHint: '/app' });
+
+    const caseId = randomUUID();
+    const outcome = 'El panel muestra el pedido SINTÉTICO-001.';
+    const proposed = await tool({
+      action: 'propose_from_observations',
+      proposals: [{
+        case_id: caseId, title: 'Panel de pedidos',
+        steps: [{ type: 'navigate', url: origin + '/app' }, { type: 'waitFor', selector: '#panel' }],
+      }],
+    });
+    expect(proposed.isError, JSON.stringify(proposed.data)).toBe(false);
+    const yamlPath = join(workspaceRoot, '.qa', 'modules', 'pedidos', 'tests', 'TC-' + caseId + '.yaml');
+    const decide = () => tool({
+      action: 'decide_oracles',
+      decisions: [{ case_id: caseId, expected_outcome: outcome, assert_selector: '#panel', assert_type: 'contains' }],
+    });
+    const approve = () => tool({ action: 'approve_batch', case_ids: [caseId] });
+    const saved = () => appService.listServiceCases(project.project_id, 'pedidos').find(c => c.case_id === caseId);
+    return { client, appService, project, workspaceRoot, outcome, yamlPath, decide, approve, saved };
+  }
+
+  it.each([
+    { label: 'missing form', form: false, answer: undefined, code: 'human_review_gateway_required', outcome: 'human_review_gateway_required' },
+    { label: 'missing handler', form: true, answer: undefined, code: 'human_review_unavailable', outcome: 'human_review_unavailable' },
+    { label: 'cancel', form: true, answer: { action: 'cancel' as const }, code: 'human_review_cancelled', outcome: 'human_review_cancelled' },
+    { label: 'defer', form: true, answer: { action: 'accept' as const, content: { decision: 'defer' } }, code: 'human_review_deferred', outcome: 'defer' },
+    { label: 'decline', form: true, answer: { action: 'decline' as const }, code: 'human_review_rejected', outcome: 'reject' },
+    { label: 'reject', form: true, answer: { action: 'accept' as const, content: { decision: 'reject' } }, code: 'human_review_rejected', outcome: 'reject' },
+    { label: 'no interaction', form: true, answer: { action: 'accept' as const }, code: 'human_review_not_authorized', outcome: 'human_review_not_authorized' },
+    { label: 'unexpected boolean approval', form: true, answer: { action: 'accept' as const, content: { authorize: true } }, code: 'human_review_not_authorized', outcome: 'human_review_not_authorized' },
+    { label: 'confirm', form: true, answer: { action: 'accept' as const, content: { decision: 'confirm' } }, code: undefined, outcome: 'confirm' },
+  ])('classifies MCP rule review with $label and requires a separate case approval', async ({ form, answer, code, outcome: diagnosticOutcome }) => {
+    const log = vi.spyOn(diagnostics, 'authorizationDiagnostic').mockReturnValue('synthetic-diagnostic');
+    const { client, appService, project, workspaceRoot, outcome, yamlPath, decide, approve, saved } =
+      await prepareReviewFixture({ clientElicitation: form });
+    const elicited: string[] = [];
+    if (answer) {
+      client.setRequestHandler(ElicitRequestSchema, async ({ params }) => {
+        elicited.push(params.message);
+        return answer;
+      });
+    }
+
+    const decision = await decide();
+    expect(elicited, JSON.stringify(decision.data)).toHaveLength(answer ? 1 : 0);
+    const requestLog = log.mock.calls.find(([event]) => event === 'human_review_request')?.[1];
+    const resultLog = log.mock.calls.find(([event]) => event === 'human_review_result')?.[1];
+    expect(requestLog).toMatchObject({
+      review_id: expect.any(String), review_request_digest: expect.stringMatching(/^[a-f0-9]{64}$/),
+      form_advertised: form, mechanism: form ? 'client_elicitation' : 'none',
+    });
+    expect(resultLog).toMatchObject({ ...requestLog, outcome: diagnosticOutcome });
+    if (answer) expect(resultLog?.client_action).toBe(answer.action);
+    expect(JSON.stringify([requestLog, resultLog])).not.toContain(outcome);
+    expect(JSON.stringify([requestLog, resultLog])).not.toContain(workspaceRoot);
+    const rules = appService.listRuleConfirmationDecisions(project.project_id);
+    if (code) {
+      expect(decision.data).toMatchObject({ status: 'blocked', code });
+      expect(rules).toHaveLength(0);
+      expect(saved()?.conformity_status).toBe('pending_oracle');
+      expect(existsSync(yamlPath)).toBe(false);
+      return;
+    }
+    expect(elicited[0]).toContain(outcome);
+    expect(elicited[0]).toContain('"assert_selector":"#panel"');
+    expect(decision.data, JSON.stringify(decision.data)).toMatchObject({ status: 'updated' });
+    expect(rules).toHaveLength(1);
+    expect(rules[0]).toMatchObject({
+      decision: 'confirm', mechanism: 'client_elicitation',
+      approval_id: expect.any(String), request_digest: expect.stringMatching(/^[a-f0-9]{64}$/),
+      presented_statement_digest: expect.stringMatching(/^[a-f0-9]{64}$/),
+    });
+    expect(saved()?.conformity_status).toBe('proposed');
+    expect(existsSync(yamlPath)).toBe(false);
+
+    let cancelBatch = true;
+    client.removeRequestHandler('elicitation/create');
+    client.setRequestHandler(ElicitRequestSchema, async ({ params }) => {
+      elicited.push(params.message);
+      return cancelBatch ? { action: 'cancel' } : { action: 'accept', content: { decision: 'confirm' } };
+    });
+    const cancelled = await approve();
+    expect(cancelled.data).toMatchObject({ status: 'blocked', code: 'human_review_cancelled' });
+    expect(saved()?.conformity_status).toBe('proposed');
+    expect(existsSync(yamlPath)).toBe(false);
+
+    cancelBatch = false;
+    const approved = await approve();
+    expect(approved.data, JSON.stringify(approved.data)).toMatchObject({
+      status: 'approved', evidence: { mechanism: 'client_elicitation', approval_id: expect.any(String) },
+    });
+    expect(appService.hasUsedRuleApprovalId(project.project_id, String((approved.data.evidence as { approval_id: string }).approval_id))).toBe(true);
+    expect(saved()?.conformity_status).toBe('approved');
+    expect(existsSync(yamlPath)).toBe(true);
+  });
+
+  it.each([
+    { nativeOutcome: 'cancelled' as const, expected: 'human_review_cancelled' },
+    { nativeOutcome: 'defer' as const, expected: 'human_review_deferred' },
+    { nativeOutcome: 'reject' as const, expected: 'human_review_rejected' },
+    { nativeOutcome: 'unavailable' as const, expected: 'human_review_unavailable' },
+  ])('keeps the preferred Windows review blocked on $nativeOutcome even if MCP forms are advertised', async ({ nativeOutcome, expected }) => {
+    vi.spyOn(diagnostics, 'authorizationDiagnostic').mockReturnValue('synthetic-diagnostic');
+    const review = vi.fn(async () => nativeOutcome);
+    const { client, decide, saved, project, appService } = await prepareReviewFixture({
+      clientElicitation: true, nativeRuleReviewDialog: { review }, preferNativeRuleReview: true,
+    });
+    const clientForm = vi.fn(async () => ({ action: 'accept' as const, content: { decision: 'confirm' } }));
+    client.setRequestHandler(ElicitRequestSchema, clientForm);
+    expect((await decide()).data).toMatchObject({ status: 'blocked', code: expected });
+    expect(review).toHaveBeenCalledOnce();
+    expect(clientForm).not.toHaveBeenCalled();
+    expect(saved()?.conformity_status).toBe('pending_oracle');
+    expect(appService.listRuleConfirmationDecisions(project.project_id)).toHaveLength(0);
+  });
+
+  it.skipIf(process.platform !== 'win32' || process.env.QAP_MANUAL_RULE_REVIEW !== '1')(
+    'accepts the physical Windows rule review and a separate case approval',
+    async () => {
+      const { decide, approve, saved, project, appService, yamlPath } = await prepareReviewFixture({
+        nativeRuleReviewDialog: new WindowsRuleReviewDialog(),
+      });
+      expect((await decide()).data).toMatchObject({ status: 'blocked', code: 'human_review_cancelled' });
+      expect(appService.listRuleConfirmationDecisions(project.project_id)).toHaveLength(0);
+      expect((await decide()).data).toMatchObject({ status: 'updated' });
+      expect(appService.listRuleConfirmationDecisions(project.project_id)).toMatchObject([{ decision: 'confirm', mechanism: 'windows_dialog' }]);
+      expect(saved()?.conformity_status).toBe('proposed');
+      expect((await approve()).data).toMatchObject({ status: 'approved', evidence: { mechanism: 'windows_dialog' } });
+      expect(saved()?.conformity_status).toBe('approved');
+      expect(existsSync(yamlPath)).toBe(true);
+    }, 360_000,
+  );
 
   it('review es de solo lectura sin efectos en estado ni YAML, y las expectativas inventadas, sin fuente o contradichas permanecen pendientes', async () => {
     staging = await startProtectedSpaStaging();

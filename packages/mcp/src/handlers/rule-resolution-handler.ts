@@ -5,15 +5,10 @@ import { normalizeSlug } from '@qap/shared';
 import type { QapApplicationService } from '../application/application-service.js';
 import type { RuleAssertType } from '../application/scoped-rule-resolver.js';
 import { reviewDigest } from '../host-review.js';
+import type { RuleReviewInvocation, VerifiableRuleReviewGateway } from '../client-elicitation-authorizers.js';
 
-import type { HumanReviewDecision, HumanReviewRequest } from './canonical-interview-service.js';
+import type { HumanReviewRequest } from './canonical-interview-service.js';
 import { isObject } from './state-services.js';
-
-export interface VerifiableRuleReviewGateway {
-  isAvailable(): boolean;
-  lastMechanism?(): 'client_elicitation' | 'host_gateway';
-  review(request: Readonly<HumanReviewRequest>): Promise<HumanReviewDecision | null>;
-}
 
 const ALLOWED_TOP_KEYS = new Set(['targetPath', 'module', 'rule_resolution']);
 const ALLOWED_RESOLUTION_KEYS = new Set([
@@ -57,8 +52,9 @@ export async function handleScopedRuleResolution(params: {
   readonly rawArgs: Record<string, unknown>;
   readonly appService: QapApplicationService | undefined;
   readonly reviewGateway: VerifiableRuleReviewGateway;
+  readonly reviewInvocation?: RuleReviewInvocation;
 }): Promise<Record<string, unknown>> {
-  const { rootDir, moduleName, rawArgs, appService, reviewGateway } = params;
+  const { rootDir, moduleName, rawArgs, appService, reviewGateway, reviewInvocation } = params;
 
   if (
     Object.keys(rawArgs).some((k) => !ALLOWED_TOP_KEYS.has(k)) ||
@@ -194,12 +190,18 @@ export async function handleScopedRuleResolution(params: {
   const existingRevision = existingReq?.revision ?? 0;
 
   const mod = snapshot.modules.find((m) => m.key === modKey);
+  const assertSelector = cleanText(cmd.assert_selector, 300) ? cmd.assert_selector.trim() : null;
+  const assertType: RuleAssertType | null =
+    cmd.assert_type === 'visible' || cmd.assert_type === 'exists' ||
+    cmd.assert_type === 'contains' || cmd.assert_type === 'equals' ? cmd.assert_type : null;
   const scopeContext = {
     environment_name: envName,
     tenant_id: tenantId,
     role,
     route_pathname: routePathname,
     scope_declaration: scopeDeclaration,
+    assert_selector: assertSelector,
+    assert_type: assertType,
     ...(revision ? { discovery_revision_id: revision.revision_id } : {}),
   };
 
@@ -244,26 +246,11 @@ export async function handleScopedRuleResolution(params: {
     requestDigest: reviewDigest(body),
   };
 
-  if (!reviewGateway.isAvailable()) {
-    return blocked('human_review_gateway_required', {
-      review_request_digest: request.requestDigest,
-    });
+  const review = await reviewGateway.review(structuredClone(request), reviewInvocation);
+  if (review.outcome === 'blocked') {
+    return blocked(review.code, { review_request_digest: request.requestDigest });
   }
-
-  let decision: HumanReviewDecision | null;
-  try {
-    decision = await reviewGateway.review(structuredClone(request));
-  } catch {
-    return blocked('human_review_unavailable', {
-      review_request_digest: request.requestDigest,
-    });
-  }
-
-  if (!decision) {
-    return blocked('human_review_not_authorized', {
-      review_request_digest: request.requestDigest,
-    });
-  }
+  const { decision, mechanism } = review;
 
   const now = Date.now();
   const at = Date.parse(decision.decidedAt);
@@ -287,16 +274,10 @@ export async function handleScopedRuleResolution(params: {
     });
   }
 
-  const assertSelector = cleanText(cmd.assert_selector, 300) ? cmd.assert_selector.trim() : null;
-  const assertType: RuleAssertType | null =
-    cmd.assert_type === 'visible' ||
-    cmd.assert_type === 'exists' ||
-    cmd.assert_type === 'contains' ||
-    cmd.assert_type === 'equals'
-      ? cmd.assert_type
-      : null;
-
-  const mechanism = reviewGateway.lastMechanism?.() ?? 'host_gateway';
+  const latestRequirement = appService.listServiceRequirements(project.project_id, modKey).find(r => r.requirement_id === requirementId);
+  if ((latestRequirement?.revision ?? 0) !== existingRevision) {
+    return blocked('requirement_revision_conflict', { review_request_digest: request.requestDigest });
+  }
 
   const recorded = appService.recordRuleConfirmationDecision({
     projectId: project.project_id,

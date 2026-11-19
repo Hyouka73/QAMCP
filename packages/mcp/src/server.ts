@@ -110,6 +110,7 @@ import { InteractiveAccess, interactiveBlocked } from './interactive-access.js';
 import { loadHostComposition } from './host-composition.js';
 import { resolveHelperScriptPath } from './dialog-script-path.js';
 import { authorizationDiagnostic } from './authorization-diagnostics.js';
+import type { NativeRuleReviewDialog } from './windows-rule-review.js';
 import { logTechnicalDiagnostic } from './technical-diagnostics.js';
 import { ToolDispatcher, McpToolError, type IMcpToolHandler } from './dispatcher.js';
 import { TOOLS } from './tool-catalog.js';
@@ -332,12 +333,16 @@ export interface McpServerOptions extends StateDependencies {
   readonly authorizationTtlMs?: number;
   readonly projectResetAuthorizer?: ResetAuthorizer;
   readonly humanReviewGateway?: IHumanReviewGateway;
+  readonly nativeRuleReviewDialog?: NativeRuleReviewDialog;
+  readonly preferNativeRuleReview?: boolean;
 }
 
 export function createMcpServer(options: McpServerOptions = {}): Server {
   const serverRef: { current?: Server } = {};
   const serverProvider = () => serverRef.current;
-  const ruleReviewGateway = new ClientElicitationHumanReviewGateway(serverProvider, options.humanReviewGateway);
+  const ruleReviewGateway = new ClientElicitationHumanReviewGateway(
+    serverProvider, options.humanReviewGateway, options.nativeRuleReviewDialog, options.preferNativeRuleReview,
+  );
   const qapEventLog = new QapEventLog(options.workspaceBootstrap?.directory);
   const authorizationDiagnosticSink = (diagnostic: Parameters<QapEventLog['recordNativeAuthorization']>[0], workspace?: string) =>
     qapEventLog.recordNativeAuthorization(diagnostic, workspace);
@@ -4291,6 +4296,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
               rawArgs: args as Record<string, unknown>,
               appService: applicationService,
               reviewGateway: ruleReviewGateway,
+              reviewInvocation: context,
             });
             return canonicalResult(res, res.status === 'blocked');
           }
