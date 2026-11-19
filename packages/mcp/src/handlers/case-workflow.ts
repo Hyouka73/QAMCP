@@ -4,11 +4,12 @@ import { join } from 'node:path';
 import { CaseGenerator, FileSystemStorage } from '@qap/knowledge';
 import { SchemaValidator, validateExpectedRequirement, type TCCase } from '@qap/shared';
 
+import { stableStringify } from '../application/lineaged-case.js';
 import { reviewDigest } from '../host-review.js';
 
 import type { DiscoveryDossierScope } from '../application/discovery-dossier.js';
 
-import { runConversationalCaseWorkflow } from './conversational-case-workflow.js';
+import { hasBusinessAssertion, materializeReviewedCase, runConversationalCaseWorkflow } from './conversational-case-workflow.js';
 import { ModuleObservationBridge } from './module-observation-bridge.js';
 import { binding, isObject, type StateDependencies } from './state-services.js';
 
@@ -38,38 +39,43 @@ export async function caseReviewRequest(root: string, module: string, cases: TCC
 /** For a canonical project every executable case requires an exact host receipt, including manually edited files. */
 export async function verifyCaseApproval(root: string, module: string, cases: TCCase[], deps: StateDependencies) {
   const bound = binding(root, deps);
-  if (!bound) return { allowed: true };
-  if (!bound.moduleBindings?.length && !bound.caseReviewGateway && deps.applicationService) {
+  if (!bound?.moduleBindings?.length && !bound?.caseReviewGateway && deps.applicationService) {
     const project = deps.applicationService.findActiveProjectByRoot(root);
-    if (!project) return { allowed: false, code: 'project_not_found' };
-    const serviceCases = deps.applicationService.listServiceCases(project.project_id, module);
+    if (!project) return bound ? { allowed: false, code: 'project_not_found' } : { allowed: true };
     if (!cases.length) return { allowed: false, code: 'no_test_cases' };
-    const reqs: Array<{ id: string; revision: number; digest: string }> = [];
+    const serviceCases = deps.applicationService.listServiceCases(project.project_id, module);
+    const requirements = deps.applicationService.listServiceRequirements(project.project_id, module);
+    const receipts = [];
     for (const tc of cases) {
-      const match = serviceCases.find((sc) => sc.case_id === tc.id);
-      if (
-        !match ||
-        match.conformity_status === 'pending_oracle' ||
-        match.conformity_status === 'rejected' ||
-        match.conformity_status === 'proposed' ||
-        !match.confirmed_at
-      ) {
+      const match = serviceCases.find(sc => sc.case_id === tc.id);
+      if (!match) return { allowed: false, code: 'case_approval_required' };
+      if (match.oracle_status === 'missing_oracle' ||
+          !hasBusinessAssertion(match.steps, match.expectation.expected_outcome)) {
+        return { allowed: false, code: 'executable_oracle_required' };
+      }
+      if (!match.confirmed_at || !match.confirmation_digest ||
+          ['pending_oracle', 'rejected', 'proposed'].includes(match.conformity_status)) {
         return { allowed: false, code: 'case_approval_required' };
       }
-      if (match.requirement_id) {
-        reqs.push({
-          id: match.requirement_id,
-          revision: match.requirement_revision,
-          digest: match.confirmation_digest ?? '',
-        });
+      if (stableStringify(tc) !== stableStringify(materializeReviewedCase(match, module))) {
+        return { allowed: false, code: 'case_approval_content_mismatch' };
       }
+      if (match.requirement_id) {
+        const current = requirements.find(req => req.requirement_id === match.requirement_id);
+        if (!current || current.validation_status !== 'confirmed' || current.revision !== match.requirement_revision) {
+          return { allowed: false, code: 'case_oracle_revision_changed' };
+        }
+      }
+      receipts.push({ case_id: tc.id, version: match.version, id: match.requirement_id,
+        revision: match.requirement_revision, digest: match.confirmation_digest });
     }
     return {
       allowed: true,
-      request_digest: reviewDigest({ projectId: project.project_id, module, cases: cases.map((c) => c.id).sort() }),
-      requirements: reqs,
+      request_digest: reviewDigest({ projectId: project.project_id, module, cases: receipts }),
+      requirements: receipts.filter(receipt => receipt.id !== null),
     };
   }
+  if (!bound) return { allowed: true };
   if (deps.prepareWorkspace && !bound.moduleBindings?.length && !bound.caseReviewGateway) return { allowed: true };
   const value = await caseReviewRequest(root, module, cases, deps);
   if ('error' in value) return { allowed: false, code: value.error };

@@ -715,7 +715,10 @@ export class PlanHandler implements IMcpToolHandler {
         preserved_cases: [],
         has_cycles: false,
         cycles: [],
-        message: `El módulo '${moduleName}' no tiene casos de prueba ejecutables en .qa/modules/${moduleName}/tests/.`,
+        message: `El módulo '${moduleName}' todavía no tiene casos ejecutables.`,
+        siguiente_accion: { tipo: 'trabajo', tool: 'qap_plan', module: moduleName,
+          case_workflow: { action: 'review' },
+          descripcion: 'Recupera el estado de los casos. Si el módulo aún no tiene propuestas, usa case_workflow.action=propose_from_observations.' },
       });
     }
 
@@ -925,6 +928,8 @@ export class PlanHandler implements IMcpToolHandler {
       cases_fingerprint_version,
       persisted: true,
       plan_file: planPath,
+      siguiente_accion: { tipo: 'trabajo', tool: 'qap_test', module: moduleName, environment,
+        descripcion: 'Ejecuta el plan con qap_test y la autorización de ejecución del host.' },
     });
   }
 

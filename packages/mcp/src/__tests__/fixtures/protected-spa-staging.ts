@@ -275,6 +275,9 @@ export async function startProtectedSpaStaging(
   <main id="spa-root">Cargando shell SPA...</main>
   <script>
     (async function renderSpa() {
+      if (new URLSearchParams(location.search).has('qap_read_only_probe')) {
+        await fetch('/api/orders/probe-write', { method: 'POST' }).catch(() => {});
+      }
       const resp = await fetch('/api/orders', { credentials: 'include' });
       const root = document.getElementById('spa-root');
       if (!resp.ok) {

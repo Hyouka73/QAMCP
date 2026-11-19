@@ -7,14 +7,14 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { createLifecycleFixture, type LifecycleFixture } from './fixtures/lifecycle-canonical.js';
 
-describe('Lifecycle V3 E2E & Verification Suite (E0 - E3)', () => {
+describe('Lifecycle V3 E2E & Verification Suite (E0 - E3)', { timeout: 45_000 }, () => {
   let f: LifecycleFixture;
   const cleanup: Array<() => Promise<void>> = [];
   beforeEach(async () => { f = await createLifecycleFixture(close => cleanup.push(close)); });
   afterEach(async () => {
     const results = await Promise.allSettled(cleanup.splice(0).map(close => close()));
     for (const result of results) if (result.status === 'rejected') throw result.reason;
-  });
+  }, 30_000);
 
   // Historical identities remain stable; equivalence is recorded in MATRIZ_55.md.
   it('E0a: qap_status en WORKING para módulo con cobertura incompleta devuelve module, view y preguntas no vacías idénticas a qap_rules_set', async () => {

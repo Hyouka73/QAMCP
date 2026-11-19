@@ -4335,9 +4335,9 @@ export class QapApplicationService {
     return this.block3.recordHumanAcceptance(params);
   }
 
-  getExecutionSummary(projectId: string, moduleKey?: string): CanonicalExecutionSummary {
+  getExecutionSummary(projectId: string, moduleKey?: string, attemptId?: string): CanonicalExecutionSummary {
     this.assertActiveProject(projectId);
-    return this.block3.getExecutionSummary(projectId, moduleKey);
+    return this.block3.getExecutionSummary(projectId, moduleKey, attemptId);
   }
 
   listExecutionAttempts(projectId: string, moduleKey?: string): ExecutionAttemptRecord[] {

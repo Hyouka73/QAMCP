@@ -1,6 +1,6 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import { channel } from 'node:diagnostics_channel';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join, resolve, sep } from 'node:path';
@@ -13,7 +13,9 @@ import { SqliteKnowledgeAdapter } from '@qap/knowledge';
 import { SchemaValidator, normalizeSlug, type CanonicalClosureCommand, type CanonicalCoverageAssessment, type LifecycleState } from '@qap/shared';
 import { expect } from 'vitest';
 
+import { QapApplicationService } from '../../application/application-service.js';
 import { createMcpServer } from '../../server.js';
+import { WorkspaceBootstrap } from '../../workspace-bootstrap.js';
 import type { HumanReviewRequest, HumanReviewDecision, IHumanReviewGateway, InterviewCommand, RequirementProposal } from '../../handlers/canonical-interview-service.js';
 import { SqliteInterviewDraftStore } from '../../handlers/interview-draft-store.js';
 import type { ModuleClosureReviewRequest, ModuleClosureReviewDecision, IModuleClosureReviewGateway } from '../../handlers/module-closure-gateway.js';
@@ -87,7 +89,12 @@ function stage(name: string) {
 }
 export async function createLifecycleFixture(registerCleanup: (close: () => Promise<void>) => void, htmlOverride?: string, allowTestNavigation = false, extraModuleNames: string[] = []) {
   const prepared = stage('fixture.prepare');
-  const root = mkdtempSync(join(tmpdir(), 'qap-lifecycle-canonical-'));
+  const base = realpathSync(mkdtempSync(join(tmpdir(), 'qap-lifecycle-canonical-')));
+  const root = join(base, 'workspace');
+  const host = join(base, 'host');
+  mkdirSync(root);
+  mkdirSync(host);
+  const hostRegistryPath = join(host, 'authorized-roots.json');
   const http = createServer((req, res) => {
     expect(req.headers.cookie).toBeUndefined();
     expect(req.headers.authorization).toBeUndefined();
@@ -95,14 +102,16 @@ export async function createLifecycleFixture(registerCleanup: (close: () => Prom
     res.end(htmlOverride ?? '<html><body><h1>Synthetic catalog</h1><form><input required><button>Consultar</button></form></body></html>');
   });
   let client: Client | undefined, server: ReturnType<typeof createMcpServer> | undefined;
+  let applicationService: QapApplicationService | undefined;
+  let bootstrap: WorkspaceBootstrap | undefined;
   let store: SqliteKnowledgeAdapter | undefined;
   let drafts: SqliteInterviewDraftStore | undefined, closure: SqliteModuleClosureStore | undefined;
   const path = join(root, 'knowledge.sqlite'), draftPath = join(root, 'drafts.sqlite'), closurePath = join(root, 'closure.sqlite');
   const scope = { projectRoot: root, applicationId: 'lifecycle-app', environmentId: 'local' };
   const draftKey = randomBytes(32), closureKey = randomBytes(32);
   function removeTemporaryRoot() {
-    if (!resolve(root).startsWith(resolve(tmpdir()) + sep)) throw new Error('Unsafe temporary root');
-    rmSync(root, { recursive: true, force: true });
+    if (!resolve(base).startsWith(resolve(tmpdir()) + sep)) throw new Error('Unsafe temporary root');
+    rmSync(base, { recursive: true, force: true });
   }
   registerCleanup(async () => {
     const cleaned = stage('fixture.cleanup');
@@ -117,6 +126,8 @@ export async function createLifecycleFixture(registerCleanup: (close: () => Prom
           try { drafts?.close(); } finally {
             try { closure?.close(); } finally {
               store?.close();
+              bootstrap?.close();
+              applicationService?.close();
               removeTemporaryRoot();
               cleaned();
             }
@@ -127,6 +138,13 @@ export async function createLifecycleFixture(registerCleanup: (close: () => Prom
   });
   await new Promise<void>(ok => http.listen(0, '127.0.0.1', ok));
   const origin = `http://127.0.0.1:${(http.address() as { port: number }).port}`;
+  applicationService = new QapApplicationService({ hostRootDir: join(host, 'authority'), projectOperationDirectory: host });
+  bootstrap = new WorkspaceBootstrap(host, applicationService);
+  applicationService.publishRootAuthorization(root, randomUUID(),
+    () => writeFileSync(hostRegistryPath, JSON.stringify([root])),
+    () => rmSync(hostRegistryPath, { force: true }));
+  const binding = await bootstrap.prepare(root, origin);
+  if (!binding) throw new Error('Synthetic workspace authority was not established');
   const knowledge = store = new SqliteKnowledgeAdapter(path);
   const time = new Date().toISOString();
   const trace = { source: 'synthetic', recorded_by: 'fixture', recorded_at: time,
@@ -155,7 +173,8 @@ export async function createLifecycleFixture(registerCleanup: (close: () => Prom
   const moduleBindings = names.map(name => ({ plannedName: name, moduleId: `module-${normalizeSlug(name)}`, moduleKey: normalizeSlug(name),
     moduleRevision: 1, applicationRevision: 1, environmentRevision: 1, provenance: 'host_declared' as const }));
   async function connect(authorized = true, boundNames = ['catalog', 'orders', ...extraModuleNames], browserOverride?: { executable_path: string }, authorizedEnvironmentRevision = 1) {
-    server = createMcpServer({ projectRoots: [root], knowledgeBindings: [{ ...scope, store: knowledge,
+    server = createMcpServer({ projectRoots: [root], applicationService, workspaceBootstrap: bootstrap, hostRegistryPath,
+      knowledgeBindings: [{ ...binding, ...scope, store: knowledge,
       // Bind the current host-authorized Environment revision on reconnect.
       moduleBindings: moduleBindings.filter(b => boundNames.includes(b.plannedName))
         .map(b => ({ ...b, environmentRevision: authorizedEnvironmentRevision })),
@@ -237,7 +256,7 @@ export async function createLifecycleFixture(registerCleanup: (close: () => Prom
   async function working(namesToPlan = ['catalog'], priorities: Record<string, 'high' | 'medium' | 'low'> = {}) {
     const initialized = await call('qap_init', { baseUrl: origin });
     expect(initialized).toMatchObject({ status: 'success', fase: 'ONBOARDING' });
-    expect(await call('qap_context_set', { framework: 'react', app_type: 'spa',
+    expect(await call('qap_context_set', { base_url: origin, source: 'user', framework: 'react', app_type: 'spa',
       objective: 'Validar la consulta sintética del catálogo', roles: [{ name: 'visitante' }],
       critical_flows: [{ name: 'Consultar catálogo' }], source_of_truth: { type: 'none', declared: true },
     })).toMatchObject({ status: 'success', fase: 'SCOPING' });

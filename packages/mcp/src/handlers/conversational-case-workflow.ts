@@ -3,7 +3,7 @@ import { existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { FileSystemStorage } from '@qap/knowledge';
-import { normalizeSlug, SchemaValidator, type TCCase } from '@qap/shared';
+import { normalizeSlug, SchemaValidator, type ServiceTestCaseRecord, type TCCase } from '@qap/shared';
 
 import {
   canonicalizeCaseId,
@@ -109,6 +109,32 @@ function normalizeStepsForProposal(
     });
   }
   return steps;
+}
+
+/** Project the reviewed service record into the runner's canonical case format. */
+export function materializeReviewedCase(tc: ServiceTestCaseRecord, module: string): TCCase {
+  const steps = tc.steps.map(step => {
+    if (step.type !== 'waitFor' || !step.selector || step.timeout === undefined) return step;
+    const { timeout: _timeout, ...normalized } = step;
+    return normalized;
+  }) as TCCase['steps'];
+  return {
+    _version: '1.0.0',
+    id: tc.case_id,
+    name: tc.title,
+    tags: [module],
+    case_category: 'happy_path',
+    ...(tc.requirement_id ? { source_rule_id: tc.requirement_id } : {}),
+    steps,
+  };
+}
+
+export function hasBusinessAssertion(steps: readonly Record<string, unknown>[], expected: string | null): boolean {
+  return Boolean(expected?.trim()) && steps.some(step =>
+    step.type === 'assert' &&
+    typeof step.selector === 'string' && Boolean(step.selector.trim()) &&
+    (step.assertion_type === 'contains' || step.assertion_type === 'equals') &&
+    step.expected === expected);
 }
 
 function buildProposalsFromResolution(params: {
@@ -782,7 +808,11 @@ export async function runConversationalCaseWorkflow(
 
     const reviewGateway = deps.ruleReviewGateway;
     if (!reviewGateway || !reviewGateway.isAvailable()) {
-      return blocked('human_review_gateway_required', { human_review_required: true });
+      return blocked('human_review_gateway_required', {
+        human_review_required: true,
+        siguiente_accion: { tipo: 'decision', tool: 'qap_plan', module: moduleName,
+          descripcion: 'Usa un cliente MCP que admita formularios de revisión humana o solicita al operador un gateway de revisión autorizado.' },
+      });
     }
 
     const serviceMod = resolveMod();
@@ -1032,6 +1062,13 @@ export async function runConversationalCaseWorkflow(
       });
     }
 
+    const withoutAssertion = eligibleCases.filter(c => !hasBusinessAssertion(c.steps, c.expectation.expected_outcome));
+    if (withoutAssertion.length) return blocked('executable_oracle_required', {
+      case_ids: withoutAssertion.map(c => c.case_id),
+      siguiente_accion: { tipo: 'trabajo', tool: 'qap_plan', module: moduleName,
+        descripcion: 'Propón una aserción de texto con selector que compruebe la expectativa acreditada, o selecciona los casos aptos para el lote.' },
+    });
+
     const alreadyConfirmed = eligibleCases.every(
       (c) =>
         ['approved', 'pass', 'fail', 'not_run', 'technical_error', 'human_accepted'].includes(c.conformity_status) &&
@@ -1055,7 +1092,11 @@ export async function runConversationalCaseWorkflow(
     if (!alreadyConfirmed) {
       const reviewGateway = deps.ruleReviewGateway;
       if (!reviewGateway || !reviewGateway.isAvailable()) {
-        return blocked('human_review_gateway_required', { human_review_required: true });
+        return blocked('human_review_gateway_required', {
+          human_review_required: true,
+          siguiente_accion: { tipo: 'decision', tool: 'qap_plan', module: moduleName,
+            descripcion: 'Usa un cliente MCP que admita formularios de revisión humana o solicita al operador un gateway de revisión autorizado.' },
+        });
       }
 
       const sortedEligible = [...eligibleCases].sort((a, b) => a.case_id.localeCompare(b.case_id));
@@ -1216,8 +1257,6 @@ export async function runConversationalCaseWorkflow(
       });
     }
 
-    const baseUrl = options?.effectiveScope?.base_url ?? snapshot.environment?.base_url ?? 'http://127.0.0.1';
-    const routeUrl = resolveAbsoluteRouteUrl(baseUrl, serviceMod.route_hint ?? '/');
     const storage = new FileSystemStorage({ rootDir: root });
     const modDir = join(root, '.qa', 'modules', moduleName);
     mkdirSync(modDir, { recursive: true });
@@ -1231,27 +1270,7 @@ export async function runConversationalCaseWorkflow(
 
     const validator = new SchemaValidator();
     for (const tc of approval.approved_cases) {
-      const normalizedSteps = normalizeStepsForProposal(
-        tc.steps,
-        routeUrl,
-        tc.expectation.expected_outcome,
-      ).map((s) => {
-        if (s.type === 'waitFor' && s.selector && s.timeout !== undefined) {
-          const copy = { ...s };
-          delete copy.timeout;
-          return copy;
-        }
-        return s;
-      }) as TCCase['steps'];
-      const normalizedTc: TCCase = {
-        _version: '1.0.0',
-        id: tc.case_id,
-        name: tc.title,
-        tags: [moduleName],
-        case_category: 'happy_path',
-        ...(tc.requirement_id ? { source_rule_id: tc.requirement_id } : {}),
-        steps: normalizedSteps,
-      };
+      const normalizedTc = materializeReviewedCase(tc, moduleName);
       const tcValidation = validator.validateTcCase(normalizedTc);
       if (!tcValidation.valid) {
         return blocked('invalid_test_case', { case_id: tc.case_id, errors: tcValidation.errors });

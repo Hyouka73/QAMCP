@@ -3,7 +3,7 @@ import { realpathSync } from 'node:fs';
 
 import { SessionStore, readProfile } from '@qap/auth';
 import { FileSystemStorage } from '@qap/knowledge';
-import { SchemaValidator, type ExecutionResult, type TCCase } from '@qap/shared';
+import { SchemaValidator, type ExecutionResult, type PermissionScope, type TCCase } from '@qap/shared';
 import type { IRunner } from '@qap/engine';
 import {
   PlaywrightRunner,
@@ -40,7 +40,19 @@ import {
   type StateDependencies,
 } from './state-services.js';
 import { verifyPlanIntegrity, type PlanVigenciaCheck } from './plan.handler.js';
-import { isInternallyConsistentExecution } from './execution-evidence.js';
+import { hasPhysicalVerdictEvidence, isInternallyConsistentExecution } from './execution-evidence.js';
+
+const READ_ONLY_STEPS = new Set(['navigate', 'waitFor', 'assert', 'screenshot', 'capture']);
+const EXECUTE_RECOVERY = {
+  tipo: 'decision',
+  tool: 'qap_test',
+  descripcion: 'Solicita al operador del host autorización de ejecución QAP para este proyecto y entorno. Reintenta qap_test cuando esté disponible.',
+};
+const ORACLE_RECOVERY = {
+  tipo: 'decision',
+  tool: 'qap_plan',
+  descripcion: 'Recupera el caso con case_workflow.action=review, confirma un oráculo comprobable, aprueba el caso y regenera el plan.',
+};
 
 export interface TestNavigationAuthorization {
   readonly projectId?: string;
@@ -51,6 +63,7 @@ export interface TestNavigationAuthorization {
 }
 
 export interface TestHandlerOptions {
+  readonly requireCanonicalExecution?: boolean;
   readonly testAuthorizations?: readonly TestNavigationAuthorization[];
   readonly testAuthorizer?: ITestAuthorizer;
   readonly hostTestRegistryPath?: string;
@@ -255,6 +268,27 @@ export class TestHandler implements IMcpToolHandler {
       }
     }
 
+    const activeEnvironment = appSnapshot?.environment;
+    if (appProject && (!activeEnvironment || !envOrigin || environment !== activeEnvironment.name ||
+        hasDiscrepantYamlUrl || isProductionEnv)) {
+      return result({
+        status: 'blocked', code: 'execution_environment_not_allowed', module: moduleName, environment,
+        message: 'Selecciona el entorno canónico no productivo y sincroniza su URL con la configuración del proyecto.',
+        desbloquear_con: 'qap_status',
+      }, true);
+    }
+    const activeModule = appSnapshot?.modules.find(module => module.key === moduleName || module.title === moduleName);
+    const executeScope = {
+      root_path: rootDir,
+      ...(activeModule ? { module_id: activeModule.module_id } : {}),
+      ...(envOrigin ? { origin: envOrigin } : {}),
+      ...(activeEnvironment ? { env_id: activeEnvironment.env_id } : {}),
+      ...(args.profile ? { profile_id: args.profile } : {}),
+    };
+    const isExplicitExecuteScope = (scope: PermissionScope) =>
+      Boolean(scope.root_path && scope.origin === envOrigin && scope.env_id === activeEnvironment?.env_id &&
+        (!scope.module_id || scope.module_id === activeModule?.module_id) && !scope.tenant_id);
+
     let admittedAccessId: string | undefined;
     let admittedExecuteId: string | undefined;
     let admittedLoginId: string | undefined;
@@ -277,12 +311,9 @@ export class TestHandler implements IMcpToolHandler {
         );
       }
 
-      const executeCheck = appService.authority.check(appProject.project_id, 'execute', {
-        root_path: rootDir,
-        ...(envOrigin ? { origin: envOrigin } : {}),
-        ...(appSnapshot?.environment?.env_id ? { env_id: appSnapshot.environment.env_id } : {}),
-      });
-      admittedExecuteId = executeCheck.allowed ? executeCheck.grant.grant_id : undefined;
+      const executeCheck = appService.authority.check(appProject.project_id, 'execute', executeScope);
+      admittedExecuteId = executeCheck.allowed && isExplicitExecuteScope(executeCheck.grant.scope) &&
+        executeCheck.grant.granted_by !== 'host_bound_scope' ? executeCheck.grant.grant_id : undefined;
       if (!executeCheck.allowed && (executeCheck.reason === 'revoked' || executeCheck.reason === 'expired')) {
         return result(
           {
@@ -335,6 +366,15 @@ export class TestHandler implements IMcpToolHandler {
           return result({ status: 'blocked', code: err.code, ...err.details }, true);
         }
         throw err;
+      }
+    }
+
+    if (appService && appProject && args.case_ids?.length) {
+      const requested = new Set(args.case_ids.map(canonicalizeCaseId));
+      if (appService.listServiceCases(appProject.project_id, moduleName).some(tc =>
+        requested.has(canonicalizeCaseId(tc.case_id)) && tc.oracle_status === 'missing_oracle')) {
+        return result({ status: 'blocked', code: 'executable_oracle_required', module: moduleName,
+          desbloquear_con: 'qap_plan', siguiente_accion: { ...ORACLE_RECOVERY, module: moduleName } }, true);
       }
     }
 
@@ -392,6 +432,13 @@ export class TestHandler implements IMcpToolHandler {
       }
     }
 
+    if (this.options.requireCanonicalExecution && !appProject) {
+      return result({ status: 'blocked', code: 'execution_project_required', module: moduleName,
+        desbloquear_con: 'qap_start',
+        siguiente_accion: { tipo: 'trabajo', tool: 'qap_start',
+          descripcion: 'Abre o retoma el proyecto en QAP antes de ejecutar el caso.' } }, true);
+    }
+
     // TOCTOU Snapshot Protection (R1.6 / R2)
     // Populate an in-memory snapshot map of verified cases so PlaywrightRunner NEVER reads YAMLs from disk
     const snapshotMap = new Map<string, TCCase>();
@@ -432,6 +479,22 @@ export class TestHandler implements IMcpToolHandler {
       }
     }
 
+    let approval;
+    try { approval = await verifyCaseApproval(rootDir, moduleName, [...snapshotMap.values()], this.dependencies); }
+    catch { return result({ status: 'blocked', code: 'case_approval_unavailable', desbloquear_con: 'qap_plan' }, true); }
+    if (!approval.allowed) return result({ status: 'blocked', ...approval, desbloquear_con: 'qap_plan',
+      siguiente_accion: { ...ORACLE_RECOVERY, module: moduleName } }, true);
+
+    if (appProject && [...snapshotMap.values()].some(tc => tc.steps.some(step => !READ_ONLY_STEPS.has(step.type)))) {
+      return result({
+        status: 'blocked', code: 'mutation_scope_unavailable', module: moduleName, environment,
+        message: 'La ejecución canónica de este host admite pasos de lectura. La operación solicitada requiere una política de escritura específica del entorno y la operación.',
+        desbloquear_con: 'qap_plan',
+        siguiente_accion: { tipo: 'trabajo', tool: 'qap_plan', module: moduleName,
+          descripcion: 'Revisa el caso y selecciona un flujo de solo lectura. Mantén pendiente la operación de escritura hasta que el host pueda autorizar su alcance.' },
+      }, true);
+    }
+
     let canonicalRoot: string;
     try {
       canonicalRoot = realpathSync(rootDir);
@@ -453,67 +516,26 @@ export class TestHandler implements IMcpToolHandler {
       return true; // global policy if no specific projectRoot
     });
 
-    const hasStaticOriginMatch =
-      matchingAuths.length > 0 &&
-      matchingAuths.some(a => (a.allowedOrigins ?? []).length > 0) &&
-      (!envUrl ||
-        isUrlAllowedByPolicy(
-          envUrl,
-          Array.from(new Set(matchingAuths.flatMap(a => Array.from(a.allowedOrigins ?? [])))),
-        ));
-
-    if (!hasStaticOriginMatch && appProject && appService) {
-      const executeGrantCheck = appService.authority.check(appProject.project_id, 'execute', {
-        root_path: rootDir,
-        ...(envOrigin ? { origin: envOrigin } : {}),
-      });
-      if (executeGrantCheck.allowed && executeGrantCheck.grant?.scope.origin) {
+    if (appProject && appService) {
+      if (admittedExecuteId) {
         const grantedAuth: TestNavigationAuthorization = {
           projectRoot: canonicalRoot,
-          allowedOrigins: [executeGrantCheck.grant.scope.origin],
+          allowedOrigins: [envOrigin!],
           allowRedirectsToAllowedOnly: true,
-          ...(args.profile ? { authorizedProfiles: [args.profile] } : {}),
+          ...(args.profile && args.profile !== 'admin-user' && args.profile !== 'admin'
+            ? { authorizedProfiles: [args.profile] } : {}),
         };
         authorizations = [...authorizations, grantedAuth];
         matchingAuths = [...matchingAuths, grantedAuth];
-      } else if (
-        !this.options.testAuthorizer &&
-        this.dependencies.silentBoundScope &&
-        Boolean(canonicalEnvUrl) &&
-        !hasDiscrepantYamlUrl &&
-        environment === (appSnapshot?.environment?.name ?? 'local') &&
-        envOrigin &&
-        !isProductionEnv &&
-        authorizations.length === 0
-      ) {
-        admittedExecuteId = protectedAction(() => appService.authority.grant({
-          project_id: appProject.project_id,
-          capability: 'execute',
-          scope: {
-            root_path: canonicalRoot,
-            origin: envOrigin,
-            ...(appSnapshot?.environment?.env_id ? { env_id: appSnapshot.environment.env_id } : {}),
-          },
-          granted_by: 'host_bound_scope',
-          policy_hash: createHash('sha256').update(envOrigin).digest('hex'),
-        })).grant_id;
-        const grantedAuth: TestNavigationAuthorization = {
-          projectRoot: canonicalRoot,
-          allowedOrigins: [envOrigin],
-          allowRedirectsToAllowedOnly: true,
-          ...(args.profile && args.profile !== 'admin-user' ? { authorizedProfiles: [args.profile] } : {}),
-        };
-        authorizations = [...authorizations, grantedAuth];
-        matchingAuths = [...matchingAuths, grantedAuth];
-      } else if (this.options.testAuthorizer) {
-        const requestedOrigin = envOrigin ?? 'http://127.0.0.1';
+      } else if (this.options.testAuthorizer && activeModule) {
+        const requestedOrigin = envOrigin!;
         const authRes = await this.options.testAuthorizer.requestAuthorization(
           {
             projectRoot: canonicalRoot,
             projectName: appProject.name,
             origin: requestedOrigin,
             moduleName,
-            caseCount: args.case_ids?.length ?? 1,
+            caseCount: snapshotMap.size,
             profileLabel: args.profile,
           },
           context?.signal,
@@ -553,21 +575,22 @@ export class TestHandler implements IMcpToolHandler {
               module: moduleName,
               environment,
               message: authRes.reason,
-              desbloquear_con: 'qap_context_set',
+              desbloquear_con: 'qap_test', siguiente_accion: EXECUTE_RECOVERY,
             },
             true,
           );
         }
 
-        const approvedOrigins = authRes.allowedOrigins.length > 0 ? authRes.allowedOrigins : [requestedOrigin];
+        if (!authRes.allowedOrigins.includes(requestedOrigin) ||
+            (args.profile && !authRes.authorizedProfiles?.includes(args.profile))) {
+          return result({ status: 'blocked', code: 'test_authorization_scope_mismatch', module: moduleName,
+            siguiente_accion: EXECUTE_RECOVERY }, true);
+        }
+        const approvedOrigins = [requestedOrigin];
         admittedExecuteId = protectedAction(() => appService.authority.grant({
           project_id: appProject.project_id,
           capability: 'execute',
-          scope: {
-            root_path: canonicalRoot,
-            origin: approvedOrigins[0],
-            ...(appSnapshot?.environment?.env_id ? { env_id: appSnapshot.environment.env_id } : {}),
-          },
+          scope: executeScope,
           granted_by: 'interactive_test_authorizer',
           policy_hash: createHash('sha256').update(approvedOrigins.join('|')).digest('hex'),
         })).grant_id;
@@ -584,6 +607,14 @@ export class TestHandler implements IMcpToolHandler {
         authorizations = [...authorizations, approvedAuth];
         matchingAuths = [...matchingAuths, approvedAuth];
       }
+    }
+
+    if (appProject && !admittedExecuteId) {
+      return result({
+        status: 'blocked', code: 'execution_authorization_required', module: moduleName, environment,
+        message: 'Se requiere permiso explícito de ejecución para el workspace y el entorno activos.',
+        desbloquear_con: 'qap_test', siguiente_accion: { ...EXECUTE_RECOVERY, module: moduleName },
+      }, true);
     }
 
     if (authorizations.length === 0) {
@@ -689,8 +720,6 @@ export class TestHandler implements IMcpToolHandler {
 
     // Pin the grants admitted for this operation. Never select replacements after navigation.
     const accessScope = { root_path: rootDir };
-    const executeScope = { root_path: rootDir, ...(envOrigin ? { origin: envOrigin } : {}),
-      ...(appSnapshot?.environment?.env_id ? { env_id: appSnapshot.environment.env_id } : {}) };
     const loginScope = { ...(envOrigin ? { origin: envOrigin } : {}), ...(args.profile ? { profile_id: args.profile } : {}) };
     const grants = appProject && appService ? {
       access: appService.authority.check(appProject.project_id, 'access', accessScope),
@@ -700,7 +729,10 @@ export class TestHandler implements IMcpToolHandler {
     const authorityValid = () => {
       if (this.dependencies.validateKnowledgeBinding && (!admitted || !this.dependencies.validateKnowledgeBinding(admitted))) return false;
       if (!grants || !appProject || !appService) return !this.dependencies.validateKnowledgeBinding;
-      const valid = (cap: 'access' | 'execute' | 'login', grant: typeof grants.access | undefined, scope: { root_path?: string; origin?: string; env_id?: string; profile_id?: string }) =>
+      const currentEnvironment = appService.resumeProject(appProject.project_id, { readOnly: true }).environment;
+      if (currentEnvironment?.env_id !== activeEnvironment?.env_id ||
+          currentEnvironment?.base_url !== activeEnvironment?.base_url || currentEnvironment?.is_production) return false;
+      const valid = (cap: 'access' | 'execute' | 'login', grant: typeof grants.access | undefined, scope: PermissionScope) =>
         !!grant?.allowed && appService.authority.isGrantValid(appProject.project_id, cap, grant.grant.grant_id, scope);
       return grants.access.allowed && grants.access.grant.grant_id === admittedAccessId &&
         grants.execute.allowed && grants.execute.grant.grant_id === admittedExecuteId &&
@@ -811,11 +843,6 @@ export class TestHandler implements IMcpToolHandler {
         return Promise.resolve(structuredClone(tc));
       });
 
-    let approval;
-    try { approval = await verifyCaseApproval(rootDir, moduleName, [...snapshotMap.values()], this.dependencies); }
-    catch { return result({ status: 'blocked', code: 'case_approval_unavailable' }, true); }
-    if (!approval.allowed) return result({ status: 'blocked', ...approval }, true);
-
     const serviceCasesById = new Map(
       appProject && appService
         ? appService
@@ -841,6 +868,7 @@ export class TestHandler implements IMcpToolHandler {
       extraHTTPHeaders: runnerExtraHeaders,
       storageResolver,
       allowedOrigins,
+      ...(appProject && envOrigin ? { readOnlyOrigin: envOrigin } : {}),
       ...(attemptId ? { attemptId } : {}),
     };
 
@@ -868,6 +896,20 @@ export class TestHandler implements IMcpToolHandler {
     if (appService && appProject && !authorityValid()) {
       if (provisional) { discardProvisionalExecution(provisional); provisional = undefined; }
       return result({ status: 'blocked', code: 'operation_grant_revoked' }, true);
+    }
+    if (appProject) {
+      const actualIds = new Set(executionResult.cases.map(testCase => canonicalizeCaseId(testCase.id)));
+      if (actualIds.size !== snapshotMap.size || [...snapshotMap.keys()].some(id => !actualIds.has(canonicalizeCaseId(id)))) {
+        return result({ status: 'error', code: 'execution_case_set_mismatch', module: moduleName, environment,
+          desbloquear_con: 'qap_plan' }, true);
+      }
+      const reviewed = await verifyCaseApproval(rootDir, moduleName, [...snapshotMap.values()], this.dependencies);
+      if (!reviewed.allowed || reviewed.request_digest !== approval.request_digest) {
+        return result({ status: 'blocked', code: reviewed.allowed ? 'case_approval_changed' : reviewed.code,
+          module: moduleName, environment, desbloquear_con: 'qap_plan',
+          siguiente_accion: { ...ORACLE_RECOVERY, module: moduleName } }, true);
+      }
+      if (!authorityValid()) return result({ status: 'blocked', code: 'operation_grant_revoked' }, true);
     }
     if (appService) {
       try {
@@ -980,6 +1022,25 @@ export class TestHandler implements IMcpToolHandler {
         },
         true
       );
+    }
+
+    if (attemptId && executionResult.summary.passed + executionResult.summary.failed === 0) {
+      return result({ status: 'blocked', code: 'no_cases_executed', module: moduleName, environment,
+        cases: executionResult.cases, desbloquear_con: 'qap_plan',
+        siguiente_accion: { tipo: 'trabajo', tool: 'qap_plan', module: moduleName,
+          descripcion: 'Revisa los motivos de bloqueo de cada caso y recupera un plan ejecutable.' } }, true);
+    }
+    if (attemptId && (
+      !provisional ||
+      !hasPhysicalVerdictEvidence(provisional.provisionalRoot, attemptId, executionResult)
+    )) {
+      return result({
+        status: 'blocked', code: 'execution_evidence_missing', module: moduleName, environment,
+        message: 'No se publicó un veredicto. Revisa la captura de la traza Chromium del intento y vuelve a ejecutar mediante qap_test.',
+        desbloquear_con: 'qap_status',
+        siguiente_accion: { tipo: 'trabajo', tool: 'qap_status',
+          descripcion: 'Revisa la disponibilidad de Chromium y de la captura de evidencia antes de reintentar.' },
+      }, true);
     }
 
     const executionId = executionResult.execution_id;
@@ -1304,7 +1365,7 @@ export class TestHandler implements IMcpToolHandler {
     }
 
     const canonicalExecutionSummary =
-      appProject && appService ? appService.getExecutionSummary(appProject.project_id, moduleName) : undefined;
+      appProject && appService ? appService.getExecutionSummary(appProject.project_id, moduleName, attemptId) : undefined;
 
     // Note: NEVER create automated ConformityAssessment in SQLite (enforced by design).
 
@@ -1342,6 +1403,8 @@ export class TestHandler implements IMcpToolHandler {
       ...(executionResult.timeline ? { timeline: executionResult.timeline } : {}),
       summary: executionResult.summary,
       cases: executionResult.cases,
+      ...(attemptRecord ? { siguiente_accion: { tipo: 'trabajo', tool: 'qap_report', executionId,
+        descripcion: 'Genera el informe de esta ejecución registrada con QAP.' } } : {}),
       started_at: executionResult.started_at,
       finished_at: executionResult.finished_at,
     });
