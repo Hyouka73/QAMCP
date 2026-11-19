@@ -128,6 +128,8 @@ export class ReportHandler implements IMcpToolHandler {
       return result({
         status: 'blocked',
         code: 'no_recorded_executions',
+        fase: (await storage.getLifecycleState()).phase,
+        execution_state: 'missing',
         message: 'No existen ejecuciones persistidas para generar un informe.',
         razon: 'No existen ejecuciones persistidas; ejecute qap_test antes de solicitar reportes.',
         desbloquear_con: 'qap_status',
@@ -220,6 +222,8 @@ export class ReportHandler implements IMcpToolHandler {
       return result({
         status: 'blocked',
         code: 'no_matching_execution',
+        fase: (await storage.getLifecycleState()).phase,
+        execution_state: 'missing',
         message: 'No existe una ejecución real guardada que coincida con la solicitud.',
         razon: 'No hay ejecuciones válidas registradas para generar el reporte.',
         desbloquear_con: 'qap_status',

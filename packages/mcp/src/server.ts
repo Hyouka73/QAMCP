@@ -36,6 +36,7 @@ import {
   type AuthProfile,
   type CanonicalExecutionSummary,
   type ModuleLifecycleState,
+  type SessionPlanItem,
   type IngestProposal,
   type RuleEntry,
   type CategoryWaiver,
@@ -137,7 +138,7 @@ import {
 } from './client-elicitation-authorizers.js';
 import { acknowledgeProjectInitialization, ProjectOperationError, ProjectReset, readProjectResetState, type ResetAuthorizer } from './project-reset.js';
 import { windowsProjectResetAuthorizer } from './project-reset-dialog.js';
-import { conversationLogPath, isConversationId, QapEventLog } from './qap-event-log.js';
+import { classifyQapFailure, conversationLogPath, isConversationId, isQapFailureResult, QapEventLog, type QapFailureCause } from './qap-event-log.js';
 export { checkPlaywrightBrowser, PLAYWRIGHT_INSTALL_COMMAND } from './handlers/state-runtime.js';
 
 let activeViewerServer: ViewerServerInstance | null = null;
@@ -657,6 +658,38 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
     let resetState: ReturnType<typeof readProjectResetState>;
     let guardedRoot: string | undefined;
     const eventStartedAt = Date.now();
+    let eventPhase: string | undefined;
+    let eventStage: string | undefined;
+    let eventCause: QapFailureCause | undefined;
+    let eventPlanRevisionId: string | undefined;
+    const captureFailure = (error: unknown) => {
+      eventCause = {
+        ...classifyQapFailure(error),
+        ...(error instanceof ApplicationServiceError || error instanceof KnowledgeStoreError
+          ? { domain_code: error.code } : {}),
+      };
+    };
+    const recordOutcome = (result: CallToolResult): boolean => {
+      if (!options.workspaceBootstrap) return false;
+      const name = request.params.name;
+      const event = {
+        requestId: String(context.requestId),
+        tool: dispatcher.has(name) || TOOLS.some(tool => tool.name === name) ? name : 'unknown_tool',
+        operation: eventStage, phase: eventPhase, cause: eventCause, result,
+        durationMs: Date.now() - eventStartedAt,
+      };
+      if (applicationService && eventBinding && eventWorkspace) {
+        try {
+          const recorded = applicationService.withProjectOperation(() =>
+            options.workspaceBootstrap!.validateBinding(eventBinding!) && qapEventLog.record({
+              ...event, workspace: eventWorkspace, conversationId, args: request.params.arguments,
+            }));
+          if (recorded) return true;
+        } catch { /* Record a safe failure in the host log when the project write gate is unavailable. */ }
+      }
+      if (isQapFailureResult(result)) qapEventLog.record({ ...event, phase: undefined, args: undefined });
+      return false;
+    };
     const operation = (async (): Promise<CallToolResult> => {
     const { name, arguments: { conversation_id, ...argsWithoutConversation } = {} } = request.params;
     const rawArgs = request.params.arguments === undefined ? undefined : argsWithoutConversation;
@@ -1303,7 +1336,10 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         try { cleanupDeletedRoot(recoveredRoot); }
         catch { return canonicalResult({ status: 'blocked', code: 'project_delete_registry_cleanup_failed' }, true); }
       }
-      const dispatchResult = await dispatcher.dispatch(request.params, { requestId: context.requestId, signal: context.signal ?? new AbortController().signal });
+      eventStage = 'dispatch';
+      const dispatchResult = await dispatcher.dispatch(request.params, {
+        requestId: context.requestId, signal: context.signal, onException: captureFailure,
+      });
       if (action === 'delete_confirm' && !dispatchResult.isError && applicationService && projectId) {
         try {
           const parsed = JSON.parse((dispatchResult.content[0] as { text?: string })?.text ?? '{}') as { status?: string; project_id?: string };
@@ -2836,6 +2872,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         }
 
         case 'qap_session_plan': {
+          eventStage = 'validate_plan';
           const qaDir = resolve(rootDir, '.qa');
           if (!existsSync(qaDir)) {
             return {
@@ -2860,6 +2897,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
 
           const storage = new FileSystemStorage({ rootDir });
           const lifecycleState = await storage.getLifecycleState();
+          eventPhase = lifecycleState.phase;
           const activeProject = applicationService?.findActiveProjectByRoot(rootDir);
           const requestedTenant = typeof args.tenant_id === 'string' && args.tenant_id.trim()
             ? args.tenant_id.trim()
@@ -2906,6 +2944,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
                       status: 'blocked',
                       directorio_objetivo: rootDir,
                       fase: 'ONBOARDING',
+                      code: 'plan_requires_scoping',
                       razon: 'No se puede definir el plan de sesión en la fase ONBOARDING. Completa el contexto de negocio primero.',
                       desbloquear_con: {
                         tool: 'qap_context_set',
@@ -2923,7 +2962,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
           }
 
           // Soporte de desde_candidatos y adicionales (C6 + Block 2 candidatos del servicio)
-          let resolvedModules: Array<{ module: string; path: string; priority: string; flujos?: string[] }> = [];
+          const resolvedModules: Array<Omit<SessionPlanItem, 'status'>> = [];
           const promotedCandidateIds: Array<{
             candidateKeyOrId: string;
             title?: string;
@@ -2960,7 +2999,8 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
                         {
                           status: 'blocked',
                           directorio_objetivo: rootDir,
-                          fase: 'SCOPING',
+                          fase: lifecycleState.phase,
+                          code: 'plan_candidate_not_found',
                           razon: `El candidato indicado ('${candId}') no figura en la lista de candidatos revisables.`,
                           siguiente_accion: {
                             tipo: 'decision',
@@ -2976,9 +3016,14 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
                 };
               }
 
+              if (svcCand?.status === 'rejected') {
+                return canonicalResult({ status: 'blocked', code: 'candidate_rejected', fase: lifecycleState.phase }, true);
+              }
               const resolvedName = cand?.nombre ?? svcCand!.title;
               const resolvedRoute = candPathOverride || cand?.ruta || svcCand?.route_hint;
-              const resolvedFlows = cand?.flujos || [];
+              const priority = typeof item === 'object' && item?.priority !== undefined
+                ? item.priority : resolvedModules.length < 3 ? 'high' : 'medium';
+              const resolvedFlows = typeof item === 'object' && item?.flujos !== undefined ? item.flujos : cand?.flujos;
 
               if (!resolvedRoute) {
                 const preguntaRuta: Pregunta = {
@@ -3000,7 +3045,8 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
                         {
                           status: 'blocked',
                           directorio_objetivo: rootDir,
-                          fase: 'SCOPING',
+                          fase: lifecycleState.phase,
+                          code: 'plan_candidate_route_required',
                           razon: `El candidato '${resolvedName}' aún no tiene una ruta asignada.`,
                           siguiente_accion: {
                             tipo: 'decision',
@@ -3017,39 +3063,38 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
                 };
               }
 
-              if (svcCand) {
+              if (svcCand && svcCand.status !== 'promoted') {
                 promotedCandidateIds.push({
                   candidateKeyOrId: svcCand.candidate_id,
                   title: resolvedName,
                   routeHint: resolvedRoute,
-                  priority: 'medium',
+                  priority,
                 });
               }
 
               resolvedModules.push({
                 module: resolvedName,
                 path: resolvedRoute,
-                priority: 'medium',
+                priority,
                 flujos: resolvedFlows,
+                provenance: { source: 'desde_candidatos', candidate_id: svcCand?.candidate_id ?? cand!.id },
               });
             }
-
-            resolvedModules = resolvedModules.map((m, idx) => ({
-              ...m,
-              priority: idx < 3 ? 'high' : 'medium',
-            }));
           }
 
           if (Array.isArray(args.adicionales)) {
             for (const ad of args.adicionales) {
-              if (ad && typeof ad === 'object' && ad.module && ad.path) {
-                resolvedModules.push({
-                  module: String(ad.module).trim(),
-                  path: String(ad.path).trim(),
-                  priority: ad.priority || 'medium',
-                  flujos: Array.isArray(ad.flujos) ? ad.flujos : [],
-                });
+              if (!ad || typeof ad !== 'object' || !ad.module || !ad.path) {
+                return canonicalResult({ status: 'error', code: 'invalid_plan_module', fase: lifecycleState.phase }, true);
               }
+              resolvedModules.push({
+                module: String(ad.module).trim(),
+                path: String(ad.path).trim(),
+                priority: ad.priority ?? 'medium',
+                acceso: ad.acceso,
+                flujos: ad.flujos,
+                provenance: { source: 'adicionales' },
+              });
             }
           }
 
@@ -3062,25 +3107,36 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
             const reuseSelection = requestedReuse
               ? closedPool.filter((m) => requestedReuse.includes(m.key) || requestedReuse.includes(m.title))
               : closedPool;
+            const pastPlanItems = [lifecycleState.session?.plan ?? [],
+              ...(lifecycleState.plan_revisions ?? []).slice().reverse().map(revision => revision.plan)].flat();
             for (const rm of reuseSelection) {
+              const prior = pastPlanItems.find(item => normalizeSlug(item.module) === rm.key);
               resolvedModules.push({
                 module: rm.key,
                 path: rm.route_hint || '/',
                 priority: rm.priority,
-                flujos: [],
+                flujos: prior?.flujos,
+                acceso: prior?.acceso,
+                provenance: { source: 'reuse_modules', module_id: rm.module_id },
               });
             }
           }
 
-          if (resolvedModules.length === 0 && Array.isArray(args.modules)) {
-            resolvedModules = args.modules.map((m: any) => ({
-              module: String(m.module || m.name || '').trim(),
-              path: String(m.path || '').trim(),
-              priority: String(m.priority || 'medium').trim(),
-              flujos: Array.isArray(m.flujos) ? m.flujos : [],
-            }));
+          if (Array.isArray(args.modules)) {
+            resolvedModules.push(...args.modules.map((m: any) => ({
+              module: String(m?.module || m?.name || '').trim(),
+              path: String(m?.path || '').trim(),
+              priority: String(m?.priority ?? 'medium').trim(),
+              acceso: m?.acceso,
+              flujos: m?.flujos,
+              provenance: { source: 'modules' as const },
+            })));
           }
 
+          // El alias histórico se admite como alternativa al lote de módulos.
+          if (resolvedModules.length > 0 && Array.isArray(args.plan) && args.plan.length > 0) {
+            return canonicalResult({ status: 'error', code: 'ambiguous_session_plan', fase: lifecycleState.phase }, true);
+          }
           // Validación atómica del lote
           const rawModules = resolvedModules.length > 0
             ? resolvedModules
@@ -3149,19 +3205,22 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
             if (!mPath || !mPath.startsWith('/')) {
               return {
                 isError: true,
-                content: [{ type: 'text', text: JSON.stringify({ status: 'error', error: `La ruta '${mPath}' del módulo '${mName}' debe iniciar con '/'.` }, null, 2) }],
+                content: [{ type: 'text', text: JSON.stringify({ status: 'error', code: 'invalid_plan_route', error: `La ruta '${mPath}' del módulo '${mName}' debe iniciar con '/'.` }, null, 2) }],
               };
             }
             if (!['high', 'medium', 'low'].includes(mPriority)) {
               return {
                 isError: true,
-                content: [{ type: 'text', text: JSON.stringify({ status: 'error', error: `Prioridad inválida '${mPriority}' en módulo '${mName}'. Debe ser high, medium o low.` }, null, 2) }],
+                content: [{ type: 'text', text: JSON.stringify({ status: 'error', code: 'invalid_plan_priority', error: `Prioridad inválida '${mPriority}' en módulo '${mName}'. Debe ser high, medium o low.` }, null, 2) }],
               };
+            }
+            if (m.flujos !== undefined && (!Array.isArray(m.flujos) || m.flujos.some((flow: unknown) => typeof flow !== 'string'))) {
+              return canonicalResult({ status: 'error', code: 'invalid_plan_flows', fase: lifecycleState.phase }, true);
             }
             if (seenNames.has(mName)) {
               return {
                 isError: true,
-                content: [{ type: 'text', text: JSON.stringify({ status: 'error', error: `Módulos duplicados en el lote: '${mName}'.` }, null, 2) }],
+                content: [{ type: 'text', text: JSON.stringify({ status: 'error', code: 'duplicate_plan_module', error: `Módulos duplicados en el lote: '${mName}'.` }, null, 2) }],
               };
             }
             seenNames.add(mName);
@@ -3195,18 +3254,44 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
           }
 
           const isAccess = (m: { path?: string; acceso?: boolean }) => Boolean(m.acceso || isAuthPath(String(m.path || '')));
-          const sortedModules = [...rawModules].sort((a, b) => {
-            const aAcc = isAccess(a) ? 1 : 0;
-            const bAcc = isAccess(b) ? 1 : 0;
-            return bAcc - aAcc;
-          });
+          const selectedPlan: SessionPlanItem[] = rawModules.map(m => ({
+            module: String(m.module).trim(),
+            path: String(m.path).trim(),
+            priority: String(m.priority).trim(),
+            status: 'planned',
+            ...(isAccess(m) ? { acceso: true } : {}),
+            ...(m.flujos !== undefined ? { flujos: m.flujos } : {}),
+            provenance: resolvedModules.length > 0 ? m.provenance as SessionPlanItem['provenance'] : { source: 'plan' },
+          }));
+          selectedPlan.sort((a, b) => Number(Boolean(b.acceso)) - Number(Boolean(a.acceso)));
 
           let scopingGateRes: { passed: boolean; faltantes: Array<{ campo: string; motivo: string }> } = { passed: true, faltantes: [] };
           let updatedPhase = lifecycleState.phase;
 
-          await storage.updateLifecycleState(async (curr) => {
-            curr.session = curr.session || { id: `session_${randomUUID().slice(0, 8)}`, started_at: new Date().toISOString(), plan: [] };
-            curr.modules = curr.modules || {};
+          eventStage = 'persist_plan';
+          let conflicts = false;
+          const freshState = await storage.updateLifecycleState((curr) => {
+            if (curr.phase === 'ONBOARDING') return curr;
+            if (curr.phase === 'WORKING' && selectedPlan.some(item => curr.session?.plan.some(existing =>
+              existing.module === item.module && (existing.path !== item.path || existing.priority !== item.priority ||
+                (item.flujos !== undefined && JSON.stringify(existing.flujos ?? []) !== JSON.stringify(item.flujos)))
+            ))) {
+              conflicts = true;
+              return curr;
+            }
+            curr.session ??= { id: '', started_at: '', plan: [] };
+            curr.session.id ||= randomUUID();
+            curr.session.started_at ||= new Date().toISOString();
+            const recordRevision = () => {
+              const revisions = curr.plan_revisions ??= [];
+              const last = revisions.at(-1);
+              const approvedScope = curr.session.plan.map(item => ({ ...item, status: 'planned' }));
+              if (last?.session_id === curr.session.id && JSON.stringify(last.plan) === JSON.stringify(approvedScope)) return;
+              revisions.push({
+                id: randomUUID(), session_id: curr.session.id, recorded_at: new Date().toISOString(),
+                plan: structuredClone(approvedScope),
+              });
+            };
 
             if (curr.phase === 'WRAP_UP') {
               curr.phase = 'SCOPING';
@@ -3235,14 +3320,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
                 id: randomUUID(),
                 started_at: new Date().toISOString(),
                 auth: sessionAuth,
-                plan: sortedModules.map((m: { module: string; path: string; priority?: string; acceso?: boolean; flujos?: string[] }) => ({
-                  module: String(m.module).trim(),
-                  path: String(m.path).trim(),
-                  priority: String(m.priority || 'medium').trim(),
-                  status: 'planned',
-                  acceso: isAccess(m) ? true : undefined,
-                  flujos: Array.isArray(m.flujos) ? m.flujos : [],
-                })),
+                plan: selectedPlan,
               };
 
               curr.modules = curr.modules || {};
@@ -3280,6 +3358,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
               if (curr.history.length > 50) {
                 curr.history = curr.history.slice(-50);
               }
+              recordRevision();
               updatedPhase = curr.phase;
               return curr;
             }
@@ -3296,14 +3375,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
                 };
               }
 
-              curr.session.plan = sortedModules.map((m: { module: string; path: string; priority?: string; acceso?: boolean; flujos?: string[] }) => ({
-                module: String(m.module).trim(),
-                path: String(m.path).trim(),
-                priority: String(m.priority || 'medium').trim(),
-                status: 'planned',
-                acceso: isAccess(m) ? true : undefined,
-                flujos: Array.isArray(m.flujos) ? m.flujos : [],
-              }));
+              curr.session.plan = selectedPlan;
 
               for (const item of curr.session.plan) {
                 if (!curr.modules[item.module]) {
@@ -3333,24 +3405,16 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
                   reason: 'Compuerta de salida de SCOPING superada exitosamente',
                 });
               }
+              recordRevision();
               updatedPhase = curr.phase;
               return curr;
             } else if (curr.phase === 'WORKING') {
               // En WORKING solo amplía (no modifica ni borra existentes)
               curr.session.plan = curr.session.plan || [];
-              for (const m of sortedModules) {
-                const mName = String(m.module).trim();
-                const mPath = String(m.path).trim();
-                const mPriority = String(m.priority).trim();
-                const existsInPlan = curr.session.plan.some((p) => p.module === mName);
-                if (!existsInPlan) {
-                  curr.session.plan.push({
-                    module: mName,
-                    path: mPath,
-                    priority: mPriority,
-                    status: 'planned',
-                    acceso: isAccess(m) ? true : undefined,
-                  });
+              for (const item of selectedPlan) {
+                const mName = item.module;
+                if (!curr.session.plan.some(p => p.module === mName)) {
+                  curr.session.plan.push(item);
                 }
                 if (!curr.modules[mName]) {
                   curr.modules[mName] = {
@@ -3372,6 +3436,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
               }
 
               assertLifecycleStateInvariants(curr);
+              recordRevision();
               updatedPhase = curr.phase;
               return curr;
             }
@@ -3379,12 +3444,21 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
             return curr;
           });
 
-          const freshState = await storage.getLifecycleState();
+          eventPhase = freshState.phase;
+          if (freshState.phase === 'ONBOARDING') {
+            return canonicalResult({ status: 'blocked', code: 'plan_requires_scoping', fase: freshState.phase }, true);
+          }
+          if (conflicts) return canonicalResult({ status: 'blocked', code: 'working_plan_conflict', fase: freshState.phase }, true);
+          const revision = freshState.plan_revisions?.at(-1);
+          eventPlanRevisionId = revision?.id;
+          const requestedNames = new Set(selectedPlan.map(item => item.module));
+          const committedSelection = freshState.session.plan.filter(item => requestedNames.has(item.module));
           let projectCtx = null;
           try {
             projectCtx = await storage.getProjectContext();
           } catch { /* empty */ }
 
+          eventStage = 'sync_campaign';
           let durableModules: ReturnType<NonNullable<typeof applicationService>['resumeProject']>['modules'] = [];
           let reusedModulesSummary: string[] = [];
           let activeCampaignId: string | undefined;
@@ -3392,9 +3466,16 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
           const wasWrapUpPhase = lifecycleState.phase === 'WRAP_UP';
           if (activeProject && applicationService) {
             if (promotedCandidateIds.length > 0) {
-              applicationService.promoteCandidatesToModules(activeProject.project_id, promotedCandidateIds);
+              const acceptedCandidates = promotedCandidateIds.flatMap(selection => {
+                const accepted = committedSelection.find(item => item.module === selection.title &&
+                  item.provenance?.source === 'desde_candidatos' &&
+                  item.provenance.candidate_id === selection.candidateKeyOrId);
+                return accepted ? [{ ...selection, routeHint: accepted.path,
+                  priority: accepted.priority as 'high' | 'medium' | 'low' }] : [];
+              });
+              applicationService.promoteCandidatesToModules(activeProject.project_id, acceptedCandidates);
             }
-            const moduleKeysForPlan = sortedModules.map((m) => String(m.module).trim());
+            const moduleKeysForPlan = committedSelection.map(m => m.module);
             let campaign2: ReturnType<typeof applicationService.startCampaignReusingModules> | null = null;
             if (wasWrapUpPhase || args.reuse_modules) {
               campaign2 = applicationService.startCampaignReusingModules({
@@ -3407,7 +3488,8 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
               reusedFromCampaignId = campaign2.campaign.reused_from_campaign_id;
             }
             const reusedKeySet = new Set(reusedModulesSummary);
-            for (const m of sortedModules) {
+            const registeredModules = applicationService.resumeProject(activeProject.project_id).modules;
+            for (const m of committedSelection) {
               const mKey = String(m.module).trim();
               if (reusedKeySet.has(mKey)) {
                 continue;
@@ -3419,7 +3501,8 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
                 routeHint: String(m.path).trim(),
                 priority: String(m.priority || 'medium').trim() as 'high' | 'medium' | 'low',
                 criticality: String(m.priority || 'medium').trim() as 'high' | 'medium' | 'low',
-                status: 'planned',
+                status: freshState.modules[mKey]?.state === 'planned' ? 'planned'
+                  : registeredModules.find(module => module.key === normalizeSlug(mKey))?.status ?? 'planned',
               });
             }
             const resumed = applicationService.resumeProject(activeProject.project_id);
@@ -3439,7 +3522,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
                 projectId: activeProject.project_id,
                 campaignId: activeCamp.campaign_id,
                 kind: 'planning',
-                title: `Alcance acordado con ${sortedModules.length} módulo(s)`,
+                title: `Alcance acordado con ${committedSelection.length} módulo(s)`,
                 status: 'completed',
                 progressCurrent: 1,
                 progressTotal: 1,
@@ -3477,10 +3560,12 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
                       status: 'blocked',
                       directorio_objetivo: rootDir,
                       fase: 'SCOPING',
+                      code: 'auth_roles_required',
                       razon: 'auth_roles_required',
                       mensaje: 'Con auth.required: true se requiere al menos un rol declarado en auth.roles y que cada rol cuente con un perfil verificado para salir de SCOPING.',
                       faltantes: scopingGateRes.faltantes,
-                      plan: freshState.session?.plan,
+                      plan: freshState.session.plan,
+                      plan_revision_id: revision?.id,
                       auth: freshState.session?.auth,
                       desbloquear_con: {
                         tool: 'qap_session_plan',
@@ -3507,6 +3592,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
                     fase: freshState.phase,
                     transicion_automatica: updatedPhase === 'WORKING' && lifecycleState.phase === 'SCOPING',
                     plan: freshState.session?.plan,
+                    plan_revision_id: revision?.id,
                     modules_registered: durableModules,
                     ...(activeCampaignId ? { campaign_id: activeCampaignId } : {}),
                     ...(reusedFromCampaignId ? { reused_from_campaign_id: reusedFromCampaignId } : {}),
@@ -5041,8 +5127,10 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         }
 
         case 'qap_session_close': {
+          eventStage = 'check_session_closure';
           const storage = new FileSystemStorage({ rootDir });
           let lifecycleState = await storage.getLifecycleState();
+          eventPhase = lifecycleState.phase;
 
           if (lifecycleState.phase !== 'WORKING') {
             return {
@@ -5094,6 +5182,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
                   text: JSON.stringify({
                     status: 'blocked',
                     code: 'canonical_module_closure_required',
+                    closure_state: 'incomplete',
                     directorio_objetivo: rootDir,
                     fase: 'WORKING',
                     razon: `No se puede cerrar la sesión: los siguientes módulos canónicos no cuentan con cierre o renuncia válidamente autorizados: ${check.unclosed.join(', ')}.`,
@@ -5146,6 +5235,8 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
                   status: 'blocked',
                   directorio_objetivo: rootDir,
                   fase: 'WORKING',
+                  code: 'session_closure_incomplete',
+                  closure_state: 'incomplete',
                   razon: 'No se puede cerrar la sesión de trabajo: aún existen módulos pendientes en el plan o el plan no ha sido definido.',
                   faltantes: workingGate.faltantes,
                   desbloquear_con: {
@@ -5176,6 +5267,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
           // Report inventory is deliberately collected BEFORE acquiring the
           // lifecycle lock. The official concurrent writer used in the
           // adversarial test can finish, and any drift is rejected below.
+          eventStage = 'finalize_session';
           const approvedLifecycle = JSON.stringify(lifecycleState);
           // Cierre exitoso y transición a WRAP_UP
           const qaDir = resolve(rootDir, '.qa');
@@ -5414,15 +5506,19 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
       // paths, credentials or database payloads. Log only fixed classifications
       // and a correlation ID; never serialize the exception itself.
       const errorId = randomUUID();
-      const category = err instanceof TypeError ? 'type_error'
-        : err instanceof RangeError ? 'range_error' : 'unexpected_error';
-      console.error('[QAP MCP] tool_execution_failed', { error_id: errorId, category });
+      captureFailure(err);
+      console.error('[QAP MCP] tool_execution_failed', { error_id: errorId, cause: eventCause });
       return {
         isError: true,
         content: [
           {
             type: 'text',
-            text: JSON.stringify({ status: 'error', code: err instanceof CanonicalClosureError ? err.publicCode() ?? 'internal_tool_error' : 'internal_tool_error', error_id: errorId }),
+            text: JSON.stringify({
+              status: eventPlanRevisionId ? 'partial' : 'error',
+              code: eventPlanRevisionId ? 'plan_campaign_sync_failed'
+                : err instanceof CanonicalClosureError ? err.publicCode() ?? 'internal_tool_error' : 'internal_tool_error',
+              error_id: errorId, plan_revision_id: eventPlanRevisionId,
+            }),
           },
         ],
       };
@@ -5432,23 +5528,22 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
       if (request.params.name === 'qap_init' && !result.isError && resetState?.state === 'complete' && guardedRoot && options.workspaceBootstrap) {
         acknowledgeProjectInitialization(options.workspaceBootstrap.directory, guardedRoot, resetState);
       }
-      if (options.workspaceBootstrap && applicationService && eventBinding) {
-        const recorded = applicationService.withProjectOperation(() => options.workspaceBootstrap!.validateBinding(eventBinding!) && qapEventLog.record({ workspace: eventWorkspace, conversationId, requestId: String(context.requestId),
-          tool: request.params.name, args: request.params.arguments, result, durationMs: Date.now() - eventStartedAt }));
-        if (request.params.name === 'qap_start' && eventWorkspace && !result.isError && !recorded) {
-          return canonicalResult({ status: 'partial', code: 'conversation_log_unavailable', conversation_id: conversationId }, true);
-        }
+      const recorded = recordOutcome(result);
+      if (request.params.name === 'qap_start' && options.workspaceBootstrap && eventBinding && eventWorkspace && !result.isError && !recorded) {
+        const partial = canonicalResult({ status: 'partial', code: 'conversation_log_unavailable', conversation_id: conversationId }, true);
+        recordOutcome(partial);
+        return partial;
       }
       return result;
     }, error => {
-      if (error instanceof ProjectOperationError) return canonicalResult({ status: 'blocked', code: error.code, retryable: true }, true);
       if (request.params.name === 'qap_project_reset') throw error;
-      if (options.workspaceBootstrap && applicationService && eventBinding) applicationService.withProjectOperation(() => {
-        if (options.workspaceBootstrap!.validateBinding(eventBinding!)) qapEventLog.record({ workspace: eventWorkspace, conversationId, requestId: String(context.requestId),
-          tool: request.params.name, args: request.params.arguments,
-          errorCode: error instanceof McpToolError ? error.code : error instanceof Error ? error.name : 'unknown_error',
-          durationMs: Date.now() - eventStartedAt });
-      });
+      captureFailure(error);
+      if (error instanceof ProjectOperationError) {
+        const blocked = canonicalResult({ status: 'blocked', code: error.code, retryable: true }, true);
+        recordOutcome(blocked);
+        return blocked;
+      }
+      recordOutcome(canonicalResult({ status: 'error', code: error instanceof McpToolError ? error.code : 'internal_tool_error' }, true));
       throw error;
     });
     activeCalls.set(controller, operation);

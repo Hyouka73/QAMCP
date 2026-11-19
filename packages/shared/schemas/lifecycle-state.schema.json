@@ -74,6 +74,16 @@
                 "type": "boolean",
                 "description": "Indica si el módulo es de acceso / login"
               },
+              "provenance": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["source"],
+                "properties": {
+                  "source": { "enum": ["modules", "plan", "adicionales", "desde_candidatos", "reuse_modules"] },
+                  "candidate_id": { "type": "string" },
+                  "module_id": { "type": "string" }
+                }
+              },
               "flujos": {
                 "type": "array",
                 "items": { "type": "string" },
@@ -166,6 +176,20 @@
               }
             }
           }
+        }
+      }
+    },
+    "plan_revisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "session_id", "recorded_at", "plan"],
+        "properties": {
+          "id": { "type": "string" },
+          "session_id": { "type": "string" },
+          "recorded_at": { "type": "string" },
+          "plan": { "$ref": "#/properties/session/properties/plan" }
         }
       }
     },

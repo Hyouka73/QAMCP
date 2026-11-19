@@ -256,7 +256,7 @@ export class StatusHandler implements IMcpToolHandler {
 
       const execDir = join(qaDir, 'executions');
       if (existsSync(execDir)) {
-        executionCount = readdirSync(execDir).filter((f) => f.endsWith('.json')).length;
+        executionCount = readdirSync(execDir).filter((f) => f.endsWith('.json') && !f.endsWith('.report.json')).length;
       }
     }
 
@@ -436,15 +436,7 @@ export class StatusHandler implements IMcpToolHandler {
           reportPath = candidate;
         }
       }
-      if (!reportPath && existsSync(sessionsDir)) {
-        try {
-          const reports = readdirSync(sessionsDir).filter((f) => f.endsWith('.report.md'));
-          if (reports.length > 0) {
-            reports.sort().reverse();
-            reportPath = join(sessionsDir, reports[0]);
-          }
-        } catch { /* empty */ }
-      }
+
     }
 
     let moduleCandidatesList: ModuleCandidate[] | undefined;
@@ -579,6 +571,12 @@ export class StatusHandler implements IMcpToolHandler {
               preflight,
               navegador_qap: preflight.navegador_qap,
               fase: currentPhase,
+              session_plan: lifecycleState.session?.plan,
+              plan_revision_id: lifecycleState.plan_revisions?.at(-1)?.session_id === lifecycleState.session?.id
+                ? lifecycleState.plan_revisions?.at(-1)?.id : undefined,
+              ...(currentPhase === 'WORKING' || currentPhase === 'WRAP_UP' ? {
+                closure_state: reportPath ? 'closed' : 'incomplete',
+              } : {}),
               estados_modulos: estadosModulos,
               faltantes,
               siguiente_accion: guidance.siguiente_accion,
