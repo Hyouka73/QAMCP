@@ -25,6 +25,8 @@ import { QapApplicationService } from '../application/application-service.js';
 import { WorkspaceBootstrap } from '../workspace-bootstrap.js';
 import { workspaceStorageKey } from '../project-reset.js';
 
+import { connectHistoricalHost } from './fixtures/historical-host.js';
+
 const tempDirs: string[] = [];
 let localHttpServer: HttpServer | null = null;
 let localServerPort = 0;
@@ -754,16 +756,30 @@ describe('TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4
 
     await client.close();
     await server.close();
-    const connectStdio = async () => {
-      const c = new Client({ name: 'publication-integration', version: '1' });
-      await c.connect(new StdioClientTransport({ command: process.execPath, args: [resolve('dist/server.js')], stderr: 'pipe',
-        env: { ...process.env, QAP_MCP_HOST_DATA_DIR: host, QAP_MCP_WORKSPACE_ROOT: root, NODE_ENV: 'test' } as Record<string, string> }));
+    const env = {
+      QAP_MCP_HOST_DATA_DIR: host, QAP_MCP_APP_SERVICE_DIR: appDir,
+      QAP_MCP_WORKSPACE_HOST_DIR: workspaceDir, QAP_MCP_WORKSPACE_ROOT: root,
+      QAP_DISABLE_INTERACTIVE_AUTH: '1',
+    };
+    const testRequest = { name: 'qap_test', arguments: { module: 'mcp-mod', targetPath: root, environment: 'local' } };
+    const stdio = new Client({ name: 'autonomous-policy-negative', version: '1' });
+    await stdio.connect(new StdioClientTransport({ command: process.execPath, args: [resolve('dist/server.js')], stderr: 'pipe',
+      env }));
+    try {
+      const rejected = await stdio.callTool(testRequest);
+      expect(rejected.isError).toBe(true);
+      expect(JSON.parse((rejected.content as any)[0].text)).toMatchObject({ status: 'blocked', code: 'autonomy_policy_required' });
+    } finally { await stdio.close(); }
+
+    const connectHistorical = async () => {
+      const c = new Client({ name: 'publication-integration-historical', version: '1' });
+      await connectHistoricalHost(c, env);
       return c;
     };
-    const first = await connectStdio();
-    const second = await connectStdio();
+    const first = await connectHistorical();
+    const second = await connectHistorical();
     try {
-      const call = () => first.callTool({ name: 'qap_test', arguments: { module: 'mcp-mod', targetPath: root, environment: 'local' } });
+      const call = () => first.callTool(testRequest);
       const positive = await call();
       expect(positive.isError, JSON.stringify(positive)).toBeFalsy();
       expect(JSON.parse((positive.content as any)[0].text).result).toBe('passed');
@@ -870,7 +886,7 @@ describe('TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4
       const exited = new Promise(resolveExit => child.once('exit', resolveExit));
       child.kill('SIGKILL'); await exited;
       expect(existsSync(join(runDir, 'run.json'))).toBe(true);
-      const restarted = await connectStdio();
+      const restarted = await connectHistorical();
       try {
         for (let i = 0; i < 2; i++) {
           const opened = await restarted.callTool({ name: 'qap_status', arguments: { targetPath: root } });

@@ -27,9 +27,18 @@ export type AccionTipo = 'entrevista' | 'entrevista_vista' | 'decision' | 'traba
  * Directivas obligatorias compartidas (<= 600 caracteres) para tools del flujo principal (P4.3 / E5c).
  */
 export const QAP_CORE_DIRECTIVES =
-  'Las acciones de trabajo de QAP se ejecutan sin pedir confirmación. El host configura el destino y el acceso. ' +
-  'Empieza con qap_start y sigue la frontera autorizada. Diseña con evidencia y registra oráculos indeterminados. ' +
-  'Usa qap_test para ejecutar y qap_report para publicar. Respeta los bloqueos y continúa con casos independientes.';
+  'DIRECTIVAS OBLIGATORIAS:\n' +
+  '1. Sigue estrictamente la siguiente_accion indicada por el servidor.\n' +
+  '2. Investiga el workspace antes de preguntar: lee documentos, README y package.json.\n' +
+  '3. No pidas al usuario lo que un documento ya especifica.\n' +
+  '4. Pasos de tipo "trabajo" son autónomos: ejecútalos directamente sin consultar al usuario; las acciones que requieren confirmación nunca vienen como trabajo.\n' +
+  '5. Máximo una sola pregunta estructurada al usuario por turno.\n' +
+  '6. Si falta navegador, instálalo con el comando indicado como paso de trabajo autónomo. Explora solo con qap_discover.';
+
+export const QAP_AUTONOMOUS_DIRECTIVES =
+  'Empieza con qap_start y sigue la frontera autorizada por el host. Explora con QAP y diseña con evidencia. ' +
+  'Registra oráculos indeterminados. Usa qap_test para ejecutar y qap_report para publicar. ' +
+  'Respeta los bloqueos y continúa con los casos independientes sin pedir aprobación por caso.';
 
 export interface SiguienteAccion {
   tipo: AccionTipo;

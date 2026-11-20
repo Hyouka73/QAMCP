@@ -112,7 +112,7 @@ import { resolveHelperScriptPath } from './dialog-script-path.js';
 import { authorizationDiagnostic } from './authorization-diagnostics.js';
 import { logTechnicalDiagnostic } from './technical-diagnostics.js';
 import { ToolDispatcher, McpToolError, type IMcpToolHandler } from './dispatcher.js';
-import { TOOLS } from './tool-catalog.js';
+import { TOOLS, toolCatalog } from './tool-catalog.js';
 import { StatusHandler } from './handlers/status.handler.js';
 import { ContextHandler } from './handlers/context.handler.js';
 import { DiscoveryHandler, type DiscoveryAuthorization } from './handlers/discovery.handler.js';
@@ -734,10 +734,11 @@ Ejecuta exclusivamente mediante qap_test. Usa los artefactos de qap_report. Omit
 
 
   // Manejador de lista de tools
+  const catalog = toolCatalog(Boolean(options.autonomyPolicy));
   const authInputProperties = TOOLS.find(tool => tool.name === 'qap_auth_add')?.inputSchema.properties ?? {};
   server.setRequestHandler(ListToolsRequestSchema, () => {
     const legacyReview = ['qap_rules_set', 'qap_module_close', 'qap_session_close'];
-    const tools = [...TOOLS, ...dispatcher.listTools().filter(tool => !migrated.has(tool.name))]
+    const tools = [...catalog, ...dispatcher.listTools().filter(tool => !migrated.has(tool.name))]
       .filter(tool => !['qap_server', 'qap_flow_run', 'qap_validate'].includes(tool.name) &&
         (!options.autonomyPolicy || !legacyReview.includes(tool.name)));
     if (!hostScopedRuntime && !options.autonomyPolicy) return Promise.resolve({ tools });
@@ -789,7 +790,9 @@ Ejecuta exclusivamente mediante qap_test. Usa los artefactos de qap_report. Omit
             role: 'user',
             content: {
               type: 'text',
-              text: 'Invoca qap_start con la ruta autorizada del workspace. Obtén del host el destino y el acceso necesarios. Sigue siguiente_accion, conserva conversation_id y usa QAP para explorar, materializar, ejecutar y reportar.',
+              text: options.autonomyPolicy
+                ? 'Invoca qap_start con la ruta autorizada. El host configura destino y acceso. Conserva conversation_id y usa QAP para explorar, materializar, ejecutar y reportar.'
+                : 'Invoca qap_start con la ruta autorizada. Conserva conversation_id y sigue las preguntas o acciones de trabajo que indique siguiente_accion.',
             },
           },
         ],

@@ -1,18 +1,19 @@
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 
-import { QAP_CORE_DIRECTIVES } from './guidance.js';
+import { QAP_AUTONOMOUS_DIRECTIVES, QAP_CORE_DIRECTIVES } from './guidance.js';
 
-const UX_DIRECTIVE = 'Ejecuta autónomamente las acciones de trabajo. Solo solicita la selección inicial del workspace o la configuración indispensable de acceso y política. Registra brechas y sigue con el trabajo permitido.';
+const UX_DIRECTIVE = 'DIRECTIVA DE UX ESTRICTA: Guía al usuario paso a paso interactivo. Si tu entorno dispone de herramienta para hacer preguntas interactivas con opciones (como ask_question), ÚSALA OBLIGATORIAMENTE para cada decisión. Si no, formula la pregunta directa con sus opciones. PROHIBIDO mostrar listas de pasos futuros (1, 2, 3...), tutoriales o pedir comandos de terminal.';
 
 const TARGET_PATH_PROP = {
   type: 'string',
   description: 'Ruta absoluta del workspace del proyecto objetivo. Requerida cuando el host no anuncia una única raíz o al iniciar/cambiar de proyecto explícitamente.',
 };
 
+// The embedded historical host retains its conversational contract.
 export const TOOLS: Tool[] = [
   {
     name: 'qap_status',
-    description: `Consulta el estado, la cobertura y los intentos del workspace. Usa qap_start para iniciar QA autónomo.\n\n${QAP_CORE_DIRECTIVES}`,
+    description: `PUNTO DE ENTRADA OBLIGATORIO: Invoca esta herramienta INMEDIATAMENTE cuando el usuario quiera probar su app, testear un proyecto o empezar con QAP. Analiza el repo y el preflight del navegador (Playwright), y devuelve exactamente la pregunta y opciones que debes presentar con ask_question. Si falta navegador, ejecuta la instalación como paso de trabajo autónomo. QAP observa la app con su propio navegador mediante qap_discover; no uses navegadores ni herramientas de otros servidores MCP ni del IDE para explorarla (no se persistiría conocimiento en .qa).\n\n${QAP_CORE_DIRECTIVES}`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -540,7 +541,7 @@ export const TOOLS: Tool[] = [
   },
   {
     name: 'qap_plan',
-    description: `Diseña y materializa casos a partir de evidencia de Discovery. Luego invoca qap_plan sin case_workflow para persistir el plan elegible. Usa qap_test y qap_report para ejecutar y publicar. ${UX_DIRECTIVE}`,
+    description: `Planifica casos existentes o gestiona el flujo conversacional de propuesta, decisión de oráculos/riesgos, aprobación por lotes y aceptación humana de brechas. ${UX_DIRECTIVE}`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -555,7 +556,7 @@ export const TOOLS: Tool[] = [
             },
             proposals: {
               type: 'array',
-              maxItems: 64,
+              maxItems: 100,
               items: {
                 type: 'object',
                 properties: {
@@ -563,10 +564,6 @@ export const TOOLS: Tool[] = [
                   expected_revision: { type: 'integer', minimum: 1 },
                   name: { type: 'string', maxLength: 200 },
                   title: { type: 'string', maxLength: 200 },
-                  route: { type: 'string', description: 'Ruta inspeccionada devuelta en qap_start.autonomy.views.' },
-                  selector: { type: 'string', description: 'Selector exacto observado para una aserción de visibilidad.' },
-                  oracle: { type: 'string', enum: ['visible', 'indeterminate'] },
-                  fixture_write: { type: 'string', description: 'ID de la operación sintética explícitamente permitida por la política del host.' },
                   expected_outcome: { type: 'string', maxLength: 1000 },
                   oracle_source: { type: 'string', enum: ['missing', 'user', 'document', 'observed'] },
                   risk_level: { type: 'string', enum: ['low', 'medium', 'high', 'critical'] },
@@ -915,3 +912,37 @@ export const TOOLS: Tool[] = [
     },
   },
 ];
+
+const autonomousDescriptions: Readonly<Record<string, string>> = {
+  qap_auth_add: 'Verifica el acceso de un perfil de pruebas aprovisionado y permitido por el host.',
+  qap_init: 'Inicializa .qa y comprueba el navegador de QAP. Inicia el flujo autónomo con qap_start.',
+  qap_status: 'Consulta estado, cobertura e intentos. Usa qap_start para iniciar QA.',
+  qap_start: 'Inicia QA en el workspace autorizado. El host fija destino y acceso. Devuelve autonomy.views y conversation_id.',
+  qap_plan: 'Genera casos con evidencia de Discovery. Llama de nuevo sin case_workflow para persistir el plan de casos elegibles.',
+  qap_test: 'Ejecuta el plan persistido con el runner oficial. Puedes seleccionar casos elegibles por ID.',
+  qap_report: 'Publica artefactos oficiales por executionId o recupera el reporte de un intento persistido.',
+};
+
+export function toolCatalog(autonomous: boolean): Tool[] {
+  if (!autonomous) return TOOLS;
+  return TOOLS.map(tool => {
+    const description = autonomousDescriptions[tool.name] ?? tool.description
+      ?.replace(QAP_CORE_DIRECTIVES, '')
+      .replace(UX_DIRECTIVE, '')
+      .trim();
+    const inputSchema = tool.name === 'qap_test' ? {
+      ...tool.inputSchema,
+      required: ['module'],
+      properties: {
+        ...tool.inputSchema.properties,
+        module: { type: 'string', description: 'Módulo del plan persistido.' },
+        case_ids: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'IDs opcionales de casos elegibles del plan.',
+        },
+      },
+    } : tool.inputSchema;
+    return { ...tool, inputSchema, description: [description, QAP_AUTONOMOUS_DIRECTIVES].filter(Boolean).join('\n\n') };
+  });
+}
