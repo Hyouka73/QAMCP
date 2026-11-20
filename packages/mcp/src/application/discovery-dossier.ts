@@ -21,6 +21,8 @@ export interface DiscoveryDossierScope {
   readonly role: string | null;
   readonly module_key: string;
   readonly module_title: string;
+  readonly inventory_environment_revision?: number;
+  readonly inventory_entry_path?: string;
 }
 
 export interface DiscoveryDossierRoute {
@@ -31,6 +33,7 @@ export interface DiscoveryDossierRoute {
   readonly reason?: string;
   readonly view_id?: string;
   readonly authorized_pathname?: string;
+  readonly resumable?: boolean;
 }
 
 export interface DiscoveryDossierRelation {
@@ -110,6 +113,11 @@ export interface DiscoveryDossierCanonical {
   readonly gaps: readonly DiscoveryDossierGap[];
   readonly limitations: readonly string[];
   readonly rule_resolution?: DiscoveryDossierRuleResolution;
+  readonly inventory?: {
+    readonly truncated: boolean;
+    readonly restricted_routes: number;
+    readonly modules?: readonly { readonly key: string; readonly paths: readonly string[]; readonly status: 'inferred' }[];
+  };
 }
 
 export interface DiscoveryRevisionRecord {
@@ -181,6 +189,10 @@ export function computeScopeHash(scope: DiscoveryDossierScope): string {
     profile_id: scope.profile_id,
     role: scope.role,
     module_key: normalizeSlug(scope.module_key),
+    ...(scope.inventory_environment_revision !== undefined ? {
+      inventory_environment_revision: scope.inventory_environment_revision,
+      inventory_entry_path: scope.inventory_entry_path,
+    } : {}),
   };
   return createHash('sha256').update(stableJson(canonicalScope), 'utf8').digest('hex');
 }
@@ -206,6 +218,7 @@ export function computeDossierContentHash(dossier: DiscoveryDossierCanonical): s
       module_key: normalizeSlug(dossier.scope.module_key),
     },
     target_pathname: dossier.target_pathname,
+    ...(dossier.inventory ? { inventory: dossier.inventory } : {}),
     mode: dossier.mode,
     acquisition_status: dossier.acquisition_status,
     routes: dossier.routes.map((r) => ({
@@ -214,6 +227,7 @@ export function computeDossierContentHash(dossier: DiscoveryDossierCanonical): s
       http_status: r.http_status,
       reason: r.reason,
       authorized_pathname: r.authorized_pathname,
+      ...(r.resumable ? { resumable: true } : {}),
       view_index: r.view_id ? (viewIndexById.get(r.view_id) ?? -1) : -1,
     })),
     relations: dossier.relations ?? [],
@@ -313,6 +327,14 @@ export function renderModuleDossierMarkdown(revision: DiscoveryRevisionRecord): 
       );
     }
     lines.push('');
+  }
+
+  if (dossier.inventory) {
+    lines.push('## Agrupaciones funcionales candidatas', '');
+    for (const module of dossier.inventory.modules ?? []) {
+      lines.push(`- \u0060${module.key}\u0060 (inferido) · ${module.paths.map(path => '\u0060' + path + '\u0060').join(', ')}`);
+    }
+    lines.push('', 'Configuración efectiva y dependencias de negocio pendientes de acreditación.', '');
   }
 
   lines.push('## Vistas y controles observados', '');

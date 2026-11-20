@@ -522,6 +522,10 @@ export const TOOLS: Tool[] = [
           type: 'boolean',
           description: 'Habilita observación SPA de solo lectura en el mismo origen autorizado',
         },
+        restart_inventory: {
+          type: 'boolean',
+          description: 'Inicia una nueva captura del inventario inicial en el mismo alcance cuando se solicita actualizarlo explícitamente.',
+        },
         tenant_id: {
           type: 'string',
           description: 'Identificador explícito de tenant para desambiguar el alcance',

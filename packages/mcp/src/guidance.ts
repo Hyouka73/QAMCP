@@ -59,6 +59,70 @@ export interface SiguienteAccion {
   rutas_detectadas_fuera_del_plan?: string[];
 }
 
+export function requiredLoginGuidance(root: string, profile?: string): SiguienteAccion {
+  const pregunta = guardPregunta({
+    id: 'scoping.perfil_para_acceso',
+    texto: profile
+      ? `El perfil '${profile}' requiere revalidación. ¿Qué perfil de QA autorizado usaremos para recuperar el acceso? No escribas contraseñas en el chat.`
+      : 'La aplicación requiere iniciar sesión. ¿Qué perfil de QA autorizado usaremos para descubrir las funciones internas? No escribas contraseñas en el chat.',
+    formato: 'abierta',
+    opciones: [],
+    permite_otra: true,
+    registrar_con: { tool: 'qap_auth_add', campo: 'profile' },
+  }) as Pregunta;
+  pregunta.render_texto = generarRenderTexto(pregunta);
+  return {
+    tipo: 'decision',
+    tool: 'qap_auth_add',
+    descripcion: 'Consulta los perfiles existentes con qap_auth_list y verifica el perfil autorizado mediante qap_auth_add y su mecanismo seguro. Trata el login como una dependencia de acceso. Solo se prueba si el usuario lo solicita explícitamente.',
+    parametros: { targetPath: root },
+    pregunta,
+  };
+}
+
+export function initialInventoryAction(args: {
+  root: string;
+  baseUrl: string;
+  coverage: { auth_required: boolean; resumable_routes: number; inspected_routes: number };
+  profile?: string;
+  entryPath?: string;
+  verifiedProfiles?: ReadonlyArray<{ label: string; entryPath?: string }>;
+  revalidationProfile?: string;
+}): SiguienteAccion {
+  const { root, baseUrl, coverage, profile, entryPath, verifiedProfiles = [] } = args;
+  if (coverage.auth_required && !verifiedProfiles.length) {
+    return requiredLoginGuidance(root, args.revalidationProfile);
+  }
+  if (coverage.resumable_routes && !coverage.auth_required) {
+    return { tipo: 'trabajo', tool: 'qap_discover', descripcion: 'Continúa el inventario inicial desde el checkpoint guardado.',
+      parametros: { targetPath: root, name: 'inventario-provisional', path: entryPath ?? baseUrl,
+        ...(profile ? { profile } : {}) } };
+  }
+  if (coverage.auth_required && verifiedProfiles.length > 1) {
+    const pregunta = guardPregunta({
+      id: 'onboarding.discovery_profile', texto: '¿Qué perfil verificado debe usar QAP para continuar el inventario?',
+      formato: 'una_opcion', opciones: verifiedProfiles.map(({ label }) => ({ id: label, etiqueta: label })),
+      permite_otra: false, registrar_con: { tool: 'qap_discover', campo: 'profile' },
+    }) as Pregunta;
+    pregunta.render_texto = generarRenderTexto(pregunta);
+    return { tipo: 'decision', tool: 'qap_discover', descripcion: 'Selecciona el perfil de Discovery.',
+      pregunta, parametros: { targetPath: root, name: 'inventario-provisional', path: entryPath ?? baseUrl } };
+  }
+  const verified = verifiedProfiles[0];
+  if (coverage.auth_required && verified) {
+    return { tipo: 'trabajo', tool: 'qap_discover', descripcion: 'Continúa el inventario con el perfil verificado.',
+      parametros: { targetPath: root, name: 'inventario-provisional', path: verified.entryPath ?? entryPath ?? baseUrl,
+        profile: verified.label } };
+  }
+  if (coverage.inspected_routes === 0 && entryPath) {
+    return { tipo: 'decision', tool: 'qap_start',
+      descripcion: 'Revisa el expediente y la causa de adquisición antes de solicitar una nueva captura.',
+      parametros: { targetPath: root, refresh_discovery: true } };
+  }
+  return { tipo: 'trabajo', tool: 'qap_start', descripcion: 'Investiga la aplicación y consolida el inventario inicial.',
+    parametros: { targetPath: root } };
+}
+
 export interface BuildInterviewActionParams {
   module: string;
   view?: string;

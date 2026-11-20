@@ -51,6 +51,12 @@ export interface CrawlerDependencies {
   followEntryRedirects?: boolean;
   /** Trusted executable selection only; no arbitrary launch arguments or user profiles. */
   browser?: { channel?: 'chrome' | 'msedge'; executable_path?: string };
+  /** Host-derived frontier and checkpoints. Origin expansion requires distinct host consent. */
+  inventory?: {
+    followObservedNavigation: boolean;
+    frontier?: ReadonlyArray<{ pathname: string; depth: number }>;
+    inspectedPathnames: readonly string[];
+  };
 }
 export interface ObservedControl {
   index: number;
@@ -74,6 +80,7 @@ export interface CrawlerRoute {
   /** Query-free pathname of a same-origin entry redirect or link seen in the initial inventory. */
   observed_public_pathname?: string;
   reason?: string;
+  resumable?: boolean;
   http_status?: number;
   view_id?: string;
 }

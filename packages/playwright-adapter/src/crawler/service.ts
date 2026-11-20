@@ -3,7 +3,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { isDeepStrictEqual } from 'node:util';
 
 import type { IKnowledgeStore, KnowledgeTrace, KnowledgeWrite } from '@qap/engine';
-import type { ApplicationObservation, MultimodalEvidenceRef } from '@qap/shared';
+import { isAuthPath, type ApplicationObservation, type MultimodalEvidenceRef } from '@qap/shared';
 import type { Browser, BrowserContext } from 'playwright-core';
 
 import { parseUrl, ReconScope } from '../reconnaissance/network.js';
@@ -33,6 +33,13 @@ function limitsFor(input: BlackBoxCrawlerInput): CrawlerLimits {
 }
 
 /** Conservative denylist supplements explicit read-only consent; it cannot prove GET semantics. */
+function inventoryPath(url: URL): boolean {
+  // Publish only simple navigation paths. Avoid parameters, opaque IDs and session identifiers.
+  return (url.pathname === '/' || /^(?:\/[a-z][a-z0-9_-]{0,48}(?:\.(?:html?|php|aspx?|jsp))?)+\/?$/i.test(url.pathname)) &&
+    url.pathname.length <= 200 && !url.search &&
+    !/(?:\d{5,}|[a-f\d]{16,})/i.test(url.pathname) && safeNavigation(url);
+}
+
 function safeNavigation(url: URL): boolean {
   let path = url.pathname;
   try { for (let i = 0; i < 4 && path.includes('%'); i++) path = decodeURIComponent(path); }
@@ -109,16 +116,33 @@ export class BlackBoxCrawler {
       }
       return found;
     };
+    const inventory = this.dependencies.inventory;
+    const discoveredNavigation = new Set<string>();
     const entryRedirects = new Set<string>();
     const authorize = (url: URL) => {
-      if (!entryRedirects.has(url.href)) scope.authorize(url);
+      if (!entryRedirects.has(url.href) && !discoveredNavigation.has(url.href)) scope.authorize(url);
       if ((input.authenticated_session && url.origin !== input.authenticated_session.origin) || !safeNavigation(url)) {
         throw new ReconnaissanceError('SCOPE_BLOCKED');
       }
     };
-    const queue = [{ url: target.href, depth: 0 }];
-    const enqueued = new Set([target.href]);
-    const attempted = new Set<string>();
+    const queue = inventory?.frontier?.flatMap(({ pathname, depth }) => {
+      const url = new URL(pathname, target.origin);
+      if (url.origin !== target.origin || !inventoryPath(url)) return [];
+      if (inventory.followObservedNavigation) discoveredNavigation.add(url.href);
+      try { authorize(url); } catch { return []; }
+      return [{ url: url.href, depth }];
+    }) ?? [{ url: target.href, depth: 0 }];
+    const enqueued = new Set(queue.map(item => item.url));
+    const attempted = new Set((inventory?.inspectedPathnames ?? []).map(path => new URL(path, target.origin).href));
+    const recordNavigation = (url: URL, depth: number) => {
+      const route = record(url.href, depth);
+      if (inventory && url.origin === target.origin && inventoryPath(url)) route.observed_public_pathname = url.pathname;
+      return route;
+    };
+    for (const item of queue) {
+      const route = recordNavigation(new URL(item.url), item.depth);
+      if (inventory) route.resumable = true;
+    }
     const transportLimits: ReconLimits = { max_requests: limits.max_requests, max_received_bytes: limits.max_bytes,
       max_decoded_bytes: limits.max_bytes, max_retained_bytes: limits.max_bytes, max_redirects: limits.max_redirects,
       request_timeout_ms: limits.navigation_timeout_ms, total_timeout_ms: limits.total_timeout_ms };
@@ -127,7 +151,6 @@ export class BlackBoxCrawler {
     let proxy: Awaited<ReturnType<typeof startDenyProxy>> | undefined;
     const pending = new Set<Promise<void>>();
     const closeOnAbort = () => { if (context) void context.close().catch(() => undefined); };
-    record(target.href, 0);
     try {
       if (signal.aborted) throw new Error('CANCELLED_OR_DEADLINE');
       proxy = await startDenyProxy(() => result.budget.deny_proxy_connections++);
@@ -173,6 +196,22 @@ export class BlackBoxCrawler {
                   : { 'content-security-policy': "sandbox allow-same-origin; default-src 'none'; style-src 'unsafe-inline'; form-action 'none'; frame-src 'none'; connect-src 'none'; base-uri 'none'" }) } });
             return;
           }
+          if (inventory && spaMode && req.method() === 'GET' && !req.isNavigationRequest() && !allowed.includes(req.url())) {
+            // Only allow conventional script and stylesheet assets without an exact host grant.
+            const resource = req.resourceType();
+            const pathname = new URL(req.url()).pathname;
+            const staticAsset = (resource === 'script' && /\.(?:js|mjs)$/i.test(pathname)) ||
+              (resource === 'stylesheet' && /\.css$/i.test(pathname));
+            if (!staticAsset) {
+              if (['fetch', 'xhr', 'script', 'stylesheet'].includes(resource) &&
+                !result.warnings.includes('INVENTORY_RESOURCE_OUTSIDE_ALLOWLIST')) {
+                result.warnings.push('INVENTORY_RESOURCE_OUTSIDE_ALLOWLIST');
+              }
+              result.budget.blocked_browser_requests++;
+              await route.abort('blockedbyclient');
+              return;
+            }
+          }
           if (spaMode && req.method() === 'GET' && !req.isNavigationRequest()) {
             try {
               const reqUrl = parseUrl(req.url());
@@ -212,13 +251,16 @@ export class BlackBoxCrawler {
         pending.add(task); void task.finally(() => pending.delete(task));
         return task;
       });
-      while (queue.length && !signal.aborted) {
+      navigation: while (queue.length && !signal.aborted) {
         const item = queue.shift()!;
         let current = parseUrl(item.url);
-        let route = record(current.href, item.depth);
+        let route = recordNavigation(current, item.depth);
         if (attempted.has(current.href)) continue;
-        if (result.budget.pages >= limits.max_pages) { route.reason = 'PAGE_LIMIT'; break; }
-        if (item.depth > limits.max_depth) { route.reason = 'DEPTH_LIMIT'; continue; }
+        if (result.budget.pages >= limits.max_pages || result.budget.requests >= limits.max_requests) {
+          route.reason = result.budget.pages >= limits.max_pages ? 'PAGE_LIMIT' : 'REQUEST_LIMIT';
+          break;
+        }
+        if (item.depth > limits.max_depth) { route.reason = 'DEPTH_LIMIT'; delete route.resumable; continue; }
         attempted.add(current.href);
         const navigationSignal = AbortSignal.any([signal, AbortSignal.timeout(limits.navigation_timeout_ms)]);
         const stopNavigation = () => { void page.close().catch(() => undefined); };
@@ -230,7 +272,8 @@ export class BlackBoxCrawler {
             if (navigationSignal.aborted) throw new ReconnaissanceError('TIMEOUT');
             if (result.budget.requests && input.environment.rate_limit_ms) await delay(input.environment.rate_limit_ms, undefined, { signal: navigationSignal });
             capture = await acquire(current, scope, recon, transportLimits, result.budget, navigationSignal, undefined,
-              input.authenticated_session, entryRedirects.has(current.href) ? target.origin : undefined);
+              input.authenticated_session,
+              entryRedirects.has(current.href) || discoveredNavigation.has(current.href) ? target.origin : undefined);
             route.http_status = capture.status;
             if (capture.issue) throw new ReconnaissanceError(capture.issue);
             if (![301, 302, 303, 307, 308].includes(capture.status)) break;
@@ -244,9 +287,17 @@ export class BlackBoxCrawler {
               next.pathname = next.pathname.replace(/;jsessionid=[a-z\d._-]+(?=\/|$)/gi, '');
               if (/^\/[a-z\d/_.~-]*$/i.test(next.pathname) && safeNavigation(next)) entryRedirects.add(next.href);
             }
-            const destination = record(next.href, item.depth);
+            const destination = recordNavigation(next, item.depth);
             if (entryRedirects.has(next.href) && destination.authorized_index === undefined) {
               destination.observed_public_pathname = next.pathname;
+            }
+            if (inventory && input.authenticated_session && next.origin === target.origin && isAuthPath(next.pathname)) {
+              result.relations.push({ from: route.route, to: destination.route, kind: 'http_redirect' });
+              route.state = 'redirected';
+              destination.state = 'blocked';
+              destination.reason = 'AUTH_SESSION_INVALID';
+              result.warnings.push('AUTH_SESSION_INVALID');
+              break navigation;
             }
             try { authorize(next); } catch { destination.state = 'blocked'; destination.reason = 'SCOPE_BLOCKED'; throw new ReconnaissanceError('SCOPE_BLOCKED'); }
             result.relations.push({ from: route.route, to: destination.route, kind: 'http_redirect' });
@@ -256,8 +307,10 @@ export class BlackBoxCrawler {
           }
           if (capture.status === 401 || capture.status === 403) {
             route.state = 'blocked';
-            route.reason = input.authenticated_session ? 'AUTH_SESSION_INVALID' : 'AUTH_REQUIRED';
-            result.warnings.push(input.authenticated_session ? 'AUTH_SESSION_INVALID' : 'AUTH_REQUIRED');
+            route.reason = inventory && capture.status === 403 ? 'ACCESS_DENIED'
+              : input.authenticated_session ? 'AUTH_SESSION_INVALID' : 'AUTH_REQUIRED';
+            if (route.reason !== 'ACCESS_DENIED') result.warnings.push(route.reason);
+            if (inventory && route.reason === 'AUTH_SESSION_INVALID') break;
             continue;
           }
           if (capture.status < 200 || capture.status >= 300) { route.state = 'unavailable'; route.reason = 'HTTP_UNAVAILABLE'; continue; }
@@ -275,13 +328,15 @@ export class BlackBoxCrawler {
           if (navigationSignal.aborted) throw new ReconnaissanceError('TIMEOUT');
           const navigatedUrl = page.url();
           if (!spaMode && navigatedUrl !== current.href) throw new ReconnaissanceError('TIMEOUT');
-          const redirectedToLogin = spaMode && /\/login(?:[;/?#]|$)/i.test(navigatedUrl);
+          const redirectedToLogin = ((spaMode || inventory) && /\/login(?:[;/?#]|$)/i.test(new URL(navigatedUrl).pathname)) ||
+            (inventory && isAuthPath(navigatedUrl));
           if (input.authenticated_session && (
             spaAuthFailed ||
             redirectedToLogin ||
             await page.locator('input[type="password"]:visible').count() > 0 ||
             (input.authenticated_session.validation_selector
-              ? await page.locator(input.authenticated_session.validation_selector).count() === 0
+              ? (!inventory || (item.depth === 0 && !inventory.frontier)) &&
+                await page.locator(input.authenticated_session.validation_selector).count() === 0
               : false)
           )) {
             route.state = 'blocked'; route.reason = 'AUTH_SESSION_INVALID'; result.warnings.push('AUTH_SESSION_INVALID'); break;
@@ -291,6 +346,7 @@ export class BlackBoxCrawler {
             if (this.dependencies.followEntryRedirects && !result.warnings.includes('AUTH_REQUIRED')) {
               result.warnings.push('AUTH_REQUIRED');
             }
+            if (inventory) continue;
           }
           const dom = await extractDom(page, limits.max_elements);
           if (navigationSignal.aborted) throw new ReconnaissanceError('TIMEOUT');
@@ -300,7 +356,7 @@ export class BlackBoxCrawler {
             evidence_id: evidenceId, controls: dom.controls, links: [], menus: dom.menus,
             headings: dom.headings, forms: dom.forms, truncated: dom.truncated };
           route.state = 'visited'; route.view_id = view.id; result.views.push(view);
-          const candidates: string[] = [];
+          const candidates = new Map<string, number>();
           for (const link of dom.links) {
             let linked: URL;
             try { linked = new URL(link.href); linked.hash = ''; linked = parseUrl(linked.href); }
@@ -311,15 +367,18 @@ export class BlackBoxCrawler {
               result.relations.push({ from: route.route, to: denied.route, kind: 'link_candidate' });
               continue;
             }
-            const candidate = record(linked.href, item.depth + 1);
+            if (inventory && linked.origin === target.origin && isAuthPath(linked.pathname)) continue;
+            const candidate = recordNavigation(linked, item.depth + 1);
+            if (inventory?.followObservedNavigation && link.navigation && !link.download &&
+              linked.origin === target.origin && inventoryPath(linked)) discoveredNavigation.add(linked.href);
             let permitted = true;
             try { authorize(linked); if (link.download) throw new ReconnaissanceError('SCOPE_BLOCKED'); }
             catch {
               permitted = false;
               if (candidate.state === 'candidate') {
-                const publicLink = this.dependencies.followEntryRedirects && linked.origin === target.origin &&
+                const publicLink = (inventory || this.dependencies.followEntryRedirects) && linked.origin === target.origin &&
                   !link.download && /^\/[a-z\d/_.~-]*$/i.test(linked.pathname) && safeNavigation(linked);
-                if (publicLink) {
+                if (publicLink && (!inventory || inventoryPath(linked))) {
                   candidate.observed_public_pathname = linked.pathname;
                   candidate.reason = 'OBSERVED_LINK_NOT_VISITED';
                 } else {
@@ -332,26 +391,44 @@ export class BlackBoxCrawler {
             if (!result.relations.some(r => r.from === route.route && r.to === candidate.route && r.kind === 'link_candidate')) {
               result.relations.push({ from: route.route, to: candidate.route, kind: 'link_candidate' });
             }
-            if (permitted && !enqueued.has(linked.href)) candidates.push(linked.href);
+            if (permitted && !enqueued.has(linked.href) && !attempted.has(linked.href)) {
+              candidates.set(linked.href, Math.max(candidates.get(linked.href) ?? 0, link.navigation));
+            }
           }
-          for (const value of [...new Set(candidates)].sort()) {
+          for (const [value] of [...candidates].sort(([left, main], [right, other]) =>
+            (inventory ? other - main : 0) || left.localeCompare(right))) {
             enqueued.add(value);
             const candidate = record(value, item.depth + 1);
             if (item.depth + 1 > limits.max_depth) candidate.reason = 'DEPTH_LIMIT';
-            else queue.push({ url: value, depth: item.depth + 1 });
+            else {
+              if (inventory) candidate.resumable = true;
+              queue.push({ url: value, depth: item.depth + 1 });
+            }
           }
           this.observe(input, result, view, evidenceId);
         } catch (error) {
           route.state = 'inconclusive';
           route.reason = error instanceof ReconnaissanceError ? error.code : navigationSignal.aborted ? 'TIMEOUT' : 'NAVIGATION_FAILED';
           if (['SCOPE_BLOCKED', 'NETWORK_BLOCKED', 'PEER_MISMATCH'].includes(route.reason)) route.state = 'blocked';
-          if (page.isClosed()) break;
+          if (inventory && (signal.aborted || route.reason === 'REQUEST_LIMIT')) {
+            route.state = 'candidate'; route.resumable = true;
+          }
+          if (page.isClosed() || (inventory && route.reason === 'REQUEST_LIMIT')) break;
         } finally {
           document = undefined;
           navigationSignal.removeEventListener('abort', stopNavigation);
         }
       }
       if (signal.aborted) result.warnings.push('CANCELLED_OR_DEADLINE');
+      if (inventory) {
+        for (const item of queue) {
+          const pendingRoute = records.get(item.url);
+          if (pendingRoute?.state === 'candidate' && !attempted.has(item.url)) pendingRoute.resumable = true;
+        }
+        for (const route of result.routes) {
+          if (route.state !== 'candidate') delete route.resumable;
+        }
+      }
       for (const route of result.routes) if (route.state === 'candidate' && !route.reason) {
         route.reason = signal.aborted ? 'CANCELLED_OR_DEADLINE' : 'PAGE_LIMIT';
       }
@@ -374,7 +451,9 @@ export class BlackBoxCrawler {
     result.status = result.views.length ? (result.routes.some(r => !['visited', 'redirected'].includes(r.state)) ||
       result.views.some(v => !['static_snapshot', 'spa_rendered'].includes(v.state) || v.truncated) || signal.aborted ? 'partial' : 'completed')
       : result.routes.some(r => r.state === 'blocked') ? 'blocked' : 'indeterminate';
-    if (result.observations.length) await this.persist(input, result, originalContext);
+    // An inventory batch with lost authentication cannot replace the previous checkpoint.
+    if (inventory && result.warnings.includes('AUTH_SESSION_INVALID')) result.status = 'blocked';
+    else if (result.observations.length) await this.persist(input, result, originalContext);
     result.budget.elapsed_ms = Date.now() - started;
     return result;
   }

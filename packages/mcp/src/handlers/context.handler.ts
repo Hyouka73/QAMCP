@@ -9,6 +9,7 @@ import { canExitOnboarding, generarRenderTexto, guardPregunta, type Pregunta } f
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
 import { getPhaseGuidance } from '../guidance.js';
+import { initialInventoryTaskId } from '../application/initial-inventory.js';
 import type { IMcpToolHandler, McpInvocationContext } from '../dispatcher.js';
 
 import { definition, validateContextArguments, projectRoot, binding, readContext, readEnvironment, readCorrections, type ProjectKnowledgeBinding, type LegacyEnvironment, type ContextArguments, type StateDependencies, contextKnowledge, result, ContextFiles, StateOperationError } from './state-services.js';
@@ -418,6 +419,7 @@ export class ContextHandler implements IMcpToolHandler {
     hallazgos.servicios = serviciosConEvidencia;
 
     const appService = this.dependencies.applicationService;
+    let followInventory = false;
     if (appService) {
       const activeProj = appService.findActiveProjectByRoot(rootDir);
       if (activeProj) {
@@ -432,6 +434,10 @@ export class ContextHandler implements IMcpToolHandler {
           });
         }
         const snap = appService.resumeProject(activeProj.project_id);
+        if (finalPhase === 'SCOPING' && snap.environment) {
+          const taskId = initialInventoryTaskId(snap.project.project_id, snap.environment.env_id);
+          followInventory = snap.tasks.some(task => task.task_id === taskId) && !snap.modules.length;
+        }
         if (snap.campaign) {
           appService.updateCampaignPhase(snap.campaign.campaign_id, finalPhase);
           appService.upsertTask({
@@ -466,6 +472,11 @@ export class ContextHandler implements IMcpToolHandler {
       environments: parsedEnv,
     });
 
+    if (followInventory) {
+      guidance.siguiente_accion = { tipo: 'trabajo', tool: 'qap_status',
+        descripcion: 'Consulta la cobertura del inventario inicial para continuar.',
+        parametros: { targetPath: rootDir } };
+    }
     if (correctionsState && correctionsState.pending.length > 0) {
       const nextPendingField = correctionsState.pending[0];
       const q = buildCorrectionQuestion(nextPendingField, existingContext);
