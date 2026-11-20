@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -42,6 +42,9 @@ beforeEach(async () => {
   });
   await new Promise<void>(done => site.listen(0, '127.0.0.1', done));
   url = 'http://127.0.0.1:' + (site.address() as { port: number }).port + '/';
+  writeFileSync(join(host, 'qa-autonomy-policy.json'), JSON.stringify({ version: 1, targets: [a, b].map(workspace => ({
+    workspace, origin: new URL(url).origin, environment: 'test', entry: '/', paths: ['/'],
+  })) }));
 });
 
 afterEach(async () => {
@@ -89,7 +92,7 @@ it('ESC-01/02/03/07: host-selected B stays separate with the same URL and publis
   const old = eventLog(a);
   const two = await connect({ roots: () => [b] });
   const catalog = (await two.listTools()).tools.map(tool => tool.name);
-  expect(catalog).toHaveLength(19);
+  expect(catalog).toHaveLength(16);
   for (const tool of ['qap_flow_run', 'qap_server', 'qap_validate']) {
     expect(catalog).not.toContain(tool);
     expect(await call(two, tool)).toMatchObject({ status: 'blocked', code: 'operation_disabled' });
@@ -100,9 +103,7 @@ it('ESC-01/02/03/07: host-selected B stays separate with the same URL and publis
   expect(requests).toBe(observed);
   expect(existsSync(join(b, '.qa'))).toBe(false);
 
-  expect(await call(two, 'qap_start')).toMatchObject({ status: 'success', directorio_objetivo: b,
-    onboarding: { application_registered: false } });
-  const second = await call(two, 'qap_start', { base_url: url });
+  const second = await call(two, 'qap_start');
   expect(second).toMatchObject({ status: 'success', directorio_objetivo: b, discovery_inicial: {
     index_path: '.qa/discovery/INDEX.md', doc_path: expect.stringMatching(/^\.qa\/discovery\/modules\//), revision_id: expect.any(String),
   } });
