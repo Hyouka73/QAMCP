@@ -59,6 +59,15 @@ it('requires the exact persistent preparation grant before creating a project', 
   expect((await create()).isError).toBe(true);
   expect(f.service.listProjects({ includeDeleted: true })).toEqual(before);
   expect(readdirSync(root)).toEqual([]);
+  const grant = vi.spyOn(f.service.authority, 'grant').mockImplementationOnce(() => {
+    throw new Error('synthetic grant write failure');
+  });
+  try {
+    expect((await create()).isError).toBe(true);
+    expect(f.service.listProjects({ includeDeleted: true })).toEqual(before);
+  } finally {
+    grant.mockRestore();
+  }
   expect((await create()).isError).toBe(false);
 }, 30000);
 

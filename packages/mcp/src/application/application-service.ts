@@ -915,9 +915,19 @@ export class QapApplicationService {
     return row ? parseProjectRow(row) : null;
   }
 
-  createProject(input: CreateProjectInput): ProjectStateSnapshot {
-    return this.#operations.run(() => {
+  createProject(
+    input: CreateProjectInput,
+    hostAccess?: {
+      readonly reference: RootAuthorizationReference;
+      readonly isRegistered: (root: string) => boolean;
+    },
+  ): ProjectStateSnapshot {
+    return this.#operations.run(context => {
       const safeRoot = assertSafeHostPath(input.canonicalRoot);
+      if (hostAccess && (normalizePathKey(hostAccess.reference.canonical_root) !== normalizePathKey(safeRoot) ||
+          !this.validateRootAuthorizationReference(hostAccess.reference, hostAccess.isRegistered, context))) {
+        throw new ApplicationServiceError('workspace_persistent_authority_required', 'La autorización del workspace ya no está vigente.');
+      }
       if (this.isRootDeletionInProgress(safeRoot)) throw new ApplicationServiceError('root_authorization_deletion_in_progress', 'El borrado de la raíz está en curso.');
       assertDisjointFromWorkspace(this.artifacts.rootDir, safeRoot);
       if (!existsSync(safeRoot)) {
@@ -1017,6 +1027,14 @@ export class QapApplicationService {
           now,
         );
 
+        if (hostAccess) {
+          this.authority.grant({
+            project_id: projectId,
+            capability: 'access',
+            scope: { root_path: safeRoot, env_id: envId },
+            granted_by: 'host_operator',
+          });
+        }
         this.#store.run(
           `INSERT INTO host_session_state (key, value, updated_at)
            VALUES ('active_project_id', ?, ?)

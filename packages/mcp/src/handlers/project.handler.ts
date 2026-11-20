@@ -574,7 +574,7 @@ export class ProjectHandler implements IMcpToolHandler {
             defaultTenant: typeof args.default_tenant === 'string' ? args.default_tenant : undefined,
             mode: args.mode as CampaignMode | undefined,
             allowRecreateDeleted: args.allow_recreate_deleted === true,
-          });
+          }, { reference, isRegistered: registered });
           return result({ status: 'success', ...snapshot });
           });
         }
