@@ -11,7 +11,8 @@ import {
   type ProposeCaseInput,
 } from '../application/block3-execution-repo.js';
 import type { DiscoveryDossierScope } from '../application/discovery-dossier.js';
-import { inspectedInitialView, isInitialInventory } from '../application/discovery-case-evidence.js';
+import { hasReviewedInventoryVisibility, inspectedInitialView, inventoryVisibilityExpectation,
+  isInitialInventory, visibleInventoryControl } from '../application/discovery-case-evidence.js';
 import { LineagedCaseError } from '../application/lineaged-case.js';
 import {
   resolveScopedBusinessRules,
@@ -247,11 +248,10 @@ async function synthesizeProposalsFromProjectState(
   const targetUrl = resolveAbsoluteRouteUrl(baseUrl, routeForProposal);
   const effectiveRouteHint = initial ? new URL(targetUrl).pathname : routeForProposal ?? '/';
   const initialView = initial && revision ? inspectedInitialView(revision.dossier, effectiveRouteHint) : undefined;
-  const smokeControl = initialView?.controls.find(control => control.tag === 'button' && control.visibility === 'visible' &&
-    !control.disabled && control.selector_candidates.length > 0);
-  const observedSmoke = smokeControl ? {
-    selector: smokeControl.selector_candidates[0],
-    expected_outcome: 'El control observado debe estar visible al abrir la vista.',
+  const observedControl = initial && revision ? visibleInventoryControl(revision.dossier, effectiveRouteHint) : undefined;
+  const observedSmoke = observedControl ? {
+    selector: observedControl.control.selector_candidates[0],
+    expected_outcome: inventoryVisibilityExpectation,
   } : undefined;
 
   const inventories = appService.listPartialInventories(project.project_id);
@@ -1084,11 +1084,12 @@ export async function runConversationalCaseWorkflow(
       });
     }
 
-    const withoutAssertion = eligibleCases.filter(c => !hasBusinessAssertion(c.steps, c.expectation.expected_outcome));
+    const withoutAssertion = eligibleCases.filter(c => !hasBusinessAssertion(c.steps, c.expectation.expected_outcome) &&
+      !hasReviewedInventoryVisibility(appService, c));
     if (withoutAssertion.length) return blocked('executable_oracle_required', {
       case_ids: withoutAssertion.map(c => c.case_id),
       siguiente_accion: { tipo: 'trabajo', tool: 'qap_plan', module: moduleName,
-        descripcion: 'Propón una aserción de texto con selector que compruebe la expectativa acreditada, o selecciona los casos aptos para el lote.' },
+        descripcion: 'Propón una aserción ejecutable que compruebe la expectativa acreditada, o selecciona los casos aptos para el lote.' },
     });
 
     const alreadyConfirmed = eligibleCases.every(

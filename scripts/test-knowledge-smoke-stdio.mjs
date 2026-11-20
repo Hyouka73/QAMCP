@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
 
@@ -16,7 +16,15 @@ import { QapApplicationService } from '../packages/mcp/dist/index.js';
 
 const unattended = process.argv.includes('--without-approval');
 const repo = fileURLToPath(new URL('../', import.meta.url));
-const output = realpathSync(mkdtempSync(join(tmpdir(), 'qap-knowledge-smoke-')));
+const resumeIndex = process.argv.indexOf('--resume');
+const resuming = resumeIndex >= 0;
+const output = realpathSync(resuming ? process.argv[resumeIndex + 1] : mkdtempSync(join(tmpdir(), 'qap-knowledge-smoke-')));
+assert.equal(dirname(output), realpathSync(tmpdir()));
+assert(basename(output).startsWith('qap-knowledge-smoke-'));
+const results = resuming ? JSON.parse(readFileSync(join(output, 'transcript.json'), 'utf8')) : [];
+const priorStart = results.find(entry => entry.name === 'qap_start');
+const priorOrigin = priorStart ? new URL(priorStart.args.base_url) : undefined;
+if (priorOrigin) assert.equal(priorOrigin.hostname, '127.0.0.1');
 const workspace = join(output, 'workspace');
 const host = join(output, 'host');
 const appServiceDir = join(host, 'application');
@@ -24,8 +32,10 @@ const workspaceHostDir = join(host, 'workspaces');
 const env = { ...process.env, NODE_ENV: 'test', QAP_MCP_WORKSPACE_ROOT: workspace,
   QAP_MCP_HOST_DATA_DIR: host, QAP_MCP_APP_SERVICE_DIR: appServiceDir, QAP_MCP_WORKSPACE_HOST_DIR: workspaceHostDir };
 delete env.QAP_MCP_HOST_CONFIG_PATH;
-mkdirSync(workspace);
-execFileSync(process.execPath, [join(repo, 'scripts/qap-authorize-workspace.mjs'), workspace], { env, windowsHide: true });
+if (!resuming) {
+  mkdirSync(workspace);
+  execFileSync(process.execPath, [join(repo, 'scripts/qap-authorize-workspace.mjs'), workspace], { env, windowsHide: true });
+}
 
 const requests = [];
 const http = createServer((req, res) => {
@@ -38,13 +48,15 @@ const http = createServer((req, res) => {
   const body = Object.hasOwn(pages, req.url) ? pages[req.url] : undefined;
   res.writeHead(body ? 200 : 404, { 'content-type': 'text/html; charset=utf-8' }).end(body);
 });
-await new Promise(resolve => http.listen(0, '127.0.0.1', resolve));
+await new Promise((resolve, reject) => {
+  http.once('error', reject);
+  http.listen(priorOrigin ? Number(priorOrigin.port) : 0, '127.0.0.1', resolve);
+});
 const origin = `http://127.0.0.1:${http.address().port}`;
 console.log('Evidencia del fixture:', output);
 
 let client;
 let terminal;
-const results = [];
 const writeJson = (name, value) => writeFileSync(join(output, name), JSON.stringify(value, null, 2));
 const readJson = path => JSON.parse(readFileSync(path, 'utf8'));
 const sha = path => createHash('sha256').update(readFileSync(path)).digest('hex');
@@ -110,15 +122,14 @@ async function verifyExecution(execution, caseId, headed) {
     screenshots: screenshots.map(path => join(workspace, path)), reports };
 }
 
-try {
-  await connect();
+const module = 'workspace';
+const scope = { module, environment: 'local' };
+async function proposeCase() {
   const start = await call('qap_start', { base_url: origin });
   assert.equal(start.onboarding_inventory.state, 'READY');
   const context = await call('qap_context_set', { source: 'user', objective: 'Consultar el panel sintético', roles: [{ name: 'lector' }],
     critical_flows: [{ name: 'Abrir panel', path: '/workspace' }], source_of_truth: { type: 'none', declared: true } });
   assert.equal(context.fase, 'SCOPING');
-  const module = 'workspace';
-  const scope = { module, environment: 'local' };
   const session = await call('qap_session_plan', { plan: [{ module, path: '/workspace', priority: 'high' }] });
   assert.equal(session.status, 'success');
   const wrongScope = await call('qap_plan', { module: 'other', discovery_revision_id: start.onboarding_inventory.revision_id,
@@ -126,6 +137,15 @@ try {
   assert.equal(wrongScope.status, 'blocked');
   const proposal = await call('qap_plan', { ...scope, case_workflow: { action: 'propose_from_observations' } });
   assert.equal(proposal.discovery_revision_id, start.onboarding_inventory.revision_id);
+  return proposal;
+}
+
+try {
+  await connect();
+  const proposal = resuming ? results.find(entry => entry.data.status === 'proposed' && entry.data.suggested_oracle)?.data
+    : await proposeCase();
+  assert(proposal);
+  if (resuming) assert.equal(origin, priorOrigin.origin);
   assert.equal(proposal.summary.pending_oracle, 1);
   assert.equal(proposal.suggested_oracle.status, 'inferred');
   const candidate = proposal.pending_oracle_cases[0];
@@ -140,11 +160,15 @@ try {
   const oracleCommand = { ...reviewScope, case_workflow: { action: 'decide_oracles', decisions: [oracle] } };
   const approveCommand = { ...reviewScope, case_workflow: { action: 'approve_batch', case_ids: [caseId] } };
   const executionArgs = { ...scope, case_ids: [caseId] };
-  const deniedOracle = await call('qap_plan', oracleCommand);
-  assert.match(deniedOracle.code, /^human_review_(gateway_required|not_authorized|unavailable)$/);
-  assert.equal((await call('qap_plan', approveCommand)).status, 'blocked');
-  assert.equal((await call('qap_test', executionArgs)).code, 'executable_oracle_required');
-  assert.equal(existsSync(caseFile), false);
+  const previousConfirmation = resuming ? results.findLast(entry =>
+    entry.data.status === 'updated' && entry.data.updated_cases?.some(item => item.case_id === caseId))?.data : undefined;
+  if (!previousConfirmation) {
+    const deniedOracle = await call('qap_plan', oracleCommand);
+    assert.match(deniedOracle.code, /^human_review_(gateway_required|not_authorized|unavailable)$/);
+    assert.equal((await call('qap_plan', approveCommand)).status, 'blocked');
+    assert.equal((await call('qap_test', executionArgs)).code, 'executable_oracle_required');
+    assert.equal(existsSync(caseFile), false);
+  }
   assert(requests.every(request => request.method === 'GET' && request.path !== '/write'));
   if (unattended) {
     writeJson('result.json', { status: 'awaiting_human_review', case_id: caseId,
@@ -152,7 +176,7 @@ try {
   } else {
     terminal = createInterface({ input: process.stdin, output: process.stdout });
     await connect(true);
-    const confirmed = await call('qap_plan', oracleCommand);
+    const confirmed = previousConfirmation ?? await call('qap_plan', oracleCommand);
     if (confirmed.status !== 'updated') {
       writeJson('result.json', { status: 'awaiting_human_review', case_id: caseId, blocked_by: confirmed.code, execution_count: 0 });
       throw new Error('La revisión del oráculo terminó con ' + confirmed.code);
@@ -202,5 +226,7 @@ try {
   terminal?.close();
   await client?.close();
   await new Promise(resolve => http.close(resolve));
-  writeJson('requests.json', requests);
+  const trafficPath = join(output, 'requests.json');
+  const priorTraffic = resuming && existsSync(trafficPath) ? readJson(trafficPath) : [];
+  writeJson('requests.json', [...priorTraffic, ...requests]);
 }
