@@ -367,13 +367,14 @@ export async function loadHostComposition(
     const parsedTtl = env.QAP_SESSION_AUTH_TTL_MS ? Number(env.QAP_SESSION_AUTH_TTL_MS) : undefined;
     const authorizationTtlMs = parsedTtl && Number.isInteger(parsedTtl) && parsedTtl > 0 ? parsedTtl : undefined;
     const workspaceAuthorizer = isWindowsInteractive ? new WindowsInteractiveWorkspaceAuthorizer() : undefined;
-    const preferHostWorkspaceAuthorizer = isWindowsInteractive && env.QAP_USE_CLIENT_ELICITATION !== '1';
+    const preferHostDialogs = isWindowsInteractive && env.QAP_USE_CLIENT_ELICITATION !== '1';
     authorizationDiagnostic('host_composition', {
       build: process.env.QAP_BUILD_REVISION ?? 'development',
       authorizer: workspaceAuthorizer ? 'windows_interactive_dialog' : 'host_bound_scope_only',
       multiProjectRuntime,
       discoveryAuthorizer: 'unconfigured',
       testAuthorizer: isWindowsInteractive ? 'windows_dialog' : 'unconfigured',
+      ruleReview: 'client_elicitation_if_advertised',
       silentBoundScope: true,
       disabledByFlag: Boolean(env.QAP_DISABLE_INTERACTIVE_AUTH), testEnvironment: env.NODE_ENV === 'test', manifest: false,
     });
@@ -388,7 +389,7 @@ export async function loadHostComposition(
         allowSpaReadOnly: true,
         silentBoundScope: true,
         workspaceAuthorizer,
-        preferHostWorkspaceAuthorizer,
+        preferHostWorkspaceAuthorizer: preferHostDialogs,
         interactiveAccessAuthorizer: isWindowsInteractive ? new WindowsInteractiveDiscoveryAuthorizer() : undefined,
         clientWorkspaceRoots: multiProjectRuntime,
         hostRegistryPath: registry,

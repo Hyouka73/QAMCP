@@ -663,12 +663,7 @@ export class PlanHandler implements IMcpToolHandler {
         moduleName,
         args.case_workflow,
         this.dependencies,
-        validatedDiscoveryRevisionId || effectiveScope
-          ? {
-              ...(validatedDiscoveryRevisionId ? { discoveryRevisionId: validatedDiscoveryRevisionId } : {}),
-              ...(effectiveScope ? { effectiveScope } : {}),
-            }
-          : undefined,
+        { discoveryRevisionId: validatedDiscoveryRevisionId, effectiveScope, reviewInvocation: context },
       );
       return result(value, value.status === 'blocked');
     }

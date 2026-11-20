@@ -130,6 +130,51 @@ afterEach(async () => {
   rmSync(base, { recursive: true, force: true });
 });
 
+it('crea acceso local para el proyecto autorizado sin ampliar otras capacidades', async () => {
+  authorizeWorkspace(a);
+  const client = await connectStdio({ fixed: a });
+  const created = await call(client, 'qap_project', {
+    action: 'create',
+    targetPath: a,
+    name: 'Fixture de revisión sintético',
+    base_url: 'http://127.0.0.1:1',
+    env_name: 'local',
+  });
+  expect(created.status).toBe('success');
+  const projectId = created.project.project_id as string;
+  const grants = service.authority.listGrants(projectId);
+  expect(grants).toMatchObject([{
+    capability: 'access',
+    scope: { root_path: a, env_id: created.project.active_env_id },
+    status: 'active',
+    granted_by: 'host_operator',
+  }]);
+
+  const review = () => call(client, 'qap_plan', {
+    targetPath: a, module: 'pedidos', case_workflow: { action: 'review' },
+  });
+  const proposed = await call(client, 'qap_plan', {
+    targetPath: a,
+    module: 'pedidos',
+    case_workflow: {
+      action: 'propose_from_observations',
+      proposals: [{
+        title: 'Panel sintético',
+        steps: [
+          { type: 'navigate', url: 'http://127.0.0.1:1/app' },
+          { type: 'waitFor', selector: '#panel' },
+        ],
+      }],
+    },
+  });
+  expect(proposed).toMatchObject({ status: 'proposed', summary: { pending_oracle: 1 } });
+  expect(await review()).toMatchObject({ status: 'review', read_only: true, summary: { pending_oracle: 1 } });
+  service.authority.revokeGrant(projectId, grants[0].grant_id);
+  expect(await review()).toMatchObject({ status: 'blocked', code: 'capability_access_revoked' });
+  expect(requests).toBe(0);
+}, 30000);
+
+
 it('A/B/C/P: inicia globalmente sin proyectos ni QAP_MCP_WORKSPACE_ROOT, sobrevive raíces borradas y prepara A desde cero', async () => {
   // A: Inicio global sin proyectos ni QAP_MCP_WORKSPACE_ROOT.
   const freshClient = await connectStdio();

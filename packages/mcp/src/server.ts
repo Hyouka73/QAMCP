@@ -4291,6 +4291,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
               rawArgs: args as Record<string, unknown>,
               appService: applicationService,
               reviewGateway: ruleReviewGateway,
+              reviewInvocation: context,
             });
             return canonicalResult(res, res.status === 'blocked');
           }

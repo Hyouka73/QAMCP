@@ -8,6 +8,7 @@ import type { IKnowledgeStore, KnowledgeKind } from '@qap/engine';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
 import type { HostReviewQueue } from '../host-review.js';
+import type { VerifiableRuleReviewGateway } from '../client-elicitation-authorizers.js';
 import { TOOLS } from '../tool-catalog.js';
 import { McpToolError } from '../dispatcher.js';
 import type { QapApplicationService, RootAuthorizationReference } from '../application/application-service.js';
@@ -15,8 +16,6 @@ import type { QapApplicationService, RootAuthorizationReference } from '../appli
 import type { ModuleBinding } from './module-observation-bridge.js';
 import type {
   CanonicalInterviewService,
-  HumanReviewDecision,
-  HumanReviewRequest,
   IHumanReviewGateway,
 } from './canonical-interview-service.js';
 import type { IInterviewDraftStore } from './interview-draft-store.js';
@@ -24,11 +23,7 @@ import type { CanonicalClosureService } from './canonical-closure-service.js';
 import type { IModuleClosureReviewGateway } from './module-closure-gateway.js';
 import type { IModuleClosureStore } from './module-closure-store.js';
 
-export interface VerifiableRuleReviewGateway {
-  isAvailable(): boolean;
-  lastMechanism?(): 'client_elicitation' | 'host_gateway';
-  review(request: Readonly<HumanReviewRequest>): Promise<HumanReviewDecision | null>;
-}
+export type { VerifiableRuleReviewGateway } from '../client-elicitation-authorizers.js';
 
 /** Host-owned, already-open store. No filename discovery, implicit open or close. */
 export interface ProjectKnowledgeBinding {
