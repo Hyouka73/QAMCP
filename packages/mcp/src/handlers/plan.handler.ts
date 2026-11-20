@@ -9,11 +9,11 @@ import {
   SemanticHasher,
   type TestNode,
 } from '@qap/knowledge';
-import { normalizeSlug } from '@qap/shared';
 import type { TestCase } from '@qap/engine';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
-import type { DiscoveryDossierScope } from '../application/discovery-dossier.js';
+import type { DiscoveryDossierScope, DiscoveryRevisionRecord } from '../application/discovery-dossier.js';
+import { inspectedInitialView, isInitialInventory } from '../application/discovery-case-evidence.js';
 import {
   McpToolError,
   type IMcpToolHandler,
@@ -22,6 +22,7 @@ import {
 
 import { caseWorkflow } from './case-workflow.js';
 import {
+  binding,
   definition,
   isObject,
   projectRoot,
@@ -627,11 +628,46 @@ export class PlanHandler implements IMcpToolHandler {
       effectiveScope = scopeRes.scope;
       environment = scopeRes.scope.environment_name;
 
-      if (args.discovery_revision_id !== undefined) {
-        const scopeCheck = appService.validateDiscoveryRevisionScope(args.discovery_revision_id.trim(), {
+      const explicitRevisionId = args.discovery_revision_id?.trim();
+      let selectedRevisionId = explicitRevisionId;
+      const snapshot = appService.resumeProject(appProject.project_id, { readOnly: true });
+      const scopeModule = snapshot.modules.find(item => item.key === effectiveScope!.module_key);
+      let route: URL | undefined;
+      if (scopeModule?.route_hint && effectiveScope.base_url) {
+        try { route = new URL(scopeModule.route_hint, effectiveScope.base_url); }
+        catch { /* An invalid legacy route cannot select inventory evidence. */ }
+      }
+      const pathname = route && route.origin === new URL(effectiveScope.base_url!).origin && !route.search && !route.hash
+        ? route.pathname : undefined;
+      const bound = pathname && (explicitRevisionId || args.case_workflow !== undefined) ? binding(rootDir, this.dependencies) : undefined;
+      const environmentPolicy = bound && await bound.store.get(bound.applicationId, 'environment', bound.environmentId);
+      const scope = effectiveScope;
+      const matchesInventory = (revision: DiscoveryRevisionRecord) => {
+        const recordedScope = revision.dossier.scope;
+        return pathname && environmentPolicy && snapshot.environment?.env_id === scope.environment_id &&
+          'inventory_environment_revision' in recordedScope &&
+          recordedScope.inventory_environment_revision === environmentPolicy.revision &&
+          revision.environment_id === scope.environment_id && revision.tenant_id === scope.tenant_id &&
+          revision.profile_id === scope.profile_id && revision.role === scope.role &&
+          inspectedInitialView(revision.dossier, pathname);
+      };
+      if (!selectedRevisionId && args.case_workflow !== undefined && pathname &&
+          !appService.findLatestDiscoveryRevisionForScope(effectiveScope)) {
+        selectedRevisionId = appService.listLatestDiscoveryRevisionsByScope(appProject.project_id)
+          .find(matchesInventory)?.revision_id;
+      }
+      if (selectedRevisionId) {
+        const discovery = appService.getDiscoveryRevision(selectedRevisionId);
+        const initial = discovery && isInitialInventory(discovery.dossier);
+        if (initial && !matchesInventory(discovery)) return result({
+          status: 'blocked', code: 'discovery_revision_out_of_scope', module: moduleName,
+          discovery_revision_id: selectedRevisionId,
+          message: 'El inventario no acredita la ruta del módulo en el entorno, tenant y perfil vigentes.',
+        }, true);
+        const scopeCheck = appService.validateDiscoveryRevisionScope(selectedRevisionId, {
           projectId: effectiveScope.project_id,
           applicationId: effectiveScope.application_id,
-          moduleKey: effectiveScope.module_key,
+          ...(initial ? {} : { moduleKey: effectiveScope.module_key }),
           environmentId: effectiveScope.environment_id,
           environmentName: effectiveScope.environment_name,
           tenantId: effectiveScope.tenant_id,
@@ -647,7 +683,7 @@ export class PlanHandler implements IMcpToolHandler {
               status: 'blocked',
               code: scopeCheck.code,
               module: moduleName,
-              discovery_revision_id: args.discovery_revision_id.trim(),
+              discovery_revision_id: selectedRevisionId,
               message: scopeCheck.reason,
             },
             true,

@@ -11,6 +11,7 @@ import {
   type ProposeCaseInput,
 } from '../application/block3-execution-repo.js';
 import type { DiscoveryDossierScope } from '../application/discovery-dossier.js';
+import { inspectedInitialView, isInitialInventory } from '../application/discovery-case-evidence.js';
 import { LineagedCaseError } from '../application/lineaged-case.js';
 import {
   resolveScopedBusinessRules,
@@ -230,6 +231,7 @@ async function synthesizeProposalsFromProjectState(
   discoveryRevisionId?: string;
   ruleResolutionSummary?: DiscoveryDossierRuleResolution['summary'];
   ruleAmbiguities?: readonly DossierRuleAmbiguity[];
+  observedSmoke?: { readonly selector: string; readonly expected_outcome: string };
 }> {
   const appService = deps.applicationService!;
   const project = appService.findActiveProjectByRoot(root)!;
@@ -240,8 +242,17 @@ async function synthesizeProposalsFromProjectState(
     : effectiveScope
       ? appService.findLatestDiscoveryRevisionForScope(effectiveScope)
       : null;
-  const effectiveRouteHint = revision?.dossier.target_pathname ?? routeHint ?? '/';
-  const targetUrl = resolveAbsoluteRouteUrl(baseUrl, effectiveRouteHint);
+  const initial = revision && isInitialInventory(revision.dossier);
+  const routeForProposal = initial ? routeHint : revision?.dossier.target_pathname ?? routeHint;
+  const targetUrl = resolveAbsoluteRouteUrl(baseUrl, routeForProposal);
+  const effectiveRouteHint = initial ? new URL(targetUrl).pathname : routeForProposal ?? '/';
+  const initialView = initial && revision ? inspectedInitialView(revision.dossier, effectiveRouteHint) : undefined;
+  const smokeControl = initialView?.controls.find(control => control.tag === 'button' && control.visibility === 'visible' &&
+    !control.disabled && control.selector_candidates.length > 0);
+  const observedSmoke = smokeControl ? {
+    selector: smokeControl.selector_candidates[0],
+    expected_outcome: 'El control observado debe estar visible al abrir la vista.',
+  } : undefined;
 
   const inventories = appService.listPartialInventories(project.project_id);
   const latestInv = inventories.find(inventory => inventory.target_url === targetUrl &&
@@ -252,7 +263,8 @@ async function synthesizeProposalsFromProjectState(
   const evidenceRefs: string[] = [];
 
   if (revision) {
-    for (const v of revision.dossier.views) {
+    const proposalViews = initial ? (initialView ? [initialView] : []) : revision.dossier.views;
+    for (const v of proposalViews) {
       if (v.evidence_id) evidenceRefs.push(v.evidence_id);
       for (const h of v.headings) {
         if (typeof h === 'string' && h.trim()) observedHeadings.push(h.trim());
@@ -294,7 +306,8 @@ async function synthesizeProposalsFromProjectState(
   if (revision) {
     // Frozen snapshot semantics: plan consumes ONLY the selected revision's persisted
     // rule resolutions, never mixing newer or unscoped live service_requirements.
-    activeResolution = revision.dossier.rule_resolution;
+    // The initial inventory has no module-level rule accreditation.
+    activeResolution = initial ? undefined : revision.dossier.rule_resolution;
   } else if (effectiveScope) {
     const confirmedReqs = appService
       .listServiceRequirements(project.project_id, moduleKey)
@@ -330,7 +343,7 @@ async function synthesizeProposalsFromProjectState(
   if (proposals.length === 0) {
     const primaryLabel = observedControls[0] ?? observedHeadings[0] ?? moduleKey;
     proposals.push({
-      title: `Comportamiento de ${primaryLabel}`,
+      title: observedSmoke ? `Visibilidad de un control en ${effectiveRouteHint}` : `Comportamiento de ${primaryLabel}`,
       expected_outcome: null,
       oracle_source: 'missing',
       observation: {
@@ -342,16 +355,18 @@ async function synthesizeProposalsFromProjectState(
       },
       inference: {
         rationale: 'Falta un criterio de negocio acreditado para este alcance; las observaciones DOM son solo descriptivas.',
-        proposed_flow: `Verificar el comportamiento esperado en ${effectiveRouteHint}.`,
+        proposed_flow: observedSmoke?.expected_outcome ?? `Verificar el comportamiento esperado en ${effectiveRouteHint}.`,
         proposed_by: 'qap',
       },
-      steps: normalizeStepsForProposal(undefined, targetUrl, null),
+      steps: observedSmoke ? [{ type: 'navigate', url: targetUrl }, { type: 'screenshot' }]
+        : normalizeStepsForProposal(undefined, targetUrl, null),
     });
   }
 
   return {
     proposals,
     ...(revision ? { discoveryRevisionId: revision.revision_id } : {}),
+    ...(observedSmoke ? { observedSmoke } : {}),
     ...(activeResolution ? {
       ruleResolutionSummary: activeResolution.summary,
       ruleAmbiguities: activeResolution.ambiguities,
@@ -572,6 +587,7 @@ export async function runConversationalCaseWorkflow(
     let usedDiscoveryRevisionId: string | undefined;
     let ruleResolutionSummary: DiscoveryDossierRuleResolution['summary'] | undefined;
     let ruleAmbiguities: readonly DossierRuleAmbiguity[] | undefined;
+    let observedSmoke: { readonly selector: string; readonly expected_outcome: string } | undefined;
     if (Array.isArray(command.proposals)) {
       const confirmedReqs = appService
         .listServiceRequirements(project.project_id, serviceMod.key)
@@ -581,7 +597,7 @@ export async function runConversationalCaseWorkflow(
         : options?.effectiveScope
           ? appService.findLatestDiscoveryRevisionForScope(options.effectiveScope)
           : null;
-      const activeResolution = revision?.dossier.rule_resolution;
+      const activeResolution = isInitialInventory(revision?.dossier) ? undefined : revision?.dossier.rule_resolution;
 
       inputs = [];
       for (const rawItem of command.proposals) {
@@ -703,6 +719,7 @@ export async function runConversationalCaseWorkflow(
       usedDiscoveryRevisionId = synthesized.discoveryRevisionId;
       ruleResolutionSummary = synthesized.ruleResolutionSummary;
       ruleAmbiguities = synthesized.ruleAmbiguities;
+      observedSmoke = synthesized.observedSmoke;
     }
 
     const proposalRes = appService.proposeModuleCases({
@@ -732,9 +749,14 @@ export async function runConversationalCaseWorkflow(
           : null,
     });
 
+    const pendingSmoke = observedSmoke && proposalRes.pending_oracle[0];
     return {
       status: 'proposed',
       epistemic_separation: true,
+      ...(pendingSmoke && observedSmoke ? {
+        suggested_oracle: { case_id: pendingSmoke.case_id, expected_outcome: observedSmoke.expected_outcome,
+          assert_selector: observedSmoke.selector, assert_type: 'visible', status: 'inferred' },
+      } : {}),
       module: moduleName,
       ...(usedDiscoveryRevisionId ? { discovery_revision_id: usedDiscoveryRevisionId } : {}),
       ...(ruleResolutionSummary ? { rule_resolution_summary: ruleResolutionSummary } : {}),
