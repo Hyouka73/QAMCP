@@ -22,6 +22,7 @@ export interface DiscoveryDossierScope {
   readonly module_key: string;
   readonly module_title: string;
   readonly inventory_environment_revision?: number;
+  readonly inventory_policy_digest?: string;
   readonly inventory_entry_path?: string;
 }
 

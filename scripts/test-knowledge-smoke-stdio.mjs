@@ -4,229 +4,186 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
-import { basename, dirname, join } from 'node:path';
-import { createInterface } from 'node:readline/promises';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { ElicitRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 
-import { QapApplicationService } from '../packages/mcp/dist/index.js';
-
-const unattended = process.argv.includes('--without-approval');
 const repo = fileURLToPath(new URL('../', import.meta.url));
-const resumeIndex = process.argv.indexOf('--resume');
-const resuming = resumeIndex >= 0;
-const output = realpathSync(resuming ? process.argv[resumeIndex + 1] : mkdtempSync(join(tmpdir(), 'qap-knowledge-smoke-')));
-assert.equal(dirname(output), realpathSync(tmpdir()));
-assert(basename(output).startsWith('qap-knowledge-smoke-'));
-const results = resuming ? JSON.parse(readFileSync(join(output, 'transcript.json'), 'utf8')) : [];
-const priorStart = results.find(entry => entry.name === 'qap_start');
-const priorOrigin = priorStart ? new URL(priorStart.args.base_url) : undefined;
-if (priorOrigin) assert.equal(priorOrigin.hostname, '127.0.0.1');
+const output = realpathSync(mkdtempSync(join(tmpdir(), 'qap-autonomous-mvp-')));
 const workspace = join(output, 'workspace');
 const host = join(output, 'host');
-const appServiceDir = join(host, 'application');
-const workspaceHostDir = join(host, 'workspaces');
 const env = { ...process.env, NODE_ENV: 'test', QAP_MCP_WORKSPACE_ROOT: workspace,
-  QAP_MCP_HOST_DATA_DIR: host, QAP_MCP_APP_SERVICE_DIR: appServiceDir, QAP_MCP_WORKSPACE_HOST_DIR: workspaceHostDir };
+  QAP_MCP_HOST_DATA_DIR: host, QAP_MCP_APP_SERVICE_DIR: join(host, 'application'),
+  QAP_MCP_WORKSPACE_HOST_DIR: join(host, 'workspaces') };
 delete env.QAP_MCP_HOST_CONFIG_PATH;
-if (!resuming) {
-  mkdirSync(workspace);
-  execFileSync(process.execPath, [join(repo, 'scripts/qap-authorize-workspace.mjs'), workspace], { env, windowsHide: true });
-}
-
+mkdirSync(workspace);
+mkdirSync(host);
+const writeJson = (name, value) => writeFileSync(join(output, name), JSON.stringify(value, null, 2));
+const sha = path => createHash('sha256').update(readFileSync(path)).digest('hex');
 const requests = [];
-const http = createServer((req, res) => {
-  requests.push({ method: req.method, path: req.url, userAgent: req.headers['user-agent'] });
+const recordBody = '{"synthetic":"mvp"}';
+const fixtureButton = 'html:nth-of-type(1) > body:nth-of-type(1) > main:nth-of-type(1) > button:nth-of-type(1)';
+let fixtureRecord = false;
+const http = createServer(async (req, res) => {
+  requests.push({ method: req.method, path: req.url, agent: req.headers['user-agent'] });
+  writeJson('requests.json', requests);
+  if (req.method === 'POST') {
+    const chunks = [];
+    for await (const chunk of req) chunks.push(chunk);
+    if (Buffer.concat(chunks).toString() !== recordBody) return res.writeHead(400).end();
+    if (req.url === '/fixture-write' && !fixtureRecord) { fixtureRecord = true; return res.writeHead(201).end(); }
+    if (req.url === '/fixture-reset') { fixtureRecord = false; return res.writeHead(204).end(); }
+    return res.writeHead(403).end();
+  }
   if (req.method !== 'GET') return res.writeHead(405).end();
   const pages = {
-    '/': '<main><nav><a href="/workspace">Inicio</a></nav></main>',
-    '/workspace': '<main><h1>Panel del fixture</h1><button type="button" onclick="fetch(&quot;/write&quot;,{method:&quot;POST&quot;})">Ver detalle</button></main>',
+    '/': '<main><h1>Fixture QAP</h1><nav><a id="dashboard" href="/dashboard">Panel</a><a href="/forbidden">Fuera de política</a></nav></main>',
+    '/dashboard': '<main><h1>Panel</h1><button id="detail" type="button">Detalle</button><a href="/summary">Resumen</a></main>',
+    '/summary': `<main><h1>Resumen</h1><button id="save" onclick="fetch('/fixture-write',{method:'POST',body:'${recordBody.replaceAll('"','&quot;')}'})">Guardar dato sintético</button></main>`,
   };
   const body = Object.hasOwn(pages, req.url) ? pages[req.url] : undefined;
   res.writeHead(body ? 200 : 404, { 'content-type': 'text/html; charset=utf-8' }).end(body);
 });
 await new Promise((resolve, reject) => {
   http.once('error', reject);
-  http.listen(priorOrigin ? Number(priorOrigin.port) : 0, '127.0.0.1', resolve);
+  http.listen(0, '127.0.0.1', resolve);
 });
 const origin = `http://127.0.0.1:${http.address().port}`;
+writeJson(join('host', 'qa-autonomy-policy.json'), { version: 1, targets: [{ workspace, origin, entry: '/',
+  environment: 'test', isolatedFixture: true, batchPages: 1, paths: ['/', '/dashboard', '/summary'],
+  fixtureWrites: [{ id: 'save_fixture', view: '/summary', selector: fixtureButton, path: '/fixture-write', cleanup: '/fixture-reset', body: recordBody }] }] });
+execFileSync(process.execPath, [join(repo, 'scripts/qap-authorize-workspace.mjs'), workspace], { env, windowsHide: true });
+const server = join(repo, 'packages/mcp/dist/server.js');
+const serverConfig = { command: process.execPath, args: [server], env: Object.fromEntries(Object.entries(env)
+  .filter(([key]) => key.startsWith('QAP_MCP_') || key === 'NODE_ENV')) };
+writeJson('fixture.json', { workspace, origin, host, serverConfig, bundle_entry_sha256: sha(server) });
 console.log('Evidencia del fixture:', output);
+if (process.argv.includes('--serve')) {
+  console.log('Fixture listo para Antigravity:', origin);
+  console.log('Workspace autorizado:', workspace);
+} else {
+  await verify().finally(() => new Promise(resolve => http.close(resolve)));
+}
 
-let client;
-let terminal;
-const writeJson = (name, value) => writeFileSync(join(output, name), JSON.stringify(value, null, 2));
-const readJson = path => JSON.parse(readFileSync(path, 'utf8'));
-const sha = path => createHash('sha256').update(readFileSync(path)).digest('hex');
-
-async function connect(humanReview = false) {
-  await client?.close();
-  client = new Client({ name: 'qap-knowledge-smoke', version: '1.0.0' },
-    humanReview ? { capabilities: { elicitation: { form: {} } } } : {});
-  if (humanReview) {
-    client.setRequestHandler(ElicitRequestSchema, async ({ params }) => {
-      assert(params.requestedSchema.properties.decision);
-      console.log('\n' + params.message);
-      const decision = (await terminal.question('Decisión humana MCP (confirm / reject / defer): ')).trim();
-      return ['confirm', 'reject', 'defer'].includes(decision)
-        ? { action: 'accept', content: { decision } } : { action: 'cancel' };
+async function verify() {
+  const transcript = [];
+  let client;
+  let elicitation = 0;
+  let conversation;
+  async function connect() {
+    await client?.close();
+    client = new Client({ name: 'qap-autonomy-smoke', version: '1.0.0' }, { capabilities: { elicitation: { form: {} } } });
+    client.setRequestHandler(ElicitRequestSchema, async () => {
+      elicitation++;
+      return { action: 'cancel' };
     });
+    const transport = new StdioClientTransport({ command: process.execPath, args: [server], cwd: repo, env, stderr: 'pipe' });
+    transport.stderr?.on('data', chunk => writeFileSync(join(output, 'server.log'), chunk, { flag: 'a' }));
+    await client.connect(transport);
+    transcript.push({ method: 'initialize', version: client.getServerVersion(), tools: (await client.listTools()).tools.map(tool => tool.name) });
   }
-  const transport = new StdioClientTransport({ command: process.execPath,
-    args: [join(repo, 'packages/mcp/dist/server.js')], cwd: repo, env, stderr: 'pipe' });
-  transport.stderr?.on('data', chunk => writeFileSync(join(output, 'server.log'), chunk, { flag: 'a' }));
-  await client.connect(transport);
-}
-
-async function call(name, args = {}) {
-  const response = await client.callTool({ name, arguments: { targetPath: workspace, ...args } }, undefined, { timeout: 240_000 });
-  const data = JSON.parse(response.content[0].text);
-  results.push({ name, args, data, isError: response.isError ?? false });
-  writeJson('transcript.json', results);
-  console.log(name, data.status, data.code ?? '');
-  return data;
-}
-
-async function verifyExecution(execution, caseId, headed) {
-  assert.equal(execution.status, 'success', JSON.stringify(execution));
-  assert.equal(execution.result, 'passed');
-  assert.equal(execution.browser_mode, headed ? 'headed' : 'headless');
-  assert.equal(execution.summary.passed, 1);
-  assert.equal(execution.cases[0].id, caseId);
-  assert(execution.attempt_id);
-  const raw = join(workspace, '.qa', 'executions', execution.execution_id + '.json');
-  const trace = join(workspace, '.qa', 'executions', execution.execution_id + '.trace.json');
-  assert.equal(readJson(raw).result, 'passed');
-  const traceBody = readJson(trace);
-  assert.equal(traceBody.attempt_id, execution.attempt_id);
-  assert.equal(traceBody.browser_mode, execution.browser_mode);
-  assert(traceBody.case_approval_digest);
-  const chromiumTrace = join(workspace, execution.artifacts.trace_zip_path);
-  const screenshots = [...new Set([...(execution.artifacts.screenshots ?? []), ...(execution.cases[0].screenshots ?? [])])];
-  assert(screenshots.length > 0);
-  assert.equal(readFileSync(chromiumTrace, 'hex').slice(0, 8), '504b0304');
-  for (const screenshot of screenshots) {
-    assert.equal(readFileSync(join(workspace, screenshot), 'hex').slice(0, 16), '89504e470d0a1a0a');
+  async function call(name, args = {}) {
+    const response = await client.callTool({ name, arguments: { targetPath: workspace,
+      ...(conversation ? { conversation_id: conversation } : {}), ...args } }, undefined, { timeout: 240_000 });
+    const data = JSON.parse(response.content[0].text);
+    transcript.push({ name, args, data, isError: response.isError ?? false });
+    writeJson('transcript.json', transcript);
+    console.log(name, data.status, data.code ?? '');
+    return data;
   }
-  const report = await call('qap_report', { executionId: execution.execution_id, format: 'all' });
-  assert.equal(report.evidence_source, 'persisted_execution');
-  assert.equal(report.attempt_id, execution.attempt_id);
-  assert.equal(report.result, 'passed');
-  const reports = Object.values(report.reports);
-  assert(reports.length >= 3);
-  for (const path of reports) assert(statSync(path).size > 0);
-  return { execution_id: execution.execution_id, attempt_id: execution.attempt_id, mode: execution.browser_mode,
-    case_approval_digest: traceBody.case_approval_digest, raw, trace, chromium_trace: chromiumTrace,
-    screenshots: screenshots.map(path => join(workspace, path)), reports };
-}
-
-const module = 'workspace';
-const scope = { module, environment: 'local' };
-async function proposeCase() {
-  const start = await call('qap_start', { base_url: origin });
-  assert.equal(start.onboarding_inventory.state, 'READY');
-  const context = await call('qap_context_set', { source: 'user', objective: 'Consultar el panel sintético', roles: [{ name: 'lector' }],
-    critical_flows: [{ name: 'Abrir panel', path: '/workspace' }], source_of_truth: { type: 'none', declared: true } });
-  assert.equal(context.fase, 'SCOPING');
-  const session = await call('qap_session_plan', { plan: [{ module, path: '/workspace', priority: 'high' }] });
-  assert.equal(session.status, 'success');
-  const wrongScope = await call('qap_plan', { module: 'other', discovery_revision_id: start.onboarding_inventory.revision_id,
-    case_workflow: { action: 'propose_from_observations' } });
-  assert.equal(wrongScope.status, 'blocked');
-  const proposal = await call('qap_plan', { ...scope, case_workflow: { action: 'propose_from_observations' } });
-  assert.equal(proposal.discovery_revision_id, start.onboarding_inventory.revision_id);
-  return proposal;
-}
-
-try {
-  await connect();
-  const proposal = resuming ? results.find(entry => entry.data.status === 'proposed' && entry.data.suggested_oracle)?.data
-    : await proposeCase();
-  assert(proposal);
-  if (resuming) assert.equal(origin, priorOrigin.origin);
-  assert.equal(proposal.summary.pending_oracle, 1);
-  assert.equal(proposal.suggested_oracle.status, 'inferred');
-  const candidate = proposal.pending_oracle_cases[0];
-  assert.equal(candidate.expectation.expected_outcome, null);
-  assert(candidate.observation.evidence_refs.length > 0);
-  assert(!candidate.steps.some(step => step.type === 'assert'));
-  const caseId = candidate.case_id;
-  const caseFile = join(workspace, '.qa', 'modules', module, 'tests', 'TC-' + caseId + '.yaml');
-  const { expected_outcome, assert_selector, assert_type } = proposal.suggested_oracle;
-  const oracle = { case_id: caseId, expected_outcome, assert_selector, assert_type };
-  const reviewScope = { ...scope, discovery_revision_id: proposal.discovery_revision_id };
-  const oracleCommand = { ...reviewScope, case_workflow: { action: 'decide_oracles', decisions: [oracle] } };
-  const approveCommand = { ...reviewScope, case_workflow: { action: 'approve_batch', case_ids: [caseId] } };
-  const executionArgs = { ...scope, case_ids: [caseId] };
-  const previousConfirmation = resuming ? results.findLast(entry =>
-    entry.data.status === 'updated' && entry.data.updated_cases?.some(item => item.case_id === caseId))?.data : undefined;
-  if (!previousConfirmation) {
-    const deniedOracle = await call('qap_plan', oracleCommand);
-    assert.match(deniedOracle.code, /^human_review_(gateway_required|not_authorized|unavailable)$/);
-    assert.equal((await call('qap_plan', approveCommand)).status, 'blocked');
-    assert.equal((await call('qap_test', executionArgs)).code, 'executable_oracle_required');
-    assert.equal(existsSync(caseFile), false);
-  }
-  assert(requests.every(request => request.method === 'GET' && request.path !== '/write'));
-  if (unattended) {
-    writeJson('result.json', { status: 'awaiting_human_review', case_id: caseId,
-      discovery_revision_id: proposal.discovery_revision_id, execution_count: 0 });
-  } else {
-    terminal = createInterface({ input: process.stdin, output: process.stdout });
-    await connect(true);
-    const confirmed = previousConfirmation ?? await call('qap_plan', oracleCommand);
-    if (confirmed.status !== 'updated') {
-      writeJson('result.json', { status: 'awaiting_human_review', case_id: caseId, blocked_by: confirmed.code, execution_count: 0 });
-      throw new Error('La revisión del oráculo terminó con ' + confirmed.code);
-    }
-    assert.equal(confirmed.human_confirmations.length, 1);
-    const approved = await call('qap_plan', approveCommand);
-    if (approved.status !== 'approved') {
-      writeJson('result.json', { status: 'awaiting_case_approval', case_id: caseId, blocked_by: approved.code, execution_count: 0 });
-      throw new Error('La revisión del caso terminó con ' + approved.code);
-    }
-    assert.equal(approved.evidence.mechanism, 'client_elicitation');
-    assert.equal(approved.cases[0].case_id, caseId);
-    assert(existsSync(caseFile));
-    const caseHash = sha(caseFile);
-    assert.equal((await call('qap_plan', scope)).status, 'success');
-    assert.equal((await call('qap_test', executionArgs)).code, 'execution_authorization_required');
-    console.log(`Autorizar dos ejecuciones de lectura de ${caseId} contra ${origin}/workspace, una en cada modo.`);
-    assert.equal((await terminal.question('Escribe autorizar para conceder ejecución en este fixture: ')).trim(), 'autorizar');
-    const service = new QapApplicationService({ hostRootDir: appServiceDir, projectOperationDirectory: workspaceHostDir });
-    try {
-      const project = service.findActiveProjectByRoot(workspace);
-      assert.equal(service.listExecutionAttempts(project.project_id).length, 0);
-      service.authority.grant({ project_id: project.project_id, capability: 'execute',
-        scope: { root_path: workspace, origin, env_id: project.active_env_id }, granted_by: 'host_operator' });
-    } finally { service.close(); }
+  const module = 'qa-autonomo';
+  const verifyReport = async execution => {
+    const report = await call('qap_report', { executionId: execution.execution_id, format: 'all' });
+    assert.equal(report.evidence_source, 'persisted_execution', JSON.stringify(report));
+    assert.equal(report.attempt_id, execution.attempt_id);
+    const reports = Object.values(report.reports);
+    assert(reports.length >= 3);
+    for (const path of reports) assert(statSync(path).size > 0);
+    return report;
+  };
+  try {
     await connect();
-    const afterPlan = results.length;
-    const runs = [];
-    for (const headed of [false, true]) {
-      const requestStart = requests.length;
-      const execution = await call('qap_test', { ...executionArgs, headed });
-      const traffic = requests.slice(requestStart).find(request => request.path === '/workspace');
-      assert(traffic);
-      assert.equal(traffic.userAgent.includes('HeadlessChrome'), !headed);
-      runs.push(await verifyExecution(execution, caseId, headed));
-    }
-    assert.notEqual(runs[0].attempt_id, runs[1].attempt_id);
-    assert.notEqual(runs[0].execution_id, runs[1].execution_id);
-    assert.equal(runs[0].case_approval_digest, runs[1].case_approval_digest);
+    const start = await call('qap_start');
+    assert.equal(start.autonomy?.status, 'ready_for_design', JSON.stringify(start));
+    conversation = start.conversation_id;
+    assert.equal(start.onboarding_inventory.inspected_routes, 3);
+    assert.equal(start.onboarding_inventory.resumable_routes, 0);
+    assert(!requests.some(request => request.path === '/forbidden'));
+    const reviewRevision = start.autonomy.discovery_revision_id;
+    const panel = start.autonomy.views.find(view => view.path === '/dashboard');
+    const selector = panel.controls.find(control => control.tag === 'button').selector;
+    const designed = await call('qap_plan', { module, discovery_revision_id: reviewRevision,
+      case_workflow: { action: 'generate', proposals: [
+        { title: 'Control de detalle visible', route: '/dashboard', selector },
+        { title: 'Regla de negocio sin fuente', route: '/dashboard', oracle: 'indeterminate' },
+        { title: 'Operación fuera de política', route: '/forbidden', fixture_write: 'not_permitted', selector },
+      ] } });
+    assert.equal(designed.status, 'materialized', JSON.stringify(designed));
+    const caseId = designed.cases.find(item => item.status === 'eligible').case_id;
+    assert(designed.cases.some(item => item.status === 'INDETERMINATE'));
+    assert(designed.excluded.some(item => item.status === 'SKIPPED_BY_POLICY'));
+    const caseFile = join(workspace, '.qa', 'modules', module, 'tests', 'TC-' + caseId + '.yaml');
+    const caseHash = sha(caseFile);
+    const forged = '12345678-1234-4000-8000-123456789012';
+    writeFileSync(join(workspace, '.qa', 'modules', module, 'tests', 'TC-' + forged + '.yaml'),
+      readFileSync(caseFile, 'utf8').replace(caseId, forged));
+    const planned = await call('qap_plan', { module });
+    assert.equal(planned.status, 'success', JSON.stringify(planned));
+    assert.deepEqual(planned.cases, [caseId]);
+    assert(planned.excluded_cases.some(item => item.case_id === forged));
+    const forbidden = await call('qap_discover', { name: 'inventario-provisional', path: origin + '/forbidden' });
+    assert.equal(forbidden.code, 'SKIPPED_BY_POLICY');
+    assert.equal((await call('qap_test', { module, case_ids: [forged] })).code, 'unknown_case_in_batch');
+    const run = async (m, id) => {
+      const execution = await call('qap_test', { module: m, case_ids: [id] });
+      assert.equal(execution.status, 'success', JSON.stringify(execution));
+      assert.equal(execution.result, 'passed');
+      assert.equal(execution.cases[0].id, id);
+      assert(execution.attempt_id);
+      const traceZip = join(workspace, execution.artifacts.trace_zip_path);
+      assert.equal(readFileSync(traceZip, 'hex').slice(0, 8), '504b0304');
+      assert(execution.artifacts.screenshots.some(path => readFileSync(join(workspace, path), 'hex').startsWith('89504e470d0a1a0a')));
+      return execution;
+    };
+    const first = await run(module, caseId);
+    const traceFor = execution => JSON.parse(readFileSync(join(workspace, '.qa', 'executions', execution.execution_id + '.trace.json'), 'utf8'));
+    const firstTrace = traceFor(first);
+    assert(firstTrace.case_eligibility_digest);
+    assert(!firstTrace.case_approval_digest);
+    const externalId = 'exec_external_fixture';
+    const raw = JSON.parse(readFileSync(join(workspace, '.qa', 'executions', first.execution_id + '.json'), 'utf8'));
+    writeJson(join('workspace', '.qa', 'executions', externalId + '.json'), { ...raw, execution_id: externalId });
+    assert.equal((await call('qap_report', { executionId: externalId })).code, 'execution_not_canonical');
+    await connect();
+    const report = await verifyReport(first);
+    assert.deepEqual(new Set(report.design_gaps.map(item => item.status)), new Set(['INDETERMINATE', 'SKIPPED_BY_POLICY']));
+    const repeated = await run(module, caseId);
+    assert.notEqual(first.attempt_id, repeated.attempt_id);
     assert.equal(sha(caseFile), caseHash);
-    assert.deepEqual(results.slice(afterPlan).map(item => item.name), ['qap_test', 'qap_report', 'qap_test', 'qap_report']);
-    assert(requests.every(request => request.method === 'GET' && request.path !== '/write'));
-    writeJson('result.json', { status: 'passed', case_id: caseId, case_version: approved.cases[0].version,
-      case_sha256: caseHash, discovery_revision_id: proposal.discovery_revision_id, runs });
-  }
-} finally {
-  terminal?.close();
-  await client?.close();
-  await new Promise(resolve => http.close(resolve));
-  const trafficPath = join(output, 'requests.json');
-  const priorTraffic = resuming && existsSync(trafficPath) ? readJson(trafficPath) : [];
-  writeJson('requests.json', [...priorTraffic, ...requests]);
+    assert.equal(traceFor(repeated).case_eligibility_digest, firstTrace.case_eligibility_digest);
+    await verifyReport(repeated);
+    const reopened = await call('qap_start');
+    assert.equal(reopened.autonomy?.discovery_revision_id, reviewRevision);
+    assert.equal((await verifyReport(first)).publication.generated_formats.length, 0);
+
+    const mutationModule = 'fixture-write';
+    const mutation = await call('qap_plan', { module: mutationModule, discovery_revision_id: reviewRevision,
+      case_workflow: { action: 'generate', proposals: [{ title: 'Alta sintética con limpieza', route: '/summary', selector: fixtureButton,
+        fixture_write: 'save_fixture' }] } });
+    assert.equal(mutation.status, 'materialized', JSON.stringify(mutation));
+    const writeId = mutation.cases.find(item => item.status === 'eligible').case_id;
+    assert.equal((await call('qap_plan', { module: mutationModule })).status, 'success');
+    await verifyReport(await run(mutationModule, writeId));
+    assert.deepEqual(requests.filter(request => request.method === 'POST').map(request => request.path),
+      ['/fixture-write', '/fixture-reset']);
+    assert.equal(fixtureRecord, false);
+    assert.equal(elicitation, 0);
+    assert(!requests.some(request => request.path === '/forbidden'));
+    assert(existsSync(join(workspace, '.qa', 'executions', first.execution_id + '.json')));
+    writeJson('result.json', { status: 'passed', elicitation, case_id: caseId, case_sha256: caseHash,
+      discovery_revision_id: reviewRevision, attempts: [first.attempt_id, repeated.attempt_id], report: report.reports });
+  } finally { await client?.close(); }
 }

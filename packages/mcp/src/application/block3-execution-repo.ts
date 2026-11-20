@@ -96,9 +96,12 @@ export interface ProposeCaseInput {
   readonly title: string;
   readonly requirement_id?: string;
   readonly expected_outcome?: string | null;
-  readonly oracle_source?: 'user' | 'ingested_doc' | 'missing';
+  readonly oracle_source?: 'user' | 'ingested_doc' | 'observed' | 'missing';
   readonly business_risk_question?: string;
   readonly expectation_metadata?: {
+    readonly discovery_revision_id?: string;
+    readonly fixture_write_id?: string;
+    readonly policy_denied?: true;
     readonly rule_id?: string;
     readonly decision_status?: string;
     readonly source_ref?: string;
@@ -371,10 +374,10 @@ export class Block3ExecutionRepo {
           reqConfirmed || accreditedByMetadata
             ? (item.expected_outcome?.trim() || oracleFromReq || null)
             : null;
-        const oracleSource: 'user' | 'ingested_doc' | 'missing' = expectedOutcome
+        const oracleSource: ServiceTestCaseRecord['expectation']['source'] = expectedOutcome
           ? reqConfirmed
             ? (req!.source === 'ingested_doc' ? 'ingested_doc' : 'user')
-            : item.oracle_source === 'user' || item.oracle_source === 'ingested_doc'
+            : item.oracle_source === 'user' || item.oracle_source === 'ingested_doc' || item.oracle_source === 'observed'
               ? item.oracle_source
               : 'ingested_doc'
           : 'missing';
@@ -430,7 +433,9 @@ export class Block3ExecutionRepo {
 
         const version = existing
           ? JSON.stringify(existing.steps) !== JSON.stringify(steps) ||
-            existing.expectation.expected_outcome !== expectedOutcome
+            existing.expectation.expected_outcome !== expectedOutcome ||
+            (item.oracle_source === 'observed' && (existing.title !== item.title ||
+              JSON.stringify(existing.expectation.metadata) !== JSON.stringify(expectation.metadata)))
             ? existing.version + 1
             : existing.version
           : 1;

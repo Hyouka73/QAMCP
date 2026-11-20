@@ -2,7 +2,7 @@ import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 
 import { QAP_CORE_DIRECTIVES } from './guidance.js';
 
-const UX_DIRECTIVE = 'DIRECTIVA DE UX ESTRICTA: Guía al usuario paso a paso interactivo. Si tu entorno dispone de herramienta para hacer preguntas interactivas con opciones (como ask_question), ÚSALA OBLIGATORIAMENTE para cada decisión. Si no, formula la pregunta directa con sus opciones. PROHIBIDO mostrar listas de pasos futuros (1, 2, 3...), tutoriales o pedir comandos de terminal.';
+const UX_DIRECTIVE = 'Ejecuta autónomamente las acciones de trabajo. Solo solicita la selección inicial del workspace o la configuración indispensable de acceso y política. Registra brechas y sigue con el trabajo permitido.';
 
 const TARGET_PATH_PROP = {
   type: 'string',
@@ -12,7 +12,7 @@ const TARGET_PATH_PROP = {
 export const TOOLS: Tool[] = [
   {
     name: 'qap_status',
-    description: `PUNTO DE ENTRADA OBLIGATORIO: Invoca esta herramienta INMEDIATAMENTE cuando el usuario quiera probar su app, testear un proyecto o empezar con QAP. Analiza el repo y el preflight del navegador (Playwright), y devuelve exactamente la pregunta y opciones que debes presentar con ask_question. Si falta navegador, ejecuta la instalación como paso de trabajo autónomo. QAP observa la app con su propio navegador mediante qap_discover; no uses navegadores ni herramientas de otros servidores MCP ni del IDE para explorarla (no se persistiría conocimiento en .qa).\n\n${QAP_CORE_DIRECTIVES}`,
+    description: `Consulta el estado, la cobertura y los intentos del workspace. Usa qap_start para iniciar QA autónomo.\n\n${QAP_CORE_DIRECTIVES}`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -540,7 +540,7 @@ export const TOOLS: Tool[] = [
   },
   {
     name: 'qap_plan',
-    description: `Planifica casos existentes o gestiona el flujo conversacional de propuesta, decisión de oráculos/riesgos, aprobación por lotes y aceptación humana de brechas. ${UX_DIRECTIVE}`,
+    description: `Diseña y materializa casos a partir de evidencia de Discovery. Luego invoca qap_plan sin case_workflow para persistir el plan elegible. Usa qap_test y qap_report para ejecutar y publicar. ${UX_DIRECTIVE}`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -555,7 +555,7 @@ export const TOOLS: Tool[] = [
             },
             proposals: {
               type: 'array',
-              maxItems: 100,
+              maxItems: 64,
               items: {
                 type: 'object',
                 properties: {
@@ -563,6 +563,10 @@ export const TOOLS: Tool[] = [
                   expected_revision: { type: 'integer', minimum: 1 },
                   name: { type: 'string', maxLength: 200 },
                   title: { type: 'string', maxLength: 200 },
+                  route: { type: 'string', description: 'Ruta inspeccionada devuelta en qap_start.autonomy.views.' },
+                  selector: { type: 'string', description: 'Selector exacto observado para una aserción de visibilidad.' },
+                  oracle: { type: 'string', enum: ['visible', 'indeterminate'] },
+                  fixture_write: { type: 'string', description: 'ID de la operación sintética explícitamente permitida por la política del host.' },
                   expected_outcome: { type: 'string', maxLength: 1000 },
                   oracle_source: { type: 'string', enum: ['missing', 'user', 'document', 'observed'] },
                   risk_level: { type: 'string', enum: ['low', 'medium', 'high', 'critical'] },

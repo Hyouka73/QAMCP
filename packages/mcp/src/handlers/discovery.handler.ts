@@ -124,6 +124,23 @@ export class DiscoveryHandler implements IMcpToolHandler {
   }
 
   async execute(args: unknown, context: McpInvocationContext): Promise<CallToolResult> {
+    let output = await this.executeBatch(args, context);
+    if (!this.dependencies.autonomyPolicy || !isObject(args) || args.name !== inventoryName) return output;
+    const checkpoints = new Set<string>();
+    // At most 32 exact paths are admitted per environment. Each iteration publishes a checkpoint.
+    for (let batch = 1; batch < 32 && !context.signal.aborted; batch++) {
+      const content = output.content[0];
+      if (content?.type !== 'text') break;
+      const data = JSON.parse(content.text);
+      if (!data.onboarding_inventory?.resumable_routes || data.onboarding_inventory.auth_required ||
+          !data.discovery_revision_id || checkpoints.has(data.discovery_revision_id)) break;
+      checkpoints.add(data.discovery_revision_id);
+      output = await this.executeBatch({ ...args, restart_inventory: false }, context);
+    }
+    return output;
+  }
+
+  private async executeBatch(args: unknown, context: McpInvocationContext): Promise<CallToolResult> {
     if (!this.validateArguments(args) || !isObject(args)) throw new McpToolError('invalid_arguments');
     const blocked = (code: string, next = 'Revisar el alcance o continuar desde el estado actual.', extra: Record<string, unknown> = {}) => result({
       status: 'blocked', code, persistence: 'not_attempted', next_safe_action: next,
@@ -162,6 +179,12 @@ export class DiscoveryHandler implements IMcpToolHandler {
       if (!target) return blocked('url_not_authorized');
       const baseOrigin = new URL(env.entity.base_url).origin;
       const targetOrigin = new URL(target).origin;
+      const policy = this.dependencies.autonomyPolicy?.(root, baseOrigin);
+      if (this.dependencies.autonomyPolicy && (!policy || env.entity.is_production ||
+          !policy.paths.some(path => new URL(path, baseOrigin).href === target))) return blocked('SKIPPED_BY_POLICY');
+      if (policy && (args.profile ? !policy.profiles.includes(String(args.profile)) : policy.tenant !== null || policy.profiles.length > 0)) {
+        return blocked('SKIPPED_BY_POLICY', 'El perfil del entorno debe estar configurado en el host.');
+      }
       const configurations = this.authorizations.filter(a => {
         try {
           return realpathSync(a.projectRoot) === root &&
@@ -172,11 +195,17 @@ export class DiscoveryHandler implements IMcpToolHandler {
         }
       });
       const current = configurations.filter(a => a.environmentRevision === env.revision);
-      if (configurations.length > 0 && (current.length !== 1 || current[0].authorization.read_only_acknowledged !== true)) {
+      if (!policy && configurations.length > 0 && (current.length !== 1 || current[0].authorization.read_only_acknowledged !== true)) {
         return blocked('authorization_context_mismatch');
       }
 
-      let config: DiscoveryAuthorization | undefined = current[0];
+      let config: DiscoveryAuthorization | undefined = policy ? {
+        projectRoot: root, applicationId: bound.applicationId, environmentId: bound.environmentId,
+        environmentRevision: env.revision, authorizedProfiles: policy.profiles,
+        authorization: { read_only_acknowledged: true, navigation_urls: policy.paths.map(path => new URL(path, baseOrigin).href),
+          allowed_ips: mergeLoopbackAllowedIps(target), allow_public_network: new URL(target).hostname !== '127.0.0.1' },
+        limits: buildDynamicDiscoveryLimits({ max_pages: policy.batchPages, max_depth: Math.min(10, policy.paths.length) }),
+      } : current[0];
       const appService = this.dependencies.applicationService;
       const appProject = appService ? appService.findActiveProjectByRoot(root) : null;
       const requestedTenant = typeof args.tenant_id === 'string' && args.tenant_id.trim() ? args.tenant_id.trim() : undefined;
@@ -237,12 +266,14 @@ export class DiscoveryHandler implements IMcpToolHandler {
         );
         if (!tenantCheck.ok) return blocked(tenantCheck.code, tenantCheck.reason, { downgraded_to_anonymous: false });
         resolvedTenantId = tenantCheck.tenant_id;
+        if (policy && (resolvedTenantId ?? null) !== policy.tenant) return blocked('SKIPPED_BY_POLICY');
         const observeScope = { origin: baseOrigin, ...(effectiveActiveEnvId ? { env_id: effectiveActiveEnvId } : {}) };
         const activeObserve = appService.authority.check(appProject.project_id, 'observe', observeScope);
         observeGrantId = activeObserve.grant?.grant_id;
         grantGuard = () => {
           const current = appService.authority.check(appProject.project_id, 'observe', observeScope);
-          return (observeGrantId ? appService.authority.isGrantValid(appProject.project_id, 'observe', observeGrantId, observeScope) :
+          return (!policy || this.dependencies.autonomyPolicy?.(root, baseOrigin)?.digest === policy.digest) &&
+            (observeGrantId ? appService.authority.isGrantValid(appProject.project_id, 'observe', observeGrantId, observeScope) :
             !activeObserve.allowed && !current.allowed && current.reason === activeObserve.reason) && loginGuard();
         };
         const revokedObserve = appService.authority.listGrants(appProject.project_id, true)
@@ -631,7 +662,8 @@ export class DiscoveryHandler implements IMcpToolHandler {
         projectProfiles.find(profile => profile.profile_id === inventoryProfileId)?.role_name ?? null;
       const inventoryHead = () => initialInventory && appService && appProject && effectiveActiveEnvId
         ? selectInitialInventory(appService.listLatestDiscoveryRevisionsByScope(appProject.project_id)
-            .filter(revision => revision.dossier.scope.inventory_entry_path === inventoryEntryPath && revision.role === inventoryRole),
+            .filter(revision => revision.dossier.scope.inventory_entry_path === inventoryEntryPath && revision.role === inventoryRole &&
+              revision.dossier.scope.inventory_policy_digest === policy?.digest),
           effectiveActiveEnvId, env.revision, resolvedTenantId ?? null, inventoryProfileId)
         : undefined;
       const headBefore = inventoryHead();
@@ -661,6 +693,7 @@ export class DiscoveryHandler implements IMcpToolHandler {
           env.entity.is_production !== true),
         ...(initialInventory ? { inventory: {
           followObservedNavigation: originInventory,
+          strictNavigation: Boolean(policy),
           frontier: verifyEntry ? undefined : pendingRoutes,
           inspectedPathnames: previous?.routes.flatMap(route => route.state !== 'candidate' && route.authorized_pathname &&
             (!verifyEntry || route.authorized_pathname !== inventoryEntryPath)
@@ -862,7 +895,8 @@ export class DiscoveryHandler implements IMcpToolHandler {
         const dossierScope = {
           project_id: appProject.project_id,
           application_id: appProject.application_id,
-          ...(initialInventory ? { inventory_environment_revision: env.revision, inventory_entry_path: inventoryEntryPath } : {}),
+          ...(initialInventory ? { inventory_environment_revision: env.revision, inventory_entry_path: inventoryEntryPath,
+            ...(policy ? { inventory_policy_digest: policy.digest } : {}) } : {}),
           environment_id: projectSnap.environment?.env_id ?? bound.environmentId,
           environment_name: projectSnap.environment?.name ?? env.entity.name,
           tenant_id: resolvedTenantId ?? null,

@@ -1,4 +1,5 @@
 import * as EngineModule from '@qap/engine';
+import { isLocalQapWorkspace } from '@qap/mcp';
 
 export interface RunOptions {
   profile?: string;
@@ -29,6 +30,9 @@ function resolveEngineConstructor(mod: unknown): EngineConstructor {
 }
 
 export async function handleRun(suiteOrFile?: string, options: RunOptions = {}): Promise<void> {
+  if (isLocalQapWorkspace(process.cwd())) {
+    throw new Error('La ejecución de este workspace requiere el plan canónico de QAP. Usa qap test.');
+  }
   const EngineClass = resolveEngineConstructor(EngineModule);
   const engine = new EngineClass();
 

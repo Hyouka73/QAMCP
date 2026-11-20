@@ -378,7 +378,7 @@ export class BlackBoxCrawler {
               if (candidate.state === 'candidate') {
                 const publicLink = (inventory || this.dependencies.followEntryRedirects) && linked.origin === target.origin &&
                   !link.download && /^\/[a-z\d/_.~-]*$/i.test(linked.pathname) && safeNavigation(linked);
-                if (publicLink && (!inventory || inventoryPath(linked))) {
+                if (publicLink && !inventory?.strictNavigation && (!inventory || inventoryPath(linked))) {
                   candidate.observed_public_pathname = linked.pathname;
                   candidate.reason = 'OBSERVED_LINK_NOT_VISITED';
                 } else {

@@ -54,6 +54,7 @@ export interface CrawlerDependencies {
   /** Host-derived frontier and checkpoints. Origin expansion requires distinct host consent. */
   inventory?: {
     followObservedNavigation: boolean;
+    strictNavigation?: boolean;
     frontier?: ReadonlyArray<{ pathname: string; depth: number }>;
     inspectedPathnames: readonly string[];
   };

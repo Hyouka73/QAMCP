@@ -12,6 +12,7 @@ import type { VerifiableRuleReviewGateway } from '../client-elicitation-authoriz
 import { TOOLS } from '../tool-catalog.js';
 import { McpToolError } from '../dispatcher.js';
 import type { QapApplicationService, RootAuthorizationReference } from '../application/application-service.js';
+import type { AutonomyPolicyLookup } from '../autonomy-policy.js';
 
 import type { ModuleBinding } from './module-observation-bridge.js';
 import type {
@@ -42,6 +43,7 @@ export interface ProjectKnowledgeBinding {
   readonly moduleClosureStore?: IModuleClosureStore;
 }
 export interface StateDependencies {
+  readonly autonomyPolicy?: AutonomyPolicyLookup;
   /** Host capability; no MCP argument can install or grant it. */
   readonly prepareWorkspace?: (root: string, url?: string) => Promise<void>;
   readonly applicationService?: QapApplicationService;

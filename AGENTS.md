@@ -65,14 +65,11 @@ node scripts/sync-mcp-schemas.mjs
 ```
 
 ## 6. Reglas al USAR las tools (`qap_*`)
-1. **Siempre** envía `targetPath` = ruta absoluta del workspace del usuario a probar (nunca omitirlo).
-2. Una sola pregunta por turno; no generes muros de texto ni listas de pasos futuros.
-3. No llames `qap_rules_set` con datos no confirmados por el usuario.
-4. Si una tool responde `status: "blocked"`, sigue `desbloquear_con`; no la rodees.
-5. Hipótesis DOM (`source: "dom"`, `status: "inferred"`): confirma con el usuario antes de marcarlas `confirmed`.
-6. `qap_module_close` solo con confirmación explícita (`user_confirmed: true`).
-7. Waivers solo si el usuario dijo que la categoría no aplica (razón ≥ 15 caracteres).
-8. Más detalle en `scripts/sync-mcp-schemas.mjs` (genera `instructions.md`).
+1. Envía `targetPath` con la ruta absoluta del workspace autorizado y empieza con `qap_start`.
+2. Configura destino y acceso en la política del host según [la guía del MVP autónomo](docs/qap-autonomous-mvp.md).
+3. Sigue Discovery, diseño y materialización con `qap_plan`, plan persistido con `qap_plan`, ejecución con `qap_test` y publicación con `qap_report`.
+4. Trabaja con oráculos acreditados y registra incertidumbres. Los bloqueos de política excluyen la operación afectada. Continúa con el trabajo independiente permitido.
+5. Los recibos de revisión y waivers históricos quedan fuera del ciclo ordinario. Toda ejecución oficial usa el runner de QAP.
 
 ## 7. Troubleshooting rápido
 | Síntoma | Causa probable | Solución |

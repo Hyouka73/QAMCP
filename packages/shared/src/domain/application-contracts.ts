@@ -449,7 +449,12 @@ export interface EpistemicInferenceSummary {
 export interface EpistemicExpectationSummary {
   readonly oracle_status: 'accredited' | 'missing' | 'confirmed_by_qa';
   readonly expected_outcome: string | null;
-  readonly source: 'user' | 'ingested_doc' | 'missing';
+  readonly source: 'user' | 'ingested_doc' | 'observed' | 'missing';
+  readonly metadata?: {
+    readonly discovery_revision_id?: string;
+    readonly fixture_write_id?: string;
+    readonly policy_denied?: true;
+  };
   readonly business_risk_question?: string;
 }
 

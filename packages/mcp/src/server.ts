@@ -128,6 +128,7 @@ import { ApplicationServiceError } from './application/application-service.js';
 import { authenticateScopedPassword, scopedRoute, usableScopedSession } from './scoped-password.js';
 import { existingDiscoveryArtifact, existingDiscoveryDocument, sanitizeTargetPathname } from './application/discovery-dossier.js';
 import { initialInventoryCoverage, initialInventoryTaskId, inventoryName, selectInitialInventory } from './application/initial-inventory.js';
+import { observedScenarios } from './handlers/autonomous-cases.js';
 import { atomicWritePrivateFile, normalizePathKey, resolveContainedPath } from './application/safe-storage.js';
 import { PlanHandler } from './handlers/plan.handler.js';
 import { TestHandler, type TestNavigationAuthorization } from './handlers/test.handler.js';
@@ -296,7 +297,7 @@ function buildModuleSummary(rules: any[], waivers: any[]) {
 const PROMPTS: Prompt[] = [
   {
     name: 'qap_start',
-    description: 'Inicia el proceso de QA paso a paso de forma conversacional y guiada.',
+    description: 'Inicia QA autónomo sobre el workspace y el destino de pruebas autorizados.',
     arguments: [],
   },
 ];
@@ -466,6 +467,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
     provisionalInventory: options.provisionalInventory ?? Boolean(options.workspaceBootstrap),
     allowSpaReadOnly: options.allowSpaReadOnly ?? Boolean(options.workspaceBootstrap || applicationService),
     silentBoundScope: options.silentBoundScope,
+    autonomyPolicy: options.autonomyPolicy,
     enforceSessionWorkspace,
     multiProjectRuntime,
     getActiveContext: () => {
@@ -706,7 +708,9 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         tools: {},
         prompts: {},
       },
-      instructions: `DIRECTIVAS DE INTERACCIÓN OBLIGATORIAS (QAP v3.0):
+      instructions: options.autonomyPolicy ? `QAP ejecuta QA autónomo. Ante «Quiero probar un sistema», llama qap_start con el workspace elegido. La única autorización interactiva ordinaria es la inicial del workspace. El host configura los destinos y perfiles.
+Envía targetPath absoluto en todas las herramientas y conserva conversation_id. Sigue siguiente_accion. QAP explora la frontera por lotes y expone vistas y controles acreditados. Interpreta esas vistas con qap_plan / generate, usando route, selector y title; registra oracle=indeterminate si falta evidencia. Después llama qap_plan sin case_workflow, qap_test y qap_report. Un bloqueo de política excluye ese trabajo y deja avanzar los casos independientes.
+Ejecuta exclusivamente mediante qap_test. Usa los artefactos de qap_report. Omite solicitudes de oráculo o aprobación humana, scripts propios, navegador externo y herramientas del IDE para reemplazar QAP. Conserva el mismo plan al repetir. Las credenciales se aprovisionan en el host y quedan fuera del chat. Las decisiones históricas de revisión y los waivers administrativos quedan fuera del ciclo.` : `DIRECTIVAS DE INTERACCIÓN OBLIGATORIAS (QAP v3.0):
 0. Cuando el usuario quiera probar un sistema o iniciar un registro por conversación, si aún no conoces la carpeta/workspace del proyecto o el servidor responde workspace_selection_required/workspace_not_bound, pregunta primero qué workspace desea probar (mostrando available_workspaces si el servidor los devolvió) sin adivinar ni reusar proyectos históricos. Una vez conocido el workspace, invoca qap_start enviando su ruta absoluta en targetPath (y base_url / credentials si el usuario ya los dio y el esquema lo ofrece). Si proporciona credenciales después, usa qap_auth_add para guardarlas y continúa con el inventario. Presenta el resumen y el enlace a discovery_inicial y conserva el conversation_id en las siguientes llamadas. Para cambiar de proyecto explícitamente usa qap_start o qap_project(action="select"|"resume"). Si onboarding_inventory.can_scope es false, continúa por siguiente_accion y desbloquear_con hasta agotar la frontera autorizada. Solicita acceso si el inventario encuentra una barrera de login. Pide alcance de pruebas cuando termine el inventario inicial y exista una solicitud de QA que lo requiera.
 1. RUTA OBJETIVO OBLIGATORIA (targetPath): En TODAS las llamadas a herramientas MCP, envía SIEMPRE la ruta absoluta del workspace activo o seleccionado por el usuario en el parámetro 'targetPath'. Nunca lo omitas ni inspecciones rutas globales (~/.qap) para elegir un proyecto.
 2. PROHIBIDO mostrar tablas markdown de estado, resúmenes de archivos o listas de próximos pasos (1, 2, 3...).
@@ -732,20 +736,33 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
   // Manejador de lista de tools
   const authInputProperties = TOOLS.find(tool => tool.name === 'qap_auth_add')?.inputSchema.properties ?? {};
   server.setRequestHandler(ListToolsRequestSchema, () => {
-    const tools = [...TOOLS, ...dispatcher.listTools().filter(tool => !migrated.has(tool.name))].filter(tool => !['qap_server', 'qap_flow_run', 'qap_validate'].includes(tool.name));
+    const legacyReview = ['qap_rules_set', 'qap_module_close', 'qap_session_close'];
+    const tools = [...TOOLS, ...dispatcher.listTools().filter(tool => !migrated.has(tool.name))]
+      .filter(tool => !['qap_server', 'qap_flow_run', 'qap_validate'].includes(tool.name) &&
+        (!options.autonomyPolicy || !legacyReview.includes(tool.name)));
     if (!hostScopedRuntime) return Promise.resolve({ tools });
     return Promise.resolve({ tools: tools.map(tool => ({
       ...tool,
       inputSchema: { ...tool.inputSchema, properties: {
         ...tool.inputSchema.properties,
+        ...(options.autonomyPolicy && tool.name === 'qap_plan' ? { case_workflow: {
+          type: 'object', additionalProperties: false, required: ['action'], properties: {
+            action: { enum: ['generate', 'propose_from_observations', 'review'] },
+            proposals: { type: 'array', maxItems: 64, items: { type: 'object', additionalProperties: false,
+              required: ['title', 'route'], properties: {
+                title: { type: 'string', maxLength: 160 }, route: { type: 'string' }, selector: { type: 'string' },
+                fixture_write: { type: 'string' }, oracle: { enum: ['visible', 'indeterminate'] },
+              } } },
+          },
+        } } : {}),
         ...(tool.name === 'qap_project_reset' ? {} : {
           conversation_id: { type: 'string', format: 'uuid', description: 'ID devuelto por qap_start para llevar la bitácora de esta conversación.' },
         }),
-        ...(allowScopedCredentials && tool.name === 'qap_auth_add' ? { password: {
+        ...(allowScopedCredentials && !options.autonomyPolicy && tool.name === 'qap_auth_add' ? { password: {
           type: 'string', minLength: 1, maxLength: 4096,
           description: 'Contraseña de prueba ya proporcionada por el usuario para el entorno QA vinculado. QAP la omite de la bitácora.',
         } } : {}),
-        ...(allowScopedCredentials && tool.name === 'qap_start' ? { credentials: {
+        ...(allowScopedCredentials && !options.autonomyPolicy && tool.name === 'qap_start' ? { credentials: {
           type: 'object', additionalProperties: false, required: ['username', 'password'],
           description: 'Credenciales de prueba ya proporcionadas para base_url. QAP las guarda en el llavero del host antes de Discovery.',
           properties: {
@@ -772,7 +789,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
             role: 'user',
             content: {
               type: 'text',
-              text: 'Invoca qap_start enviando en targetPath la ruta del workspace del proyecto actual (y base_url si ya fue indicada). Si aún no conoces el workspace, pide al usuario seleccionarlo. Si ya proporcionó credenciales de prueba para esa URL, inclúyelas en credentials cuando el esquema lo permita. Continúa con siguiente_accion y conserva el conversation_id devuelto durante esta conversación. Explora únicamente con QAP.',
+              text: 'Invoca qap_start con la ruta autorizada del workspace. Obtén del host el destino y el acceso necesarios. Sigue siguiente_accion, conserva conversation_id y usa QAP para explorar, materializar, ejecutar y reportar.',
             },
           },
         ],
@@ -882,7 +899,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
     };
     const operation = (async (): Promise<CallToolResult> => {
     const { name, arguments: { conversation_id, ...argsWithoutConversation } = {} } = request.params;
-    const rawArgs = request.params.arguments === undefined ? undefined : argsWithoutConversation;
+    let rawArgs = request.params.arguments === undefined ? undefined : argsWithoutConversation;
     const sourceRef = rawArgs?.source_of_truth;
     if (name === 'qap_context_set' && ((typeof sourceRef === 'string' && sourceRef.trim()) || (sourceRef && typeof sourceRef === 'object' && 'ref' in sourceRef && sourceRef.ref))) {
       return canonicalResult({ status: 'error', code: 'direct_document_path_unavailable', error: 'La lectura directa de documentos por ruta no está disponible en este corte. Proporciona el contenido mediante docContent.' }, true);
@@ -892,6 +909,9 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
     }
     // G0-01: flow execution remains excluded until it has qap_test authority controls.
     if (name === 'qap_server' || name === 'qap_flow_run' || name === 'qap_validate') return canonicalResult({ status: 'blocked', code: 'operation_disabled' }, true);
+    if (options.autonomyPolicy && ['qap_rules_set', 'qap_module_close', 'qap_session_close'].includes(name)) {
+      return canonicalResult({ status: 'blocked', code: 'historical_review_outside_autonomous_cycle' }, true);
+    }
     if (name === 'qap_project' && rawArgs?.action === 'recover') {
       return canonicalResult({ status: 'blocked', code: 'administrative_recovery_unavailable' }, true);
     }
@@ -1031,7 +1051,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
     const startCredentials = name === 'qap_start' ? rawArgs?.credentials as Record<string, unknown> | undefined : undefined;
     if (name === 'qap_start' && (
       Object.keys(rawArgs ?? {}).some(key => !['targetPath', 'base_url', 'refresh_discovery', 'credentials'].includes(key)) ||
-      (startCredentials !== undefined && (!allowScopedCredentials ||
+      (startCredentials !== undefined && (options.autonomyPolicy || !allowScopedCredentials ||
         typeof rawArgs?.base_url !== 'string' || !startCredentials || typeof startCredentials !== 'object' ||
         Array.isArray(startCredentials) || Object.keys(startCredentials).some(key => !['profile', 'username', 'password'].includes(key)) ||
         typeof startCredentials.username !== 'string' || !startCredentials.username.trim() || startCredentials.username.length > 256 ||
@@ -1438,6 +1458,18 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
           return canonicalResult({ status: 'blocked', code: 'workspace_persistent_authority_required' }, true);
         }
         eventWorkspace = targetPath;
+        if (name === 'qap_start' && options.autonomyPolicy) {
+          const value = typeof rawArgs?.base_url === 'string' ? new URL(rawArgs.base_url) : undefined;
+          const current = applicationService?.findActiveProjectByRoot(targetPath);
+          const environment = current && applicationService?.resumeProject(current.project_id, { readOnly: true }).environment;
+          const configuredOrigin = environment && environment.base_url !== 'http://localhost' ? new URL(environment.base_url).origin : undefined;
+          const policy = options.autonomyPolicy(targetPath, value?.origin ?? configuredOrigin);
+          if (!policy || environment?.is_production || (configuredOrigin && configuredOrigin !== policy.origin)) {
+            return canonicalResult({ status: 'blocked', code: 'autonomy_policy_required', siguiente_accion: {
+              tipo: 'configuracion', descripcion: 'Configura el destino de pruebas y sus límites en la política del host.' } }, true);
+          }
+          rawArgs = { ...rawArgs, base_url: new URL(policy.entry, policy.origin).href };
+        }
         request.params.arguments = { ...rawArgs, targetPath };
         const isBootstrapTrigger = ['qap_start', 'qap_status', 'qap_init', 'qap_context_set'].includes(name);
         const shouldRehydrateWorkspace =
@@ -1516,6 +1548,12 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
     eventBinding = eventWorkspace ? workspaceBindings.find(item => normalizePathKey(item.projectRoot) === normalizePathKey(eventWorkspace!)) : undefined;
     const scopedProject = allowScopedCredentials && eventWorkspace
       ? applicationService?.findActiveProjectByRoot(eventWorkspace) : undefined;
+    if (name === 'qap_auth_add' && options.autonomyPolicy && eventWorkspace) {
+      const environment = scopedProject && applicationService?.resumeProject(scopedProject.project_id, { readOnly: true }).environment;
+      const policy = environment && options.autonomyPolicy(eventWorkspace, new URL(environment.base_url).origin);
+      if (!policy || environment?.is_production || rawArgs?.password !== undefined || typeof rawArgs?.profile !== 'string' ||
+          !policy.profiles.includes(rawArgs.profile)) return canonicalResult({ status: 'blocked', code: 'auth_profile_outside_policy' }, true);
+    }
     if (name === 'qap_auth_add' && scopedProject && applicationService && eventWorkspace &&
         (typeof rawArgs?.password === 'string' || rawArgs?.action === 'login' ||
           (rawArgs?.action === undefined && (rawArgs?.method === 'auto' || rawArgs?.login_mode === 'auto'))) &&
@@ -1566,7 +1604,8 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
       }
       if (typeof rawArgs?.base_url === 'string') {
         const update = await dispatcher.dispatch({
-          name: 'qap_context_set', arguments: { targetPath: eventWorkspace, base_url: rawArgs.base_url, source: 'user' },
+          name: 'qap_context_set', arguments: { targetPath: eventWorkspace, base_url: rawArgs.base_url,
+            source: options.autonomyPolicy ? 'inferred' : 'user' },
         }, invocation);
         if (update.isError) return update;
       }
@@ -1577,6 +1616,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
       let snapshot = project && applicationService?.resumeProject(project.project_id);
       const environment = snapshot?.environment;
       const baseUrl = environment?.base_url;
+      const autonomy = options.autonomyPolicy?.(eventWorkspace, baseUrl ? new URL(baseUrl).origin : undefined);
       let inventoryTaskStarted = false;
       if (environment && project && snapshot?.campaign && eventBinding && dependencies.provisionalInventory &&
           !snapshot.modules.length && !snapshot.tasks.some(task => task.task_id === initialInventoryTaskId(project.project_id, environment.env_id))) {
@@ -1644,7 +1684,8 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
             revision.dossier.scope.inventory_environment_revision === inventoryPolicy?.revision))
         : [];
       let revisions = readRevisions();
-      const activeProfiles = snapshot?.profiles.filter(profile => profile.env_id === environment?.env_id && profile.status !== 'revoked') ?? [];
+      const activeProfiles = snapshot?.profiles.filter(profile => profile.env_id === environment?.env_id && profile.status !== 'revoked' &&
+        (!autonomy || autonomy.profiles.includes(profile.label))) ?? [];
       const profile = suppliedProfile ? activeProfiles.find(item => item.label === suppliedProfile) :
         activeProfiles.length === 1 ? activeProfiles[0] : undefined;
       let authenticatedObservation = profile ? revisions.find(revision => revision.profile_id === profile.profile_id &&
@@ -1656,6 +1697,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
           const attempt = async (path: string, selectedProfile?: string) => {
             const args = { targetPath: eventWorkspace!, name: inventoryName, path,
               description: 'Inventario inicial del sistema', ...(selectedProfile ? { profile: selectedProfile } : {}),
+              ...(autonomy?.tenant ? { tenant_id: autonomy.tenant } : {}),
               ...(rawArgs?.refresh_discovery === true ? { restart_inventory: true } : {}) };
             const started = Date.now();
             const discovery = await dispatcher.dispatch({ name: 'qap_discover', arguments: args }, invocation);
@@ -1673,7 +1715,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
           const reusable = usableScopedSession(applicationService, scopedProject.project_id, profile.profile_id, localProfile, localOrigin);
           if (reusable && !startCredentials) auth = { status: 'reused', profile: profile.label };
           if ((reusable && (!startCredentials || auth?.status === 'verified')) || (!startCredentials && await renew())) {
-            const path = scopedRoute(localProfile?.verified_route, localOrigin) ?? entryUrl.href;
+            const path = autonomy ? entryUrl.href : scopedRoute(localProfile?.verified_route, localOrigin) ?? entryUrl.href;
             discoveryAttempt = await attempt(path, profile.label);
             if (reusable && !startCredentials && ['auth_session_invalid', 'auth_session_expired'].includes(String(discoveryAttempt.code)) && await renew()) {
               discoveryAttempt = await attempt(path, profile.label);
@@ -1688,6 +1730,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         }
       }
       const publicInventory = revisions.find(revision => revision.profile_id === null && revision.dossier.inventory &&
+        revision.dossier.scope.inventory_policy_digest === autonomy?.digest &&
         revision.dossier.target_pathname === entryPath)?.dossier;
       const needsEntryObservation = !publicInventory || initialInventoryCoverage(publicInventory).resumable_routes > 0 ||
         rawArgs?.refresh_discovery === true;
@@ -1724,6 +1767,15 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         : typeof discoveryAttempt.code === 'string' && (!auth || discoveryAttempt.code !== 'auth_required') ? discoveryAttempt.code
           : !auth ? firstObservation?.dossier.gaps.find(gap => gap.code === 'auth_required')?.code : undefined;
       const dossier = firstObservation?.dossier;
+      const autonomousDiscovery = autonomy && firstObservation && dossier?.scope.inventory_policy_digest === autonomy.digest &&
+        initialInventoryCoverage(dossier).can_scope ? {
+          status: 'ready_for_design', discovery_revision_id: firstObservation.revision_id,
+          views: observedScenarios(firstObservation, autonomy), fixture_writes: autonomy.writes.map(({ id, view, selector }) => ({ id, view, selector })),
+          siguiente_accion: { tipo: 'trabajo', tool: 'qap_plan', parametros: { targetPath: startWorkspace, module: 'qa-autonomo',
+            discovery_revision_id: firstObservation.revision_id, ...(profile ? { profile: profile.label } : {}),
+            case_workflow: { action: 'generate' } },
+          descripcion: 'Interpreta las vistas y aporta escenarios con route, selector y title. Registra los oráculos indeterminados, materializa y continúa al runner y al reporte.' },
+        } : undefined;
       // Status owns the durable continuation, including the choice of a live profile.
       // The fallback covers an access denial without a dossier to resume.
       const pendingLoginAccess = !authenticatedObservation && diagnostic === 'auth_required' && state.pending_login_access !== true;
@@ -1798,7 +1850,11 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         syncHostAuthorizedRoots();
       }
       atomicWritePrivateFile(resolveContainedPath(startWorkspace, notesPath), summaryLines.join('\n'));
-      return canonicalResult({ ...state, status: discoveryFailed ? 'partial' : state.status ?? 'success', conversation_id: conversationId,
+      const publicState = autonomousDiscovery ? { status: state.status, onboarding_inventory: state.onboarding_inventory,
+        version_diagnostic: state.version_diagnostic, project_id: project?.project_id } : state;
+      return canonicalResult({ ...publicState, status: discoveryFailed ? 'partial' : state.status ?? 'success', conversation_id: conversationId,
+        ...(autonomousDiscovery ? { autonomy: autonomousDiscovery, siguiente_accion: autonomousDiscovery.siguiente_accion,
+          _guidance_for_assistant: autonomousDiscovery.siguiente_accion.descripcion } : {}),
         ...(accessAction ? { siguiente_accion: accessAction,
           _guidance_for_assistant: `Siguiente acción: ${accessAction.descripcion}` } : {}),
         ...(auth ? { autenticacion: auth } : {}),

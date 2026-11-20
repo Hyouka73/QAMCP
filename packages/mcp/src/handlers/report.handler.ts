@@ -321,6 +321,13 @@ export class ReportHandler implements IMcpToolHandler {
         ? FORMATS.filter((item): item is 'html' | 'markdown' | 'junit' | 'json' => item !== 'all')
         : [format];
     const matchingAttempt = byExecutionId.get(executionId);
+    const designGaps = this.dependencies.autonomyPolicy && matchingAttempt && appService
+      ? appService.listServiceCases(matchingAttempt.project_id, matchingAttempt.module_key)
+        .filter(tc => tc.campaign_id === matchingAttempt.campaign_id && tc.oracle_status === 'missing_oracle' &&
+          tc.created_at <= matchingAttempt.started_at && tc.expectation.metadata?.discovery_revision_id)
+        .map(tc => ({ case_id: tc.case_id, status: tc.expectation.metadata?.policy_denied ? 'SKIPPED_BY_POLICY' : 'INDETERMINATE',
+          reason: tc.expectation.business_risk_question }))
+      : undefined;
     const resolvedAttemptId = matchingAttempt?.attempt_id ?? evidence.attempt_id ?? undefined;
     const resolvedArtifacts =
       evidence.artifacts ??
@@ -382,6 +389,8 @@ export class ReportHandler implements IMcpToolHandler {
           case 'markdown':
             extension = 'md';
             body = generateMarkdownReport(evidence);
+            if (designGaps?.length) body += '\n\n## Casos excluidos\n\n' + designGaps.map(gap =>
+              `- ${gap.case_id} — ${gap.status}. ${gap.reason ?? ''}`).join('\n') + '\n';
             break;
           case 'junit':
             extension = 'xml';
@@ -389,7 +398,8 @@ export class ReportHandler implements IMcpToolHandler {
             break;
           case 'json':
             extension = 'json';
-            body = generateJsonReport(evidence);
+            body = designGaps?.length ? JSON.stringify({ ...JSON.parse(generateJsonReport(evidence)), design_gaps: designGaps }, null, 2)
+              : generateJsonReport(evidence);
             break;
           default:
             throw new McpToolError('invalid_arguments');
@@ -449,6 +459,7 @@ export class ReportHandler implements IMcpToolHandler {
       ...(resolvedArtifacts ? { artifacts: resolvedArtifacts } : {}),
       ...(evidence.timeline ? { timeline: evidence.timeline } : {}),
       ...(canonicalExecutionSummary ? { canonical_execution_summary: canonicalExecutionSummary } : {}),
+      ...(designGaps ? { design_gaps: designGaps } : {}),
       ...(publication
         ? {
             publication: {

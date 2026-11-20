@@ -3,6 +3,8 @@ import { resolve } from 'node:path';
 import type { ExecutionResult } from '@qap/shared';
 import type { IStorage } from '@qap/engine';
 import { FileSystemStorage } from '@qap/knowledge';
+import { callLocalQapTool, isLocalQapWorkspace, withLocalQapClient } from '@qap/mcp';
+import { DataError } from '../errors.js';
 import {
   startViewerServer,
   generateHtmlReport,
@@ -57,6 +59,16 @@ async function printRegressionSummary(storage: IStorage, result: ExecutionResult
  */
 export async function handleReport(moduleArg?: string, options: ReportOptions = {}): Promise<void> {
   const rootDir = options.cwd ? resolve(options.cwd) : process.cwd();
+  if (!options.serve && isLocalQapWorkspace(rootDir)) {
+    await withLocalQapClient(async client => {
+      const { payload, isError } = await callLocalQapTool(client, 'qap_report', { targetPath: rootDir,
+        ...(moduleArg ? (moduleArg.startsWith('exec_') ? { executionId: moduleArg } : { module: moduleArg }) : {}),
+        ...(options.format ? { format: options.format } : {}) });
+      if (isError) throw new DataError(payload.code ?? 'qap_report_failed');
+      for (const report of Object.values(payload.reports)) console.log(report);
+    });
+    return;
+  }
 
   if (options.serve) {
     const parsedPort = options.port !== undefined ? Number(options.port) : 9280;

@@ -116,6 +116,12 @@ export interface PlaywrightRunnerOptions extends TestOptions {
   interactiveReadOnly?: boolean;
   /** Exact origin and GET/HEAD transport for an evidenced canonical read-only run. */
   readOnlyOrigin?: string;
+  /** Trusted host transport and a single explicitly configured isolated fixture operation. */
+  navigationAllowed?: (url: string) => boolean;
+  pinnedHost?: { name: string; address: string };
+  executionId?: string;
+  fixtureWrite?: { caseId: string; origin: string; selector: string; path: string; body: string; cleanup: string };
+  fixtureAuthority?: () => boolean;
   verifiedSession?: { state: StorageState; verificationUrl: string; selector: string };
   contextSetup?: (context: BrowserContext) => Promise<void> | void;
   /** Identificador del intento para vincular artefactos físicos (P0.4). */
@@ -174,7 +180,7 @@ export class PlaywrightRunner implements IRunner {
   ): Promise<ExecutionResult> {
     const startedAt = new Date().toISOString();
     // One stable collision-resistant identifier for every exit path of this run.
-    const executionId = `exec_${Date.now()}_${randomUUID().replace(/-/g, '')}`;
+    const executionId = options.executionId ?? `exec_${Date.now()}_${randomUUID().replace(/-/g, '')}`;
     const rawProjectRoot = options.projectRoot ?? this.defaults?.projectRoot;
     const projectRoot = rawProjectRoot ? path.resolve(rawProjectRoot) : process.cwd();
     const artifactRoot = provisional?.root ?? projectRoot;
@@ -198,6 +204,10 @@ export class PlaywrightRunner implements IRunner {
     let browser: Browser | null = null;
     let context: BrowserContext | null = null;
     let releaseLock: (() => Promise<void>) | null = null;
+    let armedWrite = false;
+    let sentWrite = false;
+    const fixture = options.fixtureWrite;
+    const fixtureUrl = fixture && new URL(fixture.path, fixture.origin).href;
 
     let totalPassed = 0;
     let totalFailed = 0;
@@ -357,7 +367,10 @@ export class PlaywrightRunner implements IRunner {
         for (const channel of channels) {
           checkCancellation();
           try {
-            browser = await chromium.launch({ channel, headless: isHeadless, slowMo: options.slow_mo ?? 0 });
+            const pin = options.pinnedHost;
+            browser = await chromium.launch({ channel, headless: isHeadless, slowMo: options.slow_mo ?? 0,
+              ...(pin ? { args: [`--host-resolver-rules=MAP ${pin.name} ${pin.address}`, '--no-proxy-server',
+                '--disable-quic', '--disable-background-networking'] } : {}) });
             break;
           } catch (error) {
             if (channel === channels.at(-1)) throw error;
@@ -544,7 +557,13 @@ export class PlaywrightRunner implements IRunner {
       if (shouldRecordPhysicalArtifacts) {
         await installEvidenceDomSanitizer(context, page);
       }
-      if (options.readOnlyOrigin) await restrictChromiumPage(page, options.readOnlyOrigin, true);
+      if (options.readOnlyOrigin) await restrictChromiumPage(page, options.readOnlyOrigin, true,
+        options.navigationAllowed && { read: options.navigationAllowed, write: (url, method, body, commit) => {
+          const allowed = Boolean(fixture && armedWrite && (!commit || !sentWrite) && options.fixtureAuthority?.() &&
+            url === fixtureUrl && method === 'POST' && body === fixture.body);
+          if (allowed && commit) sentWrite = true;
+          return allowed;
+        } });
       if (options.interactiveReadOnly) {
         const [origin] = options.allowedOrigins ?? [];
         if (!origin || options.allowedOrigins?.length !== 1) throw new Error('Falta el origen autorizado.');
@@ -692,7 +711,7 @@ export class PlaywrightRunner implements IRunner {
             activeStepStartedAt = new Date().toISOString();
             activeStepStartMs = Date.now();
 
-            const stepRes = await this.executeStep(page, step, screenshotsDir, contextVariables, {
+            const runStep = () => this.executeStep(page, step, screenshotsDir, contextVariables, {
               caseId,
               stepIndex: sIdx,
               projectRoot: artifactRoot,
@@ -703,6 +722,19 @@ export class PlaywrightRunner implements IRunner {
               collectedSecrets,
               context_data: options.context_data,
             });
+            let stepRes;
+            if (fixture && caseId === fixture.caseId && step.type === 'click' && step.selector === fixture.selector) {
+              armedWrite = true;
+              try {
+                const [response, result] = await Promise.allSettled([
+                  page.waitForResponse(response => response.url() === fixtureUrl && response.request().method() === 'POST', { timeout: 5000 }),
+                  runStep(),
+                ]);
+                if (!sentWrite || response.status !== 'fulfilled' || !response.value.ok() || result.status !== 'fulfilled')
+                  throw new Error('La operación sintética no produjo una respuesta verificable.');
+                stepRes = result.value;
+              } finally { armedWrite = false; }
+            } else stepRes = await runStep();
 
             if (shouldRecordPhysicalArtifacts && (step.type === 'navigate' || step.type === 'fill')) {
               await installEvidenceDomSanitizer(context, page);
@@ -1154,6 +1186,12 @@ export class PlaywrightRunner implements IRunner {
         process.removeListener('uncaughtException', uncaughtHandler);
       }
       await cleanup();
+      if (fixture && sentWrite) {
+        const cleanupResponse = await fetch(new URL(fixture.cleanup, fixture.origin), { method: 'POST', redirect: 'error',
+          headers: { 'content-type': 'application/json' }, body: fixture.body, signal: AbortSignal.timeout(5000) });
+        await cleanupResponse.body?.cancel();
+        if (!cleanupResponse.ok) throw new Error('fixture_cleanup_required');
+      }
     }
 
     const finishedAt = new Date().toISOString();

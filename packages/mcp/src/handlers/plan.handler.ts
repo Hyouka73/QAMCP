@@ -21,6 +21,7 @@ import {
 } from '../dispatcher.js';
 
 import { caseWorkflow } from './case-workflow.js';
+import { autonomousCaseWorkflow, caseEligibility, getAutonomousScope } from './autonomous-cases.js';
 import {
   binding,
   definition,
@@ -88,6 +89,7 @@ export interface InspectPlanOptions {
 }
 
 export interface VerifyPlanIntegrityOptions {
+  readonly usePlannedCaseSet?: boolean;
   environment?: string;
 }
 
@@ -487,7 +489,9 @@ export async function verifyPlanIntegrity(
     };
   }
   const currentCases: TestCase[] = [];
+  const plannedCases = options?.usePlannedCaseSet && Array.isArray(raw.matrix?.cases) ? new Set(raw.matrix.cases) : undefined;
   for (const id of caseIds) {
+    if (plannedCases && !plannedCases.has(id) && !plannedCases.has(id.replace(/^TC-/, ''))) continue;
     try {
       const tc = await storage.getTestCase(moduleName, id);
       if (tc && Array.isArray(tc.steps) && tc.steps.length > 0) {
@@ -590,6 +594,15 @@ export class PlanHandler implements IMcpToolHandler {
 
     const appService = this.dependencies.applicationService;
     const appProject = appService ? appService.findActiveProjectByRoot(rootDir) : null;
+    const requestedScope = { environment: explicitEnvironment, profile: args.profile, tenantId: args.tenant_id };
+    const autonomous = this.dependencies.autonomyPolicy
+      ? await getAutonomousScope(this.dependencies, rootDir, moduleName, requestedScope) : undefined;
+    if (this.dependencies.autonomyPolicy && !autonomous) return result({ status: 'blocked', code: 'autonomy_policy_required' }, true);
+    if (autonomous && args.case_workflow !== undefined) {
+      const value = await autonomousCaseWorkflow(rootDir, moduleName, args.case_workflow, this.dependencies,
+        { ...requestedScope, revisionId: args.discovery_revision_id });
+      return result(value, value.status === 'blocked');
+    }
     if (args.discovery_revision_id !== undefined) {
       if (!appService) {
         return result({ status: 'blocked', code: 'application_service_unavailable', module: moduleName }, true);
@@ -734,6 +747,8 @@ export class PlanHandler implements IMcpToolHandler {
 
     // 4. Load real test cases from disk (.qa/modules/<name>/tests/TC-*.yaml)
     const caseIds = await storage.listTestCases(moduleName);
+    const sources = autonomous ? new Map(autonomous.service.listServiceCases(autonomous.project.project_id, autonomous.scope.module_key)
+      .map(tc => [tc.case_id, tc])) : undefined;
     if (caseIds.length === 0) {
       return result({
         status: 'empty',
@@ -747,6 +762,8 @@ export class PlanHandler implements IMcpToolHandler {
         has_cycles: false,
         cycles: [],
         message: `El módulo '${moduleName}' todavía no tiene casos ejecutables.`,
+        ...(autonomous && sources?.size ? { excluded_cases: [...sources.values()].map(tc => ({ case_id: tc.case_id,
+          status: tc.expectation.metadata?.policy_denied ? 'SKIPPED_BY_POLICY' : tc.oracle_status === 'missing_oracle' ? 'INDETERMINATE' : 'case_projection_missing' })) } : {}),
         siguiente_accion: { tipo: 'trabajo', tool: 'qap_plan', module: moduleName,
           case_workflow: { action: 'review' },
           descripcion: 'Recupera el estado de los casos. Si el módulo aún no tiene propuestas, usa case_workflow.action=propose_from_observations.' },
@@ -754,17 +771,28 @@ export class PlanHandler implements IMcpToolHandler {
     }
 
     const cases: TestCase[] = [];
+    const excludedCases: { case_id: string; status: string }[] = [];
+    let includedFixtureWrite = false;
     const preservedCases: string[] = [];
 
     for (const caseId of caseIds) {
       try {
         const tc = await storage.getTestCase(moduleName, caseId);
         if (!tc) continue;
+        if (autonomous) {
+          const check = caseEligibility(autonomous.service, sources?.get(tc.id), autonomous.scope, autonomous.policy, tc);
+          if (!check.allowed) { excludedCases.push({ case_id: tc.id, status: check.code }); continue; }
+          if (check.write && includedFixtureWrite) {
+            excludedCases.push({ case_id: tc.id, status: 'SKIPPED_BY_POLICY' }); continue;
+          }
+          includedFixtureWrite ||= Boolean(check.write);
+        }
         if (UpdateGuard.isProtectedObject(tc as unknown as Record<string, unknown>)) {
           preservedCases.push(tc.id || caseId);
         }
         cases.push(tc);
       } catch {
+        if (autonomous) { excludedCases.push({ case_id: caseId, status: 'corrupt_test_case' }); continue; }
         return result(
           {
             status: 'error',
@@ -777,6 +805,10 @@ export class PlanHandler implements IMcpToolHandler {
         );
       }
     }
+    if (sources) for (const tc of sources.values()) {
+      if (tc.oracle_status === 'missing_oracle' && !excludedCases.some(item => item.case_id === tc.case_id))
+        excludedCases.push({ case_id: tc.case_id, status: tc.expectation.metadata?.policy_denied ? 'SKIPPED_BY_POLICY' : 'INDETERMINATE' });
+    }
 
     // Filter to cases that have real executable steps
     const executableCases = cases.filter(c => Array.isArray(c.steps) && c.steps.length > 0);
@@ -784,6 +816,7 @@ export class PlanHandler implements IMcpToolHandler {
       return result({
         status: 'empty',
         code: 'no_executable_test_cases',
+        excluded_cases: excludedCases,
         module: moduleName,
         environment,
         cases: [],
@@ -954,13 +987,15 @@ export class PlanHandler implements IMcpToolHandler {
       order: orderedCaseIds,
       preserved_cases: preservedCases,
       total_cases: executableCases.length,
+      ...(autonomous ? { excluded_cases: excludedCases } : {}),
       checksum,
       cases_fingerprint,
       cases_fingerprint_version,
       persisted: true,
       plan_file: planPath,
       siguiente_accion: { tipo: 'trabajo', tool: 'qap_test', module: moduleName, environment,
-        descripcion: 'Ejecuta el plan con qap_test y la autorización de ejecución del host.' },
+        ...(args.profile ? { profile: args.profile } : {}),
+        descripcion: 'Ejecuta el plan admitido por la política del host con qap_test.' },
     });
   }
 
