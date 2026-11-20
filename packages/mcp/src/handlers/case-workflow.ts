@@ -5,11 +5,10 @@ import { CaseGenerator, FileSystemStorage } from '@qap/knowledge';
 import { SchemaValidator, validateExpectedRequirement, type TCCase } from '@qap/shared';
 
 import { hasReviewedInventoryVisibility } from '../application/discovery-case-evidence.js';
-import { stableStringify } from '../application/lineaged-case.js';
-import { reviewDigest } from '../host-review.js';
-import type { RuleReviewInvocation } from '../client-elicitation-authorizers.js';
-
 import type { DiscoveryDossierScope } from '../application/discovery-dossier.js';
+import { stableStringify } from '../application/lineaged-case.js';
+import type { RuleReviewInvocation } from '../client-elicitation-authorizers.js';
+import { reviewDigest } from '../host-review.js';
 
 import { hasBusinessAssertion, materializeReviewedCase, runConversationalCaseWorkflow } from './conversational-case-workflow.js';
 import { ModuleObservationBridge } from './module-observation-bridge.js';
