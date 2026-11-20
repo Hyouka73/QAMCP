@@ -83,7 +83,7 @@ export function initialInventoryAction(args: {
       id: 'onboarding.discovery_profile', texto: '¿Qué perfil verificado debe usar QAP para continuar el inventario?',
       formato: 'una_opcion', opciones: verifiedProfiles.map(label => ({ id: label, etiqueta: label })),
       permite_otra: false, registrar_con: { tool: 'qap_discover', campo: 'profile' },
-    } as Pregunta) as Pregunta;
+    }) as Pregunta;
     pregunta.render_texto = generarRenderTexto(pregunta);
     return { tipo: 'decision', tool: 'qap_discover', descripcion: 'Selecciona el perfil de Discovery.',
       pregunta, parametros: { targetPath: root, name: 'inventario-provisional', path: entryPath ?? baseUrl } };
