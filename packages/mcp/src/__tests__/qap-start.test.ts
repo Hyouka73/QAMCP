@@ -11,11 +11,16 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { expect, it } from 'vitest';
 
+import { connectHistoricalHost } from './fixtures/historical-host.js';
+
 const serverPath = resolve(dirname(fileURLToPath(import.meta.url)), '../../dist/server.js');
 function authorize(workspace: string, host: string) {
   execFileSync(process.execPath, [resolve(dirname(fileURLToPath(import.meta.url)), '../../../../scripts/qap-authorize-workspace.mjs'), workspace],
     { env: { ...process.env, QAP_MCP_APP_SERVICE_DIR: join(host, 'application'), QAP_MCP_WORKSPACE_HOST_DIR: join(host, 'workspaces') }, windowsHide: true });
 }
+
+const historicalOptions = (workspace: string, host: string) => ({ ...process.env, NODE_ENV: 'test',
+  QAP_MCP_HOST_DATA_DIR: host, QAP_MCP_WORKSPACE_ROOT: workspace });
 
 it.runIf(process.platform === 'win32')('persists the scoped login across Stdio restarts and renews an expired session from the keychain', async () => {
   const base = realpathSync(mkdtempSync(join(tmpdir(), 'qap-start-auth-')));
@@ -54,11 +59,7 @@ it.runIf(process.platform === 'win32')('persists the scoped login across Stdio r
   async function connect() {
     await client?.close();
     client = new Client({ name: 'qap-start-auth-test', version: '1' });
-    await client.connect(new StdioClientTransport({
-      command: process.execPath, args: [serverPath], stderr: 'pipe',
-      env: { PATH: process.env.PATH ?? '', NODE_ENV: 'test', QAP_MCP_HOST_DATA_DIR: host, QAP_MCP_WORKSPACE_ROOT: workspace,
-        ...(process.env.PLAYWRIGHT_BROWSERS_PATH ? { PLAYWRIGHT_BROWSERS_PATH: process.env.PLAYWRIGHT_BROWSERS_PATH } : {}) },
-    }));
+    await connectHistoricalHost(client, historicalOptions(workspace, host));
   }
   async function call(name: string, args = {}) {
     const response = await client!.callTool({ name, arguments: { targetPath: workspace, ...args } });
@@ -130,14 +131,7 @@ it('starts from a client without roots or elicitation and persists separate MCP 
   let client: Client | undefined;
   async function connect() {
     client = new Client({ name: 'qap-test-without-roots', version: '1.0.0' });
-    await client.connect(new StdioClientTransport({
-      command: process.execPath,
-      args: [serverPath],
-      env: { PATH: process.env.PATH ?? '', NODE_ENV: 'test',
-        ...(process.env.PLAYWRIGHT_BROWSERS_PATH ? { PLAYWRIGHT_BROWSERS_PATH: process.env.PLAYWRIGHT_BROWSERS_PATH } : {}),
-        QAP_MCP_HOST_DATA_DIR: join(base, 'host'), QAP_MCP_WORKSPACE_ROOT: workspace },
-      stderr: 'pipe',
-    }));
+    await connectHistoricalHost(client, historicalOptions(workspace, join(base, 'host')));
   }
   async function call(name: string, args: Record<string, unknown>) {
     const response = await client!.callTool({ name, arguments: args });
@@ -281,8 +275,7 @@ it.runIf(process.platform === 'win32')('checkpoints broad authorized discovery b
   async function connect() {
     await client?.close();
     client = new Client({ name: 'qap-inventory-fixture', version: '1' });
-    await client.connect(new StdioClientTransport({ command: process.execPath, args: [serverPath], stderr: 'pipe',
-      env: { PATH: process.env.PATH ?? '', NODE_ENV: 'test', QAP_MCP_HOST_DATA_DIR: host, QAP_MCP_WORKSPACE_ROOT: workspace } }));
+    await connectHistoricalHost(client, historicalOptions(workspace, host));
   }
   async function call(name: string, args: Record<string, unknown> = {}) {
     const response = await client!.callTool({ name, arguments: { targetPath: workspace, ...args } });
@@ -410,14 +403,17 @@ it('does not publish discovery after observe G1 is revoked and replaced during n
     entered(); await barrier; response.writeHead(200, { 'content-type': 'text/html' }).end('<h1>Visible</h1>');
   });
   await new Promise<void>(done => site.listen(0, '127.0.0.1', done));
+  const url = 'http://127.0.0.1:' + (site.address() as { port: number }).port;
+  writeFileSync(join(host, 'qa-autonomy-policy.json'), JSON.stringify({ version: 1, targets: [
+    { workspace, origin: url, environment: 'test', entry: '/', paths: ['/'] },
+  ] }));
   const client = new Client({ name: 'observe-fence', version: '1' });
   try {
     await client.connect(new StdioClientTransport({ command: process.execPath, args: [serverPath], stderr: 'pipe',
       env: { PATH: process.env.PATH ?? '', NODE_ENV: 'test', QAP_MCP_HOST_DATA_DIR: host, QAP_MCP_WORKSPACE_ROOT: workspace,
         ...(process.env.PLAYWRIGHT_BROWSERS_PATH ? { PLAYWRIGHT_BROWSERS_PATH: process.env.PLAYWRIGHT_BROWSERS_PATH } : {}) } }));
-    const url = 'http://127.0.0.1:' + (site.address() as { port: number }).port;
     const pending = client.callTool({ name: 'qap_start', arguments: { targetPath: workspace, base_url: url } });
-    await arrived;
+    await Promise.race([arrived, pending.then(() => { throw new Error('Discovery terminó antes de entrar en la barrera'); })]);
     const { QapApplicationService } = await import('../application/application-service.js');
     const service = new QapApplicationService({ hostRootDir: join(host, 'application'), projectOperationDirectory: join(host, 'workspaces') });
     const project = service.findActiveProjectByRoot(workspace)!;

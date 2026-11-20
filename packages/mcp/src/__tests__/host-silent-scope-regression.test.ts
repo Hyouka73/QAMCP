@@ -6,7 +6,6 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { ElicitRequestSchema, ListRootsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -17,9 +16,9 @@ import { loadHostComposition } from '../host-composition.js';
 import { createMcpServer } from '../server.js';
 
 import { startProtectedSpaStaging, type ProtectedSpaStagingController } from './fixtures/protected-spa-staging.js';
+import { connectHistoricalHost } from './fixtures/historical-host.js';
 
 const REPO_MCP_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const SERVER_DIST_PATH = join(REPO_MCP_ROOT, 'dist', 'server.js');
 
 function authorizeWorkspace(root: string, hostDir: string): void {
   execFileSync(process.execPath, [resolve(REPO_MCP_ROOT, '../../scripts/qap-authorize-workspace.mjs'), root], {
@@ -50,8 +49,7 @@ describe('Regresión: composición real Stdio/host sin diálogos QAP en flujo lo
     return { isError: Boolean(res.isError), data: JSON.parse(text) as Record<string, unknown> };
   }
 
-  it('Stdio real con roots/list: migra entrada histórica sin navigationOrigin conservando límites, recupera el caso y publica un PASS canónico de Chromium con autorización explícita, y rechaza otra raíz, otro origen y perfil revocado', async () => {
-    expect(existsSync(SERVER_DIST_PATH)).toBe(true);
+  it('el host histórico embebido mantiene roots/list, autorización explícita, evidencias y revocación', async () => {
     staging = await startProtectedSpaStaging();
 
     const tempBase = mkdtempSync(join(tmpdir(), 'qap-stdio-silent-'));
@@ -100,21 +98,6 @@ describe('Regresión: composición real Stdio/host sin diálogos QAP en flujo lo
 
     disposables.push(() => rmSync(tempBase, { recursive: true, force: true }));
     const connect = async () => {
-      const transport = new StdioClientTransport({
-        command: process.execPath,
-        args: [SERVER_DIST_PATH],
-        cwd: REPO_MCP_ROOT,
-        env: {
-          ...process.env,
-          NODE_ENV: 'production',
-          QAP_DISABLE_INTERACTIVE_AUTH: '1',
-          QAP_MCP_HOST_DATA_DIR: hostDataDir,
-          QAP_MCP_WORKSPACE_HOST_DIR: workspaceHostDir,
-          QAP_MCP_APP_SERVICE_DIR: appServiceDir,
-        },
-        stderr: 'pipe',
-      });
-
       const client = new Client(
         { name: 'stdio-host-client', version: '1.0.0' },
         { capabilities: { roots: {}, elicitation: { form: {} } } },
@@ -127,7 +110,9 @@ describe('Regresión: composición real Stdio/host sin diálogos QAP en flujo lo
         content: { decision: 'confirm' },
       }));
 
-      await client.connect(transport);
+      await connectHistoricalHost(client, { ...process.env, NODE_ENV: 'production', QAP_DISABLE_INTERACTIVE_AUTH: '1',
+        QAP_MCP_ENABLE_KEYCHAIN: '1', QAP_MCP_HOST_DATA_DIR: hostDataDir,
+        QAP_MCP_WORKSPACE_HOST_DIR: workspaceHostDir, QAP_MCP_APP_SERVICE_DIR: appServiceDir });
       disposables.push(() => client.close());
       return client;
     };
@@ -457,7 +442,7 @@ describe('Regresión: composición real Stdio/host sin diálogos QAP en flujo lo
       profile: 'qa_discrepant',
       login_route: '/login',
     });
-    expect(discrepantAuth.data).toMatchObject({ status: 'blocked', code: 'legacy_auth_operation_disabled' });
+    expect(discrepantAuth.data).toMatchObject({ status: 'blocked', code: 'auth_profile_outside_policy' });
 
     const prodAuth = await callJson(client, 'qap_auth_add', {
       targetPath: boundRoot,
@@ -467,7 +452,7 @@ describe('Regresión: composición real Stdio/host sin diálogos QAP en flujo lo
       password: 'StagingPass#2026',
       login_route: '/login',
     });
-    expect(prodAuth.data).toMatchObject({ status: 'blocked', code: 'login_outside_configured_qa_environment' });
+    expect(prodAuth.data).toMatchObject({ status: 'blocked', code: 'auth_profile_outside_policy' });
 
     mkdirSync(join(boundRoot, '.qa', 'modules', 'pedidos', 'tests'), { recursive: true });
     for (const environment of ['local', 'production']) {

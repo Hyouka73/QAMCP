@@ -4,6 +4,7 @@ import * as path from 'node:path';
 import { FlowOrchestrator } from '@qap/engine';
 import { FileSystemStorage, FlowContextStore, LockManager } from '@qap/knowledge';
 import { PlaywrightRunner } from '@qap/playwright-runner';
+import { isLocalQapWorkspace } from '@qap/mcp';
 import { createFlowTelemetry, normalizeFlowResult, writeFlowReports } from '@qap/reporter';
 import type { FlowDefinition } from '@qap/shared';
 
@@ -47,6 +48,9 @@ export async function handleFlowCommand(
   options: FlowCommandOptions = {}
 ): Promise<void> {
   const rootDir = options.projectRoot ?? process.cwd();
+  if (['run', 'resume', 'debug'].includes(action) && isLocalQapWorkspace(rootDir)) {
+    throw new Error('La ejecución de este workspace requiere el plan canónico de QAP. Usa qap test.');
+  }
   const flowStatesDir = path.join(rootDir, '.qa', 'cache', 'flow_states');
   const storage = new FileSystemStorage({ rootDir });
 

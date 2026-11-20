@@ -197,6 +197,7 @@ export function registerCommands(program: Command): void {
     .option('--shard <shard>', 'Particiona la ejecucion en formato "i/n" (ej. 1/3)')
     .option('--retries <n>', 'Numero de reintentos para casos fallidos')
     .option('--headed', 'Ejecuta con interfaz grafica visible')
+    .option('--profile <profile>', 'Usa el perfil permitido por la política del host')
     .option('--fail-fast', 'Detiene la ejecucion en el primer caso fallido')
     .option('--from-diff', 'Ejecuta solo los modulos afectados por cambios de Git respecto a la rama base')
     .option('--force-unlock', 'Libera forzadamente el lock del módulo (o todos) antes de ejecutar')

@@ -17,6 +17,8 @@ import { createMcpServer } from '../server.js';
 import type { IWorkspaceAuthorizer, WorkspaceAuthorizationRequest } from '../workspace-authorizer.js';
 import { WorkspaceBootstrap } from '../workspace-bootstrap.js';
 
+import { connectHistoricalHost } from './fixtures/historical-host.js';
+
 const executable = fileURLToPath(new URL('../../dist/server.js', import.meta.url));
 const authorize = fileURLToPath(new URL('../../../../scripts/qap-authorize-workspace.mjs', import.meta.url));
 
@@ -42,6 +44,12 @@ function authorizeWorkspace(workspace: string, hostDir = host): void {
     },
     windowsHide: true,
   });
+  const policyPath = join(hostDir, 'qa-autonomy-policy.json');
+  const policy = existsSync(policyPath) ? JSON.parse(readFileSync(policyPath, 'utf8')) : { version: 1, targets: [] };
+  if (!policy.targets.some((target: { workspace: string }) => target.workspace === workspace)) {
+    policy.targets.push({ workspace, origin: new URL(url).origin, environment: 'test', entry: '/', paths: ['/', '/orders'] });
+    writeFileSync(policyPath, JSON.stringify(policy));
+  }
 }
 
 async function connectStdio(options: {
@@ -150,10 +158,7 @@ it('crea acceso local para el proyecto autorizado sin ampliar otras capacidades'
     granted_by: 'host_operator',
   }]);
 
-  const review = () => call(client, 'qap_plan', {
-    targetPath: a, module: 'pedidos', case_workflow: { action: 'review' },
-  });
-  const proposed = await call(client, 'qap_plan', {
+  const proposal = {
     targetPath: a,
     module: 'pedidos',
     case_workflow: {
@@ -166,7 +171,22 @@ it('crea acceso local para el proyecto autorizado sin ampliar otras capacidades'
         ],
       }],
     },
+  };
+  // The local project is allowed, but its port differs from the autonomous policy origin.
+  expect(await call(client, 'qap_plan', proposal)).toMatchObject({ status: 'blocked', code: 'autonomy_policy_required' });
+  await client.close();
+
+  const historical = new Client({ name: 'multiproject-historical-host', version: '1' });
+  clients.add(historical);
+  await connectHistoricalHost(historical, {
+    QAP_MCP_HOST_DATA_DIR: host,
+    QAP_MCP_WORKSPACE_ROOT: a,
+    QAP_DISABLE_INTERACTIVE_AUTH: '1',
   });
+  const review = () => call(historical, 'qap_plan', {
+    targetPath: a, module: 'pedidos', case_workflow: { action: 'review' },
+  });
+  const proposed = await call(historical, 'qap_plan', proposal);
   expect(proposed).toMatchObject({ status: 'proposed', summary: { pending_oracle: 1 } });
   expect(await review()).toMatchObject({ status: 'review', read_only: true, summary: { pending_oracle: 1 } });
   service.authority.revokeGrant(projectId, grants[0].grant_id);
@@ -179,10 +199,22 @@ it('A/B/C/P: inicia globalmente sin proyectos ni QAP_MCP_WORKSPACE_ROOT, sobrevi
   // A: Inicio global sin proyectos ni QAP_MCP_WORKSPACE_ROOT.
   const freshClient = await connectStdio();
   const tools = (await freshClient.listTools()).tools;
-  expect(tools).toHaveLength(19);
+  expect(tools).toHaveLength(16);
+  expect(tools.map(tool => tool.name)).not.toContain('qap_module_close');
+  const planTool = tools.find(tool => tool.name === 'qap_plan');
+  expect(planTool?.description).toContain('casos elegibles');
+  expect(planTool?.description).not.toContain('aprobación por lotes');
+  const workflow = planTool?.inputSchema.properties?.case_workflow;
+  expect(workflow).toMatchObject({ properties: { proposals: { items: {
+    additionalProperties: false, required: ['title', 'route'],
+  } } } });
+  const testTool = tools.find(tool => tool.name === 'qap_test');
+  expect(testTool?.inputSchema).toMatchObject({ required: ['module'], properties: {
+    case_ids: { description: expect.stringContaining('elegibles') },
+  } });
   const startTool = tools.find((tool) => tool.name === 'qap_start');
   expect(startTool?.inputSchema?.properties).toHaveProperty('conversation_id');
-  expect(startTool?.inputSchema?.properties).toHaveProperty('credentials');
+  expect(startTool?.inputSchema?.properties).not.toHaveProperty('credentials');
 
   expect(await call(freshClient, 'qap_project', { action: 'list' })).toMatchObject({
     status: 'success',

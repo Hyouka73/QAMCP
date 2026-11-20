@@ -1,7 +1,7 @@
-import { PlaywrightRunner } from '@qap/playwright-runner';
+import { callLocalQapTool, readProjectResetState, resetHostDirectory, withLocalQapClient, withProjectOperation } from '@qap/mcp';
+import { realpathSync } from 'node:fs';
 import { FileSystemStorage } from '@qap/knowledge';
 import { GitAdapter } from '@qap/git-adapter';
-import type { TestPlan, ExecutionResult, ExecutionStatus } from '@qap/shared';
 
 import { DataError } from '../errors.js';
 
@@ -14,6 +14,7 @@ export interface TestCommandOptions {
   failFast?: boolean;
   fromDiff?: boolean;
   forceUnlock?: boolean;
+  profile?: string;
 }
 
 
@@ -43,8 +44,13 @@ export async function handleTest(
 
   if (options.forceUnlock) {
     const { LockManager } = await import ('@qap/knowledge');
-    const lockManager = new LockManager ({ rootDir: process.cwd () });
-    await lockManager.forceUnlock(moduleArg);
+    const rootDir = realpathSync(process.cwd());
+    const host = resetHostDirectory();
+    await withProjectOperation(host, () => {
+      const state = readProjectResetState(host, rootDir);
+      if (state?.state === 'pending' || state?.state === 'complete') throw new DataError('El workspace necesita recuperarse antes de desbloquear.');
+      return new LockManager({ rootDir }).forceUnlock(moduleArg);
+    });
     console.log(
       moduleArg 
       ? `Lock del módulo '${moduleArg}' liberado forzadamente antes de ejecutar.`
@@ -92,7 +98,7 @@ export async function handleTest(
 
     const caseIds = await storage.listTestCases(moduleName);
     for (const caseId of caseIds) {
-      if (options.case && caseId !== options.case) continue;
+      if (options.case && caseId.replace(/^TC-/, '') !== options.case.replace(/^TC-/, '')) continue;
 
       if (requestedTags.length > 0) {
         const testCase = await storage.getTestCase(moduleName, caseId);
@@ -132,100 +138,37 @@ export async function handleTest(
     throw new DataError(`--retries invalido: "${options.retries}". Debe ser un entero >= 0.`);
   }
 
-  const runner = new PlaywrightRunner();
-  let overallPassed = 0;
-  let overallFailed = 0;
-  let overallTotal = 0;
-
-  // 3. Ejecutar por modulo (PlaywrightRunner.execute solo soporta un modulo por plan)
-  for (const [moduleName, caseIds] of byModule) {
-    const plan: TestPlan = {
-      modules: [moduleName],
-      cases: caseIds,
-      tags: requestedTags.length > 0 ? requestedTags : undefined,
-      fail_fast: options.failFast ?? false,
+  let failed = 0;
+  let passed = 0;
+  await withLocalQapClient(async client => {
+    const call = async (name: string, args: Record<string, unknown>) => {
+      const { payload, isError } = await callLocalQapTool(client, name, { targetPath: process.cwd(), ...args });
+      if (isError) throw new DataError(payload.code ?? 'qap_mcp_error');
+      return payload;
     };
-
-    const result = await runner.execute(plan, {
-      headless: !(options.headed ?? false),
-      fail_fast: options.failFast ?? false,
-      storageResolver: (mod, caseId) => storage.getTestCase(mod, caseId),
-      screenshotsDir: '.qa/reports/screenshots',
-    });
-
-    // 4. Reintentos: orquestados aqui porque PlaywrightRunner.execute() no los implementa.
-    //    Solo se re-ejecutan los casos que fallaron, hasta maxRetries veces.
-    const caseMap = new Map(result.cases.map((c) => [c.id, c]));
-
-// Si el runner murio antes de generar un ExecutedCase para algun caso esperado
-// (ej. fallo de infraestructura como chromium.launch()), lo marcamos como fallido
-// en vez de dejarlo fuera del conteo silenciosamente.
-for (const caseId of caseIds) {
-  if (!caseMap.has(caseId)) {
-    caseMap.set(caseId, {
-      id: caseId,
-      title: caseId,
-      result: 'failed',
-      duration_ms: 0,
-      failure_type: 'execution_timeout',
-      steps: [
-        {
-          action: 'execute',
-          status: 'failed',
-          message: 'El caso no se ejecuto: fallo de infraestructura antes del loop de casos (ver logs del runner).',
-        },
-      ],
-    });
-  }
-}
-
-let attempt = 0;
-
-    while (attempt < maxRetries) {
-      const failedIds = [...caseMap.values()].filter((c) => c.result === 'failed').map((c) => c.id);
-      if (failedIds.length === 0) break;
-
-      attempt += 1;
-      console.log(`[${moduleName}] Reintento ${attempt}/${maxRetries} para ${failedIds.length} caso(s) fallido(s).`);
-
-      const retryResult = await runner.execute(
-        { ...plan, cases: failedIds },
-        {
-          headless: !(options.headed ?? false),
-          fail_fast: false,
-          storageResolver: (mod, caseId) => storage.getTestCase(mod, caseId),
-          screenshotsDir: '.qa/reports/screenshots',
-        }
-      );
-
-      for (const c of retryResult.cases) {
-        caseMap.set(c.id, c);
+    for (const [moduleName, caseIds] of byModule) {
+      const profile = options.profile ? { profile: options.profile } : {};
+      const plan = await call('qap_plan', { module: moduleName, ...profile });
+      const requested = new Set(caseIds.map(id => id.replace(/^TC-/, '')));
+      let pending = (plan.cases ?? []).filter((id: string) => requested.has(id)) as string[];
+      if (!pending.length) {
+        console.warn(`[${moduleName}] Sin casos elegibles bajo la política del host.`);
+        continue;
       }
+      for (let retry = 0; pending.length && retry <= maxRetries; retry++) {
+        const execution = await call('qap_test', { module: moduleName, environment: plan.environment,
+          case_ids: pending, headed: options.headed ?? false, ...profile });
+        const report = await call('qap_report', { executionId: execution.execution_id, format: 'all' });
+        console.log(`[${moduleName}] ${execution.result} · ${report.executionId}`);
+        passed += execution.summary.passed;
+        pending = (execution.cases ?? []).filter((item: { result: string }) => item.result !== 'passed')
+          .map((item: { id: string }) => item.id);
+        if (options.failFast && pending.length) break;
+      }
+      failed += pending.length;
+      if (options.failFast && failed) break;
     }
-
-    const mergedCases = [...caseMap.values()];
-    const passed = mergedCases.filter((c) => c.result === 'passed').length;
-    const failed = mergedCases.filter((c) => c.result === 'failed').length;
-    const total = mergedCases.length;
-    const overallResult: ExecutionStatus = failed === 0 ? 'passed' : passed === 0 ? 'failed' : 'partial';
-
-    const finalResult: ExecutionResult = {
-      ...result,
-      finished_at: new Date().toISOString(),
-      result: overallResult,
-      summary: { ...result.summary, total, passed, failed },
-      cases: mergedCases,
-    };
-
-    await storage.saveExecutionResult(finalResult.execution_id, finalResult);
-
-    console.log(`[${moduleName}] ${passed}/${total} casos ok (${overallResult})`);
-
-    overallPassed += passed;
-    overallFailed += failed;
-    overallTotal += total;
-  }
-
-  console.log(`Total: ${overallPassed}/${overallTotal} casos ok.`);
-  process.exitCode = overallFailed > 0 ? 1 : 0;
+  });
+  console.log(`Total: ${passed}/${passed + failed} casos ok.`);
+  process.exitCode = failed > 0 ? 1 : 0;
 }

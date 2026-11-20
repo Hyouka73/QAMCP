@@ -13,7 +13,7 @@ if (!existsSync(targetDir)) {
 }
 
 // 1. Obtener lista de tools del servidor compilado
-const server = createMcpServer();
+const server = createMcpServer({ autonomyPolicy: () => undefined });
 // @ts-expect-error accessing internal request handler
 const handler = server._requestHandlers.get(ListToolsRequestSchema.shape.method.value);
 const toolsResult = await handler({ method: 'tools/list', params: {} }, {});
@@ -31,51 +31,16 @@ for (const tool of toolsResult.tools) {
   console.log(`✔ Escrito: ${tool.name}.json`);
 }
 
-// 2. Crear instructions.md con directivas estrictas para el agente
-const instructionsContent = `# Instrucciones de QAP (qap-mcp) para el Asistente
-
-## Directivas Críticas de Interacción y Experiencia de Usuario:
-- Para autenticar usa el identificador de un perfil aprovisionado en el host con \`method: "auto"\`. El operador introduce la contraseña en el diálogo local. Para comprobar una sesión existente usa \`reuse\`. Si el operador prefiere iniciar sesión en el navegador, usa \`handoff\`.
-- Conserva contraseñas, tokens, cookies y estados de navegador dentro del host. Usa el alcance local vinculado para Login, Discovery y Test, y sigue la indicación del servidor si una operación queda bloqueada.
-
-1. **PARÁMETRO \`targetPath\` OBLIGATORIO**:
-   - En TODAS las llamadas a \`qap-mcp\`, envía la ruta absoluta del workspace abierto en el parámetro \`targetPath\`.
-   - NUNCA omitas este parámetro, para asegurar que el motor opere exactamente sobre la carpeta del proyecto del usuario y no en el directorio de ejecución del proceso MCP.
-
-2. **PROHIBIDO los muros de texto**:
-   - NUNCA generes tablas de estado largas con parámetros del proyecto.
-   - NUNCA generes explicaciones de arquitectura o listas de 4 pasos futuros (1, 2, 3...).
-
-3. **PREGUNTAS ESTRUCTURADAS CON \`ask_question\`**:
-   - Cuando siguiente_accion trae pregunta, presentala con la herramienta ask_question: UNA sola pregunta por llamada, usando texto, formato y opciones tal cual (no inventes, reordenes ni agregues opciones). Deja siempre disponible la respuesta libre. Si formato es abierta, haz esa unica pregunta en texto y espera. Nunca agrupes varias preguntas en un mensaje ni preguntes algo que siguiente_accion no pidio. Si ask_question no existe en tu cliente, haz la misma pregunta en texto con las opciones numeradas, una a la vez.
-
-4. **REGISTRO DE RESPUESTAS**:
-   - Tras cada respuesta, registrala con la tool de pregunta.registrar_con y sigue la nueva siguiente_accion. Si el usuario eligio una opcion usa su efecto; si escribio texto libre, registralo con source user y con sus palabras. Nunca registres como source user algo que el usuario no dijo ni eligio.
-
-5. **Flujo Paso a Paso Guiado**:
-   - Una sola pregunta al usuario por turno; los pasos de tipo trabajo no requieren preguntar: ejecútalos y sigue la nueva siguiente_accion. Antes de preguntar algo que pueda estar en el workspace, léelo (documentos, README, package.json).
-
-6. **REGLAS DE NEGOCIO CONFIRMADAS**:
-   - NUNCA llames qap_rules_set con datos no confirmados por el usuario.
-
-7. **RESPUESTA A TOOLS BLOQUEADAS**:
-   - Si una tool responde con status "blocked", sigue obligatoriamente la indicación de \`desbloquear_con\` y no intentes rodearla.
-
-8. **CONFIRMACIÓN DE HIPÓTESIS DOM**:
-   - Para hipótesis DOM (source "dom", status "inferred"): CONFIRMA cada una con el usuario antes de marcarla como "confirmed". Presenta las hipótesis al usuario y pregunta cuáles son correctas.
-
-9. **CONFIRMACIÓN EXPLÍCITA PARA CIERRE DE MÓDULO**:
-   - Presenta al usuario el resumen de cierre del módulo y llama \`qap_module_close\` solo con su confirmación explícita (\`user_confirmed: true\`).
-
-10. **DECLARACIÓN DE WAIVERS**:
-    - Declara un waiver únicamente cuando el usuario haya dicho que la categoría no aplica, citando su razón (mínimo 15 caracteres).
-
-11. **RESUMEN DE REPORTE DE BRECHAS**:
-    - Al cerrar la sesión, presenta al usuario el resumen del reporte de brechas generado.
-
-12. **CONTINUIDAD DEL PLAN**:
-    - Explora las rutas y propone casos siguiendo siguiente_accion y el orden del plan vigente. Usa el permiso de observación ya concedido por el host para el entorno. Pregunta por cambios de alcance, expectativas de negocio o aprobaciones requeridas por el servidor.
-`;
+const instructionsContent = [
+  '# QA autónomo con QAP',
+  '',
+  'Ante «Quiero probar un sistema», llama qap_start con la ruta absoluta del workspace seleccionado.',
+  'El destino, los perfiles y la política del entorno se configuran en el host. Conserva conversation_id en las llamadas.',
+  'Cuando el inventario se agote, interpreta las vistas acreditadas y genera escenarios con qap_plan.',
+  'Registra expectativas sin evidencia como indeterminadas. Materializa, planifica, ejecuta con qap_test y publica con qap_report.',
+  'Sigue con casos independientes cuando se deniegue una operación. Respeta el alcance y usa el runner oficial. Mantén las credenciales en el host.',
+  '',
+].join('\n');
 
 writeFileSync(join(targetDir, 'instructions.md'), instructionsContent, 'utf-8');
 console.log('✔ Escrito: instructions.md');

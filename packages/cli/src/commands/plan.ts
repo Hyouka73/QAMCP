@@ -13,6 +13,7 @@ import {
 } from '@qap/knowledge';
 import type { AuthProfile, RuleEntry, TCCase } from '@qap/shared';
 import { SchemaValidator, normalizeSlug, normalizeTcCase } from '@qap/shared';
+import { callLocalQapTool, isLocalQapWorkspace, withLocalQapClient } from '@qap/mcp';
 
 import { DataError } from '../errors.js';
 
@@ -70,6 +71,14 @@ async function loadProfiles(storage: FileSystemStorage): Promise<AuthProfile[]> 
 export async function handlePlan(moduleName: string, options: PlanCommandOptions = {}): Promise<void> {
   const rootDir = process.cwd();
   const storage = new FileSystemStorage({ rootDir });
+  if (!options.preview && isLocalQapWorkspace(rootDir)) {
+    await withLocalQapClient(async client => {
+      const { payload, isError } = await callLocalQapTool(client, 'qap_plan', { targetPath: rootDir, module: moduleName });
+      if (isError) throw new DataError(payload.code ?? 'qap_plan_failed');
+      console.log(`Plan QAP de '${moduleName}': ${payload.total_cases ?? 0} caso(s) elegible(s).`);
+    });
+    return;
+  }
 
   if (!(await storage.hasModule(moduleName))) {
     throw new DataError(`El módulo '${moduleName}' no existe en .qa/modules/. Ejecuta 'qap discover' primero.`);

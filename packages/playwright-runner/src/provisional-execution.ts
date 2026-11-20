@@ -27,7 +27,10 @@ export interface ProvisionalMcpFinalization {
   profileId?: string | null;
   cases: readonly ProvisionalMcpCaseLink[];
   trace?: {
-    case_approval_digest: string;
+    case_approval_digest?: string;
+    case_eligibility_digest?: string;
+    policy_digest?: string;
+    plan_fingerprint?: string;
     requirements: unknown;
     cases: readonly { id: string; source_rule_id?: string }[];
   };
@@ -401,9 +404,7 @@ function repairExecutionFilesFromMarker(root: string, info: PendingPublicationMa
       writeExclusivePrivateJson(traceAbs, {
         execution_id: info.executionId,
         ...(attemptId ? { attempt_id: attemptId } : {}),
-        case_approval_digest: info.mcp.trace.case_approval_digest,
-        requirements: info.mcp.trace.requirements,
-        cases: info.mcp.trace.cases,
+        ...info.mcp.trace,
         ...(executionToPersist.artifacts ? { artifacts: executionToPersist.artifacts } : {}),
         ...(executionToPersist.timeline ? { timeline: executionToPersist.timeline } : {}),
       });

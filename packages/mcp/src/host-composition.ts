@@ -31,6 +31,7 @@ import {
   WindowsInteractiveTestAuthorizer,
 } from './test-authorizer.js';
 import { authorizationDiagnostic } from './authorization-diagnostics.js';
+import { loadAutonomyPolicy } from './autonomy-policy.js';
 
 /**
  * Opt-in Stdio composition. The manifest comes from the HOST environment, never
@@ -386,6 +387,7 @@ export async function loadHostComposition(
         multiProjectRuntime,
         workspaceBootstrap: bootstrap,
         applicationService,
+        autonomyPolicy: loadAutonomyPolicy(resolve(defaultQapHome, 'qa-autonomy-policy.json')),
         allowSpaReadOnly: true,
         silentBoundScope: true,
         workspaceAuthorizer,

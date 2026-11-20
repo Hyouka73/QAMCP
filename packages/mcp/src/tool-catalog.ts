@@ -1,6 +1,6 @@
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 
-import { QAP_CORE_DIRECTIVES } from './guidance.js';
+import { QAP_AUTONOMOUS_DIRECTIVES, QAP_CORE_DIRECTIVES } from './guidance.js';
 
 const UX_DIRECTIVE = 'DIRECTIVA DE UX ESTRICTA: Guía al usuario paso a paso interactivo. Si tu entorno dispone de herramienta para hacer preguntas interactivas con opciones (como ask_question), ÚSALA OBLIGATORIAMENTE para cada decisión. Si no, formula la pregunta directa con sus opciones. PROHIBIDO mostrar listas de pasos futuros (1, 2, 3...), tutoriales o pedir comandos de terminal.';
 
@@ -9,6 +9,7 @@ const TARGET_PATH_PROP = {
   description: 'Ruta absoluta del workspace del proyecto objetivo. Requerida cuando el host no anuncia una única raíz o al iniciar/cambiar de proyecto explícitamente.',
 };
 
+// The embedded historical host retains its conversational contract.
 export const TOOLS: Tool[] = [
   {
     name: 'qap_status',
@@ -911,3 +912,37 @@ export const TOOLS: Tool[] = [
     },
   },
 ];
+
+const autonomousDescriptions: Readonly<Record<string, string>> = {
+  qap_auth_add: 'Verifica el acceso de un perfil de pruebas aprovisionado y permitido por el host.',
+  qap_init: 'Inicializa .qa y comprueba el navegador de QAP. Inicia el flujo autónomo con qap_start.',
+  qap_status: 'Consulta estado, cobertura e intentos. Usa qap_start para iniciar QA.',
+  qap_start: 'Inicia QA en el workspace autorizado. El host fija destino y acceso. Devuelve autonomy.views y conversation_id.',
+  qap_plan: 'Genera casos con evidencia de Discovery. Llama de nuevo sin case_workflow para persistir el plan de casos elegibles.',
+  qap_test: 'Ejecuta el plan persistido con el runner oficial. Puedes seleccionar casos elegibles por ID.',
+  qap_report: 'Publica artefactos oficiales por executionId o recupera el reporte de un intento persistido.',
+};
+
+export function toolCatalog(autonomous: boolean): Tool[] {
+  if (!autonomous) return TOOLS;
+  return TOOLS.map(tool => {
+    const description = autonomousDescriptions[tool.name] ?? tool.description
+      ?.replace(QAP_CORE_DIRECTIVES, '')
+      .replace(UX_DIRECTIVE, '')
+      .trim();
+    const inputSchema = tool.name === 'qap_test' ? {
+      ...tool.inputSchema,
+      required: ['module'],
+      properties: {
+        ...tool.inputSchema.properties,
+        module: { type: 'string', description: 'Módulo del plan persistido.' },
+        case_ids: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'IDs opcionales de casos elegibles del plan.',
+        },
+      },
+    } : tool.inputSchema;
+    return { ...tool, inputSchema, description: [description, QAP_AUTONOMOUS_DIRECTIVES].filter(Boolean).join('\n\n') };
+  });
+}

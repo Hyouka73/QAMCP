@@ -1,5 +1,6 @@
 // @qap/mcp - MCP Server & Tool Provider
 export * from './server.js';
+export { callLocalQapTool, isLocalQapWorkspace, withLocalQapClient } from './local-client.js';
 export * from './dispatcher.js';
 export type { StateDependencies, ProjectKnowledgeBinding } from './handlers/state-services.js';
 export { registerMcpProject } from './register.js';

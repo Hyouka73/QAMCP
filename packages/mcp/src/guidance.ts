@@ -35,6 +35,11 @@ export const QAP_CORE_DIRECTIVES =
   '5. Máximo una sola pregunta estructurada al usuario por turno.\n' +
   '6. Si falta navegador, instálalo con el comando indicado como paso de trabajo autónomo. Explora solo con qap_discover.';
 
+export const QAP_AUTONOMOUS_DIRECTIVES =
+  'Empieza con qap_start y sigue la frontera autorizada por el host. Explora con QAP y diseña con evidencia. ' +
+  'Registra oráculos indeterminados. Usa qap_test para ejecutar y qap_report para publicar. ' +
+  'Respeta los bloqueos y continúa con los casos independientes sin pedir aprobación por caso.';
+
 export interface SiguienteAccion {
   tipo: AccionTipo;
   descripcion: string;

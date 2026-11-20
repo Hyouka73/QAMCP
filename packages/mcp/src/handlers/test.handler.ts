@@ -3,6 +3,7 @@ import { realpathSync } from 'node:fs';
 
 import { SessionStore, readProfile } from '@qap/auth';
 import { FileSystemStorage } from '@qap/knowledge';
+import { ReconScope } from '@qap/playwright-adapter';
 import { SchemaValidator, type ExecutionResult, type PermissionScope, type TCCase } from '@qap/shared';
 import type { IRunner } from '@qap/engine';
 import {
@@ -30,6 +31,9 @@ import { canonicalizeCaseId } from '../application/block3-execution-repo.js';
 import { LineagedCaseError } from '../application/lineaged-case.js';
 
 import { verifyCaseApproval } from './case-workflow.js';
+import { caseEligibility, getAutonomousScope } from './autonomous-cases.js';
+import { policyAllowsNavigation } from '../autonomy-policy.js';
+import { reviewDigest } from '../host-review.js';
 import {
   binding,
   definition,
@@ -278,16 +282,20 @@ export class TestHandler implements IMcpToolHandler {
       }, true);
     }
     const activeModule = appSnapshot?.modules.find(module => module.key === moduleName || module.title === moduleName);
+    const autonomous = this.dependencies.autonomyPolicy ? await getAutonomousScope(this.dependencies, rootDir, moduleName,
+      { environment, profile: args.profile }) : undefined;
+    if (this.dependencies.autonomyPolicy && !autonomous) return result({ status: 'blocked', code: 'autonomy_policy_required' }, true);
     const executeScope = {
       root_path: rootDir,
       ...(activeModule ? { module_id: activeModule.module_id } : {}),
       ...(envOrigin ? { origin: envOrigin } : {}),
       ...(activeEnvironment ? { env_id: activeEnvironment.env_id } : {}),
       ...(args.profile ? { profile_id: args.profile } : {}),
+      ...(autonomous?.scope.tenant_id ? { tenant_id: autonomous.scope.tenant_id } : {}),
     };
     const isExplicitExecuteScope = (scope: PermissionScope) =>
       Boolean(scope.root_path && scope.origin === envOrigin && scope.env_id === activeEnvironment?.env_id &&
-        (!scope.module_id || scope.module_id === activeModule?.module_id) && !scope.tenant_id);
+        (!scope.module_id || scope.module_id === activeModule?.module_id) && (!scope.tenant_id || scope.tenant_id === executeScope.tenant_id));
 
     let admittedAccessId: string | undefined;
     let admittedExecuteId: string | undefined;
@@ -311,9 +319,10 @@ export class TestHandler implements IMcpToolHandler {
         );
       }
 
-      const executeCheck = appService.authority.check(appProject.project_id, 'execute', executeScope);
+      const executeCheck = appService.authority.check(appProject.project_id, 'execute', executeScope, autonomous?.policy.digest);
       admittedExecuteId = executeCheck.allowed && isExplicitExecuteScope(executeCheck.grant.scope) &&
-        executeCheck.grant.granted_by !== 'host_bound_scope' ? executeCheck.grant.grant_id : undefined;
+        (autonomous ? executeCheck.grant.granted_by === 'host_environment_policy' : executeCheck.grant.granted_by !== 'host_bound_scope')
+        ? executeCheck.grant.grant_id : undefined;
       if (!executeCheck.allowed && (executeCheck.reason === 'revoked' || executeCheck.reason === 'expired')) {
         return result(
           {
@@ -371,15 +380,18 @@ export class TestHandler implements IMcpToolHandler {
 
     if (appService && appProject && args.case_ids?.length) {
       const requested = new Set(args.case_ids.map(canonicalizeCaseId));
-      if (appService.listServiceCases(appProject.project_id, moduleName).some(tc =>
-        requested.has(canonicalizeCaseId(tc.case_id)) && tc.oracle_status === 'missing_oracle')) {
-        return result({ status: 'blocked', code: 'executable_oracle_required', module: moduleName,
+      const excluded = appService.listServiceCases(appProject.project_id, moduleName).find(tc =>
+        requested.has(canonicalizeCaseId(tc.case_id)) && tc.oracle_status === 'missing_oracle');
+      if (excluded) {
+        const code = autonomous ? (excluded.expectation.metadata?.policy_denied ? 'SKIPPED_BY_POLICY' : 'INDETERMINATE') : 'executable_oracle_required';
+        return result({ status: 'blocked', code, module: moduleName,
           desbloquear_con: 'qap_plan', siguiente_accion: { ...ORACLE_RECOVERY, module: moduleName } }, true);
       }
     }
 
     const planCheck: PlanVigenciaCheck = await verifyPlanIntegrity(storage, moduleName, {
       environment,
+      usePlannedCaseSet: Boolean(autonomous),
     });
 
     if (planCheck.validity !== 'valid') {
@@ -479,13 +491,38 @@ export class TestHandler implements IMcpToolHandler {
       }
     }
 
+    let fixtureWrite: PlaywrightRunnerOptions['fixtureWrite'];
+    const verifyEligibility = async () => {
+      if (!autonomous) return verifyCaseApproval(rootDir, moduleName, [...snapshotMap.values()], this.dependencies);
+      const current = await getAutonomousScope(this.dependencies, rootDir, moduleName, { environment, profile: args.profile });
+      if (!current || current.policy.digest !== autonomous.policy.digest || !snapshotMap.size)
+        return { allowed: false, code: 'autonomy_policy_changed' };
+      const records = new Map(current.service.listServiceCases(current.project.project_id, current.scope.module_key)
+        .map(item => [item.case_id, item]));
+      const digests = [];
+      const writes = [];
+      for (const item of snapshotMap.values()) {
+        const check = caseEligibility(current.service, records.get(item.id), current.scope, current.policy, item);
+        if (!check.allowed) return check;
+        digests.push(check.digest);
+        if (check.write) writes.push({ ...check.write, origin: current.policy.origin, caseId: item.id });
+      }
+      fixtureWrite = writes[0];
+      if (writes.length > 1) return { allowed: false, code: 'fixture_write_budget' };
+      return { allowed: true, request_digest: reviewDigest(digests), requirements: [] };
+    };
     let approval;
-    try { approval = await verifyCaseApproval(rootDir, moduleName, [...snapshotMap.values()], this.dependencies); }
+    try { approval = await verifyEligibility(); }
     catch { return result({ status: 'blocked', code: 'case_approval_unavailable', desbloquear_con: 'qap_plan' }, true); }
+    const recoverEligibility = autonomous ? { tipo: 'trabajo', tool: 'qap_plan', module: moduleName,
+      descripcion: 'Regenera el plan para seguir con casos independientes que cumplan la política vigente.' } : { ...ORACLE_RECOVERY, module: moduleName };
     if (!approval.allowed) return result({ status: 'blocked', ...approval, desbloquear_con: 'qap_plan',
-      siguiente_accion: { ...ORACLE_RECOVERY, module: moduleName } }, true);
+      siguiente_accion: recoverEligibility }, true);
+    const traceAdmission = autonomous ? { case_eligibility_digest: approval.request_digest,
+      policy_digest: autonomous.policy.digest, plan_fingerprint: verifiedPlan.cases_fingerprint } :
+      { case_approval_digest: approval.request_digest };
 
-    if (appProject && [...snapshotMap.values()].some(tc => tc.steps.some(step => !READ_ONLY_STEPS.has(step.type)))) {
+    if (!autonomous && appProject && [...snapshotMap.values()].some(tc => tc.steps.some(step => !READ_ONLY_STEPS.has(step.type)))) {
       return result({
         status: 'blocked', code: 'mutation_scope_unavailable', module: moduleName, environment,
         message: 'La ejecución canónica de este host admite pasos de lectura. La operación solicitada requiere una política de escritura específica del entorno y la operación.',
@@ -502,7 +539,8 @@ export class TestHandler implements IMcpToolHandler {
       canonicalRoot = rootDir;
     }
 
-    const staticAuths = this.options.testAuthorizations ?? [];
+    const staticAuths = autonomous ? [{ projectRoot: canonicalRoot, allowedOrigins: [autonomous.policy.origin],
+      authorizedProfiles: [...autonomous.policy.profiles, ...(args.profile ? [args.profile] : [])] }] : this.options.testAuthorizations ?? [];
     let authorizations: TestNavigationAuthorization[] = [...staticAuths];
 
     let matchingAuths = authorizations.filter(auth => {
@@ -516,7 +554,16 @@ export class TestHandler implements IMcpToolHandler {
       return true; // global policy if no specific projectRoot
     });
 
-    if (appProject && appService) {
+    if (autonomous && appProject && appService && !admittedExecuteId) {
+      admittedExecuteId = appService.withProjectOperation(() => {
+        if (!admittedAccessId || this.dependencies.autonomyPolicy?.(rootDir, envOrigin)?.digest !== autonomous.policy.digest) return;
+        const current = appService.authority.check(appProject.project_id, 'execute', executeScope, autonomous.policy.digest);
+        if (current.allowed) return current.grant.granted_by === 'host_environment_policy' ? current.grant.grant_id : undefined;
+        if (current.reason !== 'missing_grant' && current.reason !== 'scope_mismatch' && current.reason !== 'policy_drift') return;
+        return appService.authority.grant({ project_id: appProject.project_id, capability: 'execute', scope: executeScope,
+          granted_by: 'host_environment_policy', policy_hash: autonomous.policy.digest }).grant_id;
+      });
+    } else if (!autonomous && appProject && appService) {
       if (admittedExecuteId) {
         const grantedAuth: TestNavigationAuthorization = {
           projectRoot: canonicalRoot,
@@ -612,8 +659,8 @@ export class TestHandler implements IMcpToolHandler {
     if (appProject && !admittedExecuteId) {
       return result({
         status: 'blocked', code: 'execution_authorization_required', module: moduleName, environment,
-        message: 'Se requiere permiso explícito de ejecución para el workspace y el entorno activos.',
-        desbloquear_con: 'qap_test', siguiente_accion: { ...EXECUTE_RECOVERY, module: moduleName },
+        message: 'Se requiere permiso de ejecución vigente para el workspace y el entorno activos.',
+        desbloquear_con: 'qap_test', siguiente_accion: autonomous ? recoverEligibility : { ...EXECUTE_RECOVERY, module: moduleName },
       }, true);
     }
 
@@ -723,10 +770,11 @@ export class TestHandler implements IMcpToolHandler {
     const loginScope = { ...(envOrigin ? { origin: envOrigin } : {}), ...(args.profile ? { profile_id: args.profile } : {}) };
     const grants = appProject && appService ? {
       access: appService.authority.check(appProject.project_id, 'access', accessScope),
-      execute: appService.authority.check(appProject.project_id, 'execute', executeScope),
+      execute: appService.authority.check(appProject.project_id, 'execute', executeScope, autonomous?.policy.digest),
       login: args.profile ? appService.authority.check(appProject.project_id, 'login', loginScope) : undefined,
     } : undefined;
-    const authorityValid = () => {
+    const authorityValid = (): boolean => {
+      if (autonomous && this.dependencies.autonomyPolicy?.(rootDir, envOrigin)?.digest !== autonomous.policy.digest) return false;
       if (this.dependencies.validateKnowledgeBinding && (!admitted || !this.dependencies.validateKnowledgeBinding(admitted))) return false;
       if (!grants || !appProject || !appService) return !this.dependencies.validateKnowledgeBinding;
       const currentEnvironment = appService.resumeProject(appProject.project_id, { readOnly: true }).environment;
@@ -734,11 +782,11 @@ export class TestHandler implements IMcpToolHandler {
           currentEnvironment?.base_url !== activeEnvironment?.base_url || currentEnvironment?.is_production) return false;
       const valid = (cap: 'access' | 'execute' | 'login', grant: typeof grants.access | undefined, scope: PermissionScope) =>
         !!grant?.allowed && appService.authority.isGrantValid(appProject.project_id, cap, grant.grant.grant_id, scope);
-      return grants.access.allowed && grants.access.grant.grant_id === admittedAccessId &&
+      return Boolean(grants.access.allowed && grants.access.grant.grant_id === admittedAccessId &&
         grants.execute.allowed && grants.execute.grant.grant_id === admittedExecuteId &&
         (!args.profile || (grants.login?.allowed && grants.login.grant.grant_id === admittedLoginId)) &&
         valid('access', grants.access, accessScope) && valid('execute', grants.execute, executeScope) &&
-        (!args.profile || valid('login', grants.login, loginScope));
+        (!args.profile || valid('login', grants.login, loginScope)));
     };
     if (appService && appProject && !appService.withProjectOperation(authorityValid))
       return result({ status: 'blocked', code: 'operation_grant_revoked' }, true);
@@ -852,6 +900,25 @@ export class TestHandler implements IMcpToolHandler {
     );
     const attemptId = appProject && appService ? `att_${randomUUID().replace(/-/g, '').slice(0, 16)}` : undefined;
     let attemptRecord: ReturnType<NonNullable<typeof appService>['createExecutionAttempt']> | null = null;
+    const stagedCases = [...snapshotMap.values()].map(c => {
+      const svc = serviceCasesById.get(canonicalizeCaseId(c.id));
+      return { case_id: c.id, version: svc?.version ?? 1, requirement_id: svc?.requirement_id ?? c.source_rule_id ?? null,
+        requirement_revision: svc?.requirement_revision ?? 1, title: c.name ?? svc?.title ?? c.id };
+    });
+    const reservedExecutionId = autonomous ? `exec_${Date.now()}_${randomUUID().replace(/-/g, '')}` : undefined;
+    let pinnedHost: PlaywrightRunnerOptions['pinnedHost'];
+    if (autonomous && bound) {
+      const environment = await bound.store.get(bound.applicationId, 'environment', bound.environmentId);
+      if (!environment) return result({ status: 'blocked', code: 'execution_environment_not_allowed' }, true);
+      const target = new URL(autonomous.policy.entry, autonomous.policy.origin);
+      try {
+        const { address, family } = await new ReconScope({ application_id: bound.applicationId, environment: environment.entity,
+          target_url: target.href, authorization: { allowed_urls: [target.href],
+            allow_public_network: target.hostname !== '127.0.0.1',
+            ...(target.hostname === '127.0.0.1' ? { allowed_ips: ['127.0.0.1'] } : {}) } }).resolve(target);
+        pinnedHost = { name: target.hostname, address: family === 6 ? `[${address}]` : address };
+      } catch { return result({ status: 'blocked', code: 'execution_network_outside_policy' }, true); }
+    }
 
     // 8. Safe Runner Execution (R2 / F7 / F8)
     const runner = this.options.runner ?? new PlaywrightRunner();
@@ -870,6 +937,9 @@ export class TestHandler implements IMcpToolHandler {
       storageResolver,
       allowedOrigins,
       ...(appProject && envOrigin ? { readOnlyOrigin: envOrigin } : {}),
+      ...(autonomous ? { navigationAllowed: (url: string) => authorityValid() && policyAllowsNavigation(autonomous.policy, url) } : {}),
+      ...(fixtureWrite ? { fixtureWrite, fixtureAuthority: authorityValid } : {}),
+      pinnedHost, executionId: reservedExecutionId,
       ...(attemptId ? { attemptId } : {}),
     };
 
@@ -878,6 +948,20 @@ export class TestHandler implements IMcpToolHandler {
     try {
       if (appService && appProject && !appService.withProjectOperation(authorityValid))
         return result({ status: 'blocked', code: 'operation_grant_revoked' }, true);
+      if (reservedExecutionId && appService && appProject && attemptId) {
+        const reserved = appService.withProjectOperation(() => {
+          if (!authorityValid()) return false;
+          if (fixtureWrite && appService.listExecutionAttempts(appProject.project_id).some(attempt =>
+            attempt.env_id === activeEnvironment?.env_id && (['prepared', 'running'].includes(attempt.status) ||
+              attempt.error_code === 'fixture_cleanup_required'))) return false;
+          attemptRecord = appService.createExecutionAttempt({ projectId: appProject.project_id, moduleKey: moduleName,
+            envId: activeEnvironment!.env_id, profileId: resolvedProfileId ?? null, attemptId, executionId: reservedExecutionId,
+            cases: stagedCases });
+          appService.markAttemptRunning(attemptId);
+          return true;
+        });
+        if (!reserved) return result({ status: 'blocked', code: 'fixture_recovery_required' }, true);
+      }
       const plan = { modules: [moduleName], cases: selectedPlanCaseIds, environment };
       if (runner instanceof PlaywrightRunner) {
         provisional = await runner.prepare(plan, runnerOptions);
@@ -889,6 +973,8 @@ export class TestHandler implements IMcpToolHandler {
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
+      if (appService && attemptId && reservedExecutionId) appService.finalizeExecutionAttempt({ attemptId,
+        technicalError: { code: fixtureWrite ? 'fixture_cleanup_required' : 'execution_failed', message: 'El runner no completó la operación.' } });
       return result({ status: 'error', code: 'execution_failed', module: moduleName, environment,
         message: `Fallo crítico durante la ejecución del runner: ${msg}` }, true);
     }
@@ -904,11 +990,11 @@ export class TestHandler implements IMcpToolHandler {
         return result({ status: 'error', code: 'execution_case_set_mismatch', module: moduleName, environment,
           desbloquear_con: 'qap_plan' }, true);
       }
-      const reviewed = await verifyCaseApproval(rootDir, moduleName, [...snapshotMap.values()], this.dependencies);
+      const reviewed = await verifyEligibility();
       if (!reviewed.allowed || reviewed.request_digest !== approval.request_digest) {
         return result({ status: 'blocked', code: reviewed.allowed ? 'case_approval_changed' : reviewed.code,
           module: moduleName, environment, desbloquear_con: 'qap_plan',
-          siguiente_accion: { ...ORACLE_RECOVERY, module: moduleName } }, true);
+          siguiente_accion: recoverEligibility }, true);
       }
       if (!authorityValid()) return result({ status: 'blocked', code: 'operation_grant_revoked' }, true);
     }
@@ -1077,17 +1163,6 @@ export class TestHandler implements IMcpToolHandler {
       appService.reconcileCommittedProjectExecutions(appProject.project_id, canonicalRoot);
     }
 
-    const stagedCases = [...snapshotMap.values()].map(c => {
-      const svc = serviceCasesById.get(canonicalizeCaseId(c.id));
-      return {
-        case_id: c.id,
-        version: svc?.version ?? 1,
-        requirement_id: svc?.requirement_id ?? c.source_rule_id ?? null,
-        requirement_revision: svc?.requirement_revision ?? 1,
-        title: c.name ?? svc?.title ?? c.id,
-      };
-    });
-
     const mcpFinalization: ProvisionalMcpFinalization = {
       executionId,
       ...(attemptId ? { attemptId } : {}),
@@ -1100,7 +1175,7 @@ export class TestHandler implements IMcpToolHandler {
       ...(approval.request_digest
         ? {
             trace: {
-              case_approval_digest: approval.request_digest,
+              ...traceAdmission,
               requirements: approval.requirements,
               cases: [...snapshotMap.values()].map(c => ({ id: c.id, source_rule_id: c.source_rule_id })),
             },
@@ -1112,7 +1187,7 @@ export class TestHandler implements IMcpToolHandler {
       provisional = stageProvisionalMcpFinalization(provisional, mcpFinalization);
     }
 
-    if (appProject && appService && attemptId) {
+    if (appProject && appService && attemptId && !attemptRecord) {
       attemptRecord = appService.createExecutionAttempt({
         projectId: appProject.project_id,
         moduleKey: moduleName,
@@ -1162,7 +1237,7 @@ export class TestHandler implements IMcpToolHandler {
             await storage.writeJson(`.qa/executions/${executionId}.trace.json`, {
               execution_id: executionId,
               ...(attemptRecord ? { attempt_id: attemptRecord.attempt_id } : {}),
-              case_approval_digest: approval.request_digest,
+              ...traceAdmission,
               requirements: approval.requirements,
               cases: [...snapshotMap.values()].map(c => ({ id: c.id, source_rule_id: c.source_rule_id })),
               ...(postCommitResult.artifacts ? { artifacts: postCommitResult.artifacts } : {}),
@@ -1276,7 +1351,7 @@ export class TestHandler implements IMcpToolHandler {
           execution_id: executionId,
           ...(attemptRecord ? { attempt_id: attemptRecord.attempt_id } : {}),
           browser_mode: browserMode,
-          case_approval_digest: approval.request_digest,
+          ...traceAdmission,
           requirements: approval.requirements,
           cases: [...snapshotMap.values()].map(c => ({ id: c.id, source_rule_id: c.source_rule_id })),
           ...(executionResult.artifacts ? { artifacts: executionResult.artifacts } : {}),

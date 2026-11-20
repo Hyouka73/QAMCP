@@ -4132,9 +4132,7 @@ export class QapApplicationService {
           {
             execution_id: executionId,
             ...(executionResult.attempt_id ? { attempt_id: executionResult.attempt_id } : {}),
-            case_approval_digest: traceMeta.case_approval_digest,
-            requirements: traceMeta.requirements,
-            cases: traceMeta.cases,
+            ...traceMeta,
             ...(executionResult.artifacts ? { artifacts: executionResult.artifacts } : {}),
             ...(executionResult.timeline ? { timeline: executionResult.timeline } : {}),
           },
