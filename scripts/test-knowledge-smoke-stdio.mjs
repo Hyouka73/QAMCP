@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFile, execFileSync } from 'node:child_process';
+import { promisify } from 'node:util';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
@@ -189,10 +190,10 @@ async function verify() {
       await client.close();
       client = undefined;
       const cli = join(repo, 'packages/cli/dist/entrypoint.js');
-      const runCli = args => execFileSync(process.execPath, [cli, ...args], { cwd: workspace, env, encoding: 'utf8', windowsHide: true });
-      const cliPlan = runCli(['plan', module]);
-      const cliTest = runCli(['test', module, '--case', caseId]);
-      const cliReport = runCli(['report', first.execution_id, '--format', 'json']);
+      const runCli = async args => (await promisify(execFile)(process.execPath, [cli, ...args], { cwd: workspace, env, encoding: 'utf8', windowsHide: true })).stdout;
+      const cliPlan = await runCli(['plan', module]);
+      const cliTest = await runCli(['test', module, '--case', caseId]);
+      const cliReport = await runCli(['report', first.execution_id, '--format', 'json']);
       assert.match(cliPlan, /1 caso\(s\) elegible/);
       assert.match(cliTest, /Total: 1\/1 casos ok/);
       assert.match(cliReport, /\.report\.json/);
