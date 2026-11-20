@@ -4,11 +4,11 @@ import { join } from 'node:path';
 import { CaseGenerator, FileSystemStorage } from '@qap/knowledge';
 import { SchemaValidator, validateExpectedRequirement, type TCCase } from '@qap/shared';
 
-import { stableStringify } from '../application/lineaged-case.js';
-import { reviewDigest } from '../host-review.js';
-import type { RuleReviewInvocation } from '../client-elicitation-authorizers.js';
-
+import { hasReviewedInventoryVisibility } from '../application/discovery-case-evidence.js';
 import type { DiscoveryDossierScope } from '../application/discovery-dossier.js';
+import { stableStringify } from '../application/lineaged-case.js';
+import type { RuleReviewInvocation } from '../client-elicitation-authorizers.js';
+import { reviewDigest } from '../host-review.js';
 
 import { hasBusinessAssertion, materializeReviewedCase, runConversationalCaseWorkflow } from './conversational-case-workflow.js';
 import { ModuleObservationBridge } from './module-observation-bridge.js';
@@ -51,7 +51,8 @@ export async function verifyCaseApproval(root: string, module: string, cases: TC
       const match = serviceCases.find(sc => sc.case_id === tc.id);
       if (!match) return { allowed: false, code: 'case_approval_required' };
       if (match.oracle_status === 'missing_oracle' ||
-          !hasBusinessAssertion(match.steps, match.expectation.expected_outcome)) {
+          (!hasBusinessAssertion(match.steps, match.expectation.expected_outcome) &&
+            !hasReviewedInventoryVisibility(deps.applicationService, match))) {
         return { allowed: false, code: 'executable_oracle_required' };
       }
       if (!match.confirmed_at || !match.confirmation_digest ||

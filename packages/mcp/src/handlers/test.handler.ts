@@ -855,10 +855,11 @@ export class TestHandler implements IMcpToolHandler {
 
     // 8. Safe Runner Execution (R2 / F7 / F8)
     const runner = this.options.runner ?? new PlaywrightRunner();
+    const browserMode = args.headed === true ? 'headed' : 'headless';
     const runnerOptions: PlaywrightRunnerOptions = {
       projectRoot: rootDir,
       environment,
-      headless: args.headed !== true,
+      headless: browserMode === 'headless',
       fail_fast: false,
       registerSignalHandlers: false,
       signal: context?.signal,
@@ -1274,6 +1275,7 @@ export class TestHandler implements IMcpToolHandler {
         await storage.writeJson(traceRelPath, {
           execution_id: executionId,
           ...(attemptRecord ? { attempt_id: attemptRecord.attempt_id } : {}),
+          browser_mode: browserMode,
           case_approval_digest: approval.request_digest,
           requirements: approval.requirements,
           cases: [...snapshotMap.values()].map(c => ({ id: c.id, source_rule_id: c.source_rule_id })),
@@ -1394,6 +1396,7 @@ export class TestHandler implements IMcpToolHandler {
     return result({
       status: executionResult.result === 'passed' ? 'success' : 'completed',
       result: executionResult.result,
+      browser_mode: browserMode,
       module: moduleName,
       environment,
       execution_id: executionId,
