@@ -21,7 +21,6 @@ import type {
 import { createMcpServer, type McpServerOptions } from '../server.js';
 import type { ITestAuthorizer } from '../test-authorizer.js';
 import { WorkspaceBootstrap } from '../workspace-bootstrap.js';
-import { WindowsRuleReviewDialog } from '../windows-rule-review.js';
 import type { IWorkspaceAuthorizer } from '../workspace-authorizer.js';
 
 import {
@@ -335,47 +334,12 @@ describe('P0.3a — Autoridad de reglas y revisión de solo lectura', () => {
     expect(approved.data, JSON.stringify(approved.data)).toMatchObject({
       status: 'approved', evidence: { mechanism: 'client_elicitation', approval_id: expect.any(String) },
     });
+    expect(approved.data.evidence).not.toMatchObject({ approval_id: rules[0].approval_id });
+    expect(elicited).toHaveLength(3);
     expect(appService.hasUsedRuleApprovalId(project.project_id, String((approved.data.evidence as { approval_id: string }).approval_id))).toBe(true);
     expect(saved()?.conformity_status).toBe('approved');
     expect(existsSync(yamlPath)).toBe(true);
   });
-
-  it.each([
-    { nativeOutcome: 'cancelled' as const, expected: 'human_review_cancelled' },
-    { nativeOutcome: 'defer' as const, expected: 'human_review_deferred' },
-    { nativeOutcome: 'reject' as const, expected: 'human_review_rejected' },
-    { nativeOutcome: 'unavailable' as const, expected: 'human_review_unavailable' },
-  ])('keeps the preferred Windows review blocked on $nativeOutcome even if MCP forms are advertised', async ({ nativeOutcome, expected }) => {
-    vi.spyOn(diagnostics, 'authorizationDiagnostic').mockReturnValue('synthetic-diagnostic');
-    const review = vi.fn(async () => nativeOutcome);
-    const { client, decide, saved, project, appService } = await prepareReviewFixture({
-      clientElicitation: true, nativeRuleReviewDialog: { review }, preferNativeRuleReview: true,
-    });
-    const clientForm = vi.fn(async () => ({ action: 'accept' as const, content: { decision: 'confirm' } }));
-    client.setRequestHandler(ElicitRequestSchema, clientForm);
-    expect((await decide()).data).toMatchObject({ status: 'blocked', code: expected });
-    expect(review).toHaveBeenCalledOnce();
-    expect(clientForm).not.toHaveBeenCalled();
-    expect(saved()?.conformity_status).toBe('pending_oracle');
-    expect(appService.listRuleConfirmationDecisions(project.project_id)).toHaveLength(0);
-  });
-
-  it.skipIf(process.platform !== 'win32' || process.env.QAP_MANUAL_RULE_REVIEW !== '1')(
-    'accepts the physical Windows rule review and a separate case approval',
-    async () => {
-      const { decide, approve, saved, project, appService, yamlPath } = await prepareReviewFixture({
-        nativeRuleReviewDialog: new WindowsRuleReviewDialog(),
-      });
-      expect((await decide()).data).toMatchObject({ status: 'blocked', code: 'human_review_cancelled' });
-      expect(appService.listRuleConfirmationDecisions(project.project_id)).toHaveLength(0);
-      expect((await decide()).data).toMatchObject({ status: 'updated' });
-      expect(appService.listRuleConfirmationDecisions(project.project_id)).toMatchObject([{ decision: 'confirm', mechanism: 'windows_dialog' }]);
-      expect(saved()?.conformity_status).toBe('proposed');
-      expect((await approve()).data).toMatchObject({ status: 'approved', evidence: { mechanism: 'windows_dialog' } });
-      expect(saved()?.conformity_status).toBe('approved');
-      expect(existsSync(yamlPath)).toBe(true);
-    }, 360_000,
-  );
 
   it('review es de solo lectura sin efectos en estado ni YAML, y las expectativas inventadas, sin fuente o contradichas permanecen pendientes', async () => {
     staging = await startProtectedSpaStaging();

@@ -10,7 +10,6 @@ import type {
   IHumanReviewGateway,
 } from './handlers/canonical-interview-service.js';
 import { authorizationDiagnostic } from './authorization-diagnostics.js';
-import type { NativeRuleReviewDialog, NativeRuleReviewOutcome } from './windows-rule-review.js';
 import type { IWorkspaceAuthorizer, WorkspaceAuthorizationRequest, WorkspaceAuthorizationResult } from './workspace-authorizer.js';
 
 type ServerProvider = () => Server | undefined;
@@ -135,7 +134,7 @@ export class ClientElicitationDiscoveryAuthorizer implements IDiscoveryAuthorize
 }
 
 export type RuleReviewResult =
-  | { outcome: 'decided'; decision: HumanReviewDecision; mechanism: 'client_elicitation' | 'host_gateway' | 'windows_dialog' }
+  | { outcome: 'decided'; decision: HumanReviewDecision; mechanism: 'client_elicitation' | 'host_gateway' }
   | { outcome: 'blocked'; code: 'human_review_gateway_required' | 'human_review_cancelled' |
       'human_review_unavailable' | 'human_review_not_authorized' };
 
@@ -188,36 +187,29 @@ function reviewMessage(request: Readonly<HumanReviewRequest>): string {
   ].join('\n');
 }
 
-/** Client form or an independently composed local host channel. Each review uses exactly one channel. */
+/** Use the connected client's review form. Programmatic hosts may supply a gateway. */
 export class ClientElicitationHumanReviewGateway implements VerifiableRuleReviewGateway {
   constructor(
     private readonly server: ServerProvider,
     private readonly fallback?: IHumanReviewGateway,
-    private readonly windowsDialog?: NativeRuleReviewDialog,
-    private readonly preferWindowsDialog = false,
   ) {}
 
   async review(request: Readonly<HumanReviewRequest>, invocation?: RuleReviewInvocation): Promise<RuleReviewResult> {
     const { signal, requestId } = invocation ?? {};
     const server = this.server();
     const formAdvertised = canElicit(server);
-    const windowsDialog = this.preferWindowsDialog || !formAdvertised ? this.windowsDialog : undefined;
-    const mechanism = windowsDialog ? 'windows_dialog'
-      : formAdvertised ? 'client_elicitation'
-      : this.fallback ? 'host_gateway' : 'none';
+    const mechanism = formAdvertised ? 'client_elicitation' : this.fallback ? 'host_gateway' : 'none';
     const diagnostic = { review_id: randomUUID(), review_request_digest: request.requestDigest, form_advertised: formAdvertised, mechanism };
     const start = Date.now();
     authorizationDiagnostic('human_review_request', diagnostic);
 
     let clientAction: ClientAction | undefined;
     let protocolErrorCode: number | undefined;
-    let nativeOutcome: NativeRuleReviewOutcome | undefined;
     const finish = (result: RuleReviewResult): RuleReviewResult => {
       authorizationDiagnostic('human_review_result', {
         ...diagnostic,
         client_action: clientAction,
         protocol_error_code: protocolErrorCode,
-        native_outcome: nativeOutcome,
         outcome: result.outcome === 'decided' ? result.decision.decision : result.code,
         duration_ms: Math.max(0, Date.now() - start),
       });
@@ -226,14 +218,14 @@ export class ClientElicitationHumanReviewGateway implements VerifiableRuleReview
     const cancelled = () => finish({ outcome: 'blocked', code: 'human_review_cancelled' });
     const unavailable = () => finish({ outcome: 'blocked', code: 'human_review_unavailable' });
     const noDecision = () => finish({ outcome: 'blocked', code: 'human_review_not_authorized' });
-    const decided = (decision: HumanReviewDecision['decision'], channel: 'client_elicitation' | 'windows_dialog') => {
+    const decided = (decision: HumanReviewDecision['decision']) => {
       const now = new Date();
-      return finish({ outcome: 'decided', mechanism: channel, decision: {
+      return finish({ outcome: 'decided', mechanism: 'client_elicitation', decision: {
         requestDigest: request.requestDigest,
         approvalId: randomUUID(),
         decision,
         presentedStatementDigest: request.statementDigest,
-        reviewer: channel === 'windows_dialog' ? 'windows_desktop_operator' : 'mcp_client_elicitation',
+        reviewer: 'mcp_client_elicitation',
         decidedAt: now.toISOString(),
         expiresAt: new Date(now.getTime() + 10 * 60_000).toISOString(),
       } });
@@ -241,12 +233,6 @@ export class ClientElicitationHumanReviewGateway implements VerifiableRuleReview
 
     if (signal?.aborted) return cancelled();
     try {
-      if (windowsDialog) {
-        nativeOutcome = await windowsDialog.review(reviewMessage(request), signal);
-        if (signal?.aborted || nativeOutcome === 'cancelled') return cancelled();
-        if (nativeOutcome === 'unavailable') return unavailable();
-        return decided(nativeOutcome, 'windows_dialog');
-      }
       if (formAdvertised) {
         // Keep the action even when a submitted field is invalid; only the explicit enum below may authorize.
         const answer = await server.request({
@@ -265,10 +251,10 @@ export class ClientElicitationHumanReviewGateway implements VerifiableRuleReview
         }, ElicitResultSchema, { signal, relatedRequestId: requestId });
         clientAction = answer.action;
         if (signal?.aborted || answer.action === 'cancel') return cancelled();
-        if (answer.action === 'decline') return decided('reject', 'client_elicitation');
+        if (answer.action === 'decline') return decided('reject');
         const decision = answer.content?.decision;
         return decision === 'confirm' || decision === 'reject' || decision === 'defer'
-          ? decided(decision, 'client_elicitation') : noDecision();
+          ? decided(decision) : noDecision();
       }
       if (this.fallback) {
         const decision = await this.fallback.review(request);

@@ -8,7 +8,6 @@ const DIALOG_SCRIPTS = [
   'qap-interactive-discovery-dialog.ps1',
   'qap-interactive-auth-dialog.ps1',
   'qap-interactive-test-dialog.ps1',
-  'qap-interactive-rule-review-dialog.ps1',
 ];
 
 const HELPER_SCRIPTS = ['qap-authorize-workspace.mjs'];

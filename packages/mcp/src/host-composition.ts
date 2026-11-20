@@ -31,7 +31,6 @@ import {
   WindowsInteractiveTestAuthorizer,
 } from './test-authorizer.js';
 import { authorizationDiagnostic } from './authorization-diagnostics.js';
-import { WindowsRuleReviewDialog } from './windows-rule-review.js';
 
 /**
  * Opt-in Stdio composition. The manifest comes from the HOST environment, never
@@ -375,7 +374,7 @@ export async function loadHostComposition(
       multiProjectRuntime,
       discoveryAuthorizer: 'unconfigured',
       testAuthorizer: isWindowsInteractive ? 'windows_dialog' : 'unconfigured',
-      ruleReview: preferHostDialogs ? 'windows_dialog' : 'client_elicitation_if_advertised',
+      ruleReview: 'client_elicitation_if_advertised',
       silentBoundScope: true,
       disabledByFlag: Boolean(env.QAP_DISABLE_INTERACTIVE_AUTH), testEnvironment: env.NODE_ENV === 'test', manifest: false,
     });
@@ -391,8 +390,6 @@ export async function loadHostComposition(
         silentBoundScope: true,
         workspaceAuthorizer,
         preferHostWorkspaceAuthorizer: preferHostDialogs,
-        nativeRuleReviewDialog: isWindowsInteractive ? new WindowsRuleReviewDialog() : undefined,
-        preferNativeRuleReview: preferHostDialogs,
         interactiveAccessAuthorizer: isWindowsInteractive ? new WindowsInteractiveDiscoveryAuthorizer() : undefined,
         clientWorkspaceRoots: multiProjectRuntime,
         hostRegistryPath: registry,
