@@ -5,7 +5,7 @@ import { normalizeSlug } from '@qap/shared';
 import type { QapApplicationService } from '../application/application-service.js';
 import type { RuleAssertType } from '../application/scoped-rule-resolver.js';
 import { reviewDigest } from '../host-review.js';
-import type { RuleReviewInvocation, VerifiableRuleReviewGateway } from '../client-elicitation-authorizers.js';
+import { requestRuleReview, type RuleReviewInvocation, type VerifiableRuleReviewGateway } from '../client-elicitation-authorizers.js';
 
 import type { HumanReviewRequest } from './canonical-interview-service.js';
 import { isObject } from './state-services.js';
@@ -246,7 +246,7 @@ export async function handleScopedRuleResolution(params: {
     requestDigest: reviewDigest(body),
   };
 
-  const review = await reviewGateway.review(structuredClone(request), reviewInvocation);
+  const review = await requestRuleReview(reviewGateway, request, reviewInvocation);
   if (review.outcome === 'blocked') {
     return blocked(review.code, { review_request_digest: request.requestDigest });
   }

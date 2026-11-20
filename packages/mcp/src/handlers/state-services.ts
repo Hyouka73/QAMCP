@@ -23,6 +23,8 @@ import type { CanonicalClosureService } from './canonical-closure-service.js';
 import type { IModuleClosureReviewGateway } from './module-closure-gateway.js';
 import type { IModuleClosureStore } from './module-closure-store.js';
 
+export type { VerifiableRuleReviewGateway } from '../client-elicitation-authorizers.js';
+
 /** Host-owned, already-open store. No filename discovery, implicit open or close. */
 export interface ProjectKnowledgeBinding {
   readonly projectRoot: string;

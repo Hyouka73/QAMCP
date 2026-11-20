@@ -19,7 +19,7 @@ import {
   type RuleAssertType,
 } from '../application/scoped-rule-resolver.js';
 import { reviewDigest } from '../host-review.js';
-import type { RuleReviewInvocation } from '../client-elicitation-authorizers.js';
+import { requestRuleReview, type RuleReviewInvocation } from '../client-elicitation-authorizers.js';
 
 import type { HumanReviewRequest } from './canonical-interview-service.js';
 import { binding, isObject, type StateDependencies } from './state-services.js';
@@ -912,7 +912,7 @@ export async function runConversationalCaseWorkflow(
         requestDigest: reviewDigest(body),
       };
 
-      const review = await reviewGateway.review(structuredClone(request), options?.reviewInvocation);
+      const review = await requestRuleReview(reviewGateway, request, options?.reviewInvocation);
       if (review.outcome === 'blocked') {
         return blocked(review.code, {
           human_review_required: true,
@@ -1174,7 +1174,7 @@ export async function runConversationalCaseWorkflow(
         requestDigest: reviewDigest(body),
       };
 
-      const review = await reviewGateway.review(structuredClone(request), options?.reviewInvocation);
+      const review = await requestRuleReview(reviewGateway, request, options?.reviewInvocation);
       if (review.outcome === 'blocked') {
         return blocked(review.code, {
           human_review_required: true,

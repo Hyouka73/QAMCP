@@ -140,12 +140,31 @@ export type RuleReviewResult =
       'human_review_unavailable' | 'human_review_not_authorized' };
 
 export interface VerifiableRuleReviewGateway {
-  review(request: Readonly<HumanReviewRequest>, invocation?: RuleReviewInvocation): Promise<RuleReviewResult>;
+  isAvailable?(): boolean;
+  lastMechanism?(): 'client_elicitation' | 'host_gateway';
+  review(request: Readonly<HumanReviewRequest>, invocation?: RuleReviewInvocation): Promise<RuleReviewResult | HumanReviewDecision | null>;
 }
 
 export interface RuleReviewInvocation {
   readonly signal?: AbortSignal;
   readonly requestId?: RequestId;
+}
+
+export async function requestRuleReview(
+  gateway: VerifiableRuleReviewGateway,
+  request: HumanReviewRequest,
+  invocation?: RuleReviewInvocation,
+): Promise<RuleReviewResult> {
+  try {
+    if (gateway.isAvailable?.() === false) return { outcome: 'blocked', code: 'human_review_gateway_required' };
+    const result = await gateway.review(structuredClone(request), invocation);
+    if (invocation?.signal?.aborted) return { outcome: 'blocked', code: 'human_review_cancelled' };
+    if (!result) return { outcome: 'blocked', code: 'human_review_not_authorized' };
+    if ('outcome' in result) return result;
+    return { outcome: 'decided', decision: result, mechanism: gateway.lastMechanism?.() ?? 'host_gateway' };
+  } catch {
+    return { outcome: 'blocked', code: 'human_review_unavailable' };
+  }
 }
 
 type ClientAction = 'accept' | 'decline' | 'cancel';
