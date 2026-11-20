@@ -65,10 +65,10 @@ export function initialInventoryAction(args: {
   coverage: { auth_required: boolean; resumable_routes: number; inspected_routes: number };
   profile?: string;
   entryPath?: string;
-  hasVerifiedProfile?: boolean;
+  verifiedProfiles?: readonly string[];
 }): SiguienteAccion {
-  const { root, baseUrl, coverage, profile, entryPath, hasVerifiedProfile } = args;
-  if (coverage.auth_required && !hasVerifiedProfile) {
+  const { root, baseUrl, coverage, profile, entryPath, verifiedProfiles = [] } = args;
+  if (coverage.auth_required && !verifiedProfiles.length) {
     return { tipo: 'decision', tool: 'qap_auth_add',
       descripcion: 'Verifica un perfil de QA autorizado para inventariar las vistas internas. Usa el mecanismo seguro de acceso de QAP.',
       parametros: { targetPath: root } };
@@ -78,7 +78,17 @@ export function initialInventoryAction(args: {
       parametros: { targetPath: root, name: 'inventario-provisional', path: entryPath ?? baseUrl,
         ...(profile ? { profile } : {}) } };
   }
-  if (coverage.auth_required && hasVerifiedProfile) {
+  if (coverage.auth_required && verifiedProfiles.length > 1) {
+    const pregunta = guardPregunta({
+      id: 'onboarding.discovery_profile', texto: '¿Qué perfil verificado debe usar QAP para continuar el inventario?',
+      formato: 'una_opcion', opciones: verifiedProfiles.map(label => ({ id: label, etiqueta: label })),
+      permite_otra: false, registrar_con: { tool: 'qap_discover', campo: 'profile' },
+    } as Pregunta) as Pregunta;
+    pregunta.render_texto = generarRenderTexto(pregunta);
+    return { tipo: 'decision', tool: 'qap_discover', descripcion: 'Selecciona el perfil de Discovery.',
+      pregunta, parametros: { targetPath: root, name: 'inventario-provisional', path: entryPath ?? baseUrl } };
+  }
+  if (coverage.auth_required) {
     return { tipo: 'trabajo', tool: 'qap_start', descripcion: 'Retoma el inventario con el acceso verificado.',
       parametros: { targetPath: root } };
   }

@@ -6,6 +6,8 @@ import { FileSystemStorage, detectarServiciosConEvidencia, generarScan, detectar
 import { canExitOnboarding, canExitScoping, obtenerSiguientePreguntaOnboarding, computeApplicableCategories, computeCoverage, generateNextInterviewBatch, type ViewDiscoveryContext } from '@qap/engine';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
+import type { DiscoveryRevisionRecord } from '../application/discovery-dossier.js';
+import { initialInventoryCoverage, initialInventoryTaskId, selectInitialInventory } from '../application/initial-inventory.js';
 import { getPhaseGuidance, buildInterviewNextAction, initialInventoryAction, type SiguienteAccion } from '../guidance.js';
 import type { IMcpToolHandler } from '../dispatcher.js';
 import type { InteractiveAccess } from '../interactive-access.js';
@@ -14,8 +16,6 @@ import { getVersionDiagnostic } from '../version-diagnostic.js';
 import { binding, definition, validateBase, projectRoot, readContext, readEnvironment, isObject, type StateDependencies, type LegacyEnvironment, knowledgeStatus, result, assertProjectSegment } from './state-services.js';
 import { ModuleObservationBridge } from './module-observation-bridge.js';
 import { PLAYWRIGHT_INSTALL_COMMAND, detectarSubcarpetaWorkspace } from './state-runtime.js';
-import { initialInventoryCoverage, initialInventoryTaskId, selectInitialInventory } from '../application/initial-inventory.js';
-
 import { discoveryIntegration, hasLegacyViewContext, legacyInterviewBlocked } from './legacy-discovery-contract.js';
 
 export class StatusHandler implements IMcpToolHandler {
@@ -469,7 +469,7 @@ export class StatusHandler implements IMcpToolHandler {
       (currentPhase === 'ONBOARDING' || currentPhase === 'SCOPING') &&
       !lifecycleState.session?.plan?.length && resumeSnapshot?.environment &&
       resumeSnapshot.tasks.some(task => task.task_id === initialInventoryTaskId(resumeSnapshot.project.project_id, resumeSnapshot.environment!.env_id));
-    let currentInventory;
+    let currentInventory: DiscoveryRevisionRecord | undefined;
     if (canRequireInventory && activeAppProject && appService && resumeSnapshot?.environment && baseUrl) {
       const bound = binding(rootDir, this.dependencies);
       const policy = bound && await bound.store.get(bound.applicationId, 'environment', bound.environmentId);
@@ -477,7 +477,8 @@ export class StatusHandler implements IMcpToolHandler {
       if (policy && tenant.ok) {
         const envId = resumeSnapshot.environment.env_id;
         const revisions = appService.listLatestDiscoveryRevisionsByScope(activeAppProject.project_id);
-        currentInventory = selectInitialInventory(revisions, envId, policy.revision, tenant.tenant_id ?? null);
+        currentInventory = selectInitialInventory(revisions, envId, policy.revision, tenant.tenant_id ?? null,
+          undefined, resumeSnapshot.profiles);
       }
     }
     const coverage = canRequireInventory && baseUrl ? initialInventoryCoverage(currentInventory?.dossier) : undefined;
@@ -578,7 +579,7 @@ export class StatusHandler implements IMcpToolHandler {
       guidance.siguiente_accion = initialInventoryAction({ root: rootDir, baseUrl, coverage,
         profile: resumeSnapshot?.profiles.find(profile => profile.profile_id === currentInventory?.profile_id)?.label,
         entryPath: currentInventory?.dossier.target_pathname,
-        hasVerifiedProfile: activeProfiles.length === 1 });
+        verifiedProfiles: activeProfiles.map(profile => profile.label) });
     }
 
     const stateModuleCount = Object.keys(lifecycleState.modules || {}).length;

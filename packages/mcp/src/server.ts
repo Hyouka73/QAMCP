@@ -1526,7 +1526,14 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
       const authority = () => !!bound && bound.projectAccess?.projectId === scopedProject.project_id && !!options.workspaceBootstrap?.validateBinding(bound);
       const auth = await authenticateScopedPassword(applicationService, scopedProject.project_id, scopedEnv,
         eventWorkspace, rawArgs ?? {}, context.signal, authority);
-      return canonicalResult(auth, auth.status !== 'success');
+      const snapshot = applicationService.resumeProject(scopedProject.project_id);
+      const collectingInventory = auth.status === 'success' && snapshot.tasks.some(task =>
+        task.task_id === initialInventoryTaskId(scopedProject.project_id, scopedEnv.env_id)) && !snapshot.modules.length;
+      const verified = collectingInventory ? auth.profile as { id: string; verified_route: string } | undefined : undefined;
+      return canonicalResult({ ...auth, ...(verified ? { siguiente_accion: {
+        tipo: 'trabajo', tool: 'qap_discover', descripcion: 'Continúa el inventario con el perfil verificado.',
+        parametros: { targetPath: eventWorkspace, name: inventoryName, path: verified.verified_route, profile: verified.id },
+      } } : {}) }, auth.status !== 'success');
     }
     // The legacy branch below writes profiles and secrets without an exact project
     // authority reference. Keep it inaccessible until it can honor that contract.
@@ -1617,8 +1624,13 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
           ('qa-' + createHash('sha256').update(JSON.stringify([entryUrl.origin, startCredentials.username])).digest('hex').slice(0, 12)));
         await runScopedLogin({ ...startCredentials, profile: suppliedProfile, action: 'create' }, suppliedProfile);
       }
-      let revisions = project && environment && applicationService ? applicationService.listLatestDiscoveryRevisionsByScope(project.project_id)
-        .filter(revision => revision.environment_id === environment.env_id) : [];
+      const inventoryPolicy = eventBinding && await eventBinding.store.get(eventBinding.applicationId, 'environment', eventBinding.environmentId);
+      const readRevisions = () => project && environment
+        ? applicationService.listLatestDiscoveryRevisionsByScope(project.project_id).filter(revision =>
+          revision.environment_id === environment.env_id && (!revision.dossier.inventory ||
+            revision.dossier.scope.inventory_environment_revision === inventoryPolicy?.revision))
+        : [];
+      let revisions = readRevisions();
       const activeProfiles = snapshot?.profiles.filter(profile => profile.env_id === environment?.env_id && profile.status !== 'revoked') ?? [];
       const profile = suppliedProfile ? activeProfiles.find(item => item.label === suppliedProfile) :
         activeProfiles.length === 1 ? activeProfiles[0] : undefined;
@@ -1656,8 +1668,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
             if (['auth_session_invalid', 'auth_session_expired'].includes(String(discoveryAttempt.code)) && auth?.status !== 'blocked') {
               auth = { status: 'blocked', code: discoveryAttempt.code, profile: profile.label };
             }
-            revisions = applicationService.listLatestDiscoveryRevisionsByScope(scopedProject.project_id)
-              .filter(revision => revision.environment_id === environment.env_id);
+            revisions = readRevisions();
             authenticatedObservation = revisions.find(revision => revision.revision_id === discoveryAttempt.discovery_revision_id) ??
               authenticatedObservation;
           }
@@ -1677,8 +1688,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         if (discovery.content[0]?.type === 'text') discoveryAttempt = JSON.parse(discovery.content[0].text) as Record<string, unknown>;
         applicationService.withProjectOperation(() => { if (eventBinding && options.workspaceBootstrap!.validateBinding(eventBinding)) qapEventLog.record({ workspace: eventWorkspace, conversationId, requestId: String(context.requestId) + ':discovery',
           tool: 'qap_discover', args, result: discovery, durationMs: Date.now() - started }); });
-        revisions = applicationService.listLatestDiscoveryRevisionsByScope(project.project_id)
-          .filter(revision => revision.environment_id === environment.env_id);
+        revisions = readRevisions();
       }
       if (discoveryAttempt.discovery_revision_id || inventoryTaskStarted) {
         const refreshed = await dispatcher.dispatch({ name: 'qap_status', arguments: { targetPath: eventWorkspace } }, invocation);
@@ -3424,7 +3434,8 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
                 task.task_id === initialInventoryTaskId(activeProject.project_id, snapshot.environment!.env_id))) {
               const tenant = applicationService.validateTenantScope(activeProject.project_id, requestedTenant);
               const inventory = selectInitialInventory(applicationService.listLatestDiscoveryRevisionsByScope(activeProject.project_id),
-                snapshot.environment.env_id, policy.revision, tenant.ok ? tenant.tenant_id ?? null : null);
+                snapshot.environment.env_id, policy.revision, tenant.ok ? tenant.tenant_id ?? null : null,
+                undefined, snapshot.profiles);
               const coverage = initialInventoryCoverage(inventory?.dossier);
               if (!coverage.can_scope) return canonicalResult({
                 status: 'blocked', category: 'missing_information', code: 'initial_inventory_required', onboarding_inventory: coverage,

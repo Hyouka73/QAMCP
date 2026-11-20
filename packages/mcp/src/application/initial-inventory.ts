@@ -1,4 +1,4 @@
-import { normalizeSlug } from '@qap/shared';
+import { normalizeSlug, type AuthProfileRecord } from '@qap/shared';
 
 import type { DiscoveryDossierCanonical, DiscoveryRevisionRecord } from './discovery-dossier.js';
 
@@ -86,7 +86,8 @@ export function initialInventoryCoverage(dossier?: DiscoveryDossierCanonical) {
   const incomplete = Boolean(dossier?.inventory?.truncated || dossier?.inventory?.restricted_routes ||
     routes.some(route => route.state !== 'visited' && route.state !== 'redirected') ||
     dossier?.views.some(view => view.truncated || view.state === 'loading_or_script_dependent') ||
-    dossier?.limitations.includes('INVENTORY_API_OUTSIDE_ALLOWLIST'));
+    dossier?.limitations.some(limitation => limitation === 'INVENTORY_RESOURCE_OUTSIDE_ALLOWLIST' ||
+      limitation === 'INVENTORY_API_OUTSIDE_ALLOWLIST'));
   return {
     state: authRequired || !visited ? 'BLOCKED' as const : incomplete ? 'PARTIAL_READY' as const : 'READY' as const,
     can_scope: !authRequired && visited > 0 && pending === 0,
@@ -105,11 +106,14 @@ export function initialInventoryCoverage(dossier?: DiscoveryDossierCanonical) {
 export function selectInitialInventory(
   revisions: readonly DiscoveryRevisionRecord[], environmentId: string, environmentRevision: number,
   tenantId: string | null, profileId?: string | null,
+  profiles?: readonly AuthProfileRecord[],
 ): DiscoveryRevisionRecord | undefined {
   const scoped = revisions.filter(revision => revision.dossier.inventory &&
     revision.environment_id === environmentId &&
     revision.dossier.scope.inventory_environment_revision === environmentRevision &&
-    revision.tenant_id === tenantId);
+    revision.tenant_id === tenantId && (revision.profile_id === null || !profiles ||
+      profiles.some(profile => profile.profile_id === revision.profile_id && (profile.role_name ?? null) === revision.role &&
+        profile.status !== 'revoked')));
   if (profileId !== undefined) return scoped.find(revision => revision.profile_id === profileId);
   return scoped.find(revision => revision.profile_id !== null &&
     initialInventoryCoverage(revision.dossier).inspected_routes > 0) ??

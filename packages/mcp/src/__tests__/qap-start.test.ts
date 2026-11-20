@@ -233,7 +233,7 @@ it.runIf(process.platform === 'win32')('checkpoints broad authorized discovery b
       });
       return;
     }
-    if (req.method !== 'GET' || path === '/delete-record' || path === '/hidden-write' || path === '/script-get') {
+    if (req.method !== 'GET' || path === '/delete-record' || path === '/hidden-write' || path === '/script-get' || path === '/image-get') {
       unauthorizedWrites++;
       return send(500, '');
     }
@@ -247,7 +247,7 @@ it.runIf(process.platform === 'win32')('checkpoints broad authorized discovery b
       const menu = ['/', '/billing', '/missing', '/restricted', ...(role === 'operator' ? ['/feature'] : []), ...departments];
       const controls = '<form action="/write" method="post"><input required><button>Guardar</button></form>' +
         '<a href="/delete-record">Remove</a><a href="/hidden-write" hidden>Hidden</a>' +
-        (req.headers['user-agent'] === 'QAP-Recon/1' ? '<script>fetch("/script-get").catch(() => {})</script>' : '');
+        (req.headers['user-agent'] === 'QAP-Recon/1' ? '<script>fetch("/script-get").catch(() => {})</script><img src="/image-get">' : '');
       const shell = role === 'operator' ? '<main><nav>' + menu.map(link).join('') + '</nav>' + controls + '</main>'
         : '<div role="main"><section role="navigation">' + menu.slice(0, 4).map(link).join('') + '</section>' + controls + '</div>';
       return send(200, shell);

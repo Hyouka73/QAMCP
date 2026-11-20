@@ -627,9 +627,11 @@ export class DiscoveryHandler implements IMcpToolHandler {
       const inventoryProfileId = resolvedProfileRecord?.profile_id ?? (resolvedProfileName
         ? projectProfiles.find(profile => profile.label === resolvedProfileName)?.profile_id ?? resolvedProfileName : null);
       const inventoryEntryPath = sanitizeTargetPathname(target);
+      const inventoryRole = resolvedProfileRecord?.role_name ??
+        projectProfiles.find(profile => profile.profile_id === inventoryProfileId)?.role_name ?? null;
       const inventoryHead = () => initialInventory && appService && appProject && effectiveActiveEnvId
         ? selectInitialInventory(appService.listLatestDiscoveryRevisionsByScope(appProject.project_id)
-            .filter(revision => revision.dossier.scope.inventory_entry_path === inventoryEntryPath),
+            .filter(revision => revision.dossier.scope.inventory_entry_path === inventoryEntryPath && revision.role === inventoryRole),
           effectiveActiveEnvId, env.revision, resolvedTenantId ?? null, inventoryProfileId)
         : undefined;
       const headBefore = inventoryHead();

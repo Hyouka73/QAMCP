@@ -196,10 +196,21 @@ export class BlackBoxCrawler {
                   : { 'content-security-policy': "sandbox allow-same-origin; default-src 'none'; style-src 'unsafe-inline'; form-action 'none'; frame-src 'none'; connect-src 'none'; base-uri 'none'" }) } });
             return;
           }
-          if (inventory && spaMode && ['fetch', 'xhr'].includes(req.resourceType()) && !allowed.includes(req.url())) {
-            if (!result.warnings.includes('INVENTORY_API_OUTSIDE_ALLOWLIST')) result.warnings.push('INVENTORY_API_OUTSIDE_ALLOWLIST');
-            await route.abort('blockedbyclient');
-            return;
+          if (inventory && spaMode && req.method() === 'GET' && !req.isNavigationRequest() && !allowed.includes(req.url())) {
+            // Only allow conventional script and stylesheet assets without an exact host grant.
+            const resource = req.resourceType();
+            const pathname = new URL(req.url()).pathname;
+            const staticAsset = (resource === 'script' && /\.(?:js|mjs)$/i.test(pathname)) ||
+              (resource === 'stylesheet' && /\.css$/i.test(pathname));
+            if (!staticAsset) {
+              if (['fetch', 'xhr', 'script', 'stylesheet'].includes(resource) &&
+                !result.warnings.includes('INVENTORY_RESOURCE_OUTSIDE_ALLOWLIST')) {
+                result.warnings.push('INVENTORY_RESOURCE_OUTSIDE_ALLOWLIST');
+              }
+              result.budget.blocked_browser_requests++;
+              await route.abort('blockedbyclient');
+              return;
+            }
           }
           if (spaMode && req.method() === 'GET' && !req.isNavigationRequest()) {
             try {
