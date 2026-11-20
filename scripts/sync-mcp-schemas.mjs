@@ -13,7 +13,7 @@ if (!existsSync(targetDir)) {
 }
 
 // 1. Obtener lista de tools del servidor compilado
-const server = createMcpServer();
+const server = createMcpServer({ autonomyPolicy: () => undefined });
 // @ts-expect-error accessing internal request handler
 const handler = server._requestHandlers.get(ListToolsRequestSchema.shape.method.value);
 const toolsResult = await handler({ method: 'tools/list', params: {} }, {});

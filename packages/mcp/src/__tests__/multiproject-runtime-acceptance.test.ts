@@ -42,6 +42,12 @@ function authorizeWorkspace(workspace: string, hostDir = host): void {
     },
     windowsHide: true,
   });
+  const policyPath = join(hostDir, 'qa-autonomy-policy.json');
+  const policy = existsSync(policyPath) ? JSON.parse(readFileSync(policyPath, 'utf8')) : { version: 1, targets: [] };
+  if (!policy.targets.some((target: { workspace: string }) => target.workspace === workspace)) {
+    policy.targets.push({ workspace, origin: new URL(url).origin, environment: 'test', entry: '/', paths: ['/', '/orders'] });
+    writeFileSync(policyPath, JSON.stringify(policy));
+  }
 }
 
 async function connectStdio(options: {
@@ -179,10 +185,10 @@ it('A/B/C/P: inicia globalmente sin proyectos ni QAP_MCP_WORKSPACE_ROOT, sobrevi
   // A: Inicio global sin proyectos ni QAP_MCP_WORKSPACE_ROOT.
   const freshClient = await connectStdio();
   const tools = (await freshClient.listTools()).tools;
-  expect(tools).toHaveLength(19);
+  expect(tools).toHaveLength(16);
   const startTool = tools.find((tool) => tool.name === 'qap_start');
   expect(startTool?.inputSchema?.properties).toHaveProperty('conversation_id');
-  expect(startTool?.inputSchema?.properties).toHaveProperty('credentials');
+  expect(startTool?.inputSchema?.properties).not.toHaveProperty('credentials');
 
   expect(await call(freshClient, 'qap_project', { action: 'list' })).toMatchObject({
     status: 'success',

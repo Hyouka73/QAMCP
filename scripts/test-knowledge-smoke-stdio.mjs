@@ -106,6 +106,8 @@ async function verify() {
   };
   try {
     await connect();
+    assert.equal((await call('qap_start', { base_url: 'https://outside-policy.invalid/' })).code, 'autonomy_policy_required');
+    assert.equal((await call('qap_start', { base_url: origin, credentials: { username: 'fixture-only', password: 'synthetic' } })).code, 'invalid_arguments');
     const start = await call('qap_start');
     assert.equal(start.autonomy?.status, 'ready_for_design', JSON.stringify(start));
     conversation = start.conversation_id;
@@ -183,6 +185,19 @@ async function verify() {
     assert.equal(elicitation, 0);
     assert(!requests.some(request => request.path === '/forbidden'));
     assert(existsSync(join(workspace, '.qa', 'executions', first.execution_id + '.json')));
+    if (process.argv.includes('--verify-cli')) {
+      await client.close();
+      client = undefined;
+      const cli = join(repo, 'packages/cli/dist/entrypoint.js');
+      const runCli = args => execFileSync(process.execPath, [cli, ...args], { cwd: workspace, env, encoding: 'utf8', windowsHide: true });
+      const cliPlan = runCli(['plan', module]);
+      const cliTest = runCli(['test', module, '--case', caseId]);
+      const cliReport = runCli(['report', first.execution_id, '--format', 'json']);
+      assert.match(cliPlan, /1 caso\(s\) elegible/);
+      assert.match(cliTest, /Total: 1\/1 casos ok/);
+      assert.match(cliReport, /\.report\.json/);
+      writeJson('cli.json', { plan: cliPlan, test: cliTest, report: cliReport });
+    }
     writeJson('result.json', { status: 'passed', elicitation, case_id: caseId, case_sha256: caseHash,
       discovery_revision_id: reviewRevision, attempts: [first.attempt_id, repeated.attempt_id], report: report.reports });
   } finally { await client?.close(); }

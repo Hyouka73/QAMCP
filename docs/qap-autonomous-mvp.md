@@ -34,4 +34,6 @@ Se admite un `POST` por intento en un fixture anónimo y aislado con origen lite
 
 Ejecuta `pnpm build` y `node scripts/test-knowledge-smoke-stdio.mjs`. El script levanta el fixture, registra un workspace separado y usa el transporte Stdio. Comprueba tráfico, casos, reportes, intentos e invocaciones de `elicitation/create`. No genera pruebas de navegador externas al runner.
 
+Agrega `--verify-cli` para comprobar el binario empaquetado. `qap plan`, `qap test` y la publicación por `qap report` delegan al mismo flujo canónico en un workspace administrado por el host.
+
 Para Antigravity, ejecuta el mismo script con `--serve`. Usa `serverConfig` de `fixture.json` para el servidor temporal, reconecta Antigravity e inicia una conversación limpia con el workspace del fixture impreso por el script. Verifica `initialize` y la versión del bundle, los resultados de `qap_start`, `qap_plan`, `qap_test` y `qap_report`, y vuelve a conectar para publicar o repetir sobre el mismo caso. Restaura el registro MCP normal al terminar. Mantén el fixture activo durante las dos conexiones.

@@ -500,7 +500,7 @@ it('isolates project IDs and revocation through the compiled stdio server', asyn
   const legacyAuth = await client.callTool({ name: 'qap_auth_add', arguments: {
     targetPath: f.a, profile: 'legacy', method: 'handoff',
   } });
-  expect(JSON.parse((legacyAuth.content as Array<{ text: string }>)[0].text).code).toBe('legacy_auth_operation_disabled');
+  expect(JSON.parse((legacyAuth.content as Array<{ text: string }>)[0].text).code).toBe('auth_profile_outside_policy');
   expect(f.db.prepare('SELECT * FROM profiles WHERE project_id = ?').all(f.pa)).toEqual([]);
   expect((await call('permissions', { project_id: f.pa })).status).toBe('success');
   expect((await call('candidates', { project_id: f.pa })).status).toBe('success');

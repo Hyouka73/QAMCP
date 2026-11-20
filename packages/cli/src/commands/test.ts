@@ -1,4 +1,5 @@
-import { callLocalQapTool, withLocalQapClient } from '@qap/mcp';
+import { callLocalQapTool, readProjectResetState, resetHostDirectory, withLocalQapClient, withProjectOperation } from '@qap/mcp';
+import { realpathSync } from 'node:fs';
 import { FileSystemStorage } from '@qap/knowledge';
 import { GitAdapter } from '@qap/git-adapter';
 
@@ -43,8 +44,13 @@ export async function handleTest(
 
   if (options.forceUnlock) {
     const { LockManager } = await import ('@qap/knowledge');
-    const lockManager = new LockManager ({ rootDir: process.cwd () });
-    await lockManager.forceUnlock(moduleArg);
+    const rootDir = realpathSync(process.cwd());
+    const host = resetHostDirectory();
+    await withProjectOperation(host, () => {
+      const state = readProjectResetState(host, rootDir);
+      if (state?.state === 'pending' || state?.state === 'complete') throw new DataError('El workspace necesita recuperarse antes de desbloquear.');
+      return new LockManager({ rootDir }).forceUnlock(moduleArg);
+    });
     console.log(
       moduleArg 
       ? `Lock del módulo '${moduleArg}' liberado forzadamente antes de ejecutar.`

@@ -740,7 +740,7 @@ Ejecuta exclusivamente mediante qap_test. Usa los artefactos de qap_report. Omit
     const tools = [...TOOLS, ...dispatcher.listTools().filter(tool => !migrated.has(tool.name))]
       .filter(tool => !['qap_server', 'qap_flow_run', 'qap_validate'].includes(tool.name) &&
         (!options.autonomyPolicy || !legacyReview.includes(tool.name)));
-    if (!hostScopedRuntime) return Promise.resolve({ tools });
+    if (!hostScopedRuntime && !options.autonomyPolicy) return Promise.resolve({ tools });
     return Promise.resolve({ tools: tools.map(tool => ({
       ...tool,
       inputSchema: { ...tool.inputSchema, properties: {
@@ -909,9 +909,6 @@ Ejecuta exclusivamente mediante qap_test. Usa los artefactos de qap_report. Omit
     }
     // G0-01: flow execution remains excluded until it has qap_test authority controls.
     if (name === 'qap_server' || name === 'qap_flow_run' || name === 'qap_validate') return canonicalResult({ status: 'blocked', code: 'operation_disabled' }, true);
-    if (options.autonomyPolicy && ['qap_rules_set', 'qap_module_close', 'qap_session_close'].includes(name)) {
-      return canonicalResult({ status: 'blocked', code: 'historical_review_outside_autonomous_cycle' }, true);
-    }
     if (name === 'qap_project' && rawArgs?.action === 'recover') {
       return canonicalResult({ status: 'blocked', code: 'administrative_recovery_unavailable' }, true);
     }
@@ -1546,6 +1543,9 @@ Ejecuta exclusivamente mediante qap_test. Usa los artefactos de qap_report. Omit
       }
     }
     eventBinding = eventWorkspace ? workspaceBindings.find(item => normalizePathKey(item.projectRoot) === normalizePathKey(eventWorkspace!)) : undefined;
+    if (options.autonomyPolicy && ['qap_rules_set', 'qap_module_close', 'qap_session_close'].includes(name)) {
+      return canonicalResult({ status: 'blocked', code: 'historical_review_outside_autonomous_cycle' }, true);
+    }
     const scopedProject = allowScopedCredentials && eventWorkspace
       ? applicationService?.findActiveProjectByRoot(eventWorkspace) : undefined;
     if (name === 'qap_auth_add' && options.autonomyPolicy && eventWorkspace) {
@@ -1850,7 +1850,8 @@ Ejecuta exclusivamente mediante qap_test. Usa los artefactos de qap_report. Omit
         syncHostAuthorizedRoots();
       }
       atomicWritePrivateFile(resolveContainedPath(startWorkspace, notesPath), summaryLines.join('\n'));
-      const publicState = autonomousDiscovery ? { status: state.status, onboarding_inventory: state.onboarding_inventory,
+      const publicState = autonomousDiscovery ? { status: state.status, directorio_objetivo: startWorkspace,
+        initialized: state.initialized, fase: state.fase, onboarding_inventory: state.onboarding_inventory,
         version_diagnostic: state.version_diagnostic, project_id: project?.project_id } : state;
       return canonicalResult({ ...publicState, status: discoveryFailed ? 'partial' : state.status ?? 'success', conversation_id: conversationId,
         ...(autonomousDiscovery ? { autonomy: autonomousDiscovery, siguiente_accion: autonomousDiscovery.siguiente_accion,
