@@ -14,7 +14,7 @@ export async function extractDom(page: Page, limit: number) {
     const forms = Array.from(document.forms).slice(0, limit);
     const nodes = document.querySelectorAll('a[href],button,input,select,textarea,form,[role],dialog');
     const controls: ObservedControl[] = [];
-    const links: Array<{ href: string; control_index: number; label?: string; download: boolean }> = [];
+    const links: Array<{ href: string; control_index: number; label?: string; download: boolean; navigation: number }> = [];
     for (const el of Array.from(nodes).slice(0, limit)) {
       const tag = el.tagName.toLowerCase();
       const role = el.getAttribute('role') ?? '';
@@ -53,7 +53,12 @@ export async function extractDom(page: Page, limit: number) {
         ...(formIndex >= 0 ? { form_index: formIndex } : {}), ...(labels.has(label) ? { label } : {}) };
       controls.push(control);
       if (el instanceof HTMLAnchorElement) links.push({ href: el.href, control_index: control.index,
-        download: el.hasAttribute('download'), ...(control.label ? { label: control.label } : {}) });
+        download: el.hasAttribute('download'),
+        navigation: visibility !== 'visible' || control.disabled || el.closest('form,[hidden],[inert],[aria-hidden="true"]') ||
+          role === 'button' || el.hasAttribute('onclick') || el.hasAttribute('ping') || el.hasAttribute('target') ? 0
+          : el.closest('nav,[role="navigation"],[role="menu"],[role="menubar"]') ? 2
+          : el.closest('main,[role="main"]') ? 1 : 0,
+        ...(control.label ? { label: control.label } : {}) });
     }
     return { controls, links,
       menus: Math.min(limit, document.querySelectorAll('nav,[role="navigation"],[role="menu"],[role="menubar"]').length),

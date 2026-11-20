@@ -6,7 +6,7 @@ import { FileSystemStorage, detectarServiciosConEvidencia, generarScan, detectar
 import { canExitOnboarding, canExitScoping, obtenerSiguientePreguntaOnboarding, computeApplicableCategories, computeCoverage, generateNextInterviewBatch, type ViewDiscoveryContext } from '@qap/engine';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
-import { getPhaseGuidance, buildInterviewNextAction, type SiguienteAccion } from '../guidance.js';
+import { getPhaseGuidance, buildInterviewNextAction, initialInventoryAction, type SiguienteAccion } from '../guidance.js';
 import type { IMcpToolHandler } from '../dispatcher.js';
 import type { InteractiveAccess } from '../interactive-access.js';
 import { getVersionDiagnostic } from '../version-diagnostic.js';
@@ -14,6 +14,8 @@ import { getVersionDiagnostic } from '../version-diagnostic.js';
 import { binding, definition, validateBase, projectRoot, readContext, readEnvironment, isObject, type StateDependencies, type LegacyEnvironment, knowledgeStatus, result, assertProjectSegment } from './state-services.js';
 import { ModuleObservationBridge } from './module-observation-bridge.js';
 import { PLAYWRIGHT_INSTALL_COMMAND, detectarSubcarpetaWorkspace } from './state-runtime.js';
+import { initialInventoryCoverage, initialInventoryTaskId, selectInitialInventory } from '../application/initial-inventory.js';
+
 import { discoveryIntegration, hasLegacyViewContext, legacyInterviewBlocked } from './legacy-discovery-contract.js';
 
 export class StatusHandler implements IMcpToolHandler {
@@ -463,9 +465,27 @@ export class StatusHandler implements IMcpToolHandler {
         } catch { /* An invalid plan route cannot match a persisted inventory. */ }
       }
     }
+    const canRequireInventory = this.dependencies.prepareWorkspace && this.dependencies.provisionalInventory &&
+      (currentPhase === 'ONBOARDING' || currentPhase === 'SCOPING') &&
+      !lifecycleState.session?.plan?.length && resumeSnapshot?.environment &&
+      resumeSnapshot.tasks.some(task => task.task_id === initialInventoryTaskId(resumeSnapshot.project.project_id, resumeSnapshot.environment!.env_id));
+    let currentInventory;
+    if (canRequireInventory && activeAppProject && appService && resumeSnapshot?.environment && baseUrl) {
+      const bound = binding(rootDir, this.dependencies);
+      const policy = bound && await bound.store.get(bound.applicationId, 'environment', bound.environmentId);
+      const tenant = appService.validateTenantScope(activeAppProject.project_id, undefined);
+      if (policy && tenant.ok) {
+        const envId = resumeSnapshot.environment.env_id;
+        const revisions = appService.listLatestDiscoveryRevisionsByScope(activeAppProject.project_id);
+        currentInventory = selectInitialInventory(revisions, envId, policy.revision, tenant.tenant_id ?? null);
+      }
+    }
+    const coverage = canRequireInventory && baseUrl ? initialInventoryCoverage(currentInventory?.dossier) : undefined;
     const currentKnowledge = this.dependencies.provisionalInventory ? await knowledgeStatus(rootDir, this.dependencies) : undefined;
     const guidance = getPhaseGuidance(currentPhase, {
-      investigateBeforeScoping: this.dependencies.provisionalInventory && !(currentKnowledge && 'counts' in currentKnowledge && (currentKnowledge.counts.observation?.available ?? 0) > 0),
+      investigateBeforeScoping: !coverage?.can_scope && this.dependencies.provisionalInventory &&
+        !(currentKnowledge && 'counts' in currentKnowledge && (currentKnowledge.counts.observation?.available ?? 0) > 0),
+      suggestedModules: coverage?.can_scope ? coverage.candidate_modules.map(module => ({ module: module.key, path: module.path })) : undefined,
       faltantes,
       plan: lifecycleState.session?.plan,
       modules: modulesGuidance,
@@ -552,6 +572,15 @@ export class StatusHandler implements IMcpToolHandler {
       };
     }
 
+    if (coverage && !coverage.can_scope && baseUrl) {
+      const activeProfiles = resumeSnapshot?.profiles.filter(profile => profile.env_id === resumeSnapshot.environment?.env_id &&
+        profile.status === 'verified' && profile.tenant_id === (currentInventory?.tenant_id ?? null)) ?? [];
+      guidance.siguiente_accion = initialInventoryAction({ root: rootDir, baseUrl, coverage,
+        profile: resumeSnapshot?.profiles.find(profile => profile.profile_id === currentInventory?.profile_id)?.label,
+        entryPath: currentInventory?.dossier.target_pathname,
+        hasVerifiedProfile: activeProfiles.length === 1 });
+    }
+
     const stateModuleCount = Object.keys(lifecycleState.modules || {}).length;
     const totalModules = Math.max(moduleCount, stateModuleCount, resumeSnapshot?.modules.length ?? 0);
 
@@ -577,6 +606,7 @@ export class StatusHandler implements IMcpToolHandler {
               } : {}),
               estados_modulos: estadosModulos,
               faltantes,
+              ...(coverage ? { onboarding_inventory: { ...coverage, revision_id: currentInventory?.revision_id } } : {}),
               siguiente_accion: guidance.siguiente_accion,
               scan,
               hallazgos_workspace: hallazgos,

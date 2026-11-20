@@ -127,6 +127,7 @@ import { ProjectHandler } from './handlers/project.handler.js';
 import { ApplicationServiceError } from './application/application-service.js';
 import { authenticateScopedPassword, scopedRoute, usableScopedSession } from './scoped-password.js';
 import { existingDiscoveryArtifact, existingDiscoveryDocument, sanitizeTargetPathname } from './application/discovery-dossier.js';
+import { initialInventoryCoverage, initialInventoryTaskId, inventoryName, selectInitialInventory } from './application/initial-inventory.js';
 import { atomicWritePrivateFile, normalizePathKey, resolveContainedPath } from './application/safe-storage.js';
 import { PlanHandler } from './handlers/plan.handler.js';
 import { TestHandler, type TestNavigationAuthorization } from './handlers/test.handler.js';
@@ -706,7 +707,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         prompts: {},
       },
       instructions: `DIRECTIVAS DE INTERACCIÓN OBLIGATORIAS (QAP v3.0):
-0. Cuando el usuario quiera probar un sistema o iniciar un registro por conversación, si aún no conoces la carpeta/workspace del proyecto o el servidor responde workspace_selection_required/workspace_not_bound, pregunta primero qué workspace desea probar (mostrando available_workspaces si el servidor los devolvió) sin adivinar ni reusar proyectos históricos. Una vez conocido el workspace, invoca qap_start enviando su ruta absoluta en targetPath (y base_url / credentials si el usuario ya los dio y el esquema lo ofrece). Si proporciona credenciales después, usa qap_auth_add para guardarlas y continúa con el inventario. Presenta el resumen y el enlace a discovery_inicial y conserva el conversation_id en las siguientes llamadas. Para cambiar de proyecto explícitamente usa qap_start o qap_project(action="select"|"resume"). En conversaciones posteriores usa el estado autenticacion devuelto por QAP; una captura pública histórica de /login no implica que falten credenciales. Pide solo la información que falte.
+0. Cuando el usuario quiera probar un sistema o iniciar un registro por conversación, si aún no conoces la carpeta/workspace del proyecto o el servidor responde workspace_selection_required/workspace_not_bound, pregunta primero qué workspace desea probar (mostrando available_workspaces si el servidor los devolvió) sin adivinar ni reusar proyectos históricos. Una vez conocido el workspace, invoca qap_start enviando su ruta absoluta en targetPath (y base_url / credentials si el usuario ya los dio y el esquema lo ofrece). Si proporciona credenciales después, usa qap_auth_add para guardarlas y continúa con el inventario. Presenta el resumen y el enlace a discovery_inicial y conserva el conversation_id en las siguientes llamadas. Para cambiar de proyecto explícitamente usa qap_start o qap_project(action="select"|"resume"). Si onboarding_inventory.can_scope es false, continúa por siguiente_accion y desbloquear_con hasta agotar la frontera autorizada. Solicita acceso si el inventario encuentra una barrera de login. Pide alcance de pruebas cuando termine el inventario inicial y exista una solicitud de QA que lo requiera.
 1. RUTA OBJETIVO OBLIGATORIA (targetPath): En TODAS las llamadas a herramientas MCP, envía SIEMPRE la ruta absoluta del workspace activo o seleccionado por el usuario en el parámetro 'targetPath'. Nunca lo omitas ni inspecciones rutas globales (~/.qap) para elegir un proyecto.
 2. PROHIBIDO mostrar tablas markdown de estado, resúmenes de archivos o listas de próximos pasos (1, 2, 3...).
 3. Cuando siguiente_accion trae pregunta, presentala con la herramienta ask_question: UNA sola pregunta por llamada, usando texto, formato y opciones tal cual (no inventes, reordenes ni agregues opciones). Deja siempre disponible la respuesta libre. Si formato es abierta, haz esa unica pregunta en texto y espera. Nunca agrupes varias preguntas en un mensaje ni preguntes algo que siguiente_accion no pidio. Si ask_question no existe en tu cliente, haz la misma pregunta en texto con las opciones numeradas, una a la vez.
@@ -1556,6 +1557,19 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
       let snapshot = project && applicationService?.resumeProject(project.project_id);
       const environment = snapshot?.environment;
       const baseUrl = environment?.base_url;
+      let inventoryTaskStarted = false;
+      if (environment && project && snapshot?.campaign && eventBinding && dependencies.provisionalInventory &&
+          !snapshot.modules.length && !snapshot.tasks.some(task => task.task_id === initialInventoryTaskId(project.project_id, environment.env_id))) {
+        const campaignId = snapshot.campaign.campaign_id;
+        applicationService.withProjectOperation(() => {
+          if (!options.workspaceBootstrap!.validateBinding(eventBinding!)) return;
+          applicationService.upsertTask({
+            projectId: project.project_id, campaignId, taskId: initialInventoryTaskId(project.project_id, environment.env_id),
+            kind: 'discovery_inventory', status: 'pending', title: 'Inventario inicial del sistema',
+          });
+          inventoryTaskStarted = true;
+        });
+      }
       // A newly admitted workspace may still be waiting for its first URL.
       // No durable conversation ID is issued until its log can be written.
       if (!eventBinding && typeof rawArgs?.base_url !== 'string') {
@@ -1615,8 +1629,9 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         if (profile) {
           let localProfile = readProfiles(eventWorkspace).find(item => item.id === profile.label && item.env === environment.name);
           const attempt = async (path: string, selectedProfile?: string) => {
-            const args = { targetPath: eventWorkspace!, name: 'inventario-provisional', path,
-              description: 'Inventario inicial del sistema', ...(selectedProfile ? { profile: selectedProfile } : {}) };
+            const args = { targetPath: eventWorkspace!, name: inventoryName, path,
+              description: 'Inventario inicial del sistema', ...(selectedProfile ? { profile: selectedProfile } : {}),
+              ...(rawArgs?.refresh_discovery === true ? { restart_inventory: true } : {}) };
             const started = Date.now();
             const discovery = await dispatcher.dispatch({ name: 'qap_discover', arguments: args }, invocation);
             applicationService.withProjectOperation(() => { if (eventBinding && options.workspaceBootstrap!.validateBinding(eventBinding)) qapEventLog.record({ workspace: eventWorkspace, conversationId, requestId: String(context.requestId) + ':discovery',
@@ -1648,12 +1663,15 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
           }
         }
       }
-      const needsEntryObservation = (rawArgs?.refresh_discovery === true && !auth) || !revisions.some(revision =>
-        revision.profile_id === null && revision.dossier.target_pathname === entryPath && revision.dossier.views.length);
+      const publicInventory = revisions.find(revision => revision.profile_id === null && revision.dossier.inventory &&
+        revision.dossier.target_pathname === entryPath)?.dossier;
+      const needsEntryObservation = !publicInventory || initialInventoryCoverage(publicInventory).resumable_routes > 0 ||
+        rawArgs?.refresh_discovery === true;
       if (project && environment && applicationService && entryUrl && !environment.is_production &&
-          options.silentBoundScope && needsEntryObservation && !authenticatedObservation && !context.signal?.aborted) {
-        const args = { targetPath: eventWorkspace, name: 'inventario-provisional', path: entryUrl.href,
-          description: 'Inventario inicial del sistema' };
+          needsEntryObservation && !authenticatedObservation && !auth && !context.signal?.aborted) {
+        const args = { targetPath: eventWorkspace, name: inventoryName, path: entryUrl.href,
+          description: 'Inventario inicial del sistema',
+          ...(rawArgs?.refresh_discovery === true ? { restart_inventory: true } : {}) };
         const started = Date.now();
         const discovery = await dispatcher.dispatch({ name: 'qap_discover', arguments: args }, invocation);
         if (discovery.content[0]?.type === 'text') discoveryAttempt = JSON.parse(discovery.content[0].text) as Record<string, unknown>;
@@ -1662,13 +1680,19 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         revisions = applicationService.listLatestDiscoveryRevisionsByScope(project.project_id)
           .filter(revision => revision.environment_id === environment.env_id);
       }
+      if (discoveryAttempt.discovery_revision_id || inventoryTaskStarted) {
+        const refreshed = await dispatcher.dispatch({ name: 'qap_status', arguments: { targetPath: eventWorkspace } }, invocation);
+        if (!refreshed.isError && refreshed.content[0]?.type === 'text') state = JSON.parse(refreshed.content[0].text) as Record<string, unknown>;
+      }
       const startWorkspace = eventWorkspace;
       return applicationService!.withProjectOperation(() => {
       if (!eventBinding || !options.workspaceBootstrap!.validateBinding(eventBinding)) return canonicalResult({ status: 'blocked', code: 'workspace_persistent_authority_required' }, true);
       const publicRevisions = revisions.filter(revision => revision.profile_id === null);
-      const firstObservation = authenticatedObservation ?? publicRevisions.find(revision => revision.dossier.target_pathname === entryPath &&
+      const firstObservation = authenticatedObservation ?? publicRevisions.find(revision => revision.dossier.inventory &&
+        revision.dossier.target_pathname === entryPath) ?? publicRevisions.find(revision => revision.dossier.target_pathname === entryPath &&
         revision.dossier.views.length) ?? publicRevisions.find(revision => revision.dossier.views.length) ?? publicRevisions[0];
-      const discoveryFailed = ['blocked', 'error', 'indeterminate'].includes(String(discoveryAttempt.status));
+      const discoveryFailed = !discoveryAttempt.discovery_revision_id &&
+        ['blocked', 'error', 'indeterminate'].includes(String(discoveryAttempt.status));
       const indexPath = !discoveryFailed && existingDiscoveryArtifact(startWorkspace, '.qa/discovery/INDEX.md');
       const availableFirstDocPath = !discoveryFailed && firstObservation && existingDiscoveryDocument(startWorkspace, firstObservation);
       const diagnostic = typeof auth?.code === 'string' ? auth.code
@@ -1747,6 +1771,7 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
       atomicWritePrivateFile(resolveContainedPath(startWorkspace, notesPath), summaryLines.join('\n'));
       return canonicalResult({ ...state, status: discoveryFailed ? 'partial' : state.status ?? 'success', conversation_id: conversationId,
         ...(auth ? { autenticacion: auth } : {}),
+        ...(discoveryFailed && discoveryAttempt.desbloquear_con ? { desbloquear_con: discoveryAttempt.desbloquear_con } : {}),
         discovery_inicial: { ...discoverySummary, notes_path: notesPath,
           ...(diagnostic === 'auth_required' ? { continuation: 'Usa un perfil verificado para documentar áreas internas.' } : {}) },
         conversation_log: conversationLogPath(startWorkspace, conversationId!) });
@@ -3386,6 +3411,24 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
                   campo: 'tenant_id',
                   descripcion: tenantCheck.reason,
                 },
+              }, true);
+            }
+          }
+
+          if (activeProject && applicationService && options.workspaceBootstrap && dependencies.provisionalInventory &&
+              !lifecycleState.session?.plan?.length && ['ONBOARDING', 'SCOPING'].includes(lifecycleState.phase)) {
+            const snapshot = applicationService.resumeProject(activeProject.project_id);
+            const bound = knowledgeBinding(rootDir, dependencies);
+            const policy = bound && await bound.store.get(bound.applicationId, 'environment', bound.environmentId);
+            if (policy && snapshot.environment && snapshot.tasks.some(task =>
+                task.task_id === initialInventoryTaskId(activeProject.project_id, snapshot.environment!.env_id))) {
+              const tenant = applicationService.validateTenantScope(activeProject.project_id, requestedTenant);
+              const inventory = selectInitialInventory(applicationService.listLatestDiscoveryRevisionsByScope(activeProject.project_id),
+                snapshot.environment.env_id, policy.revision, tenant.ok ? tenant.tenant_id ?? null : null);
+              const coverage = initialInventoryCoverage(inventory?.dossier);
+              if (!coverage.can_scope) return canonicalResult({
+                status: 'blocked', category: 'missing_information', code: 'initial_inventory_required', onboarding_inventory: coverage,
+                desbloquear_con: { tool: 'qap_status', descripcion: 'Consulta el bloqueo o retoma la frontera autorizada antes de definir el alcance.' },
               }, true);
             }
           }

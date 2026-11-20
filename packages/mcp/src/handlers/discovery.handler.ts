@@ -2,7 +2,7 @@ import { realpathSync } from 'node:fs';
 
 import { SessionStore, readProfile } from '@qap/auth';
 import { FileSystemStorage } from '@qap/knowledge';
-import { normalizeSlug, type AuthProfileRecord } from '@qap/shared';
+import { isAuthPath, normalizeSlug, type AuthProfileRecord } from '@qap/shared';
 import { BlackBoxCrawler, BlackBoxCrawlerError, type BlackBoxCrawlerInput, type CrawlerDependencies } from '@qap/playwright-adapter';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
@@ -18,6 +18,7 @@ import {
   type DiscoveryDossierSourceRef,
   type DiscoveryDossierView,
 } from '../application/discovery-dossier.js';
+import { inventoryName, initialInventoryCoverage, initialInventoryTaskId, mergeInitialInventory, selectInitialInventory } from '../application/initial-inventory.js';
 import { resolveScopedBusinessRules } from '../application/scoped-rule-resolver.js';
 import {
   type IDiscoveryAuthorizer,
@@ -109,13 +110,14 @@ export class DiscoveryHandler implements IMcpToolHandler {
 
   validateArguments(args: unknown): boolean {
     if (!isObject(args) || !validateBase(args, ['targetPath', 'name', 'path', 'description', 'tags', 'headed',
-      'credentials', 'profile', 'profileId', 'storageState', 'cookies', 'session', 'auth', 'allow_spa', 'tenant_id', 'environment'])) return false;
+      'credentials', 'profile', 'profileId', 'storageState', 'cookies', 'session', 'auth', 'allow_spa', 'tenant_id', 'environment', 'restart_inventory'])) return false;
     if (typeof args.name !== 'string' || !args.name.trim() || args.name.length > 128 || [...args.name].some(c => c.charCodeAt(0) < 32) ||
       typeof args.path !== 'string' || !args.path || args.path.length > 2048) return false;
     if (args.description !== undefined && (typeof args.description !== 'string' || args.description.length > 4000)) return false;
     if (args.tags !== undefined && (!Array.isArray(args.tags) || args.tags.length > 100 ||
       args.tags.some((tag: unknown) => typeof tag !== 'string' || tag.length > 100))) return false;
     if (args.allow_spa !== undefined && typeof args.allow_spa !== 'boolean') return false;
+    if (args.restart_inventory !== undefined && (args.name !== inventoryName || typeof args.restart_inventory !== 'boolean')) return false;
     if (args.tenant_id !== undefined && (typeof args.tenant_id !== 'string' || !args.tenant_id.trim() || args.tenant_id.length > 128)) return false;
     if (args.environment !== undefined && (typeof args.environment !== 'string' || !args.environment.trim() || args.environment.length > 128)) return false;
     return args.headed === undefined || typeof args.headed === 'boolean';
@@ -416,12 +418,16 @@ export class DiscoveryHandler implements IMcpToolHandler {
       } });
 
       const lifecycle = await new FileSystemStorage({ rootDir: root }).getLifecycleState();
-      const entryInventory = args.name === 'inventario-provisional' && this.dependencies.provisionalInventory &&
+      const entryInventory = args.name === inventoryName && this.dependencies.provisionalInventory &&
         !bound.moduleBindings?.length && targetOrigin === baseOrigin &&
         (args.profile ? Boolean(appProject && this.dependencies.silentBoundScope && !env.entity.is_production) :
           target === new URL(env.entity.base_url).href);
+      const initialInventory = Boolean(appService && appProject && effectiveActiveEnvId &&
+        args.name === inventoryName && this.dependencies.provisionalInventory &&
+        !bound.moduleBindings?.length && targetOrigin === baseOrigin && !env.entity.is_production &&
+        (target === new URL(env.entity.base_url).href || (requestedProfileRaw && !isAuthPath(new URL(target).pathname))));
       const provisional = this.dependencies.provisionalInventory && !bound.moduleBindings?.length &&
-        (entryInventory || (lifecycle.phase === 'ONBOARDING' && args.name === 'inventario-provisional') ||
+        (entryInventory || initialInventory || (lifecycle.phase === 'ONBOARDING' && args.name === 'inventario-provisional') ||
           (lifecycle.phase === 'SCOPING' && (args.name === 'inventario-provisional' || Boolean(appProject))));
       if (lifecycle.phase !== 'WORKING' && !provisional) return blocked('phase_restricted', lifecycle.phase === 'ONBOARDING' ? 'qap_context_set' : 'qap_session_plan');
       const module = lifecycle.modules && Object.hasOwn(lifecycle.modules, args.name as string)
@@ -618,18 +624,46 @@ export class DiscoveryHandler implements IMcpToolHandler {
       if (!currentEnvironment || currentEnvironment.revision !== env.revision) return blocked('authorization_context_mismatch');
       if (context.signal.aborted) return blocked('cancelled');
       const bootstrap = Boolean(this.dependencies.prepareWorkspace);
+      const inventoryProfileId = resolvedProfileRecord?.profile_id ?? (resolvedProfileName
+        ? projectProfiles.find(profile => profile.label === resolvedProfileName)?.profile_id ?? resolvedProfileName : null);
+      const inventoryEntryPath = sanitizeTargetPathname(target);
+      const inventoryHead = () => initialInventory && appService && appProject && effectiveActiveEnvId
+        ? selectInitialInventory(appService.listLatestDiscoveryRevisionsByScope(appProject.project_id)
+            .filter(revision => revision.dossier.scope.inventory_entry_path === inventoryEntryPath),
+          effectiveActiveEnvId, env.revision, resolvedTenantId ?? null, inventoryProfileId)
+        : undefined;
+      const headBefore = inventoryHead();
+      const previous = args.restart_inventory === true ? undefined : headBefore?.dossier;
+      const pendingRoutes = previous?.routes.flatMap(route => route.resumable && route.state === 'candidate' && route.authorized_pathname
+        ? [{ pathname: route.authorized_pathname, depth: route.depth }] : []);
+      const verifyEntry = Boolean(previous && !pendingRoutes?.length && authenticated_session);
+      if (previous && !pendingRoutes?.length && !verifyEntry) {
+        const current = headBefore!;
+        return result({ status: previous.acquisition_status, discovery_revision_id: current.revision_id, discovery_reused: true,
+          onboarding_inventory: initialInventoryCoverage(previous), ...(initialInventoryCoverage(previous).auth_required ? {
+            code: 'auth_required', desbloquear_con: { tool: 'qap_auth_add', descripcion: 'Verifica un perfil autorizado para continuar el inventario.' },
+          } : {}) });
+      }
       const baseLimits = bootstrap && config.limits?.max_bytes
         ? { ...config.limits, max_bytes: Math.min(config.limits.max_bytes, 1_048_576) } : config.limits;
-      const limits = entryInventory ? {
+      const limits = verifyEntry ? { ...baseLimits, max_pages: 1 } : entryInventory && !initialInventory ? {
         ...baseLimits,
         max_pages: Math.min(baseLimits?.max_pages ?? 4, 4),
         max_depth: Math.min(baseLimits?.max_depth ?? 1, 1),
         navigation_timeout_ms: Math.min(baseLimits?.navigation_timeout_ms ?? 6000, 6000),
         total_timeout_ms: Math.min(baseLimits?.total_timeout_ms ?? 16000, 16000),
       } : baseLimits;
+      const originInventory = initialInventory && config.navigationOrigin === baseOrigin;
       const output = await new BlackBoxCrawler(guardedStore, { ...config.dependencies, allowCanonicalOrigin: bootstrap,
-        followEntryRedirects: Boolean(entryInventory && this.dependencies.silentBoundScope && config.navigationOrigin === baseOrigin &&
+        followEntryRedirects: Boolean((entryInventory || initialInventory) && config.navigationOrigin === baseOrigin &&
           env.entity.is_production !== true),
+        ...(initialInventory ? { inventory: {
+          followObservedNavigation: originInventory,
+          frontier: verifyEntry ? undefined : pendingRoutes,
+          inspectedPathnames: previous?.routes.flatMap(route => route.state !== 'candidate' && route.authorized_pathname &&
+            (!verifyEntry || route.authorized_pathname !== inventoryEntryPath)
+            ? [route.authorized_pathname] : []) ?? [],
+        } } : {}),
       }).run({
         application_id: bound.applicationId, environment: env.entity, target_url: target,
         authorization: navigationAuthorization, limits, signal: context.signal,
@@ -637,8 +671,12 @@ export class DiscoveryHandler implements IMcpToolHandler {
       });
       const publishDiscovery = async (): Promise<CallToolResult> => {
       if (!guard()) return blocked('workspace_persistent_authority_required');
+      if (initialInventory && inventoryHead()?.revision_id !== headBefore?.revision_id) {
+        return blocked('inventory_checkpoint_changed', 'Recupera el checkpoint más reciente y continúa el inventario.',
+          { desbloquear_con: { tool: 'qap_status' } });
+      }
       if (authenticated_session && !output.observations.length && (output.warnings.includes('AUTH_SESSION_INVALID') ||
-        output.routes.some(route => route.http_status === 401 || route.http_status === 403))) {
+        (!initialInventory && output.routes.some(route => route.http_status === 401 || route.http_status === 403)))) {
         if (appService && appProject && resolvedProfileName) {
           try { appService.expireProfileSession(appProject.project_id, resolvedProfileRecord?.profile_id ?? resolvedProfileName); } catch { /* Best effort */ }
         }
@@ -648,8 +686,8 @@ export class DiscoveryHandler implements IMcpToolHandler {
           desbloquear_con: { tool: 'qap_auth_add', descripcion: 'Inicia sesión de nuevo con un perfil autorizado para continuar con las vistas protegidas.' } }, true);
       }
       const requiresLogin = !authenticated_session && (output.warnings.includes('AUTH_REQUIRED') ||
-        output.routes.some(route => route.reason === 'AUTH_REQUIRED' || route.http_status === 401 || route.http_status === 403));
-      if (requiresLogin && !entryInventory && (output.warnings.includes('AUTH_REQUIRED') ||
+        output.routes.some(route => route.reason === 'AUTH_REQUIRED' || (!initialInventory && (route.http_status === 401 || route.http_status === 403))));
+      if (requiresLogin && !entryInventory && !initialInventory && (output.warnings.includes('AUTH_REQUIRED') ||
           output.routes.some(route => route.http_status === 401 || route.http_status === 403))) {
         return result({ status: 'blocked', code: 'auth_required', acquisition_status: 'blocked', acquisition_persistence: 'not_attempted',
           association_status: 'not_attempted', downgraded_to_anonymous: false, execution_id: output.execution_id, cleanup: output.cleanup,
@@ -669,13 +707,14 @@ export class DiscoveryHandler implements IMcpToolHandler {
       let discoveryRevisionId: string | undefined;
       let discoveryReused: boolean | undefined;
       let discoveryDossierSummary: Record<string, unknown> | undefined;
+      let onboardingInventory: ReturnType<typeof initialInventoryCoverage> | undefined;
       if (appService && appProject && (output.observations.length > 0 || output.routes.length > 0)) {
         const evidenceIds = output.evidence.map((e) => e.id);
         const routePath = (() => {
           try { return new URL(target).pathname || '/'; } catch { return '/'; }
         })();
         const candidateKeys: string[] = [];
-        if (output.observations.length > 0) {
+        if (!initialInventory && output.observations.length > 0) {
           const safeName = typeof args.name === 'string' ? args.name : 'inventario';
           const baseKey = safeName === 'inventario-provisional'
             ? (routePath.replace(/^\/+|\/+$/g, '').split('/')[0] || 'inicio')
@@ -711,7 +750,7 @@ export class DiscoveryHandler implements IMcpToolHandler {
         persistedInventoryId = inv.inventory_id;
 
         const safeName = typeof args.name === 'string' ? args.name : 'inventario';
-        const dossierBaseKey = safeName === 'inventario-provisional'
+        const dossierBaseKey = initialInventory ? inventoryName : safeName === inventoryName
           ? (routePath.replace(/^\/+|\/+$/g, '').split('/')[0] || 'inicio')
           : safeName;
         const dossierModuleKey = normalizeSlug(appServiceMod?.key ?? dossierBaseKey);
@@ -743,6 +782,7 @@ export class DiscoveryHandler implements IMcpToolHandler {
             ...(r.http_status !== undefined ? { http_status: r.http_status } : {}),
             ...(sanitizeDossierText(r.reason, 120) ? { reason: sanitizeDossierText(r.reason, 120) } : {}),
             ...(r.view_id ? { view_id: r.view_id } : {}),
+            ...(initialInventory && r.resumable ? { resumable: true } : {}),
             ...(sanitizedPath ? { authorized_pathname: sanitizedPath } : {}),
           };
         });
@@ -819,6 +859,7 @@ export class DiscoveryHandler implements IMcpToolHandler {
         const dossierScope = {
           project_id: appProject.project_id,
           application_id: appProject.application_id,
+          ...(initialInventory ? { inventory_environment_revision: env.revision, inventory_entry_path: inventoryEntryPath } : {}),
           environment_id: projectSnap.environment?.env_id ?? bound.environmentId,
           environment_name: projectSnap.environment?.name ?? env.entity.name,
           tenant_id: resolvedTenantId ?? null,
@@ -945,7 +986,7 @@ export class DiscoveryHandler implements IMcpToolHandler {
           .filter((w): w is string => Boolean(w))
           .sort();
 
-        const canonicalDossier: DiscoveryDossierCanonical = {
+        const batch: DiscoveryDossierCanonical = {
           schema_version: '1',
           scope: dossierScope,
           target_pathname: targetPathname,
@@ -965,6 +1006,8 @@ export class DiscoveryHandler implements IMcpToolHandler {
           rule_resolution: ruleResolution,
         };
 
+        const canonicalDossier = initialInventory ? mergeInitialInventory(batch, previous) : batch;
+        if (initialInventory) onboardingInventory = initialInventoryCoverage(canonicalDossier);
         const { savedRevision, mdFiles } = (() => {
           try {
             const savedRevision = appService.saveDiscoveryRevision({
@@ -998,7 +1041,23 @@ export class DiscoveryHandler implements IMcpToolHandler {
 
         const firstBlockingAmbiguity = ruleResolution.ambiguities.find((a) => a.severity === 'blocking');
         const activeCamp = appService.resumeProject(appProject.project_id).campaign;
-        if (activeCamp) {
+        if (activeCamp && onboardingInventory && effectiveActiveEnvId) {
+          const coverage = onboardingInventory;
+          appService.upsertTask({
+            projectId: appProject.project_id, campaignId: activeCamp.campaign_id,
+            taskId: initialInventoryTaskId(appProject.project_id, effectiveActiveEnvId), kind: 'discovery_inventory',
+            title: 'Inventario inicial del sistema',
+            status: coverage.can_scope ? 'completed' : coverage.auth_required ? 'blocked' : 'in_progress',
+            progressCurrent: coverage.inspected_routes,
+            progressTotal: Math.max(1, coverage.inspected_routes + coverage.resumable_routes),
+            progressUnit: 'vistas',
+            recoveryCursor: {
+              recoverable: true, project_id: appProject.project_id, campaign_id: activeCamp.campaign_id,
+              resume_token: savedRevision.revision.revision_id, last_completed_step: 'partial_inventory_saved',
+              checkpoint_at: new Date().toISOString(), recovery_bundle_available: true, tombstone_blocked: false,
+            },
+          });
+        } else if (activeCamp && !initialInventory) {
           const taskId = `task-disc-${inv.inventory_id}`;
           const safeLabel = typeof args.name === 'string' && args.name.trim() ? args.name.trim() : 'inventario';
           appService.upsertTask({
@@ -1043,12 +1102,24 @@ export class DiscoveryHandler implements IMcpToolHandler {
       }
 
       // Positive selection: no DOM text, labels, selectors, URLs, payloads or arbitrary errors.
-      const status = requiresLogin && entryInventory && output.views.length ? 'partial' : output.status;
+      const status = onboardingInventory ? onboardingInventory.state === 'READY' ? 'completed'
+        : onboardingInventory.state === 'PARTIAL_READY' ? 'partial' : 'blocked'
+        : requiresLogin && entryInventory && output.views.length ? 'partial' : output.status;
+      const inventoryAction = onboardingInventory && (onboardingInventory.can_scope
+        ? { tipo: 'trabajo', tool: 'qap_status', descripcion: 'Consulta el inventario consolidado y el estado del proyecto.' }
+        : onboardingInventory.auth_required
+          ? { tipo: 'decision', tool: 'qap_auth_add', descripcion: 'Verifica un perfil autorizado para continuar el inventario.' }
+          : onboardingInventory.resumable_routes
+            ? { tipo: 'trabajo', tool: 'qap_discover', descripcion: 'Continúa el inventario inicial desde el checkpoint.',
+              parametros: { targetPath: root, name: inventoryName, path: target,
+                ...(resolvedProfileName ? { profile: resolvedProfileName } : {}),
+                ...(resolvedTenantId ? { tenant_id: resolvedTenantId } : {}) } }
+            : { tipo: 'trabajo', tool: 'qap_status', descripcion: 'Revisa la evidencia y el bloqueo del inventario.' });
       return result({ status, application_id: bound.applicationId, environment_id: bound.environmentId,
         status_scope: 'acquisition',
         requested_module: args.name, execution_id: output.execution_id, mode: output.mode,
         acquisition_status: status, acquisition_persistence: output.observations.length ? 'committed' : 'not_attempted',
-        ...(requiresLogin && entryInventory ? { code: 'auth_required', desbloquear_con: {
+        ...(requiresLogin && (initialInventory || entryInventory) ? { code: 'auth_required', desbloquear_con: {
           tool: 'qap_auth_add', descripcion: 'Usa un perfil verificado para continuar el Discovery de las vistas internas.',
         } } : {}),
         module_identity_status: persistedCandidates.length > 0 && identity.status === 'plan_ambiguous_or_missing'
@@ -1058,14 +1129,15 @@ export class DiscoveryHandler implements IMcpToolHandler {
         ...(persistedInventoryId ? { partial_inventory_id: persistedInventoryId, reviewable_candidates: persistedCandidates } : {}),
         ...(discoveryRevisionId ? { discovery_revision_id: discoveryRevisionId, discovery_reused: discoveryReused, discovery_dossier: discoveryDossierSummary } : {}),
         ...(appServiceMod ? { service_module: { module_id: appServiceMod.module_id, key: appServiceMod.key, status: appServiceMod.status } } : {}),
-        association_next_safe_action: isPlannedModule
+        ...(onboardingInventory ? { onboarding_inventory: onboardingInventory, siguiente_accion: inventoryAction } : {}),
+        association_next_safe_action: inventoryAction?.descripcion ?? (isPlannedModule
           ? 'El módulo ya está en el alcance. Consulta qap_status para continuar en el orden del plan.'
           : association.association_status === 'confirmed'
           ? 'Revisión humana de observaciones; cobertura parcial.'
           : persistedCandidates.length > 0
             ? 'Revisa los módulos candidatos detectados y confirma cuáles incluir en las pruebas.'
             : receipt ? 'Reintenta conservar el mismo progreso dentro del alcance vigente.'
-              : 'Revisa los candidatos detectados o selecciona los módulos a cubrir antes de definir reglas.',
+              : 'Revisa los candidatos detectados o selecciona los módulos a cubrir antes de definir reglas.'),
         counts: { candidate_routes: output.routes.filter(r => r.state === 'candidate').length,
           visited_routes: output.routes.filter(r => r.state === 'visited').length,
           blocked_routes: output.routes.filter(r => r.state === 'blocked').length, views: output.views.length,
@@ -1080,16 +1152,16 @@ export class DiscoveryHandler implements IMcpToolHandler {
         cleanup: { ...output.cleanup }, persistence: output.observations.length ? 'committed' : 'not_attempted',
         observations: output.observations.length, evidence: output.evidence.length,
         integration: { ...discoveryIntegration, module_association: association.association_status },
-        ...(isPlannedModule && output.observations.length > 0 ? { siguiente_accion: {
+        ...(!initialInventory && isPlannedModule && output.observations.length > 0 ? { siguiente_accion: {
           tipo: 'trabajo', tool: 'qap_status',
           descripcion: 'Continúa con los módulos del plan vigente en su orden de prioridad.',
           parametros: { targetPath: root },
         } } : {}),
-        next_safe_action: isPlannedModule
+        next_safe_action: inventoryAction?.descripcion ?? (isPlannedModule
           ? 'Consulta qap_status para continuar con el plan vigente.'
           : persistedCandidates.length > 0
           ? 'Revisa los módulos candidatos detectados con qap_project(action="promote_candidates") o qap_session_plan para crear módulos confirmables.'
-          : 'Continúa revisando preguntas y expectativas sobre los módulos del alcance.',
+          : 'Continúa revisando preguntas y expectativas sobre los módulos del alcance.'),
       }, status === 'blocked' || status === 'indeterminate');
       };
       return appService && this.dependencies.validateKnowledgeBinding ? await appService.withProjectOperation(publishDiscovery) : await publishDiscovery();

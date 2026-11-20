@@ -59,6 +59,38 @@ export interface SiguienteAccion {
   rutas_detectadas_fuera_del_plan?: string[];
 }
 
+export function initialInventoryAction(args: {
+  root: string;
+  baseUrl: string;
+  coverage: { auth_required: boolean; resumable_routes: number; inspected_routes: number };
+  profile?: string;
+  entryPath?: string;
+  hasVerifiedProfile?: boolean;
+}): SiguienteAccion {
+  const { root, baseUrl, coverage, profile, entryPath, hasVerifiedProfile } = args;
+  if (coverage.auth_required && !hasVerifiedProfile) {
+    return { tipo: 'decision', tool: 'qap_auth_add',
+      descripcion: 'Verifica un perfil de QA autorizado para inventariar las vistas internas. Usa el mecanismo seguro de acceso de QAP.',
+      parametros: { targetPath: root } };
+  }
+  if (coverage.resumable_routes && !coverage.auth_required) {
+    return { tipo: 'trabajo', tool: 'qap_discover', descripcion: 'Continúa el inventario inicial desde el checkpoint guardado.',
+      parametros: { targetPath: root, name: 'inventario-provisional', path: entryPath ?? baseUrl,
+        ...(profile ? { profile } : {}) } };
+  }
+  if (coverage.auth_required && hasVerifiedProfile) {
+    return { tipo: 'trabajo', tool: 'qap_start', descripcion: 'Retoma el inventario con el acceso verificado.',
+      parametros: { targetPath: root } };
+  }
+  if (coverage.inspected_routes === 0 && entryPath) {
+    return { tipo: 'decision', tool: 'qap_start',
+      descripcion: 'Revisa el expediente y la causa de adquisición antes de solicitar una nueva captura.',
+      parametros: { targetPath: root, refresh_discovery: true } };
+  }
+  return { tipo: 'trabajo', tool: 'qap_start', descripcion: 'Investiga la aplicación y consolida el inventario inicial.',
+    parametros: { targetPath: root } };
+}
+
 export interface BuildInterviewActionParams {
   module: string;
   view?: string;
