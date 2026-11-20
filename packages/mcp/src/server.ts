@@ -86,7 +86,7 @@ import {
   type ViewerServerInstance,
 } from '@qap/reporter';
 
-import { getPhaseGuidance, buildInterviewNextAction, type SiguienteAccion } from './guidance.js';
+import { getPhaseGuidance, buildInterviewNextAction, requiredLoginGuidance, type SiguienteAccion } from './guidance.js';
 import type { WorkspaceBootstrap } from './workspace-bootstrap.js';
 import {
   validateCandidateWorkspace,
@@ -719,7 +719,8 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
 9. Presenta al usuario el resumen de cierre del módulo y llama qap_module_close solo con su confirmación explícita (user_confirmed: true).
 10. Declara un waiver únicamente cuando el usuario haya dicho que la categoría no aplica, citando su razón (mínimo 15 caracteres).
 11. Al cerrar la sesión, presenta al usuario el resumen del reporte de brechas generado.
-12. Un plan vigente ya fija los módulos y su prioridad. Explora sus rutas y propone casos siguiendo siguiente_accion sin volver a pedir que el usuario elija o autorice cada ruta. Conserva las preguntas para decisiones de alcance nuevas, expectativas de negocio y aprobaciones explícitas requeridas por el servidor.`,
+12. Un plan vigente ya fija los módulos y su prioridad. Explora sus rutas y propone casos siguiendo siguiente_accion sin volver a pedir que el usuario elija o autorice cada ruta. Conserva las preguntas para decisiones de alcance nuevas, expectativas de negocio y aprobaciones explícitas requeridas por el servidor.
+13. AUTH_REQUIRED o una redirección a /login indica una dependencia de acceso. Prioriza el acceso autorizado y continúa Discovery. Solo incluye el login como objetivo de prueba cuando el usuario solicite explícitamente probar la autenticación.`,
     }
   );
   serverRef.current = server;
@@ -1530,9 +1531,21 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
       const collectingInventory = auth.status === 'success' && snapshot.tasks.some(task =>
         task.task_id === initialInventoryTaskId(scopedProject.project_id, scopedEnv.env_id)) && !snapshot.modules.length;
       const verified = collectingInventory ? auth.profile as { id: string; verified_route: string } | undefined : undefined;
+      let discoveryPath = verified?.verified_route;
+      if (verified && selectedBinding) {
+        const profile = snapshot.profiles.find(item => item.env_id === scopedEnv.env_id && item.label === verified.id);
+        const policy = await selectedBinding.store.get(selectedBinding.applicationId, 'environment', selectedBinding.environmentId);
+        if (profile && policy) {
+          const checkpoint = selectInitialInventory(applicationService.listLatestDiscoveryRevisionsByScope(scopedProject.project_id),
+            scopedEnv.env_id, policy.revision, profile.tenant_id ?? null, profile.profile_id, [profile]);
+          if (checkpoint && initialInventoryCoverage(checkpoint.dossier).resumable_routes > 0) {
+            discoveryPath = checkpoint.dossier.target_pathname;
+          }
+        }
+      }
       return canonicalResult({ ...auth, ...(verified ? { siguiente_accion: {
         tipo: 'trabajo', tool: 'qap_discover', descripcion: 'Continúa el inventario con el perfil verificado.',
-        parametros: { targetPath: eventWorkspace, name: inventoryName, path: verified.verified_route, profile: verified.id },
+        parametros: { targetPath: eventWorkspace, name: inventoryName, path: discoveryPath, profile: verified.id },
       } } : {}) }, auth.status !== 'success');
     }
     // The legacy branch below writes profiles and secrets without an exact project
@@ -1660,10 +1673,10 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
           const reusable = usableScopedSession(applicationService, scopedProject.project_id, profile.profile_id, localProfile, localOrigin);
           if (reusable && !startCredentials) auth = { status: 'reused', profile: profile.label };
           if ((reusable && (!startCredentials || auth?.status === 'verified')) || (!startCredentials && await renew())) {
-            const path = () => scopedRoute(localProfile?.verified_route, localOrigin) ?? entryUrl.href;
-            discoveryAttempt = await attempt(path(), profile.label);
+            const path = scopedRoute(localProfile?.verified_route, localOrigin) ?? entryUrl.href;
+            discoveryAttempt = await attempt(path, profile.label);
             if (reusable && !startCredentials && ['auth_session_invalid', 'auth_session_expired'].includes(String(discoveryAttempt.code)) && await renew()) {
-              discoveryAttempt = await attempt(path(), profile.label);
+              discoveryAttempt = await attempt(path, profile.label);
             }
             if (['auth_session_invalid', 'auth_session_expired'].includes(String(discoveryAttempt.code)) && auth?.status !== 'blocked') {
               auth = { status: 'blocked', code: discoveryAttempt.code, profile: profile.label };
@@ -1679,7 +1692,8 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
       const needsEntryObservation = !publicInventory || initialInventoryCoverage(publicInventory).resumable_routes > 0 ||
         rawArgs?.refresh_discovery === true;
       if (project && environment && applicationService && entryUrl && !environment.is_production &&
-          needsEntryObservation && !authenticatedObservation && !auth && !context.signal?.aborted) {
+          needsEntryObservation && (state.pending_login_access !== true || rawArgs?.refresh_discovery === true) &&
+          !authenticatedObservation && !auth && !context.signal?.aborted) {
         const args = { targetPath: eventWorkspace, name: inventoryName, path: entryUrl.href,
           description: 'Inventario inicial del sistema',
           ...(rawArgs?.refresh_discovery === true ? { restart_inventory: true } : {}) };
@@ -1690,7 +1704,8 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
           tool: 'qap_discover', args, result: discovery, durationMs: Date.now() - started }); });
         revisions = readRevisions();
       }
-      if (discoveryAttempt.discovery_revision_id || inventoryTaskStarted) {
+      if (discoveryAttempt.discovery_revision_id || inventoryTaskStarted ||
+          ['auth_session_invalid', 'auth_session_expired'].includes(String(discoveryAttempt.code))) {
         const refreshed = await dispatcher.dispatch({ name: 'qap_status', arguments: { targetPath: eventWorkspace } }, invocation);
         if (!refreshed.isError && refreshed.content[0]?.type === 'text') state = JSON.parse(refreshed.content[0].text) as Record<string, unknown>;
       }
@@ -1709,6 +1724,10 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
         : typeof discoveryAttempt.code === 'string' && (!auth || discoveryAttempt.code !== 'auth_required') ? discoveryAttempt.code
           : !auth ? firstObservation?.dossier.gaps.find(gap => gap.code === 'auth_required')?.code : undefined;
       const dossier = firstObservation?.dossier;
+      // Status owns the durable continuation, including the choice of a live profile.
+      // The fallback covers an access denial without a dossier to resume.
+      const pendingLoginAccess = !authenticatedObservation && diagnostic === 'auth_required' && state.pending_login_access !== true;
+      const accessAction = pendingLoginAccess ? requiredLoginGuidance(startWorkspace) : undefined;
       const discoverySummary = {
         status: discoveryFailed ? discoveryAttempt.status : dossier?.acquisition_status ?? discoveryAttempt.status ?? 'pending',
         ...(firstObservation ? { access: firstObservation.profile_id ? 'authenticated' : 'public' } : {}),
@@ -1780,10 +1799,11 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
       }
       atomicWritePrivateFile(resolveContainedPath(startWorkspace, notesPath), summaryLines.join('\n'));
       return canonicalResult({ ...state, status: discoveryFailed ? 'partial' : state.status ?? 'success', conversation_id: conversationId,
+        ...(accessAction ? { siguiente_accion: accessAction,
+          _guidance_for_assistant: `Siguiente acción: ${accessAction.descripcion}` } : {}),
         ...(auth ? { autenticacion: auth } : {}),
         ...(discoveryFailed && discoveryAttempt.desbloquear_con ? { desbloquear_con: discoveryAttempt.desbloquear_con } : {}),
-        discovery_inicial: { ...discoverySummary, notes_path: notesPath,
-          ...(diagnostic === 'auth_required' ? { continuation: 'Usa un perfil verificado para documentar áreas internas.' } : {}) },
+        discovery_inicial: { ...discoverySummary, notes_path: notesPath },
         conversation_log: conversationLogPath(startWorkspace, conversationId!) });
       });
     }
@@ -2782,7 +2802,8 @@ export function createMcpServer(options: McpServerOptions = {}): Server {
             for (const svcProf of snapshot.profiles) {
               const sessionInfo = applicationService.readProfileSession(activeProject.project_id, svcProf.profile_id);
               const needsRevalidation = Boolean(
-                sessionInfo?.expired || sessionInfo?.revoked || svcProf.status === 'expired' || svcProf.status === 'revoked',
+                sessionInfo?.expired || sessionInfo?.revoked || svcProf.status === 'expired' || svcProf.status === 'revoked' ||
+                (svcProf.status === 'verified' && !sessionInfo?.session),
               );
               const existing = merged.get(svcProf.label) ?? {};
               merged.set(svcProf.label, {

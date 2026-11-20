@@ -1,16 +1,18 @@
 import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve, join, basename } from 'node:path';
 
-import { SchemaValidator, filterValidRoles, normalizeSlug, type ProjectContext, type AuthProfile, type RuleEntry, type CategoryWaiver, type ModuleCandidate } from '@qap/shared';
+import { SchemaValidator, filterValidRoles, isAuthPath, normalizeSlug, type ProjectContext, type AuthProfile, type RuleEntry, type CategoryWaiver, type ModuleCandidate } from '@qap/shared';
 import { FileSystemStorage, detectarServiciosConEvidencia, generarScan, detectarDocumentosProyecto } from '@qap/knowledge';
 import { canExitOnboarding, canExitScoping, obtenerSiguientePreguntaOnboarding, computeApplicableCategories, computeCoverage, generateNextInterviewBatch, type ViewDiscoveryContext } from '@qap/engine';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+import { readProfiles } from '@qap/auth';
 
-import type { DiscoveryRevisionRecord } from '../application/discovery-dossier.js';
-import { initialInventoryCoverage, initialInventoryTaskId, selectInitialInventory } from '../application/initial-inventory.js';
-import { getPhaseGuidance, buildInterviewNextAction, initialInventoryAction, type SiguienteAccion } from '../guidance.js';
+import { sanitizeTargetPathname, type DiscoveryRevisionRecord } from '../application/discovery-dossier.js';
+import { hasLoginWall, initialInventoryCoverage, initialInventoryTaskId, selectInitialInventory } from '../application/initial-inventory.js';
+import { getPhaseGuidance, buildInterviewNextAction, initialInventoryAction, requiredLoginGuidance, type SiguienteAccion } from '../guidance.js';
 import type { IMcpToolHandler } from '../dispatcher.js';
 import type { InteractiveAccess } from '../interactive-access.js';
+import { scopedRoute } from '../scoped-password.js';
 import { getVersionDiagnostic } from '../version-diagnostic.js';
 
 import { binding, definition, validateBase, projectRoot, readContext, readEnvironment, isObject, type StateDependencies, type LegacyEnvironment, knowledgeStatus, result, assertProjectSegment } from './state-services.js';
@@ -104,7 +106,8 @@ export class StatusHandler implements IMcpToolHandler {
       logPath: join(rootDir, '.qa', 'runtime', 'qap-version-diagnostics.jsonl'),
       log: Boolean(this.dependencies.prepareWorkspace && existsSync(join(rootDir, '.qa'))),
     });
-    if (this.dependencies.prepareWorkspace && payload.fase === 'ONBOARDING') {
+    if (this.dependencies.prepareWorkspace && payload.fase === 'ONBOARDING' && payload.pending_login_access !== true &&
+        (payload.siguiente_accion as SiguienteAccion | undefined)?.tool !== 'qap_auth_add') {
       const contextFile = join(rootDir, '.qa', 'project', 'context.yaml');
       const context = existsSync(contextFile) ? readContext(contextFile) : null;
       const rawScanDocs = (payload.scan as { documentos?: Array<{ path: string; es_ingerible?: boolean; tamano_bytes?: number; categoria?: string }> } | undefined)?.documentos ?? [];
@@ -465,21 +468,35 @@ export class StatusHandler implements IMcpToolHandler {
         } catch { /* An invalid plan route cannot match a persisted inventory. */ }
       }
     }
+    const canGuideDiscovery = (currentPhase === 'ONBOARDING' || currentPhase === 'SCOPING') &&
+      !lifecycleState.session?.plan?.length;
     const canRequireInventory = this.dependencies.prepareWorkspace && this.dependencies.provisionalInventory &&
-      (currentPhase === 'ONBOARDING' || currentPhase === 'SCOPING') &&
-      !lifecycleState.session?.plan?.length && resumeSnapshot?.environment &&
+      canGuideDiscovery && resumeSnapshot?.environment &&
       resumeSnapshot.tasks.some(task => task.task_id === initialInventoryTaskId(resumeSnapshot.project.project_id, resumeSnapshot.environment!.env_id));
     let currentInventory: DiscoveryRevisionRecord | undefined;
-    if (canRequireInventory && activeAppProject && appService && resumeSnapshot?.environment && baseUrl) {
+    let pendingLoginAccess = false;
+    let discoveryTenant: string | null | undefined;
+    if (canGuideDiscovery && activeAppProject && appService && resumeSnapshot?.environment && baseUrl) {
       const bound = binding(rootDir, this.dependencies);
       const policy = bound && await bound.store.get(bound.applicationId, 'environment', bound.environmentId);
       const tenant = appService.validateTenantScope(activeAppProject.project_id, undefined);
-      if (policy && tenant.ok) {
-        const envId = resumeSnapshot.environment.env_id;
-        const revisions = appService.listLatestDiscoveryRevisionsByScope(activeAppProject.project_id);
-        currentInventory = selectInitialInventory(revisions, envId, policy.revision, tenant.tenant_id ?? null,
+      discoveryTenant = tenant.ok ? tenant.tenant_id ?? null : undefined;
+      const envId = resumeSnapshot.environment.env_id;
+      const revisions = appService.listLatestDiscoveryRevisionsByScope(activeAppProject.project_id)
+        .filter(revision => revision.environment_id === envId &&
+          (!revision.dossier.inventory || revision.dossier.scope.inventory_environment_revision === policy?.revision));
+      if (canRequireInventory && policy && discoveryTenant !== undefined) {
+        currentInventory = selectInitialInventory(revisions, envId, policy.revision, discoveryTenant,
           undefined, resumeSnapshot.profiles);
       }
+      const entryPath = sanitizeTargetPathname(baseUrl);
+      const loginWall = revisions.find(revision => revision.profile_id === null &&
+        revision.dossier.target_pathname === entryPath &&
+        (discoveryTenant === undefined || revision.tenant_id === discoveryTenant) && hasLoginWall(revision.dossier));
+      const internalObserved = loginWall && revisions.some(revision => revision.profile_id !== null &&
+        revision.tenant_id === loginWall.tenant_id && revision.dossier.views.length > 0 &&
+        !isAuthPath(revision.dossier.target_pathname) && !hasLoginWall(revision.dossier));
+      pendingLoginAccess = Boolean(loginWall && !internalObserved);
     }
     const coverage = canRequireInventory && baseUrl ? initialInventoryCoverage(currentInventory?.dossier) : undefined;
     const currentKnowledge = this.dependencies.provisionalInventory ? await knowledgeStatus(rootDir, this.dependencies) : undefined;
@@ -510,7 +527,8 @@ export class StatusHandler implements IMcpToolHandler {
     const recoveredProfiles = resumeSnapshot?.profiles.map((p) => {
       const sessionInfo = appService!.readProfileSession(resumeSnapshot.project.project_id, p.profile_id);
       const needsRevalidation = Boolean(
-        sessionInfo?.expired || sessionInfo?.revoked || p.status === 'expired' || p.status === 'revoked',
+        sessionInfo?.expired || sessionInfo?.revoked || p.status === 'expired' || p.status === 'revoked' ||
+        (p.status === 'verified' && !sessionInfo?.session),
       );
       return {
         profile_id: p.profile_id,
@@ -573,13 +591,36 @@ export class StatusHandler implements IMcpToolHandler {
       };
     }
 
-    if (coverage && !coverage.can_scope && baseUrl) {
-      const activeProfiles = resumeSnapshot?.profiles.filter(profile => profile.env_id === resumeSnapshot.environment?.env_id &&
-        profile.status === 'verified' && profile.tenant_id === (currentInventory?.tenant_id ?? null)) ?? [];
-      guidance.siguiente_accion = initialInventoryAction({ root: rootDir, baseUrl, coverage,
-        profile: resumeSnapshot?.profiles.find(profile => profile.profile_id === currentInventory?.profile_id)?.label,
-        entryPath: currentInventory?.dossier.target_pathname,
-        verifiedProfiles: activeProfiles.map(profile => profile.label) });
+    if (baseUrl && (pendingLoginAccess || (coverage && !coverage.can_scope))) {
+      const tenant = currentInventory ? currentInventory.tenant_id : discoveryTenant;
+      const scopedProfiles = resumeSnapshot?.profiles.filter(profile => profile.env_id === resumeSnapshot.environment?.env_id &&
+        (tenant === undefined || (profile.tenant_id ?? null) === tenant)) ?? [];
+      const origin = new URL(baseUrl).origin;
+      const localProfiles = readProfiles(rootDir);
+      const activeProfiles = scopedProfiles.flatMap(profile => {
+        const recovered = recoveredProfiles?.find(item => item.profile_id === profile.profile_id);
+        if (recovered?.status !== 'verified' || recovered.needs_revalidation) return [];
+        const login = appService!.authority.check(resumeSnapshot.project.project_id, 'login', {
+          origin, profile_id: profile.label, ...(profile.tenant_id ? { tenant_id: profile.tenant_id } : {}),
+        });
+        if (!login.allowed && (login.reason === 'expired' || login.reason === 'revoked')) return [];
+        const local = localProfiles.find(item => item.env === resumeSnapshot?.environment?.name && item.id === profile.label);
+        if (local?.login_origin && local.login_origin !== origin) return [];
+        const entryPath = scopedRoute(local?.verified_route, origin);
+        return [{ label: profile.label, entryPath: entryPath && !isAuthPath(entryPath) ? entryPath : undefined }];
+      });
+      const checkpointProfile = scopedProfiles.find(profile => profile.profile_id === currentInventory?.profile_id);
+      const revalidationProfile = recoveredProfiles?.find(profile => profile.needs_revalidation &&
+        profile.status !== 'revoked' && scopedProfiles.some(scoped => scoped.profile_id === profile.profile_id))?.label;
+      if (checkpointProfile && coverage?.resumable_routes && !activeProfiles.some(item => item.label === checkpointProfile.label)) {
+        guidance.siguiente_accion = requiredLoginGuidance(rootDir, checkpointProfile.status === 'revoked' ? undefined : checkpointProfile.label);
+      } else {
+        guidance.siguiente_accion = initialInventoryAction({ root: rootDir, baseUrl,
+          coverage: { auth_required: pendingLoginAccess || coverage?.auth_required === true,
+            resumable_routes: coverage?.resumable_routes ?? 0, inspected_routes: coverage?.inspected_routes ?? 0 },
+          profile: checkpointProfile?.label, entryPath: currentInventory?.dossier.target_pathname,
+          verifiedProfiles: activeProfiles, revalidationProfile });
+      }
     }
 
     const stateModuleCount = Object.keys(lifecycleState.modules || {}).length;
@@ -607,6 +648,7 @@ export class StatusHandler implements IMcpToolHandler {
               } : {}),
               estados_modulos: estadosModulos,
               faltantes,
+              ...(pendingLoginAccess ? { pending_login_access: true } : {}),
               ...(coverage ? { onboarding_inventory: { ...coverage, revision_id: currentInventory?.revision_id } } : {}),
               siguiente_accion: guidance.siguiente_accion,
               scan,

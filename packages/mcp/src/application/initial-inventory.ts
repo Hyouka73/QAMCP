@@ -1,4 +1,4 @@
-import { normalizeSlug, type AuthProfileRecord } from '@qap/shared';
+import { isAuthPath, normalizeSlug, type AuthProfileRecord } from '@qap/shared';
 
 import type { DiscoveryDossierCanonical, DiscoveryRevisionRecord } from './discovery-dossier.js';
 
@@ -54,7 +54,7 @@ export function mergeInitialInventory(
   for (const ref of batch.source_refs) sourceRefs.set(ref.ref_id, ref);
   const groups = new Map<string, string[]>();
   for (const route of routes) {
-    if (route.state !== 'visited' || !route.authorized_pathname) continue;
+    if (route.state !== 'visited' || !route.authorized_pathname || isAuthPath(route.authorized_pathname)) continue;
     const key = normalizeSlug(route.authorized_pathname.split('/').filter(Boolean)[0] ?? 'inicio');
     const paths = groups.get(key) ?? [];
     paths.push(route.authorized_pathname);
@@ -77,11 +77,19 @@ export function mergeInitialInventory(
     : coverage.state === 'PARTIAL_READY' ? 'partial' : 'blocked' };
 }
 
+export function hasLoginWall(dossier?: DiscoveryDossierCanonical): boolean {
+  return Boolean(dossier?.gaps.some(gap => gap.code === 'auth_required') ||
+    dossier?.routes.some(route => route.reason === 'AUTH_REQUIRED') ||
+    (dossier?.scope.profile_id === null && dossier.relations?.some(relation =>
+      relation.kind === 'http_redirect' && isAuthPath(dossier.routes[relation.to_route_index]?.authorized_pathname ?? ''))));
+}
+
 export function initialInventoryCoverage(dossier?: DiscoveryDossierCanonical) {
   const routes = dossier?.routes ?? [];
   const inspected = new Set(dossier?.views.filter(view => view.evidence_id).map(view => view.view_id));
-  const visited = routes.filter(route => route.state === 'visited' && route.view_id && inspected.has(route.view_id)).length;
-  const authRequired = dossier?.gaps.some(gap => gap.code === 'auth_required') ?? false;
+  const visited = routes.filter(route => route.state === 'visited' && route.view_id && inspected.has(route.view_id) &&
+    !isAuthPath(route.authorized_pathname ?? '')).length;
+  const authRequired = hasLoginWall(dossier);
   const pending = routes.filter(route => route.state === 'candidate' && route.resumable).length;
   const incomplete = Boolean(dossier?.inventory?.truncated || dossier?.inventory?.restricted_routes ||
     routes.some(route => route.state !== 'visited' && route.state !== 'redirected') ||
@@ -99,7 +107,10 @@ export function initialInventoryCoverage(dossier?: DiscoveryDossierCanonical) {
     unavailable_routes: routes.filter(route => route.state === 'unavailable' || route.state === 'inconclusive').length,
     restricted_routes: dossier?.inventory?.restricted_routes ?? 0,
     truncated: dossier?.inventory?.truncated ?? false,
-    candidate_modules: dossier?.inventory?.modules?.map(module => ({ key: module.key, path: module.paths[0], status: module.status })) ?? [],
+    candidate_modules: dossier?.inventory?.modules?.flatMap(module => {
+      const path = module.paths.find(candidate => !isAuthPath(candidate));
+      return path ? [{ key: module.key, path, status: module.status }] : [];
+    }) ?? [],
   };
 }
 

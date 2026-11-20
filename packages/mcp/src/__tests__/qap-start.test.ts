@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
+import { DatabaseSync } from 'node:sqlite';
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
@@ -118,8 +119,7 @@ it('starts from a client without roots or elicitation and persists separate MCP 
       response.writeHead(302, { location: '/login;jsessionid=DO_NOT_LOG_THE_SESSION_ID' }).end();
     } else if (request.url === '/login') {
       response.writeHead(200, { 'content-type': 'text/html' }).end(
-        '<h1>Portal de prueba</h1><form method="post"><label>Usuario<input name="user"></label>' +
-        '<label>Contraseña<input type="password"></label><button>Entrar</button></form><a href="/help">Ayuda</a>',
+        '<h1>Portal de prueba</h1><p>Acceso mediante un proveedor de identidad</p><a href="/help">Ayuda</a>',
       );
     } else {
       response.writeHead(404).end();
@@ -150,14 +150,16 @@ it('starts from a client without roots or elicitation and persists separate MCP 
       { content: { text: expect.stringContaining('Invoca qap_start') } },
     ] });
     expect((await client!.listTools()).tools.find(tool => tool.name === 'qap_start')).toBeDefined();
+    expect(client!.getInstructions()).toContain('Solo incluye el login como objetivo de prueba cuando el usuario solicite explícitamente probar la autenticación.');
     expect(await call('qap_start', { targetPath: outside })).toMatchObject({ code: 'workspace_outside_configured_root' });
     expect(existsSync(join(outside, '.qa'))).toBe(false);
     expect(await call('qap_start', { base_url: 'https://fixture:private@example.test/' })).toMatchObject({ code: 'invalid_arguments' });
-    const start = await call('qap_start', { base_url: 'http://127.0.0.1:' + address.port });
+    const start = await call('qap_start', { targetPath: workspace, base_url: 'http://127.0.0.1:' + address.port });
     expect(start, JSON.stringify(start)).toMatchObject({ status: 'success', initialized: true, fase: 'ONBOARDING',
       conversation_id: expect.any(String),
       onboarding_inventory: { state: 'BLOCKED', can_scope: false, auth_required: true, inspected_routes: 0 },
-      siguiente_accion: { tool: 'qap_auth_add' }, discovery_inicial: {
+      pending_login_access: true,
+      siguiente_accion: { tool: 'qap_auth_add', pregunta: { id: 'scoping.perfil_para_acceso' } }, discovery_inicial: {
         status: 'blocked', code: 'auth_required', notes_path: '.qa/discovery/INICIO.md',
         counts: { views: 0 }, routes: expect.arrayContaining([
           { path: '/', state: 'redirected' },
@@ -176,6 +178,18 @@ it('starts from a client without roots or elicitation and persists separate MCP 
     expect(path).toBe(join(workspace, '.qa', 'logs', 'conversations', String(start.conversation_id) + '.jsonl'));
     expect(readFileSync(path, 'utf8')).toContain('qap_start');
     await client!.close();
+    const hostPath = join(base, 'host', 'application');
+    const { QapApplicationService } = await import('../application/application-service.js');
+    const service = new QapApplicationService({ hostRootDir: hostPath });
+    try {
+      const projectId = String(start.project_id);
+      service.upsertModule({ projectId, key: 'existing-reports', title: 'Reportes existentes' });
+      const db = new DatabaseSync(join(hostPath, 'app-service.sqlite'));
+      try {
+        db.prepare("DELETE FROM tasks WHERE project_id = ? AND task_id LIKE 'task-initial-inventory-%'").run(projectId);
+      } finally { db.close(); }
+      expect(service.resumeProject(projectId).tasks.some(task => task.task_id.startsWith('task-initial-inventory-'))).toBe(false);
+    } finally { service.close(); }
     const previousRequests = siteRequests;
     mkdirSync(join(workspace, 'pages'));
     writeFileSync(join(workspace, 'pages', 'report.tsx'), 'export default function Report() { return null; }');
@@ -183,10 +197,14 @@ it('starts from a client without roots or elicitation and persists separate MCP 
     rmSync(join(workspace, first.doc_path));
     rmSync(join(workspace, '.qa/discovery/INDEX.md'));
     await connect();
-    expect(await call('qap_status', { targetPath: workspace, conversation_id: start.conversation_id })).toMatchObject({ initialized: true });
+    const legacy = await call('qap_status', { targetPath: workspace, conversation_id: start.conversation_id });
+    expect(legacy).toMatchObject({ initialized: true, pending_login_access: true, siguiente_accion: start.siguiente_accion });
+    expect(legacy).not.toHaveProperty('onboarding_inventory');
     const second = await call('qap_start', { targetPath: workspace });
     expect(second.conversation_id).not.toBe(start.conversation_id);
     expect(second.discovery_inicial).toMatchObject({ revision_id: first.revision_id, reused: true });
+    expect(second.siguiente_accion).toEqual(legacy.siguiente_accion);
+    expect(second).not.toHaveProperty('onboarding_inventory');
     expect(siteRequests).toBe(previousRequests);
     expect(existsSync(join(workspace, first.doc_path))).toBe(false);
     expect(existsSync(join(workspace, '.qa/discovery/INDEX.md'))).toBe(false);
@@ -216,6 +234,7 @@ it.runIf(process.platform === 'win32')('checkpoints broad authorized discovery b
   const session = new Map<string, string>();
   const requests: string[] = [];
   let unauthorizedWrites = 0;
+  let redirectToLoginOn: string | undefined;
   const site = createServer((req, res) => {
     const path = req.url ?? '/';
     requests.push(`${req.method} ${path}`);
@@ -240,11 +259,12 @@ it.runIf(process.platform === 'win32')('checkpoints broad authorized discovery b
     if (path === '/login') return send(200, '<form method="post"><input name="user"><input name="password" type="password"><button type="submit">Entrar</button></form>');
     const role = session.get(req.headers.cookie ?? '');
     if (!role) return res.writeHead(302, { location: '/login' }).end();
+    if (path === redirectToLoginOn) return res.writeHead(302, { location: '/login' }).end();
     if (path === '/missing') return send(404, '');
     if (path === '/restricted' || (path === '/billing' && role === 'reader')) return send(403, '');
     if (path === '/portal') {
       const link = (route: string) => '<a href="' + route + '">Open</a>';
-      const menu = ['/', '/billing', '/missing', '/restricted', ...(role === 'operator' ? ['/feature'] : []), ...departments];
+      const menu = ['/', '/billing', '/missing', '/restricted', ...(role === 'operator' ? ['/feature', '/login'] : []), ...departments];
       const controls = '<form action="/write" method="post"><input required><button>Guardar</button></form>' +
         '<a href="/delete-record">Remove</a><a href="/hidden-write" hidden>Hidden</a>' +
         (req.headers['user-agent'] === 'QAP-Recon/1' ? '<script>fetch("/script-get").catch(() => {})</script><img src="/image-get">' : '');
@@ -281,21 +301,58 @@ it.runIf(process.platform === 'win32')('checkpoints broad authorized discovery b
     const access = await call('qap_auth_add', { profile: 'inventory-operator', username: 'operator',
       password: fixturePassword, role: 'operator', verification_route: '/portal', login_route: '/login' });
     expect(access).toMatchObject({ status: 'success' });
-    const first = await call('qap_start');
+    const db = new DatabaseSync(join(host, 'application', 'app-service.sqlite'));
+    try {
+      db.prepare('UPDATE profiles SET expires_at = ? WHERE project_id = ? AND label = ? AND status = ?')
+        .run('2000-01-01T00:00:00.000Z', publicStart.project_id, 'inventory-operator', 'verified');
+    } finally { db.close(); }
+    const expired = await call('qap_status');
+    expect(expired).toMatchObject({ pending_login_access: true, auth_revalidation_needed: true,
+      recovered_profiles: [expect.objectContaining({ label: 'inventory-operator', status: 'verified', needs_revalidation: true })],
+      siguiente_accion: { tipo: 'decision', tool: 'qap_auth_add', pregunta: { id: 'scoping.perfil_para_acceso' } },
+    });
+    const renew = () => call('qap_auth_add', { profile: 'inventory-operator', action: 'login', method: 'auto' });
+    expect(await renew()).toMatchObject({ status: 'success' });
+    const ready = await call('qap_status');
+    expect(ready).toMatchObject({ auth_revalidation_needed: false,
+      siguiente_accion: { tipo: 'trabajo', tool: 'qap_discover', parametros: {
+        targetPath: workspace, name: 'inventario-provisional', path: '/portal', profile: 'inventory-operator',
+      } },
+    });
+    await call('qap_discover', ready.siguiente_accion.parametros);
+    const first = await call('qap_status');
     expect(first).toMatchObject({ siguiente_accion: { tool: 'qap_discover' },
       onboarding_inventory: { state: 'PARTIAL_READY', can_scope: false } });
     expect(first.onboarding_inventory.resumable_routes).toBeGreaterThan(0);
     const firstDossier = (await call('qap_project', { action: 'discovery_dossier',
       revision_id: first.onboarding_inventory.revision_id })).selected_revision.dossier;
-    const pending = firstDossier.routes.find((route: { state: string; resumable?: boolean }) => route.state === 'candidate' && route.resumable);
-    expect(pending).toBeDefined();
-    expect(pending).not.toHaveProperty('view_id');
+    const pending = firstDossier.routes.filter((route: { state: string; resumable?: boolean }) => route.state === 'candidate' && route.resumable);
+    expect(pending.length).toBeGreaterThan(1);
+    expect(pending[0]).not.toHaveProperty('view_id');
     expect(await call('qap_session_plan', plan)).toMatchObject({ code: 'initial_inventory_required' });
-    const startsBeforeResume = requests.filter(item => item === 'GET /portal').length;
     await connect();
     const resumed = await call('qap_status');
     expect(resumed.onboarding_inventory.revision_id).toBe(first.onboarding_inventory.revision_id);
-    const last = await call('qap_discover', resumed.siguiente_accion.parametros);
+    const rejectAt = pending[1].authorized_pathname;
+    redirectToLoginOn = rejectAt;
+    const invalidStart = requests.length;
+    const invalid = await call('qap_discover', resumed.siguiente_accion.parametros);
+    expect(invalid).toMatchObject({ status: 'blocked', code: 'auth_session_invalid', acquisition_persistence: 'not_attempted',
+      downgraded_to_anonymous: false });
+    expect(invalid).not.toHaveProperty('discovery_revision_id');
+    expect(requests.slice(invalidStart)).toEqual([`GET ${pending[0].authorized_pathname}`, `GET ${rejectAt}`]);
+    const blocked = await call('qap_status');
+    expect(blocked).toMatchObject({ auth_revalidation_needed: true, onboarding_inventory: first.onboarding_inventory,
+      siguiente_accion: { tool: 'qap_auth_add', pregunta: { id: 'scoping.perfil_para_acceso' } } });
+    expect(blocked.knowledge.counts.observation).toEqual(resumed.knowledge.counts.observation);
+    redirectToLoginOn = undefined;
+    expect(await renew()).toMatchObject({ status: 'success', siguiente_accion: {
+      tool: 'qap_discover', parametros: resumed.siguiente_accion.parametros,
+    } });
+    const restored = await call('qap_status');
+    expect(restored.siguiente_accion).toEqual(resumed.siguiente_accion);
+    const startsBeforeResume = requests.filter(item => item === 'GET /portal').length;
+    const last = await call('qap_discover', restored.siguiente_accion.parametros);
     expect(last).toMatchObject({ onboarding_inventory: { state: 'PARTIAL_READY', can_scope: true, resumable_routes: 0 } });
     expect(requests.filter(item => item === 'GET /portal')).toHaveLength(startsBeforeResume);
     const project = await call('qap_project', { action: 'discovery_dossier', revision_id: last.discovery_revision_id });
@@ -306,6 +363,8 @@ it.runIf(process.platform === 'win32')('checkpoints broad authorized discovery b
     expect(final.views).toContainEqual(expect.objectContaining({ forms_count: 1 }));
     expect(final.relations.length).toBeGreaterThan(12);
     expect(final.inventory.modules).toContainEqual(expect.objectContaining({ key: 'feature', status: 'inferred' }));
+    expect(final.inventory.modules.some((module: { key: string }) => module.key === 'login')).toBe(false);
+    expect(final.scope).toEqual(firstDossier.scope);
     expect(final.source_refs.filter((ref: { kind: string }) => ref.kind === 'confirmed_requirement')).toEqual([]);
     expect(existsSync(join(workspace, project.module_doc_path))).toBe(true);
     const reader = await call('qap_auth_add', { profile: 'inventory-reader', username: 'reader',
@@ -319,6 +378,11 @@ it.runIf(process.platform === 'win32')('checkpoints broad authorized discovery b
     expect(alternate.routes.some((route: { authorized_pathname: string }) => route.authorized_pathname === '/feature')).toBe(false);
     expect(alternate.views.some((view: { controls: Array<{ role: string }> }) => view.controls.some(control => control.role === 'navigation'))).toBe(true);
     expect(unauthorizedWrites).toBe(0);
+    const userFacing = [JSON.stringify([publicStart, expired, ready, first, invalid, blocked, last, project, alternate]),
+      readFileSync(join(workspace, '.qa/logs/qap-events.jsonl'), 'utf8'),
+      readFileSync(join(workspace, project.module_doc_path), 'utf8')].join('\n');
+    expect(userFacing).not.toContain(fixturePassword);
+    for (const cookie of session.keys()) expect(userFacing).not.toContain(cookie.split('=')[1]);
   } finally {
     await client?.close();
     const { QapApplicationService } = await import('../application/application-service.js');

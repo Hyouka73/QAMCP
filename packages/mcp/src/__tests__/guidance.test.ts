@@ -1,9 +1,23 @@
 import type { CanExitOnboardingContext } from '@qap/engine';
 import { describe, it, expect } from 'vitest';
 
-import { getPhaseGuidance } from '../guidance.js';
+import { getPhaseGuidance, requiredLoginGuidance } from '../guidance.js';
 
 describe('Módulo de Guía Conversacional por Fase (E6 - P4.2)', () => {
+  it('pide una sola decisión y usa los mecanismos oficiales para el acceso', () => {
+    const action = requiredLoginGuidance('/workspace', 'qa-reader');
+    expect(action).toMatchObject({
+      tipo: 'decision', tool: 'qap_auth_add', parametros: { targetPath: '/workspace' },
+      pregunta: { id: 'scoping.perfil_para_acceso', formato: 'abierta',
+        registrar_con: { tool: 'qap_auth_add', campo: 'profile' } },
+    });
+    expect(action.pregunta?.texto).toContain('No escribas contraseñas en el chat');
+    expect(action.pregunta?.texto).toContain('qa-reader');
+    expect(action.pregunta?.texto.match(/\?/g)).toHaveLength(1);
+    expect(action.descripcion).toContain('qap_auth_list');
+    expect(action).not.toHaveProperty('preguntas');
+  });
+
   it('ONBOARDING: debe generar tipo "entrevista" con UNA pregunta estructurada pendiente y sin opciones top-level', () => {
     const res = getPhaseGuidance('ONBOARDING');
     expect(res.fase).toBe('ONBOARDING');

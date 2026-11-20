@@ -677,8 +677,9 @@ export class DiscoveryHandler implements IMcpToolHandler {
         return blocked('inventory_checkpoint_changed', 'Recupera el checkpoint más reciente y continúa el inventario.',
           { desbloquear_con: { tool: 'qap_status' } });
       }
-      if (authenticated_session && !output.observations.length && (output.warnings.includes('AUTH_SESSION_INVALID') ||
-        (!initialInventory && output.routes.some(route => route.http_status === 401 || route.http_status === 403)))) {
+      if (authenticated_session && ((initialInventory && output.warnings.includes('AUTH_SESSION_INVALID')) ||
+        (!output.observations.length && (output.warnings.includes('AUTH_SESSION_INVALID') ||
+          (!initialInventory && output.routes.some(route => route.http_status === 401 || route.http_status === 403)))))) {
         if (appService && appProject && resolvedProfileName) {
           try { appService.expireProfileSession(appProject.project_id, resolvedProfileRecord?.profile_id ?? resolvedProfileName); } catch { /* Best effort */ }
         }

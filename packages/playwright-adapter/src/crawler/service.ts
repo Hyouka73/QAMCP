@@ -3,7 +3,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { isDeepStrictEqual } from 'node:util';
 
 import type { IKnowledgeStore, KnowledgeTrace, KnowledgeWrite } from '@qap/engine';
-import type { ApplicationObservation, MultimodalEvidenceRef } from '@qap/shared';
+import { isAuthPath, type ApplicationObservation, type MultimodalEvidenceRef } from '@qap/shared';
 import type { Browser, BrowserContext } from 'playwright-core';
 
 import { parseUrl, ReconScope } from '../reconnaissance/network.js';
@@ -251,7 +251,7 @@ export class BlackBoxCrawler {
         pending.add(task); void task.finally(() => pending.delete(task));
         return task;
       });
-      while (queue.length && !signal.aborted) {
+      navigation: while (queue.length && !signal.aborted) {
         const item = queue.shift()!;
         let current = parseUrl(item.url);
         let route = recordNavigation(current, item.depth);
@@ -291,6 +291,14 @@ export class BlackBoxCrawler {
             if (entryRedirects.has(next.href) && destination.authorized_index === undefined) {
               destination.observed_public_pathname = next.pathname;
             }
+            if (inventory && input.authenticated_session && next.origin === target.origin && isAuthPath(next.pathname)) {
+              result.relations.push({ from: route.route, to: destination.route, kind: 'http_redirect' });
+              route.state = 'redirected';
+              destination.state = 'blocked';
+              destination.reason = 'AUTH_SESSION_INVALID';
+              result.warnings.push('AUTH_SESSION_INVALID');
+              break navigation;
+            }
             try { authorize(next); } catch { destination.state = 'blocked'; destination.reason = 'SCOPE_BLOCKED'; throw new ReconnaissanceError('SCOPE_BLOCKED'); }
             result.relations.push({ from: route.route, to: destination.route, kind: 'http_redirect' });
             route.state = 'redirected';
@@ -302,6 +310,7 @@ export class BlackBoxCrawler {
             route.reason = inventory && capture.status === 403 ? 'ACCESS_DENIED'
               : input.authenticated_session ? 'AUTH_SESSION_INVALID' : 'AUTH_REQUIRED';
             if (route.reason !== 'ACCESS_DENIED') result.warnings.push(route.reason);
+            if (inventory && route.reason === 'AUTH_SESSION_INVALID') break;
             continue;
           }
           if (capture.status < 200 || capture.status >= 300) { route.state = 'unavailable'; route.reason = 'HTTP_UNAVAILABLE'; continue; }
@@ -319,7 +328,8 @@ export class BlackBoxCrawler {
           if (navigationSignal.aborted) throw new ReconnaissanceError('TIMEOUT');
           const navigatedUrl = page.url();
           if (!spaMode && navigatedUrl !== current.href) throw new ReconnaissanceError('TIMEOUT');
-          const redirectedToLogin = spaMode && /\/login(?:[;/?#]|$)/i.test(navigatedUrl);
+          const redirectedToLogin = ((spaMode || inventory) && /\/login(?:[;/?#]|$)/i.test(new URL(navigatedUrl).pathname)) ||
+            (inventory && isAuthPath(navigatedUrl));
           if (input.authenticated_session && (
             spaAuthFailed ||
             redirectedToLogin ||
@@ -357,6 +367,7 @@ export class BlackBoxCrawler {
               result.relations.push({ from: route.route, to: denied.route, kind: 'link_candidate' });
               continue;
             }
+            if (inventory && linked.origin === target.origin && isAuthPath(linked.pathname)) continue;
             const candidate = recordNavigation(linked, item.depth + 1);
             if (inventory?.followObservedNavigation && link.navigation && !link.download &&
               linked.origin === target.origin && inventoryPath(linked)) discoveredNavigation.add(linked.href);
@@ -440,7 +451,9 @@ export class BlackBoxCrawler {
     result.status = result.views.length ? (result.routes.some(r => !['visited', 'redirected'].includes(r.state)) ||
       result.views.some(v => !['static_snapshot', 'spa_rendered'].includes(v.state) || v.truncated) || signal.aborted ? 'partial' : 'completed')
       : result.routes.some(r => r.state === 'blocked') ? 'blocked' : 'indeterminate';
-    if (result.observations.length) await this.persist(input, result, originalContext);
+    // An inventory batch with lost authentication cannot replace the previous checkpoint.
+    if (inventory && result.warnings.includes('AUTH_SESSION_INVALID')) result.status = 'blocked';
+    else if (result.observations.length) await this.persist(input, result, originalContext);
     result.budget.elapsed_ms = Date.now() - started;
     return result;
   }
