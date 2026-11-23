@@ -104,6 +104,9 @@ export interface ExecutionResult {
   artifacts?: ExecutionArtifactsManifest;
   timeline?: ExecutionTimelineStep[];
   cases: ExecutedCase[];
+  run_spec_digest?: string;
+  effect_evaluation?: Record<string, unknown>;
+  fixture_effect_observations?: Record<string, unknown>;
 }
 
 // Aliases para compatibilidad con código existente

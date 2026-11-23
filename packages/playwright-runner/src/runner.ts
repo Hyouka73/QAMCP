@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { runSqliteReadOnlyWitness, type WitnessObservation } from './effect-evaluator.js';
+
 import { restrictChromiumPage, type StorageState } from '@qap/auth';
 import type { IRunner } from '@qap/engine';
 import { FileSystemStorage, LockManager, DependencyGraphResolver } from '@qap/knowledge';
@@ -120,7 +122,29 @@ export interface PlaywrightRunnerOptions extends TestOptions {
   navigationAllowed?: (url: string) => boolean;
   pinnedHost?: { name: string; address: string };
   executionId?: string;
-  fixtureWrite?: { caseId: string; origin: string; selector: string; path: string; body: string; cleanup: string };
+  fixtureWrite?: {
+    caseId: string;
+    origin: string;
+    selector: string;
+    path: string;
+    body: string;
+    cleanup: string;
+    effectWitness?: {
+      type: 'sqlite_readonly_process' | 'custom_observer';
+      independence: 'I0' | 'I1' | 'I2' | 'I3';
+      dbPath: string;
+      table: string;
+      expectedKey: string;
+      expectedValue?: string;
+      expectedCardinality?: number;
+      witnessScriptPath: string;
+      expectationSourcePath: string;
+      expectationSourceRevision: string;
+      expectationSourceSha256: string;
+      expectationSourceRule: string;
+      expiresAt?: string;
+    };
+  };
   fixtureAuthority?: () => boolean;
   verifiedSession?: { state: StorageState; verificationUrl: string; selector: string };
   contextSetup?: (context: BrowserContext) => Promise<void> | void;
@@ -206,6 +230,15 @@ export class PlaywrightRunner implements IRunner {
     let releaseLock: (() => Promise<void>) | null = null;
     let armedWrite = false;
     let sentWrite = false;
+    const effectObservations: {
+      precondition: WitnessObservation | null;
+      post_write: WitnessObservation | null;
+      post_cleanup: WitnessObservation | null;
+    } = {
+      precondition: null,
+      post_write: null,
+      post_cleanup: null,
+    };
     const fixture = options.fixtureWrite;
     const fixtureUrl = fixture && new URL(fixture.path, fixture.origin).href;
 
@@ -724,6 +757,23 @@ export class PlaywrightRunner implements IRunner {
             });
             let stepRes;
             if (fixture && caseId === fixture.caseId && step.type === 'click' && step.selector === fixture.selector) {
+              if (fixture.effectWitness) {
+                effectObservations.precondition = runSqliteReadOnlyWitness({
+                  phase: 'precondition',
+                  witnessScriptPath: fixture.effectWitness.witnessScriptPath,
+                  dbPath: fixture.effectWitness.dbPath,
+                  table: fixture.effectWitness.table,
+                  attemptId: options.attemptId,
+                  scope: { environment: env },
+                });
+                if (!effectObservations.precondition.ok || effectObservations.precondition.count > 0) {
+                  throw new Error(
+                    !effectObservations.precondition.ok
+                      ? 'Testigo de precondición inaccesible.'
+                      : 'Precondición no limpia: el registro sintético ya existía antes de la escritura.',
+                  );
+                }
+              }
               armedWrite = true;
               try {
                 const [response, result] = await Promise.allSettled([
@@ -733,6 +783,16 @@ export class PlaywrightRunner implements IRunner {
                 if (!sentWrite || response.status !== 'fulfilled' || !response.value.ok() || result.status !== 'fulfilled')
                   throw new Error('La operación sintética no produjo una respuesta verificable.');
                 stepRes = result.value;
+                if (fixture.effectWitness) {
+                  effectObservations.post_write = runSqliteReadOnlyWitness({
+                    phase: 'post_write',
+                    witnessScriptPath: fixture.effectWitness.witnessScriptPath,
+                    dbPath: fixture.effectWitness.dbPath,
+                    table: fixture.effectWitness.table,
+                    attemptId: options.attemptId,
+                    scope: { environment: env },
+                  });
+                }
               } finally { armedWrite = false; }
             } else stepRes = await runStep();
 
@@ -1153,6 +1213,7 @@ export class PlaywrightRunner implements IRunner {
           },
           timeline: attemptTimeline,
           cases: casesResult,
+          ...(fixture?.effectWitness ? { fixture_effect_observations: effectObservations } : {}),
         };
       }
     } catch (err: unknown) {
@@ -1190,6 +1251,16 @@ export class PlaywrightRunner implements IRunner {
         const cleanupResponse = await fetch(new URL(fixture.cleanup, fixture.origin), { method: 'POST', redirect: 'error',
           headers: { 'content-type': 'application/json' }, body: fixture.body, signal: AbortSignal.timeout(5000) });
         await cleanupResponse.body?.cancel();
+        if (fixture.effectWitness) {
+          effectObservations.post_cleanup = runSqliteReadOnlyWitness({
+            phase: 'post_cleanup',
+            witnessScriptPath: fixture.effectWitness.witnessScriptPath,
+            dbPath: fixture.effectWitness.dbPath,
+            table: fixture.effectWitness.table,
+            attemptId: options.attemptId,
+            scope: { environment: env },
+          });
+        }
         if (!cleanupResponse.ok) throw new Error('fixture_cleanup_required');
       }
     }
@@ -1224,6 +1295,7 @@ export class PlaywrightRunner implements IRunner {
         not_run: totalNotRun,
       },
       cases: casesResult,
+      ...(fixture?.effectWitness ? { fixture_effect_observations: effectObservations } : {}),
     };
   }
 

@@ -5,3 +5,4 @@ export * from './context/interpolator.js';
 export * from './session-resolver.js';
 export * from './evidence-artifacts.js';
 export * from './provisional-execution.js';
+export * from './effect-evaluator.js';

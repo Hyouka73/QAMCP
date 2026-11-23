@@ -1,0 +1,248 @@
+{
+  "status": "success",
+  "directorio_objetivo": "C:\\Users\\Judirico\\AppData\\Local\\Temp\\qap-r2-2-commit-1XmYN9\\workspace",
+  "executionId": "exec_1795452585504_3b755108196b4239b99cacadce606d91",
+  "module": "fixture-write",
+  "result": "passed",
+  "summary": {
+    "total": 1,
+    "passed": 1,
+    "failed": 0,
+    "skipped": 0,
+    "not_run": 0
+  },
+  "run_spec_digest": "df7079952227787d36ca1b68d4f3badb92bfaa39694dad5b62d9f2db3f52cfb2",
+  "effect_evaluation": {
+    "verdict": "PASS",
+    "code": "effect_verified",
+    "reason": "Efecto persistido, correlacionado y limpiado según testigo I2 y expectativa independiente.",
+    "run_spec_digest": "df7079952227787d36ca1b68d4f3badb92bfaa39694dad5b62d9f2db3f52cfb2",
+    "evidence_digest": "f4afa78eaca6f141d3c4862f08d9736378425adf7ed70601667164ae69989978",
+    "evaluated_at": "2026-11-23T16:49:46.835Z",
+    "expectation_source_sha256_actual": "663e35a9d103a0e8c142b4bb5c01c5e2a27a261e700f4f5b875d761c09e8795e",
+    "precondition": {
+      "phase": "precondition",
+      "ok": true,
+      "observed_at": "2026-11-23T16:49:46.007Z",
+      "attempt_id": "att_4491a140e8144566",
+      "scope": {
+        "environment": "local"
+      },
+      "count": 0,
+      "records": []
+    },
+    "post_write": {
+      "phase": "post_write",
+      "ok": true,
+      "observed_at": "2026-11-23T16:49:46.205Z",
+      "attempt_id": "att_4491a140e8144566",
+      "scope": {
+        "environment": "local"
+      },
+      "count": 1,
+      "records": [
+        {
+          "key": "reservation-fixture"
+        }
+      ]
+    },
+    "post_cleanup": {
+      "phase": "post_cleanup",
+      "ok": true,
+      "observed_at": "2026-11-23T16:49:46.704Z",
+      "attempt_id": "att_4491a140e8144566",
+      "scope": {
+        "environment": "local"
+      },
+      "count": 0,
+      "records": []
+    }
+  },
+  "attempt_id": "att_4491a140e8144566",
+  "artifacts": {
+    "video_path": ".qa/runtime/runs/att_4491a140e8144566/artifacts/attempt.webm",
+    "trace_zip_path": ".qa/runtime/runs/att_4491a140e8144566/artifacts/trace.zip",
+    "timeline_path": ".qa/runtime/runs/att_4491a140e8144566/artifacts/timeline.json",
+    "screenshots": [
+      ".qa/reports/screenshots/qap-provisional-r1ydqq/assert_247c1fc2-7c73-522b-846c-2dcf5319b0b4_step_1_1795452585930.png",
+      ".qa/reports/screenshots/qap-provisional-r1ydqq/screenshot_1795452586279.png"
+    ]
+  },
+  "timeline": [
+    {
+      "step_index": 0,
+      "case_id": "247c1fc2-7c73-522b-846c-2dcf5319b0b4",
+      "action": "navigate",
+      "selector": null,
+      "expected": "http://127.0.0.1:<PORT>/summary",
+      "observed": "http://127.0.0.1:<PORT>/summary",
+      "status": "passed",
+      "started_at": "2026-11-23T16:49:45.815Z",
+      "finished_at": "2026-11-23T16:49:45.906Z",
+      "duration_ms": 91,
+      "message": null,
+      "screenshot": null
+    },
+    {
+      "step_index": 1,
+      "case_id": "247c1fc2-7c73-522b-846c-2dcf5319b0b4",
+      "action": "assert",
+      "selector": "html:nth-of-type(1) > body:nth-of-type(1) > main:nth-of-type(1) > button:nth-of-type(1)",
+      "expected": "visible",
+      "observed": "visible",
+      "status": "passed",
+      "started_at": "2026-11-23T16:49:45.906Z",
+      "finished_at": "2026-11-23T16:49:46.006Z",
+      "duration_ms": 100,
+      "message": null,
+      "screenshot": ".qa/reports/screenshots/qap-provisional-r1ydqq/assert_247c1fc2-7c73-522b-846c-2dcf5319b0b4_step_1_1795452585930.png",
+      "focused_screenshot": true
+    },
+    {
+      "step_index": 2,
+      "case_id": "247c1fc2-7c73-522b-846c-2dcf5319b0b4",
+      "action": "click",
+      "selector": "html:nth-of-type(1) > body:nth-of-type(1) > main:nth-of-type(1) > button:nth-of-type(1)",
+      "expected": "html:nth-of-type(1) > body:nth-of-type(1) > main:nth-of-type(1) > button:nth-of-type(1)",
+      "observed": "clicked",
+      "status": "passed",
+      "started_at": "2026-11-23T16:49:46.006Z",
+      "finished_at": "2026-11-23T16:49:46.279Z",
+      "duration_ms": 273,
+      "message": null,
+      "screenshot": null
+    },
+    {
+      "step_index": 3,
+      "case_id": "247c1fc2-7c73-522b-846c-2dcf5319b0b4",
+      "action": "screenshot",
+      "selector": null,
+      "expected": "screenshot",
+      "observed": ".qa/reports/screenshots/qap-provisional-r1ydqq/screenshot_1795452586279.png",
+      "status": "passed",
+      "started_at": "2026-11-23T16:49:46.279Z",
+      "finished_at": "2026-11-23T16:49:46.322Z",
+      "duration_ms": 43,
+      "message": null,
+      "screenshot": ".qa/reports/screenshots/qap-provisional-r1ydqq/screenshot_1795452586279.png",
+      "focused_screenshot": false
+    }
+  ],
+  "canonical_execution_summary": {
+    "status": "executed_passed",
+    "latest_attempt_id": "att_4491a140e8144566",
+    "latest_execution_id": "exec_1795452585504_3b755108196b4239b99cacadce606d91",
+    "total_attempts": 1,
+    "total_cases": 1,
+    "counts": {
+      "pass": 1,
+      "fail": 0,
+      "not_run": 0,
+      "technical_error": 0,
+      "human_accepted": 0
+    },
+    "case_verdicts": [
+      {
+        "result_row_id": "ecr_cec3a8f8e21a4b4e",
+        "attempt_id": "att_4491a140e8144566",
+        "project_id": "proj-76d0020d-3fa",
+        "campaign_id": "camp-5fea2a3a",
+        "module_key": "fixture-write",
+        "requirement_id": null,
+        "requirement_revision": 1,
+        "case_id": "247c1fc2-7c73-522b-846c-2dcf5319b0b4",
+        "case_version": 1,
+        "verdict": "PASS",
+        "human_acceptance_reason": null,
+        "human_accepted_by": null,
+        "human_accepted_at": null,
+        "step_results": [
+          {
+            "step_index": 0,
+            "action": "navigate",
+            "status": "PASS",
+            "duration_ms": 91,
+            "expected": "http://127.0.0.1:<PORT>/summary",
+            "observed": "http://127.0.0.1:<PORT>/summary",
+            "started_at": "2026-11-23T16:49:45.815Z",
+            "finished_at": "2026-11-23T16:49:45.906Z",
+            "evidence_paths": []
+          },
+          {
+            "step_index": 1,
+            "action": "assert",
+            "status": "PASS",
+            "duration_ms": 100,
+            "selector": "html:nth-of-type(1) > body:nth-of-type(1) > main:nth-of-type(1) > button:nth-of-type(1)",
+            "expected": "visible",
+            "observed": "visible",
+            "started_at": "2026-11-23T16:49:45.906Z",
+            "finished_at": "2026-11-23T16:49:46.006Z",
+            "focused_screenshot": true,
+            "evidence_paths": [
+              ".qa/reports/screenshots/qap-provisional-r1ydqq/assert_247c1fc2-7c73-522b-846c-2dcf5319b0b4_step_1_1795452585930.png"
+            ]
+          },
+          {
+            "step_index": 2,
+            "action": "click",
+            "status": "PASS",
+            "duration_ms": 273,
+            "selector": "html:nth-of-type(1) > body:nth-of-type(1) > main:nth-of-type(1) > button:nth-of-type(1)",
+            "expected": "html:nth-of-type(1) > body:nth-of-type(1) > main:nth-of-type(1) > button:nth-of-type(1)",
+            "observed": "clicked",
+            "started_at": "2026-11-23T16:49:46.006Z",
+            "finished_at": "2026-11-23T16:49:46.279Z",
+            "evidence_paths": []
+          },
+          {
+            "step_index": 3,
+            "action": "screenshot",
+            "status": "PASS",
+            "duration_ms": 43,
+            "expected": "screenshot",
+            "observed": ".qa/reports/screenshots/qap-provisional-r1ydqq/screenshot_1795452586279.png",
+            "started_at": "2026-11-23T16:49:46.279Z",
+            "finished_at": "2026-11-23T16:49:46.322Z",
+            "focused_screenshot": false,
+            "evidence_paths": [
+              ".qa/reports/screenshots/qap-provisional-r1ydqq/screenshot_1795452586279.png"
+            ]
+          }
+        ],
+        "evidence_refs": [
+          ".qa/reports/screenshots/qap-provisional-r1ydqq/assert_247c1fc2-7c73-522b-846c-2dcf5319b0b4_step_1_1795452585930.png",
+          ".qa/reports/screenshots/qap-provisional-r1ydqq/screenshot_1795452586279.png",
+          ".qa/runtime/runs/att_4491a140e8144566/artifacts/attempt.webm",
+          ".qa/runtime/runs/att_4491a140e8144566/artifacts/trace.zip",
+          ".qa/runtime/runs/att_4491a140e8144566/artifacts/timeline.json",
+          ".qa/executions/exec_1795452585504_3b755108196b4239b99cacadce606d91.json",
+          ".qa/executions/exec_1795452585504_3b755108196b4239b99cacadce606d91.trace.json"
+        ],
+        "created_at": "2026-11-23T16:49:46.920Z"
+      }
+    ]
+  },
+  "design_gaps": [],
+  "publication": {
+    "publication_id": "pub_ef8085cd51c54292",
+    "status": "completed",
+    "reused_formats": [],
+    "generated_formats": [
+      "html",
+      "markdown",
+      "junit",
+      "json"
+    ]
+  },
+  "reports": {
+    "html": "C:\\Users\\Judirico\\AppData\\Local\\Temp\\qap-r2-2-commit-1XmYN9\\workspace\\.qa\\executions\\exec_1795452585504_3b755108196b4239b99cacadce606d91.report.html",
+    "markdown": "C:\\Users\\Judirico\\AppData\\Local\\Temp\\qap-r2-2-commit-1XmYN9\\workspace\\.qa\\executions\\exec_1795452585504_3b755108196b4239b99cacadce606d91.report.md",
+    "junit": "C:\\Users\\Judirico\\AppData\\Local\\Temp\\qap-r2-2-commit-1XmYN9\\workspace\\.qa\\executions\\exec_1795452585504_3b755108196b4239b99cacadce606d91.report.xml",
+    "json": "C:\\Users\\Judirico\\AppData\\Local\\Temp\\qap-r2-2-commit-1XmYN9\\workspace\\.qa\\executions\\exec_1795452585504_3b755108196b4239b99cacadce606d91.report.json"
+  },
+  "evidence_source": "persisted_execution",
+  "artifact_reference_state": "available",
+  "traceability_file": "C:\\Users\\Judirico\\AppData\\Local\\Temp\\qap-r2-2-commit-1XmYN9\\workspace\\.qa\\executions\\exec_1795452585504_3b755108196b4239b99cacadce606d91.trace.json",
+  "viewer_url": null
+}

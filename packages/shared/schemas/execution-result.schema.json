@@ -279,9 +279,21 @@
             "items": {
               "type": "string"
             }
+          },
+          "failure_reason": {
+            "type": ["string", "null"]
           }
         }
       }
+    },
+    "run_spec_digest": {
+      "type": "string"
+    },
+    "effect_evaluation": {
+      "type": "object"
+    },
+    "fixture_effect_observations": {
+      "type": "object"
     }
   }
 }

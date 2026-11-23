@@ -8,9 +8,12 @@ import { SchemaValidator, type ExecutionResult, type PermissionScope, type TCCas
 import type { IRunner } from '@qap/engine';
 import {
   PlaywrightRunner,
+  computeRunSpecDigest,
+  evaluateEffect,
   isUrlAllowedByPolicy,
   publishProvisionalExecution,
   discardProvisionalExecution,
+  readExpectationSourceSafe,
   stageProvisionalMcpFinalization,
   completeProvisionalPublication,
   markProvisionalPublicationInterrupted,
@@ -18,6 +21,8 @@ import {
   type ProvisionalExecution,
   type ProvisionalMcpFinalization,
   type PlaywrightRunnerOptions,
+  type RunSpec,
+  type WitnessObservation,
 } from '@qap/playwright-runner';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
@@ -1183,6 +1188,86 @@ export class TestHandler implements IMcpToolHandler {
         : {}),
     };
 
+    if (provisional && fixtureWrite?.effectWitness) {
+      const ew = fixtureWrite.effectWitness;
+      const runSpec: RunSpec = {
+        schema_version: 1,
+        case_id: fixtureWrite.caseId,
+        case_revision: String(stagedCases[0]?.version ?? 1),
+        plan_hash: verifiedPlan.cases_fingerprint ?? '',
+        discovery_revision_id: autonomous ? 'autonomous' : 'manual',
+        project_id: appProject?.project_id ?? 'local',
+        attempt_id: attemptId ?? executionId,
+        execution_id: executionId,
+        scope: {
+          origin: fixtureWrite.origin,
+          environment,
+          tenant: autonomous?.policy.tenant ?? null,
+          profile_id: resolvedProfileId ?? null,
+        },
+        policy_digest: autonomous?.policy.digest ?? '',
+        expectation_source: {
+          id: ew.expectationSourceRevision,
+          revision: ew.expectationSourceRevision,
+          sha256: ew.expectationSourceSha256,
+          rule: ew.expectationSourceRule,
+          ...(ew.expiresAt ? { expires_at: ew.expiresAt } : {}),
+        },
+        witness_spec: {
+          type: ew.type,
+          independence: ew.independence,
+          revision: ew.expectationSourceRevision,
+          db_path: ew.dbPath,
+          table: ew.table,
+          expected_key: ew.expectedKey,
+          ...(ew.expectedValue !== undefined ? { expected_value: ew.expectedValue } : {}),
+          expected_cardinality: ew.expectedCardinality ?? 1,
+        },
+      };
+      const obs = (provisional.result.fixture_effect_observations ?? {}) as {
+        precondition?: WitnessObservation | null;
+        post_write?: WitnessObservation | null;
+        post_cleanup?: WitnessObservation | null;
+      };
+      const evaluation = evaluateEffect({
+        runSpec,
+        expectationSourceContent: readExpectationSourceSafe(ew.expectationSourcePath),
+        precondition: obs.precondition ?? null,
+        postWrite: obs.post_write ?? null,
+        postCleanup: obs.post_cleanup ?? null,
+      });
+      const updatedCases =
+        evaluation.verdict === 'PASS'
+          ? provisional.result.cases
+          : provisional.result.cases.map(c => ({
+              ...c,
+              result: 'failed' as const,
+              failure_reason: `[${evaluation.code}] ${evaluation.reason}`,
+            }));
+      const updatedResult = {
+        ...provisional.result,
+        result:
+          evaluation.verdict === 'PASS'
+            ? provisional.result.result
+            : evaluation.verdict === 'TECHNICAL_ERROR'
+              ? ('error' as const)
+              : ('failed' as const),
+        cases: updatedCases,
+        summary:
+          evaluation.verdict === 'PASS'
+            ? provisional.result.summary
+            : {
+                ...provisional.result.summary,
+                passed: 0,
+                failed: updatedCases.length,
+              },
+        run_spec_digest: computeRunSpecDigest(runSpec),
+        effect_evaluation: evaluation as unknown as Record<string, unknown>,
+      };
+      provisional = { ...provisional, result: updatedResult };
+      executionResult = updatedResult;
+    }
+
     if (provisional) {
       provisional = stageProvisionalMcpFinalization(provisional, mcpFinalization);
     }
@@ -1459,6 +1544,8 @@ export class TestHandler implements IMcpToolHandler {
           execution_id: executionId,
           ...(attemptRecord ? { attempt_id: attemptRecord.attempt_id } : {}),
           ...(canonicalExecutionSummary ? { canonical_execution_summary: canonicalExecutionSummary } : {}),
+          ...(executionResult.run_spec_digest ? { run_spec_digest: executionResult.run_spec_digest } : {}),
+          ...(executionResult.effect_evaluation ? { effect_evaluation: executionResult.effect_evaluation } : {}),
           summary: executionResult.summary,
           message: 'La ejecución se interrumpió. El resultado y los casos no ejecutados quedaron registrados sin acreditar conformidad.',
           desbloquear_con: 'qap_status',
@@ -1479,6 +1566,8 @@ export class TestHandler implements IMcpToolHandler {
       ...(canonicalExecutionSummary ? { canonical_execution_summary: canonicalExecutionSummary } : {}),
       ...(executionResult.artifacts ? { artifacts: executionResult.artifacts } : {}),
       ...(executionResult.timeline ? { timeline: executionResult.timeline } : {}),
+      ...(executionResult.run_spec_digest ? { run_spec_digest: executionResult.run_spec_digest } : {}),
+      ...(executionResult.effect_evaluation ? { effect_evaluation: executionResult.effect_evaluation } : {}),
       summary: executionResult.summary,
       cases: executionResult.cases,
       ...(attemptRecord ? { siguiente_accion: { tipo: 'trabajo', tool: 'qap_report', executionId,

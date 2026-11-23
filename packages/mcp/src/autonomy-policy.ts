@@ -4,6 +4,22 @@ import { isAbsolute } from 'node:path';
 
 import { normalizePathKey } from './application/safe-storage.js';
 
+export interface FixtureEffectWitness {
+  readonly type: 'sqlite_readonly_process' | 'custom_observer';
+  readonly independence: 'I0' | 'I1' | 'I2' | 'I3';
+  readonly dbPath: string;
+  readonly table: string;
+  readonly expectedKey: string;
+  readonly expectedValue?: string;
+  readonly expectedCardinality?: number;
+  readonly witnessScriptPath: string;
+  readonly expectationSourcePath: string;
+  readonly expectationSourceRevision: string;
+  readonly expectationSourceSha256: string;
+  readonly expectationSourceRule: string;
+  readonly expiresAt?: string;
+}
+
 export interface FixtureWrite {
   readonly id: string;
   readonly view: string;
@@ -11,6 +27,7 @@ export interface FixtureWrite {
   readonly path: string;
   readonly body: string;
   readonly cleanup: string;
+  readonly effectWitness?: FixtureEffectWitness;
 }
 
 export interface AutonomyPolicy {
@@ -63,7 +80,21 @@ export function loadAutonomyPolicy(file: string): AutonomyPolicyLookup {
           write.selector.length <= 120 && /^(?:[a-z]+:nth-of-type\([1-9][0-9]*\)(?: > |$))+$/.test(write.selector) &&
           path(write.path) && path(write.cleanup) &&
           write.path !== write.cleanup && !target.paths.includes(write.path) && !target.paths.includes(write.cleanup) &&
-          typeof write.body === 'string' && write.body.length <= 1024 && plain(JSON.parse(write.body))) ||
+          typeof write.body === 'string' && write.body.length <= 1024 && plain(JSON.parse(write.body)) &&
+          (write.effectWitness === undefined || (
+            plain(write.effectWitness) &&
+            (write.effectWitness.type === 'sqlite_readonly_process' || write.effectWitness.type === 'custom_observer') &&
+            (write.effectWitness.independence === 'I0' || write.effectWitness.independence === 'I1' ||
+              write.effectWitness.independence === 'I2' || write.effectWitness.independence === 'I3') &&
+            typeof write.effectWitness.dbPath === 'string' && isAbsolute(write.effectWitness.dbPath) &&
+            typeof write.effectWitness.table === 'string' && /^[a-zA-Z_][a-zA-Z0-9_]{0,63}$/.test(write.effectWitness.table) &&
+            typeof write.effectWitness.expectedKey === 'string' && write.effectWitness.expectedKey.length > 0 &&
+            typeof write.effectWitness.witnessScriptPath === 'string' && isAbsolute(write.effectWitness.witnessScriptPath) &&
+            typeof write.effectWitness.expectationSourcePath === 'string' && isAbsolute(write.effectWitness.expectationSourcePath) &&
+            typeof write.effectWitness.expectationSourceRevision === 'string' && write.effectWitness.expectationSourceRevision.length > 0 &&
+            typeof write.effectWitness.expectationSourceSha256 === 'string' && /^[a-f0-9]{64}$/.test(write.effectWitness.expectationSourceSha256) &&
+            typeof write.effectWitness.expectationSourceRule === 'string' && write.effectWitness.expectationSourceRule.length > 0
+          ))) ||
           new Set(writes.map(write => write.id)).size !== writes.length) return;
       return { origin: origin.origin, entry: target.entry, paths: target.paths, profiles, tenant, batchPages, writes,
         digest: createHash('sha256').update(JSON.stringify(target)).digest('hex') };

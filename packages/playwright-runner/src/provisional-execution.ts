@@ -158,10 +158,11 @@ export function stageProvisionalMcpFinalization(
   mcp: ProvisionalMcpFinalization,
 ): ProvisionalExecution {
   const manifest = readOperation(reference);
+  const baseResult = reference.result ?? manifest.reference.result;
   const nextResult: ExecutionResult =
-    mcp.attemptId && !manifest.reference.result.attempt_id
-      ? { ...manifest.reference.result, attempt_id: mcp.attemptId }
-      : manifest.reference.result;
+    mcp.attemptId && !baseResult.attempt_id
+      ? { ...baseResult, attempt_id: mcp.attemptId }
+      : baseResult;
   const nextReference: ProvisionalExecution = {
     ...manifest.reference,
     result: nextResult,

@@ -10,7 +10,7 @@ import {
   generateJsonReport,
   generateMarkdownReport,
 } from '@qap/reporter';
-import { hasCommittedRun } from '@qap/playwright-runner';
+import { computeEffectEvidenceDigest, hasCommittedRun, type EffectEvaluationResult } from '@qap/playwright-runner';
 import { SchemaValidator, type ExecutionResult } from '@qap/shared';
 
 import { resolveContainedPath } from '../application/safe-storage.js';
@@ -180,6 +180,26 @@ export class ReportHandler implements IMcpToolHandler {
           !['completed', 'partial', 'technical_error'].includes(attempt.status)) return 'execution_not_canonical';
       const digest = createHash('sha256').update(JSON.stringify(candidate)).digest('hex');
       if (attempt.result_digest !== digest) return 'execution_digest_mismatch';
+      if (candidate.effect_evaluation) {
+        const ev = candidate.effect_evaluation as unknown as EffectEvaluationResult;
+        if (!candidate.run_spec_digest || ev.run_spec_digest !== candidate.run_spec_digest) {
+          return 'execution_digest_mismatch';
+        }
+        const expectedEvidenceDigest = computeEffectEvidenceDigest({
+          run_spec_digest: ev.run_spec_digest,
+          verdict: ev.verdict,
+          code: ev.code,
+          precondition: ev.precondition ?? null,
+          post_write: ev.post_write ?? null,
+          post_cleanup: ev.post_cleanup ?? null,
+        });
+        if (ev.evidence_digest !== expectedEvidenceDigest) {
+          return 'execution_digest_mismatch';
+        }
+        if (ev.verdict !== 'PASS' && candidate.result === 'passed') {
+          return 'execution_not_canonical';
+        }
+      }
       try {
         if (!hasCommittedRun(root, attempt.attempt_id)) return 'execution_not_canonical';
       } catch {
@@ -455,6 +475,8 @@ export class ReportHandler implements IMcpToolHandler {
       module: evidence.module,
       result: evidence.result,
       summary: evidence.summary,
+      ...(evidence.run_spec_digest ? { run_spec_digest: evidence.run_spec_digest } : {}),
+      ...(evidence.effect_evaluation ? { effect_evaluation: evidence.effect_evaluation } : {}),
       ...(resolvedAttemptId ? { attempt_id: resolvedAttemptId } : {}),
       ...(resolvedArtifacts ? { artifacts: resolvedArtifacts } : {}),
       ...(evidence.timeline ? { timeline: evidence.timeline } : {}),
