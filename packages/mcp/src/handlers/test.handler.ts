@@ -1236,14 +1236,54 @@ export class TestHandler implements IMcpToolHandler {
         postWrite: obs.post_write ?? null,
         postCleanup: obs.post_cleanup ?? null,
       });
+      const effectStepFailed = evaluation.verdict !== 'PASS';
+      const nowIso = new Date().toISOString();
       const updatedCases =
-        evaluation.verdict === 'PASS'
+        !effectStepFailed
           ? provisional.result.cases
           : provisional.result.cases.map(c => ({
               ...c,
               result: 'failed' as const,
               failure_reason: `[${evaluation.code}] ${evaluation.reason}`,
+              ...(c.steps
+                ? {
+                    steps: [
+                      ...c.steps,
+                      {
+                        step_index: c.steps.length,
+                        action: 'assert' as const,
+                        expected: `${ew.expectedKey} (cardinality=${ew.expectedCardinality ?? 1})`,
+                        observed: `${evaluation.verdict}:${evaluation.code}`,
+                        started_at: nowIso,
+                        finished_at: nowIso,
+                        status: 'failed' as const,
+                        duration_ms: 0,
+                        message: evaluation.reason,
+                      },
+                    ],
+                  }
+                : {}),
             }));
+      const updatedTimeline =
+        !effectStepFailed || !provisional.result.timeline
+          ? provisional.result.timeline
+          : [
+              ...provisional.result.timeline,
+              {
+                step_index: provisional.result.timeline.length,
+                case_id: fixtureWrite.caseId,
+                action: 'assert' as const,
+                selector: null,
+                expected: `${ew.expectedKey} (cardinality=${ew.expectedCardinality ?? 1})`,
+                observed: `${evaluation.verdict}:${evaluation.code}`,
+                status: 'failed' as const,
+                started_at: nowIso,
+                finished_at: nowIso,
+                duration_ms: 0,
+                message: evaluation.reason,
+                screenshot: null,
+              },
+            ];
       const updatedResult = {
         ...provisional.result,
         result:
@@ -1252,6 +1292,7 @@ export class TestHandler implements IMcpToolHandler {
             : evaluation.verdict === 'TECHNICAL_ERROR'
               ? ('error' as const)
               : ('failed' as const),
+        ...(updatedTimeline ? { timeline: updatedTimeline } : {}),
         cases: updatedCases,
         summary:
           evaluation.verdict === 'PASS'

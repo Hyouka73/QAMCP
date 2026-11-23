@@ -502,7 +502,7 @@ export class StatusHandler implements IMcpToolHandler {
     const currentKnowledge = this.dependencies.provisionalInventory ? await knowledgeStatus(rootDir, this.dependencies) : undefined;
     const guidance = getPhaseGuidance(currentPhase, {
       investigateBeforeScoping: !coverage?.can_scope && this.dependencies.provisionalInventory &&
-        !(currentKnowledge && 'counts' in currentKnowledge && (currentKnowledge.counts.observation?.available ?? 0) > 0),
+        !(currentKnowledge && 'counts' in currentKnowledge && (currentKnowledge.counts?.observation?.available ?? 0) > 0),
       suggestedModules: coverage?.can_scope ? coverage.candidate_modules.map(module => ({ module: module.key, path: module.path })) : undefined,
       faltantes,
       plan: lifecycleState.session?.plan,

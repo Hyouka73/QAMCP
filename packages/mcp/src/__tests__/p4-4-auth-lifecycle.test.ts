@@ -2,7 +2,7 @@ import { existsSync, mkdtempSync, rmSync, readFileSync, writeFileSync, mkdirSync
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { CallToolRequestSchema, type CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { canExitScoping, validarPregunta, type Pregunta, generarRenderTexto } from '@qap/engine';
 import { isAuthPath, type AuthProfile, type LifecycleState } from '@qap/shared';
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest';
@@ -15,7 +15,7 @@ import {
   AUTH_COOKIE_VALID_VALUE,
   AUTH_COOKIE_EXPIRED_VALUE,
   type AuthFixtureServerInstance,
-} from '../../../playwright-adapter/test/fixtures/auth-fixture-server.js';
+} from './helpers/auth-fixture-server.js';
 import { QapApplicationService } from '../application/application-service.js';
 import type { IAuthAuthorizer } from '../auth-authorizer.js';
 import type { IDiscoveryAuthorizer } from '../discovery-authorizer.js';
@@ -544,7 +544,7 @@ describe('P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP)', 
     const g1 = getPhaseGuidance('SCOPING', {
       context: {
         roles: [{ name: 'admin' }],
-        critical_flows: [{ name: 'Flujo 1', path: '/flujo1' }, { name: 'Flujo 2', path: '/flujo2' }],
+        critical_flows: [{ name: 'Flujo 1', path: '/flujo1' }, { name: 'Flujo 2', path: '/flujo2' }] as unknown as Array<{ name: string; description?: string }>,
       },
     });
     expect(g1.siguiente_accion.tipo).toBe('decision');
@@ -620,6 +620,8 @@ describe('P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP)', 
       username: 'admin',
       role: 'admin',
       verified: false,
+      credential_source: 'env',
+      login_mode: 'auto',
     };
     expect(canExitScoping({ session: sessionWithAuth } as unknown as LifecycleState, [unverifiedProfile]).passed).toBe(false);
 
@@ -630,6 +632,8 @@ describe('P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP)', 
       username: 'tester',
       role: 'tester',
       verified: true,
+      credential_source: 'env',
+      login_mode: 'auto',
     };
     expect(canExitScoping({ session: sessionWithAuth } as unknown as LifecycleState, [verifiedWrongRole]).passed).toBe(false);
 
@@ -640,6 +644,8 @@ describe('P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP)', 
       username: 'admin',
       role: 'admin',
       verified: true,
+      credential_source: 'env',
+      login_mode: 'auto',
     };
     expect(canExitScoping({ session: sessionWithAuth } as unknown as LifecycleState, [verifiedAdmin]).passed).toBe(true);
 
@@ -852,7 +858,7 @@ describe('P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP)', 
 
     expect(parsed.status, JSON.stringify(parsed)).toBe('success');
     const plan = parsed.plan;
-    expect(plan.length).toBe(4);
+    expect(plan?.length).toBe(4);
 
     // Módulos de acceso primero: login_app y acceso_sso al inicio
     expect(isAuthPath(String(plan?.[0]?.path)) || plan?.[0]?.acceso).toBe(true);
@@ -872,7 +878,7 @@ describe('P4.4: Ciclo de Vida E2E de Autenticación con Playwright Real (MCP)', 
         critical_flows: [
           { name: 'Flujo 1', path: '/flujo1' },
           { name: 'Flujo 2', path: '/flujo2' },
-        ],
+        ] as unknown as Array<{ name: string; description?: string }>,
       },
     });
     if (gModulesMulti.siguiente_accion.pregunta) questionsToTest.push(gModulesMulti.siguiente_accion.pregunta);

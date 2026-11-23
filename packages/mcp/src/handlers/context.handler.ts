@@ -391,7 +391,7 @@ export class ContextHandler implements IMcpToolHandler {
 
     const storage = new FileSystemStorage({ rootDir });
     let autoTransitioned = false;
-    let finalPhase: ProjectPhase = 'ONBOARDING';
+    let finalPhase = 'ONBOARDING' as ProjectPhase;
 
     await storage.updateLifecycleState((curr) => {
       finalPhase = curr.phase;

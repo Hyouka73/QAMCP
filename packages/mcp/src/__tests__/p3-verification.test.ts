@@ -90,7 +90,6 @@ describe('P3 Suite de Verificación MCP (T3 - T15)', () => {
     process.cwd = () => tempDir;
 
     server = createMcpServer();
-    // @ts-expect-error accessing internal handler
     handler = server._requestHandlers.get(CallToolRequestSchema.shape.method.value);
   });
 

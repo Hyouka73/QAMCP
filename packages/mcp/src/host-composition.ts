@@ -101,11 +101,12 @@ function preflightExistingKnowledge(path: string): void {
 
 function secret(env: NodeJS.ProcessEnv, name: unknown): Buffer {
   const key = requiredText(name, 'keyEnv');
+  const hex = env[key] ?? '';
   if (!/^QAP_MCP_[A-Z0-9_]+_KEY_HEX$/.test(key) ||
-      !/^[0-9a-fA-F]{64}$/.test(env[key] ?? '')) {
+      !/^[0-9a-fA-F]{64}$/.test(hex)) {
     throw new Error('Missing or invalid host-managed 32-byte key.');
   }
-  return Buffer.from(env[key], 'hex');
+  return Buffer.from(hex, 'hex');
 }
 
 function declaredModules(value: unknown): ModuleBinding[] {

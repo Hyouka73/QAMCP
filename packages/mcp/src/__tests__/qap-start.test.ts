@@ -43,7 +43,7 @@ it.runIf(process.platform === 'win32')('persists the scoped login across Stdio r
       request.on('data', chunk => chunks.push(chunk as Buffer));
       request.on('end', () => {
         const fields = new URLSearchParams(Buffer.concat(chunks).toString());
-        if (fields.get('user') !== username || fields.get('password') !== password) return response.writeHead(403).end();
+        if (fields.get('user') !== username || fields.get('password') !== password) { response.writeHead(403).end(); return; }
         validCookie = 'session=authenticated-' + posts;
         response.writeHead(302, { location: '/workspace/home', 'set-cookie': validCookie + '; Path=/; HttpOnly' }).end();
       });
@@ -63,7 +63,8 @@ it.runIf(process.platform === 'win32')('persists the scoped login across Stdio r
   }
   async function call(name: string, args = {}) {
     const response = await client!.callTool({ name, arguments: { targetPath: workspace, ...args } });
-    return JSON.parse((response.content[0] as { text: string }).text) as Record<string, unknown>;
+    const content = Array.isArray(response.content) ? (response.content as Array<{ text?: string }>) : [];
+    return JSON.parse(content[0]?.text ?? '{}');
   }
   try {
     await connect();
@@ -239,7 +240,7 @@ it.runIf(process.platform === 'win32')('checkpoints broad authorized discovery b
       req.on('end', () => {
         const fields = new URLSearchParams(body);
         const role = fields.get('user');
-        if (fields.get('password') !== fixturePassword || (role !== 'operator' && role !== 'reader')) return send(403, '');
+        if (fields.get('password') !== fixturePassword || (role !== 'operator' && role !== 'reader')) { send(403, ''); return; }
         const cookie = 'fixture=' + randomBytes(20).toString('hex');
         session.set(cookie, role);
         res.writeHead(303, { location: '/portal', 'set-cookie': cookie + '; Path=/; HttpOnly' }).end();
@@ -279,7 +280,8 @@ it.runIf(process.platform === 'win32')('checkpoints broad authorized discovery b
   }
   async function call(name: string, args: Record<string, unknown> = {}) {
     const response = await client!.callTool({ name, arguments: { targetPath: workspace, ...args } });
-    return JSON.parse((response.content[0] as { text: string }).text);
+    const content = Array.isArray(response.content) ? (response.content as Array<{ text?: string }>) : [];
+    return JSON.parse(content[0]?.text ?? '{}');
   }
   try {
     await connect();

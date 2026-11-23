@@ -5,7 +5,6 @@ import { join } from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { CredentialProvider, CredentialReference } from '@qap/shared';
 
 import { QapApplicationService } from '../application/application-service.js';
 import { createMcpServer, type McpServerOptions } from '../server.js';
@@ -16,26 +15,8 @@ import type { IAuthAuthorizer } from '../auth-authorizer.js';
 
 import { startProtectedSpaStaging, type ProtectedSpaStagingController } from './fixtures/protected-spa-staging.js';
 
-class TestMemoryCredentialProvider implements CredentialProvider {
-  readonly entries = new Map<string, string>();
-
-  private key(ref: CredentialReference): string {
-    return `${ref.project_id}:${ref.profile_id}:${ref.account}`;
-  }
-
-  async set(ref: CredentialReference, secret: { username?: string; password?: string; token?: string }): Promise<void> {
-    this.entries.set(this.key(ref), JSON.stringify(secret));
-  }
-
-  async get(ref: CredentialReference): Promise<{ username?: string; password?: string; token?: string } | null> {
-    const raw = this.entries.get(this.key(ref));
-    return raw ? (JSON.parse(raw) as { username?: string; password?: string; token?: string }) : null;
-  }
-
-  async delete(ref: CredentialReference): Promise<boolean> {
-    return this.entries.delete(this.key(ref));
-  }
-}
+import type { ICredentialProvider } from '@qap/auth';
+import { TestMemoryCredentialProvider } from './helpers/test-helpers.js';
 
 describe('Bloque 2 — Entrada conversacional, autenticación duradera, ingesta con procedencia y Discovery SPA protegido', () => {
   const disposables: Array<() => Promise<void> | void> = [];
@@ -52,7 +33,7 @@ describe('Bloque 2 — Entrada conversacional, autenticación duradera, ingesta 
     }
   });
 
-  function makeHostEnv(credentialProvider: CredentialProvider) {
+  function makeHostEnv(credentialProvider: ICredentialProvider) {
     const tempBase = mkdtempSync(join(tmpdir(), 'qap-block2-'));
     const hostRoot = join(tempBase, 'host');
     const workspaceRoot = join(tempBase, 'workspace-staging');
@@ -120,7 +101,8 @@ describe('Bloque 2 — Entrada conversacional, autenticación duradera, ingesta 
           name,
           arguments: { targetPath: workspaceRoot, ...args },
         });
-        const text = (res.content[0] as { type: string; text: string })?.text ?? '{}';
+        const content = Array.isArray(res.content) ? (res.content as Array<{ type?: string; text?: string }>) : [];
+        const text = content[0]?.text ?? '{}';
         return {
           isError: Boolean(res.isError),
           rawText: text,

@@ -236,7 +236,7 @@ export function getPhaseGuidance(
         options.context?.ingest?.analyzed_by === 'agent' ||
         sot?.notes?.includes('[agent_analyzed]')
       );
-      if (isIngestibleDoc && !agentAnalyzed) {
+      if (isIngestibleDoc && sot?.ref && !agentAnalyzed) {
         const hasObjectiveProposal = Boolean(
           options.context?.objective &&
           !/^Configuración base de QA para\s+.*$/i.test(options.context.objective.trim()) &&

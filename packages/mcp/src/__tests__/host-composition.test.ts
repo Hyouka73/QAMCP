@@ -197,9 +197,10 @@ describe('VNEXT-014 host-owned Stdio composition', () => {
       await server.connect(serverTransport);
       await client.connect(clientTransport);
       const response = await client.callTool({ name: 'qap_session_close', arguments: { targetPath: fixture.root } });
-      const item = response.content[0];
-      expect(item.type).toBe('text');
-      if (item.type === 'text') {
+      const content = Array.isArray(response.content) ? (response.content as Array<{ type?: string; text?: string }>) : [];
+      const item = content[0];
+      expect(item?.type).toBe('text');
+      if (item?.type === 'text' && typeof item.text === 'string') {
         expect(JSON.parse(item.text)).toMatchObject({
           status: 'blocked', code: 'canonical_closure_store_required',
         });

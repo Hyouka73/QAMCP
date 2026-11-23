@@ -25,8 +25,8 @@ describe('Módulo de Guía Conversacional por Fase (E6 - P4.2)', () => {
     expect(res.siguiente_accion.pregunta).toBeDefined();
     expect(res.siguiente_accion.pregunta?.id).toBe('onboarding.fuente_de_verdad');
     // En P4.2 no existen preguntas ni opciones top-level
-    expect((res as Record<string, unknown>).opciones).toBeUndefined();
-    expect(res.siguiente_accion.preguntas).toBeUndefined();
+    expect((res as unknown as Record<string, unknown>).opciones).toBeUndefined();
+    expect((res.siguiente_accion as unknown as Record<string, unknown>).preguntas).toBeUndefined();
   });
 
   it('ONBOARDING: debe entregar la siguiente pregunta pendiente en orden canónico', () => {
@@ -54,7 +54,7 @@ describe('Módulo de Guía Conversacional por Fase (E6 - P4.2)', () => {
     expect(res.siguiente_accion.tool).toBe('qap_session_plan');
     expect(res.siguiente_accion.descripcion).toContain('checkout (/cart)');
     expect(res.siguiente_accion.pregunta?.opciones.some((o) => o.etiqueta.includes('checkout'))).toBe(true);
-    expect((res as Record<string, unknown>).opciones).toBeUndefined();
+    expect((res as unknown as Record<string, unknown>).opciones).toBeUndefined();
   });
 
   it('WORKING: debe indicar el siguiente módulo en estado planned con tool qap_discover', () => {
@@ -73,7 +73,7 @@ describe('Módulo de Guía Conversacional por Fase (E6 - P4.2)', () => {
     expect(res.siguiente_accion.tipo).toBe('trabajo');
     expect(res.siguiente_accion.tool).toBe('qap_discover');
     expect(res.siguiente_accion.descripcion).toContain("'checkout' en ruta '/cart'");
-    expect((res as Record<string, unknown>).opciones).toBeUndefined();
+    expect((res as unknown as Record<string, unknown>).opciones).toBeUndefined();
   });
 
   it('WORKING: debe priorizar módulo en interviewing con tipo entrevista_vista y tool qap_rules_set', () => {
@@ -93,7 +93,7 @@ describe('Módulo de Guía Conversacional por Fase (E6 - P4.2)', () => {
     expect(res.siguiente_accion.tool).toBe('qap_rules_set');
     expect(res.siguiente_accion.descripcion).toContain("'auth'");
     expect(res.siguiente_accion.pregunta).toBeDefined();
-    expect((res as Record<string, unknown>).opciones).toBeUndefined();
+    expect((res as unknown as Record<string, unknown>).opciones).toBeUndefined();
   });
 
   it('WORKING: debe dirigir a qap_session_close con tipo decision si todos los módulos están listos', () => {
@@ -119,6 +119,6 @@ describe('Módulo de Guía Conversacional por Fase (E6 - P4.2)', () => {
     expect(res.siguiente_accion.tipo).toBe('decision');
     expect(res.siguiente_accion.descripcion).toContain('qap_session_plan');
     expect(res.siguiente_accion.pregunta?.opciones.length).toBeGreaterThanOrEqual(2);
-    expect((res as Record<string, unknown>).opciones).toBeUndefined();
+    expect((res as unknown as Record<string, unknown>).opciones).toBeUndefined();
   });
 });

@@ -62,7 +62,9 @@ function evidence(
   };
 }
 function parse(response: Awaited<ReturnType<ReportHandler['execute']>>) {
-  return JSON.parse(response.content[0].text as string) as Record<string, unknown>;
+  const item = response.content[0];
+  if (!item || item.type !== 'text') throw new Error('Expected text content');
+  return JSON.parse(item.text) as Record<string, unknown>;
 }
 
 describe('VNEXT-014-D declarative ReportHandler — persisted evidence only', () => {

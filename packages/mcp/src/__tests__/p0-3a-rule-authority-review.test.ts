@@ -6,8 +6,9 @@ import { dirname, join } from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { ElicitRequestSchema } from '@modelcontextprotocol/sdk/types.js';
-import type { CredentialProvider, CredentialReference } from '@qap/shared';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { ICredentialProvider } from '@qap/auth';
+import { TestMemoryCredentialProvider } from './helpers/test-helpers.js';
 
 import { QapApplicationService } from '../application/application-service.js';
 import * as diagnostics from '../authorization-diagnostics.js';
@@ -28,26 +29,6 @@ import {
   type ProtectedSpaStagingController,
 } from './fixtures/protected-spa-staging.js';
 
-class TestMemoryCredentialProvider implements CredentialProvider {
-  readonly entries = new Map<string, string>();
-
-  private key(ref: CredentialReference): string {
-    return `${ref.project_id}:${ref.profile_id}:${ref.account}`;
-  }
-
-  async set(ref: CredentialReference, secret: { username?: string; password?: string; token?: string }): Promise<void> {
-    this.entries.set(this.key(ref), JSON.stringify(secret));
-  }
-
-  async get(ref: CredentialReference): Promise<{ username?: string; password?: string; token?: string } | null> {
-    const raw = this.entries.get(this.key(ref));
-    return raw ? (JSON.parse(raw) as { username?: string; password?: string; token?: string }) : null;
-  }
-
-  async delete(ref: CredentialReference): Promise<boolean> {
-    return this.entries.delete(this.key(ref));
-  }
-}
 
 async function callJson(client: Client, name: string, args: Record<string, unknown>) {
   const res = await client.callTool({ name, arguments: args });
@@ -89,7 +70,7 @@ describe('P0.3a — Autoridad de reglas y revisión de solo lectura', () => {
     }
   }, 30_000);
 
-  function createHarness(credentialProvider: CredentialProvider) {
+  function createHarness(credentialProvider: ICredentialProvider) {
     const tempBase = mkdtempSync(join(tmpdir(), 'qap-p03a-'));
     const hostRoot = join(tempBase, 'host');
     const workspaceRoot = join(tempBase, 'workspace-staging');
@@ -1006,7 +987,7 @@ describe('P0.3a — Autoridad de reglas y revisión de solo lectura', () => {
     const fixedReusedApprovalId = randomUUID();
     const reviewRequests: HumanReviewRequest[] = [];
     const gateway: IHumanReviewGateway = {
-      review: vi.fn(async (req) => {
+      review: vi.fn<IHumanReviewGateway['review']>(async (req) => {
         reviewRequests.push(req);
         if (gatewayBehavior === 'throw') {
           throw new Error('gateway_failure');
@@ -1018,7 +999,7 @@ describe('P0.3a — Autoridad de reglas y revisión de solo lectura', () => {
         return {
           requestDigest: gatewayBehavior === 'tampered_digest' ? '0'.repeat(64) : req.requestDigest,
           approvalId: gatewayBehavior === 'fixed_approval_id' ? fixedReusedApprovalId : randomUUID(),
-          decision: gatewayBehavior === 'reject' ? 'reject' : gatewayBehavior === 'defer' ? 'defer' : 'confirm',
+          decision: (gatewayBehavior === 'reject' ? 'reject' : gatewayBehavior === 'defer' ? 'defer' : 'confirm') as 'reject' | 'defer' | 'confirm',
           presentedStatementDigest: req.statementDigest,
           reviewer: 'qa-auditor@staging.local',
           decidedAt: now.toISOString(),

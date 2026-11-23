@@ -7,8 +7,8 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { FileSystemStorage } from '@qap/knowledge';
 import { PlaywrightRunner } from '@qap/playwright-runner';
-import type { CredentialProvider, CredentialReference } from '@qap/shared';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { TestMemoryCredentialProvider } from './helpers/test-helpers.js';
 
 import { QapApplicationService } from '../application/application-service.js';
 import type { IAuthAuthorizer } from '../auth-authorizer.js';
@@ -24,26 +24,6 @@ import {
   type ProtectedSpaStagingController,
 } from './fixtures/protected-spa-staging.js';
 
-class TestMemoryCredentialProvider implements CredentialProvider {
-  readonly entries = new Map<string, string>();
-
-  private key(ref: CredentialReference): string {
-    return `${ref.project_id}:${ref.profile_id}:${ref.account}`;
-  }
-
-  async set(ref: CredentialReference, secret: { username?: string; password?: string; token?: string }): Promise<void> {
-    this.entries.set(this.key(ref), JSON.stringify(secret));
-  }
-
-  async get(ref: CredentialReference): Promise<{ username?: string; password?: string; token?: string } | null> {
-    const raw = this.entries.get(this.key(ref));
-    return raw ? (JSON.parse(raw) as { username?: string; password?: string; token?: string }) : null;
-  }
-
-  async delete(ref: CredentialReference): Promise<boolean> {
-    return this.entries.delete(this.key(ref));
-  }
-}
 
 describe('Bloque 3 — Casos epistémicos, intentos de ejecución, recuperación de reportes y campaña 2', () => {
   const disposables: Array<() => Promise<void> | void> = [];
@@ -103,11 +83,7 @@ describe('Bloque 3 — Casos epistémicos, intentos de ejecución, recuperación
       })),
     };
     const authAuthorizer: IAuthAuthorizer = {
-      requestAuthorization: vi.fn(async () => ({
-        decision: 'approved' as const,
-        username: 'qa.spa@staging.local',
-        password: 'spa-secret-password',
-      })),
+      requestAuthorization: vi.fn<IAuthAuthorizer['requestAuthorization']>(async (req) => ({ decision: 'approved', origin: req.origin, profileLabel: req.profileLabel })),
     };
     const testDecision = options?.testDecision ?? 'approved';
     const testAuthorizer: ITestAuthorizer = {
@@ -176,10 +152,11 @@ describe('Bloque 3 — Casos epistémicos, intentos de ejecución, recuperación
 
   async function callJson(client: Client, name: string, args: Record<string, unknown>) {
     const res = await client.callTool({ name, arguments: args });
-    const textItem = res.content.find((c) => c.type === 'text');
+    const content = Array.isArray(res.content) ? (res.content as Array<{ type?: string; text?: string }>) : [];
+    const textItem = content.find((c) => c.type === 'text');
     return {
       isError: Boolean(res.isError),
-      data: textItem && textItem.type === 'text' ? (JSON.parse(textItem.text) as Record<string, unknown>) : {},
+      data: textItem && typeof textItem.text === 'string' ? (JSON.parse(textItem.text) as Record<string, unknown>) : {},
     };
   }
 

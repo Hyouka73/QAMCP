@@ -26,6 +26,7 @@ import { WorkspaceBootstrap } from '../workspace-bootstrap.js';
 import { workspaceStorageKey } from '../project-reset.js';
 
 import { connectHistoricalHost } from './fixtures/historical-host.js';
+import { getTextContent } from './helpers/test-helpers.js';
 
 const tempDirs: string[] = [];
 let localHttpServer: HttpServer | null = null;
@@ -124,7 +125,7 @@ async function generateLegitimatePlan(root: string, moduleName: string, environm
     { requestId: `plan-${Date.now()}`, signal: new AbortController().signal }
   );
   if (planResult.isError) {
-    throw new Error(`Failed to generate legitimate plan: ${planResult.content[0].text}`);
+    throw new Error(`Failed to generate legitimate plan: ${getTextContent(planResult)}`);
   }
 }
 
@@ -251,7 +252,7 @@ describe('TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4
     );
 
     expect(res.isError).toBeFalsy();
-    const data = JSON.parse(res.content[0].text as string);
+    const data = JSON.parse(getTextContent(res));
     expect(data.status).toBe('success');
     expect(data.result).toBe('passed');
     expect(data.module).toBe('checkout');
@@ -284,7 +285,7 @@ describe('TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4
       { requestId: 'test-scen-2a', signal: new AbortController().signal }
     );
     expect(resMissing.isError).toBe(true);
-    const dataMissing = JSON.parse(resMissing.content[0].text as string);
+    const dataMissing = JSON.parse(getTextContent(resMissing));
     expect(dataMissing.status).toBe('blocked');
     expect(dataMissing.code).toBe('plan_missing');
 
@@ -306,7 +307,7 @@ describe('TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4
       { module: 'auth-mod', targetPath: root },
       { requestId: 'test-scen-2b', signal: new AbortController().signal }
     );
-    const dataHist = JSON.parse(resHist.content[0].text as string);
+    const dataHist = JSON.parse(getTextContent(resHist));
     expect(dataHist.status).toBe('blocked');
     expect(dataHist.code).toBe('historical_plan');
 
@@ -316,7 +317,7 @@ describe('TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4
       { module: 'auth-mod', targetPath: root },
       { requestId: 'test-scen-2c', signal: new AbortController().signal }
     );
-    const dataCorrupt = JSON.parse(resCorrupt.content[0].text as string);
+    const dataCorrupt = JSON.parse(getTextContent(resCorrupt));
     expect(dataCorrupt.status).toBe('blocked');
     expect(dataCorrupt.code).toBe('corrupt_plan');
   });
@@ -337,7 +338,7 @@ describe('TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4
       { requestId: 'test-scen-3a', signal: new AbortController().signal }
     );
     expect(resNoMod.isError).toBe(true);
-    const dataNoMod = JSON.parse(resNoMod.content[0].text as string);
+    const dataNoMod = JSON.parse(getTextContent(resNoMod));
     expect(dataNoMod.status).toBe('blocked');
     expect(dataNoMod.code).toBe('module_required');
 
@@ -347,7 +348,7 @@ describe('TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4
       { requestId: 'test-scen-3a-nonstring', signal: new AbortController().signal }
     );
     expect(resNonStringMod.isError).toBe(true);
-    const dataNonStringMod = JSON.parse(resNonStringMod.content[0].text as string);
+    const dataNonStringMod = JSON.parse(getTextContent(resNonStringMod));
     expect(dataNonStringMod.status).toBe('blocked');
     expect(dataNonStringMod.code).toBe('module_required');
 
@@ -357,7 +358,7 @@ describe('TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4
       { requestId: 'test-scen-3b', signal: new AbortController().signal }
     );
     expect(resEnvMismatch.isError).toBe(true);
-    const dataEnvMismatch = JSON.parse(resEnvMismatch.content[0].text as string);
+    const dataEnvMismatch = JSON.parse(getTextContent(resEnvMismatch));
     expect(dataEnvMismatch.status).toBe('blocked');
     expect(dataEnvMismatch.code).toBe('environment_mismatch');
   });
@@ -419,7 +420,7 @@ describe('TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4
       { requestId: 'test-scen-5a', signal: new AbortController().signal }
     );
     expect(resNoAuth.isError).toBe(true);
-    const dataNoAuth = JSON.parse(resNoAuth.content[0].text as string);
+    const dataNoAuth = JSON.parse(getTextContent(resNoAuth));
     expect(dataNoAuth.status).toBe('blocked');
     expect(dataNoAuth.code).toBe('navigation_not_authorized');
 
@@ -432,7 +433,7 @@ describe('TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4
       { requestId: 'test-scen-5b', signal: new AbortController().signal }
     );
     expect(resRestricted.isError).toBe(true);
-    const dataRestricted = JSON.parse(resRestricted.content[0].text as string);
+    const dataRestricted = JSON.parse(getTextContent(resRestricted));
     expect(dataRestricted.status).toBe('blocked');
     expect(dataRestricted.code).toBe('navigation_not_authorized');
 
@@ -454,7 +455,7 @@ describe('TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4
       { module: 'redirect-mod', targetPath: redirectRoot, environment: 'local' },
       { requestId: 'test-scen-5c', signal: new AbortController().signal }
     );
-    const dataRedirect = JSON.parse(resRedirect.content[0].text as string);
+    const dataRedirect = JSON.parse(getTextContent(resRedirect));
     expect(dataRedirect.result).toBe('failed');
     expect(dataRedirect.summary.failed).toBe(1);
     expect(dataRedirect.cases[0].result).toBe('failed');
@@ -506,7 +507,7 @@ describe('TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4
     );
 
     expect(res.isError).toBe(true);
-    const data = JSON.parse(res.content[0].text as string);
+    const data = JSON.parse(getTextContent(res));
     expect(data.status).toBe('blocked');
     expect(data.code).toBe('browser_not_available');
     expect(data.message).toContain('Fallo de infraestructura');
@@ -534,7 +535,7 @@ describe('TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4
       { requestId: 'test-scen-7a', signal: new AbortController().signal }
     );
     expect(resAdmin.isError).toBe(true);
-    const dataAdmin = JSON.parse(resAdmin.content[0].text as string);
+    const dataAdmin = JSON.parse(getTextContent(resAdmin));
     expect(dataAdmin.status).toBe('blocked');
     expect(dataAdmin.code).toBe('unauthorized_profile');
 
@@ -544,7 +545,7 @@ describe('TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4
       { requestId: 'test-scen-7b', signal: new AbortController().signal }
     );
     expect(resRogue.isError).toBe(true);
-    const dataRogue = JSON.parse(resRogue.content[0].text as string);
+    const dataRogue = JSON.parse(getTextContent(resRogue));
     expect(dataRogue.status).toBe('blocked');
     expect(dataRogue.code).toBe('unauthorized_profile');
 
@@ -581,7 +582,7 @@ describe('TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4
     );
 
     // Functional failure returns completed status with result: 'failed'
-    const data = JSON.parse(res.content[0].text as string);
+    const data = JSON.parse(getTextContent(res));
     expect(data.result).toBe('failed');
     expect(data.summary.failed).toBe(1);
     expect(data.cases[0].result).toBe('failed');
@@ -628,7 +629,7 @@ describe('TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4
       { requestId: 'test-scen-9', signal: new AbortController().signal }
     );
 
-    const data = JSON.parse(res.content[0].text as string);
+    const data = JSON.parse(getTextContent(res));
     expect(data.result).toBe('failed');
     expect(data.result).not.toBe('passed');
     expect(data.summary.passed).toBe(0);
@@ -676,7 +677,7 @@ describe('TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4
       { requestId: 'test-scen-11', signal: new AbortController().signal }
     );
 
-    const data = JSON.parse(res.content[0].text as string);
+    const data = JSON.parse(getTextContent(res));
     const execFile = join(root, '.qa', 'executions', `${data.execution_id}.json`);
     expect(existsSync(execFile)).toBe(true);
 
@@ -956,7 +957,7 @@ describe('TestHandler & PlaywrightRunner Verification Suite — VNEXT-014-C2 (R4
       { requestId: 'test-scen-physical', signal: new AbortController().signal }
     );
 
-    const data = JSON.parse(res.content[0].text as string);
+    const data = JSON.parse(getTextContent(res));
     // Real physical execution completed with 1 PASS and 1 FAIL
     expect(data.result).toBe('partial');
     expect(data.summary.total).toBe(2);
@@ -1014,7 +1015,7 @@ describe('VNEXT-014-D preflight — execution evidence integrity', () => {
       { module: 'evidence-mod', targetPath: root, environment: 'local' },
       { requestId: 'evidence-preflight', signal: new AbortController().signal }
     );
-    return { response, body: JSON.parse(response.content[0].text as string) as Record<string, unknown>, runner };
+    return { response, body: JSON.parse(getTextContent(response)) as Record<string, unknown>, runner };
   }
 
   it('D-01: does not persist schema-invalid runner outputs', async () => {
@@ -1405,7 +1406,7 @@ describe('Post-commit consistency & MCP crash recovery acceptance (C, D, E, F)',
       await server.close();
       bootstrap.close();
       service.close();
-      console.log(JSON.stringify(JSON.parse(res.content[0].text)));
+      console.log(JSON.stringify(JSON.parse(getTextContent(res))));
     `;
 
     // The loopback application runs on the parent event loop while Chromium runs in the child.

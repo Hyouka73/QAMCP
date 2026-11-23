@@ -16,7 +16,6 @@ import { fileURLToPath } from 'node:url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import type { CredentialProvider, CredentialReference } from '@qap/shared';
 import { describe, expect, it, vi } from 'vitest';
 
 import { QapApplicationService } from '../application/application-service.js';
@@ -24,37 +23,13 @@ import { type IAuthAuthorizer, WindowsInteractiveAuthAuthorizer } from '../auth-
 import { type IDiscoveryAuthorizer, WindowsInteractiveDiscoveryAuthorizer } from '../discovery-authorizer.js';
 import type { IHumanReviewGateway } from '../handlers/canonical-interview-service.js';
 import { createMcpServer } from '../server.js';
+import { TestMemoryCredentialProvider } from './helpers/test-helpers.js';
 import { type ITestAuthorizer, WindowsInteractiveTestAuthorizer } from '../test-authorizer.js';
 import { WorkspaceBootstrap } from '../workspace-bootstrap.js';
 import { type IWorkspaceAuthorizer, WindowsInteractiveWorkspaceAuthorizer } from '../workspace-authorizer.js';
 
 import { startProtectedSpaStaging } from './fixtures/protected-spa-staging.js';
 
-class TestMemoryCredentialProvider implements CredentialProvider {
-  readonly entries = new Map<string, string>();
-
-  private key(ref: CredentialReference): string {
-    return `${ref.project_id}:${ref.profile_id}:${ref.account}`;
-  }
-
-  async set(
-    ref: CredentialReference,
-    secret: { username?: string; password?: string; token?: string },
-  ): Promise<void> {
-    this.entries.set(this.key(ref), JSON.stringify(secret));
-  }
-
-  async get(
-    ref: CredentialReference,
-  ): Promise<{ username?: string; password?: string; token?: string } | null> {
-    const raw = this.entries.get(this.key(ref));
-    return raw ? (JSON.parse(raw) as { username?: string; password?: string; token?: string }) : null;
-  }
-
-  async delete(ref: CredentialReference): Promise<boolean> {
-    return this.entries.delete(this.key(ref));
-  }
-}
 
 const REPO_ROOT = resolve(fileURLToPath(new URL('../../../../', import.meta.url)));
 
@@ -112,7 +87,6 @@ function makeHostEnv(baseDir: string, extra?: {
 
   const service = new QapApplicationService({
     hostRootDir: appServiceDir,
-    masterKey: Buffer.alloc(32, 0x44),
     credentialProvider: new TestMemoryCredentialProvider(),
   });
   const bootstrap = new WorkspaceBootstrap(hostRoot, service);
@@ -141,7 +115,7 @@ function makeHostEnv(baseDir: string, extra?: {
         decision: 'approved',
         root: req.projectRoot,
         targetUrl: req.targetUrl,
-        limits: req.limits ?? { maxPages: 12, maxDepth: 2 },
+        limits: { max_pages: req.limits?.max_pages ?? 12, max_depth: req.limits?.max_depth ?? 2 },
       };
     }),
   };

@@ -13,6 +13,7 @@ import { McpToolError } from '../dispatcher.js';
 import { PlanHandler } from '../handlers/plan.handler.js';
 import { projectRoot } from '../handlers/state-services.js';
 import { createMcpServer, type McpServerOptions } from '../server.js';
+import { getTextContent } from './helpers/test-helpers.js';
 
 const directories: string[] = [];
 const connections: Array<{ client: Client; server: ReturnType<typeof createMcpServer> }> = [];
@@ -152,7 +153,7 @@ describe('PlanHandler Real Declarative Implementation (VNEXT-014-B)', () => {
     );
 
     expect(res.isError).toBe(false);
-    const data = JSON.parse(res.content[0].text as string);
+    const data = JSON.parse(getTextContent(res));
     expect(data.status).toBe('success');
     expect(data.module).toBe('checkout');
     expect(data.environment).toBe('staging');
@@ -185,7 +186,7 @@ describe('PlanHandler Real Declarative Implementation (VNEXT-014-B)', () => {
     );
 
     expect(res.isError).toBe(true);
-    const data = JSON.parse(res.content[0].text as string);
+    const data = JSON.parse(getTextContent(res));
     expect(data.status).toBe('error');
     expect(data.code).toBe('missing_dependencies');
     expect(data.missing_dependencies).toEqual([
@@ -216,7 +217,7 @@ describe('PlanHandler Real Declarative Implementation (VNEXT-014-B)', () => {
     );
 
     expect(res.isError).toBe(true);
-    const data = JSON.parse(res.content[0].text as string);
+    const data = JSON.parse(getTextContent(res));
     expect(data.status).toBe('error');
     expect(data.code).toBe('duplicate_case_ids');
     expect(data.duplicate_ids).toContain('TC-001');
@@ -238,7 +239,7 @@ describe('PlanHandler Real Declarative Implementation (VNEXT-014-B)', () => {
     );
 
     expect(res.isError).toBe(true);
-    const data = JSON.parse(res.content[0].text as string);
+    const data = JSON.parse(getTextContent(res));
     expect(data.status).toBe('error');
     expect(data.code).toBe('cyclic_dependency');
     expect(data.has_cycles).toBe(true);
@@ -260,7 +261,7 @@ describe('PlanHandler Real Declarative Implementation (VNEXT-014-B)', () => {
     );
 
     expect(res.isError).toBe(false);
-    const data = JSON.parse(res.content[0].text as string);
+    const data = JSON.parse(getTextContent(res));
     expect(data.status).toBe('empty');
     expect(data.code).toBe('no_test_cases');
     expect(data.cases).toEqual([]);
@@ -281,7 +282,7 @@ describe('PlanHandler Real Declarative Implementation (VNEXT-014-B)', () => {
     );
 
     expect(res.isError).toBe(false);
-    const data = JSON.parse(res.content[0].text as string);
+    const data = JSON.parse(getTextContent(res));
     expect(data.status).toBe('empty');
     expect(data.code).toBe('no_executable_test_cases');
     expect(data.cases).toEqual([]);
@@ -359,7 +360,7 @@ describe('PlanHandler Real Declarative Implementation (VNEXT-014-B)', () => {
     );
 
     expect(res.isError).toBe(true);
-    const data = JSON.parse(res.content[0].text as string);
+    const data = JSON.parse(getTextContent(res));
     expect(data.status).toBe('blocked');
     expect(data.code).toBe('module_not_found');
     expect(data.desbloquear_con).toBe('qap_status');
@@ -381,7 +382,7 @@ describe('PlanHandler Real Declarative Implementation (VNEXT-014-B)', () => {
     );
 
     expect(res.isError).toBe(false);
-    const data = JSON.parse(res.content[0].text as string);
+    const data = JSON.parse(getTextContent(res));
     expect(data.preserved_cases).toContain('TC-MANUAL');
     expect(data.preserved_cases).not.toContain('TC-AUTO');
   });
@@ -464,7 +465,7 @@ describe('PlanHandler Real Declarative Implementation (VNEXT-014-B)', () => {
       { module: 'billing', targetPath: root },
       { requestId: 'r1', signal: new AbortController().signal }
     );
-    const data1 = JSON.parse(res1.content[0].text as string);
+    const data1 = JSON.parse(getTextContent(res1));
 
     // Initial plan on disk
     const planPath = join(root, '.qa', 'modules', 'billing', 'tests', 'plan.json');
@@ -496,7 +497,7 @@ describe('PlanHandler Real Declarative Implementation (VNEXT-014-B)', () => {
       { module: 'billing', targetPath: root },
       { requestId: 'r2', signal: new AbortController().signal }
     );
-    const data2 = JSON.parse(res2.content[0].text as string);
+    const data2 = JSON.parse(getTextContent(res2));
     const planAfter = JSON.parse(readFileSync(planPath, 'utf8'));
 
     expect(planAfter.cases_fingerprint).toBeDefined();
@@ -559,7 +560,7 @@ describe('PlanHandler Real Declarative Implementation (VNEXT-014-B)', () => {
     // FAIL BEFORE: res.isError was false, status was 'success', persisted was false (simulating success)
     // PASS AFTER: res.isError is true, status is 'error', code is 'persistence_failed', persisted is false
     expect(res.isError).toBe(true);
-    const data = JSON.parse(res.content[0].text as string);
+    const data = JSON.parse(getTextContent(res));
     expect(data.status).toBe('error');
     expect(data.code).toBe('persistence_failed');
     expect(data.persisted).toBe(false);
@@ -631,7 +632,7 @@ describe('PlanHandler Real Declarative Implementation (VNEXT-014-B)', () => {
       { requestId: 'test-manual-preserve', signal: new AbortController().signal }
     );
 
-    const data = JSON.parse(res.content[0].text as string);
+    const data = JSON.parse(getTextContent(res));
     expect(data.status).toBe('success');
     expect(data.preserved_cases).toContain('TC-MANUAL');
     expect(data.ordered_nodes).toContain('TC-MANUAL');

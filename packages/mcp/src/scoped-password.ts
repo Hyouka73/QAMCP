@@ -169,7 +169,7 @@ export async function authenticateScopedPassword(
       perfil: id, secretSaved: false, downgraded_to_anonymous: false,
       });
     }
-    if (!login.allowed) service.authority.grant({ project_id: projectId, env_id: environment.env_id,
+    if (!login.allowed) service.authority.grant({ project_id: projectId,
       capability: 'login', scope, granted_by: 'host_bound_scope' });
     profile.verified = true;
   profile.verified_at = new Date().toISOString();

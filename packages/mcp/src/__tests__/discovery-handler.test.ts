@@ -460,7 +460,7 @@ describe('VNEXT-013-R2 canonical execution scope bridge', () => {
     const opened = await command({ action: 'next' });
     expect(opened).toMatchObject({ status: 'interviewing', association_status: 'available',
       question: { category: 'proposito' } });
-    const questionId = opened.question.id as string;
+    const questionId = (opened.question as { id: string }).id;
     expect(await command({ action: 'propose', question_id: questionId, version: 0, expected_revision: 0,
       proposal: { title: 'Consultar el catálogo', description: 'El catálogo debe mostrar los productos disponibles para la consulta.',
         category: 'functional' } })).toMatchObject({ status: 'pending_review' });

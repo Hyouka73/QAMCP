@@ -635,7 +635,7 @@ it('focal (4, 5, 6, 7): auto uses Vault, handoff preserves configured profile as
   }));
 
   const sessionKeyHex = 'a'.repeat(64);
-  const access = new InteractiveAccess(deps, { requestAuthorization }, handoffSpy as unknown as typeof capture, undefined, {
+  const access = new InteractiveAccess(deps, { requestAuthorization }, handoffSpy as unknown as ConstructorParameters<typeof InteractiveAccess>[2], undefined, {
     sessionPersistenceKey: sessionKeyHex,
   });
 

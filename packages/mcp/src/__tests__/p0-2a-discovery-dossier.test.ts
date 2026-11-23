@@ -4,8 +4,9 @@ import { join } from 'node:path';
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import type { ICredentialProvider } from '@qap/auth';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { CredentialProvider, CredentialReference } from '@qap/shared';
+import { getTextContent, TestMemoryCredentialProvider } from './helpers/test-helpers.js';
 
 import { QapApplicationService } from '../application/application-service.js';
 import { computeDossierContentHash, type DiscoveryDossierCanonical } from '../application/discovery-dossier.js';
@@ -17,26 +18,6 @@ import type { IAuthAuthorizer } from '../auth-authorizer.js';
 
 import { startProtectedSpaStaging, type ProtectedSpaStagingController } from './fixtures/protected-spa-staging.js';
 
-class TestMemoryCredentialProvider implements CredentialProvider {
-  readonly entries = new Map<string, string>();
-
-  private key(ref: CredentialReference): string {
-    return `${ref.project_id}:${ref.profile_id}:${ref.account}`;
-  }
-
-  async set(ref: CredentialReference, secret: { username?: string; password?: string; token?: string }): Promise<void> {
-    this.entries.set(this.key(ref), JSON.stringify(secret));
-  }
-
-  async get(ref: CredentialReference): Promise<{ username?: string; password?: string; token?: string } | null> {
-    const raw = this.entries.get(this.key(ref));
-    return raw ? (JSON.parse(raw) as { username?: string; password?: string; token?: string }) : null;
-  }
-
-  async delete(ref: CredentialReference): Promise<boolean> {
-    return this.entries.delete(this.key(ref));
-  }
-}
 
 describe('P0.2a — Expediente de Discovery reutilizable por revisión y alcance', () => {
   const disposables: Array<() => Promise<void> | void> = [];
@@ -53,7 +34,7 @@ describe('P0.2a — Expediente de Discovery reutilizable por revisión y alcance
     }
   });
 
-  function makeHostEnv(credentialProvider: CredentialProvider) {
+  function makeHostEnv(credentialProvider: ICredentialProvider) {
     const tempBase = mkdtempSync(join(tmpdir(), 'qap-p02a-'));
     const hostRoot = join(tempBase, 'host');
     const workspaceRoot = join(tempBase, 'workspace-staging');
@@ -123,7 +104,7 @@ describe('P0.2a — Expediente de Discovery reutilizable por revisión y alcance
           name,
           arguments: { targetPath: workspaceRoot, ...args },
         });
-        const text = (res.content[0] as { type: string; text: string })?.text ?? '{}';
+        const text = getTextContent(res);
         return {
           isError: Boolean(res.isError),
           rawText: text,
@@ -487,7 +468,7 @@ describe('P0.2a — Expediente de Discovery reutilizable por revisión y alcance
           name,
           arguments: { targetPath: workspaceRoot, ...args },
         });
-        const text = (res.content[0] as { type: string; text: string })?.text ?? '{}';
+        const text = getTextContent(res);
         return {
           isError: Boolean(res.isError),
           rawText: text,
@@ -1031,7 +1012,7 @@ describe('P0.2a — Expediente de Discovery reutilizable por revisión y alcance
           name,
           arguments: { targetPath: workspaceRoot, ...args },
         });
-        const text = (res.content[0] as { type: string; text: string })?.text ?? '{}';
+        const text = getTextContent(res);
         return {
           isError: Boolean(res.isError),
           rawText: text,

@@ -741,9 +741,13 @@ export async function runConversationalCaseWorkflow(
       pendingDecision:
         proposalRes.pending_oracle.length > 0
           ? {
-              kind: 'oracle_decision',
+              decision_id: `oracle-${moduleName}-${Date.now()}`,
+              kind: 'oracle',
               prompt: `Falta oráculo de negocio en ${proposalRes.pending_oracle.length} caso(s); los casos válidos ya pueden aprobarse por lote sin bloqueo.`,
-              options: ['decide_oracles', 'approve_batch'],
+              options: [
+                { id: 'decide_oracles', label: 'Decidir oráculos pendientes' },
+                { id: 'approve_batch', label: 'Aprobar lote elegible' },
+              ],
               blocking: false,
             }
           : null,

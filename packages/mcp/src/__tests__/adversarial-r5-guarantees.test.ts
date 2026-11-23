@@ -28,7 +28,8 @@ import type {
   ModuleClosureReviewDecision,
 } from '../handlers/module-closure-gateway.js';
 import type { BridgeContext } from '../handlers/module-observation-bridge.js';
-import { MemoryKnowledgeStore } from '../../../engine/src/__tests__/mocks/knowledge-store.mock.js';
+import { MemoryKnowledgeStore } from './helpers/knowledge-store.mock.js';
+import { getTextContent } from './helpers/test-helpers.js';
 
 const roots: string[] = [];
 const closers: Array<() => Promise<void> | void> = [];
@@ -45,7 +46,7 @@ afterEach(async () => {
 });
 
 class MockReviewGateway implements IModuleClosureReviewGateway {
-  readonly requests: ModuleClosureReviewRequest[] = [];
+  requests: ModuleClosureReviewRequest[] = [];
   decisionToReturn: 'approve' | 'reject' | 'tampered_digest' | 'expired' | 'malformed_date' | 'none' = 'approve';
   reviewerName = 'security-adversary-lead';
 
@@ -64,7 +65,6 @@ class MockReviewGateway implements IModuleClosureReviewGateway {
     return {
       approvalId: randomUUID(),
       requestDigest: reqDigest,
-      coverageDigest: request.coverageDigest,
       reviewer: this.reviewerName,
       decidedAt: new Date().toISOString(),
       expiresAt,
@@ -177,7 +177,7 @@ async function createCanonicalFixture(options: {
         updated_at: time,
         is_active: true,
       },
-    }] : []),
+    }] : [] as unknown as readonly import('@qap/engine').KnowledgeWrite[]),
   ]);
 
   if (options.requirements && options.requirements.length > 0) {
@@ -187,7 +187,7 @@ async function createCanonicalFixture(options: {
       trace,
       entity: req,
     }));
-    await store.commit('app-adv', writes);
+    await store.commit('app-adv', writes as unknown as readonly import('@qap/engine').KnowledgeWrite[]);
   }
 
   const closureDbPath = join(root, '.qa', 'private', 'module-closure.sqlite');
@@ -257,13 +257,13 @@ describe('Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2)', () => {
       const res = validateExpectedRequirement({
         id: 'req-probe-1',
         module_key: 'catalog-key',
-        category: 'proposito',
+        category: 'proposito' as unknown as import('@qap/shared').RequirementCategory,
         statement: 'El catálogo debe filtrar productos por categoría.',
         status: 'confirmed',
-        provenance: 'active_probe',
+        provenance: 'active_probe' as unknown as import('@qap/shared').RequirementProvenance,
         verified_by: 'human_reviewer',
         is_active: true,
-      });
+      } as unknown as Parameters<typeof validateExpectedRequirement>[0]);
       expect(res.valid).toBe(false);
       expect(res.violations.some(v => v.code === 'EPISTEMIC_VIOLATION_PROBE_CANNOT_CONFIRM_REQUIREMENT')).toBe(true);
     });
@@ -272,29 +272,27 @@ describe('Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2)', () => {
       const res = validateExpectedRequirement({
         id: 'req-crawler-1',
         module_key: 'catalog-key',
-        category: 'alcance',
+        category: 'alcance' as unknown as import('@qap/shared').RequirementCategory,
         statement: 'El crawler observó una ruta /api/catalog.',
         status: 'confirmed',
-        provenance: 'crawler',
+        provenance: 'crawler' as unknown as import('@qap/shared').RequirementProvenance,
         verified_by: 'qa_lead',
         is_active: true,
-      });
+      } as unknown as Parameters<typeof validateExpectedRequirement>[0]);
       expect(res.valid).toBe(false);
       expect(res.violations.some(v => v.code === 'EPISTEMIC_VIOLATION_PROBE_CANNOT_CONFIRM_REQUIREMENT')).toBe(true);
     });
 
     it('1.3: Rejects status confirmed when provenance is network_intercept or observed_telemetry', () => {
       for (const prov of ['network_intercept', 'observed_telemetry']) {
-        const res = validateExpectedRequirement({
-          id: `req-${prov}`,
+        const res = validateExpectedRequirement({ id: `req-${prov}`,
           module_key: 'catalog-key',
-          category: 'seguridad_y_permisos',
+          category: 'seguridad_y_permisos' as unknown as import('@qap/shared').RequirementCategory,
           statement: 'Telemetría capturada.',
           status: 'confirmed',
           provenance: prov as any,
           verified_by: 'admin',
-          is_active: true,
-        });
+          is_active: true } as unknown as Parameters<typeof validateExpectedRequirement>[0]);
         expect(res.valid).toBe(false);
         expect(res.violations.some(v => v.code === 'EPISTEMIC_VIOLATION_PROBE_CANNOT_CONFIRM_REQUIREMENT')).toBe(true);
       }
@@ -304,13 +302,13 @@ describe('Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2)', () => {
       const res = validateExpectedRequirement({
         id: 'req-source-spoof',
         module_key: 'catalog-key',
-        category: 'proposito',
+        category: 'proposito' as unknown as import('@qap/shared').RequirementCategory,
         statement: 'Fuente probe en source en vez de provenance.',
         status: 'confirmed',
         source: 'active_probe' as any,
         verified_by: 'developer',
         is_active: true,
-      });
+      } as unknown as Parameters<typeof validateExpectedRequirement>[0]);
       expect(res.valid).toBe(false);
       expect(res.violations.some(v => v.code === 'EPISTEMIC_VIOLATION_PROBE_CANNOT_CONFIRM_REQUIREMENT')).toBe(true);
     });
@@ -319,13 +317,13 @@ describe('Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2)', () => {
       const res = validateExpectedRequirement({
         id: 'req-legacy-1',
         module_key: 'catalog-key',
-        category: 'proposito',
+        category: 'proposito' as unknown as import('@qap/shared').RequirementCategory,
         statement: 'Requisito migrado de rules.yaml legacy.',
         status: 'confirmed',
         provenance: 'legacy_manual_edit',
         verified_by: 'operator_id',
         is_active: true,
-      });
+      } as unknown as Parameters<typeof validateExpectedRequirement>[0]);
       expect(res.valid).toBe(false);
       expect(res.violations.some(v => v.code === 'LEGACY_MIGRATION_CONFIRMATION_WITHOUT_EVIDENCE_FORBIDDEN')).toBe(true);
     });
@@ -338,10 +336,10 @@ describe('Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2)', () => {
         id: 'req-forged-active-probe',
         application_id: 'app-adv',
         module_key: 'catalog-key',
-        category: 'proposito',
+        category: 'proposito' as unknown as import('@qap/shared').RequirementCategory,
         statement: 'Sonda intentando actuar como requisito confirmado.',
         validation_status: 'confirmed',
-        provenance: 'active_probe',
+        provenance: 'active_probe' as unknown as import('@qap/shared').RequirementProvenance,
         verified_by: 'unauthorized_probe',
         is_active: true,
       };
@@ -352,9 +350,9 @@ describe('Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2)', () => {
             kind: 'requirement',
             expected_revision: 0,
             trace: { source: 'active_probe', recorded_by: 'probe', recorded_at: time, reason: 'test', review: 'unreviewed', evidence_refs: [] },
-            entity: forgedReq,
+            entity: forgedReq as unknown as import('@qap/engine').KnowledgeWrite['entity'],
           },
-        ])
+        ] as unknown as readonly import('@qap/engine').KnowledgeWrite[])
       ).rejects.toThrow();
 
       // 2. Even if a mock store somehow returns an active_probe confirmed record during query,
@@ -371,7 +369,7 @@ describe('Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2)', () => {
                 application_id: 'app-adv',
                 trace: { source: 'active_probe', recorded_by: 'probe', recorded_at: time, reason: 'test', review: 'unreviewed', evidence_refs: [] },
                 references: [],
-                entity: forgedReq,
+                entity: forgedReq as unknown as import('@qap/engine').KnowledgeWrite['entity'],
               },
             ] as any,
           };
@@ -560,7 +558,7 @@ describe('Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2)', () => {
               is_active: true,
             },
           },
-        ]);
+        ] as unknown as readonly import('@qap/engine').KnowledgeWrite[]);
         return dec;
       };
 
@@ -614,7 +612,7 @@ describe('Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2)', () => {
               is_active: false,
             },
           },
-        ]);
+        ] as unknown as readonly import('@qap/engine').KnowledgeWrite[]);
         return dec;
       };
 
@@ -824,7 +822,7 @@ describe('Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2)', () => {
       });
 
       expect(res.isError).toBe(true);
-      const parsed = JSON.parse((res.content[0] as any).text);
+      const parsed = JSON.parse(getTextContent(res));
       expect(parsed.status).toBe('blocked');
       expect(parsed.code).toBe('canonical_closure_required');
       expect(parsed.razon).toContain('canonical_closure');
@@ -870,7 +868,7 @@ describe('Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2)', () => {
       });
 
       expect(res.isError).toBe(true);
-      const parsed = JSON.parse((res.content[0] as any).text);
+      const parsed = JSON.parse(getTextContent(res));
       expect(parsed.status).toBe('blocked');
       expect(parsed.code).toBe('canonical_closure_required');
     });
@@ -910,7 +908,7 @@ describe('Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2)', () => {
         },
       });
 
-      const parsed = JSON.parse((res.content[0] as any).text);
+      const parsed = JSON.parse(getTextContent(res));
       expect(parsed.status).toBe('blocked');
       expect(parsed.code).toBe('canonical_module_closure_required');
       expect(parsed.unclosed_modules).toContain('catalog');
@@ -956,7 +954,7 @@ describe('Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2)', () => {
         },
       });
       expect(closeRes.isError).toBeFalsy();
-      const closeParsed = JSON.parse((closeRes.content[0] as any).text);
+      const closeParsed = JSON.parse(getTextContent(closeRes));
       expect(closeParsed.status).toBe('waived');
 
       const sessionRes = await client.callTool({
@@ -966,7 +964,7 @@ describe('Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2)', () => {
         },
       });
       expect(sessionRes.isError).toBeFalsy();
-      const sessionParsed = JSON.parse((sessionRes.content[0] as any).text) as {
+      const sessionParsed = JSON.parse(getTextContent(sessionRes)) as {
         status: string; fase: string; report_path: string; code?: string;
       };
       expect(sessionParsed).toMatchObject({ status: 'success', fase: 'WRAP_UP' });
@@ -1072,7 +1070,7 @@ describe('Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2)', () => {
           accepted_gaps_count: 0,
           total_gaps_count: 0,
           category_statuses: [
-            { category: 'seguridad_y_permisos', status: 'waived', is_waived: true },
+            { category: 'seguridad_y_permisos' as unknown as import('@qap/shared').RequirementCategory, status: 'waived', is_waived: true },
           ],
         },
         review_coverage: {
@@ -1255,7 +1253,6 @@ describe('Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2)', () => {
           return {
             approvalId: `appr-decision-${callCount}`,
             requestDigest: request.requestDigest,
-            coverageDigest: request.coverageDigest,
             reviewer: `reviewer-${callCount}`,
             decidedAt: new Date().toISOString(),
             expiresAt: new Date(Date.now() + 60_000).toISOString(),
@@ -1395,7 +1392,7 @@ describe('Adversarial Stress Audit — 7 Core Guarantees of R5 (§R2)', () => {
             evidence_refs: [],
           },
         },
-      ]);
+      ] as unknown as readonly import('@qap/engine').KnowledgeWrite[]);
 
       // Attempt closure (waiver): store.commit will fail with expected_revision: 0 conflict.
       // The service must NOT swallow the error: it must validate provenance and throw.

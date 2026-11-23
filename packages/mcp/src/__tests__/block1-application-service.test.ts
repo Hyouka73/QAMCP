@@ -63,7 +63,8 @@ async function openMcpClient(options: {
   cleanups.push(close);
   const call = async (name: string, args: Record<string, unknown> = {}) => {
     const res = await client.callTool({ name, arguments: args });
-    const text = (res.content[0] as { text: string }).text;
+    const content = Array.isArray(res.content) ? (res.content as Array<{ text?: string }>) : [];
+    const text = content[0]?.text ?? '{}';
     let parsed: Record<string, any> = { message: text };
     try {
       parsed = JSON.parse(text) as Record<string, any>;

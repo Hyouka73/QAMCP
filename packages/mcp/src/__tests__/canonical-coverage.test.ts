@@ -14,6 +14,7 @@ import {
   validateCoverageAssessmentInvariants,
 } from '@qap/shared';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { getTextContent } from './helpers/test-helpers.js';
 
 import { createMcpServer } from '../server.js';
 import { CanonicalCoverageService } from '../handlers/canonical-coverage-service.js';
@@ -86,7 +87,7 @@ async function fixture(opts: FixtureOptions = {}) {
       id: 'session-r5',
       started_at: time,
       plan: [{ module: 'catalog', path: '/' }],
-      auth: { required: false },
+      auth: { required: false, source: 'user' as const },
     },
     history: [],
   };
@@ -910,7 +911,7 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
       const interleaved: IModuleClosureStore = {
         read: scope => f.closureStore.read(scope),
         transaction: async <T>(scope: ClosureScope, operation: (snapshot: ModuleClosureSnapshot) => Promise<T>): Promise<T> => {
-          const drifted = { ...f.lifecycle, session: { ...f.lifecycle.session, id: 'other-session' } };
+          const drifted = { ...f.lifecycle, phase: f.lifecycle.phase as import('@qap/shared').ProjectPhase, modules: f.lifecycle.modules as import('@qap/shared').LifecycleState['modules'], session: { ...f.lifecycle.session, id: 'other-session' } };
           writeFileSync(f.lifecyclePath, JSON.stringify(drifted));
           return f.closureStore.transaction(scope, operation);
         },
@@ -937,7 +938,7 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
         read: scope => f.closureStore.read(scope),
         transaction: async <T>(scope: ClosureScope, operation: (snapshot: ModuleClosureSnapshot) => Promise<T>): Promise<T> => {
           pendingSave = trackPending(storage.saveLifecycleState({
-            ...f.lifecycle, session: { ...f.lifecycle.session, id: 'after-commit-session' },
+            ...f.lifecycle, phase: f.lifecycle.phase as import('@qap/shared').ProjectPhase, modules: f.lifecycle.modules as import('@qap/shared').LifecycleState['modules'], session: { ...f.lifecycle.session, id: 'after-commit-session' } as unknown as import('@qap/shared').LifecycleSession,
           }).then(() => { saveCompleted = true; }));
           const result = await f.closureStore.transaction(scope, operation);
           expect(saveCompleted).toBe(false);
@@ -983,8 +984,7 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
               // Reproduce the original P1: same physical root with a different
               // Windows casing, between callback return and SQLite COMMIT.
               pendingWriter = trackPending(aliasStorage.saveLifecycleState({
-                ...f.lifecycle,
-                session: { ...f.lifecycle.session, id: 'new-session-after-commit' },
+                ...f.lifecycle, phase: f.lifecycle.phase as import('@qap/shared').ProjectPhase, modules: f.lifecycle.modules as import('@qap/shared').LifecycleState['modules'], session: { ...f.lifecycle.session, id: 'new-session-after-commit' } as unknown as import('@qap/shared').LifecycleSession,
               }).then(() => { writerCompleted = true; }));
               await new Promise(resolve => setTimeout(resolve, 70));
               expect(writerCompleted).toBe(false);
@@ -1295,7 +1295,7 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
       });
 
       expect(evalCall.isError).toBeFalsy();
-      const payload = JSON.parse((evalCall.content[0] as { text: string }).text);
+      const payload = JSON.parse(getTextContent(evalCall));
       expect(payload.status).toBe('evaluated');
       expect(payload.assessment.module_key).toBe('catalog');
     });
@@ -1316,7 +1316,7 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
       });
 
       expect(legacyCall.isError).toBe(true);
-      const payload = JSON.parse((legacyCall.content[0] as { text: string }).text);
+      const payload = JSON.parse(getTextContent(legacyCall));
       expect(payload.code).toBe('canonical_closure_required');
       expect(payload.razon).toContain('canonical_closure');
     });
@@ -1330,7 +1330,7 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
         arguments: { targetPath: f.root },
       });
 
-      const payload = JSON.parse((sessionCall.content[0] as { text: string }).text);
+      const payload = JSON.parse(getTextContent(sessionCall));
       expect(payload.status).toBe('blocked');
       expect(payload.code).toBe('canonical_module_closure_required');
       expect(payload.unclosed_modules).toContain('catalog');
@@ -1400,7 +1400,7 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
       const statusReply = await client.callTool({
         name: 'qap_status', arguments: { targetPath: f.root },
       });
-      const statusData = JSON.parse((statusReply.content[0] as { text: string }).text) as {
+      const statusData = JSON.parse(getTextContent(statusReply)) as {
         canonical_modules: Array<{ plannedName: string; closure: { state: string; ready_for_closure: boolean } }>;
         siguiente_accion?: { tool?: string; descripcion: string };
         canonical_pending_closure_modules?: string[];
@@ -1419,7 +1419,7 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
       const reply = await client.callTool({
         name: 'qap_session_close', arguments: { targetPath: f.root },
       });
-      const data = JSON.parse((reply.content[0] as { text: string }).text) as Record<string, unknown>;
+      const data = JSON.parse(getTextContent(reply)) as Record<string, unknown>;
       expect(data).toMatchObject({
         status: 'blocked', code: 'canonical_module_closure_required', fase: 'WORKING',
       });
@@ -1504,7 +1504,7 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
         reviewClosure: async () => { throw new Error('unexpected_approval_for_seeded_durable_closure'); },
       }, bindings);
       const statusReply = await client.callTool({ name: 'qap_status', arguments: { targetPath: f.root } });
-      const status = JSON.parse((statusReply.content[0] as { text: string }).text) as {
+      const status = JSON.parse(getTextContent(statusReply)) as {
         canonical_modules: Array<{ plannedName: string; closure: { state: string } }>;
         siguiente_accion: { tool: string };
         canonical_pending_closure_modules?: string[];
@@ -1522,7 +1522,7 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
       }
 
       const closeReply = await client.callTool({ name: 'qap_session_close', arguments: { targetPath: f.root } });
-      const close = JSON.parse((closeReply.content[0] as { text: string }).text) as {
+      const close = JSON.parse(getTextContent(closeReply)) as {
         status: string; fase: string; code?: string; report_path?: string; unclosed_modules?: string[];
       };
       if (scenario.invalidLast) {
@@ -1551,7 +1551,7 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
       const reply = await client.callTool({
         name: 'qap_status', arguments: { targetPath: f.root },
       });
-      const data = JSON.parse((reply.content[0] as { text: string }).text) as {
+      const data = JSON.parse(getTextContent(reply)) as {
         canonical_modules: Array<{ plannedName: string; closure: { state: string } }>;
         siguiente_accion: { tool: string };
         canonical_pending_closure_modules?: string[];
@@ -1603,7 +1603,7 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
         name: 'qap_session_close', arguments: { targetPath: f.root },
       });
       expect(first.isError).not.toBe(true);
-      const payload = JSON.parse((first.content[0] as { text: string }).text) as {
+      const payload = JSON.parse(getTextContent(first)) as {
         status: string; fase: string; report_path: string;
       };
       expect(payload).toMatchObject({ status: 'success', fase: 'WRAP_UP' });
@@ -1653,7 +1653,7 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
       const result = await client.callTool({
         name: 'qap_session_close', arguments: { targetPath: f.root },
       });
-      const payload = JSON.parse((result.content[0] as { text: string }).text) as {
+      const payload = JSON.parse(getTextContent(result)) as {
         status: string; fase: string; report_path: string;
         brechas_detectadas: number | null;
         cierre_canonico: { modulos_waived: number; requisitos_confirmados_actuales: number; cobertura_ejecucion: string };
@@ -1712,7 +1712,7 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
                 await storage.updateLifecycleState(current => {
                   if (scenario === 'planned') {
                     current.modules.late = { state: 'planned', updated_at: time };
-                    current.session.plan.push({ module: 'late', path: '/late' });
+                    current.session.plan.push({ module: 'late', path: '/late', priority: 'high', status: 'pending' });
                   } else if (scenario === 'session') {
                     current.session.id = 'session-concurrent-new';
                   } else {
@@ -1729,7 +1729,7 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
         const response = await client.callTool({
           name: 'qap_session_close', arguments: { targetPath: f.root },
         });
-        const result = JSON.parse((response.content[0] as { text: string }).text) as {
+        const result = JSON.parse(getTextContent(response)) as {
           status: string; code?: string; fase?: string; report_path?: string;
         };
         expect(injected).toBe(true);
@@ -1802,7 +1802,7 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
         const response = await client.callTool({
           name: 'qap_session_close', arguments: { targetPath: f.root },
         });
-        const text = (response.content[0] as { text: string }).text;
+        const text = getTextContent(response);
         expect(changed).toBe(true);
         if (response.isError) {
           expect(text).toContain('canonical_report_receipt_missing_or_invalid');
@@ -1993,7 +1993,7 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
       const response = await client.callTool({
         name: 'qap_session_close', arguments: { targetPath: f.root },
       });
-      const payload = JSON.parse((response.content[0] as { text: string }).text) as {
+      const payload = JSON.parse(getTextContent(response)) as {
         status: string; fase: string; report_path: string;
         cierre_canonico: { modulos_cerrados: number; modulos_waived: number };
       };
@@ -2019,7 +2019,7 @@ describe('VNEXT-013-R5 Comprehensive Physical Test Matrix', () => {
         arguments: { targetPath: f.root },
       });
 
-      const payload = JSON.parse((statusCall.content[0] as { text: string }).text);
+      const payload = JSON.parse(getTextContent(statusCall));
       expect(payload.canonical_modules).toBeDefined();
       const catModule = payload.canonical_modules.find((m: { plannedName: string }) => m.plannedName === 'catalog');
       expect(catModule).toBeDefined();

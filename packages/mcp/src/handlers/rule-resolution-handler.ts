@@ -119,10 +119,14 @@ export async function handleScopedRuleResolution(params: {
     ? appService.getDiscoveryRevision(discoveryRevisionId)
     : appService.findLatestDiscoveryRevisionForScope({
         project_id: project.project_id,
+        application_id: snapshot.project.application_id ?? project.project_id,
+        environment_id: snapshot.environment?.env_id ?? envName,
         environment_name: envName,
         tenant_id: tenantId,
+        profile_id: snapshot.profiles[0]?.profile_id ?? null,
         role,
         module_key: modKey,
+        module_title: moduleName,
       });
 
   const requestedQuestionId = cleanText(cmd.question_id, 160) ? cmd.question_id.trim() : '';

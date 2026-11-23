@@ -5,7 +5,8 @@ import { tmpdir } from 'node:os';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { CredentialProvider, CredentialReference } from '@qap/shared';
+import type { ICredentialProvider } from '@qap/auth';
+import { TestMemoryCredentialProvider } from './helpers/test-helpers.js';
 
 import { QapApplicationService } from '../application/application-service.js';
 import { createMcpServer, type McpServerOptions } from '../server.js';
@@ -16,26 +17,6 @@ import type { IAuthAuthorizer } from '../auth-authorizer.js';
 
 import { startProtectedSpaStaging, type ProtectedSpaStagingController } from './fixtures/protected-spa-staging.js';
 
-class TestMemoryCredentialProvider implements CredentialProvider {
-  readonly entries = new Map<string, string>();
-
-  private key(ref: CredentialReference): string {
-    return `${ref.project_id}:${ref.profile_id}:${ref.account}`;
-  }
-
-  async set(ref: CredentialReference, secret: { username?: string; password?: string; token?: string }): Promise<void> {
-    this.entries.set(this.key(ref), JSON.stringify(secret));
-  }
-
-  async get(ref: CredentialReference): Promise<{ username?: string; password?: string; token?: string } | null> {
-    const raw = this.entries.get(this.key(ref));
-    return raw ? (JSON.parse(raw) as { username?: string; password?: string; token?: string }) : null;
-  }
-
-  async delete(ref: CredentialReference): Promise<boolean> {
-    return this.entries.delete(this.key(ref));
-  }
-}
 
 async function callJson(client: Client, name: string, args: Record<string, unknown>) {
   const res = await client.callTool({ name, arguments: args });
@@ -76,7 +57,7 @@ describe('P0.2b — Fuentes de reglas de negocio por alcance en Discovery', () =
     }
   }, 30_000);
 
-  function createHarness(credentialProvider: CredentialProvider) {
+  function createHarness(credentialProvider: ICredentialProvider) {
     const tempBase = mkdtempSync(join(tmpdir(), 'qap-p02b-'));
     const hostRoot = join(tempBase, 'host');
     const workspaceRoot = join(tempBase, 'workspace-staging');

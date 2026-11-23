@@ -13,7 +13,7 @@ import {
   startAuthFixtureServer,
   TEST_CREDENTIALS,
   type AuthFixtureServerInstance,
-} from '../../../playwright-adapter/test/fixtures/auth-fixture-server.js';
+} from './helpers/auth-fixture-server.js';
 import { QapApplicationService } from '../application/application-service.js';
 import type { IDiscoveryAuthorizer } from '../discovery-authorizer.js';
 import { getPhaseGuidance } from '../guidance.js';
@@ -167,7 +167,7 @@ describe('P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, 
       roles,
       source_of_truth: { type: 'prd', declared: true, ref: 'prd-inline' },
     });
-    expect(updated.res.isError).not.toBe(true);
+    expect((updated.res as { isError?: boolean }).isError).not.toBe(true);
     expect(updated.parsed.status).toBe('success');
   }
 
@@ -465,7 +465,7 @@ describe('P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, 
 
       // Lector 1: Pregunta de roles en guidance
       const guidance = getPhaseGuidance('SCOPING', {
-        context: contaminatedCtx,
+        context: contaminatedCtx as unknown as Parameters<typeof getPhaseGuidance>[1] extends infer O ? O extends { context?: infer C } ? C : never : never,
         lifecycle: {
           session: {
             auth: { required: true, method: 'credentials' },
@@ -483,9 +483,13 @@ describe('P4.5-A.2 Suite de Integridad y Verificación (C1, C2, C3, C4, C6, C9, 
 
       // Lector 3: Lector del reporte de brechas (roles_totales)
       const gapSummary = computeSessionGapSummary({
+        sessionId: 's-1',
+        startedAt: '2026-01-01T00:00:00.000Z',
+        closedAt: '2026-01-01T00:01:00.000Z',
+        modules: {},
         plan: [],
         moduleRules: {},
-        projectContext: contaminatedCtx,
+        projectContext: contaminatedCtx as unknown as Parameters<typeof computeSessionGapSummary>[0]['projectContext'],
         profiles: [],
       });
       expect(gapSummary.roles_totales).toBe(2);

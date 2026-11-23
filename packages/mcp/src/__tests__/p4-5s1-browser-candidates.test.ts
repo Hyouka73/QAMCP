@@ -35,9 +35,10 @@ describe('P4.5-S1: Preflight browser, Module Candidates, and Session Plan', () =
       arguments: { targetPath: dir }
     });
     expect(initialized.isError).not.toBe(true);
-    const initText = initialized.content[0];
-    expect(initText.type).toBe('text');
-    if (initText.type !== 'text') throw new Error('Expected qap_init text response');
+    const content = Array.isArray(initialized.content) ? (initialized.content as Array<{ type?: string; text?: string }>) : [];
+    const initText = content[0];
+    expect(initText?.type).toBe('text');
+    if (initText?.type !== 'text' || typeof initText.text !== 'string') throw new Error('Expected qap_init text response');
     expect(JSON.parse(initText.text).status).toBe('success');
 
     // Provide environments.yaml with url

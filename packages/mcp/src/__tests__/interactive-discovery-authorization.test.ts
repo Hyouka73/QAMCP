@@ -1,17 +1,16 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import { createMcpServer } from '../server.js';
 import { WorkspaceBootstrap } from '../workspace-bootstrap.js';
 import {
   type IDiscoveryAuthorizer,
   type DiscoveryAuthorizationRequest,
-  type DiscoveryAuthorizationResult,
   atomicRecordDiscoveryAuthorization,
   loadDiscoveryAuthorizationsFromDisk,
   syncDiscoveryAuthorizationsFromDisk,
@@ -95,7 +94,6 @@ describe('Interactive Discovery Authorization Suite', () => {
     const hostDir = makeTemp('host-');
     const ws = makeTemp('ws-');
     const bootstrap = new WorkspaceBootstrap(hostDir);
-    const registryPath = join(hostDir, 'authorized-roots.json');
     const discoveryRegistryPath = join(hostDir, 'discovery-authorizations.json');
 
     const authRequests: DiscoveryAuthorizationRequest[] = [];
@@ -146,7 +144,7 @@ describe('Interactive Discovery Authorization Suite', () => {
     // 3. Invoke qap_discover with provisional inventory
     // BlackBoxCrawler will be invoked; in this mock test without real network it may return blocked network
     // but the authorization prompt must be triggered first!
-    const discoverRes = await client.callTool({
+    await client.callTool({
       name: 'qap_discover',
       arguments: {
         targetPath: ws,

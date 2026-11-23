@@ -204,9 +204,7 @@ Plataforma SaaS B2B que digitaliza y centraliza el ciclo de vida del reclutamien
     const forbiddenTools = ['qap_module_close', 'qap_session_close'];
 
     for (const f of fases) {
-      const guidance = getPhaseGuidance(f, {
-        nextPlannedModule: 'auth',
-        nextPlannedPath: '/login',
+      const guidance = getPhaseGuidance(f as Parameters<typeof getPhaseGuidance>[0], {
       });
       if (guidance.siguiente_accion?.tipo === 'trabajo' && guidance.siguiente_accion.tool) {
         expect(forbiddenTools).not.toContain(guidance.siguiente_accion.tool);

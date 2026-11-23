@@ -161,7 +161,7 @@ describe('Interactive Workspace Authorization & Continuity', () => {
   ] as const)('Distingue %s/%s sin exponer detalles del proveedor', async (decision, code) => {
     const workspace = makeTemp('diagnostic-ws-');
     const harness = await createTestHarness({ authorizer: {
-      requestAuthorization: async () => ({ decision, code, reason: 'PRIVATE_INTERNAL_DETAIL' }),
+      requestAuthorization: async () => ({ decision, code, reason: 'PRIVATE_INTERNAL_DETAIL' }) as Awaited<ReturnType<import('../workspace-authorizer.js').IWorkspaceAuthorizer['requestAuthorization']>>,
     } });
     const res = await harness.call('qap_status', { targetPath: workspace });
     expect(res.data.code).toBe(code);

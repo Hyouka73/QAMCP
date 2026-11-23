@@ -7,8 +7,8 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { inspectZipArchive } from '@qap/playwright-runner';
 import { PruningEngine, QapDatabase } from '@qap/reporter';
-import type { CredentialProvider, CredentialReference } from '@qap/shared';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { TestMemoryCredentialProvider } from './helpers/test-helpers.js';
 
 import { QapApplicationService } from '../application/application-service.js';
 import type { IAuthAuthorizer } from '../auth-authorizer.js';
@@ -24,26 +24,6 @@ import {
   type ProtectedSpaStagingController,
 } from './fixtures/protected-spa-staging.js';
 
-class TestMemoryCredentialProvider implements CredentialProvider {
-  readonly entries = new Map<string, string>();
-
-  private key(ref: CredentialReference): string {
-    return `${ref.project_id}:${ref.profile_id}:${ref.account}`;
-  }
-
-  async set(ref: CredentialReference, secret: { username?: string; password?: string; token?: string }): Promise<void> {
-    this.entries.set(this.key(ref), JSON.stringify(secret));
-  }
-
-  async get(ref: CredentialReference): Promise<{ username?: string; password?: string; token?: string } | null> {
-    const raw = this.entries.get(this.key(ref));
-    return raw ? (JSON.parse(raw) as { username?: string; password?: string; token?: string }) : null;
-  }
-
-  async delete(ref: CredentialReference): Promise<boolean> {
-    return this.entries.delete(this.key(ref));
-  }
-}
 
 async function callJson(client: Client, name: string, args: Record<string, unknown>) {
   const res = await client.callTool({ name, arguments: args });
@@ -113,11 +93,7 @@ describe('P0.4 — Evidencia Playwright por intento vinculada a intento, reporte
       })),
     };
     const authAuthorizer: IAuthAuthorizer = {
-      requestAuthorization: vi.fn(async () => ({
-        decision: 'approved' as const,
-        username: 'qa.spa@staging.local',
-        password: 'spa-secret-password',
-      })),
+      requestAuthorization: vi.fn<IAuthAuthorizer['requestAuthorization']>(async (req) => ({ decision: 'approved', origin: req.origin, profileLabel: req.profileLabel })),
     };
     const testAuthorizer: ITestAuthorizer = {
       requestAuthorization: vi.fn(async ({ origin, profileLabel }) => ({
