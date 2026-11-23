@@ -1,0 +1,56 @@
+{
+  "stage": "R2.2",
+  "description": "Effect evaluator + RunSpec + I2 SQLite readOnly witness integrated before stageProvisionalMcpFinalization",
+  "commit_arm": {
+    "arm": "commit",
+    "transactionMode": "COMMIT",
+    "attempt_id": "att_c3b9e2fd0e334ad7",
+    "execution_id": "exec_1795452686935_768108476ab94e2b9c0727c525687982",
+    "run_spec_digest": "98ea7ad06a1bc46dbdc4a0972cd82acff0380e92b7e91e4c9be826a85a6648f2",
+    "runner_result": "passed",
+    "report_result": "passed",
+    "effect_verdict": "PASS",
+    "effect_code": "effect_verified",
+    "evidence_digest": "4614cee8bbdbf88164551482c055448e99e7b8556a6c67ab77f193df93dabcba",
+    "http_trace": [
+      {
+        "method": "POST",
+        "path": "/fixture-write",
+        "status": 201,
+        "mode": "COMMIT"
+      },
+      {
+        "method": "POST",
+        "path": "/fixture-reset",
+        "status": 204
+      }
+    ],
+    "report_sha256": "bd951cb42b79be767b6e3f58da3e44cec23dd3f6d0daefd0df4bd1c6b86981d7"
+  },
+  "rollback_arm": {
+    "arm": "rollback",
+    "transactionMode": "ROLLBACK",
+    "attempt_id": "att_9b3365480a9047a2",
+    "execution_id": "exec_1795452695493_7229fd510f3648138a817419118b3630",
+    "run_spec_digest": "19445f10db222c4a6ba199292cdcbe8968086afa5f53a8875608248a380c6f16",
+    "runner_result": "failed",
+    "report_result": "failed",
+    "effect_verdict": "FAIL",
+    "effect_code": "effect_missing_after_write",
+    "evidence_digest": "f9808e80c50c6ea49feb623421d9bb2528f018ca16025fd8e9270d4f3ec6de35",
+    "http_trace": [
+      {
+        "method": "POST",
+        "path": "/fixture-write",
+        "status": 201,
+        "mode": "ROLLBACK"
+      },
+      {
+        "method": "POST",
+        "path": "/fixture-reset",
+        "status": 204
+      }
+    ],
+    "report_sha256": "d2fec0ad905f223a3a3f5de356924161e62d6addafc5548a7e42cf5a84ecc736"
+  }
+}

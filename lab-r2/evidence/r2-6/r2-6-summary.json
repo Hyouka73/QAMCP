@@ -1,0 +1,74 @@
+{
+  "stage": "R2.6",
+  "i3_second_domain": {
+    "status": "DEMOSTRADO",
+    "expected_i3": {
+      "gross_cents": 100567,
+      "fee_cents": 2509,
+      "net_cents": 98058,
+      "effective_date": "2026-11-24"
+    },
+    "healthy_sut": {
+      "gross_cents": 100567,
+      "fee_cents": 2509,
+      "net_cents": 98058,
+      "effective_date": "2026-11-24"
+    },
+    "mutant_sut": {
+      "gross_cents": 100567,
+      "fee_cents": 2508,
+      "net_cents": 98059,
+      "effective_date": "2026-11-23"
+    },
+    "healthy_matches_oracle": true,
+    "mutant_detected": true
+  },
+  "e5_primary_extraction": {
+    "status": "DEMOSTRADO",
+    "primary_doc_sha256": "1bc2a729f374581038d241c80d9385774723daabdcd6b0af9955936041c2c500",
+    "valid_extraction": {
+      "status": "EXTRACTED",
+      "revision": "v1.0.0",
+      "source_sha256": "1bc2a729f374581038d241c80d9385774723daabdcd6b0af9955936041c2c500",
+      "section": "Sección 1.1 — Comisión por dispersión sintética",
+      "excerpt": "Para operaciones en moneda `MXN` bajo perfil `operador_estandar`, la comisión aplicable es exactamente `1.50%` sobre el monto principal, redondeada a 2 decimales (medio hacia arriba en centavos enteros), más un cargo fijo de `10.00 MXN` cuando `apply_fixed_fee = true`.",
+      "scope": "`environment=test`, `tenant=synth-co`, `timezone=America/Mexico_City`",
+      "validity": {
+        "from": "2026-01-01T00:00:00-06:00",
+        "to": "2026-12-31T23:59:59-06:00"
+      }
+    },
+    "expired_abstention": {
+      "status": "ABSTAIN",
+      "reason": "outside_validity_window",
+      "revision": "v1.0.0",
+      "source_sha256": "1bc2a729f374581038d241c80d9385774723daabdcd6b0af9955936041c2c500"
+    },
+    "conflict_abstention": {
+      "status": "ABSTAIN",
+      "reason": "conflicting_primary_sources",
+      "revision": "v1.0.0",
+      "source_sha256": "1bc2a729f374581038d241c80d9385774723daabdcd6b0af9955936041c2c500"
+    }
+  },
+  "e2_blind_interface": {
+    "status": "NO_EJECUTADO",
+    "custodian_separation": true,
+    "thresholds_historical": {
+      "per_application_pct": 80,
+      "effects_and_state_changes_pct": 75
+    },
+    "classification_buckets": [
+      "observed",
+      "inferred",
+      "indeterminate",
+      "restricted"
+    ],
+    "budget_contract": {
+      "max_pages": null,
+      "max_attempts": null,
+      "frozen_before_run_by_custodian": true
+    },
+    "note": "Interfaz preparada sin acceso a fixtures ni rúbrica reservada del custodio."
+  }
+}

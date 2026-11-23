@@ -1,0 +1,18 @@
+{
+  "stage": "R2.2",
+  "generatedAt": "2026-11-23T16:51:37.183Z",
+  "files": [
+    {
+      "file": "lab-r2/evidence/r2-2/r2-2-report-commit.json",
+      "sha256": "bd951cb42b79be767b6e3f58da3e44cec23dd3f6d0daefd0df4bd1c6b86981d7"
+    },
+    {
+      "file": "lab-r2/evidence/r2-2/r2-2-report-rollback.json",
+      "sha256": "d2fec0ad905f223a3a3f5de356924161e62d6addafc5548a7e42cf5a84ecc736"
+    },
+    {
+      "file": "lab-r2/evidence/r2-2/r2-2-summary.json",
+      "sha256": "163ed4acfbdd531d8dc309abfdabeafb06cd78b69231e10ced23b460816a7b1b"
+    }
+  ]
+}

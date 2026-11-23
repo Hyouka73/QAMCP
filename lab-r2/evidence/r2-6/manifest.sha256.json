@@ -1,0 +1,14 @@
+{
+  "stage": "R2.6",
+  "generatedAt": "2026-11-23T17:14:30.397Z",
+  "files": [
+    {
+      "file": "lab-r2/fixtures/primary-policy-v1.md",
+      "sha256": "1bc2a729f374581038d241c80d9385774723daabdcd6b0af9955936041c2c500"
+    },
+    {
+      "file": "lab-r2/evidence/r2-6/r2-6-summary.json",
+      "sha256": "b8140719dd48f4e7f0f5ccbfb63856d2d42525c7de67c67d4a0295eeb6e6ee9c"
+    }
+  ]
+}

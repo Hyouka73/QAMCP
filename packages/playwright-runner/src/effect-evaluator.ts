@@ -107,7 +107,9 @@ export function sha256Canonical(value: unknown): string {
 }
 
 export function computeRunSpecDigest(spec: RunSpec): string {
-  return sha256Canonical(spec);
+  // Bind attempt_id/execution_id separately so deterministic replay of the same spec produces the same run_spec_digest.
+  const { attempt_id: _attemptId, execution_id: _executionId, ...specIdentity } = spec;
+  return sha256Canonical(specIdentity);
 }
 
 export function computeEffectEvidenceDigest(input: {
