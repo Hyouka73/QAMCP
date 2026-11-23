@@ -92,6 +92,12 @@ describe('qap test --from-diff (S75-002)', () => {
     expect(process.exitCode).toBe(0);
   });
 
+  it('informa un fallo de Git sin anunciar un diff vacío', async () => {
+    writeFileSync(join(rootDir, '.git', 'index'), 'invalid index fixture');
+    await expect(handleTest(undefined, { fromDiff: true })).rejects.toThrow(/--from-diff: Git no pudo completar diff/);
+    expect(logSpy).not.toHaveBeenCalled();
+  });
+
   it('con un módulo explícito, solo corre si está entre los afectados (intersección)', async () => {
     // 'auth' no fue modificado, así que pedirlo explícitamente con --from-diff
     // debe dar como resultado "nada que ejecutar", no forzar su ejecución.

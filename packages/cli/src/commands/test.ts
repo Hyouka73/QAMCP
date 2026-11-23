@@ -1,6 +1,6 @@
 import { PlaywrightRunner } from '@qap/playwright-runner';
 import { FileSystemStorage } from '@qap/knowledge';
-import { GitAdapter } from '@qap/git-adapter';
+import { GitAdapter, GitDiffError } from '@qap/git-adapter';
 import type { TestPlan, ExecutionResult, ExecutionStatus } from '@qap/shared';
 
 import { DataError } from '../errors.js';
@@ -56,7 +56,12 @@ export async function handleTest(
 
   if (options.fromDiff) {
     const gitAdapter = new GitAdapter({ cwd: process.cwd() });
-    const affectedModules = await gitAdapter.getAffectedModules(storage);
+    const affectedModules = await gitAdapter.getAffectedModules(storage).catch((error: unknown) => {
+      if (error instanceof GitDiffError) {
+        throw new DataError(`--from-diff: ${error.message}`);
+      }
+      throw error;
+    });
 
     if (moduleArg) {
       // Intersección: solo correr el módulo pedido si de verdad está afectado.

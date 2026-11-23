@@ -1,2 +1,1 @@
-// @qap/git-adapter - Module placeholder
-export { GitAdapter } from './git-adapter.js';
+export { GitAdapter, GitDiffError, type GitAdapterOptions } from './git-adapter.js';
