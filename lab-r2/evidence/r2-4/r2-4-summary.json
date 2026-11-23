@@ -1,0 +1,44 @@
+{
+  "stage": "R2.4",
+  "replay_and_tamper": {
+    "replay_passed": true,
+    "zero_rediscovery_verified": true,
+    "same_run_spec_digest": true,
+    "attempt_1": "att_c0706dc8aa774fb2",
+    "attempt_2": "att_0e94b42ee6a84e97",
+    "tamper_1byte_same_size_rejected": true,
+    "requests_before_restart": 6
+  },
+  "external_crashes": [
+    {
+      "checkpoint": "before_write",
+      "external_kill_pid": 8696,
+      "writes_sent_at_crash": 1,
+      "writes_after_status_reconcile": 1,
+      "no_duplicate_writes_on_recovery": true,
+      "sqlite_rows_after_crash": 0,
+      "status_after_restart": "success",
+      "active_or_pending_recovered": true
+    },
+    {
+      "checkpoint": "after_201_before_witness",
+      "external_kill_pid": 3036,
+      "writes_sent_at_crash": 1,
+      "writes_after_status_reconcile": 1,
+      "no_duplicate_writes_on_recovery": true,
+      "sqlite_rows_after_crash": 1,
+      "status_after_restart": "success",
+      "active_or_pending_recovered": true
+    },
+    {
+      "checkpoint": "after_observation_before_publish",
+      "external_kill_pid": 4876,
+      "writes_sent_at_crash": 1,
+      "writes_after_status_reconcile": 1,
+      "no_duplicate_writes_on_recovery": true,
+      "sqlite_rows_after_crash": 0,
+      "status_after_restart": "success",
+      "active_or_pending_recovered": true
+    }
+  ]
+}
