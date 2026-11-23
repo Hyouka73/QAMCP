@@ -1,0 +1,18 @@
+{
+  "stage": "R2.1",
+  "generatedAt": "2026-11-23T16:42:30.049Z",
+  "files": [
+    {
+      "file": "lab-r2/evidence/r2-1/legacy-report-commit.json",
+      "sha256": "73d7d74bdc9b87ba1571f89c69f058ab9a85802e8ee7f0d3f0724ce3323c8ec1"
+    },
+    {
+      "file": "lab-r2/evidence/r2-1/legacy-report-rollback.json",
+      "sha256": "2955642ae089349394a0f2ffa6694c0141cf9e281317e6d9fe33c512c6874d8e"
+    },
+    {
+      "file": "lab-r2/evidence/r2-1/r2-1-summary.json",
+      "sha256": "9355a9ad891e417ba61feb552de41aa4c21f0f742a6c9f0b3ecd5640d29b73db"
+    }
+  ]
+}

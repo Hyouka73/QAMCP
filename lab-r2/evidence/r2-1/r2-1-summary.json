@@ -1,0 +1,81 @@
+{
+  "stage": "R2.1",
+  "description": "Differential reproduction of legacy false PASS on unmodified baseline a78322f",
+  "commit_arm": {
+    "arm": "commit",
+    "transactionMode": "COMMIT",
+    "attempt_id": "att_48c321138ba14a57",
+    "execution_id": "exec_1795452136320_19546a246a5540be91af3a7cb5519895",
+    "case_id": "835befe1-6718-5ad5-84bf-0177f4ee2e27",
+    "discovery_revision_id": "drev-e832d426530f",
+    "runner_result": "passed",
+    "report_result": "passed",
+    "http_trace": [
+      {
+        "method": "POST",
+        "path": "/fixture-write",
+        "status": 201,
+        "mode": "COMMIT"
+      },
+      {
+        "method": "POST",
+        "path": "/fixture-reset",
+        "status": 204
+      }
+    ],
+    "witness_before_cleanup": {
+      "ok": true,
+      "count": 1,
+      "markers": [
+        "reservation-fixture"
+      ]
+    },
+    "witness_after_cleanup": {
+      "ok": true,
+      "count": 0,
+      "markers": []
+    },
+    "elicitation_count": 0,
+    "server_js_sha256": "c6547d9ac719cb950c70d93c6e4f3f5e92b1f55728da3b57920cb9735bba6ea1",
+    "legacy_report_file": "lab-r2/evidence/r2-1/legacy-report-commit.json",
+    "legacy_report_sha256": "73d7d74bdc9b87ba1571f89c69f058ab9a85802e8ee7f0d3f0724ce3323c8ec1"
+  },
+  "rollback_arm": {
+    "arm": "rollback",
+    "transactionMode": "ROLLBACK",
+    "attempt_id": "att_d6f71d62c0fa4183",
+    "execution_id": "exec_1795452148033_12b19cb5c216482599ace86a31081c17",
+    "case_id": "e9bfee01-7bfb-5270-89bc-b04301f7e1a9",
+    "discovery_revision_id": "drev-1ed63fdbf9da",
+    "runner_result": "passed",
+    "report_result": "passed",
+    "http_trace": [
+      {
+        "method": "POST",
+        "path": "/fixture-write",
+        "status": 201,
+        "mode": "ROLLBACK"
+      },
+      {
+        "method": "POST",
+        "path": "/fixture-reset",
+        "status": 204
+      }
+    ],
+    "witness_before_cleanup": {
+      "ok": true,
+      "count": 0,
+      "markers": []
+    },
+    "witness_after_cleanup": {
+      "ok": true,
+      "count": 0,
+      "markers": []
+    },
+    "elicitation_count": 0,
+    "server_js_sha256": "c6547d9ac719cb950c70d93c6e4f3f5e92b1f55728da3b57920cb9735bba6ea1",
+    "legacy_report_file": "lab-r2/evidence/r2-1/legacy-report-rollback.json",
+    "legacy_report_sha256": "2955642ae089349394a0f2ffa6694c0141cf9e281317e6d9fe33c512c6874d8e"
+  },
+  "false_pass_reproduced": true
+}

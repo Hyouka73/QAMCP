@@ -1,0 +1,151 @@
+{
+  "_version": "1",
+  "execution_id": "exec_1795452136320_19546a246a5540be91af3a7cb5519895",
+  "module": "fixture-write",
+  "env": "local",
+  "started_at": "2026-11-23T16:42:16.362Z",
+  "finished_at": "2026-11-23T16:42:18.999Z",
+  "result": "passed",
+  "timed_out": false,
+  "summary": {
+    "total": 1,
+    "passed": 1,
+    "failed": 0,
+    "skipped": 0,
+    "not_run": 0
+  },
+  "attempt_id": "att_48c321138ba14a57",
+  "artifacts": {
+    "video_path": ".qa/runtime/runs/att_48c321138ba14a57/artifacts/attempt.webm",
+    "trace_zip_path": ".qa/runtime/runs/att_48c321138ba14a57/artifacts/trace.zip",
+    "timeline_path": ".qa/runtime/runs/att_48c321138ba14a57/artifacts/timeline.json",
+    "screenshots": [
+      ".qa/reports/screenshots/qap-provisional-2AmHy4/assert_835befe1-6718-5ad5-84bf-0177f4ee2e27_step_1_1795452138368.png",
+      ".qa/reports/screenshots/qap-provisional-2AmHy4/screenshot_1795452138639.png"
+    ]
+  },
+  "timeline": [
+    {
+      "step_index": 0,
+      "case_id": "835befe1-6718-5ad5-84bf-0177f4ee2e27",
+      "action": "navigate",
+      "selector": null,
+      "expected": "http://127.0.0.1:<PORT>/summary",
+      "observed": "http://127.0.0.1:<PORT>/summary",
+      "status": "passed",
+      "started_at": "2026-11-23T16:42:18.219Z",
+      "finished_at": "2026-11-23T16:42:18.336Z",
+      "duration_ms": 117,
+      "message": null,
+      "screenshot": null
+    },
+    {
+      "step_index": 1,
+      "case_id": "835befe1-6718-5ad5-84bf-0177f4ee2e27",
+      "action": "assert",
+      "selector": "html:nth-of-type(1) > body:nth-of-type(1) > main:nth-of-type(1) > button:nth-of-type(1)",
+      "expected": "visible",
+      "observed": "visible",
+      "status": "passed",
+      "started_at": "2026-11-23T16:42:18.337Z",
+      "finished_at": "2026-11-23T16:42:18.443Z",
+      "duration_ms": 106,
+      "message": null,
+      "screenshot": ".qa/reports/screenshots/qap-provisional-2AmHy4/assert_835befe1-6718-5ad5-84bf-0177f4ee2e27_step_1_1795452138368.png",
+      "focused_screenshot": true
+    },
+    {
+      "step_index": 2,
+      "case_id": "835befe1-6718-5ad5-84bf-0177f4ee2e27",
+      "action": "click",
+      "selector": "html:nth-of-type(1) > body:nth-of-type(1) > main:nth-of-type(1) > button:nth-of-type(1)",
+      "expected": "html:nth-of-type(1) > body:nth-of-type(1) > main:nth-of-type(1) > button:nth-of-type(1)",
+      "observed": "clicked",
+      "status": "passed",
+      "started_at": "2026-11-23T16:42:18.444Z",
+      "finished_at": "2026-11-23T16:42:18.639Z",
+      "duration_ms": 195,
+      "message": null,
+      "screenshot": null
+    },
+    {
+      "step_index": 3,
+      "case_id": "835befe1-6718-5ad5-84bf-0177f4ee2e27",
+      "action": "screenshot",
+      "selector": null,
+      "expected": "screenshot",
+      "observed": ".qa/reports/screenshots/qap-provisional-2AmHy4/screenshot_1795452138639.png",
+      "status": "passed",
+      "started_at": "2026-11-23T16:42:18.639Z",
+      "finished_at": "2026-11-23T16:42:18.679Z",
+      "duration_ms": 40,
+      "message": null,
+      "screenshot": ".qa/reports/screenshots/qap-provisional-2AmHy4/screenshot_1795452138639.png",
+      "focused_screenshot": false
+    }
+  ],
+  "cases": [
+    {
+      "id": "835befe1-6718-5ad5-84bf-0177f4ee2e27",
+      "title": "Alta sintética con limpieza",
+      "result": "passed",
+      "duration_ms": 461,
+      "steps": [
+        {
+          "step_index": 0,
+          "action": "navigate",
+          "expected": "http://127.0.0.1:<PORT>/summary",
+          "observed": "http://127.0.0.1:<PORT>/summary",
+          "started_at": "2026-11-23T16:42:18.219Z",
+          "finished_at": "2026-11-23T16:42:18.336Z",
+          "status": "passed",
+          "duration_ms": 117
+        },
+        {
+          "step_index": 1,
+          "action": "assert",
+          "selector": "html:nth-of-type(1) > body:nth-of-type(1) > main:nth-of-type(1) > button:nth-of-type(1)",
+          "expected": "visible",
+          "observed": "visible",
+          "started_at": "2026-11-23T16:42:18.337Z",
+          "finished_at": "2026-11-23T16:42:18.443Z",
+          "status": "passed",
+          "duration_ms": 106,
+          "screenshot": ".qa/reports/screenshots/qap-provisional-2AmHy4/assert_835befe1-6718-5ad5-84bf-0177f4ee2e27_step_1_1795452138368.png",
+          "focused_screenshot": true
+        },
+        {
+          "step_index": 2,
+          "action": "click",
+          "selector": "html:nth-of-type(1) > body:nth-of-type(1) > main:nth-of-type(1) > button:nth-of-type(1)",
+          "expected": "html:nth-of-type(1) > body:nth-of-type(1) > main:nth-of-type(1) > button:nth-of-type(1)",
+          "observed": "clicked",
+          "started_at": "2026-11-23T16:42:18.444Z",
+          "finished_at": "2026-11-23T16:42:18.639Z",
+          "status": "passed",
+          "duration_ms": 195
+        },
+        {
+          "step_index": 3,
+          "action": "screenshot",
+          "expected": "screenshot",
+          "observed": ".qa/reports/screenshots/qap-provisional-2AmHy4/screenshot_1795452138639.png",
+          "started_at": "2026-11-23T16:42:18.639Z",
+          "finished_at": "2026-11-23T16:42:18.679Z",
+          "status": "passed",
+          "duration_ms": 40,
+          "screenshot": ".qa/reports/screenshots/qap-provisional-2AmHy4/screenshot_1795452138639.png",
+          "focused_screenshot": false
+        }
+      ],
+      "screenshots": [
+        ".qa/reports/screenshots/qap-provisional-2AmHy4/assert_835befe1-6718-5ad5-84bf-0177f4ee2e27_step_1_1795452138368.png",
+        ".qa/reports/screenshots/qap-provisional-2AmHy4/screenshot_1795452138639.png"
+      ],
+      "attempt_id": "att_48c321138ba14a57",
+      "video_path": ".qa/runtime/runs/att_48c321138ba14a57/artifacts/attempt.webm",
+      "trace_zip_path": ".qa/runtime/runs/att_48c321138ba14a57/artifacts/trace.zip",
+      "timeline_path": ".qa/runtime/runs/att_48c321138ba14a57/artifacts/timeline.json"
+    }
+  ]
+}
