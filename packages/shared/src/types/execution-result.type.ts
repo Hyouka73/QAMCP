@@ -2,6 +2,7 @@
  * Tipos TypeScript para el contrato de resultado de ejecución (S5-001)
  * Refleja estrictamente el esquema draft-07 execution-result.schema.json
  */
+import type { VisualEvidenceStatus } from './capture-evidence.type.js';
 
 export type ExecutionStatus = 'passed' | 'failed' | 'partial' | 'error';
 
@@ -49,6 +50,8 @@ export interface ExecutionArtifactError {
 }
 
 export interface ExecutionArtifactsManifest {
+  visual_evidence_status?: VisualEvidenceStatus;
+  evidence_manifest_path?: string;
   video_path?: string | null;
   trace_zip_path?: string | null;
   timeline_path?: string | null;

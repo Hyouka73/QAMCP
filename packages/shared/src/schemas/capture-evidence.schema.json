@@ -1,0 +1,486 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "QAP Evidence Manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "_version",
+    "project_id",
+    "attempt_id",
+    "visual_evidence_status",
+    "decisions",
+    "segments",
+    "artifacts",
+    "suppressions"
+  ],
+  "properties": {
+    "_version": {
+      "const": "1"
+    },
+    "project_id": { "type": "string", "minLength": 1 },
+    "attempt_id": { "type": "string", "minLength": 1 },
+    "visual_evidence_status": {
+      "enum": [
+        "captured",
+        "partial",
+        "suppressed_by_policy",
+        "capture_failed",
+        "integrity_degraded"
+      ]
+    },
+    "decisions": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/decision" }
+    },
+    "segments": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/segment" }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/artifact" }
+    },
+    "suppressions": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/suppression" }
+    }
+  },
+  "definitions": {
+    "issuer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "issuer_kind",
+        "issuer_id",
+        "grant_generation",
+        "issued_at",
+        "expires_at",
+        "signature_or_digest"
+      ],
+      "properties": {
+        "issuer_kind": {
+          "enum": [
+            "workspace_owner_host",
+            "ci_policy_authority",
+            "controlled_fixture_signer"
+          ]
+        },
+        "issuer_id": { "type": "string", "minLength": 1 },
+        "grant_generation": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "issued_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "expires_at": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "signature_or_digest": { "type": "string", "minLength": 1 }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "grant_id",
+        "project_id",
+        "env_id",
+        "allowed_origins",
+        "allowed_roles",
+        "allowed_route_patterns",
+        "allowed_iframe_origins",
+        "denied_route_patterns",
+        "allow_tracing_without_sensitive_inputs"
+      ],
+      "properties": {
+        "grant_id": { "type": "string", "minLength": 1 },
+        "project_id": { "type": "string", "minLength": 1 },
+        "env_id": { "type": "string", "minLength": 1 },
+        "allowed_origins": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "allowed_roles": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "allowed_route_patterns": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "allowed_iframe_origins": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "denied_route_patterns": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "allow_tracing_without_sensitive_inputs": {
+          "type": "boolean"
+        }
+      }
+    },
+    "technical": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_video_disabled",
+        "service_workers_blocked",
+        "cdp_fetch_hop_by_hop_active",
+        "auth_context_physically_separated",
+        "popups_excluded_from_capture",
+        "tracing_blocked_on_sensitive_inputs",
+        "staging_user_acl_verified",
+        "rest_encryption_applied"
+      ],
+      "properties": {
+        "record_video_disabled": {
+          "const": true
+        },
+        "service_workers_blocked": {
+          "type": "boolean"
+        },
+        "cdp_fetch_hop_by_hop_active": {
+          "type": "boolean"
+        },
+        "auth_context_physically_separated": {
+          "type": "boolean"
+        },
+        "popups_excluded_from_capture": {
+          "type": "boolean"
+        },
+        "tracing_blocked_on_sensitive_inputs": {
+          "type": "boolean"
+        },
+        "staging_user_acl_verified": {
+          "type": "boolean"
+        },
+        "rest_encryption_applied": {
+          "type": "boolean"
+        }
+      }
+    },
+    "owner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "environment_declared_synthetic",
+        "backend_pre_render_exclusion_claimed",
+        "residual_risk_acknowledged_by_owner",
+        "declaration_note"
+      ],
+      "properties": {
+        "environment_declared_synthetic": {
+          "type": "boolean"
+        },
+        "backend_pre_render_exclusion_claimed": {
+          "type": "boolean"
+        },
+        "residual_risk_acknowledged_by_owner": {
+          "type": "boolean"
+        },
+        "declaration_note": {
+          "type": "string"
+        }
+      }
+    },
+    "reason": {
+      "enum": [
+        "authentication_boundary",
+        "role_switch_boundary",
+        "grant_missing_or_revoked",
+        "private_capture_disabled",
+        "protected_volume_unverified",
+        "surface_not_admitted",
+        "capture_guard_failed",
+        "attempt_cancelled_or_aborted"
+      ]
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decision_id",
+        "mode",
+        "custody",
+        "issuer",
+        "scope",
+        "technical_enforcements",
+        "owner_declared",
+        "unverifiable_risks"
+      ],
+      "properties": {
+        "decision_id": { "type": "string", "minLength": 1 },
+        "mode": {
+          "enum": [
+            "VERIFIED_STRICT",
+            "PRIVATE_AUTHORIZED",
+            "MANDATORY_SUPPRESSION"
+          ]
+        },
+        "custody": {
+          "enum": [
+            "standard_exportable",
+            "private_encrypted_local_only",
+            "none"
+          ]
+        },
+        "issuer": {
+          "anyOf": [
+            { "$ref": "#/definitions/issuer" },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "scope": {
+          "anyOf": [
+            { "$ref": "#/definitions/scope" },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "technical_enforcements": { "$ref": "#/definitions/technical" },
+        "owner_declared": { "$ref": "#/definitions/owner" },
+        "unverifiable_risks": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "dynamic_navigation_unexpected_payload",
+              "unseen_http_response_or_unknown_secrets",
+              "raster_images_and_canvas_pixels",
+              "closed_shadow_dom_content",
+              "cross_origin_iframe_internal_state",
+              "server_side_role_privilege_drift",
+              "cleartext_staging_window_during_path_encoding",
+              "physical_media_wear_leveling_and_snapshots"
+            ]
+          }
+        },
+        "suppression_reason": { "$ref": "#/definitions/reason" }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "mode": {
+              "const": "VERIFIED_STRICT"
+            },
+            "custody": {
+              "const": "standard_exportable"
+            },
+            "issuer": { "$ref": "#/definitions/issuer" },
+            "scope": { "$ref": "#/definitions/scope" }
+          },
+          "not": {
+            "required": [
+              "suppression_reason"
+            ]
+          }
+        },
+        {
+          "properties": {
+            "mode": {
+              "const": "PRIVATE_AUTHORIZED"
+            },
+            "custody": {
+              "const": "private_encrypted_local_only"
+            },
+            "issuer": { "$ref": "#/definitions/issuer" },
+            "scope": { "$ref": "#/definitions/scope" }
+          },
+          "not": {
+            "required": [
+              "suppression_reason"
+            ]
+          }
+        },
+        {
+          "properties": {
+            "mode": {
+              "const": "MANDATORY_SUPPRESSION"
+            },
+            "custody": {
+              "const": "none"
+            }
+          },
+          "required": [
+            "suppression_reason"
+          ]
+        }
+      ]
+    },
+    "segment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_id",
+        "module_key",
+        "case_id",
+        "role_id",
+        "origin",
+        "started_at_epoch_ms",
+        "step_offsets_ms",
+        "decision_id",
+        "duration_ms"
+      ],
+      "properties": {
+        "artifact_id": { "type": "string", "minLength": 1 },
+        "module_key": { "type": "string", "minLength": 1 },
+        "case_id": { "type": "string", "minLength": 1 },
+        "role_id": { "type": "string", "minLength": 1 },
+        "origin": { "type": "string", "minLength": 1 },
+        "started_at_epoch_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "step_offsets_ms": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "step_index",
+              "offset_ms"
+            ],
+            "properties": {
+              "step_index": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "offset_ms": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        },
+        "decision_id": { "type": "string", "minLength": 1 },
+        "duration_ms": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_id",
+        "filename",
+        "kind",
+        "size_bytes",
+        "custody"
+      ],
+      "properties": {
+        "artifact_id": { "type": "string", "minLength": 1 },
+        "filename": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+        },
+        "kind": {
+          "enum": [
+            "webm",
+            "png",
+            "trace"
+          ]
+        },
+        "size_bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "custody": { "$ref": "#/definitions/artifactCustody" }
+      }
+    },
+    "artifactCustody": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "custody",
+        "encrypted_at_rest",
+        "plaintext_sha256",
+        "stored_sha256",
+        "export_permitted_by_default"
+      ],
+      "properties": {
+        "custody": {
+          "enum": [
+            "standard_exportable",
+            "private_encrypted_local_only"
+          ]
+        },
+        "encrypted_at_rest": {
+          "type": "boolean"
+        },
+        "cipher": {
+          "const": "aes-256-gcm"
+        },
+        "key_ref": { "type": "string", "minLength": 1 },
+        "aad": { "type": "string", "minLength": 1 },
+        "plaintext_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "stored_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "export_permitted_by_default": {
+          "type": "boolean"
+        }
+      },
+      "if": {
+        "properties": {
+          "custody": {
+            "const": "private_encrypted_local_only"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "cipher",
+          "key_ref",
+          "aad"
+        ],
+        "properties": {
+          "encrypted_at_rest": {
+            "const": true
+          },
+          "export_permitted_by_default": {
+            "const": false
+          }
+        }
+      }
+    },
+    "suppression": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "case_id",
+        "role_id",
+        "reason",
+        "recorded_at"
+      ],
+      "properties": {
+        "case_id": { "type": "string", "minLength": 1 },
+        "role_id": { "type": "string", "minLength": 1 },
+        "reason": { "$ref": "#/definitions/reason" },
+        "recorded_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

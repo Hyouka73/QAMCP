@@ -1,4 +1,5 @@
 import type { ExecutionResult, ExecutedCase, ExecutedStep } from '@qap/shared';
+import { visualEvidenceLabel } from './visual-evidence-labels.js';
 import type { IStorage } from '@qap/engine';
 
 /**
@@ -263,10 +264,12 @@ export async function generateHtmlReport(
 
   const { summary } = result;
   const artifacts = result.artifacts;
+  const visualStatus = artifacts?.visual_evidence_status;
   const attemptMetaHtml =
-    result.attempt_id || artifacts?.video_path || artifacts?.trace_zip_path || artifacts?.timeline_path
+    result.attempt_id || visualStatus || artifacts?.video_path || artifacts?.trace_zip_path || artifacts?.timeline_path
       ? `<div class="summary attempt-artifacts">
           ${result.attempt_id ? `<div class="stat">Intento: <code>${escapeHtml(result.attempt_id)}</code></div>` : ''}
+          ${visualStatus ? `<div class="stat">Evidencia visual · ${escapeHtml(visualEvidenceLabel(visualStatus))}</div>` : ''}
           ${artifacts?.video_path ? `<div class="stat">Video WebM: <code>${escapeHtml(artifacts.video_path)}</code></div>` : ''}
           ${artifacts?.trace_zip_path ? `<div class="stat">Playwright Trace: <code>${escapeHtml(artifacts.trace_zip_path)}</code></div>` : ''}
           ${artifacts?.timeline_path ? `<div class="stat">Timeline: <code>${escapeHtml(artifacts.timeline_path)}</code></div>` : ''}

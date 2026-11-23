@@ -3,6 +3,7 @@ import type { IStorage } from '@qap/engine';
 import type { ExecutionResult } from '@qap/shared';
 
 import { generateHtmlReport } from '../generators/html-report.js';
+import { generateMarkdownReport } from '../generators/markdown-report.js';
 
 class MockStorage implements Partial<IStorage> {
   private files = new Map<string, Buffer>();
@@ -49,6 +50,17 @@ function buildResult(overrides: Partial<ExecutionResult> = {}): ExecutionResult 
 }
 
 describe('generateHtmlReport (S5-003)', () => {
+  it('separa la supresión visual de un resultado funcional aprobado', async () => {
+    const storage = new MockStorage();
+    const result = buildResult({ artifacts: { visual_evidence_status: 'suppressed_by_policy' } });
+    const html = await generateHtmlReport(result, { storage: storage as unknown as IStorage });
+    const markdown = generateMarkdownReport(result);
+    expect(html).toContain('Evidencia visual · Suprimida por política');
+    expect(markdown).toContain('Evidencia visual · Suprimida por política');
+    expect(html).not.toContain('Video WebM:');
+    expect(markdown).not.toContain('Video WebM:');
+  });
+
   it('debe generar un HTML autocontenido con CSS y JS embebidos', async () => {
     const storage = new MockStorage();
     const html = await generateHtmlReport(buildResult(), { storage: storage as unknown as IStorage });

@@ -31,6 +31,7 @@ export type { AuthProfiles, AuthProfile, PostLoginCondition, PreviousAccountRefe
 export type { Prereqs, Requirements, AuthRequirements, StatePrerequisite, Teardown } from './prereqs.type.js';
 
 // Execution Result (S5-001)
+export type * from './capture-evidence.type.js';
 export type {
   ExecutionResult,
   ExecutionSummary,

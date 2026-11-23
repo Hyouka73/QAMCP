@@ -5,6 +5,7 @@ import {
   projectInitSchema,
   environmentsSchema,
   authProfilesSchema,
+  captureEvidenceSchema,
   executionResultSchema,
   systemPromptSchema,
   moduleRepoMapSchema,
@@ -21,6 +22,7 @@ import {
   flowSchema,
 } from '../schemas/index.js';
 import type { ExecutionResult } from '../types/execution-result.type.js';
+import type { EvidenceManifestV1 } from '../types/capture-evidence.type.js';
 import type { RepoMap } from '../types/repo-map.type.js';
 import type { GuardrailDefinition } from '../types/guardrails.js';
 import type { LifecycleState } from '../types/lifecycle-state.type.js';
@@ -221,6 +223,7 @@ export class SchemaValidator {
       ['module-candidates', ajv.compile(moduleCandidatesSchema)],
       ['tc-case', ajv.compile(tcCaseSchema)],
       ['flow', ajv.compile(flowSchema)],
+      ['capture-evidence', ajv.compile(captureEvidenceSchema)],
     ]);
     // Publish only after every schema compiled successfully, preserving the
     // constructor's fail-closed behavior if a canonical schema is invalid.
@@ -266,6 +269,10 @@ export class SchemaValidator {
 
   public validateExecutionResult(data: unknown): ValidationResult<ExecutionResult> {
     return this.runValidation<ExecutionResult>('execution-result', data);
+  }
+
+  public validateEvidenceManifest(data: unknown): ValidationResult<EvidenceManifestV1> {
+    return this.runValidation<EvidenceManifestV1>('capture-evidence', data);
   }
 
   validateSystemPrompt(data: unknown): ValidationResult {

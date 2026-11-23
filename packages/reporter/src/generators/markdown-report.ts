@@ -1,4 +1,5 @@
 import type { ExecutionResult, ExecutedCase, ExecutedStep } from '@qap/shared';
+import { visualEvidenceLabel } from './visual-evidence-labels.js';
 
 /**
  * Generador de reporte Markdown (logs en texto) para S5-004.
@@ -63,6 +64,10 @@ export function generateMarkdownReport(result: ExecutionResult): string {
 
   const casesMd = result.cases.map(renderCase).join('\n\n');
   const artifactLines: string[] = [];
+  const visualStatus = result.artifacts?.visual_evidence_status;
+  if (visualStatus) {
+    artifactLines.push(`- Evidencia visual · ${visualEvidenceLabel(visualStatus)}`);
+  }
   if (result.attempt_id) {
     artifactLines.push(`- Intento: \`${escapeMd(result.attempt_id)}\``);
   }

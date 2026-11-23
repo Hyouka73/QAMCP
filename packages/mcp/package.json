@@ -27,7 +27,7 @@
     "@qap/playwright-runner": "workspace:*",
     "@qap/reporter": "workspace:*",
     "@qap/shared": "workspace:*",
-    "playwright-core": "^1.62.1",
+    "playwright-core": "1.63.0",
     "yaml": "^2.9.0"
   },
   "devDependencies": {

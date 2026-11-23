@@ -34,6 +34,7 @@ import authProfilesSchema from './auth-profiles.schema.json' with { type: 'json'
 import profilesSchema from './profiles.schema.json' with { type: 'json' };
 import environmentsSchema from './environments.schema.json' with { type: 'json' };
 import executionResultSchema from './execution-result.schema.json' with { type: 'json' };
+import captureEvidenceSchema from './capture-evidence.schema.json' with { type: 'json' };
 import moduleContextSchema from './module-context.schema.json' with { type: 'json' };
 import prereqsSchema from './prereqs.schema.json' with { type: 'json' };
 import projectInitSchema from './project-init.schema.json' with { type: 'json' };
@@ -62,6 +63,7 @@ export {
   profilesSchema,
   environmentsSchema,
   executionResultSchema,
+  captureEvidenceSchema,
   moduleContextSchema,
   prereqsSchema,
   projectInitSchema,
@@ -92,6 +94,7 @@ export const schemas = {
   profiles: profilesSchema,
   environments: environmentsSchema,
   'execution-result': executionResultSchema,
+  'capture-evidence': captureEvidenceSchema,
   'module-context': moduleContextSchema,
   prereqs: prereqsSchema,
   'project-init': projectInitSchema,

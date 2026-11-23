@@ -96,6 +96,10 @@
       "additionalProperties": false,
       "description": "Artefactos físicos de evidencia Playwright asociados al intento",
       "properties": {
+        "visual_evidence_status": {
+          "enum": ["captured", "partial", "suppressed_by_policy", "capture_failed", "integrity_degraded"]
+        },
+        "evidence_manifest_path": { "type": "string", "minLength": 1 },
         "video_path": { "type": ["string", "null"] },
         "trace_zip_path": { "type": ["string", "null"] },
         "timeline_path": { "type": ["string", "null"] },

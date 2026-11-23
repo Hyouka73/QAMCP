@@ -49,8 +49,8 @@ importers:
         specifier: workspace:*
         version: link:../shared
       playwright-core:
-        specifier: ^1.62.1
-        version: 1.62.1
+        specifier: 1.63.0
+        version: 1.63.0
     devDependencies:
       '@types/node':
         specifier: ^26.2.0
@@ -215,8 +215,8 @@ importers:
         specifier: workspace:*
         version: link:../shared
       playwright-core:
-        specifier: ^1.62.1
-        version: 1.62.1
+        specifier: 1.63.0
+        version: 1.63.0
       yaml:
         specifier: ^2.9.0
         version: 2.9.0
@@ -249,8 +249,8 @@ importers:
         specifier: workspace:*
         version: link:../shared
       playwright-core:
-        specifier: ^1.49.0
-        version: 1.62.1
+        specifier: 1.63.0
+        version: 1.63.0
     devDependencies:
       '@types/node':
         specifier: ^26.2.0
@@ -280,8 +280,8 @@ importers:
         specifier: workspace:*
         version: link:../shared
       playwright-core:
-        specifier: ^1.62.1
-        version: 1.62.1
+        specifier: 1.63.0
+        version: 1.63.0
     devDependencies:
       '@types/node':
         specifier: ^26.2.0
