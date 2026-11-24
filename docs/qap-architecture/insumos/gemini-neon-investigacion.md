@@ -1,3 +1,5 @@
+> **Vigencia documental.** Esta investigación conserva criterios, experimentos y propuestas para evaluación. El expediente consolidado aplica la precedencia de D01–D21. [Entrada para Gemini Neon](../revision-neon.md).
+
 # QAP · Investigación de Gemini Neon para el cierre de requisitos
 
 **Estado:** investigación de origen, pendiente de ratificación.

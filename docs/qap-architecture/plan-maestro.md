@@ -1,3 +1,5 @@
+> **Vigencia documental.** El plan conserva sus contratos, compuertas y criterios históricos. El expediente consolidado prevalece para alcance, política y aceptación donde exista discrepancia. [Entrada para Gemini Neon](revision-neon.md).
+
 # QAP · Plan maestro consolidado
 
 > **PROPUESTA PENDIENTE DE APROBACIÓN**

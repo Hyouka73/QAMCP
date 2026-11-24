@@ -1,3 +1,5 @@
+> **Vigencia documental.** La visión de autonomía se conserva. La definición histórica de salida del MVP queda subordinada al alcance de lanzamiento de D01–D21. [Entrada para Gemini Neon](qap-architecture/revision-neon.md).
+
 # Visión de producto QAP — QA autónomo
 
 > **Autoría:** la visión, los principios de producto y la arquitectura objetivo de QAP pertenecen a su creador. Codex, Antigravity y otros agentes son herramientas de implementación, revisión y operación, no los autores de esta visión.

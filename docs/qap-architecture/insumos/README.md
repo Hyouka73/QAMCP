@@ -1,3 +1,5 @@
+> **Vigencia documental.** Este índice conserva la procedencia de una ronda anterior. La revisión final comienza en el expediente consolidado, que recoge el alcance aprobado por el propietario. [Entrada para Gemini Neon](../revision-neon.md).
+
 # QAP · Índice de arquitectura, investigaciones y procedencia
 
 La línea base de esta ronda es [`develop` en `fb4d18521844e5cd59ebd4107f75ebe0d320b33c`](https://github.com/Hyouka73/QAMCP/tree/fb4d18521844e5cd59ebd4107f75ebe0d320b33c). La publicación archiva insumos para la siguiente dirección técnica. Aún no existe autorización para modificar la arquitectura, implementar ni iniciar G0/G1. El plan maestro, su secuencia de compuertas y la matriz histórica de 82 requisitos se conservan íntegros.

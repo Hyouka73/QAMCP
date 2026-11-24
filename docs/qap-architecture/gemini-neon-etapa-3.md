@@ -1,3 +1,5 @@
+> **Vigencia documental.** La matriz de Etapa 3 conserva los 82 IDs de origen y su diagnóstico histórico. El expediente consolidado aplica D01–D21 y fija la referencia documental de 87 IDs. [Entrada para Gemini Neon](revision-neon.md).
+
 > **PROPUESTA PENDIENTE DE APROBACIÓN** — Documento de referencia de Gemini Neon.
 
 # QAP — Etapa 3: Diseño de Arquitectura Objetivo y Plan Maestro de Reconstrucción

@@ -1,3 +1,5 @@
+> **Vigencia documental.** La propuesta histórica de 88 IDs se conserva íntegra. El expediente consolidado usa 87 IDs y absorbe UTCP/OpenAPI en dos requisitos existentes. [Entrada para Gemini Neon](../revision-neon.md).
+
 # QAP · Evaluación independiente para el cierre de requisitos
 
 **Estado:** análisis posterior y propuesta de requisitos pendiente de ratificación.

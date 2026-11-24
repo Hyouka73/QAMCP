@@ -1,3 +1,5 @@
+> **Vigencia documental.** Registro histórico de revisión. El expediente consolidado incorpora la trazabilidad a D01–D21 y evidencia posterior acotada por SHA. [Entrada para Gemini Neon](revision-neon.md).
+
 # Revisión arquitectónica independiente de QAP
 
 > **PROPUESTA PENDIENTE DE APROBACIÓN**

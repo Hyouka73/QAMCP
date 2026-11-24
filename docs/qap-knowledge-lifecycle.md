@@ -1,3 +1,5 @@
+> **Vigencia documental.** Este documento conserva el contrato operativo anterior. D04 del acta consolidada prevalece sobre la aprobación humana ordinaria por caso. [Entrada para Gemini Neon](qap-architecture/revision-neon.md).
+
 # Ciclo de conocimiento y automatización de QAP
 
 ## Límites de los tres ciclos
