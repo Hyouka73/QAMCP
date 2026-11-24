@@ -8,6 +8,8 @@
 
 **AV-04.** [Dictamen independiente](dictamen-av04.md) aceptado por el Orquestador en diseño enmendado con reservas y validación experimental pendiente. [Decisión AV-04 y encargo AV-05](decision-orquestador-av04-encargo-av05.md). [Enmiendas](enmiendas-av04.md) · [Protocolos](protocolos-av04.md) · [Encargo vinculante](encargo-contravalidacion-av04.md) · [Informe principal de Neon, antecedente](informe-neon-av04.md).
 
+**AV-05:** [Informe de Neon](informe-neon-av05.md) recibido y [encargo de contravalidación Codex](encargo-contravalidacion-av05.md) publicado. Diseño aún no aceptado; identidad del snapshot local y hallazgos pendientes de cotejo remoto.
+
 ## Revisión del expediente
 
 - [Dictamen independiente AV-01](dictamen-av01.md) y [catálogo vigente](../catalogo-requisitos.md).
