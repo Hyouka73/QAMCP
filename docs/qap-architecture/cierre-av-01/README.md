@@ -2,11 +2,11 @@
 
 **Expediente de cierre documental y contravalidación.** Base c1d1680e6531a5132456665ca6851b6cbf5ff528 · origin/develop · 24 de noviembre de 2026.
 
-**AV-01 cerrado documentalmente. AV-02 aceptada por el Orquestador para continuar las auditorías, con reservas y validación experimental pendiente. AV-03 aceptada por el Orquestador en diseño enmendado con reservas y validación experimental pendiente. La tabla de AR-52 se entrega en AV-04 para decisión del Orquestador.** La arquitectura híbrida de AR-27 es candidata. El diseño definitivo de captura privada, la ejecución de su implementación y la activación de `PRIVATE_AUTHORIZED` están sujetos a las compuertas de la [fe de correcciones](fe-correcciones-ar27.md). La arquitectura global sigue pendiente. [Decisión del Orquestador y encargo AV-03](decision-orquestador-av02-encargo-av03.md).
+**AV-01 cerrado documentalmente. AV-02 aceptada por el Orquestador para continuar las auditorías, con reservas y validación experimental pendiente. AV-03 aceptada por el Orquestador en diseño enmendado con reservas y validación experimental pendiente. La tabla de AR-52 queda aceptada en el diseño enmendado de AV-04.** La arquitectura híbrida de AR-27 es candidata. El diseño definitivo de captura privada, la ejecución de su implementación y la activación de `PRIVATE_AUTHORIZED` están sujetos a las compuertas de la [fe de correcciones](fe-correcciones-ar27.md). La arquitectura global sigue pendiente. [Decisión del Orquestador y encargo AV-03](decision-orquestador-av02-encargo-av03.md).
 
 **Gobernanza vigente.** [Decisión AV-03, reasignación Neon/Codex y encargo AV-04](decision-orquestador-av03-encargo-av04.md). Antigravity queda temporalmente fuera de las auditorías, no del alcance de compatibilidad del producto.
 
-**AV-04.** [Dictamen independiente](dictamen-av04.md) favorable al diseño enmendado con reservas, pendiente de decisión del Orquestador y validación experimental. [Enmiendas](enmiendas-av04.md) · [Protocolos](protocolos-av04.md) · [Encargo vinculante](encargo-contravalidacion-av04.md) · [Informe principal de Neon, antecedente](informe-neon-av04.md).
+**AV-04.** [Dictamen independiente](dictamen-av04.md) aceptado por el Orquestador en diseño enmendado con reservas y validación experimental pendiente. [Decisión AV-04 y encargo AV-05](decision-orquestador-av04-encargo-av05.md). [Enmiendas](enmiendas-av04.md) · [Protocolos](protocolos-av04.md) · [Encargo vinculante](encargo-contravalidacion-av04.md) · [Informe principal de Neon, antecedente](informe-neon-av04.md).
 
 ## Revisión del expediente
 
