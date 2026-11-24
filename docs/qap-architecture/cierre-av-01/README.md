@@ -8,7 +8,7 @@
 
 **AV-04.** [Dictamen independiente](dictamen-av04.md) aceptado por el Orquestador en diseño enmendado con reservas y validación experimental pendiente. [Decisión AV-04 y encargo AV-05](decision-orquestador-av04-encargo-av05.md). [Enmiendas](enmiendas-av04.md) · [Protocolos](protocolos-av04.md) · [Encargo vinculante](encargo-contravalidacion-av04.md) · [Informe principal de Neon, antecedente](informe-neon-av04.md).
 
-**AV-05.** [Dictamen independiente](dictamen-av05.md) favorable al diseño enmendado con reservas, pendiente de decisión del Orquestador y validación. [Enmiendas](enmiendas-av05.md) · [Protocolos EXP-05a/b y EXP-06b](protocolos-av05.md) · [Cotejo remoto y fuentes](evidencia-av05.md) · [Encargo vinculante](encargo-contravalidacion-av05.md) · [Informe histórico de Neon](informe-neon-av05.md).
+**AV-05.** [Dictamen independiente](dictamen-av05.md) aceptado por el Orquestador en diseño enmendado con reservas y validación experimental pendiente. [Decisión AV-05 y encargo AV-06](decision-orquestador-av05-encargo-av06.md). [Enmiendas](enmiendas-av05.md) · [Protocolos EXP-05a/b y EXP-06b](protocolos-av05.md) · [Cotejo remoto y fuentes](evidencia-av05.md) · [Encargo vinculante](encargo-contravalidacion-av05.md) · [Informe histórico de Neon](informe-neon-av05.md).
 
 ## Revisión del expediente
 
