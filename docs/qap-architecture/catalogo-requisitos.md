@@ -575,7 +575,7 @@ Unificar publicación atómica sobre el almacén único eliminando DDL duplicado
 - **Aceptación candidata.** Cortar durante publicación y recuperación. Conservar cada intento confirmado una vez y rechazar media ajena o alterada.
 - **Procedencia.** [Fila original de Neon](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/docs/qap-architecture/gemini-neon-etapa-3.md#L109) · [`packages/playwright-runner/src/provisional-execution.ts:175-534`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/playwright-runner/src/provisional-execution.ts#L175) · [`packages/playwright-runner/src/evidence-artifacts.ts:881-908`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/playwright-runner/src/evidence-artifacts.ts#L881).
 
-- **Contravalidación AV-02.** Prevención previa y custodia de todos los temporales. Contrato de cobertura abierto. [AR-27](cierre-av-01/dictamen-av02.md#ar-27).
+- **Contravalidación AV-02.** Exclusión previa y custodia de todas las escrituras desde el primer byte. Cobertura y selección de implementación pendientes de prueba. [AR-27](cierre-av-01/fe-correcciones-ar27.md).
 
 ## Provisión y limpieza
 
@@ -976,7 +976,7 @@ Autorización y custodia del ciclo de evidencia privada
 - **Aceptación candidata.** Separar autorización de capturar, acceder, conservar y exportar. Probar vigencia de captura ≤30 días, renovación y revocación, custodia desde la primera escritura, catálogo/visor confinado y exportación sin media privada por defecto. Perder garantías en login/MFA/SSO o superficie sensible exige supresión. Verificar eliminación lógica y riesgo residual.
 - **Procedencia y trazabilidad.** [Decisiones D01–D21](acta-decisiones.md) y [matriz de trazabilidad](trazabilidad.md). G0/G1/G3/G5/G6, E2/E5/E6/E8, AS-01/03/04, EXP-06.
 
-- **Contravalidación AV-02.** Prevención previa y custodia de todos los temporales. Contrato de cobertura abierto. [AR-27](cierre-av-01/dictamen-av02.md#ar-27).
+- **Contravalidación AV-02.** Exclusión previa en ambos modos y supresión anticipada cuando falte garantía. Activación privada condicionada a cobertura acreditada, EXP-06a/c y DE-02. [AR-27](cierre-av-01/fe-correcciones-ar27.md).
 
 - **Contravalidación AV-02.** Cuatro permisos independientes y ratificación de riesgo pendiente DE-02. [AR-32](cierre-av-01/dictamen-av02.md#ar-32).
 

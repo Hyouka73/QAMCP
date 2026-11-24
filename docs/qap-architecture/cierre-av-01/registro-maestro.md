@@ -31,7 +31,7 @@ Contravalidadores indicados por función, pendientes de designación. Severidad 
 | VALIDADA | 6 |
 | Total | 57 |
 
-Los estados principales son excluyentes. Hay seis cierres documentales de AV-01. En AV-02 hay diez diseños cerrados en su ámbito (nueve previos más la resolución técnica de [AR-27](resolucion-ar27.md)) y diez expedientes de validación experimental pendientes, sujetos a decisión del Orquestador. AR-04 añade validación pendiente dentro de los seis cierres documentales. AR-27 pasa a `VALIDACIÓN EXPERIMENTAL PENDIENTE` sin bloquear planificación, manteniendo bloqueada la activación de `PRIVATE_AUTHORIZED` hasta `EXP-06a/c` y `DE-02`. AR-24/40 condicionan el cierre de G0. Otros bloqueantes pertenecen a auditorías fuera de esta intervención. Diseño, experimentos y activación son atributos independientes.
+Los estados principales son excluyentes. Hay seis cierres documentales de AV-01 y AR-04 añade validación pendiente dentro de ese grupo. En AV-02 hay nueve diseños previamente aceptados, AR-27 con invariantes corregidos y arquitectura candidata, y diez expedientes de validación experimental pendientes. Queda pendiente la decisión del Orquestador sobre AV-02. AR-27 conserva el estado principal `VALIDACIÓN EXPERIMENTAL PENDIENTE` con compuertas específicas para diseño definitivo, ejecución de la implementación y activación privada. AR-24/40 condicionan el cierre de G0. DE-01, DE-02 y DE-04 siguen pendientes en sus aspectos abiertos. [Fe de correcciones AR-27](fe-correcciones-ar27.md).
 
 ## Expedientes y registros
 
@@ -247,17 +247,17 @@ Los estados principales son excluyentes. Hay seis cierres documentales de AV-01.
 
 **Requisitos afectados.** REQ-SEG-002.3, POL-CAP-001, REQ-RUN-001.6, REQ-REP-001.1.
 
-**Evidencia disponible y discrepancia.** La traza de red sola falló en transiciones SPA/MFA. AEAD por bloques y capacidades por motor son propuestas. Referencias: N HN-02, §6.F, EXP-06. A HN-02, O-01, C-04, §10.3. Orq §7. E AS-04, H-REV-04.
+**Evidencia disponible y discrepancia.** AS-04 reprodujo el canario de MFA en WebM tras una transición SPA sin tráfico de red. La inspección de Playwright 1.62.1 acredita que `screencast.start({ path })` escribe en `artifactsDir` antes de copiar al destino solicitado. El formato AEAD propio queda retirado. [Fuentes y cobertura](fe-correcciones-ar27.md#4-capturadores-y-cobertura).
 
-**Evidencia necesaria.** EXP-06a/c con evidencias de temporales y protección desde origen, canarios de primer cuadro, cortes y Range autorizado.
+**Evidencia necesaria.** EXP-06a/c sobre frontera preventiva, custodia desde la primera escritura, contención, recuperación, revocación y controles positivos de video empresarial, búsqueda y fidelidad. [Protocolos corregidos](protocolos-exp-06-ac.md).
 
 **Responsable principal.** AV-02. **Dependencias.** AV-05, AV-06 **Contravalidador.** Revisor de seguridad y privacidad independiente.
 
-**Severidad.** Crítica. **Estado.** VALIDACIÓN EXPERIMENTAL PENDIENTE. **Fase.** Contrato cerrado; verificación G0/G1 (`EXP-06a`) y G3/G5 (`EXP-06c`).
+**Severidad.** Crítica. **Estado.** VALIDACIÓN EXPERIMENTAL PENDIENTE. **Fase.** EXP-06a verifica viabilidad y selección al cierre G0/apertura G1. EXP-06c/E6 verifica visor y paquete de producto en G3/G5.
 
-**Riesgo residual.** Persistencia de material sensible en RAM/swap/snapshots, procesos del mismo UID o transiciones SPA sin red no cooperativas (`DE-02` pendiente).
+**Riesgo residual.** Información inesperada en superficie admitida, copias ya entregadas y persistencia en RAM, swap, volcados, snapshots o respaldos. Las transiciones prohibidas conocidas sin barrera previa requieren supresión anticipada. DE-02 pendiente.
 
-**Contravalidación.** [AR-27](dictamen-av02.md#ar-27) · [Resolución AR-27](resolucion-ar27.md). Prevención previa (`AuthAcquisitionContext`), captura nativa confinada sobre `FDE` verificada + Streaming AEAD (Alternativa C) y matriz SO/motor. **Diseño.** Cerrado en su ámbito, sujeto a decisión del Orquestador. **Experimental.** Pendiente (`EXP-06a/c`). Activación de `PRIVATE_AUTHORIZED` bloqueada hasta `EXP-06a/c` y `DE-02`, sin bloquear planificación.
+**Contravalidación.** Invariantes aceptados, con C como candidata del Orquestador y A como respaldo. **Planificación.** Se puede planificar el trabajo con ambas rutas. Sigue bloqueado congelar el diseño definitivo hasta demostrar una vía compatible con la cobertura obligatoria. **Ejecución.** EXP-06a bloquea cierre G0/apertura G1 para la implementación. **Activación privada.** Bloqueada hasta EXP-06a/c, cobertura acreditada y ratificación DE-02. [Dictamen AR-27](dictamen-av02.md#ar-27) · [Fe de correcciones](fe-correcciones-ar27.md) · [Antecedente Antigravity](resolucion-ar27.md).
 
 ### AR-28
 
@@ -1383,7 +1383,7 @@ Los informes preservados conservan la numeración original de sus secciones. L r
 
 #### Alias EXP-06a
 
-[A](auditoria-antigravity.md) L459. Registros [AR-27](registro-maestro.md#ar-27).
+[A](auditoria-antigravity.md) L459. [Protocolo corregido EXP-06a](protocolos-exp-06-ac.md#exp-06a--viabilidad-y-selección-cierre-g0-y-apertura-g1). Registro [AR-27](registro-maestro.md#ar-27).
 
 #### Alias EXP-06b
 
@@ -1391,7 +1391,7 @@ Los informes preservados conservan la numeración original de sus secciones. L r
 
 #### Alias EXP-06c
 
-[A](auditoria-antigravity.md) L459. Registros [AR-39](registro-maestro.md#ar-39).
+[A](auditoria-antigravity.md) L459. [Protocolo corregido EXP-06c](protocolos-exp-06-ac.md#exp-06c--visor-reproducción-revocable-y-paquete-portable-g3g5-y-e6). Registros [AR-27](registro-maestro.md#ar-27) y [AR-39](registro-maestro.md#ar-39).
 
 #### Alias H01
 

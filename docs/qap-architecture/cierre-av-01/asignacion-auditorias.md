@@ -26,9 +26,9 @@ El [registro maestro](registro-maestro.md#distribución-por-auditoría) contiene
 | EXP-04 · Empaquetado y navegadores | AV-06 | Smoke G1 y validación G5, después de correcciones de empaquetado. | [AR-37](registro-maestro.md#ar-37) |
 | EXP-05a · Factibilidad, licencias y contratos | AV-05 | Antes de congelar puerto, propuesta G0. | [AR-17](registro-maestro.md#ar-17) |
 | EXP-05b · DataPlan, reconciliación y referencia | AV-05 | Inicio G3 antes de congelar comportamiento integrado. | [AR-17](registro-maestro.md#ar-17) |
-| EXP-06a · Viabilidad de custodia preventiva | AV-02 | Contrato temprano G0/G1. | [AR-27](registro-maestro.md#ar-27) |
+| EXP-06a · Prevención, custodia y viabilidad de captura | AV-02 | Cierre G0 y apertura G1 para ejecutar la implementación de captura privada. | [AR-27](registro-maestro.md#ar-27) · [Protocolo corregido](protocolos-exp-06-ac.md#exp-06a--viabilidad-y-selección-cierre-g0-y-apertura-g1) |
 | EXP-06b · Extracción PDF/Excel y cálculo | AV-05 | G2 antes del diseño definitivo de ingesta y aceptación tabular. | [AR-38](registro-maestro.md#ar-38) |
-| EXP-06c · Evidencia, accesibilidad y export | AV-06 | G3/G5 sobre suite integrada y distribución final. | [AR-39](registro-maestro.md#ar-39) |
+| EXP-06c · Evidencia, visor revocable, accesibilidad y export | AV-06, con criterios de privacidad de AV-02 | G3/G5 y E6 sobre suite integrada y distribución final. | [AR-27](registro-maestro.md#ar-27) · [AR-39](registro-maestro.md#ar-39) · [Protocolo corregido](protocolos-exp-06-ac.md#exp-06c--visor-reproducción-revocable-y-paquete-portable-g3g5-y-e6) |
 | EXP-07 · Bóveda persistente, alta local y CI sin TTY | AV-02 | Selección de proveedor G0 y habilitación E2/G1. Depende de AR-04/14/47 y AV-03/07. | [AR-07](registro-maestro.md#ar-07) · [Criterios y dependencias](dictamen-av02.md#exp-07--incorporación-propuesta) |
 
 La posición de los ensayos queda registrada como propuesta para revisión. [AR-19](registro-maestro.md#ar-19) conserva el desacuerdo de secuencia y sus prerrequisitos.

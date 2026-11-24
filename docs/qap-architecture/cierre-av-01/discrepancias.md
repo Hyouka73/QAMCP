@@ -43,4 +43,4 @@ Las diferencias siguientes indican dónde una propuesta puede cambiar una obliga
 
 ## Contravalidación AV-02
 
-Las [ocho objeciones y sus pendientes](dictamen-av02.md#estado-de-objeciones-y-ratificación) quedan trazadas al dictamen. AR-27 sigue abierto para el plan definitivo de captura. AR-24/40 condicionan el cierre de G0. DE-01/02/04 siguen pendientes en sus aspectos abiertos.
+Las [ocho objeciones y sus pendientes](dictamen-av02.md#estado-de-objeciones-y-ratificación) quedan trazadas al dictamen. La [fe de correcciones AR-27](fe-correcciones-ar27.md) resuelve las discrepancias documentales de criptografía, exclusión previa, cobertura y aceptación experimental. El diseño definitivo de captura sigue abierto hasta demostrar viabilidad. AR-24/40 condicionan el cierre de G0. DE-01/02/04 siguen pendientes en sus aspectos abiertos.
