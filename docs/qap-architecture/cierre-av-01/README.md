@@ -2,12 +2,12 @@
 
 **Expediente de cierre documental y contravalidación.** Base c1d1680e6531a5132456665ca6851b6cbf5ff528 · origin/develop · 24 de noviembre de 2026.
 
-**AV-01 cerrado documentalmente. AV-02 contravalidado con reservas, pendiente de decisión del Orquestador.** AR-27 sigue abierto para el plan de captura privada. La arquitectura global sigue pendiente.
+**AV-01 cerrado documentalmente. AV-02 contravalidado con reservas, pendiente de decisión del Orquestador.** [Resolución técnica de AR-27](resolucion-ar27.md) emitida como `VALIDACIÓN EXPERIMENTAL PENDIENTE, SIN BLOQUEAR PLANIFICACIÓN` (activación de `PRIVATE_AUTHORIZED` bloqueada hasta `EXP-06a/c` y `DE-02`). La arquitectura global sigue pendiente.
 
 ## Revisión del expediente
 
 - [Dictamen independiente AV-01](dictamen-av01.md) y [catálogo vigente](../catalogo-requisitos.md).
-- [Dictamen independiente AV-02](dictamen-av02.md), [encargo](encargo-orquestador-av01-av02.md) y [propuesta Neon](contravalidacion-neon-av01-av02.md).
+- [Dictamen independiente AV-02](dictamen-av02.md), [resolución técnica AR-27](resolucion-ar27.md), [encargo](encargo-orquestador-av01-av02.md) y [propuesta Neon](contravalidacion-neon-av01-av02.md).
 - [Matriz individual](matriz-semantica.md), [registro maestro y estados](registro-maestro.md#estados-vigentes), [asignaciones](asignacion-auditorias.md) y [discrepancias](discrepancias.md).
 - [Fuentes recuperadas](fuentes-recuperadas/README.md), [D01–D21](../acta-decisiones.md) y [evidencia archivada](../evidencia-archivada.md).
 - [Informe inicial de AV-01](informe.md), antecedente histórico preservado.

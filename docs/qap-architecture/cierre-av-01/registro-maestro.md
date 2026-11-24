@@ -25,13 +25,13 @@ Contravalidadores indicados por función, pendientes de designación. Severidad 
 
 | Estado principal | Registros |
 | --- | --- |
-| BLOQUEANTE | 9 |
+| BLOQUEANTE | 8 |
 | PENDIENTE | 26 |
-| VALIDACIÓN EXPERIMENTAL PENDIENTE | 16 |
+| VALIDACIÓN EXPERIMENTAL PENDIENTE | 17 |
 | VALIDADA | 6 |
 | Total | 57 |
 
-Los estados principales son excluyentes. Hay seis cierres documentales de AV-01. En AV-02 hay nueve diseños aceptados en su ámbito, un contrato técnico abierto y diez expedientes de validación experimental pendientes. AR-04 añade validación pendiente dentro de los seis cierres documentales. AR-27 condiciona la planificación definitiva de captura privada. AR-24/40 condicionan el cierre de G0. Otros bloqueantes pertenecen a auditorías fuera de esta intervención. Diseño, experimentos y activación son atributos independientes.
+Los estados principales son excluyentes. Hay seis cierres documentales de AV-01. En AV-02 hay diez diseños cerrados en su ámbito (nueve previos más la resolución técnica de [AR-27](resolucion-ar27.md)) y diez expedientes de validación experimental pendientes, sujetos a decisión del Orquestador. AR-04 añade validación pendiente dentro de los seis cierres documentales. AR-27 pasa a `VALIDACIÓN EXPERIMENTAL PENDIENTE` sin bloquear planificación, manteniendo bloqueada la activación de `PRIVATE_AUTHORIZED` hasta `EXP-06a/c` y `DE-02`. AR-24/40 condicionan el cierre de G0. Otros bloqueantes pertenecen a auditorías fuera de esta intervención. Diseño, experimentos y activación son atributos independientes.
 
 ## Expedientes y registros
 
@@ -253,11 +253,11 @@ Los estados principales son excluyentes. Hay seis cierres documentales de AV-01.
 
 **Responsable principal.** AV-02. **Dependencias.** AV-05, AV-06 **Contravalidador.** Revisor de seguridad y privacidad independiente.
 
-**Severidad.** Crítica. **Estado.** BLOQUEANTE. **Fase.** Contrato temprano, verificación G3/G5.
+**Severidad.** Crítica. **Estado.** VALIDACIÓN EXPERIMENTAL PENDIENTE. **Fase.** Contrato cerrado; verificación G0/G1 (`EXP-06a`) y G3/G5 (`EXP-06c`).
 
-**Riesgo residual.** Persistencia de material sensible desde primer cuadro, caída, swap o copia no controlada.
+**Riesgo residual.** Persistencia de material sensible en RAM/swap/snapshots, procesos del mismo UID o transiciones SPA sin red no cooperativas (`DE-02` pendiente).
 
-**Contravalidación.** [AR-27](dictamen-av02.md#ar-27). Prevención previa y custodia de todos los temporales. Contrato de cobertura abierto. **Diseño.** Abierto. **Experimental.** Pendiente. Bloqueante del plan definitivo de captura privada.
+**Contravalidación.** [AR-27](dictamen-av02.md#ar-27) · [Resolución AR-27](resolucion-ar27.md). Prevención previa (`AuthAcquisitionContext`), captura nativa confinada sobre `FDE` verificada + Streaming AEAD (Alternativa C) y matriz SO/motor. **Diseño.** Cerrado en su ámbito, sujeto a decisión del Orquestador. **Experimental.** Pendiente (`EXP-06a/c`). Activación de `PRIVATE_AUTHORIZED` bloqueada hasta `EXP-06a/c` y `DE-02`, sin bloquear planificación.
 
 ### AR-28
 
