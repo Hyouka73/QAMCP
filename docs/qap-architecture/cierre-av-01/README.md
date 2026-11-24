@@ -6,6 +6,8 @@
 
 **Gobernanza vigente y siguiente encargo:** [Decisión AV-03, reasignación Neon/Codex y encargo AV-04](decision-orquestador-av03-encargo-av04.md). Antigravity queda temporalmente fuera de las auditorías, no del alcance de compatibilidad del producto.
 
+**AV-04:** [informe principal de Neon](informe-neon-av04.md) recibido; [contravalidación vinculante de Codex](encargo-contravalidacion-av04.md) pendiente. No constituye aprobación del diseño.
+
 ## Revisión del expediente
 
 - [Dictamen independiente AV-01](dictamen-av01.md) y [catálogo vigente](../catalogo-requisitos.md).
