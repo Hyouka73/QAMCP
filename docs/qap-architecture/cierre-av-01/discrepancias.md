@@ -23,15 +23,15 @@ Las diferencias siguientes indican dónde una propuesta puede cambiar una obliga
 | Material | Evidencia disponible y clase | Efecto sobre alcance o aceptación | Cierre |
 |---|---|---|---|
 | D01–D21 del propietario | Fuente normativa reproducida en [acta](../acta-decisiones.md) con procedencia. | Autoridad para alcance vigente y excepciones. Los contratos candidatos requieren aceptación posterior. | Cotejo de 21 áreas en la [matriz](matriz-semantica.md#veintiuna-áreas-de-decisión). |
-| Especificación Funcional Maestra Entregas 1–2 y Adenda | [Etapa 3](../gemini-neon-etapa-3.md) como fuente secundaria y [catálogo](../catalogo-requisitos.md) como consolidación. No se recuperaron archivos primarios. | Riesgo real de condiciones, exclusiones o una obligación ausente en la fuente secundaria. El conteo de 82 no elimina esa posibilidad. | AR-01. Solicitar originales o resolver expresamente la incertidumbre mediante acta. |
-| Consolidación original 87 y clasificación 60/20/7 | Cinco añadidos trazados a evaluación y encargo. Clasificación por ID reconstruida en Neon. | Se comprueban los IDs vigentes. Falta acreditación literal de la clasificación y de posibles matices de la adenda. | AR-01/02/56. Mantener registro de procedencia y tratar la clase como metadato. |
+| Especificación Funcional Maestra Entregas 1–2 y Adenda | [Copias textuales recuperadas](fuentes-recuperadas/README.md). | Nueve obligaciones restauradas. | [AR-01 cerrado documentalmente](dictamen-av01.md#ar-01). |
+| Consolidación original 87 y clasificación 60/20/7 | [Fe de erratas recuperada](fuentes-recuperadas/fe-erratas-neon.md). | La reconstrucción posterior difiere por ID. | [AR-02/56 cerrados documentalmente](dictamen-av01.md#ar-02). |
 | AS-01 y AS-03 originales | Código y H-REV como evidencia disponible, más referencias de AS-04. | No se puede acreditar cobertura histórica total ni decisiones de cierre. D18/D20 sostienen las obligaciones conocidas. | AR-07/24/47. Localizar actas o volver a acreditar controles sobre la base de producto autorizada. |
 | Acta de ejecución AS-02 | El árbol de AS-02 con diseño y pruebas originales archivadas. | Pruebas existentes en Git sin acta de ejecución. No acreditan paso de la prueba ni integración en develop. | AR-40. Evidencia fechada y en SHA objetivo. |
 | Dos decisiones de cierre citadas en AS-04 | Informe original archivado y resultados en fixture. La guarda de red no evitó el canario en transición dentro del documento SPA. | Imposible atribuir autorizaciones, límites de custodia o cierre integral a esas notas ausentes. Operación privada permanece condicionada. | AR-27/32/39. Recuperar las decisiones o recabar confirmación expresa y evidencia preventiva. |
 | Plan y laboratorio F0, vectores y hashes originales | Recovery y R2 archivados, reconstrucción distinta `ade7b4a` local. | Pérdida de procedencia de cifras y resultados. Sin efecto probado sobre D01–D21. No se reutiliza para aceptación. | AR-44. Nueva evidencia para E1–E8. |
 | Manuales versionados y acceso autorizado de LENDUS CORE | Obligación genérica D07–D11, sin fuente acreditada para dominio particular. | No acredita reglas contables, acceso ni alcance de un piloto concreto. | AR-18/30. Autorización y documentación por destino antes de validar. |
 
-**Objeción al Orquestador · AR-01.** Entregas 1–2 y Adenda podrían contener condiciones de aplicación, excepciones o criterios omitidos antes de Etapa 3. Incorporar copia auténtica para cotejo diferencial o recabar acta que identifique a Etapa 3, catálogo y D01–D21 como referencia operativa aceptada bajo incertidumbre. Si se recupera una obligación adicional, agregarla al inventario sin ajustar el número por cuota.
+**Resolución AR-01.** El [cotejo y los deltas](dictamen-av01.md#ar-01) cierran la objeción documental sobre los cinco textos recuperados. Cualquier obligación futura aprobada se incorpora con trazabilidad.
 
 ## Cinco decisiones empresariales pendientes
 
@@ -40,3 +40,7 @@ Las diferencias siguientes indican dónde una propuesta puede cambiar una obliga
 - **DE-03.** Umbrales, exclusiones, vetos, corpus y custodio independiente. [AR-06](registro-maestro.md#ar-06).
 - **DE-04.** Destinos y operaciones autorizadas, identidad read-only, limpieza y posición del piloto previo a lanzamiento. [AR-10](registro-maestro.md#ar-10), [AR-18](registro-maestro.md#ar-18), [AR-30](registro-maestro.md#ar-30).
 - **DE-05.** Cobertura de accesibilidad exigida por campaña o como compuerta. [AR-35](registro-maestro.md#ar-35).
+
+## Contravalidación AV-02
+
+Las [ocho objeciones y sus pendientes](dictamen-av02.md#estado-de-objeciones-y-ratificación) quedan trazadas al dictamen. AR-27 sigue abierto para el plan definitivo de captura. AR-24/40 condicionan el cierre de G0. DE-01/02/04 siguen pendientes en sus aspectos abiertos.

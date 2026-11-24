@@ -1,11 +1,11 @@
 # QAP · Matriz de asignación de auditorías específicas
 
-La asignación identifica el expediente responsable, las dependencias que se deben transferir y el contravalidador propuesto por función. Los nombres y la siguiente intervención quedan a decisión del Orquestador. Solo se ejecutó AV-01.
+La asignación identifica el expediente responsable, las dependencias que se deben transferir y el contravalidador propuesto por función. Los nombres y la siguiente intervención quedan a decisión del Orquestador. AV-01 cerrada documentalmente y AV-02 contravalidada.
 
 | Expediente | Estado de intervención | Registros principales | Dependencias que reciben o devuelven evidencia |
 |---|---|---|---|
-| AV-01 · Integridad y cobertura de requisitos | Ejecutada. Validable con correcciones concretas. | AR-01–04, AR-55–56 | AV-02, AV-03, AV-04, AV-05, AV-06 y AV-08 deben preservar alcance y condiciones probatorias. |
-| AV-02 · Seguridad, privacidad y autenticidad | Asignada | AR-07, AR-14, AR-24–25, AR-27–28, AR-31–32, AR-40, AR-47 | AV-03: frontera de proceso y secretos. AV-04/05: políticas hasta destino. AV-05/06: custodia, exportación y media. AV-07: remediación y corte. AV-08: riesgo y autorizaciones. |
+| AV-01 · Integridad y cobertura de requisitos | [Cerrada documentalmente](dictamen-av01.md). | AR-01–04, AR-55–56 | AV-02, AV-03, AV-04, AV-05, AV-06 y AV-08 deben preservar alcance y condiciones probatorias. |
+| AV-02 · Seguridad, privacidad y autenticidad | [Contravalidada con reservas](dictamen-av02.md). Decisión del Orquestador pendiente. | AR-07, AR-14, AR-24–25, AR-27–28, AR-31–32, AR-40, AR-47 | AV-03: frontera de proceso y secretos. AV-04/05: políticas hasta destino. AV-05/06: custodia, exportación y media. AV-07: remediación y corte. AV-08: riesgo y autorizaciones. |
 | AV-03 · Autonomía, memoria, persistencia e interoperabilidad MCP/CLI | Asignada | AR-05, AR-11–12, AR-15, AR-42, AR-45–46, AR-52 | AV-01: continuidad y alcance. AV-02: autoridad y sesión. AV-04: paridad y recuperación. AV-06/07: hosts, soporte y versión. AV-08: adopción. |
 | AV-04 · Veracidad funcional, oráculos, E2E, datos mutativos y recuperación | Asignada | AR-08–10, AR-43, AR-53 | AV-02: política y procedencia. AV-03: ejecución soberana y salidas. AV-05: reportes y contratos. AV-08: falsos PASS, limpieza, cobertura y métricas. |
 | AV-05 · Documentos, reportes PDF/Excel, UTCP, OpenAPI y cross-instancia | Asignada | AR-13, AR-17–18, AR-20, AR-22, AR-38, AR-48, AR-50 | AV-02: parsers y frontera de autoridad. AV-04: oráculos y datos. AV-06: reportes y exportación. AV-07: licencias y versiones. AV-08: aceptación de negocio. |
@@ -29,5 +29,6 @@ El [registro maestro](registro-maestro.md#distribución-por-auditoría) contiene
 | EXP-06a · Viabilidad de custodia preventiva | AV-02 | Contrato temprano G0/G1. | [AR-27](registro-maestro.md#ar-27) |
 | EXP-06b · Extracción PDF/Excel y cálculo | AV-05 | G2 antes del diseño definitivo de ingesta y aceptación tabular. | [AR-38](registro-maestro.md#ar-38) |
 | EXP-06c · Evidencia, accesibilidad y export | AV-06 | G3/G5 sobre suite integrada y distribución final. | [AR-39](registro-maestro.md#ar-39) |
+| EXP-07 · Bóveda persistente, alta local y CI sin TTY | AV-02 | Selección de proveedor G0 y habilitación E2/G1. Depende de AR-04/14/47 y AV-03/07. | [AR-07](registro-maestro.md#ar-07) · [Criterios y dependencias](dictamen-av02.md#exp-07--incorporación-propuesta) |
 
 La posición de los ensayos queda registrada como propuesta para revisión. [AR-19](registro-maestro.md#ar-19) conserva el desacuerdo de secuencia y sus prerrequisitos.

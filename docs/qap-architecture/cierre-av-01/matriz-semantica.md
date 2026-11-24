@@ -1,6 +1,6 @@
 # AV-01 · Matriz individual de preservación semántica
 
-Las obligaciones y aceptaciones candidatas se mantienen ancladas al catálogo y al acta en el SHA auditado. Las filas de Etapa 3 son fuente secundaria de los 82 originales. La contribución de Neon es una propuesta resumida. La columna de Antigravity aplica su corrección de clase explícita a QA-003 y mantiene las 91 clases restantes para reproducir su reparto. Sus observaciones sobre MEM-002.1 y SEG-002.1 se conservan como cuestiones de modelado y etiquetado.
+Cada ficha enlaza al catálogo vigente y a las fuentes históricas por ID. Los vínculos anteriores por SHA conservan la base comparada. Las clases de Neon y Antigravity son propuestas históricas. [Dictamen AV-01](dictamen-av01.md).
 
 Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazada. La aceptación permanece candidata. La marca **ajuste** exige preservar o precisar lo indicado antes de congelar el objetivo. La marca **preservable por referencia** indica que el resumen puede conservar el alcance si remite al contrato completo en la base. Ninguna fila acredita implementación.
 
@@ -18,6 +18,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Preservable por referencia.** Conservar los cuatro planos, la obligatoriedad para toda entidad y la capacidad de consultarlos por separado.
 
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L13](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L13). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** integridad, gobernanza. [REQ-MEM-001.1](../catalogo-requisitos.md#req-mem-0011).
+
 ### REQ-MEM-001.2
 
 **Origen y obligación.** Original vía Etapa 3. Regla invariante en la capa de dominio/repositorio aplicable a MCP y CLI. [REQ-MEM-001.2](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L22) · [Etapa 3](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/gemini-neon-etapa-3.md#L21).
@@ -29,6 +31,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 **Propuesta de Neon.** Invariante de no autopromoción (observación ≠ regla de negocio). **Decisiones citadas.** D05, D12. **Clase Neon / Antigravity.** POL / POL. [Neon §2.3](auditoria-neon.md#23-clasificación-individual-de-los-87-ids-base-reconstrucción-analítica-60--20--7--5-elementos-promovidos), L53.
 
 **Preservable por referencia.** La repetición no acredita una regla. Exigir procedencia y autoridad, también en CLI y almacenamiento.
+
+**Clase histórica.** POL · [fe-erratas-neon L26](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L26) · [adenda-final L14](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L14). **Clase objetivo.** POL por regla operativa de la ficha. **Etiquetas.** integridad, gobernanza. [REQ-MEM-001.2](../catalogo-requisitos.md#req-mem-0012).
 
 ### REQ-MEM-001.3
 
@@ -42,6 +46,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Preservable por referencia.** Conservar versiones anteriores legibles e impedir su mutación en casos y conocimiento.
 
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L15](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L15). **Clase objetivo.** RF por consulta y versionado con integridad transversal. **Etiquetas.** integridad, gobernanza. [REQ-MEM-001.3](../catalogo-requisitos.md#req-mem-0013).
+
 ### REQ-MEM-001.4
 
 **Origen y obligación.** Original vía Etapa 3. Máquina de estados de revisión para ediciones manuales disparada por drift/conflicto. [REQ-MEM-001.4](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L40) · [Etapa 3](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/gemini-neon-etapa-3.md#L23).
@@ -53,6 +59,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 **Propuesta de Neon.** Máquina de estados `pending_review` para ediciones manuales ante drift. **Decisiones citadas.** D05. **Clase Neon / Antigravity.** RF / RF. [Neon §2.3](auditoria-neon.md#23-clasificación-individual-de-los-87-ids-base-reconstrucción-analítica-60--20--7--5-elementos-promovidos), L55.
 
 **Preservable por referencia.** El conflicto activa revisión conservando contenido editado y linaje. La reparación automática tiene ese límite.
+
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L16](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L16). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** integridad, gobernanza. [REQ-MEM-001.4](../catalogo-requisitos.md#req-mem-0014).
 
 ### REQ-MEM-002.1
 
@@ -66,6 +74,12 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Ajuste.** Conservar las ocho dimensiones históricas y añadir perfil y variante visual explícitos. Antigravity pide representación regional para evitar colisiones D17. Distinguir dimensiones de aislamiento de entradas congeladas de reproducción. [AR-04](registro-maestro.md#ar-04).
 
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L17](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L17). **Clase objetivo.** RF por particionamiento de dominio con aislamiento. **Etiquetas.** integridad, gobernanza. [REQ-MEM-002.1](../catalogo-requisitos.md#req-mem-0021).
+
+**AV-02.** [AR-14](dictamen-av02.md#ar-14).
+
+**AR-04.** [Aislamiento por perfil efectivo y replay regional](dictamen-av01.md#ar-04).
+
 ### REQ-MEM-002.2
 
 **Origen y obligación.** Original vía Etapa 3. Validador único de alcance obligatorio en el núcleo compartido por MCP y CLI. [REQ-MEM-002.2](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L58) · [Etapa 3](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/gemini-neon-etapa-3.md#L25).
@@ -77,6 +91,10 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 **Propuesta de Neon.** Validador único de alcance compartido por MCP y CLI. **Decisiones citadas.** D02, D05, D20. **Clase Neon / Antigravity.** RF / RF. [Neon §2.3](auditoria-neon.md#23-clasificación-individual-de-los-87-ids-base-reconstrucción-analítica-60--20--7--5-elementos-promovidos), L57.
 
 **Preservable por referencia.** Ante alcance requerido ambiguo o incompleto, bloquear antes de acceder en ambos canales.
+
+**Clase histórica.** POL · [fe-erratas-neon L26](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L26) · [adenda-final L18](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L18). **Clase objetivo.** POL por denegación ante alcance ambiguo. **Etiquetas.** integridad, gobernanza. [REQ-MEM-002.2](../catalogo-requisitos.md#req-mem-0022).
+
+**AV-02.** [AR-14](dictamen-av02.md#ar-14).
 
 ### REQ-MEM-002.3
 
@@ -90,6 +108,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Preservable por referencia.** Persistir frontera y ambas colas junto al estado y comprobar reanudación tras corte.
 
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L19](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L19). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** integridad, gobernanza. [REQ-MEM-002.3](../catalogo-requisitos.md#req-mem-0023).
+
 ### REQ-MEM-002.4
 
 **Origen y obligación.** Original vía Etapa 3. Servicio de snapshot contextual determinista para re-hidratar cualquier host/modelo. [REQ-MEM-002.4](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L76) · [Etapa 3](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/gemini-neon-etapa-3.md#L27).
@@ -101,6 +121,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 **Propuesta de Neon.** Absorbe `REQ-AGT-002` y `REQ-OPT-002` (snapshot contextual compacto multi-host). **Decisiones citadas.** D03, D05, D13. **Clase Neon / Antigravity.** RF / RF. [Neon §2.3](auditoria-neon.md#23-clasificación-individual-de-los-87-ids-base-reconstrucción-analítica-60--20--7--5-elementos-promovidos), L59.
 
 **Preservable por referencia.** AGT-002/OPT-002 conservan permisos, omisiones, próxima acción y continuidad entre hosts con contexto acotado.
+
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L20](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L20). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** integridad, gobernanza. [REQ-MEM-002.4](../catalogo-requisitos.md#req-mem-0024).
 
 ### REQ-MEM-002.5
 
@@ -114,6 +136,10 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Preservable por referencia.** Aplicar separación también a exportaciones y caché. El alcance funcional no transmite sesión ni credenciales.
 
+**Clase histórica.** RNF · [fe-erratas-neon L25](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L25) · [adenda-final L21](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L21). **Clase objetivo.** RNF por atributo de calidad o control técnico. **Etiquetas.** integridad, gobernanza. [REQ-MEM-002.5](../catalogo-requisitos.md#req-mem-0025).
+
+**AV-02.** [AR-07](dictamen-av02.md#ar-07).
+
 ### REQ-MEM-003.1
 
 **Origen y obligación.** Original vía Etapa 3. Registro único de contradicciones tipadas con estado de resolución y bloqueo de oráculo. [REQ-MEM-003.1](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L94) · [Etapa 3](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/gemini-neon-etapa-3.md#L29).
@@ -125,6 +151,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 **Propuesta de Neon.** Registro único de contradicciones tipadas con bloqueo de oráculo. **Decisiones citadas.** D05, D10. **Clase Neon / Antigravity.** RF / RF. [Neon §2.3](auditoria-neon.md#23-clasificación-individual-de-los-87-ids-base-reconstrucción-analítica-60--20--7--5-elementos-promovidos), L61.
 
 **Preservable por referencia.** Tipar, resolver y conservar contradicciones. La expectativa quedará bloqueada mientras su autoridad sea incierta.
+
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L22](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L22). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** integridad, gobernanza. [REQ-MEM-003.1](../catalogo-requisitos.md#req-mem-0031).
 
 ### REQ-MEM-003.2
 
@@ -138,6 +166,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Preservable por referencia.** Propagar obsolescencia a dependientes, preservando revisiones y aislando el cambio.
 
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L23](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L23). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** integridad, gobernanza. [REQ-MEM-003.2](../catalogo-requisitos.md#req-mem-0032).
+
 ### REQ-MEM-003.3
 
 **Origen y obligación.** Original vía Etapa 3. Pipeline post-ejecución que alimenta firmas, flakiness y observaciones sin tocar requisitos. [REQ-MEM-003.3](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L112) · [Etapa 3](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/gemini-neon-etapa-3.md#L31).
@@ -149,6 +179,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 **Propuesta de Neon.** Pipeline post-ejecución de firmas, flakiness y latencias sin tocar reglas. **Decisiones citadas.** D05, D19. **Clase Neon / Antigravity.** RF / RF. [Neon §2.3](auditoria-neon.md#23-clasificación-individual-de-los-87-ids-base-reconstrucción-analítica-60--20--7--5-elementos-promovidos), L63.
 
 **Preservable por referencia.** Actualizar señales, firmas, latencias y flakiness. Mantener inmutables las reglas acreditadas.
+
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L24). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** integridad, gobernanza. [REQ-MEM-003.3](../catalogo-requisitos.md#req-mem-0033).
 
 ### REQ-MEM-003.4
 
@@ -162,6 +194,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Preservable por referencia.** Conservar intercambio en ambos sentidos, versión, procedencia y filtro estricto. No limitar la prueba a exportación.
 
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L25](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L25). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** integridad, gobernanza. [REQ-MEM-003.4](../catalogo-requisitos.md#req-mem-0034).
+
 ### REQ-MEM-003.5
 
 **Origen y obligación.** Original vía Etapa 3. Motor único de retención y borrado aislado por proyecto usado por MCP y CLI. [REQ-MEM-003.5](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L130) · [Etapa 3](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/gemini-neon-etapa-3.md#L33).
@@ -174,6 +208,10 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Preservable por referencia.** OPT-002 mantiene simulación efectiva. D19 añade protección de actividad y defectos y O-10 exige precedencia privada. [AR-25](registro-maestro.md#ar-25).
 
+**Clase histórica.** RNF · [fe-erratas-neon L25](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L25) · [adenda-final L26](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L26). **Clase objetivo.** RF por capacidad de poda y conservación con control de aislamiento. **Etiquetas.** integridad, gobernanza. [REQ-MEM-003.5](../catalogo-requisitos.md#req-mem-0035).
+
+**AV-02.** [AR-25](dictamen-av02.md#ar-25).
+
 ### REQ-MEM-003.6
 
 **Origen y obligación.** Original vía Etapa 3. Puerto de persistencia único con adaptador local (SQLite) y contrato listo para adaptador concurrente (PostgreSQL). [REQ-MEM-003.6](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L139) · [Etapa 3](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/gemini-neon-etapa-3.md#L34).
@@ -185,6 +223,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 **Propuesta de Neon.** Puerto `IQapRepository` con adaptador SQLite local y contrato listo para PostgreSQL. **Decisiones citadas.** D02. **Clase Neon / Antigravity.** RNF / RNF. [Neon §2.3](auditoria-neon.md#23-clasificación-individual-de-los-87-ids-base-reconstrucción-analítica-60--20--7--5-elementos-promovidos), L66.
 
 **Preservable por referencia.** SQLite local desde lanzamiento, contrato preparado para PostgreSQL concurrente posterior. Driver y piso Node requieren cierre separado. [AR-12](registro-maestro.md#ar-12).
+
+**Clase histórica.** RNF · [fe-erratas-neon L25](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L25) · [adenda-final L27](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L27). **Clase objetivo.** RNF por atributo de calidad o control técnico. **Etiquetas.** integridad, gobernanza. [REQ-MEM-003.6](../catalogo-requisitos.md#req-mem-0036).
 
 ## Discovery
 
@@ -200,6 +240,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Preservable por referencia.** Demostrar progresión de múltiples lotes hasta READY o límite, vinculada a la campaña de punta a punta.
 
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L33](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L33). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** autonomía, alcance. [REQ-DIS-001.1](../catalogo-requisitos.md#req-dis-0011).
+
 ### REQ-DIS-001.2
 
 **Origen y obligación.** Original vía Etapa 3. Modelo uniforme de frontera y cobertura para toda exploración (inicial y focalizada). [REQ-DIS-001.2](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L161) · [Etapa 3](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/gemini-neon-etapa-3.md#L41).
@@ -211,6 +253,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 **Propuesta de Neon.** Modelo uniforme de frontera/cobertura en exploración inicial y focalizada. **Decisiones citadas.** D05, D21. **Clase Neon / Antigravity.** RF / RF. [Neon §2.3](auditoria-neon.md#23-clasificación-individual-de-los-87-ids-base-reconstrucción-analítica-60--20--7--5-elementos-promovidos), L68.
 
 **Preservable por referencia.** Usar una frontera común para exploración inicial y focalizada con cobertura y pendientes visibles.
+
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L34](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L34). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** autonomía, alcance. [REQ-DIS-001.2](../catalogo-requisitos.md#req-dis-0012).
 
 ### REQ-DIS-001.3
 
@@ -224,6 +268,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Preservable por referencia.** Conservar formularios, validaciones, estados e inventario reproducible de SPA. OPT-002 exige conservar procedencia al compactar. [AR-36](registro-maestro.md#ar-36).
 
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L35](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L35). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** autonomía, alcance. [REQ-DIS-001.3](../catalogo-requisitos.md#req-dis-0013).
+
 ### REQ-DIS-001.4
 
 **Origen y obligación.** Original vía Etapa 3. Observador de tráfico de lectura integrado al crawler con correlación vista ↔ endpoint API. [REQ-DIS-001.4](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L179) · [Etapa 3](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/gemini-neon-etapa-3.md#L43).
@@ -235,6 +281,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 **Propuesta de Neon.** Observador de tráfico de lectura integrado y correlación vista ↔ endpoint API. **Decisiones citadas.** D15, D21. **Clase Neon / Antigravity.** RF / RF. [Neon §2.3](auditoria-neon.md#23-clasificación-individual-de-los-87-ids-base-reconstrucción-analítica-60--20--7--5-elementos-promovidos), L70.
 
 **Preservable por referencia.** Conservar correlación vista, estado y endpoint para lecturas autorizadas. El tráfico observado carece de autoridad de negocio por sí solo.
+
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L36](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L36). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** autonomía, alcance. [REQ-DIS-001.4](../catalogo-requisitos.md#req-dis-0014).
 
 ### REQ-DIS-001.5
 
@@ -248,6 +296,10 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Preservable por referencia.** La comparación requiere rol, tenant y configuración efectiva. Preservar diferencias por variante y alcance.
 
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L37](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L37). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** autonomía, alcance. [REQ-DIS-001.5](../catalogo-requisitos.md#req-dis-0015).
+
+**Enmienda AV-01 5.** Registrar no_visible_para_rol solo con causa de rol acreditada. Un 403 de causa desconocida indica acceso denegado o no observado. Ni 403 ni vista ausente acreditan inexistencia. Comparar también perfiles de igual rol con derechos efectivos distintos. Probar por separado ambas causas y ambos perfiles. [adenda-final L37](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L37) · [especificacion-entrega-1 L161](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/especificacion-entrega-1.md#L161).
+
 ### REQ-DIS-001.6
 
 **Origen y obligación.** Original vía Etapa 3. Grafo dual explícito: aristas de navegación vs dependencias de negocio acreditadas. [REQ-DIS-001.6](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L197) · [Etapa 3](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/gemini-neon-etapa-3.md#L45).
@@ -259,6 +311,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 **Propuesta de Neon.** Grafo dual explícito: navegación observada vs dependencias de negocio acreditadas. **Decisiones citadas.** D05, D06. **Clase Neon / Antigravity.** RF / RF. [Neon §2.3](auditoria-neon.md#23-clasificación-individual-de-los-87-ids-base-reconstrucción-analítica-60--20--7--5-elementos-promovidos), L72.
 
 **Preservable por referencia.** Mantener por separado navegación observada y dependencia acreditada, con autoridad y etiquetas propias.
+
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L38](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L38). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** autonomía, alcance. [REQ-DIS-001.6](../catalogo-requisitos.md#req-dis-0016).
 
 ### REQ-DIS-001.7
 
@@ -272,6 +326,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Preservable por referencia.** El checkpoint sobrevive a reinicio por alcance. Refrescar la parte afectada y mantener historia.
 
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L39](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L39). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** autonomía, alcance. [REQ-DIS-001.7](../catalogo-requisitos.md#req-dis-0017).
+
 ### REQ-DIS-001.8
 
 **Origen y obligación.** Original vía Etapa 3. Ejecución de lotes desacoplada en worker/orquestador soberano de QAP. [REQ-DIS-001.8](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L215) · [Etapa 3](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/gemini-neon-etapa-3.md#L47).
@@ -283,6 +339,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 **Propuesta de Neon.** Ejecución de lotes desacoplada en worker soberano. **Decisiones citadas.** D03. **Clase Neon / Antigravity.** RNF / RNF. [Neon §2.3](auditoria-neon.md#23-clasificación-individual-de-los-87-ids-base-reconstrucción-analítica-60--20--7--5-elementos-promovidos), L74.
 
 **Preservable por referencia.** Probar trabajo y recuperación fuera del proceso del host. Una promesa asíncrona en Stdio carece de esa garantía.
+
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L40](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L40). **Clase objetivo.** RNF por continuidad operativa. **Etiquetas.** autonomía, alcance. [REQ-DIS-001.8](../catalogo-requisitos.md#req-dis-0018).
 
 ## Ingesta documental
 
@@ -298,6 +356,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Preservable por referencia.** Todos los formatos D10 desde lanzamiento. Conservar tablas y localizadores de hoja/celda/página. La ingesta y D11 tienen aceptaciones distintas. [AR-13](registro-maestro.md#ar-13).
 
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L46](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L46). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** procedencia, integridad. [REQ-DOC-001.1](../catalogo-requisitos.md#req-doc-0011).
+
 ### REQ-DOC-001.2
 
 **Origen y obligación.** Original vía Etapa 3. Registro explícito de cobertura de extracción y fragmentos omitidos/no legibles. [REQ-DOC-001.2](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L237) · [Etapa 3](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/gemini-neon-etapa-3.md#L54).
@@ -309,6 +369,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 **Propuesta de Neon.** Cobertura explícita de extracción, OCR/escaneados y omisiones/abstención. **Decisiones citadas.** D10, D11. **Clase Neon / Antigravity.** RF / RF. [Neon §2.3](auditoria-neon.md#23-clasificación-individual-de-los-87-ids-base-reconstrucción-analítica-60--20--7--5-elementos-promovidos), L76.
 
 **Preservable por referencia.** Registrar cobertura y fragmento omitido. Para escaneados, acreditar extracción o abstención fundada sin inventar contenido. [AR-13](registro-maestro.md#ar-13).
+
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L47](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L47). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** procedencia, integridad. [REQ-DOC-001.2](../catalogo-requisitos.md#req-doc-0012).
 
 ### REQ-DOC-001.3
 
@@ -322,6 +384,10 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Preservable por referencia.** Conservar los cuatro estados y ambos sentidos de comparación con revisiones y procedencia.
 
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L48](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L48). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** procedencia, integridad. [REQ-DOC-001.3](../catalogo-requisitos.md#req-doc-0013).
+
+**Enmienda AV-01 4.** documentado_no_observado queda pendiente y jamás se marca automáticamente como eliminado. Conservar los cuatro estados y el criterio para contradicciones de igual autoridad. [adenda-final L48](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L48) · [especificacion-entrega-1 L67](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/especificacion-entrega-1.md#L67).
+
 ### REQ-DOC-001.4
 
 **Origen y obligación.** Original vía Etapa 3. Regla transversal de autoridad documental aplicada a todo diseño de casos y oráculos. [REQ-DOC-001.4](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L255) · [Etapa 3](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/gemini-neon-etapa-3.md#L56).
@@ -333,6 +399,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 **Propuesta de Neon.** Regla transversal de autoridad documental y bloqueo ante contradicción. **Decisiones citadas.** D05, D10, D12. **Clase Neon / Antigravity.** POL / POL. [Neon §2.3](auditoria-neon.md#23-clasificación-individual-de-los-87-ids-base-reconstrucción-analítica-60--20--7--5-elementos-promovidos), L78.
 
 **Preservable por referencia.** Autoridad documental para casos y oráculos, con suspensión ante contradicción o insuficiencia.
+
+**Clase histórica.** POL · [fe-erratas-neon L26](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L26) · [adenda-final L49](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L49). **Clase objetivo.** POL por regla operativa de la ficha. **Etiquetas.** procedencia, integridad. [REQ-DOC-001.4](../catalogo-requisitos.md#req-doc-0014).
 
 ## Inteligencia y acreditación
 
@@ -348,6 +416,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Preservable por referencia.** AGT-002 añade contexto acotado para HOST. Conservar el contrato tipado, aceptación por núcleo y portabilidad entre hosts.
 
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L55](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L55). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** autonomía, gobernanza. [REQ-IA-001.1](../catalogo-requisitos.md#req-ia-0011).
+
 ### REQ-IA-001.2
 
 **Origen y obligación.** Original vía Etapa 3. Modo `DETERMINISTIC` formal en el orquestador para repetición y regresión autónoma. [REQ-IA-001.2](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L277) · [Etapa 3](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/gemini-neon-etapa-3.md#L63).
@@ -359,6 +429,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 **Propuesta de Neon.** Modo `DETERMINISTIC` formal sin inferencia por paso. **Decisiones citadas.** D03, D17. **Clase Neon / Antigravity.** RF / RF. [Neon §2.3](auditoria-neon.md#23-clasificación-individual-de-los-87-ids-base-reconstrucción-analítica-60--20--7--5-elementos-promovidos), L80.
 
 **Preservable por referencia.** Mantener replay y regresión autónoma con snapshot y reglas congeladas, sin inferencia por paso.
+
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L56](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L56). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** autonomía, gobernanza. [REQ-IA-001.2](../catalogo-requisitos.md#req-ia-0012).
 
 ### REQ-IA-001.3
 
@@ -372,6 +444,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Preservable por referencia.** Validar propuestas de escenarios, oráculos, diagnóstico y reparación con la misma autoridad y criterios.
 
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L57](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L57). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** autonomía, gobernanza. [REQ-IA-001.3](../catalogo-requisitos.md#req-ia-0013).
+
 ### REQ-IA-001.4
 
 **Origen y obligación.** Original vía Etapa 3. Motor de campaña con separación de colas determinista vs razonamiento y handoff multi-host. [REQ-IA-001.4](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L295) · [Etapa 3](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/gemini-neon-etapa-3.md#L65).
@@ -383,6 +457,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 **Propuesta de Neon.** Separación de colas determinista vs razonamiento y handoff multi-host. **Decisiones citadas.** D03, D05. **Clase Neon / Antigravity.** RF / RF. [Neon §2.3](auditoria-neon.md#23-clasificación-individual-de-los-87-ids-base-reconstrucción-analítica-60--20--7--5-elementos-promovidos), L82.
 
 **Preservable por referencia.** Probar continuidad de ambos carriles al cambiar host y caída. Mantener separados trabajo determinista y propuestas.
+
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L58](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L58). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** autonomía, gobernanza. [REQ-IA-001.4](../catalogo-requisitos.md#req-ia-0014).
 
 ### REQ-IA-001.5
 
@@ -396,6 +472,10 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Ajuste.** Conflicto: un digest no acredita procedencia. O-04 y el Orquestador exigen frontera verificable, incluida amenaza bajo el mismo usuario. [AR-28](registro-maestro.md#ar-28).
 
+**Clase histórica.** RNF · [fe-erratas-neon L25](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L25) · [adenda-final L59](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L59). **Clase objetivo.** RNF por atributo de calidad o control técnico. **Etiquetas.** autonomía, gobernanza. [REQ-IA-001.5](../catalogo-requisitos.md#req-ia-0015).
+
+**AV-02.** [AR-28](dictamen-av02.md#ar-28).
+
 ### REQ-IA-001.6
 
 **Origen y obligación.** Original vía Etapa 3. Puerto `IReasoningProvider` opcional (implementable en fase posterior según `DP-06`). [REQ-IA-001.6](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L313) · [Etapa 3](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/gemini-neon-etapa-3.md#L67).
@@ -407,6 +487,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 **Propuesta de Neon.** Puerto `IReasoningProvider` opcional para fase posterior (`MANAGED`). **Decisiones citadas.** D03. **Clase Neon / Antigravity.** RNF / RNF. [Neon §2.3](auditoria-neon.md#23-clasificación-individual-de-los-87-ids-base-reconstrucción-analítica-60--20--7--5-elementos-promovidos), L84.
 
 **Preservable por referencia.** Mantener puerto de extensión y aplazamiento autorizado de MANAGED. HOST y DETERMINISTIC siguen exigidos.
+
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L60](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L60). **Clase objetivo.** RF por capacidad diferida por D03. **Etiquetas.** autonomía, gobernanza. [REQ-IA-001.6](../catalogo-requisitos.md#req-ia-0016).
 
 ## Planificación
 
@@ -422,6 +504,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Preservable por referencia.** E2E exige cuatro entidades, transferencias tipadas, dependencias, preparación y evidencia.
 
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L66](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L66). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** autonomía, integridad. [REQ-PLN-001.1](../catalogo-requisitos.md#req-pln-0011).
+
 ### REQ-PLN-001.2
 
 **Origen y obligación.** Original vía Etapa 3. Planificador incremental que genera bloques ejecutables desde `PARTIAL_READY`. [REQ-PLN-001.2](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L335) · [Etapa 3](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/gemini-neon-etapa-3.md#L74).
@@ -433,6 +517,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 **Propuesta de Neon.** Planificador incremental desde `PARTIAL_READY`. **Decisiones citadas.** D04. **Clase Neon / Antigravity.** RF / RF. [Neon §2.3](auditoria-neon.md#23-clasificación-individual-de-los-87-ids-base-reconstrucción-analítica-60--20--7--5-elementos-promovidos), L86.
 
 **Preservable por referencia.** Habilitar bloques listos parciales e identificar el alcance bloqueado. No equiparar PARTIAL_READY con cobertura completa.
+
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L67](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L67). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** autonomía, integridad. [REQ-PLN-001.2](../catalogo-requisitos.md#req-pln-0012).
 
 ### REQ-PLN-001.3
 
@@ -446,6 +532,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Preservable por referencia.** Evaluar efecto de criticidad, drift, defectos y presupuesto sobre prioridad, sin diluir obligaciones.
 
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L68](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L68). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** autonomía, integridad. [REQ-PLN-001.3](../catalogo-requisitos.md#req-pln-0013).
+
 ### REQ-PLN-001.4
 
 **Origen y obligación.** Original vía Etapa 3. Resolvedor DAG unificado multi-caso y multi-módulo con bloqueo ante ciclos. [REQ-PLN-001.4](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L353) · [Etapa 3](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/gemini-neon-etapa-3.md#L76).
@@ -457,6 +545,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 **Propuesta de Neon.** Absorbe `REQ-E2E-001`; resolvedor DAG multi-caso/multi-módulo con detección de ciclos. **Decisiones citadas.** D06. **Clase Neon / Antigravity.** RF / RF. [Neon §2.3](auditoria-neon.md#23-clasificación-individual-de-los-87-ids-base-reconstrucción-analítica-60--20--7--5-elementos-promovidos), L88.
 
 **Preservable por referencia.** E2E añade tipos y alcance multirol a lo multicase/multimódulo. Rechazar ciclos antes de ejecutar.
+
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L69](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L69). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** autonomía, integridad. [REQ-PLN-001.4](../catalogo-requisitos.md#req-pln-0014).
 
 ### REQ-PLN-001.5
 
@@ -470,6 +560,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Preservable por referencia.** Congelar plan con dependencias y comprobar huella desde el runner en ambos canales.
 
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L70](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L70). **Clase objetivo.** RF por congelación de snapshot como operación. **Etiquetas.** autonomía, integridad. [REQ-PLN-001.5](../catalogo-requisitos.md#req-pln-0015).
+
 ### REQ-PLN-001.6
 
 **Origen y obligación.** Original vía Etapa 3. Reevaluador de grafo de campaña tras fallo de prerrequisito o hallazgo crítico. [REQ-PLN-001.6](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L371) · [Etapa 3](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/gemini-neon-etapa-3.md#L78).
@@ -481,6 +573,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 **Propuesta de Neon.** Absorbe `REQ-E2E-001`; reevaluador de grafo ante fallo de prerrequisito. **Decisiones citadas.** D06. **Clase Neon / Antigravity.** RF / RF. [Neon §2.3](auditoria-neon.md#23-clasificación-individual-de-los-87-ids-base-reconstrucción-analítica-60--20--7--5-elementos-promovidos), L90.
 
 **Preservable por referencia.** En fallo local, reevaluar dependientes y conservar ramas independientes con motivos.
+
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L71](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L71). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** autonomía, integridad. [REQ-PLN-001.6](../catalogo-requisitos.md#req-pln-0016).
 
 ## Casos y elegibilidad
 
@@ -496,6 +590,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Preservable por referencia.** Cero aprobaciones ordinarias con autoridad y política acreditadas. Las excepciones siguen limitadas por D07/D20.
 
+**Clase histórica.** POL · [fe-erratas-neon L26](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L26) · [adenda-final L77](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L77). **Clase objetivo.** POL por regla operativa de la ficha. **Etiquetas.** veracidad, alcance. [REQ-CAS-001.1](../catalogo-requisitos.md#req-cas-0011).
+
 ### REQ-CAS-001.2
 
 **Origen y obligación.** Original vía Etapa 3. Generación multi-técnica (positivos, negativos, BVA, estados, RBAC, cálculos) enlazada a oráculos acreditados. [REQ-CAS-001.2](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L393) · [Etapa 3](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/gemini-neon-etapa-3.md#L85).
@@ -507,6 +603,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 **Propuesta de Neon.** Generación multi-técnica (positivos, negativos, BVA, estados, RBAC, cálculos) con oráculos. **Decisiones citadas.** D01, D06, D21. **Clase Neon / Antigravity.** RF / RF. [Neon §2.3](auditoria-neon.md#23-clasificación-individual-de-los-87-ids-base-reconstrucción-analítica-60--20--7--5-elementos-promovidos), L92.
 
 **Preservable por referencia.** Conservar la batería de positivos, negativos, límites, estados, permisos y cálculo. Un caso estructural no sustituye su oráculo.
+
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L78](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L78). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** veracidad, alcance. [REQ-CAS-001.2](../catalogo-requisitos.md#req-cas-0012).
 
 ### REQ-CAS-001.3
 
@@ -520,6 +618,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Preservable por referencia.** Cambiar adaptador crea revisión. Mantener identidad funcional y expectativas previas.
 
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L79](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L79). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** veracidad, alcance. [REQ-CAS-001.3](../catalogo-requisitos.md#req-cas-0013).
+
 ### REQ-CAS-001.4
 
 **Origen y obligación.** Original vía Etapa 3. Evaluador de aplicabilidad condicional sobre casos por `(env, tenant, role, config)`. [REQ-CAS-001.4](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L411) · [Etapa 3](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/gemini-neon-etapa-3.md#L87).
@@ -532,6 +632,10 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Preservable por referencia.** Evaluar aplicabilidad contra alcance configurado y registrar exclusiones con justificación.
 
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L80](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L80). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** veracidad, alcance. [REQ-CAS-001.4](../catalogo-requisitos.md#req-cas-0014).
+
+**Enmienda AV-01 9.** Evaluar applicable, not_applicable e indeterminate por entorno, tenant, rol y configuración. Una expectativa sin fuente de negocio acreditada queda INDETERMINATE. Probar cero PASS funcionales sin fuente y evaluar la aplicabilidad por separado. [adenda-final L80](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L80).
+
 ### REQ-CAS-001.5
 
 **Origen y obligación.** Original vía Etapa 3. Deduplicación semántica/estructural y propagación automática de obsolescencia. [REQ-CAS-001.5](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L420) · [Etapa 3](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/gemini-neon-etapa-3.md#L88).
@@ -543,6 +647,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 **Propuesta de Neon.** Deduplicación semántica/estructural y propagación de obsolescencia. **Decisiones citadas.** D05. **Clase Neon / Antigravity.** RF / RF. [Neon §2.3](auditoria-neon.md#23-clasificación-individual-de-los-87-ids-base-reconstrucción-analítica-60--20--7--5-elementos-promovidos), L95.
 
 **Preservable por referencia.** Distinguir deduplicación de desaparición. Conservar identidad, revisiones, dependencias y obsolescencia automática.
+
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L81](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L81). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** veracidad, alcance. [REQ-CAS-001.5](../catalogo-requisitos.md#req-cas-0015).
 
 ## Oráculos
 
@@ -558,6 +664,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Ajuste.** Conflicto: PASS_STRUCTURAL sería un séptimo veredicto. Mantener el conjunto cerrado y separar alcance, estados y cobertura. [AR-08](registro-maestro.md#ar-08).
 
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L87](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L87). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** veracidad, integridad. [REQ-ORA-001.1](../catalogo-requisitos.md#req-ora-0011).
+
 ### REQ-ORA-001.2
 
 **Origen y obligación.** Original vía Etapa 3. Evaluador de oráculos independiente que rechace señales Nivel 0/1 como prueba de persistencia. [REQ-ORA-001.2](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L442) · [Etapa 3](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/gemini-neon-etapa-3.md#L95).
@@ -569,6 +677,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 **Propuesta de Neon.** Evaluador independiente que rechaza señales N0/N1 como prueba de persistencia. **Decisiones citadas.** D11, D12, D21. **Clase Neon / Antigravity.** RF / RF. [Neon §2.3](auditoria-neon.md#23-clasificación-individual-de-los-87-ids-base-reconstrucción-analítica-60--20--7--5-elementos-promovidos), L97.
 
 **Preservable por referencia.** N0/N1 tienen alcance estructural. Exigir independencia causal para persistencia y abstención ante testigo insuficiente. [AR-09](registro-maestro.md#ar-09).
+
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L88](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L88). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** veracidad, integridad. [REQ-ORA-001.2](../catalogo-requisitos.md#req-ora-0012).
 
 ### REQ-ORA-001.3
 
@@ -582,6 +692,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Preservable por referencia.** Acreditar frescura, identidad, correlación e independencia. No imponer acceso a la base del AUT ni acreditar por recarga solamente.
 
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L89](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L89). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** veracidad, integridad. [REQ-ORA-001.3](../catalogo-requisitos.md#req-ora-0013).
+
 ### REQ-ORA-001.4
 
 **Origen y obligación.** Original vía Etapa 3. Evaluador tipado de reglas de negocio, precisión monetaria (decimal exacto), tolerancias y conciliaciones. [REQ-ORA-001.4](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L460) · [Etapa 3](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/gemini-neon-etapa-3.md#L97).
@@ -593,6 +705,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 **Propuesta de Neon.** Evaluador tipado con aritmética decimal exacta, tolerancias y conciliaciones. **Decisiones citadas.** D11, D12, D17. **Clase Neon / Antigravity.** RF / RF. [Neon §2.3](auditoria-neon.md#23-clasificación-individual-de-los-87-ids-base-reconstrucción-analítica-60--20--7--5-elementos-promovidos), L99.
 
 **Preservable por referencia.** Validar reglas acreditadas y diferencias monetarias con datos, tolerancia y redondeo explícitos. Separar fórmula de regla contable. [AR-20](registro-maestro.md#ar-20).
+
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L90](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L90). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** veracidad, integridad. [REQ-ORA-001.4](../catalogo-requisitos.md#req-ora-0014).
 
 ### REQ-ORA-001.5
 
@@ -606,6 +720,10 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Preservable por referencia.** Un rechazo HTTP no acredita ausencia de efecto. Comparar estado autorizado antes y después. [AR-53](registro-maestro.md#ar-53).
 
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L91](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L91). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** veracidad, integridad. [REQ-ORA-001.5](../catalogo-requisitos.md#req-ora-0015).
+
+**AV-02.** [AR-31](dictamen-av02.md#ar-31).
+
 ### REQ-ORA-001.6
 
 **Origen y obligación.** Original vía Etapa 3. Oráculo de convergencia asíncrona con ventana temporal y condición de estado final. [REQ-ORA-001.6](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L478) · [Etapa 3](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/gemini-neon-etapa-3.md#L99).
@@ -618,6 +736,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Preservable por referencia.** Verificar ventana, convergencia y estado final, y conservar resultado incierto cuando el testigo no cubra el límite. [AR-09](registro-maestro.md#ar-09).
 
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L92](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L92). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** veracidad, integridad. [REQ-ORA-001.6](../catalogo-requisitos.md#req-ora-0016).
+
 ### REQ-ORA-001.7
 
 **Origen y obligación.** Original vía Etapa 3. Metadato `witness_independence_level` obligatorio en cada evaluación (configurable según `DP-04`). [REQ-ORA-001.7](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L487) · [Etapa 3](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/gemini-neon-etapa-3.md#L100).
@@ -629,6 +749,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 **Propuesta de Neon.** Metadato `witness_independence_level` y procedencia obligatorios por evaluación. **Decisiones citadas.** D11, D12, D21. **Clase Neon / Antigravity.** RF / RF. [Neon §2.3](auditoria-neon.md#23-clasificación-individual-de-los-87-ids-base-reconstrucción-analítica-60--20--7--5-elementos-promovidos), L102.
 
 **Preservable por referencia.** Registrar nivel, procedencia y alcance efectivo en cada evaluación, incluso abstenciones.
+
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L93](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L93). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** veracidad, integridad. [REQ-ORA-001.7](../catalogo-requisitos.md#req-ora-0017).
 
 ## Runner y publicación
 
@@ -644,6 +766,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Preservable por referencia.** Conservar contexto limpio por defecto y excepción explícita/trazada para flujo encadenado. OPT-001 limita reutilización por aislamiento.
 
+**Clase histórica.** RNF · [fe-erratas-neon L25](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L25) · [adenda-final L99](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L99). **Clase objetivo.** RNF por atributo de calidad o control técnico. **Etiquetas.** autonomía, portabilidad. [REQ-RUN-001.1](../catalogo-requisitos.md#req-run-0011).
+
 ### REQ-RUN-001.2
 
 **Origen y obligación.** Original vía Etapa 3. Verificación de huella de snapshot integrada en el propio motor Runner. [REQ-RUN-001.2](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L509) · [Etapa 3](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/gemini-neon-etapa-3.md#L107).
@@ -655,6 +779,10 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 **Propuesta de Neon.** Absorbe `REQ-E2E-001`; verificación de huella de snapshot en el propio Runner. **Decisiones citadas.** D06, D12. **Clase Neon / Antigravity.** RNF / RNF. [Neon §2.3](auditoria-neon.md#23-clasificación-individual-de-los-87-ids-base-reconstrucción-analítica-60--20--7--5-elementos-promovidos), L104.
 
 **Preservable por referencia.** El propio runner acredita huella del plan y registra intento separado. E2E requiere evidencia por paso y reproducibilidad.
+
+**Clase histórica.** RNF · [fe-erratas-neon L25](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L25) · [adenda-final L100](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L100). **Clase objetivo.** RNF por atributo de calidad o control técnico. **Etiquetas.** autonomía, portabilidad. [REQ-RUN-001.2](../catalogo-requisitos.md#req-run-0012).
+
+**AV-02.** [AR-28](dictamen-av02.md#ar-28).
 
 ### REQ-RUN-001.3
 
@@ -668,6 +796,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Ajuste.** D12 agrega eje independiente de evidencia. Conservar cuatro ejes, estados de degradación y salida coherente con limpieza y omisiones. [AR-08](registro-maestro.md#ar-08).
 
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L101](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L101). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** autonomía, portabilidad. [REQ-RUN-001.3](../catalogo-requisitos.md#req-run-0013).
+
 ### REQ-RUN-001.4
 
 **Origen y obligación.** Original vía Etapa 3. Política de reintento por idempotencia + protocolo obligatorio de reconciliación previa en mutaciones. [REQ-RUN-001.4](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L527) · [Etapa 3](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/gemini-neon-etapa-3.md#L109).
@@ -679,6 +809,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 **Propuesta de Neon.** Absorbe `REQ-E2E-001`; reintento por idempotencia + reconciliación previa en mutaciones. **Decisiones citadas.** D06, D12. **Clase Neon / Antigravity.** RF / RF. [Neon §2.3](auditoria-neon.md#23-clasificación-individual-de-los-87-ids-base-reconstrucción-analítica-60--20--7--5-elementos-promovidos), L106.
 
 **Preservable por referencia.** Antes de repetir una mutación, reconciliar efecto y acreditar idempotencia. Demostrar corte tras efecto confirmado. [AR-43](registro-maestro.md#ar-43).
+
+**Clase histórica.** RNF · [fe-erratas-neon L25](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L25) · [adenda-final L102](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L102). **Clase objetivo.** RNF por resiliencia y recuperación. **Etiquetas.** autonomía, portabilidad. [REQ-RUN-001.4](../catalogo-requisitos.md#req-run-0014).
 
 ### REQ-RUN-001.5
 
@@ -692,6 +824,10 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Preservable por referencia.** Conservar revocación, cancelación activa, aislamiento de workers, procesos residuales y límites adaptativos. [AR-29](registro-maestro.md#ar-29).
 
+**Clase histórica.** RNF · [fe-erratas-neon L25](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L25) · [adenda-final L103](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L103). **Clase objetivo.** RNF por atributo de calidad o control técnico. **Etiquetas.** autonomía, portabilidad. [REQ-RUN-001.5](../catalogo-requisitos.md#req-run-0015).
+
+**Enmienda AV-01 2.** RNF-02. Alternar entre tres, cuatro o más aplicaciones sin navegadores abiertos en reposo. Verificar liberación de procesos, locks y memoria al terminar cada tarea. Medir reapertura y alternancia con presupuestos configurables de tiempo, páginas y memoria. [especificacion-entrega-2 L391](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/especificacion-entrega-2.md#L391).
+
 ### REQ-RUN-001.6
 
 **Origen y obligación.** Original vía Etapa 3. Unificar publicación atómica sobre el almacén único eliminando DDL duplicados. [REQ-RUN-001.6](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L545) · [Etapa 3](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/gemini-neon-etapa-3.md#L111).
@@ -703,6 +839,10 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 **Propuesta de Neon.** Absorbe `M2`, `M3`; publicación atómica unificada eliminando DDL duplicados. **Decisiones citadas.** D18. **Clase Neon / Antigravity.** RNF / RNF. [Neon §2.3](auditoria-neon.md#23-clasificación-individual-de-los-87-ids-base-reconstrucción-analítica-60--20--7--5-elementos-promovidos), L108.
 
 **Preservable por referencia.** Publicación recuperable y atómica del manifiesto. M2/M3 añaden fallback, medio auténtico, localizadores y custodia desde origen.
+
+**Clase histórica.** RNF · [fe-erratas-neon L25](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L25) · [adenda-final L104](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L104). **Clase objetivo.** RNF por atributo de calidad o control técnico. **Etiquetas.** autonomía, portabilidad. [REQ-RUN-001.6](../catalogo-requisitos.md#req-run-0016).
+
+**AV-02.** [AR-27](dictamen-av02.md#ar-27).
 
 ## Provisión y limpieza
 
@@ -718,6 +858,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Preservable por referencia.** Conservar etiqueta por ejecución, caducidad y filtro anti-PII. Acreditar creación sintética y destrucción autorizada.
 
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L110](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L110). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** integridad, autorización. [REQ-DAT-001.1](../catalogo-requisitos.md#req-dat-0011).
+
 ### REQ-DAT-001.2
 
 **Origen y obligación.** Original vía Etapa 3. Ejecutor de `DataPlan` con creación topológica y limpieza inversa idempotente. **Precisión del catálogo.** Ejecutor de `DataPlan` con creación topológica y limpieza inversa idempotente. Incorporar descripción y ejecución autorizada de operaciones mediante UTCP/OpenAPI por el mismo puerto. [REQ-DAT-001.2](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L567) · [Etapa 3](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/gemini-neon-etapa-3.md#L118).
@@ -729,6 +871,10 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 **Propuesta de Neon.** Absorbe `UTCP/OpenAPI`; ejecutor de `DataPlan` con DAG topológico, APIs autorizadas y limpieza inversa. **Decisiones citadas.** D06, D08. **Clase Neon / Antigravity.** RF / RF. [Neon §2.3](auditoria-neon.md#23-clasificación-individual-de-los-87-ids-base-reconstrucción-analítica-60--20--7--5-elementos-promovidos), L110.
 
 **Preservable por referencia.** UTCP/OpenAPI es capacidad de lanzamiento y de uso según caso. CRUD autorizado no sustituye el DAG, limpieza inversa ni reconciliación. [AR-17](registro-maestro.md#ar-17).
+
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L111](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L111). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** integridad, autorización. [REQ-DAT-001.2](../catalogo-requisitos.md#req-dat-0012).
+
+**Enmienda AV-01 8.** Limpiar en orden inverso solo entidades creadas por el dataset de esa ejecución. Repetir dos veces sin fallo ni afectación de registros ajenos. Una compensación explícitamente autorizada, acreditada y reconciliada es operación distinta. Conservar el aislamiento desechable autorizado cuando proceda. [adenda-final L111](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L111) · [especificacion-entrega-1 L326](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/especificacion-entrega-1.md#L326).
 
 ### REQ-DAT-001.3
 
@@ -742,6 +888,12 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Preservable por referencia.** Conservar bloqueo de mutación en producción y autorización positiva de QA. Una lectura acreditada sigue permitida según D07/D09.
 
+**Clase histórica.** POL · [fe-erratas-neon L26](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L26) · [adenda-final L112](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L112). **Clase objetivo.** POL por regla operativa de la ficha. **Etiquetas.** integridad, autorización. [REQ-DAT-001.3](../catalogo-requisitos.md#req-dat-0013).
+
+**Enmienda AV-01 1.** D-002. QAP detecta, reproduce, diagnostica y documenta defectos. Jamás modifica código fuente del AUT ni infraestructura o configuración productiva. Verificar cero modificaciones de esos recursos. [especificacion-entrega-1 L25](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/especificacion-entrega-1.md#L25).
+
+**AV-02.** [AR-31](dictamen-av02.md#ar-31).
+
 ### REQ-DAT-001.4
 
 **Origen y obligación.** Original vía Etapa 3. Verificador post-limpieza y estrategias configurables (`delete`, `compensate`, `confine_tenant`, según `DP-05`). [REQ-DAT-001.4](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L585) · [Etapa 3](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/gemini-neon-etapa-3.md#L120).
@@ -753,6 +905,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 **Propuesta de Neon.** Verificador post-limpieza y estrategias `delete`, `compensate`, `confine_tenant`. **Decisiones citadas.** D06, D07, D08. **Clase Neon / Antigravity.** RF / RF. [Neon §2.3](auditoria-neon.md#23-clasificación-individual-de-los-87-ids-base-reconstrucción-analítica-60--20--7--5-elementos-promovidos), L112.
 
 **Preservable por referencia.** La limpieza se verifica. Estrategias por destino y autorización para operaciones irreversibles requieren ratificación.
+
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L113](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L113). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** integridad, autorización. [REQ-DAT-001.4](../catalogo-requisitos.md#req-dat-0014).
 
 ## Campañas
 
@@ -768,6 +922,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Preservable por referencia.** Preservar autonomía de discovery, planificación, datos, ejecución, verificación y reporte hasta cierre negociado por política. [AR-05](registro-maestro.md#ar-05).
 
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L119](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L119). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** autonomía, recursos. [REQ-CAM-001.1](../catalogo-requisitos.md#req-cam-0011).
+
 ### REQ-CAM-001.2
 
 **Origen y obligación.** Original vía Etapa 3. Motor de tareas con grafo de estados que aísle bloqueos locales sin detener ramas independientes. [REQ-CAM-001.2](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L607) · [Etapa 3](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/gemini-neon-etapa-3.md#L127).
@@ -779,6 +935,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 **Propuesta de Neon.** Absorbe `REQ-E2E-001`; aislamiento de bloqueos locales sin detener ramas independientes. **Decisiones citadas.** D04, D06. **Clase Neon / Antigravity.** RF / RF. [Neon §2.3](auditoria-neon.md#23-clasificación-individual-de-los-87-ids-base-reconstrucción-analítica-60--20--7--5-elementos-promovidos), L114.
 
 **Preservable por referencia.** Bloqueos locales detienen dependientes, preservando ramas independientes y transferencia tipada E2E.
+
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L120](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L120). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** autonomía, recursos. [REQ-CAM-001.2](../catalogo-requisitos.md#req-cam-0012).
 
 ### REQ-CAM-001.3
 
@@ -792,6 +950,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Preservable por referencia.** Presupuesto global y COMPLETADA_PARCIAL conservan auditoría de faltantes. No equivalen a éxito funcional.
 
+**Clase histórica.** RNF · [fe-erratas-neon L25](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L25) · [adenda-final L121](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L121). **Clase objetivo.** RF por capacidad de gestionar presupuesto con atributo de eficiencia. **Etiquetas.** autonomía, recursos. [REQ-CAM-001.3](../catalogo-requisitos.md#req-cam-0013).
+
 ### REQ-CAM-001.4
 
 **Origen y obligación.** Original vía Etapa 3. Runtime soberano de campaña desacoplado de la conexión del cliente MCP. [REQ-CAM-001.4](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L625) · [Etapa 3](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/gemini-neon-etapa-3.md#L129).
@@ -804,6 +964,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Preservable por referencia.** Desacoplar vida de la campaña de Stdio y acreditar reanudación, leases y escritor único tras corte. [AR-42](registro-maestro.md#ar-42).
 
+**Clase histórica.** RNF · [fe-erratas-neon L25](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L25) · [adenda-final L122](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L122). **Clase objetivo.** RNF por atributo de calidad o control técnico. **Etiquetas.** autonomía, recursos. [REQ-CAM-001.4](../catalogo-requisitos.md#req-cam-0014).
+
 ### REQ-CAM-001.5
 
 **Origen y obligación.** Original vía Etapa 3. Modos de intención como política de prioridad sobre un estado de campaña continuo. [REQ-CAM-001.5](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L634) · [Etapa 3](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/gemini-neon-etapa-3.md#L130).
@@ -815,6 +977,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 **Propuesta de Neon.** Modos de intención como política de prioridad sobre estado continuo. **Decisiones citadas.** D04. **Clase Neon / Antigravity.** RF / RF. [Neon §2.3](auditoria-neon.md#23-clasificación-individual-de-los-87-ids-base-reconstrucción-analítica-60--20--7--5-elementos-promovidos), L117.
 
 **Preservable por referencia.** Los modos cambian prioridades sobre un historial continuo. No reinician ni fragmentan la campaña.
+
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L123](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L123). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** autonomía, recursos. [REQ-CAM-001.5](../catalogo-requisitos.md#req-cam-0015).
 
 ## Reportes QAP, evidencia y defectos
 
@@ -830,6 +994,10 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Preservable por referencia.** M1–M5 mantienen paridad y custodia, reproducción portable, acceso autorizado e integridad de evidencia. [AR-50](registro-maestro.md#ar-50).
 
+**Clase histórica.** RNF · [fe-erratas-neon L25](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L25) · [adenda-final L129](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L129). **Clase objetivo.** RNF por integridad y custodia. **Etiquetas.** integridad, evidencia. [REQ-REP-001.1](../catalogo-requisitos.md#req-rep-0011).
+
+**AV-02.** [AR-24](dictamen-av02.md#ar-24).
+
 ### REQ-REP-001.2
 
 **Origen y obligación.** Original vía Etapa 3. Repositorio único de reportes, comparativas entre ejecuciones e historial unificado. [REQ-REP-001.2](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L656) · [Etapa 3](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/gemini-neon-etapa-3.md#L137).
@@ -841,6 +1009,10 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 **Propuesta de Neon.** Absorbe `M1`, `M2`, `M4`, `M5`; historial unificado, comparativas y export portable. **Decisiones citadas.** D04, D18–D20. **Clase Neon / Antigravity.** RF / RF. [Neon §2.3](auditoria-neon.md#23-clasificación-individual-de-los-87-ids-base-reconstrucción-analítica-60--20--7--5-elementos-promovidos), L119.
 
 **Preservable por referencia.** M1/M2/M4/M5 conservan comparativas, fuentes locales, teclado, export trasladado y trato de evidencia faltante. [AR-50](registro-maestro.md#ar-50).
+
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L130](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L130). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** integridad, evidencia. [REQ-REP-001.2](../catalogo-requisitos.md#req-rep-0012).
+
+**AV-02.** [AR-24](dictamen-av02.md#ar-24).
 
 ### REQ-REP-001.3
 
@@ -854,6 +1026,10 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Preservable por referencia.** Conservar paquete reproducible y separación entre defecto, incertidumbre y resultado. Firmas deduplican sin borrar intentos.
 
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L131](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L131). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** integridad, evidencia. [REQ-REP-001.3](../catalogo-requisitos.md#req-rep-0013).
+
+**Enmienda AV-01 6.** Conservar product_bug, environment_error, automation_error, data_error, auth_expired, flaky e indeterminate. Un HTTP 500 aislado no acredita product_bug. Probar que la evidencia causal ambigua produce indeterminate, preservando deduplicación y paquete reproducible. [adenda-final L131](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L131) · [especificacion-entrega-1 L74](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/especificacion-entrega-1.md#L74).
+
 ### REQ-REP-001.4
 
 **Origen y obligación.** Original vía Etapa 3. Máquina de estados de defecto integrada con modo `INVESTIGAR_BUG` y comparativa de intentos. [REQ-REP-001.4](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L674) · [Etapa 3](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/gemini-neon-etapa-3.md#L139).
@@ -865,6 +1041,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 **Propuesta de Neon.** Máquina de estados de defecto (`REPRODUCIDO`/`NO_REPRODUCIDO`/`BLOQUEADO`/`retest`). **Decisiones citadas.** D05, D19. **Clase Neon / Antigravity.** RF / RF. [Neon §2.3](auditoria-neon.md#23-clasificación-individual-de-los-87-ids-base-reconstrucción-analítica-60--20--7--5-elementos-promovidos), L121.
 
 **Preservable por referencia.** Conservar transición y comparación de intentos para INVESTIGAR_BUG/retest con bloqueo visible.
+
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L132](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L132). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** integridad, evidencia. [REQ-REP-001.4](../catalogo-requisitos.md#req-rep-0014).
 
 ## Regresión
 
@@ -880,6 +1058,10 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Preservable por referencia.** Conservar señales Git, DOM, API y configuración. Seleccionar impacto/riesgo con evidencia y evitar inferencia innecesaria.
 
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L138](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L138). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** integridad, regresión. [REQ-REG-001.1](../catalogo-requisitos.md#req-reg-0011).
+
+**AV-02.** [AR-40](dictamen-av02.md#ar-40).
+
 ### REQ-REG-001.2
 
 **Origen y obligación.** Original vía Etapa 3. Analizador estadístico de oscilación `PASS`/`FAIL` sobre intentos del mismo snapshot/versión. [REQ-REG-001.2](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L696) · [Etapa 3](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/gemini-neon-etapa-3.md#L146).
@@ -892,6 +1074,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Preservable por referencia.** Comparar repeticiones bajo mismo snapshot y versión. Evitar mezclar drift con flakiness.
 
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L139](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L139). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** integridad, regresión. [REQ-REG-001.2](../catalogo-requisitos.md#req-reg-0012).
+
 ### REQ-REG-001.3
 
 **Origen y obligación.** Original vía Etapa 3. Flujo de reparación acotada que crea `TestCaseRevision N+1` manteniendo inmutable la expectativa y el `FAIL` original. [REQ-REG-001.3](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L705) · [Etapa 3](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/gemini-neon-etapa-3.md#L147).
@@ -903,6 +1087,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 **Propuesta de Neon.** Reparación acotada de adaptador `vN+1` preservando expectativa y `FAIL` original. **Decisiones citadas.** D05. **Clase Neon / Antigravity.** RF / RF. [Neon §2.3](auditoria-neon.md#23-clasificación-individual-de-los-87-ids-base-reconstrucción-analítica-60--20--7--5-elementos-promovidos), L124.
 
 **Preservable por referencia.** Reparar adaptador creando revisión nueva. La expectativa y el FAIL original permanecen inmutables. [AR-46](registro-maestro.md#ar-46).
+
+**Clase histórica.** RF · [fe-erratas-neon L24](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L24) · [adenda-final L140](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L140). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** integridad, regresión. [REQ-REG-001.3](../catalogo-requisitos.md#req-reg-0013).
 
 ## Política, secretos y sesiones
 
@@ -918,6 +1104,12 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Preservable por referencia.** Mantener política única hasta el límite del destino, incluidos visor y conectores. M4 conserva autorización por evidencia y revocación. [AR-24](registro-maestro.md#ar-24).
 
+**Clase histórica.** POL · [fe-erratas-neon L26](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L26) · [adenda-final L146](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L146). **Clase objetivo.** POL por regla operativa de la ficha. **Etiquetas.** seguridad, privacidad. [REQ-SEG-001.1](../catalogo-requisitos.md#req-seg-0011).
+
+**Enmienda AV-01 1.** D-002. QAP detecta, reproduce, diagnostica y documenta defectos. Jamás modifica código fuente del AUT ni infraestructura o configuración productiva. Verificar cero modificaciones de esos recursos. [especificacion-entrega-1 L25](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/especificacion-entrega-1.md#L25).
+
+**Enmienda AV-01 3.** Separar ocho capacidades autorizables: acceso a workspace, observación de destinos/orígenes, autenticación/uso de perfiles, lectura documental, pruebas de solo lectura, escritura/mutación, creación/limpieza de datos sintéticos y eliminación de recursos propios de QAP. Verificar independencia entre las ocho y los cuatro permisos multimedia de D18. [especificacion-entrega-1 L368](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/especificacion-entrega-1.md#L368).
+
 ### REQ-SEG-001.2
 
 **Origen y obligación.** Original vía Etapa 3. Invariante de alcance en el motor central imposible de alterar desde prompts, DOM o redirecciones. [REQ-SEG-001.2](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L727) · [Etapa 3](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/gemini-neon-etapa-3.md#L154).
@@ -929,6 +1121,10 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 **Propuesta de Neon.** Invariante de alcance inalterable desde prompts, DOM o redirecciones. **Decisiones citadas.** D02, D07, D09, D20. **Clase Neon / Antigravity.** POL / POL. [Neon §2.3](auditoria-neon.md#23-clasificación-individual-de-los-87-ids-base-reconstrucción-analítica-60--20--7--5-elementos-promovidos), L126.
 
 **Preservable por referencia.** El contenido no confiable no amplía alcance. Acreditar autoridad efectiva del destino y rechazo ante discrepancia.
+
+**Clase histórica.** POL · [fe-erratas-neon L26](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L26) · [adenda-final L147](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L147). **Clase objetivo.** POL por regla operativa de la ficha. **Etiquetas.** seguridad, privacidad. [REQ-SEG-001.2](../catalogo-requisitos.md#req-seg-0012).
+
+**AR-04.** [Aislamiento por perfil efectivo y replay regional](dictamen-av01.md#ar-04).
 
 ### REQ-SEG-001.3
 
@@ -942,6 +1138,12 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Preservable por referencia.** Revocación durable al Discovery y Runner en vuelo. Probar cierre y preservación del historial sin exposición.
 
+**Clase histórica.** RNF · [fe-erratas-neon L25](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L25) · [adenda-final L148](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L148). **Clase objetivo.** RNF por atributo de calidad o control técnico. **Etiquetas.** seguridad, privacidad. [REQ-SEG-001.3](../catalogo-requisitos.md#req-seg-0013).
+
+**Enmienda AV-01 7.** Revocación durable y auditable en nuevas invocaciones y en vuelo del alcance concedido. Probar que no afecta proyectos, entornos, tenants ni perfiles ajenos al grant. Toda reconciliación o compensación requiere autoridad y evidencia propias. [adenda-final L148](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L148) · [especificacion-entrega-1 L368](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/especificacion-entrega-1.md#L368).
+
+**AV-02.** [AR-47](dictamen-av02.md#ar-47).
+
 ### REQ-SEG-002.1
 
 **Origen y obligación.** Original vía Etapa 3. Canal de captura de secretos multiplataforma 100 % fuera del LLM/chat; eliminación de bypass (sujeto a `DP-03`). **Precisión del catálogo.** Canal de captura de secretos multiplataforma 100 % fuera del LLM/chat; eliminación de bypass (sujeto a `DP-03`). D20 resuelve la prohibición de credenciales en MCP, chat y prompts. El mecanismo fuera de banda sigue abierto. [REQ-SEG-002.1](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L745) · [Etapa 3](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/gemini-neon-etapa-3.md#L156).
@@ -954,6 +1156,10 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Preservable por referencia.** Prohibición igual en todos los hosts y CI. M3 no sustituye custodia amplia de secretos, sesiones y trazas. [AR-07](registro-maestro.md#ar-07).
 
+**Clase histórica.** RNF · [fe-erratas-neon L25](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L25) · [adenda-final L149](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L149). **Clase objetivo.** RNF por atributo de calidad o control técnico. **Etiquetas.** seguridad, privacidad. [REQ-SEG-002.1](../catalogo-requisitos.md#req-seg-0021).
+
+**AV-02.** [AR-07](dictamen-av02.md#ar-07).
+
 ### REQ-SEG-002.2
 
 **Origen y obligación.** Original vía Etapa 3. Prohibición uniforme de degradación a anónimo cuando el alcance requiere sesión autenticada. [REQ-SEG-002.2](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L754) · [Etapa 3](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/gemini-neon-etapa-3.md#L157).
@@ -965,6 +1171,10 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 **Propuesta de Neon.** Prohibición uniforme de degradación a anónimo ante pérdida de sesión requerida. **Decisiones citadas.** D20. **Clase Neon / Antigravity.** POL / POL. [Neon §2.3](auditoria-neon.md#23-clasificación-individual-de-los-87-ids-base-reconstrucción-analítica-60--20--7--5-elementos-promovidos), L129.
 
 **Preservable por referencia.** El fallback anónimo es inadmisible si el alcance requiere autenticación, también con resolución implícita.
+
+**Clase histórica.** RNF · [fe-erratas-neon L25](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L25) · [adenda-final L150](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L150). **Clase objetivo.** POL por fallo cerrado sin degradación a anónimo. **Etiquetas.** seguridad, privacidad. [REQ-SEG-002.2](../catalogo-requisitos.md#req-seg-0022).
+
+**AV-02.** [AR-47](dictamen-av02.md#ar-47).
 
 ## Interfaces y extensibilidad
 
@@ -980,6 +1190,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Preservable por referencia.** Paridad de política, estados, efectos y salidas para el mismo snapshot, incluida CI sin ruta de escritura paralela. [AR-52](registro-maestro.md#ar-52).
 
+**Clase histórica.** RNF · [fe-erratas-neon L25](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L25) · [adenda-final L156](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L156). **Clase objetivo.** RNF por atributo de calidad o control técnico. **Etiquetas.** portabilidad, interoperabilidad. [REQ-INT-001.1](../catalogo-requisitos.md#req-int-0011).
+
 ### REQ-INT-001.2
 
 **Origen y obligación.** Original vía Etapa 3. Empaquetado limpio multiplataforma (`npx`-first), cero dependencias exclusivas de `win32` en ruta ordinaria y verificación estricta `tsc` en CI. [REQ-INT-001.2](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L776) · [Etapa 3](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/gemini-neon-etapa-3.md#L164).
@@ -991,6 +1203,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 **Propuesta de Neon.** Absorbe `REQ-ONB-001`, `M5`; empaquetado `npx`-first multiplataforma y `tsc` estricto. **Decisiones citadas.** D13, D14, D21. **Clase Neon / Antigravity.** RNF / RNF. [Neon §2.3](auditoria-neon.md#23-clasificación-individual-de-los-87-ids-base-reconstrucción-analítica-60--20--7--5-elementos-promovidos), L131.
 
 **Preservable por referencia.** ONB-001/M5 conservan instalación limpia, doctor/setup, tres SO, navegador bajo demanda, fidelidad y typecheck estricto. [AR-33](registro-maestro.md#ar-33).
+
+**Clase histórica.** RNF · [fe-erratas-neon L25](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L25) · [adenda-final L157](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L157). **Clase objetivo.** RNF por atributo de calidad o control técnico. **Etiquetas.** portabilidad, interoperabilidad. [REQ-INT-001.2](../catalogo-requisitos.md#req-int-0012).
 
 ### REQ-INT-001.3
 
@@ -1004,6 +1218,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Preservable por referencia.** Demostrar contrato que permite self-hosted futuro sin cambiar el núcleo. No convertir despliegue futuro en dependencia del lanzamiento local.
 
+**Clase histórica.** RNF · [fe-erratas-neon L25](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L25) · [adenda-final L158](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L158). **Clase objetivo.** RNF por atributo de calidad o control técnico. **Etiquetas.** portabilidad, interoperabilidad. [REQ-INT-001.3](../catalogo-requisitos.md#req-int-0013).
+
 ### REQ-INT-001.4
 
 **Origen y obligación.** Original vía Etapa 3. Sistema formal de registro de conectores/plugins opt-in (interfaz, documentos, bóveda, extensiones de dominio). **Precisión del catálogo.** Sistema formal de registro de conectores/plugins opt-in (interfaz, documentos, bóveda, extensiones de dominio). Incluir el contrato común para conectores UTCP/OpenAPI, además de adaptadores documentales y de bóveda. [REQ-INT-001.4](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L794) · [Etapa 3](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/gemini-neon-etapa-3.md#L166).
@@ -1015,6 +1231,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 **Propuesta de Neon.** Absorbe `UTCP/OpenAPI`; registro formal de conectores/plugins opt-in versionados. **Decisiones citadas.** D08, D10. **Clase Neon / Antigravity.** RNF / RNF. [Neon §2.3](auditoria-neon.md#23-clasificación-individual-de-los-87-ids-base-reconstrucción-analítica-60--20--7--5-elementos-promovidos), L133.
 
 **Preservable por referencia.** Preservar opt-in por conector, versionado, documentos/bóveda y puerto común UTCP/OpenAPI con gobernanza.
+
+**Clase histórica.** RNF · [fe-erratas-neon L25](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L25) · [adenda-final L159](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L159). **Clase objetivo.** RNF por atributo de calidad o control técnico. **Etiquetas.** portabilidad, interoperabilidad. [REQ-INT-001.4](../catalogo-requisitos.md#req-int-0014).
 
 ## Cinco requisitos nuevos en la línea base
 
@@ -1030,6 +1248,10 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Preservable por referencia.** Identidad distinta, lectura impuesta por destino y procedencia. Bloquear si no se acredita inmutabilidad o usar exportación saneada autorizada. [AR-18](registro-maestro.md#ar-18).
 
+**Clase histórica.** RF · [fe-erratas-neon L18](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L18). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** seguridad, aislamiento. [REQ-XINST-001](../catalogo-requisitos.md#req-xinst-001).
+
+**AV-02.** [AR-31](dictamen-av02.md#ar-31).
+
 ### REQ-QA-001
 
 **Origen y obligación.** Añadido de la línea base. Probar internacionalización mediante idioma, locale, zona horaria, moneda y variante congelados. HOST interpreta instrucciones y conclusiones y propone cambios. El runtime persiste preferencias y repite verificaciones de claves, textos, truncamiento, fechas y montos sin inferencia. Mantener códigos de resultado independientes del idioma. D03, D10, D11, D12, D17, D21. Lanzamiento. Corpus de locales por definir y extensible. [REQ-QA-001](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L815).
@@ -1041,6 +1263,10 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 **Propuesta de Neon.** Pruebas i18n: locale, zona horaria, moneda, truncamiento, claves faltantes y replay sin inferencia. **Decisiones citadas.** D03, D11, D17, D21. **Clase Neon / Antigravity.** RF / RF. [Neon §2.3](auditoria-neon.md#23-clasificación-individual-de-los-87-ids-base-reconstrucción-analítica-60--20--7--5-elementos-promovidos), L135.
 
 **Preservable por referencia.** Congelar idioma, locale, zona, moneda y variante. También preservar localización de QAP y códigos invariantes. [AR-45](registro-maestro.md#ar-45).
+
+**Clase histórica.** RF · [fe-erratas-neon L18](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L18). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** calidad, cobertura. [REQ-QA-001](../catalogo-requisitos.md#req-qa-001).
+
+**AR-04.** [Aislamiento por perfil efectivo y replay regional](dictamen-av01.md#ar-04).
 
 ### REQ-QA-002
 
@@ -1054,6 +1280,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Preservable por referencia.** Probar observación y llamada directa autorizada, con versión, esquema, códigos y contenido. Distinguir conformidad de efectos. [AR-48](registro-maestro.md#ar-48).
 
+**Clase histórica.** RF · [fe-erratas-neon L18](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L18). **Clase objetivo.** RF por capacidad funcional de la ficha. **Etiquetas.** calidad, cobertura. [REQ-QA-002](../catalogo-requisitos.md#req-qa-002).
+
 ### REQ-QA-003
 
 **Origen y obligación.** Añadido de la línea base. Comprobar accesibilidad en estados críticos con motor y reglas versionados. Registrar huella, estado, cobertura, exclusiones y comprobaciones manuales pendientes. D13, D21. Línea base. Cobertura y prioridad de lanzamiento pendientes de ratificación. [REQ-QA-003](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L835).
@@ -1066,6 +1294,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Ajuste.** Se trata de capacidad RF. DE-05 ratifica exigencia por campaña o compuerta, conservando estados críticos y chequeos manuales. [AR-35](registro-maestro.md#ar-35).
 
+**Clase histórica.** RF · [fe-erratas-neon L18](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L18). **Clase objetivo.** RF por capacidad de accesibilidad con cobertura pendiente en DE-05. **Etiquetas.** calidad, cobertura. [REQ-QA-003](../catalogo-requisitos.md#req-qa-003).
+
 ### REQ-AGT-001
 
 **Origen y obligación.** Añadido de la línea base. Adoptar QAP con instalación idempotente y un registro MCP por host, indicaciones acotadas y opción CLI. Orientar la primera acción QA hacia QAP y reservar la acreditación al runner canónico. Hooks informativos opcionales si se validan. D04, D13, D14, D21. Hosts representativos de lanzamiento. Umbral de enrutamiento pendiente. [REQ-AGT-001](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L845).
@@ -1077,6 +1307,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 **Propuesta de Neon.** Adopción por agentes (registro MCP único, Skill breve, hooks informativos opt-in sin bloqueos globales). **Decisiones citadas.** D13, D14, D21. **Clase Neon / Antigravity.** RF / RF. [Neon §2.3](auditoria-neon.md#23-clasificación-individual-de-los-87-ids-base-reconstrucción-analítica-60--20--7--5-elementos-promovidos), L138.
 
 **Preservable por referencia.** Medir primera acción QA, instalación idempotente, cuatro hosts y CLI con hooks informativos opcionales y sin bloqueo global. [AR-15](registro-maestro.md#ar-15).
+
+**Clase histórica.** RNF · [fe-erratas-neon L19](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#L19). **Clase objetivo.** RNF por interoperabilidad y usabilidad multihost. **Etiquetas.** portabilidad, adopción. [REQ-AGT-001](../catalogo-requisitos.md#req-agt-001).
 
 ## Promociones y políticas propuestas
 
@@ -1092,6 +1324,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Ajuste.** D11 exige conciliación por registros y totales. Separar estados fórmula/caché y fuente de regla contable con tolerancia y abstención. [AR-20](registro-maestro.md#ar-20).
 
+**Clase histórica.** Incorporación posterior a la línea base histórica. **Clase objetivo.** RF por capacidad de validación funcional D11. **Etiquetas.** veracidad, evidencia. [REQ-AUTREP-001](../catalogo-requisitos.md#req-autrep-001).
+
 ### REQ-RUN-002.1
 
 **Origen y obligación.** ID propuesto. Preferencias de ejecución y fidelidad del AUT D14, D15, D16, D21. Requisito expreso de lanzamiento. ID candidato. [CAND-RUN-001](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L887).
@@ -1103,6 +1337,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 **Propuesta de Neon.** Preferencias en lenguaje natural persistidas por proyecto + fidelidad visual/recursos del AUT. **Decisiones citadas.** D14, D15, D16, D21. **Clase Neon / Antigravity.** RF / RF. [Neon §2.3](auditoria-neon.md#23-clasificación-individual-de-los-87-ids-base-reconstrucción-analítica-60--20--7--5-elementos-promovidos), L140.
 
 **Ajuste.** Separar criterio 1a de preferencias persistentes y criterio 1b de fidelidad obligatoria con degradación explícita. Mantener un ID propuesto. [AR-16](registro-maestro.md#ar-16).
+
+**Clase histórica.** Incorporación posterior a la línea base histórica. **Clase objetivo.** RF por preferencias con invariante de fidelidad D14–D16. **Etiquetas.** autonomía, portabilidad. [REQ-RUN-002.1](../catalogo-requisitos.md#req-run-0021).
 
 ### REQ-SEG-002.3
 
@@ -1116,6 +1352,10 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Ajuste.** Control técnico con cifrado desde primer byte y supresión si falta garantía. Las ACL por sí solas no bastan. Distinguir captura, persistencia y reproducción. [AR-27](registro-maestro.md#ar-27).
 
+**Clase histórica.** Incorporación posterior a la línea base histórica. **Clase objetivo.** RNF por control de custodia D18/D20. **Etiquetas.** seguridad, privacidad. [REQ-SEG-002.3](../catalogo-requisitos.md#req-seg-0023).
+
+**AV-02.** [AR-27](dictamen-av02.md#ar-27) · [AR-32](dictamen-av02.md#ar-32).
+
 ### POL-CAP-001
 
 **Origen y obligación.** ID propuesto. D18/D20. Autorización renovable y revocable hasta 30 días. `VERIFIED_STRICT`, `PRIVATE_AUTHORIZED`, `MANDATORY_SUPPRESSION` con permisos distintos para capturar, acceder, conservar y exportar. [Captura privada controlada](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L911).
@@ -1128,6 +1368,10 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 
 **Ajuste.** D18 conserva tres modos, cuatro autorizaciones y vigencia de captura hasta 30 días. La conservación tiene vigencia propia y copia exportada tiene límite de revocación. [AR-32](registro-maestro.md#ar-32).
 
+**Clase histórica.** Incorporación posterior a la línea base histórica. **Clase objetivo.** POL por gobernanza de captura D18. **Etiquetas.** privacidad, gobernanza. [Políticas vigentes](../catalogo-requisitos.md#políticas-adicionales-de-captura-y-retención).
+
+**AV-02.** [AR-27](dictamen-av02.md#ar-27) · [AR-32](dictamen-av02.md#ar-32).
+
 ### POL-RET-001
 
 **Origen y obligación.** ID propuesto. D19. Resumen permanente hasta eliminación expresa, detalle 90 días, exportación manual, autoarchivo opcional, Knowledge vigente y casos activos sin caducidad. Propuesta técnica pendiente: multimedia de éxitos hasta 24 h, trazas 72 h, fallos al menos 14 días con las excepciones de D19. Defectos abiertos protegidos con cuotas. Poda cada 24 h mientras activo y al iniciar. [Historial y retención](https://github.com/Hyouka73/QAMCP/blob/ea804a5b141659c68cd85305ca4bbaeeb431bc0e/docs/qap-architecture/catalogo-requisitos.md#L912).
@@ -1139,6 +1383,10 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 **Propuesta de Neon.** Historial permanente, detalle 90 días, knowledge sin caducidad, poda auditable y TTL operativos ratificables. **Decisiones citadas.** D19. **Clase Neon / Antigravity.** POL / POL. [Neon §2.3](auditoria-neon.md#23-clasificación-individual-de-los-87-ids-base-reconstrucción-analítica-60--20--7--5-elementos-promovidos), L143.
 
 **Ajuste.** D19 distingue historia, detalle y conocimiento de TTL y cuotas pendientes. Revocación privada prevalece y poda no altera veredicto. [AR-25](registro-maestro.md#ar-25).
+
+**Clase histórica.** Incorporación posterior a la línea base histórica. **Clase objetivo.** POL por gobernanza de custodia e historial D19. **Etiquetas.** privacidad, gobernanza. [Políticas vigentes](../catalogo-requisitos.md#políticas-adicionales-de-captura-y-retención).
+
+**AV-02.** [AR-25](dictamen-av02.md#ar-25) · [AR-32](dictamen-av02.md#ar-32).
 
 ## Once ampliaciones
 
@@ -1171,6 +1419,8 @@ Cada fila comprueba alcance, condiciones y dependencias contra la fuente enlazad
 **Aceptación candidata.** Medir en tres sistemas concurrencia 1/2/4, aislamiento, presupuestos y procesos residuales tras fallo. Publicar hardware mínimo/recomendado por modalidad con medición reproducible. **Trazabilidad.** E3/E5/E7/E8, EXP-03.
 
 **Efecto de las propuestas.** Neon mantiene el mapeo en §2.3 y Antigravity lo corrobora en §2.1. La aceptación completa se conserva por referencia y se evalúa con las dependencias indicadas.
+
+**Enmienda AV-01 2.** RNF-02. Alternar entre tres, cuatro o más aplicaciones sin navegadores abiertos en reposo. Verificar liberación de procesos, locks y memoria al terminar cada tarea. Medir reapertura y alternancia con presupuestos configurables de tiempo, páginas y memoria. [especificacion-entrega-2 L391](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/especificacion-entrega-2.md#L391).
 
 ### Ampliación REQ-OPT-002
 

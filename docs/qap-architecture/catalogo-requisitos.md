@@ -2,7 +2,7 @@
 
 La referencia del propietario es **87 IDs únicos**. Se recuperaron **82 originales** de la matriz de Neon y se añadieron **5** IDs de la consolidación indicada por el propietario. La evaluación archivada propuso **88** porque incluía `REQ-UTCP-001` como sexto ID. Su contenido queda en `REQ-DAT-001.2` y `REQ-INT-001.4`. Se conservan **11 ampliaciones identificadas** (cinco etiquetas REQ, UTCP/OpenAPI y M1–M5) y **3 nuevos IDs candidatos**. Las dos políticas posteriores figuran al final, fuera del cómputo.
 
-El reparto **60 funcionales, 20 no funcionales y 7 políticas operativas base** procede del encargo. La matriz encontrada tiene los 82 IDs y su alcance, pero agrupa por dominios y los denomina colectivamente funcionales. No se recuperó la clasificación final por ID. Los 7 miembros de esa clase quedan pendientes de identificación en la fuente primaria. Se conservan los requisitos de política ya presentes en las filas de la matriz. Los IDs, el orden y la procedencia original permiten cotejar cada requisito sin reconstruir esa clasificación por inferencia.
+La [Fe de erratas §1.1](cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#11-corrección-de-encabezados-y-conteo-exacto) acredita 60 RF, 20 RNF y 7 POL históricos por ID. La [matriz](cierre-av-01/matriz-semantica.md) conserva clase histórica, clase objetivo justificada y etiquetas, sin cuota. La clase no altera alcance, prioridad ni aceptación. D01–D21 prevalecen, seguidos por las fichas completas y ampliaciones. Los contratos de AV-02–AV-08 desarrollan esas obligaciones bajo sus respectivas compuertas. Los informes históricos son antecedentes informativos. [Dictamen AV-01](cierre-av-01/dictamen-av01.md) · [Dictamen AV-02](cierre-av-01/dictamen-av02.md).
 
 La columna histórica se traslada a la base remota **77a9c4f3769784df40a17d5d19bd7c83a45f0c89** por identidad de código con `30fb3a2`. El análisis original de Neon dio 41 parciales, 16 incompatibles, 25 ausentes y 0 completos. Las correcciones H-REV posteriores aclaran el alcance donde se indica. Se trata de evidencia estática y antecedentes por SHA. La aceptación de cada fila sigue siendo candidata. Las dependencias usan el sufijo del ID con prefijo `REQ-` implícito y pueden describir interacción recíproca de contratos, sin fijar una secuencia de implementación.
 
@@ -55,6 +55,10 @@ Vector de alcance completo `(project, app, instance, env, tenant, role, version,
 - **Aceptación candidata.** Ejecutar dos perfiles con variantes divergentes y probar aislamiento en claves, FTS, exportación y reportes.
 - **Procedencia.** [Fila original de Neon](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/docs/qap-architecture/gemini-neon-etapa-3.md#L22) · [`packages/knowledge/src/storage/knowledge-sqlite-schema.ts:16-35`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/knowledge/src/storage/knowledge-sqlite-schema.ts#L16) · [`packages/mcp/src/application/app-service-store.ts:394-496`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/mcp/src/application/app-service-store.ts#L394).
 
+- **Precisión AR-04.** ExecutionScopeEnvelope conserva cuatro planos. ScopeIdentity identifica proyecto, aplicación, instancia, entorno, tenant, rol, versión de producto y revisión de configuración. ProfileBinding liga una referencia opaca y huella de alcance efectivo a la sesión, fuera del Knowledge exportable. Aislar autorización, vistas y evidencia sensible por perfil efectivo aun entre perfiles del mismo rol si difieren sus permisos. AppVariantContext fija variante visual, viewport y tema/layout. FrozenRegionalContext incluye idioma UI, locale, zona, moneda y calendario cuando aplique, congelados en el plan y su digest para replay e i18n. La región por sí sola no amplía autoridad. Si cambia reglas o permisos, reflejarlo en configuración o alcance acreditados. Probar dos tenants, perfiles de igual rol con permisos distintos, dos variantes y dos regiones, con cero fugas, colisiones o revocación cruzada. Si no se puede fijar región, congelar la observada y abstenerse al divergir.
+
+- **Contravalidación AV-02.** Identidad y tenant acreditados por destino, derechos efectivos y sesión vinculada. [AR-14](cierre-av-01/dictamen-av02.md#ar-14).
+
 ### REQ-MEM-002.2
 
 Validador único de alcance obligatorio en el núcleo compartido por MCP y CLI.
@@ -63,6 +67,8 @@ Validador único de alcance obligatorio en el núcleo compartido por MCP y CLI.
 - **Dependencias y alcance.** MEM 002.1, SEG 001.1. Fuentes y permisos por alcance.
 - **Aceptación candidata.** MCP y CLI rechazan el mismo alcance ambiguo, requerido e incompleto o cruzado antes de acceder.
 - **Procedencia.** [Fila original de Neon](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/docs/qap-architecture/gemini-neon-etapa-3.md#L23) · [`packages/mcp/src/workspace-context-manager.ts:706-718`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/mcp/src/workspace-context-manager.ts#L706) · [`packages/mcp/src/handlers/discovery.handler.ts:232-239`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/mcp/src/handlers/discovery.handler.ts#L232).
+
+- **Contravalidación AV-02.** Identidad y tenant acreditados por destino, derechos efectivos y sesión vinculada. [AR-14](cierre-av-01/dictamen-av02.md#ar-14).
 
 ### REQ-MEM-002.3
 
@@ -90,6 +96,8 @@ Separación física y lógica estricta entre memoria de conocimiento y almacén 
 - **Dependencias y alcance.** SEG 002.1–002.2. Fuentes y permisos por alcance.
 - **Aceptación candidata.** Un export de Knowledge conserva procedencia y excluye secretos y sesiones. Revocar sesión conserva Knowledge.
 - **Procedencia.** [Fila original de Neon](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/docs/qap-architecture/gemini-neon-etapa-3.md#L26) · [`packages/shared/src/domain/contextual-dimensions.ts:94-106`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/shared/src/domain/contextual-dimensions.ts#L94) · [`packages/mcp/src/application/managed-artifacts.ts:54-71`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/mcp/src/application/managed-artifacts.ts#L54).
+
+- **Contravalidación AV-02.** Alta fuera de banda y KEK persistente sujeto a EXP-07. [AR-07](cierre-av-01/dictamen-av02.md#ar-07).
 
 ### REQ-MEM-003.1
 
@@ -135,6 +143,8 @@ Motor único de retención y borrado aislado por proyecto usado por MCP y CLI.
 - **Dependencias y alcance.** RUN 001.6, REP 001.1. Fuentes y permisos por alcance.
 - **Aceptación candidata.** Simular y aplicar poda por alcance concilia los candidatos y bytes lógicos, protege ejecuciones activas y conserva veredicto y evento.
 - **Procedencia.** [Fila original de Neon](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/docs/qap-architecture/gemini-neon-etapa-3.md#L31) · [`packages/mcp/src/server.ts:4303-4350`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/mcp/src/server.ts#L4303) · [`packages/cli/src/commands/prune.ts:198-420`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/cli/src/commands/prune.ts#L198).
+
+- **Contravalidación AV-02.** Retención histórica y reserva por volumen sin poda por cuota de evidencia protegida. DE-01 abierta. [AR-25](cierre-av-01/dictamen-av02.md#ar-25).
 
 ### REQ-MEM-003.6
 
@@ -194,6 +204,8 @@ Matriz diferencial de visibilidad por rol, tenant y configuración efectiva.
 - **Aceptación candidata.** Comparar permisos de dos roles y dos configuraciones y registrar diferencias con procedencia y alcance.
 - **Procedencia.** [Fila original de Neon](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/docs/qap-architecture/gemini-neon-etapa-3.md#L42) · [`packages/mcp/src/handlers/discovery.handler.ts:528-568`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/mcp/src/handlers/discovery.handler.ts#L528).
 
+- **Enmienda AV-01 5.** Registrar no_visible_para_rol solo con causa de rol acreditada. Un 403 de causa desconocida indica acceso denegado o no observado. Ni 403 ni vista ausente acreditan inexistencia. Comparar también perfiles de igual rol con derechos efectivos distintos. Probar por separado ambas causas y ambos perfiles. [adenda-final L37](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L37) · [especificacion-entrega-1 L161](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/especificacion-entrega-1.md#L161).
+
 ### REQ-DIS-001.6
 
 Grafo dual explícito: aristas de navegación vs dependencias de negocio acreditadas.
@@ -252,6 +264,8 @@ Motor de reconciliación bidireccional documento ↔ observación con los 4 esta
 - **Aceptación candidata.** Sembrar los cuatro estados de conciliación y distinguir coincidente, documentado no observado, observado no documentado y contradicción real.
 - **Procedencia.** [Fila original de Neon](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/docs/qap-architecture/gemini-neon-etapa-3.md#L53) · [`packages/mcp/src/handlers/discovery.handler.ts:879-890`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/mcp/src/handlers/discovery.handler.ts#L879).
 
+- **Enmienda AV-01 4.** documentado_no_observado queda pendiente y jamás se marca automáticamente como eliminado. Conservar los cuatro estados y el criterio para contradicciones de igual autoridad. [adenda-final L48](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L48) · [especificacion-entrega-1 L67](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/especificacion-entrega-1.md#L67).
+
 ### REQ-DOC-001.4
 
 Regla transversal de autoridad documental aplicada a todo diseño de casos y oráculos.
@@ -309,6 +323,8 @@ Verificación criptográfica/integridad única de origen de intento en MCP y CLI
 - **Dependencias y alcance.** RUN 001.6, REP 001.1. Colas, política y formato de propuestas.
 - **Aceptación candidata.** Alterar un byte de un intento y demostrar el mismo rechazo de acreditación en MCP y CLI.
 - **Procedencia.** [Fila original de Neon](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/docs/qap-architecture/gemini-neon-etapa-3.md#L64) · [`packages/mcp/src/handlers/report.handler.ts:175-190`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/mcp/src/handlers/report.handler.ts#L175) · [`packages/cli/src/commands/report.ts:93-183`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/cli/src/commands/report.ts#L93).
+
+- **Contravalidación AV-02.** Nivel de confianza explícito y frontera independiente del HOST para acreditación fuerte. [AR-28](cierre-av-01/dictamen-av02.md#ar-28).
 
 ### REQ-IA-001.6
 
@@ -417,6 +433,8 @@ Evaluador de aplicabilidad condicional sobre casos por `(env, tenant, role, conf
 - **Aceptación candidata.** Sembrar variantes incompatibles y omitir de forma trazable el caso fuera de entorno, rol o revisión aplicable.
 - **Procedencia.** [Fila original de Neon](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/docs/qap-architecture/gemini-neon-etapa-3.md#L85) · [`packages/mcp/src/handlers/test.handler.ts:375-376`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/mcp/src/handlers/test.handler.ts#L375) · [`packages/mcp/src/handlers/canonical-coverage-service.ts`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/mcp/src/handlers/canonical-coverage-service.ts).
 
+- **Enmienda AV-01 9.** Evaluar applicable, not_applicable e indeterminate por entorno, tenant, rol y configuración. Una expectativa sin fuente de negocio acreditada queda INDETERMINATE. Probar cero PASS funcionales sin fuente y evaluar la aplicabilidad por separado. [adenda-final L80](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L80).
+
 ### REQ-CAS-001.5
 
 Deduplicación semántica/estructural y propagación automática de obsolescencia.
@@ -475,6 +493,8 @@ Oráculo de no-mutación (snapshot de estado antes/después de intento denegado)
 - **Aceptación candidata.** Una operación denegada se contrasta con estado inicial y final. Una mutación oculta produce FAIL.
 - **Procedencia.** [Fila original de Neon](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/docs/qap-architecture/gemini-neon-etapa-3.md#L96) · [`packages/knowledge/src/plan/rbac-generator.ts:309`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/knowledge/src/plan/rbac-generator.ts#L309) · [`packages/playwright-runner/src/case-execution-policy.ts:5-8`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/playwright-runner/src/case-execution-policy.ts#L5).
 
+- **Contravalidación AV-02.** Autoridad y semántica acreditadas por destino, control de egress. DE-04 abierta. [AR-31](cierre-av-01/dictamen-av02.md#ar-31).
+
 ### REQ-ORA-001.6
 
 Oráculo de convergencia asíncrona con ventana temporal y condición de estado final.
@@ -515,6 +535,8 @@ Verificación de huella de snapshot integrada en el propio motor Runner.
 - **Aceptación candidata.** El runner rechaza snapshot alterado, vencido o de otro alcance antes de abrir el navegador o invocar el destino.
 - **Procedencia.** [Fila original de Neon](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/docs/qap-architecture/gemini-neon-etapa-3.md#L105) · [`packages/playwright-runner/src/runner.ts:354`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/playwright-runner/src/runner.ts#L354) · [`packages/mcp/src/handlers/test.handler.ts:388-406`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/mcp/src/handlers/test.handler.ts#L388).
 
+- **Contravalidación AV-02.** Nivel de confianza explícito y frontera independiente del HOST para acreditación fuerte. [AR-28](cierre-av-01/dictamen-av02.md#ar-28).
+
 ### REQ-RUN-001.3
 
 Estructura tripartita obligatoria: `technical_status`, `functional_verdict`, `cleanup_status`. D12 añade disponibilidad e integridad de evidencia como estado independiente.
@@ -542,6 +564,8 @@ Cancelación activa (`AbortController`) cableada a revocación + pool acotado de
 - **Aceptación candidata.** Revocar un permiso en vuelo, detener el trabajo afectado y respetar límites y conflictos de recursos sin detener trabajo independiente.
 - **Procedencia.** [Fila original de Neon](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/docs/qap-architecture/gemini-neon-etapa-3.md#L108) · [`packages/mcp/src/handlers/test.handler.ts:880-913`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/mcp/src/handlers/test.handler.ts#L880) · [`packages/engine/src/flow-orchestrator.ts:378`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/engine/src/flow-orchestrator.ts#L378).
 
+- **Enmienda AV-01 2.** RNF-02. Alternar entre tres, cuatro o más aplicaciones sin navegadores abiertos en reposo. Verificar liberación de procesos, locks y memoria al terminar cada tarea. Medir reapertura y alternancia con presupuestos configurables de tiempo, páginas y memoria. [especificacion-entrega-2 L391](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/especificacion-entrega-2.md#L391).
+
 ### REQ-RUN-001.6
 
 Unificar publicación atómica sobre el almacén único eliminando DDL duplicados.
@@ -550,6 +574,8 @@ Unificar publicación atómica sobre el almacén único eliminando DDL duplicado
 - **Dependencias y alcance.** MEM 003.6, REP 001.1. Planes congelados y permisos.
 - **Aceptación candidata.** Cortar durante publicación y recuperación. Conservar cada intento confirmado una vez y rechazar media ajena o alterada.
 - **Procedencia.** [Fila original de Neon](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/docs/qap-architecture/gemini-neon-etapa-3.md#L109) · [`packages/playwright-runner/src/provisional-execution.ts:175-534`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/playwright-runner/src/provisional-execution.ts#L175) · [`packages/playwright-runner/src/evidence-artifacts.ts:881-908`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/playwright-runner/src/evidence-artifacts.ts#L881).
+
+- **Contravalidación AV-02.** Prevención previa y custodia de todos los temporales. Contrato de cobertura abierto. [AR-27](cierre-av-01/dictamen-av02.md#ar-27).
 
 ## Provisión y limpieza
 
@@ -573,6 +599,8 @@ Ejecutor de `DataPlan` con creación topológica y limpieza inversa idempotente.
 - **Aceptación candidata.** Ejecutar un DAG y su limpieza inversa usando UI y conector autorizado según plan. Reconciliar efecto e idempotencia con procedencia.
 - **Procedencia.** [Fila original de Neon](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/docs/qap-architecture/gemini-neon-etapa-3.md#L116) · [`packages/engine/src/flow-orchestrator.ts:391-393`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/engine/src/flow-orchestrator.ts#L391).
 
+- **Enmienda AV-01 8.** Limpiar en orden inverso solo entidades creadas por el dataset de esa ejecución. Repetir dos veces sin fallo ni afectación de registros ajenos. Una compensación explícitamente autorizada, acreditada y reconciliada es operación distinta. Conservar el aislamiento desechable autorizado cuando proceda. [adenda-final L111](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L111) · [especificacion-entrega-1 L326](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/especificacion-entrega-1.md#L326).
+
 ### REQ-DAT-001.3
 
 Motor de política por entorno que bloquee producción/no-autorizados (`SKIPPED_BY_POLICY`) y habilite mutaciones controladas en staging/fixtures autorizados.
@@ -581,6 +609,10 @@ Motor de política por entorno que bloquee producción/no-autorizados (`SKIPPED_
 - **Dependencias y alcance.** SEG 001.1–001.3. Política, datos sintéticos y testigos.
 - **Aceptación candidata.** Bloquear toda escritura en producción y fuera de QA autorizado, incluso si el método parece de lectura. Dejar continuar lecturas acreditadas.
 - **Procedencia.** [Fila original de Neon](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/docs/qap-architecture/gemini-neon-etapa-3.md#L117) · [`packages/mcp/src/handlers/test.handler.ts:45,488-496`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/mcp/src/handlers/test.handler.ts#L45) · [`packages/auth/src/scoped-browser.ts:7-31`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/auth/src/scoped-browser.ts#L7).
+
+- **Enmienda AV-01 1.** D-002. QAP detecta, reproduce, diagnostica y documenta defectos. Jamás modifica código fuente del AUT ni infraestructura o configuración productiva. Verificar cero modificaciones de esos recursos. [especificacion-entrega-1 L25](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/especificacion-entrega-1.md#L25).
+
+- **Contravalidación AV-02.** Autoridad y semántica acreditadas por destino, control de egress. DE-04 abierta. [AR-31](cierre-av-01/dictamen-av02.md#ar-31).
 
 ### REQ-DAT-001.4
 
@@ -653,6 +685,8 @@ Servicio único de evidencias e integridad consumido por MCP y CLI.
 - **Aceptación candidata.** Ambos canales publican manifiesto verificado, disponibilidad separada y evidencia saneada correlacionada por intento, paso y rol.
 - **Procedencia.** [Fila original de Neon](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/docs/qap-architecture/gemini-neon-etapa-3.md#L134) · [`packages/playwright-runner/src/evidence-artifacts.ts:420-990`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/playwright-runner/src/evidence-artifacts.ts#L420) · [`packages/mcp/src/handlers/report.handler.ts:175-190`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/mcp/src/handlers/report.handler.ts#L175).
 
+- **Contravalidación AV-02.** Visor autenticado y de solo lectura, apertura confinada y reproducción revocable. [AR-24](cierre-av-01/dictamen-av02.md#ar-24).
+
 ### REQ-REP-001.2
 
 Repositorio único de reportes, comparativas entre ejecuciones e historial unificado.
@@ -662,6 +696,8 @@ Repositorio único de reportes, comparativas entre ejecuciones e historial unifi
 - **Aceptación candidata.** Comparar dos ejecuciones tras purgar media y abrir export offline con enlaces, estados y hashes preservados.
 - **Procedencia.** [Fila original de Neon](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/docs/qap-architecture/gemini-neon-etapa-3.md#L135) · [`packages/reporter/src/manifest/regression-detector.ts:67`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/reporter/src/manifest/regression-detector.ts#L67) · [`packages/reporter/src/graph/graph-builder.ts:247,316`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/reporter/src/graph/graph-builder.ts#L247).
 
+- **Contravalidación AV-02.** Visor autenticado y de solo lectura, apertura confinada y reproducción revocable. [AR-24](cierre-av-01/dictamen-av02.md#ar-24).
+
 ### REQ-REP-001.3
 
 Subsistema `DefectManager` con taxonomía D-014 (`indeterminate`), deduplicación por firma y paquete reproducible.
@@ -670,6 +706,8 @@ Subsistema `DefectManager` con taxonomía D-014 (`indeterminate`), deduplicació
 - **Dependencias y alcance.** REP 001.1, ORA 001.1. Intentos acreditados, custodia y manifiestos.
 - **Aceptación candidata.** Deduplicar una firma repetida sin unir defectos de alcances distintos y producir paquete de reproducción acreditado.
 - **Procedencia.** [Fila original de Neon](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/docs/qap-architecture/gemini-neon-etapa-3.md#L136) · [`packages/reporter/src/taxonomy.ts:26-62`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/reporter/src/taxonomy.ts#L26) · [`packages/playwright-runner/src/runner.ts:50-72`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/playwright-runner/src/runner.ts#L50).
+
+- **Enmienda AV-01 6.** Conservar product_bug, environment_error, automation_error, data_error, auth_expired, flaky e indeterminate. Un HTTP 500 aislado no acredita product_bug. Probar que la evidencia causal ambigua produce indeterminate, preservando deduplicación y paquete reproducible. [adenda-final L131](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L131) · [especificacion-entrega-1 L74](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/especificacion-entrega-1.md#L74).
 
 ### REQ-REP-001.4
 
@@ -692,6 +730,8 @@ Motor de detección de drift multi-señal + selector de suite de regresión por 
 - **Dependencias y alcance.** MEM 003.2, PLN 001.3. Historial, versiones y grafo de conocimiento.
 - **Aceptación candidata.** Sembrar cambios DOM, API y configuración. Seleccionar casos afectados según dependencia y riesgo con razones.
 - **Procedencia.** [Fila original de Neon](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/docs/qap-architecture/gemini-neon-etapa-3.md#L143) · [`packages/git-adapter/src/git-adapter.ts:26-84`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/git-adapter/src/git-adapter.ts#L26) · [`packages/knowledge/src/impact/impact-analyzer.ts`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/knowledge/src/impact/impact-analyzer.ts).
+
+- **Contravalidación AV-02.** Git sin shell y señal no disponible diferenciada de ausencia de cambios. [AR-40](cierre-av-01/dictamen-av02.md#ar-40).
 
 ### REQ-REG-001.2
 
@@ -724,6 +764,10 @@ Motor único de políticas deny-by-default aplicado a MCP, CLI y servidores auxi
 - **Aceptación candidata.** Aplicar idéntica denegación por defecto en MCP, CLI y auxiliares. Un permiso de lectura no habilita efectos.
 - **Procedencia.** [Fila original de Neon](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/docs/qap-architecture/gemini-neon-etapa-3.md#L151) · [`packages/mcp/src/application/permission-authority.ts:84`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/mcp/src/application/permission-authority.ts#L84) · [`packages/reporter/src/server/server.ts:277`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/reporter/src/server/server.ts#L277) · [`packages/git-adapter/src/git-adapter.ts:26`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/git-adapter/src/git-adapter.ts#L26).
 
+- **Enmienda AV-01 1.** D-002. QAP detecta, reproduce, diagnostica y documenta defectos. Jamás modifica código fuente del AUT ni infraestructura o configuración productiva. Verificar cero modificaciones de esos recursos. [especificacion-entrega-1 L25](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/especificacion-entrega-1.md#L25).
+
+- **Enmienda AV-01 3.** Separar ocho capacidades autorizables: acceso a workspace, observación de destinos/orígenes, autenticación/uso de perfiles, lectura documental, pruebas de solo lectura, escritura/mutación, creación/limpieza de datos sintéticos y eliminación de recursos propios de QAP. Verificar independencia entre las ocho y los cuatro permisos multimedia de D18. [especificacion-entrega-1 L368](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/especificacion-entrega-1.md#L368).
+
 ### REQ-SEG-001.2
 
 Invariante de alcance en el motor central imposible de alterar desde prompts, DOM o redirecciones.
@@ -732,6 +776,8 @@ Invariante de alcance en el motor central imposible de alterar desde prompts, DO
 - **Dependencias y alcance.** MEM 002.1, SEG 001.1. Autoridad efectiva y alcance.
 - **Aceptación candidata.** Al cambiar origen, identidad o tenant durante una operación, revalidar y bloquear la transición fuera de alcance.
 - **Procedencia.** [Fila original de Neon](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/docs/qap-architecture/gemini-neon-etapa-3.md#L152) · [`packages/mcp/src/handlers/discovery.handler.ts:158-394`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/mcp/src/handlers/discovery.handler.ts#L158) · [`packages/auth/src/scoped-browser.ts:4-34`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/auth/src/scoped-browser.ts#L4).
+
+- **Precisión AR-04.** Aplicar el [sobre de contexto](#req-mem-0021) y verificar aislamiento por perfil efectivo y replay regional.
 
 ### REQ-SEG-001.3
 
@@ -742,6 +788,10 @@ Bus de eventos de revocación conectado a `AbortController` de Discovery y Runne
 - **Aceptación candidata.** Revocar desde otro proceso y probar cancelación y persistencia de la revocación al reconectar.
 - **Procedencia.** [Fila original de Neon](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/docs/qap-architecture/gemini-neon-etapa-3.md#L153) · [`packages/mcp/src/application/permission-authority.ts`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/mcp/src/application/permission-authority.ts) · [`packages/mcp/src/handlers/test.handler.ts:880-913`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/mcp/src/handlers/test.handler.ts#L880).
 
+- **Enmienda AV-01 7.** Revocación durable y auditable en nuevas invocaciones y en vuelo del alcance concedido. Probar que no afecta proyectos, entornos, tenants ni perfiles ajenos al grant. Toda reconciliación o compensación requiere autoridad y evidencia propias. [adenda-final L148](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L148) · [especificacion-entrega-1 L368](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/especificacion-entrega-1.md#L368).
+
+- **Contravalidación AV-02.** Fallo cerrado, revocación durable y reconciliación de efectos previos. [AR-47](cierre-av-01/dictamen-av02.md#ar-47).
+
 ### REQ-SEG-002.1
 
 Canal de captura de secretos multiplataforma 100 % fuera del LLM/chat; eliminación de bypass (sujeto a `DP-03`). D20 resuelve la prohibición de credenciales en MCP, chat y prompts. El mecanismo fuera de banda sigue abierto.
@@ -751,6 +801,8 @@ Canal de captura de secretos multiplataforma 100 % fuera del LLM/chat; eliminaci
 - **Aceptación candidata.** Dar de alta una referencia opaca en las tres plataformas y CI sin TTY. Verificar ausencia de canarios en canales y artefactos.
 - **Procedencia.** [Fila original de Neon](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/docs/qap-architecture/gemini-neon-etapa-3.md#L154) · [`packages/mcp/src/host-composition.ts:390`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/mcp/src/host-composition.ts#L390) · [`packages/mcp/src/server.ts:378-380,744-756`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/mcp/src/server.ts#L378) · [`packages/auth/src/portable-vault.ts`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/auth/src/portable-vault.ts).
 
+- **Contravalidación AV-02.** Alta fuera de banda y KEK persistente sujeto a EXP-07. [AR-07](cierre-av-01/dictamen-av02.md#ar-07).
+
 ### REQ-SEG-002.2
 
 Prohibición uniforme de degradación a anónimo cuando el alcance requiere sesión autenticada.
@@ -759,6 +811,8 @@ Prohibición uniforme de degradación a anónimo cuando el alcance requiere sesi
 - **Dependencias y alcance.** SEG 001.2–001.3, SEG 002.1. Autoridad efectiva y alcance.
 - **Aceptación candidata.** Perder la sesión requerida durante Discovery o ejecución y bloquear el intento de continuar bajo otra identidad.
 - **Procedencia.** [Fila original de Neon](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/docs/qap-architecture/gemini-neon-etapa-3.md#L155) · [`packages/playwright-runner/src/runner.ts:335-342`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/playwright-runner/src/runner.ts#L335) · [`packages/auth/src/session-store.ts`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/auth/src/session-store.ts).
+
+- **Contravalidación AV-02.** Fallo cerrado, revocación durable y reconciliación de efectos previos. [AR-47](cierre-av-01/dictamen-av02.md#ar-47).
 
 ## Interfaces y extensibilidad
 
@@ -812,6 +866,8 @@ Consultar otra instancia autorizada solo con identidad distinta y operaciones de
 - **Aceptación candidata.** Fixture con identidades separadas y testigo de cero cambios. Las operaciones sin garantía, incluidas las que aparentan lectura, se bloquean. Verificar redirección, alcance y procedencia.
 - **Procedencia y trazabilidad.** [Evaluación independiente, sección B](insumos/evaluacion-independiente-requisitos.md#b-matriz-consolidada-de-requisitos) y [acta del propietario](acta-decisiones.md). G0/G2/G3, E2/E4/E5/E8, EXP-05.
 
+- **Contravalidación AV-02.** Autoridad y semántica acreditadas por destino, control de egress. DE-04 abierta. [AR-31](cierre-av-01/dictamen-av02.md#ar-31).
+
 ### REQ-QA-001
 
 Probar internacionalización mediante idioma, locale, zona horaria, moneda y variante congelados. HOST interpreta instrucciones y conclusiones y propone cambios. El runtime persiste preferencias y repite verificaciones de claves, textos, truncamiento, fechas y montos sin inferencia. Mantener códigos de resultado independientes del idioma.
@@ -821,6 +877,8 @@ Probar internacionalización mediante idioma, locale, zona horaria, moneda y var
 - **Estado en develop.** Sin garantía integrada acreditada.
 - **Aceptación candidata.** Cambiar idioma en dos locales del corpus y detectar traducción ausente y truncamiento con oráculo. Distinguir representaciones equivalentes de divergencias de valor. Repetir el snapshot sin inferencia.
 - **Procedencia y trazabilidad.** [Evaluación independiente, sección B](insumos/evaluacion-independiente-requisitos.md#b-matriz-consolidada-de-requisitos) y [acta del propietario](acta-decisiones.md). G2/G3/G4/G6, E4/E5/E8, EXP-06.
+
+- **Precisión AR-04.** Aplicar el [sobre de contexto](#req-mem-0021) y verificar aislamiento por perfil efectivo y replay regional.
 
 ### REQ-QA-002
 
@@ -860,7 +918,7 @@ Los criterios heredados de cada ID siguen aplicando. Las ampliaciones heredan su
 |---|---|---|---|---|---|
 | REQ-AGT-002 | MEM-002.4, IA-001.1 | D03, D05, D13 | Resumen de contexto limitado a la campaña, cobertura, permisos y próxima acción. Consultar bajo alcance resuelto y devolver las omisiones. | Reanudar desde chat y host nuevos en una consulta autorizada y medir tokens por tokenizer. Los valores de 150/200 tokens siguen como hipótesis. | E3, EXP-01 |
 | REQ-ONB-001 | INT-001.2 | D13, D14, D20 | Diagnóstico y aprovisionamiento idempotente sin dependencias del proyecto probado, caché de navegadores, proxy y CA. Dar diagnóstico accionable cuando falten permisos. | Instalación limpia en los tres sistemas, navegador bajo demanda, loopback con PNG y WebM donde proceda y cierre de procesos. Medir soporte efectivo por plataforma. | E1/E6/E7, EXP-04 |
-| REQ-OPT-001 | RUN-001.1, RUN-001.5, CAM-001.3 | D16, D21 | Control de CPU, RAM, presión de memoria, disco y presupuesto. Concurrencia limitada por dependencias, conflictos de datos, sesiones, roles y permisos. Reutilización bajo aislamiento, reciclaje, cancelación y limpieza. | Medir en tres sistemas concurrencia 1/2/4, aislamiento, presupuestos y procesos residuales tras fallo. Publicar hardware mínimo/recomendado por modalidad con medición reproducible. | E3/E5/E7/E8, EXP-03 |
+| REQ-OPT-001 | RUN-001.1, RUN-001.5, CAM-001.3 | D16, D21 | Control de CPU, RAM, presión de memoria, disco y presupuesto. Concurrencia limitada por dependencias, conflictos de datos, sesiones, roles y permisos. Reutilización bajo aislamiento, reciclaje, cancelación y limpieza. RNF-02. Alternar entre tres, cuatro o más aplicaciones sin navegadores abiertos en reposo. Verificar liberación de procesos, locks y memoria al terminar cada tarea. Medir reapertura y alternancia con presupuestos configurables de tiempo, páginas y memoria. | Medir en tres sistemas concurrencia 1/2/4, aislamiento, presupuestos y procesos residuales tras fallo. Publicar hardware mínimo/recomendado por modalidad con medición reproducible. | E3/E5/E7/E8, EXP-03 | · [especificacion-entrega-2 L391](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/especificacion-entrega-2.md#L391)
 | REQ-OPT-002 | MEM-003.5, DIS-001.3, MEM-002.4 | D05, D16, D19 | Compactar contexto y snapshots preservando estado, procedencia y omisiones. Poda común con simulación real y protección de evidencia activa. | Comparar bytes y cobertura antes y después, medir tokens y verificar que simulación no escribe ni retiene handles. | E2/E4, EXP-02/03 |
 | REQ-E2E-001 | PLN-001.1, PLN-001.4–001.6, RUN-001.1–001.4, CAM-001.2–001.3 | D04, D06–D08, D12, D21 | DAG multirol y multimódulo con entradas/salidas tipadas, verificaciones, datos, evidencia por paso y recuperación. Los efectos confirmados del AUT se reconcilian y, cuando proceda, se compensan. | Tres módulos y dos roles en un flujo. Inyectar fallo tras un efecto confirmado y demostrar continuidad y ausencia de duplicación. Replay congelado sin inferencia por paso. | E3/E4/E5/E8, EXP-05 |
 | UTCP/OpenAPI (alias histórico REQ-UTCP-001) | DAT-001.2, INT-001.4 | D07–D09, D12 | Manuales y contratos versionados sobre un puerto común, selección de destino autorizado, validación de esquemas y referencias opacas. Preparación con reconciliación, limpieza e idempotencia donde exista soporte. | Preparar cliente, contrato y solicitud con ambas descripciones y verificar efectos y pérdida de respuesta. Las referencias de solo lectura quedan inmutables. | E1/E4/E5, EXP-05 |
@@ -872,43 +930,61 @@ Los criterios heredados de cada ID siguen aplicando. Las ampliaciones heredan su
 
 ## Nuevos candidatos
 
-Los identificadores son candidatos de trazabilidad. El alcance expreso del acta conserva su fuerza.
+Candidatos de origen y sus promociones trazables. CAND-SEG-001 origina también POL-CAP-001. El alcance del acta conserva su fuerza.
 
-### CAND-REP-001
+<a id="cand-rep-001"></a>
+
+### REQ-AUTREP-001
+
+**Alias de origen.** CAND-REP-001.
 
 Validación funcional de reportes emitidos por el AUT
 
-- **Decisiones y alcance.** D11, D12, D21. Requisito expreso de lanzamiento. ID candidato.
+- **Decisiones y alcance.** D11, D12, D21. Requisito expreso de lanzamiento. Identificador promovido.
 - **Dependencias.** DOC 001.1–001.4, ORA 001.2–001.7, RUN 001.6.
 - **Estado en develop.** Ausente como producto integrado. Los generadores de reportes de QAP cumplen otro propósito.
 - **Aceptación candidata.** En módulos de reportes configurar fechas, filtros y agrupación, descargar PDF y Excel y comparar filas, columnas, hojas y tablas multipágina con fuentes autorizadas. Detectar duplicados, faltantes, filtros ignorados, cálculos y redondeo. Distinguir fórmula y valor cacheado, abstenerse ante extracción o fuente insuficientes y localizar cada diferencia. Validar tanto registros como totales.
 - **Procedencia y trazabilidad.** [Decisiones D01–D21](acta-decisiones.md) y [matriz de trazabilidad](trazabilidad.md). G2/G3/G4/G6, E4/E5/E8.
 
-### CAND-RUN-001
+<a id="cand-run-001"></a>
+
+### REQ-RUN-002.1
+
+**Alias de origen.** CAND-RUN-001.
 
 Preferencias de ejecución y fidelidad del AUT
 
-- **Decisiones y alcance.** D14, D15, D16, D21. Requisito expreso de lanzamiento. ID candidato.
+- **Decisiones y alcance.** D14, D15, D16, D21. Requisito expreso de lanzamiento. Identificador promovido.
 - **Dependencias.** DIS 001.3–001.4, RUN 001.1, INT 001.2, REQ-ONB-001.
 - **Estado en develop.** Fidelidad y portabilidad sin certificar. El runner existente usa Playwright.
 - **Aceptación candidata.** Guardar y cambiar desde lenguaje natural preferencias de modo visible/segundo plano, navegador, grabación autorizada y consumo. Confrontar criterios funcionales y recursos permitidos CSS, JS, imágenes y fuentes en ambas modalidades y registrar degradación e hidratación SPA.
 - **Procedencia y trazabilidad.** [Decisiones D01–D21](acta-decisiones.md) y [matriz de trazabilidad](trazabilidad.md). G2/G3/G5/G6, E4/E6/E7/E8, EXP-03/04.
 
-### CAND-SEG-001
+<a id="cand-seg-001"></a>
+
+- **Criterios independientes.** 1a, persistir por proyecto preferencias conversacionales de visualización, navegador, grabación autorizada y consumo. 1b, fidelidad no desactivable de CSS, JS, imágenes, fuentes e hidratación SPA autorizados, con resource_degradation_event al degradar.
+
+### REQ-SEG-002.3
+
+**Alias de origen.** CAND-SEG-001.
 
 Autorización y custodia del ciclo de evidencia privada
 
-- **Decisiones y alcance.** D18, D19, D20. Política de producto expresa. ID candidato. Activación condicionada.
+- **Decisiones y alcance.** D18, D19, D20. Política de producto expresa. Identificador promovido. Activación condicionada.
 - **Dependencias.** SEG 001.1–001.3, SEG 002.1, REP 001.1, RUN 001.6, M2–M5.
 - **Estado en develop.** Ausente como garantía de producto. AS-04 es experimental y reproducción de fuga acreditada en ese fixture.
 - **Aceptación candidata.** Separar autorización de capturar, acceder, conservar y exportar. Probar vigencia de captura ≤30 días, renovación y revocación, custodia desde la primera escritura, catálogo/visor confinado y exportación sin media privada por defecto. Perder garantías en login/MFA/SSO o superficie sensible exige supresión. Verificar eliminación lógica y riesgo residual.
 - **Procedencia y trazabilidad.** [Decisiones D01–D21](acta-decisiones.md) y [matriz de trazabilidad](trazabilidad.md). G0/G1/G3/G5/G6, E2/E5/E6/E8, AS-01/03/04, EXP-06.
 
+- **Contravalidación AV-02.** Prevención previa y custodia de todos los temporales. Contrato de cobertura abierto. [AR-27](cierre-av-01/dictamen-av02.md#ar-27).
+
+- **Contravalidación AV-02.** Cuatro permisos independientes y ratificación de riesgo pendiente DE-02. [AR-32](cierre-av-01/dictamen-av02.md#ar-32).
+
 ## Políticas adicionales de captura y retención
 
 | Política | Fuente y alcance | Dependencias | Estado en develop | Aceptación candidata |
 |---|---|---|---|---|
-| Captura privada controlada | D18/D20. Autorización renovable y revocable hasta 30 días. `VERIFIED_STRICT`, `PRIVATE_AUTHORIZED`, `MANDATORY_SUPPRESSION` con permisos distintos para capturar, acceder, conservar y exportar. | CAND-SEG-001, M2–M5, AS-01/03/04. | Capturas y reportes parciales. Régimen de custodia sin demostrar en producto. | Probar supresión cuando falle una garantía, revocación en vuelo, custodia desde origen, trazabilidad y exclusión de privada de exportación predeterminada. |
-| Historial y retención | D19. Resumen permanente hasta eliminación expresa, detalle 90 días, exportación manual, autoarchivo opcional, Knowledge vigente y casos activos sin caducidad. Propuesta técnica pendiente: multimedia de éxitos hasta 24 h, trazas 72 h, fallos al menos 14 días con las excepciones de D19. Defectos abiertos protegidos con cuotas. Poda cada 24 h mientras activo y al iniciar. | REQ-MEM-003.5, REQ-REP-001.1–001.4, M2, CAND-SEG-001. | Poda parcial y divergente. Plazos de D19 sin garantía integrada acreditada. | Simular vencimiento, defecto abierto, corrección acreditada y publicación pendiente. Comprobar protección y poda, hashes y manifiesto preservados, mismo veredicto, informe sin `trace.zip` y exportaciones HTML, CSV, JSON/JSONL y manifiesto verificable. |
+| POL-CAP-001 · Captura privada controlada | D18/D20. Autorización renovable y revocable hasta 30 días. `VERIFIED_STRICT`, `PRIVATE_AUTHORIZED`, `MANDATORY_SUPPRESSION` con permisos distintos para capturar, acceder, conservar y exportar. | CAND-SEG-001, M2–M5, AS-01/03/04. | Capturas y reportes parciales. Régimen de custodia sin demostrar en producto. | Probar supresión cuando falle una garantía, revocación en vuelo, custodia desde origen, trazabilidad y exclusión de privada de exportación predeterminada. |
+| POL-RET-001 · Historial y retención | D19. Resumen permanente hasta eliminación expresa, detalle 90 días, exportación manual, autoarchivo opcional, Knowledge vigente y casos activos sin caducidad. Propuesta técnica pendiente: multimedia de éxitos hasta 24 h, trazas 72 h, fallos al menos 14 días con las excepciones de D19. Defectos abiertos protegidos con cuotas. Poda cada 24 h mientras activo y al iniciar. | REQ-MEM-003.5, REQ-REP-001.1–001.4, M2, CAND-SEG-001. | Poda parcial y divergente. Plazos de D19 sin garantía integrada acreditada. | Simular vencimiento, defecto abierto, corrección acreditada y publicación pendiente. Comprobar protección y poda, hashes y manifiesto preservados, mismo veredicto, informe sin `trace.zip` y exportaciones HTML, CSV, JSON/JSONL y manifiesto verificable. |
 
 Las comprobaciones conocidas como HAR saneado, exportación a especificaciones, Web Vitals y regresión visual del AUT conservan prioridad opcional de la evaluación independiente. Accesibilidad y contrato API conservan sus IDs dedicados. Los controles autorizados de permisos, aislamiento, ausencia de efectos, cabeceras y política CORS del AUT se trazan a CAS/ORA/SEG y D07/D12/D21.

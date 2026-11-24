@@ -21,27 +21,41 @@ Contravalidadores indicados por función, pendientes de designación. Severidad 
 | Total | 57 | 11 | 35 | 11 |  |  |
 
 
+## Estados vigentes
+
+| Estado principal | Registros |
+| --- | --- |
+| BLOQUEANTE | 9 |
+| PENDIENTE | 26 |
+| VALIDACIÓN EXPERIMENTAL PENDIENTE | 16 |
+| VALIDADA | 6 |
+| Total | 57 |
+
+Los estados principales son excluyentes. Hay seis cierres documentales de AV-01. En AV-02 hay nueve diseños aceptados en su ámbito, un contrato técnico abierto y diez expedientes de validación experimental pendientes. AR-04 añade validación pendiente dentro de los seis cierres documentales. AR-27 condiciona la planificación definitiva de captura privada. AR-24/40 condicionan el cierre de G0. Otros bloqueantes pertenecen a auditorías fuera de esta intervención. Diseño, experimentos y activación son atributos independientes.
+
 ## Expedientes y registros
 
 ## AV-01 · Integridad y cobertura de requisitos
 
 ### AR-01
 
-**Problema y cierre.** Cotejar las Entregas/Adenda y consolidación original, o dejar aceptación expresa de la incertidumbre por el propietario.
+**Problema y cierre.** Cotejar Entregas, Adenda y consolidación original con el catálogo vigente.
 
-**Fuente y localizador.** N §2.1–2.3, §12; A §2.1, §2.3; E Material primario pendiente. Localizadores por sección en la fuente.
+**Fuente y localizador.** N §2.1–2.3, §12; A §2.1, §2.3; [Fuentes recuperadas](fuentes-recuperadas/README.md). Localizadores por sección en la fuente.
 
 **Requisitos afectados.** Todos los 82 de Etapa 3; 5 añadidos.
 
-**Evidencia disponible y discrepancia.** Inventario ya coincide; los originales podrían añadir condiciones no recuperadas. Referencias: N §2.1–2.3, §12. A §2.1, §2.3. E Material primario pendiente.
+**Resolución.** Cinco textos recuperados y nueve obligaciones restauradas con criterios comprobables. [AR-01](dictamen-av01.md#ar-01).
 
-**Evidencia necesaria.** Entregas/Adenda o resolución expresa con fuente sustitutiva y alcance incierto.
+**Criterio acreditado.** Véanse enlaces y verificación del dictamen.
 
 **Responsable principal.** AV-01. **Dependencias.** Sin otra dependencia asignada. **Contravalidador.** Revisor de requisitos independiente, designado por el Orquestador.
 
-**Severidad.** Alta. **Estado.** BLOQUEANTE. **Fase.** Previo al cierre AV-01.
+**Severidad.** Alta. **Estado.** VALIDADA. **Fase.** Previo al cierre AV-01.
 
-**Riesgo residual.** Condiciones, excepciones o requisitos literales ausentes en las fuentes secundarias.
+**Riesgo residual.** Identidad externa de las copias textuales sin firma binaria.
+
+**Cierre documental.** Sí. **Experimental.** No aplica.
 
 ### AR-02
 
@@ -51,15 +65,17 @@ Contravalidadores indicados por función, pendientes de designación. Severidad 
 
 **Requisitos afectados.** REQ-QA-003, REQ-MEM-002.1, REQ-SEG-002.1.
 
-**Evidencia disponible y discrepancia.** 62/21/9 de Neon frente a 63/20/9 de Antigravity. Este último cambia solo QA-003 en el recuento. Referencias: N §2.3–2.4. A §2.3 / C-01.
+**Resolución.** Clase por ID trazada y taxonomía objetivo justificada sin cuota. DE-05 abierta. [AR-02](dictamen-av01.md#ar-02).
 
-**Evidencia necesaria.** Matriz de 92 clases corregida y aprobación de taxonomía como metadato.
+**Criterio acreditado.** Véanse enlaces y verificación del dictamen.
 
 **Responsable principal.** AV-01. **Dependencias.** AV-08 **Contravalidador.** Revisor de requisitos independiente, designado por el Orquestador.
 
-**Severidad.** Media. **Estado.** PENDIENTE. **Fase.** Previo al cierre AV-01.
+**Severidad.** Media. **Estado.** VALIDADA. **Fase.** Previo al cierre AV-01.
 
 **Riesgo residual.** La clase podría usarse para degradar cobertura de lanzamiento o duplicar IDs.
+
+**Cierre documental.** Sí. **Experimental.** No aplica.
 
 ### AR-03
 
@@ -69,15 +85,17 @@ Contravalidadores indicados por función, pendientes de designación. Severidad 
 
 **Requisitos afectados.** 87 IDs, 11 ampliaciones, 3 CAND, 2 políticas y 5 IDs propuestos.
 
-**Evidencia disponible y discrepancia.** Los informes confirman cardinalidad, mientras las propuestas condensan condiciones y separan algunas cláusulas. Referencias: N §2.2–2.4, §3, §13.1. A §2.1–2.2.
+**Resolución.** Las 92 fichas conservan alias, obligación y precedencia. Contratos técnicos sujetos a AV-02–AV-08. [AR-03](dictamen-av01.md#ar-03).
 
-**Evidencia necesaria.** Texto objetivo con trazabilidad 87+5, 11 deltas, incluidos límites y evidencia de la matriz.
+**Criterio acreditado.** Véanse enlaces y verificación del dictamen.
 
 **Responsable principal.** AV-01. **Dependencias.** AV-02, AV-03, AV-04, AV-05, AV-06, AV-08 **Contravalidador.** Revisor de requisitos independiente, designado por el Orquestador.
 
-**Severidad.** Alta. **Estado.** BLOQUEANTE. **Fase.** Previo al cierre AV-01.
+**Severidad.** Alta. **Estado.** VALIDADA. **Fase.** Previo al cierre AV-01.
 
 **Riesgo residual.** Riesgo de congelar una especificación incompleta o con procedencia insuficiente.
+
+**Cierre documental.** Sí. **Experimental.** No aplica.
 
 ### AR-04
 
@@ -87,15 +105,17 @@ Contravalidadores indicados por función, pendientes de designación. Severidad 
 
 **Requisitos afectados.** REQ-MEM-002.1, REQ-QA-001, REQ-SEG-001.2.
 
-**Evidencia disponible y discrepancia.** Neon resume perfil y no explicita las tres dimensiones regionales en esa fila. A pide incluirlas en ScopeVector. Referencias: N §2.4.2, §6.A, §6.H. A §2.3 / C-01 / HA-04. Orq §6.
+**Resolución.** Sobre de cuatro planos con aislamiento por ProfileBinding cuando cambia autoridad bajo igual rol. [AR-04](dictamen-av01.md#ar-04).
 
-**Evidencia necesaria.** Ejemplos de dos alcances y dos perfiles regionales, trazas persistidas y replay sin colisión.
+**Criterio acreditado.** Véanse enlaces y verificación del dictamen.
 
 **Responsable principal.** AV-01. **Dependencias.** AV-02, AV-03 **Contravalidador.** Revisor de requisitos independiente, designado por el Orquestador.
 
-**Severidad.** Alta. **Estado.** PENDIENTE. **Fase.** Previo al cierre AV-01.
+**Severidad.** Alta. **Estado.** VALIDADA. **Fase.** Previo al cierre AV-01.
 
 **Riesgo residual.** Colisiones entre tenants, perfiles o replay regional con reglas y montos distintos.
+
+**Cierre documental.** Sí. **Experimental.** Pendiente E2/E4 en G1/G2.
 
 ### AR-55
 
@@ -105,9 +125,9 @@ Contravalidadores indicados por función, pendientes de designación. Severidad 
 
 **Requisitos afectados.** 82 originales, cinco añadidos, criterios de clase y cinco IDs propuestos.
 
-**Evidencia disponible y discrepancia.** Coinciden en identidad, discrepan en clasificación y varias obligaciones. Validación limitada a inventario. Referencias: N §2.2–2.3. A §2.1.
+**Resolución.** 82+5 históricos, 11 ampliaciones, 3 promociones, 2 políticas y D01–D21 comprobados. [AR-55](dictamen-av01.md#ar-55).
 
-**Evidencia necesaria.** 92 IDs únicos, 82/5 base, 11 ampliaciones, 3 candidatos, 2 políticas y 21 decisiones verificadas por matriz.
+**Criterio acreditado.** Véanse enlaces y verificación del dictamen.
 
 **Responsable principal.** AV-01. **Dependencias.** Sin otra dependencia asignada. **Contravalidador.** Revisor de requisitos independiente, designado por el Orquestador.
 
@@ -115,23 +135,27 @@ Contravalidadores indicados por función, pendientes de designación. Severidad 
 
 **Riesgo residual.** El conteo deja por comprobar equivalencia semántica completa y aceptación de producto.
 
+**Cierre documental.** Sí. **Experimental.** No aplica.
+
 ### AR-56
 
-**Problema y cierre.** Sustituir cualquier atribución primaria del mapeo 60/20/7 por procedencia reconstruida y metadatos informativos.
+**Problema y cierre.** Atribuir el mapeo 60/20/7 por ID a la Fe de erratas recuperada.
 
-**Fuente y localizador.** N §2.1–2.3; A §2.3; E Material primario pendiente. Localizadores por sección en la fuente.
+**Fuente y localizador.** N §2.1–2.3; A §2.3; [Fuentes recuperadas](fuentes-recuperadas/README.md). Localizadores por sección en la fuente.
 
 **Requisitos afectados.** 87 IDs.
 
-**Evidencia disponible y discrepancia.** No hay clasificación original por ID en el material recuperado. Referencias: N §2.1–2.3. A §2.3. E Material primario pendiente.
+**Resolución.** Fe de erratas recuperada como procedencia del mapeo exacto por ID. [AR-56](dictamen-av01.md#ar-56).
 
-**Evidencia necesaria.** Nota de procedencia en informe y matriz. Recuperación futura queda en AR-01.
+**Criterio acreditado.** Véanse enlaces y verificación del dictamen.
 
 **Responsable principal.** AV-01. **Dependencias.** AV-08 **Contravalidador.** Revisor de requisitos independiente, designado por el Orquestador.
 
-**Severidad.** Media. **Estado.** SUSTITUIDA POR RESOLUCIÓN TRAZABLE. **Fase.** AV-01, revisión de taxonomía.
+**Severidad.** Media. **Estado.** VALIDADA. **Fase.** AV-01, revisión de taxonomía.
 
-**Riesgo residual.** La clasificación histórica literal sigue sin recuperarse.
+**Riesgo residual.** Identidad externa de las copias textuales sin firma binaria.
+
+**Cierre documental.** Sí. **Experimental.** No aplica.
 
 ## AV-02 · Seguridad, privacidad y autenticidad
 
@@ -149,9 +173,11 @@ Contravalidadores indicados por función, pendientes de designación. Severidad 
 
 **Responsable principal.** AV-02. **Dependencias.** AV-03, AV-07 **Contravalidador.** Revisor de seguridad y privacidad independiente.
 
-**Severidad.** Crítica. **Estado.** BLOQUEANTE. **Fase.** Antes de seleccionar bóveda G0/G1.
+**Severidad.** Crítica. **Estado.** VALIDACIÓN EXPERIMENTAL PENDIENTE. **Fase.** Antes de seleccionar bóveda G0/G1.
 
 **Riesgo residual.** El control puede variar con el SO, los permisos efectivos y superficies fuera de custodia de QAP.
+
+**Contravalidación.** [AR-07](dictamen-av02.md#ar-07). Alta fuera de banda y KEK persistente sujeto a EXP-07. **Diseño.** Aceptado en su ámbito, sujeto a decisión del Orquestador. **Experimental.** Pendiente.
 
 ### AR-14
 
@@ -167,9 +193,11 @@ Contravalidadores indicados por función, pendientes de designación. Severidad 
 
 **Responsable principal.** AV-02. **Dependencias.** AV-03, AV-05 **Contravalidador.** Revisor de seguridad y privacidad independiente.
 
-**Severidad.** Alta. **Estado.** PENDIENTE. **Fase.** Contrato de alcance previo a G1.
+**Severidad.** Alta. **Estado.** VALIDACIÓN EXPERIMENTAL PENDIENTE. **Fase.** Contrato de alcance previo a G1.
 
 **Riesgo residual.** El control puede variar con el SO, los permisos efectivos y superficies fuera de custodia de QAP.
+
+**Contravalidación.** [AR-14](dictamen-av02.md#ar-14). Identidad y tenant acreditados por destino, derechos efectivos y sesión vinculada. **Diseño.** Aceptado en su ámbito, sujeto a decisión del Orquestador. **Experimental.** Pendiente.
 
 ### AR-24
 
@@ -189,6 +217,8 @@ Contravalidadores indicados por función, pendientes de designación. Severidad 
 
 **Riesgo residual.** Acceso o alteración de historia/evidencia desde un contexto sin autorización efectiva.
 
+**Contravalidación.** [AR-24](dictamen-av02.md#ar-24). Visor autenticado y de solo lectura, apertura confinada y reproducción revocable. **Diseño.** Aceptado en su ámbito, sujeto a decisión del Orquestador. **Experimental.** Pendiente. Bloqueante de cierre G0.
+
 ### AR-25
 
 **Problema y cierre.** Revocación privada prevalece sobre defectos abiertos y TTL; preservar resumen/veredicto y proteger actividad. Ratificar TTL, cuotas y comportamiento sin espacio.
@@ -203,9 +233,11 @@ Contravalidadores indicados por función, pendientes de designación. Severidad 
 
 **Responsable principal.** AV-02. **Dependencias.** AV-05, AV-07, AV-08 **Contravalidador.** Revisor de seguridad y privacidad independiente.
 
-**Severidad.** Alta. **Estado.** PENDIENTE. **Fase.** Contrato antes de cerrar custodia.
+**Severidad.** Alta. **Estado.** VALIDACIÓN EXPERIMENTAL PENDIENTE. **Fase.** Contrato antes de cerrar custodia.
 
 **Riesgo residual.** El control puede variar con el SO, los permisos efectivos y superficies fuera de custodia de QAP.
+
+**Contravalidación.** [AR-25](dictamen-av02.md#ar-25). Retención histórica y reserva por volumen sin poda por cuota de evidencia protegida. DE-01 abierta. **Diseño.** Aceptado en su ámbito, sujeto a decisión del Orquestador. **Experimental.** Pendiente.
 
 ### AR-27
 
@@ -225,6 +257,8 @@ Contravalidadores indicados por función, pendientes de designación. Severidad 
 
 **Riesgo residual.** Persistencia de material sensible desde primer cuadro, caída, swap o copia no controlada.
 
+**Contravalidación.** [AR-27](dictamen-av02.md#ar-27). Prevención previa y custodia de todos los temporales. Contrato de cobertura abierto. **Diseño.** Abierto. **Experimental.** Pendiente. Bloqueante del plan definitivo de captura privada.
+
 ### AR-28
 
 **Problema y cierre.** Contrato de autenticidad de intento, frontera real contra mismo usuario y rechazo de replay. Mantener digest de integridad como dato complementario.
@@ -239,9 +273,11 @@ Contravalidadores indicados por función, pendientes de designación. Severidad 
 
 **Responsable principal.** AV-02. **Dependencias.** AV-01, AV-03, AV-04 **Contravalidador.** Revisor de seguridad y privacidad independiente.
 
-**Severidad.** Crítica. **Estado.** BLOQUEANTE. **Fase.** Contrato previo a integración de intentos.
+**Severidad.** Crítica. **Estado.** VALIDACIÓN EXPERIMENTAL PENDIENTE. **Fase.** Contrato previo a integración de intentos.
 
 **Riesgo residual.** Una atestación puede seguir siendo falsificable por actor con la misma autoridad que el firmante.
+
+**Contravalidación.** [AR-28](dictamen-av02.md#ar-28). Nivel de confianza explícito y frontera independiente del HOST para acreditación fuerte. **Diseño.** Aceptado en su ámbito, sujeto a decisión del Orquestador. **Experimental.** Pendiente.
 
 ### AR-31
 
@@ -257,9 +293,11 @@ Contravalidadores indicados por función, pendientes de designación. Severidad 
 
 **Responsable principal.** AV-02. **Dependencias.** AV-04, AV-05 **Contravalidador.** Revisor de seguridad y privacidad independiente.
 
-**Severidad.** Crítica. **Estado.** BLOQUEANTE. **Fase.** Contrato previo a conectores y AUT.
+**Severidad.** Crítica. **Estado.** VALIDACIÓN EXPERIMENTAL PENDIENTE. **Fase.** Contrato previo a conectores y AUT.
 
 **Riesgo residual.** El control puede variar con el SO, los permisos efectivos y superficies fuera de custodia de QAP.
+
+**Contravalidación.** [AR-31](dictamen-av02.md#ar-31). Autoridad y semántica acreditadas por destino, control de egress. DE-04 abierta. **Diseño.** Aceptado en su ámbito, sujeto a decisión del Orquestador. **Experimental.** Pendiente.
 
 ### AR-32
 
@@ -275,9 +313,11 @@ Contravalidadores indicados por función, pendientes de designación. Severidad 
 
 **Responsable principal.** AV-02. **Dependencias.** AV-05, AV-08 **Contravalidador.** Revisor de seguridad y privacidad independiente.
 
-**Severidad.** Alta. **Estado.** PENDIENTE. **Fase.** Antes de habilitar captura privada.
+**Severidad.** Alta. **Estado.** VALIDACIÓN EXPERIMENTAL PENDIENTE. **Fase.** Antes de habilitar captura privada.
 
 **Riesgo residual.** El control puede variar con el SO, los permisos efectivos y superficies fuera de custodia de QAP.
+
+**Contravalidación.** [AR-32](dictamen-av02.md#ar-32). Cuatro permisos independientes y ratificación de riesgo pendiente DE-02. **Diseño.** Aceptado en su ámbito, sujeto a decisión del Orquestador. **Experimental.** Pendiente.
 
 ### AR-40
 
@@ -293,9 +333,11 @@ Contravalidadores indicados por función, pendientes de designación. Severidad 
 
 **Responsable principal.** AV-02. **Dependencias.** AV-07 **Contravalidador.** Revisor de seguridad y privacidad independiente.
 
-**Severidad.** Alta. **Estado.** PENDIENTE. **Fase.** Remediación propuesta G0.
+**Severidad.** Alta. **Estado.** BLOQUEANTE. **Fase.** Remediación propuesta G0.
 
 **Riesgo residual.** El control puede variar con el SO, los permisos efectivos y superficies fuera de custodia de QAP.
+
+**Contravalidación.** [AR-40](dictamen-av02.md#ar-40). Git sin shell y señal no disponible diferenciada de ausencia de cambios. **Diseño.** Aceptado en su ámbito, sujeto a decisión del Orquestador. **Experimental.** Pendiente. Bloqueante de cierre G0.
 
 ### AR-47
 
@@ -311,9 +353,11 @@ Contravalidadores indicados por función, pendientes de designación. Severidad 
 
 **Responsable principal.** AV-02. **Dependencias.** AV-03, AV-06 **Contravalidador.** Revisor de seguridad y privacidad independiente.
 
-**Severidad.** Alta. **Estado.** PENDIENTE. **Fase.** Contrato y paridad antes de operar.
+**Severidad.** Alta. **Estado.** VALIDACIÓN EXPERIMENTAL PENDIENTE. **Fase.** Contrato y paridad antes de operar.
 
 **Riesgo residual.** El control puede variar con el SO, los permisos efectivos y superficies fuera de custodia de QAP.
+
+**Contravalidación.** [AR-47](dictamen-av02.md#ar-47). Fallo cerrado, revocación durable y reconciliación de efectos previos. **Diseño.** Aceptado en su ámbito, sujeto a decisión del Orquestador. **Experimental.** Pendiente.
 
 ## AV-03 · Autonomía, memoria, persistencia e interoperabilidad MCP/CLI
 
