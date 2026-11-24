@@ -2,7 +2,7 @@
 
 **Expediente de cierre documental y contravalidación.** Base c1d1680e6531a5132456665ca6851b6cbf5ff528 · origin/develop · 24 de noviembre de 2026.
 
-**AV-01 cerrado documentalmente. AV-02 contravalidado con reservas, pendiente de decisión del Orquestador.** La arquitectura híbrida de AR-27 es candidata. El diseño definitivo de captura privada, la ejecución de su implementación y la activación de `PRIVATE_AUTHORIZED` están sujetos a las compuertas de la [fe de correcciones](fe-correcciones-ar27.md). La arquitectura global sigue pendiente.
+**AV-01 cerrado documentalmente. AV-02 aceptada por el Orquestador para continuar las auditorías, con reservas y validación experimental pendiente.** La arquitectura híbrida de AR-27 es candidata. El diseño definitivo de captura privada, la ejecución de su implementación y la activación de `PRIVATE_AUTHORIZED` están sujetos a las compuertas de la [fe de correcciones](fe-correcciones-ar27.md). La arquitectura global sigue pendiente. [Decisión del Orquestador y encargo AV-03](decision-orquestador-av02-encargo-av03.md).
 
 ## Revisión del expediente
 
