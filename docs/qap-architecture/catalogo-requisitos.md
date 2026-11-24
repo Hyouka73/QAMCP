@@ -459,6 +459,8 @@ Taxonomía única de 6 veredictos (`PASS`, `FAIL`, `INDETERMINATE`, `BLOCKED`, `
 
 ### REQ-ORA-001.2
 
+**Integración AV-04.** Contrato de diseño enmendado, pendiente de decisión y pruebas. La acreditación se evalúa por afirmación y modo de fallo. El testigo N1 puede demostrar comportamiento funcional no persistente cuando el alcance y la regla lo permiten. N2/N3 requieren propiedades causales, con independencia de la receta de adquisición. [Rúbrica y criterios](cierre-av-01/enmiendas-av04.md#3--ar-09--testigo-y-nivel-por-afirmación).
+
 Evaluador de oráculos independiente que rechace señales Nivel 0/1 como prueba de persistencia.
 
 - **Estado en develop.** Integrado · incompatible con la garantía objetivo. `navigate` ignora HTTP 4xx/5xx; `screenshot` atrapa errores y emite `passed`; `assert` sin tipo asume `visible`; no bloquea falsos `PASS` por respuesta superficial en mutaciones.

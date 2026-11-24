@@ -4,7 +4,7 @@ Unidad de conteo: una obligación, corrección, riesgo o decisión verificable c
 
 N = [Neon](auditoria-neon.md). A = [Antigravity](auditoria-antigravity.md). Orq = encargo «Cierre de recomendaciones y auditoría específica AV-01». E = [evidencia archivada](../evidencia-archivada.md). H-REV = [revisión independiente anterior](../revision-independiente.md). D = [acta del propietario](../acta-decisiones.md). El índice de alias contiene localizadores de las entradas numeradas. Las fases son propuestas de resolución, sujetas a autorización.
 
-Contravalidadores indicados por función, pendientes de designación. Severidad crítica implica posible compromiso de veracidad, autoridad, privacidad o integridad. Alta implica brecha material de alcance o contrato. Media implica procedencia, precisión o decisión parcial. BLOQUEANTE bloquea el contrato, capacidad o compuerta indicada en la fila.
+Las funciones de revisión figuran en cada entrada. Las asignaciones nominativas vigentes constan en la [matriz de auditorías](asignacion-auditorias.md). Severidad crítica implica posible compromiso de veracidad, autoridad, privacidad o integridad. Alta implica brecha material de alcance o contrato. Media implica procedencia, precisión o decisión parcial. BLOQUEANTE bloquea el contrato, capacidad o compuerta indicada en la fila.
 
 ## Distribución por auditoría
 
@@ -31,7 +31,9 @@ Contravalidadores indicados por función, pendientes de designación. Severidad 
 | VALIDADA | 6 |
 | Total | 57 |
 
-Los estados principales son excluyentes y se conservan en 57 entradas (6 validadas, 17 validación experimental pendiente, 26 pendientes, 8 bloqueantes; no se alteran estados por mera entrega o aceptación documental). Hay seis cierres documentales de AV-01 y AR-04 añade validación pendiente dentro de ese grupo. En AV-02, el Orquestador aceptó las invariantes de diseño para continuar las auditorías con reservas y diez expedientes experimentales pendientes ([Decisión AV-02 y encargo AV-03](decision-orquestador-av02-encargo-av03.md)); AR-27 conserva `VALIDACIÓN EXPERIMENTAL PENDIENTE` con compuertas específicas ([Fe de correcciones AR-27](fe-correcciones-ar27.md)) y AR-24/40 condicionan G0. En AV-03, Antigravity publicó el [informe principal](informe-av03.md) sobre `e2a7ee95` cubriendo los ocho registros asignados (`AR-05`, `AR-11`, `AR-12`, `AR-15`, `AR-42`, `AR-45`, `AR-46`, `AR-52`); Codex publicó el [dictamen independiente](dictamen-av03.md), las [enmiendas](enmiendas-av03.md) y los [protocolos](protocolos-av03.md). Se contrastaron 5 hallazgos y 8 objeciones en los 8 registros de AV-03. Los estados principales de AV-03 permanecen en 6 pendientes y 2 en validación experimental pendiente. Quedan abiertas la decisión del Orquestador y las compuertas de selección, implementación y certificación. DE-01 a DE-05 siguen abiertas en sus aspectos sin ratificar.
+Los estados principales son excluyentes y se conservan en 57 entradas (6 validadas, 17 validación experimental pendiente, 26 pendientes, 8 bloqueantes; no se alteran estados por mera entrega o aceptación documental). Hay seis cierres documentales de AV-01 y AR-04 añade validación pendiente dentro de ese grupo. En AV-02, el Orquestador aceptó las invariantes de diseño para continuar las auditorías con reservas y diez expedientes experimentales pendientes ([Decisión AV-02 y encargo AV-03](decision-orquestador-av02-encargo-av03.md)); AR-27 conserva `VALIDACIÓN EXPERIMENTAL PENDIENTE` con compuertas específicas ([Fe de correcciones AR-27](fe-correcciones-ar27.md)) y AR-24/40 condicionan G0. En AV-03, Antigravity publicó el [informe principal](informe-av03.md) sobre `e2a7ee95` cubriendo los ocho registros asignados (`AR-05`, `AR-11`, `AR-12`, `AR-15`, `AR-42`, `AR-45`, `AR-46`, `AR-52`); Codex publicó el [dictamen independiente](dictamen-av03.md), las [enmiendas](enmiendas-av03.md) y los [protocolos](protocolos-av03.md). Se contrastaron 5 hallazgos y 8 objeciones en los 8 registros de AV-03. Los estados principales de AV-03 permanecen en 6 pendientes y 2 en validación experimental pendiente. El [Orquestador aceptó el diseño enmendado AV-03 con reservas](decision-orquestador-av03-encargo-av04.md). Siguen pendientes selección, implementación y certificación. DE-01 a DE-05 siguen abiertas en sus aspectos sin ratificar.
+
+En AV-04, [Neon publicó el informe principal](informe-neon-av04.md) y Codex contrastó cinco registros, ocho objeciones y las fronteras AR-05/52 en el [dictamen](dictamen-av04.md), las [enmiendas](enmiendas-av04.md) y los [protocolos](protocolos-av04.md). Diseño favorable con reservas y pendiente de decisión del Orquestador. Cinco entradas principales conservan tres bloqueantes y dos pendientes. Las pruebas E1/E3/E4/E5/E7/E8 y dependencias de integración siguen abiertas. AR-05/52 permanecen contabilizadas en AV-03.
 
 ## Expedientes y registros
 
@@ -379,7 +381,7 @@ Los estados principales son excluyentes y se conservan en 57 entradas (6 validad
 
 **Riesgo residual.** Persisten diferencias por host, proceso, versión o datos legados hasta acreditar paridad.
 
-**Auditoría principal AV-03.** [AR-05](informe-av03.md#ar-05--campaña-autónoma-completa-elegibilidad-ordinaria-bloqueos-locales-y-migración-de-recibos). **Contravalidación Codex.** [Enmienda AR-05](enmiendas-av03.md#ar-05). Política, aplicabilidad, oráculo y acreditación independientes. DAG transitivo con aristas tipadas, pausa/reanudación, presupuesto y recibos sin autoridad nueva. Estrategia mutativa depende de AV-04. **Validación experimental.** Pendiente (E3/E4).
+**Auditoría principal AV-03.** [AR-05](informe-av03.md#ar-05--campaña-autónoma-completa-elegibilidad-ordinaria-bloqueos-locales-y-migración-de-recibos). **Contravalidación Codex.** [Enmienda AR-05](enmiendas-av03.md#ar-05). Política, aplicabilidad, oráculo y acreditación independientes. DAG transitivo con aristas tipadas, pausa/reanudación, presupuesto y recibos sin autoridad nueva. La [entrega AV-04](enmiendas-av04.md#8--integración-y-compuertas) define efectos, reconciliación y tipado de dependencias; pendiente de decisión específica. **Validación experimental.** Pendiente (E3/E4/E5).
 
 ### AR-11
 
@@ -519,7 +521,7 @@ Los estados principales son excluyentes y se conservan en 57 entradas (6 validad
 
 **Riesgo residual.** Persisten diferencias por host, proceso, versión o datos legados hasta acreditar paridad.
 
-**Auditoría principal AV-03.** [AR-52](informe-av03.md#ar-52--delegación-única-mcpclici-al-núcleo-paridad-de-controles-y-códigos-deterministas). **Contravalidación Codex.** [Enmienda AR-52](enmiendas-av03.md#ar-52). Paridad de controles y cuatro ejes, sin éxito funcional de campaña incompleta o estructural. Corregir colisión del 2 con clases disjuntas. Tabla definitiva pendiente de AV-04 AR-08/09/10. **Validación experimental.** Pendiente (E1/E7).
+**Auditoría principal AV-03.** [AR-52](informe-av03.md#ar-52--delegación-única-mcpclici-al-núcleo-paridad-de-controles-y-códigos-deterministas). **Contravalidación Codex.** [Enmienda AR-52](enmiendas-av03.md#ar-52). Paridad de controles y cuatro ejes, sin éxito funcional de campaña incompleta o estructural. Preservar 2 como uso. La [tabla AV-04](enmiendas-av04.md#1--ar-0852--modelo-y-tabla-total) define precedencias y códigos por clase de comando, con aceptación distinta de consulta/ACK. Pendiente de decisión específica. **Validación experimental.** Pendiente (E1/E7).
 
 ## AV-04 · Veracidad funcional, oráculos, E2E, datos mutativos y recuperación
 
@@ -541,6 +543,8 @@ Los estados principales son excluyentes y se conservan en 57 entradas (6 validad
 
 **Riesgo residual.** Un éxito estructural, una omisión o limpieza pendiente podría habilitar indebidamente CI.
 
+**AV-04.** [Enmiendas §§1–2](enmiendas-av04.md#1--ar-0852--modelo-y-tabla-total). Función total sobre obligaciones y ejes, con cierre durable y separación de transporte, consulta y ejecución. Preserva defectos, atestados y disponibilidad actual. Diseño favorable con reservas, pendiente de decisión. **Validación experimental.** Pendiente (E1/E5/E7/E8).
+
 ### AR-09
 
 **Problema y cierre.** Acreditar independencia causal y precedencia N0–N3, frescura, alcance y correlación. Abstenerse sin evidencia adecuada. Testigos autorizados sin exigir BD del AUT.
@@ -558,6 +562,8 @@ Los estados principales son excluyentes y se conservan en 57 entradas (6 validad
 **Severidad.** Crítica. **Estado.** BLOQUEANTE. **Fase.** Contrato previo a G3.
 
 **Riesgo residual.** El testigo, el destino y la limpieza pueden dejar cobertura funcional incompleta.
+
+**AV-04.** [Enmienda §3](enmiendas-av04.md#3--ar-09--testigo-y-nivel-por-afirmación). Nivel causal por afirmación, vigencia, autoridad, fuentes comunes y terminalidad. R2 acotado al fixture, incluido el envío de R2.4. Diseño favorable con reservas, pendiente de decisión. **Validación experimental.** Pendiente (E5/E8).
 
 ### AR-10
 
@@ -577,6 +583,8 @@ Los estados principales son excluyentes y se conservan en 57 entradas (6 validad
 
 **Riesgo residual.** El testigo, el destino y la limpieza pueden dejar cobertura funcional incompleta.
 
+**AV-04.** [Enmiendas §§4–5](enmiendas-av04.md#4--ar-10--intención-durable-y-reconciliación). DataPlan por operación, reserva y reconciliación durable; borrar lo propio, restaurar cambio autorizado o compensar/confinar según estrategia. DE-04 por destino. Diseño favorable con reservas, pendiente de decisión. **Validación experimental.** Pendiente (E3/E5/EXP-05a/b).
+
 ### AR-43
 
 **Problema y cierre.** Acreditar E2E multirol/multimódulo, dependencia y transferencia tipada, datos, reconciliación y limpieza tras corte.
@@ -595,6 +603,8 @@ Los estados principales son excluyentes y se conservan en 57 entradas (6 validad
 
 **Riesgo residual.** El testigo, el destino y la limpieza pueden dejar cobertura funcional incompleta.
 
+**AV-04.** [Enmienda §6](enmiendas-av04.md#6--ar-43--e2e-y-continuidad). DAG con tres tipos de dependencia, sesión explícita por ámbito, perfil verificado, transferencia tipada, conflicto jerárquico, handoff y piso de fixture de tres módulos/dos roles. Diseño favorable con reservas, pendiente de decisión. **Validación experimental.** Pendiente (E3/E4/E5/E8; recursos W>1 en AV-06).
+
 ### AR-53
 
 **Problema y cierre.** Acreditar reglas de negocio, RBAC y cálculo junto con aplicabilidad y fuente autorizada. Preservar todos los tipos de casos.
@@ -612,6 +622,8 @@ Los estados principales son excluyentes y se conservan en 57 entradas (6 validad
 **Severidad.** Alta. **Estado.** PENDIENTE. **Fase.** Contrato de E2E antes de acreditar RBAC y negocio.
 
 **Riesgo residual.** El testigo, el destino y la limpieza pueden dejar cobertura funcional incompleta.
+
+**AV-04.** [Enmienda §7](enmiendas-av04.md#7--ar-53--reglas-cálculos-y-rbac). Autoridad y aplicabilidad independientes de admisión, RBAC positivo y negativo, regla tipada y semántica regional. Portabilidad PDF/Excel en AV-05. Diseño favorable con reservas, pendiente de decisión. **Validación experimental.** Pendiente (E4/E5/E8 y dependencias AV-05).
 
 ## AV-05 · Documentos, reportes PDF/Excel, UTCP, OpenAPI y cross-instancia
 
