@@ -33,7 +33,9 @@ Las funciones de revisión figuran en cada entrada. Las asignaciones nominativas
 
 Los estados principales son excluyentes y se conservan en 57 entradas (6 validadas, 17 validación experimental pendiente, 26 pendientes, 8 bloqueantes; no se alteran estados por mera entrega o aceptación documental). Hay seis cierres documentales de AV-01 y AR-04 añade validación pendiente dentro de ese grupo. En AV-02, el Orquestador aceptó las invariantes de diseño para continuar las auditorías con reservas y diez expedientes experimentales pendientes ([Decisión AV-02 y encargo AV-03](decision-orquestador-av02-encargo-av03.md)); AR-27 conserva `VALIDACIÓN EXPERIMENTAL PENDIENTE` con compuertas específicas ([Fe de correcciones AR-27](fe-correcciones-ar27.md)) y AR-24/40 condicionan G0. En AV-03, Antigravity publicó el [informe principal](informe-av03.md) sobre `e2a7ee95` cubriendo los ocho registros asignados (`AR-05`, `AR-11`, `AR-12`, `AR-15`, `AR-42`, `AR-45`, `AR-46`, `AR-52`); Codex publicó el [dictamen independiente](dictamen-av03.md), las [enmiendas](enmiendas-av03.md) y los [protocolos](protocolos-av03.md). Se contrastaron 5 hallazgos y 8 objeciones en los 8 registros de AV-03. Los estados principales de AV-03 permanecen en 6 pendientes y 2 en validación experimental pendiente. El [Orquestador aceptó el diseño enmendado AV-03 con reservas](decision-orquestador-av03-encargo-av04.md). Siguen pendientes selección, implementación y certificación. DE-01 a DE-05 siguen abiertas en sus aspectos sin ratificar.
 
-En AV-04, [Neon publicó el informe principal](informe-neon-av04.md) y Codex contrastó cinco registros, ocho objeciones y las fronteras AR-05/52 en el [dictamen](dictamen-av04.md), las [enmiendas](enmiendas-av04.md) y los [protocolos](protocolos-av04.md). Diseño favorable con reservas y pendiente de decisión del Orquestador. Cinco entradas principales conservan tres bloqueantes y dos pendientes. Las pruebas E1/E3/E4/E5/E7/E8 y dependencias de integración siguen abiertas. AR-05/52 permanecen contabilizadas en AV-03.
+En AV-04, [Neon publicó el informe principal](informe-neon-av04.md) y Codex contrastó cinco registros, ocho objeciones y las fronteras AR-05/52 en el [dictamen](dictamen-av04.md), las [enmiendas](enmiendas-av04.md) y los [protocolos](protocolos-av04.md). [Diseño enmendado aceptado por el Orquestador](decision-orquestador-av04-encargo-av05.md) con reservas y pruebas pendientes. Cinco entradas principales conservan tres bloqueantes y dos pendientes. Las pruebas E1/E3/E4/E5/E7/E8 y dependencias de integración siguen abiertas. AR-05/52 permanecen contabilizadas en AV-03.
+
+En AV-05, Codex verificó las afirmaciones de [Neon](informe-neon-av05.md) en el SHA remoto e8a9fc453f0346c4b045a867e54c54c35d2ac3bb. El [dictamen](dictamen-av05.md) resuelve ocho objeciones con [enmiendas](enmiendas-av05.md), [evidencia](evidencia-av05.md) y [protocolos EXP-05a/b y EXP-06b](protocolos-av05.md). Diseño enmendado favorable con reservas, sujeto a decisión del Orquestador. Ocho estados principales permanecen: un bloqueante (AR-20), dos experimentales (AR-17/38) y cinco pendientes. Se mantienen DE-01–05 en sus aspectos abiertos.
 
 ## Expedientes y registros
 
@@ -645,6 +647,8 @@ En AV-04, [Neon publicó el informe principal](informe-neon-av04.md) y Codex con
 
 **Riesgo residual.** Variantes de fuente, contrato o formato quedan fuera del corpus hasta acreditación explícita.
 
+**AV-05.** D10 mantiene sus ocho formatos y separa extracción, calidad contra unidades esperadas, inferencia y autoridad. [Enmienda](enmiendas-av05.md#2--ar-13-y-ar-38--ingesta-y-reportes-emitidos). G2 condiciona elegir adaptadores, con OCR y variantes según alcance y corpus.
+
 ### AR-17
 
 **Problema y cierre.** Mantener UTCP/OpenAPI en lanzamiento, adopción por caso. Elegir SDK/HTTP gobernado tras factibilidad/licencia y demostrar DataPlan completo.
@@ -662,6 +666,8 @@ En AV-04, [Neon publicó el informe principal](informe-neon-av04.md) y Codex con
 **Severidad.** Alta. **Estado.** VALIDACIÓN EXPERIMENTAL PENDIENTE. **Fase.** G0 y antes de congelar datos G3.
 
 **Riesgo residual.** Variantes de fuente, contrato o formato quedan fuera del corpus hasta acreditación explícita.
+
+**AV-05.** D08 conserva UTCP y OpenAPI. SDK con protocolo gobernado y adaptador HTTP con conformidad limitada son brazos independientes. [EXP-05a](protocolos-av05.md#exp-05a--factibilidad-de-protocolos-y-selección) en G0 y [EXP-05b](protocolos-av05.md#exp-05b--dataplan-efecto-y-referencia) en G3.
 
 ### AR-18
 
@@ -681,6 +687,8 @@ En AV-04, [Neon publicó el informe principal](informe-neon-av04.md) y Codex con
 
 **Riesgo residual.** Variantes de fuente, contrato o formato quedan fuera del corpus hasta acreditación explícita.
 
+**AV-05.** Referencia de solo lectura acreditada por destino y operación; separación de identidades incluso en mismo origen, red privada por concesión y transferencia mínima. [Enmienda](enmiendas-av05.md#5--ar-18--dos-autoridades-redes-autorizadas-y-transferencia). Bloqueo por destino sin testigo suficiente o DE-04.
+
 ### AR-20
 
 **Problema y cierre.** Distinguir seis estados de celda. Separar recálculo Excel de la regla contable acreditada. Exigir decimal exacto, rounding/tolerancia y abstención justificable.
@@ -698,6 +706,8 @@ En AV-04, [Neon publicó el informe principal](informe-neon-av04.md) y Codex con
 **Severidad.** Crítica. **Estado.** BLOQUEANTE. **Fase.** Antes de cerrar contrato D11 y corpus G2/G3.
 
 **Riesgo residual.** Falso PASS por caché obsoleta, extracción parcial o cálculo contable incorrecto.
+
+**AV-05.** Separación entre extracción, recálculo Excel y cálculo independiente contable, con procedencia y seis distinciones ortogonales. El diseño candidato permite estimar calificación. Bloquea contrato definitivo D11 y selección hasta EXP-06b, con certificación G6/E8. [Enmienda](enmiendas-av05.md#1--ar-20--hoja-excel-regla-contable-y-comparación).
 
 ### AR-22
 
@@ -717,6 +727,8 @@ En AV-04, [Neon publicó el informe principal](informe-neon-av04.md) y Codex con
 
 **Riesgo residual.** Variantes de fuente, contrato o formato quedan fuera del corpus hasta acreditación explícita.
 
+**AV-05.** Frontera por SO y VM local candidata, broker de referencias separado, límites y custodia desde primera escritura. [Evidencia de HN-05/C-02 y lock](evidencia-av05.md#dependencias-y-licencias). Selección G0–G2 y calificación de release AV-07 pendientes.
+
 ### AR-38
 
 **Problema y cierre.** Evaluar extracción multipágina/multihoja y cálculo/abstención con evidencias reproducibles.
@@ -734,6 +746,8 @@ En AV-04, [Neon publicó el informe principal](informe-neon-av04.md) y Codex con
 **Severidad.** Alta. **Estado.** VALIDACIÓN EXPERIMENTAL PENDIENTE. **Fase.** G2 antes de congelar ingesta y evaluación.
 
 **Riesgo residual.** Variantes de fuente, contrato o formato quedan fuera del corpus hasta acreditación explícita.
+
+**AV-05.** EXP-06b mide cobertura, fidelidad y resultados de archivos emitidos, con controles sanos, mutantes, causa de abstención y recursos. [Protocolo](protocolos-av05.md#exp-06b--extracción-aislamiento-y-reportes-emitidos), selección G2, integración G3 y certificación G6/E8.
 
 ### AR-48
 
@@ -753,6 +767,8 @@ En AV-04, [Neon publicó el informe principal](informe-neon-av04.md) y Codex con
 
 **Riesgo residual.** Variantes de fuente, contrato o formato quedan fuera del corpus hasta acreditación explícita.
 
+**AV-05.** Observación, validación estructural por dialecto y prueba funcional independientes. Representación por afirmación AV-04 y efecto/no mutación con testigo suficiente. [Enmienda](enmiendas-av05.md#4--ar-17-y-ar-48--contrato-de-operación-y-verificación), EXP-05a/b y E5 pendientes.
+
 ### AR-50
 
 **Problema y cierre.** Publicar DTO/manifiesto común por intento, salida HTML/Markdown/CSV/JSON/JSONL según D19, evidencias reales, paquete reproducible y diagnóstico de ausencias.
@@ -770,6 +786,8 @@ En AV-04, [Neon publicó el informe principal](informe-neon-av04.md) y Codex con
 **Severidad.** Alta. **Estado.** PENDIENTE. **Fase.** Antes de validar publicación y reporte.
 
 **Riesgo residual.** Variantes de fuente, contrato o formato quedan fuera del corpus hasta acreditación explícita.
+
+**AV-05.** Sobre AV-04 completo, export derivado firmado con ancla externa, formatos saneados, visor y retención D19. [Enmienda](enmiendas-av05.md#6--ar-50--reporte-propio-custodia-y-portabilidad), G5/EXP-06c/E7 y DE-01/02 donde aplique.
 
 ## AV-06 · Navegadores, fidelidad visual, concurrencia, rendimiento y compatibilidad
 
