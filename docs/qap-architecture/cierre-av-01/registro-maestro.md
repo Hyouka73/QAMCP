@@ -31,7 +31,7 @@ Contravalidadores indicados por función, pendientes de designación. Severidad 
 | VALIDADA | 6 |
 | Total | 57 |
 
-Los estados principales son excluyentes y se conservan en 57 entradas (6 validadas, 17 validación experimental pendiente, 26 pendientes, 8 bloqueantes; no se alteran estados por mera entrega o aceptación documental). Hay seis cierres documentales de AV-01 y AR-04 añade validación pendiente dentro de ese grupo. En AV-02, el Orquestador aceptó las invariantes de diseño para continuar las auditorías con reservas y diez expedientes experimentales pendientes ([Decisión AV-02 y encargo AV-03](decision-orquestador-av02-encargo-av03.md)); AR-27 conserva `VALIDACIÓN EXPERIMENTAL PENDIENTE` con compuertas específicas ([Fe de correcciones AR-27](fe-correcciones-ar27.md)) y AR-24/40 condicionan G0. En AV-03, Antigravity publicó el [informe principal](informe-av03.md) sobre `e2a7ee95` cubriendo los ocho registros asignados (`AR-05`, `AR-11`, `AR-12`, `AR-15`, `AR-42`, `AR-45`, `AR-46`, `AR-52`); quedan pendientes la contravalidación de Codex, la decisión del Orquestador y la validación experimental. DE-01, DE-02 y DE-04 siguen pendientes en sus aspectos abiertos.
+Los estados principales son excluyentes y se conservan en 57 entradas (6 validadas, 17 validación experimental pendiente, 26 pendientes, 8 bloqueantes; no se alteran estados por mera entrega o aceptación documental). Hay seis cierres documentales de AV-01 y AR-04 añade validación pendiente dentro de ese grupo. En AV-02, el Orquestador aceptó las invariantes de diseño para continuar las auditorías con reservas y diez expedientes experimentales pendientes ([Decisión AV-02 y encargo AV-03](decision-orquestador-av02-encargo-av03.md)); AR-27 conserva `VALIDACIÓN EXPERIMENTAL PENDIENTE` con compuertas específicas ([Fe de correcciones AR-27](fe-correcciones-ar27.md)) y AR-24/40 condicionan G0. En AV-03, Antigravity publicó el [informe principal](informe-av03.md) sobre `e2a7ee95` cubriendo los ocho registros asignados (`AR-05`, `AR-11`, `AR-12`, `AR-15`, `AR-42`, `AR-45`, `AR-46`, `AR-52`); Codex publicó el [dictamen independiente](dictamen-av03.md), las [enmiendas](enmiendas-av03.md) y los [protocolos](protocolos-av03.md). Se contrastaron 5 hallazgos y 8 objeciones en los 8 registros de AV-03. Los estados principales de AV-03 permanecen en 6 pendientes y 2 en validación experimental pendiente. Quedan abiertas la decisión del Orquestador y las compuertas de selección, implementación y certificación. DE-01 a DE-05 siguen abiertas en sus aspectos sin ratificar.
 
 ## Expedientes y registros
 
@@ -379,7 +379,7 @@ Los estados principales son excluyentes y se conservan en 57 entradas (6 validad
 
 **Riesgo residual.** Persisten diferencias por host, proceso, versión o datos legados hasta acreditar paridad.
 
-**Auditoría principal AV-03.** [AR-05](informe-av03.md#ar-05--campaña-autónoma-completa-elegibilidad-ordinaria-bloqueos-locales-y-migración-de-recibos). Contrato de campaña continua, elegibilidad por política acreditada (8 capacidades + 4 grants multimedia), bloqueos locales con ramas hermanas activas, presupuestos con cierre `COMPLETADA_PARCIAL` y preservación inmutable de recibos legados. **Contravalidación.** Pendiente (Codex). **Experimental.** Pendiente (`E3`/`E4`).
+**Auditoría principal AV-03.** [AR-05](informe-av03.md#ar-05--campaña-autónoma-completa-elegibilidad-ordinaria-bloqueos-locales-y-migración-de-recibos). **Contravalidación Codex.** [Enmienda AR-05](enmiendas-av03.md#ar-05). Política, aplicabilidad, oráculo y acreditación independientes. DAG transitivo con aristas tipadas, pausa/reanudación, presupuesto y recibos sin autoridad nueva. Estrategia mutativa depende de AV-04. **Validación experimental.** Pendiente (E3/E4).
 
 ### AR-11
 
@@ -399,7 +399,7 @@ Los estados principales son excluyentes y se conservan en 57 entradas (6 validad
 
 **Riesgo residual.** Persisten diferencias por host, proceso, versión o datos legados hasta acreditar paridad.
 
-**Auditoría principal AV-03.** [AR-11](informe-av03.md#ar-11--modos-host-y-deterministic-y-puerto-diferido-managed). Contrato de modos `HOST` y `DETERMINISTIC` (0 inferencias en replay/regresión), protocolo único de solicitudes/propuestas con `lease_epoch` y `expected_revisions`, y puerto diferido `IReasoningProvider` (`MANAGED` bloqueado en lanzamiento por D03). **Contravalidación.** Pendiente (Codex). **Experimental.** Pendiente (`E1`/`E3`/`E7`).
+**Auditoría principal AV-03.** [AR-11](informe-av03.md#ar-11--modos-host-y-deterministic-y-puerto-diferido-managed). **Contravalidación Codex.** [Enmienda AR-11](enmiendas-av03.md#ar-11). HOST + DETERMINISTIC, CAS de nodo requerido, espera durable y ContextSnapshot saneado por perfil. Propuestas sin autoridad, reenvío correlacionado y MANAGED diferido. **Validación experimental.** Pendiente (E1/E3/E7).
 
 ### AR-12
 
@@ -419,7 +419,7 @@ Los estados principales son excluyentes y se conservan en 57 entradas (6 validad
 
 **Riesgo residual.** Persisten diferencias por host, proceso, versión o datos legados hasta acreditar paridad.
 
-**Auditoría principal AV-03.** [AR-12](informe-av03.md#ar-12--autoridad-única-sqlite-límites-de-transacción-búsqueda-fts-cola-y-puerto-postgresql-futuro). Puerto único `IQapRepository` con escritor único SQLite WAL (`BEGIN IMMEDIATE`, FTS5 acotado por alcance, cola durable con leases), corrección del piso real para `node:sqlite` + FTS5 a **Node ≥ 22.16.0** (`H-AV03-01`, selección de driver trazada a `AR-23`/AV-07) y contrato portable con PostgreSQL concurrente diferido (D02). **Contravalidación.** Pendiente (Codex). **Experimental.** Pendiente (`E1`/`E2`).
+**Auditoría principal AV-03.** [AR-12](informe-av03.md#ar-12--autoridad-única-sqlite-límites-de-transacción-búsqueda-fts-cola-y-puerto-postgresql-futuro). **Contravalidación Codex.** [Enmienda AR-12](enmiendas-av03.md#ar-12). Escritor único, clases de durabilidad, restauración y aislamiento de FTS. Los pisos técnicos de Node se aplican por línea oficial y build. AR-23/AV-07 elige runtime mantenido y driver. **Validación experimental.** Pendiente (E1/E2).
 
 ### AR-15
 
@@ -439,7 +439,7 @@ Los estados principales son excluyentes y se conservan en 57 entradas (6 validad
 
 **Riesgo residual.** Persisten diferencias por host, proceso, versión o datos legados hasta acreditar paridad.
 
-**Auditoría principal AV-03.** [AR-15](informe-av03.md#ar-15--interoperabilidad-con-cuatro-hosts-cli-protocolos-mcp-adopción-y-ahorro-medible-de-tokens). Adaptador Stdio con arranque *lazy* del ejecutor, compatibilidad dual-era (`2025-11-25`/`2026-07-28`) condicionada a `EXP-01a`, registro idempotente para los cuatro hosts (`H-AV03-02`), Skill breve + hooks informativos opt-in sin bloquear suites legítimas y medición empírica de tokens/adopción en `EXP-01b` (sin prometer comportamiento de todos los agentes). **Contravalidación.** Pendiente (Codex). **Experimental.** Pendiente (`EXP-01a` G0 / `EXP-01b` G4).
+**Auditoría principal AV-03.** [AR-15](informe-av03.md#ar-15--interoperabilidad-con-cuatro-hosts-cli-protocolos-mcp-adopción-y-ahorro-medible-de-tokens). **Contravalidación Codex.** [Enmienda AR-15](enmiendas-av03.md#ar-15). H-AV03-02 verificado. Selección de perfil MCP/SDK condicionada a cuatro hosts. Probes sin inicio de ejecución, registro idempotente y adopción medida sin cifra ratificada. **Validación experimental.** Pendiente (EXP-01a G0 / EXP-01b G4–G5).
 
 ### AR-42
 
@@ -459,7 +459,7 @@ Los estados principales son excluyentes y se conservan en 57 entradas (6 validad
 
 **Riesgo residual.** Persisten diferencias por host, proceso, versión o datos legados hasta acreditar paridad.
 
-**Auditoría principal AV-03.** [AR-42](informe-av03.md#ar-42--proceso-ejecutor-independiente-escritor-único-locksipc-reanudación-multi-host-y-muerte-del-árbol-host). Ejecutor soberano desacoplado del árbol Stdio (PGID POSIX; Job Object breakaway o supervisor externo en Windows), propietario único de navegadores/staging (`AR-27`), IPC local autenticado (`0700`/`SO_PEERCRED` o Named Pipe SID + token), locks/fencing con `lease_epoch`, recuperación tras caída y reanudación multi-host con `ContextSnapshot`. **Contravalidación.** Pendiente (Codex). **Experimental.** Pendiente (`E3`/`E7`).
+**Auditoría principal AV-03.** [AR-42](informe-av03.md#ar-42--proceso-ejecutor-independiente-escritor-único-locksipc-reanudación-multi-host-y-muerte-del-árbol-host). **Contravalidación Codex.** [Enmienda AR-42](enmiendas-av03.md#ar-42). Instancia exclusiva y recuperación bajo supervisor por SO. IPC autenticado bajo cuenta separada o VM para AR-28. E3/E7 distinguen muerte HOST/ejecutor/equipo. Instalación y navegador con AV-06/07. **Validación experimental.** Pendiente (E3/E7).
 
 ### AR-45
 
@@ -479,7 +479,7 @@ Los estados principales son excluyentes y se conservan en 57 entradas (6 validad
 
 **Riesgo residual.** Persisten diferencias por host, proceso, versión o datos legados hasta acreditar paridad.
 
-**Auditoría principal AV-03.** [AR-45](informe-av03.md#ar-45--localización-propia-de-qap-localización-del-aut-preferencias-regionales-y-replay-determinista). Separación de localización propia de QAP (códigos técnicos invariantes en inglés + diccionarios locales `es`/`en` extensibles) frente a localización del AUT congelada en `FrozenRegionalContext` (`AR-04`), ordenación binaria determinista para digests y replay regional con 0 inferencias. **Contravalidación.** Pendiente (Codex). **Experimental.** Pendiente (`E4`/`E5`/`E7`).
+**Auditoría principal AV-03.** [AR-45](informe-av03.md#ar-45--localización-propia-de-qap-localización-del-aut-preferencias-regionales-y-replay-determinista). **Contravalidación Codex.** [Enmienda AR-45](enmiendas-av03.md#ar-45). Contexto efectivo congelado por segmento/revisión. JCS UTF-16 en claves, proyección semántica y atestación separadas. Presentación, conversación, reporte y AUT con idiomas propios. **Validación experimental.** Pendiente (E4/E5/E7).
 
 ### AR-46
 
@@ -499,7 +499,7 @@ Los estados principales son excluyentes y se conservan en 57 entradas (6 validad
 
 **Riesgo residual.** Persisten diferencias por host, proceso, versión o datos legados hasta acreditar paridad.
 
-**Auditoría principal AV-03.** [AR-46](informe-av03.md#ar-46--memoria-longitudinal-procedencia-aprendizaje-no-normativo-selección-incremental-y-reparación-acotada). Separación en 4 planos con procedencia y contradicciones bloqueantes, aprendizaje post-ejecución estrictamente no normativo (firmas, latencia, `flakiness`), selección incremental multi-señal con `ImpactAnalyzer` + `AR-40`, reparación acotada `TestCaseRevision N+1` preservando expectativa e intento `FAIL` original, y portabilidad sanitizada sin secretos. **Contravalidación.** Pendiente (Codex). **Experimental.** Pendiente (`E2`/`E4`/`E5`).
+**Auditoría principal AV-03.** [AR-46](informe-av03.md#ar-46--memoria-longitudinal-procedencia-aprendizaje-no-normativo-selección-incremental-y-reparación-acotada). **Contravalidación Codex.** [Enmienda AR-46](enmiendas-av03.md#ar-46). Aprendizaje no normativo, conflicto localizado, flakiness comparable, reparación con testigo y conservación de FAIL. Portabilidad saneada con validación de procedencia/autoridad. **Validación experimental.** Pendiente (E2/E4/E5).
 
 ### AR-52
 
@@ -519,7 +519,7 @@ Los estados principales son excluyentes y se conservan en 57 entradas (6 validad
 
 **Riesgo residual.** Persisten diferencias por host, proceso, versión o datos legados hasta acreditar paridad.
 
-**Auditoría principal AV-03.** [AR-52](informe-av03.md#ar-52--delegación-única-mcpclici-al-núcleo-paridad-de-controles-y-códigos-deterministas). Adaptadores delgados MCP/CLI/CI delegando vía IPC autenticado a `@qap/core` sin acceso directo a runner ni SQLite, tabla de códigos deterministas sin colisiones (`0–5` resultados de campaña en MCP y CLI; `64–78` errores de invocación CLI, `H-AV03-05`), modo CI `--json --non-interactive` y rechazo uniforme de bypass y credenciales en canal. **Contravalidación.** Pendiente (Codex). **Experimental.** Pendiente (`E1`/`E7`).
+**Auditoría principal AV-03.** [AR-52](informe-av03.md#ar-52--delegación-única-mcpclici-al-núcleo-paridad-de-controles-y-códigos-deterministas). **Contravalidación Codex.** [Enmienda AR-52](enmiendas-av03.md#ar-52). Paridad de controles y cuatro ejes, sin éxito funcional de campaña incompleta o estructural. Corregir colisión del 2 con clases disjuntas. Tabla definitiva pendiente de AV-04 AR-08/09/10. **Validación experimental.** Pendiente (E1/E7).
 
 ## AV-04 · Veracidad funcional, oráculos, E2E, datos mutativos y recuperación
 
