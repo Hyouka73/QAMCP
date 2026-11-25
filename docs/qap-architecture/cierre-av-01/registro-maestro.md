@@ -37,6 +37,8 @@ En AV-04, [Neon publicó el informe principal](informe-neon-av04.md) y Codex con
 
 En AV-05, Codex verificó las afirmaciones de [Neon](informe-neon-av05.md) en el SHA remoto e8a9fc453f0346c4b045a867e54c54c35d2ac3bb. El [dictamen](dictamen-av05.md) resuelve ocho objeciones con [enmiendas](enmiendas-av05.md), [evidencia](evidencia-av05.md) y [protocolos EXP-05a/b y EXP-06b](protocolos-av05.md). Diseño enmendado favorable con reservas, sujeto a decisión del Orquestador. Ocho estados principales permanecen: un bloqueante (AR-20), dos experimentales (AR-17/38) y cinco pendientes. Se mantienen DE-01–05 en sus aspectos abiertos.
 
+En AV-06, Codex publicó el [informe principal](informe-av06.md), la [matriz](matriz-av06.md) y los [protocolos](protocolos-av06.md) sobre la base `7ccb713fea6331ee571010b7a32b90ade43b98f6`. El dictamen propone diseño con reservas, pendiente de contravalidación de Gemini Neon y decisión del Orquestador. Cinco estados experimentales y un pendiente se conservan.
+
 ## Expedientes y registros
 
 ## AV-01 · Integridad y cobertura de requisitos
@@ -807,6 +809,8 @@ En AV-05, Codex verificó las afirmaciones de [Neon](informe-neon-av05.md) en el
 
 **Severidad.** Alta. **Estado.** VALIDACIÓN EXPERIMENTAL PENDIENTE. **Fase.** G2–G5 antes de valores predeterminados.
 
+**Expediente AV-06.** Matriz, preflight y comparación de fidelidad por canal/modalidad. EXP-02/04 y EXP-06c condicionan los valores predeterminados. [Informe](informe-av06.md#ar-16) · [Protocolos](protocolos-av06.md).
+
 **Riesgo residual.** Cobertura sujeta a plataforma, configuración, muestras y fidelidad en instalación real.
 
 ### AR-29
@@ -824,6 +828,8 @@ En AV-05, Codex verificó las afirmaciones de [Neon](informe-neon-av05.md) en el
 **Responsable principal.** AV-06. **Dependencias.** AV-03, AV-04 **Contravalidador.** Revisor independiente de navegadores, recursos y compatibilidad.
 
 **Severidad.** Alta. **Estado.** VALIDACIÓN EXPERIMENTAL PENDIENTE. **Fase.** G3 y paquete G5.
+
+**Expediente AV-06.** Admisión del núcleo, alternancia W=1 y límites por presión observada. EXP-03 G3/G5 condiciona concurrencia y hardware. [Informe](informe-av06.md#ar-29) · [Protocolos](protocolos-av06.md).
 
 **Riesgo residual.** Cobertura sujeta a plataforma, configuración, muestras y fidelidad en instalación real.
 
@@ -843,6 +849,8 @@ En AV-05, Codex verificó las afirmaciones de [Neon](informe-neon-av05.md) en el
 
 **Severidad.** Alta. **Estado.** VALIDACIÓN EXPERIMENTAL PENDIENTE. **Fase.** Inicio de G2.
 
+**Expediente AV-06.** Extractor híbrido e invalidación selectiva con corpus y testigo. EXP-02 G2/E4 condiciona selección. [Informe](informe-av06.md#ar-36) · [Protocolos](protocolos-av06.md).
+
 **Riesgo residual.** Cobertura sujeta a plataforma, configuración, muestras y fidelidad en instalación real.
 
 ### AR-37
@@ -860,6 +868,8 @@ En AV-05, Codex verificó las afirmaciones de [Neon](informe-neon-av05.md) en el
 **Responsable principal.** AV-06. **Dependencias.** AV-02, AV-07 **Contravalidador.** Revisor independiente de navegadores, recursos y compatibilidad.
 
 **Severidad.** Alta. **Estado.** VALIDACIÓN EXPERIMENTAL PENDIENTE. **Fase.** G1 y G5.
+
+**Expediente AV-06.** Provisión por capacidad y doctor instalado. EXP-04a/b depende de EXP-01a y AV-07; G5/E7 acredita distribución. [Informe](informe-av06.md#ar-37) · [Protocolos](protocolos-av06.md).
 
 **Riesgo residual.** Cobertura sujeta a plataforma, configuración, muestras y fidelidad en instalación real.
 
@@ -879,6 +889,8 @@ En AV-05, Codex verificó las afirmaciones de [Neon](informe-neon-av05.md) en el
 
 **Severidad.** Alta. **Estado.** VALIDACIÓN EXPERIMENTAL PENDIENTE. **Fase.** G3/G5.
 
+**Expediente AV-06.** EXP-06c amplía evidencia, portabilidad y accesibilidad en G3/G5/E6 y E7. EXP-06a y DE-02 condicionan activación privada. [Informe](informe-av06.md#ar-39) · [Protocolos](protocolos-av06.md).
+
 **Riesgo residual.** Cobertura sujeta a plataforma, configuración, muestras y fidelidad en instalación real.
 
 ### AR-49
@@ -896,6 +908,8 @@ En AV-05, Codex verificó las afirmaciones de [Neon](informe-neon-av05.md) en el
 **Responsable principal.** AV-06. **Dependencias.** AV-03, AV-08 **Contravalidador.** Revisor independiente de navegadores, recursos y compatibilidad.
 
 **Severidad.** Media. **Estado.** PENDIENTE. **Fase.** Antes de fijar presupuestos.
+
+**Expediente AV-06.** Medición pareada EXP-01b/02/03. Confirmar ahorro con telemetría comparable y conservar DE-03/AV-08. [Informe](informe-av06.md#ar-49) · [Protocolos](protocolos-av06.md).
 
 **Riesgo residual.** Cobertura sujeta a plataforma, configuración, muestras y fidelidad en instalación real.
 

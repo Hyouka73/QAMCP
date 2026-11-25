@@ -10,6 +10,8 @@
 
 **AV-05.** [Dictamen independiente](dictamen-av05.md) aceptado por el Orquestador en diseño enmendado con reservas y validación experimental pendiente. [Decisión AV-05 y encargo AV-06](decision-orquestador-av05-encargo-av06.md). [Enmiendas](enmiendas-av05.md) · [Protocolos EXP-05a/b y EXP-06b](protocolos-av05.md) · [Cotejo remoto y fuentes](evidencia-av05.md) · [Encargo vinculante](encargo-contravalidacion-av05.md) · [Informe histórico de Neon](informe-neon-av05.md).
 
+**AV-06.** [Informe principal](informe-av06.md) publicado por Codex, con dictamen propuesto y contravalidación de Neon pendiente. [Matriz de compatibilidad](matriz-av06.md) · [Protocolos EXP-02/03/04 y suplementos EXP-01b/06c](protocolos-av06.md).
+
 ## Revisión del expediente
 
 - [Dictamen independiente AV-01](dictamen-av01.md) y [catálogo vigente](../catalogo-requisitos.md).
