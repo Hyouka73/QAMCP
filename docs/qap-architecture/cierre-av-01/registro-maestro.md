@@ -10,6 +10,8 @@ Las funciones de revisión figuran en cada entrada. Las asignaciones nominativas
 
 **Resolución final:** [APTO PARA PLANIFICACIÓN CON RESERVAS EXPERIMENTALES](resolucion-final-planificacion.md), tras dos dictámenes independientes. No cambia estados ni autoriza WBS, G0, implementación o acceso. Autorización de planificación pendiente.
 
+**Vigencia AC-01:** [alcance ratificado](acta-ratificacion-ac01.md) · [enmiendas](contratos-ac01.md) · [matriz](matriz-aceptacion-ac01.md). Se añaden 20 REQ y 65 cláusulas; 57 AR/estados intactos. AR-24 EXP-08, AR-52 manual/híbrida sin cambios de veredicto, AR-50 PDF/XLSX, AR-43/10 concurrencia y continuidad, AR-20 D11 intacto; pendientes de validación. No nuevo AR por conteo, no certificación.
+
 ## Distribución por auditoría
 
 | Principal | Total | Crítica | Alta | Media | Registros | Contravalidador propuesto |

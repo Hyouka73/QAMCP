@@ -4,6 +4,8 @@ Fuente primaria: encargo del propietario «QAP — Consolidación definitiva de 
 
 **Acto posterior (25 de noviembre de 2026):** [DE-01–05 ratificadas](cierre-av-01/acta-ratificacion-de.md). Sustituye reservas históricas de política, sin cambiar D01–D21 ni condiciones de pruebas/permisos. [Especificación consolidada](especificacion-consolidada.md). Texto histórico preservado.
 
+**Ampliación posterior ratificada AC-01:** [acta](cierre-av-01/acta-ratificacion-ac01.md). B/A/B/A/A/A/A; preserva D01–D21 y DE-01–05; [especificación §12](especificacion-consolidada.md). No autorización operacional.
+
 ## D01 · Producto listo para uso real
 
 **Estado y naturaleza.** Requisito expreso de producto.

@@ -1,5 +1,7 @@
 # Catálogo consolidado de requisitos
 
+**Vigencia AC-01 (25 de noviembre de 2026):** [acta ratificada](cierre-av-01/acta-ratificacion-ac01.md), [contrato delta y criterios](cierre-av-01/catalogo-delta-ac01.md) y [trazabilidad](cierre-av-01/trazabilidad-ac01.md). Se preservan las 90 fichas REQ originales, 2 políticas y 11 ampliaciones; se agregan 20 fichas REQ de alcance AC-01 (total 123 entradas = 110 REQ + 2 políticas + 11 ampliaciones). Los conteos históricos que siguen se refieren a la línea base anterior. Las cláusulas AC01-xx.yy no son nuevos IDs REQ. Precisiones obligatorias en fichas existentes por referencia a propietarios de cada cláusula. Pendiente contravalidación focalizada; no se afirma implementación.
+
 La referencia del propietario es **87 IDs únicos**. Se recuperaron **82 originales** de la matriz de Neon y se añadieron **5** IDs de la consolidación indicada por el propietario. La evaluación archivada propuso **88** porque incluía `REQ-UTCP-001` como sexto ID. Su contenido queda en `REQ-DAT-001.2` y `REQ-INT-001.4`. Se conservan **11 ampliaciones identificadas** (cinco etiquetas REQ, UTCP/OpenAPI y M1–M5) y **3 nuevos IDs candidatos**. Las dos políticas posteriores figuran al final, fuera del cómputo.
 
 La [Fe de erratas §1.1](cierre-av-01/fuentes-recuperadas/fe-erratas-neon.md#11-corrección-de-encabezados-y-conteo-exacto) acredita 60 RF, 20 RNF y 7 POL históricos por ID. La [matriz](cierre-av-01/matriz-semantica.md) conserva clase histórica, clase objetivo justificada y etiquetas, sin cuota. La clase no altera alcance, prioridad ni aceptación. D01–D21 prevalecen, seguidos por las fichas completas y ampliaciones. Los contratos de AV-02–AV-08 desarrollan esas obligaciones bajo sus respectivas compuertas. Los informes históricos son antecedentes informativos. [Dictamen AV-01](cierre-av-01/dictamen-av01.md) · [Dictamen AV-02](cierre-av-01/dictamen-av02.md).
@@ -990,3 +992,199 @@ Autorización y custodia del ciclo de evidencia privada
 | POL-RET-001 · Historial y retención | D19. Resumen permanente hasta eliminación expresa, detalle 90 días, exportación manual, autoarchivo opcional, Knowledge vigente y casos activos sin caducidad. Propuesta técnica pendiente: multimedia de éxitos hasta 24 h, trazas 72 h, fallos al menos 14 días con las excepciones de D19. Defectos abiertos protegidos con cuotas. Poda cada 24 h mientras activo y al iniciar. | REQ-MEM-003.5, REQ-REP-001.1–001.4, M2, CAND-SEG-001. | Poda parcial y divergente. Plazos de D19 sin garantía integrada acreditada. | Simular vencimiento, defecto abierto, corrección acreditada y publicación pendiente. Comprobar protección y poda, hashes y manifiesto preservados, mismo veredicto, informe sin `trace.zip` y exportaciones HTML, CSV, JSON/JSONL y manifiesto verificable. |
 
 Las comprobaciones conocidas como HAR saneado, exportación a especificaciones, Web Vitals y regresión visual del AUT conservan prioridad opcional de la evaluación independiente. Accesibilidad y contrato API conservan sus IDs dedicados. Los controles autorizados de permisos, aislamiento, ausencia de efectos, cabeceras y política CORS del AUT se trazan a CAS/ORA/SEG y D07/D12/D21.
+
+
+## Ampliación ratificada AC-01 · nuevas fichas
+
+### REQ-STR-001.1
+
+Perfil de estrategia y riesgos por entrega.
+
+- **Estado en develop.** Nueva obligación ratificada, no acreditada; no se infiere estado de código sin baseline G0.
+- **Dependencias y alcance.** REQ-PLN-001.6; G2/E4,G4. V1 en alcance aplicable.
+- **Obligaciones y aceptación.** AC01-02.01: Integrar perfil de estrategia versionado en PLN, selección explicable y riesgos de calidad con impacto/prioridad, mitigación, obligaciones, responsable y riesgo residual. Positivo: Hotfix y release reutilizan casos con selección y riesgos distintos. Negativo: Estrategia aprobada no concede permiso ni cambia pasado.
+  - AC01-02.02: Congelar criterios verificables de entrada/salida por entrega y evaluar cada uno, conservando las brechas. Positivo: Fallo de entrada bloquea dependientes y deja ramas independientes; salida muestra incumplimiento. Negativo: Editar criterio retrospectivo no reescribe resultado; no aprobación por caso rutinaria.
+- **Procedencia.** [Contrato delta](cierre-av-01/catalogo-delta-ac01.md) · [91 orígenes](cierre-av-01/trazabilidad-ac01.md) · [Acta](cierre-av-01/acta-ratificacion-ac01.md).
+
+### REQ-STR-001.2
+
+Cobertura bidireccional por obligación y dimensión.
+
+- **Estado en develop.** Nueva obligación ratificada, no acreditada; no se infiere estado de código sin baseline G0.
+- **Dependencias y alcance.** Núcleo canónico, acta AC-01 y contratos AV-01–08; G2/E4,G5/E7,G6/E8. V1 en alcance aplicable.
+- **Obligaciones y aceptación.** AC01-01.03: Mantener trazabilidad bidireccional de requisito/regla/condición/riesgo a caso/revisión/obligación/resultado/testigo y defecto; distinguir universos congelados de cobertura diseñada, ejecutada, acreditada y conformidad. Positivo: 20 obligaciones con dos brechas producen cuatro denominadores explícitos y navegación inversa. Negativo: Borrar caso fallido no mejora histórico; FAIL no cuenta como conformidad ni cero denominador como 100%.
+- **Procedencia.** [Contrato delta](cierre-av-01/catalogo-delta-ac01.md) · [91 orígenes](cierre-av-01/trazabilidad-ac01.md) · [Acta](cierre-av-01/acta-ratificacion-ac01.md).
+
+### REQ-STR-001.3
+
+Informe y decisión de entrega del AUT.
+
+- **Estado en develop.** Nueva obligación ratificada, no acreditada; no se infiere estado de código sin baseline G0.
+- **Dependencias y alcance.** REQ-SEG-001.2; G3/E5,G5/E7; G1/E2,G5/E7. V1 en alcance aplicable.
+- **Obligaciones y aceptación.** AC01-03.01: Emitir informe de entrega AUT versionado con alcance, cobertura, resultados, riesgos, defectos, disponibilidad de evidencia, criterios, recomendación QA y decisión autorizada independiente/UAT. Positivo: Obligación crítica bloqueada queda explícita en recomendación y decisión separada. Negativo: Decisión no cambia FAIL/BLOCKED, no despliega AUT ni aplica GA/DE-03 como SLA universal del AUT.
+  - AC01-03.02: Registrar eventos materiales de auditoría con actor, origen, autoridad, ámbito, tiempo, revisión, antes/después o referencia y causa, sin secretos; proteger contra reescritura. Positivo: Cambio de criterio y decisión de entrega tienen historia consultable. Negativo: No ocultar veto ni editar bitácora por publicar informe.
+- **Procedencia.** [Contrato delta](cierre-av-01/catalogo-delta-ac01.md) · [91 orígenes](cierre-av-01/trazabilidad-ac01.md) · [Acta](cierre-av-01/acta-ratificacion-ac01.md).
+
+### REQ-CAS-002.1
+
+Agrupaciones reutilizables y selección congelada.
+
+- **Estado en develop.** Nueva obligación ratificada, no acreditada; no se infiere estado de código sin baseline G0.
+- **Dependencias y alcance.** Núcleo canónico, acta AC-01 y contratos AV-01–08; G1/E2,G4. V1 en alcance aplicable.
+- **Obligaciones y aceptación.** AC01-04.01: Suite/set como referencia reutilizable y versionada a casos, lista o consulta tipada; al instanciar PLN en CAM congelar revisiones y obligaciones, deduplicar identidad sin perder combinaciones legítimas. Positivo: Diez casos en dos sets con cuatro comunes mantienen identidad y selección reproducible. Negativo: Eliminar set no borra caso ni historia; consulta dinámica no cambia campaña congelada.
+- **Procedencia.** [Contrato delta](cierre-av-01/catalogo-delta-ac01.md) · [91 orígenes](cierre-av-01/trazabilidad-ac01.md) · [Acta](cierre-av-01/acta-ratificacion-ac01.md).
+
+### REQ-CAS-002.2
+
+Asignación y seguimiento local de trabajo.
+
+- **Estado en develop.** Nueva obligación ratificada, no acreditada; no se infiere estado de código sin baseline G0.
+- **Dependencias y alcance.** Núcleo canónico, acta AC-01 y contratos AV-01–08; G1/E2,G4. V1 en alcance aplicable.
+- **Obligaciones y aceptación.** AC01-04.02: Asignar/reasignar obligaciones locales con responsable, prioridad, estado de trabajo, revisión y trazabilidad de entrega/retorno; responsabilidad administrativa separada de permiso. Positivo: Reasignación conserva responsable previo y progreso. Negativo: Asignación no concede autoridad AUT ni exige IAM/servidor central.
+- **Procedencia.** [Contrato delta](cierre-av-01/catalogo-delta-ac01.md) · [91 orígenes](cierre-av-01/trazabilidad-ac01.md) · [Acta](cierre-av-01/acta-ratificacion-ac01.md).
+
+### REQ-HUM-001.1
+
+Operación profesional integral sin IA.
+
+- **Estado en develop.** Nueva obligación ratificada, no acreditada; no se infiere estado de código sin baseline G0.
+- **Dependencias y alcance.** Núcleo canónico, acta AC-01 y contratos AV-01–08; G1/E2/E7,G5/E7. V1 en alcance aplicable.
+- **Obligaciones y aceptación.** AC01-05.01: Completar proyecto, requisitos, autoría, selección, ejecución manual/automatización preparada, defectos, retest, consulta y exportación sin HOST, credencial IA, inferencia o suscripción; no inventar razonamiento nuevo. Positivo: Flujo completo con modelo desconectado, 0 inferencias, mismos IDs y hechos canónicos. Negativo: Ausencia de modelo no bloquea operación elegible ni fabrica expectativa/activa MANAGED.
+- **Procedencia.** [Contrato delta](cierre-av-01/catalogo-delta-ac01.md) · [91 orígenes](cierre-av-01/trazabilidad-ac01.md) · [Acta](cierre-av-01/acta-ratificacion-ac01.md).
+
+### REQ-HUM-001.2
+
+Interfaz gráfica operacional local autenticada.
+
+- **Estado en develop.** Nueva obligación ratificada, no acreditada; no se infiere estado de código sin baseline G0.
+- **Dependencias y alcance.** REQ-MEM-003.6, REQ-QA-003; G0/EXP-08,G1/E2/E7,G3/E6,G5/E7; G0/EXP-08,G1/E1/E2,G5/E6/E7; G3/E5/E6,G5/E7,G6/E8. V1 en alcance aplicable.
+- **Obligaciones y aceptación.** AC01-05.03: Proveer UI operacional gráfica local v1 autenticada y accesible con formularios de proyecto/base, casos/pasos/datos/plantillas, biblioteca/sets/planes/asignación, ejecución, charters, adjuntos, defectos/retest, consultas/reportes, importación/exportación; sin terminal obligatoria ni IA. Positivo: Senior y Executor completan escenarios EP sin CLI obligatoria; teclado/foco y estados críticos calificados. Negativo: No sustituir por visor o CLI si falla UI; no ampliar privilegio por acción gráfica.
+  - AC01-05.04: Separar frontera operacional del visor AR-24 mediante autoridad efectiva calificada; todos comandos pasan núcleo único y consultas autorizadas. Positivo: UI/CLI/MCP equivalentes conservan semántica y una escritura autorizada. Negativo: Visor jamás muta; segundo escritor, IPC falso, origen/CSRF/replay cuando aplicable y revocación impiden operación.
+  - AC01-19.06: Evaluación accesibilidad automática y humana sin IA, alcance/reglas/criterio/pendiente manual por obligación, cinco estados de cobertura según QA05-07 (no nuevos veredictos), teclado/foco/semántica/contraste/reflow y tecnologías de apoyo representativas; DE-05 B intacta. Positivo: Hallazgo automático y validación manual contextual quedan separados; UI propia calificada. Negativo: Scanner no certifica WCAG integral; pendiente manual no PASS; no egress indebido.
+- **Procedencia.** [Contrato delta](cierre-av-01/catalogo-delta-ac01.md) · [91 orígenes](cierre-av-01/trazabilidad-ac01.md) · [Acta](cierre-av-01/acta-ratificacion-ac01.md).
+
+### REQ-HUM-001.3
+
+Ejecución manual guiada.
+
+- **Estado en develop.** Nueva obligación ratificada, no acreditada; no se infiere estado de código sin baseline G0.
+- **Dependencias y alcance.** Núcleo canónico, acta AC-01 y contratos AV-01–08; G1/E1,G3/E3/E5. V1 en alcance aplicable.
+- **Obligaciones y aceptación.** AC01-06.01: Ejecutar manual guiado por pasos/revisión congelada: precondición, instrucción, datos autorizados, expectativa, observado, adjuntos, progreso, pausa/reanudación, desviación y bloqueos. Positivo: Dos pasos registrados, observación inesperada y pausa recuperable. Negativo: Editar observado no altera expectativa; cursor no demuestra ausencia de efecto.
+- **Procedencia.** [Contrato delta](cierre-av-01/catalogo-delta-ac01.md) · [91 orígenes](cierre-av-01/trazabilidad-ac01.md) · [Acta](cierre-av-01/acta-ratificacion-ac01.md).
+
+### REQ-HUM-001.4
+
+Ejecución híbrida y continuidad de efectos.
+
+- **Estado en develop.** Nueva obligación ratificada, no acreditada; no se infiere estado de código sin baseline G0.
+- **Dependencias y alcance.** Núcleo canónico, acta AC-01 y contratos AV-01–08; G1/E2,G3/E3/E5. V1 en alcance aplicable.
+- **Obligaciones y aceptación.** AC01-07.01: Orquestar DAG híbrido sin IA con pasos manuales/automáticos, mismas variables y revisiones, checkpoint, liberación de capacidad ociosa y reconciliación acreditada de efectos antes de retomar dependientes. Positivo: 3 auto + 1 humano + 2 auto, pausa y reanudación sin repetir preparación. Negativo: No reintentar efecto incierto; QAP no afirma impedir acciones humanas externas fuera de control; preservar desviación y barrera durable.
+- **Procedencia.** [Contrato delta](cierre-av-01/catalogo-delta-ac01.md) · [91 orígenes](cierre-av-01/trazabilidad-ac01.md) · [Acta](cierre-av-01/acta-ratificacion-ac01.md).
+
+### REQ-CAM-002.1
+
+Exploración estructurada con charters.
+
+- **Estado en develop.** Nueva obligación ratificada, no acreditada; no se infiere estado de código sin baseline G0.
+- **Dependencias y alcance.** Núcleo canónico, acta AC-01 y contratos AV-01–08; G2/E4,G3/E3. V1 en alcance aplicable.
+- **Obligaciones y aceptación.** AC01-09.01: Charter y sesión exploratoria versionados en CAM con objetivo, hipótesis, alcance/grant, tiempo/presupuesto, notas, observaciones, cobertura parcial y casos candidatos derivados con linaje. Positivo: Sesión con tres observaciones, pregunta pendiente y caso derivado. Negativo: Cerrar sesión no acredita PASS; anomalía sin regla no es defecto probado; lectura no muta.
+- **Procedencia.** [Contrato delta](cierre-av-01/catalogo-delta-ac01.md) · [91 orígenes](cierre-av-01/trazabilidad-ac01.md) · [Acta](cierre-av-01/acta-ratificacion-ac01.md).
+
+### REQ-REP-002.1
+
+Consultas y reportes configurables sin IA.
+
+- **Estado en develop.** Nueva obligación ratificada, no acreditada; no se infiere estado de código sin baseline G0.
+- **Dependencias y alcance.** Núcleo canónico, acta AC-01 y contratos AV-01–08; G1/E2,G3/E6,G5/E7. V1 en alcance aplicable.
+- **Obligaciones y aceptación.** AC01-12.02: Servicio común de consulta tipada autorizada sin IA con campos, filtros, agrupación, orden, paginación, comparación y exportación; plantillas para necesidades profesionales, trazabilidad hasta hecho permitido. Positivo: Misma consulta congelada UI/CLI/MCP entrega mismos hechos autorizados y totales. Negativo: SQL libre/código arbitrario, inferencia inventada, agregación cross-tenant y campo no autorizado rechazados.
+- **Procedencia.** [Contrato delta](cierre-av-01/catalogo-delta-ac01.md) · [91 orígenes](cierre-av-01/trazabilidad-ac01.md) · [Acta](cierre-av-01/acta-ratificacion-ac01.md).
+
+### REQ-REP-002.2
+
+Métricas versionadas con denominadores.
+
+- **Estado en develop.** Nueva obligación ratificada, no acreditada; no se infiere estado de código sin baseline G0.
+- **Dependencias y alcance.** Núcleo canónico, acta AC-01 y contratos AV-01–08; G2/E4,G5/E7,G6/E8. V1 en alcance aplicable.
+- **Obligaciones y aceptación.** AC01-12.03: Catálogo de métricas versionado con universo, unidad, numerador, denominador, exclusiones, ausencias, estratos y fuente; separar métricas AUT, QAP, aceptación DE-03 y gestión. Positivo: Cobertura, ejecución, veracidad, defectos, estabilidad y tendencias muestran definiciones y conteos. Negativo: Denominador 0 sin datos/no aplica, no 100%; no cambiar métrica retrospectiva.
+- **Procedencia.** [Contrato delta](cierre-av-01/catalogo-delta-ac01.md) · [91 orígenes](cierre-av-01/trazabilidad-ac01.md) · [Acta](cierre-av-01/acta-ratificacion-ac01.md).
+
+### REQ-REP-002.3
+
+Consulta temporal y comparabilidad histórica.
+
+- **Estado en develop.** Nueva obligación ratificada, no acreditada; no se infiere estado de código sin baseline G0.
+- **Dependencias y alcance.** Núcleo canónico, acta AC-01 y contratos AV-01–08; G3/E6,G5/E7. V1 en alcance aplicable.
+- **Obligaciones y aceptación.** AC01-12.04: Consulta as-of distingue momento de hecho, registro, revisión, corte, corrección y evidencia disponible; clasificar comparable, comparable con diferencias declaradas, no comparable, información insuficiente. Positivo: Comparación de builds con cambio conocido conserva estratos; corte tras poda declara faltantes. Negativo: No reconstruir dato expirado ni inferir mejora cuando población/regla no comparable.
+- **Procedencia.** [Contrato delta](cierre-av-01/catalogo-delta-ac01.md) · [91 orígenes](cierre-av-01/trazabilidad-ac01.md) · [Acta](cierre-av-01/acta-ratificacion-ac01.md).
+
+### REQ-REP-002.4
+
+Plantillas y publicaciones versionadas.
+
+- **Estado en develop.** Nueva obligación ratificada, no acreditada; no se infiere estado de código sin baseline G0.
+- **Dependencias y alcance.** Núcleo canónico, acta AC-01 y contratos AV-01–08; G3/E6,G5/E7. V1 en alcance aplicable.
+- **Obligaciones y aceptación.** AC01-12.05: Separar plantilla, definición parametrizada y publicación versionada con corte, selección, huella, fuente, omisiones y política de conservación; inmutable mientras autorizada. Positivo: Editar plantilla genera nueva publicación sin cambiar anterior. Negativo: No atribuir verificabilidad actual a copia histórica; revocación de conservación prevalece.
+- **Procedencia.** [Contrato delta](cierre-av-01/catalogo-delta-ac01.md) · [91 orígenes](cierre-av-01/trazabilidad-ac01.md) · [Acta](cierre-av-01/acta-ratificacion-ac01.md).
+
+### REQ-REP-002.5
+
+Proyecciones propias PDF y XLSX.
+
+- **Estado en develop.** Nueva obligación ratificada, no acreditada; no se infiere estado de código sin baseline G0.
+- **Dependencias y alcance.** Núcleo canónico, acta AC-01 y contratos AV-01–08; G3/E6,G5/E6/E7. V1 en alcance aplicable.
+- **Obligaciones y aceptación.** AC01-12.07: Generar PDF propio desde la proyección canónica autorizada, paginado, legible, portable, con contexto, corte, omisiones, procedencia derivada y accesibilidad aplicable. Positivo: PDF multipágina preserva filas/encabezados y discrepancias sin omitirlas. Negativo: Metadato/capa/comentario/ruta/acción o enlace indebido no sale; PDF no es evidencia primaria.
+  - AC01-12.08: Generar XLSX propio desde misma selección autorizada, hojas y valores tipados, IDs textuales y decimales exactos según contrato, filtros y omisiones; verificar apertura/reimportación en clientes calificados. Positivo: IDs con ceros y decimales autorizados se preservan o pérdida explícita con fuente exacta. Negativo: Sin fórmula activa de dato hostil, macro, link externo, contenido oculto ni modificación de verdad por editar archivo.
+- **Procedencia.** [Contrato delta](cierre-av-01/catalogo-delta-ac01.md) · [91 orígenes](cierre-av-01/trazabilidad-ac01.md) · [Acta](cierre-av-01/acta-ratificacion-ac01.md).
+
+### REQ-CAS-002.3
+
+Componentes declarativos reutilizables.
+
+- **Estado en develop.** Nueva obligación ratificada, no acreditada; no se infiere estado de código sin baseline G0.
+- **Dependencias y alcance.** Núcleo canónico, acta AC-01 y contratos AV-01–08; G2/E4,G3/E5. V1 en alcance aplicable.
+- **Obligaciones y aceptación.** AC01-15.02: Componentes declarativos reutilizables versionados con entradas/salidas, dependencias, operaciones autorizadas y expectativa; congelar en plan, detectar impacto de revisión. Positivo: Tres casos reutilizan componente sin duplicar intención; revisión previa reproducible. Negativo: Sin scripting general, ciclos no resueltos, mutación oculta ni ampliación de autoridad por reutilización.
+- **Procedencia.** [Contrato delta](cierre-av-01/catalogo-delta-ac01.md) · [91 orígenes](cierre-av-01/trazabilidad-ac01.md) · [Acta](cierre-av-01/acta-ratificacion-ac01.md).
+
+### REQ-QA-004.1
+
+Perfil de evaluación no funcional.
+
+- **Estado en develop.** Nueva obligación ratificada, no acreditada; no se infiere estado de código sin baseline G0.
+- **Dependencias y alcance.** REQ-ORA-001.5, REQ-RUN-001.5, REQ-RUN-002.1; G2/E4,G3/E5; G3/E5,G6/E8; G3/E5,G5/E7,G6/E8. V1 en alcance aplicable.
+- **Obligaciones y aceptación.** AC01-19.01: Versionar perfil de calidad por atributo, modalidad pasiva/sintética/activa acotada/humana-externa, objetivo, contexto, criterio, métrica/unidad, fuente/testigo, autoridad, presupuesto y parada. Positivo: Perfil tres características evaluadas conserva versiones y brechas. Negativo: Perfil sin fuente o grant no produce PASS ni despacho.
+  - AC01-19.02: Biblioteca extensible de seguridad funcional: autenticación, sesión, autorización, tenant, datos/campo, estados, entradas, auditoría, transporte y divulgación, controles sanos/negativos y efectos. Positivo: Mutante que deniega pero muta o divulga se detecta, control sano evita denegación universal. Negativo: Ocultar botón no acredita denegación; no prueba negativa sin autorización ni testigo suficiente.
+  - AC01-19.04: Evaluar resiliencia funcional acotada y recuperación distinguiendo fallo real, simulado e instrumentación; escenarios autorizados con efecto, incertidumbre y reconciliación. Positivo: Interrupción simulada registra recuperación y estado persistente. Negativo: Simulación no acredita resiliencia producción ni autoriza inyección activa indiscriminada.
+  - AC01-19.05: Matriz de compatibilidad AUT separada de matriz instalada QAP por browser/perfil/config/versión, reutilizar identidad caso sin sustitución silenciosa. Positivo: Celda no disponible queda no evaluada y evidencia de otra celda no compensa. Negativo: Motor alterno no acredita perfil solicitado.
+- **Procedencia.** [Contrato delta](cierre-av-01/catalogo-delta-ac01.md) · [91 orígenes](cierre-av-01/trazabilidad-ac01.md) · [Acta](cierre-av-01/acta-ratificacion-ac01.md).
+
+### REQ-QA-004.2
+
+Evaluación temporal sintética contextualizada.
+
+- **Estado en develop.** Nueva obligación ratificada, no acreditada; no se infiere estado de código sin baseline G0.
+- **Dependencias y alcance.** Núcleo canónico, acta AC-01 y contratos AV-01–08; G3/E5,G6/E8. V1 en alcance aplicable.
+- **Obligaciones y aceptación.** AC01-19.03: Medir duración sintética AUT con inicio/fin, reloj, entorno dedicado/compartido, carga/estado, muestra y estimador predefinidos, incertidumbre, instrumentación y criterio acreditado; percentiles solo si muestra suficiente. Positivo: Muestras reproducibles con p50 cuando adecuado y criterio evaluable, o diagnóstico sin SLA. Negativo: Equipo saturado/muestra insuficiente no acredita latencia; no umbral universal ni confundir carga o consumo QAP.
+- **Procedencia.** [Contrato delta](cierre-av-01/catalogo-delta-ac01.md) · [91 orígenes](cierre-av-01/trazabilidad-ac01.md) · [Acta](cierre-av-01/acta-ratificacion-ac01.md).
+
+### REQ-DAT-002.1
+
+Afirmaciones declarativas de calidad de datos.
+
+- **Estado en develop.** Nueva obligación ratificada, no acreditada; no se infiere estado de código sin baseline G0.
+- **Dependencias y alcance.** REQ-ORA-001.4, REQ-ORA-001.7; G3/E5,G6/E8; G2/E4,G3/E5. V1 en alcance aplicable.
+- **Obligaciones y aceptación.** AC01-20.02: Afirmaciones declarativas de completitud, unicidad, validez, integridad referencial, consistencia, cardinalidad, conciliación y vigencia en población autorizada con identidad, fuente, alcance, tolerancia y testigo; localizar discrepancia. Positivo: Detectar duplicado, huérfano, estado incompatible y aceptar nulos/duplicados legítimos por regla. Negativo: Página o muestra no acredita población global; no exigir BD AUT ni SQL libre.
+  - AC01-20.03: Modelar tablas de decisión y transiciones versionadas, precondiciones/guardas/precedencia, estados prohibidos y reglas ejecutables determinísticamente con fuentes acreditadas. Positivo: Detectar transición prohibida aun con éxito UI; tabla resuelve combinación permitida. Negativo: HOST no inventa regla ni precedencia, falta de fuente abstención.
+- **Procedencia.** [Contrato delta](cierre-av-01/catalogo-delta-ac01.md) · [91 orígenes](cierre-av-01/trazabilidad-ac01.md) · [Acta](cierre-av-01/acta-ratificacion-ac01.md).
+
+### REQ-DAT-002.2
+
+Concurrencia funcional intencional compuesta.
+
+- **Estado en develop.** Nueva obligación ratificada, no acreditada; no se infiere estado de código sin baseline G0.
+- **Dependencias y alcance.** REQ-DAT-001.2; G1/E1/E2,G3/EXP-05b/E5; G3/EXP-05b/E5,G5/E2. V1 en alcance aplicable.
+- **Obligaciones y aceptación.** AC01-21.02: Unidad compuesta titular única de reserva jerárquica frente a trabajos incompatibles locales, recurso dedicado/coordinación externa acreditada, actores sintéticos identificados, grants por efecto, tope/presupuesto y barrera verificable de inicio y solapamiento. Positivo: Dos actores sobre unidad dedicada demuestran solapamiento y exactly-one según regla acreditada. Negativo: Sin aislamiento o solapamiento no PASS; no exclusión global entre instalaciones ni carga masiva.
+  - AC01-21.03: Persistir intención por participante/subefecto antes de despacho, correlación, ventanas/terminalidad e idempotencia autorizada; reconciliar invariante conjunta y cleanup antes de liberar barrera durable de efectos. Positivo: Doble reserva mutante, respuesta perdida y efecto tardío se detectan sin reenviar confirmados; recuperación conserva unidad. Negativo: Timeout/revoke no prueba no efecto, no retry ciego ni liberar conflicto por capacidad local.
+- **Procedencia.** [Contrato delta](cierre-av-01/catalogo-delta-ac01.md) · [91 orígenes](cierre-av-01/trazabilidad-ac01.md) · [Acta](cierre-av-01/acta-ratificacion-ac01.md).
+
+
+Las precisiones para fichas previas permanecen en el contrato delta (propietario por cláusula), sin redefinir IDs ni estados históricos.
