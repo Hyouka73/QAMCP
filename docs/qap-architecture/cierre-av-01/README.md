@@ -16,7 +16,9 @@
 
 **AV-08.** [Propuesta principal del Orquestador](informe-orquestador-av08.md). Codex High publicó el [dictamen independiente](dictamen-av08.md), las [12 enmiendas](enmiendas-av08.md), la [matriz de 92 elementos y 11 ampliaciones](matriz-aceptacion-av08.md) y el [inventario histórico](procedencia-av08.md). [Segunda contravalidación ChatGPT High](segunda-contravalidacion-av08.md) y [decisión técnica del Orquestador](decision-orquestador-av08.md) publicadas. Diseño enmendado aceptado y [DE-01–05 ratificadas](acta-ratificacion-de.md); validación experimental pendiente.
 
-**Consolidación vigente.** [Especificación](../especificacion-consolidada.md) · [Acta DE-01–05](acta-ratificacion-de.md) · [Manifiesto normativo fijado](manifiesto-normativo-consolidado.md) · [57 AR](matriz-consolidada-ar.md) · [Dictámenes finales](encargo-dictamen-final.md). Políticas A/B/B/A con respaldo B/B. Revisión final independiente y autorización de planificación pendientes; no WBS ni implementación.
+**Consolidación vigente.** [Especificación](../especificacion-consolidada.md) · [Acta DE-01–05](acta-ratificacion-de.md) · [Manifiesto normativo fijado](manifiesto-normativo-consolidado.md) · [57 AR](matriz-consolidada-ar.md) · [Dictámenes finales](encargo-dictamen-final.md). Políticas A/B/B/A con respaldo B/B. [Dictámenes finales recibidos y resolución del Orquestador](resolucion-final-planificacion.md): APTO PARA PLANIFICACIÓN CON RESERVAS EXPERIMENTALES. Autorización de planificación pendiente; no WBS ni implementación.
+
+**Cierre arquitectónico.** [Dictamen 1](dictamen-final-revisor-1.md) · [Dictamen 2 — ChatGPT](dictamen-final-chatgpt-high.md) · [Resolución](resolucion-final-planificacion.md). Ambos favorables; 57 estados conservados. No certificación ni autorización operativa.
 
 ## Revisión del expediente
 

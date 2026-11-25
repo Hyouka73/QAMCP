@@ -1,6 +1,6 @@
 # QAP · Matriz de asignación de auditorías específicas
 
-La asignación identifica el expediente responsable, las dependencias que se deben transferir y el contravalidador propuesto por función. Los nombres y la siguiente intervención quedan a decisión del Orquestador. AV-01 cerrada documentalmente; AV-02–08 aceptadas en diseño con reservas. [DE ratificadas](acta-ratificacion-de.md), [dictámenes finales](encargo-dictamen-final.md) pendientes.
+La asignación identifica el expediente responsable, las dependencias que se deben transferir y el contravalidador propuesto por función. Los nombres y la siguiente intervención quedan a decisión del Orquestador. AV-01 cerrada documentalmente; AV-02–08 aceptadas en diseño con reservas. [DE ratificadas](acta-ratificacion-de.md), [dictámenes finales favorables y resolución](resolucion-final-planificacion.md) publicados; autorización de planificación pendiente.
 
 | Expediente | Estado de intervención | Registros principales | Dependencias que reciben o devuelven evidencia |
 |---|---|---|---|

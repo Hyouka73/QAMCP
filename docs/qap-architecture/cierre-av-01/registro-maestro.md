@@ -8,6 +8,8 @@ Las funciones de revisión figuran en cada entrada. Las asignaciones nominativas
 
 **Vigencia posterior:** [Acta DE](acta-ratificacion-de.md), [especificación](../especificacion-consolidada.md) y [matriz consolidada](matriz-consolidada-ar.md). Menciones históricas de elección DE pendiente superadas por políticas A/B/B/A con B respaldo/B; condiciones técnicas, permisos, activación y pruebas pendientes. Las decisiones AV-01–08 resuelven reservas de decisión documental; estados principales conservados.
 
+**Resolución final:** [APTO PARA PLANIFICACIÓN CON RESERVAS EXPERIMENTALES](resolucion-final-planificacion.md), tras dos dictámenes independientes. No cambia estados ni autoriza WBS, G0, implementación o acceso. Autorización de planificación pendiente.
+
 ## Distribución por auditoría
 
 | Principal | Total | Crítica | Alta | Media | Registros | Contravalidador propuesto |
