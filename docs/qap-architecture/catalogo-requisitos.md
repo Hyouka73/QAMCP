@@ -1,6 +1,6 @@
 # Catálogo consolidado de requisitos
 
-**Vigencia AC-01 (25 de noviembre de 2026):** [acta ratificada](cierre-av-01/acta-ratificacion-ac01.md), [contrato delta y criterios](cierre-av-01/catalogo-delta-ac01.md) y [trazabilidad](cierre-av-01/trazabilidad-ac01.md). Se preservan las 90 fichas REQ originales, 2 políticas y 11 ampliaciones; se agregan 20 fichas REQ de alcance AC-01 (total 123 entradas = 110 REQ + 2 políticas + 11 ampliaciones). Los conteos históricos que siguen se refieren a la línea base anterior. Las cláusulas AC01-xx.yy no son nuevos IDs REQ. Precisiones obligatorias en fichas existentes por referencia a propietarios de cada cláusula. Pendiente contravalidación focalizada; no se afirma implementación.
+**Vigencia AC-01 (25 de noviembre de 2026):** [acta ratificada](cierre-av-01/acta-ratificacion-ac01.md), [contrato delta y criterios](cierre-av-01/catalogo-delta-ac01.md) y [trazabilidad](cierre-av-01/trazabilidad-ac01.md). Se preservan las 90 fichas REQ originales, 2 políticas y 11 ampliaciones; se agregan 20 fichas REQ de alcance AC-01 (total 123 entradas = 110 REQ + 2 políticas + 11 ampliaciones). Los conteos históricos que siguen se refieren a la línea base anterior. Las cláusulas AC01-xx.yy no son nuevos IDs REQ. Precisiones obligatorias en fichas existentes por referencia a propietarios de cada cláusula. Contravalidación focalizada favorable con correcciones documentales resueltas; [resolución](cierre-av-01/resolucion-final-ac01.md). No se afirma implementación.
 
 La referencia del propietario es **87 IDs únicos**. Se recuperaron **82 originales** de la matriz de Neon y se añadieron **5** IDs de la consolidación indicada por el propietario. La evaluación archivada propuso **88** porque incluía `REQ-UTCP-001` como sexto ID. Su contenido queda en `REQ-DAT-001.2` y `REQ-INT-001.4`. Se conservan **11 ampliaciones identificadas** (cinco etiquetas REQ, UTCP/OpenAPI y M1–M5) y **3 nuevos IDs candidatos**. Las dos políticas posteriores figuran al final, fuera del cómputo.
 
@@ -13,6 +13,8 @@ La columna histórica se traslada a la base remota **77a9c4f3769784df40a17d5d19b
 Decisiones relacionadas para las filas de esta familia: D02, D05, D07, D19, D20. Trazabilidad a G0/G1/G5, E1/E2. Los complementos de alcance figuran en las [ampliaciones](#ampliaciones-de-la-línea-base).
 
 ### REQ-MEM-001.1
+
+**Precisiones AC-01 vigentes:** [ AC01-12.01 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
 
 Imponer plano obligatorio en un único almacén canónico para toda entidad.
 
@@ -32,6 +34,8 @@ Regla invariante en la capa de dominio/repositorio aplicable a MCP y CLI.
 
 ### REQ-MEM-001.3
 
+**Precisiones AC-01 vigentes:** [ AC01-05.02, AC01-08.01, AC01-12.01 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
+
 Versionado inmutable uniforme de entidades de conocimiento y casos en un solo modelo.
 
 - **Estado en develop.** Integrado · parcial. `knowledge_revisions` tiene triggers `BEFORE UPDATE/DELETE` inmutables; pero `app-service.sqlite` (`projects`, `modules`, `service_test_cases`) y `.qa/` mutan in-place.
@@ -41,6 +45,8 @@ Versionado inmutable uniforme de entidades de conocimiento y casos en un solo mo
 
 ### REQ-MEM-001.4
 
+**Precisiones AC-01 vigentes:** [ AC01-05.02, AC01-06.02 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
+
 Máquina de estados de revisión para ediciones manuales disparada por drift/conflicto.
 
 - **Estado en develop.** Integrado · parcial. `UpdateGuard` bloquea sobreescritura de casos `manually_edited` en CLI, pero no existe transición automática a `pending_review` ante drift ni trazabilidad `legacy_manual_edit` en producción.
@@ -49,6 +55,8 @@ Máquina de estados de revisión para ediciones manuales disparada por drift/con
 - **Procedencia.** [Fila original de Neon](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/docs/qap-architecture/gemini-neon-etapa-3.md#L21) · [`packages/knowledge/src/plan/update-guard.ts:11-66`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/knowledge/src/plan/update-guard.ts#L11).
 
 ### REQ-MEM-002.1
+
+**Precisiones AC-01 vigentes:** [ AC01-16.01, AC01-22.03 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
 
 Vector de alcance completo `(project, app, instance, env, tenant, role, version, config_rev)` en todo el almacenamiento. D02/D05 explicitan también perfil y configuración, además de las dimensiones históricas.
 
@@ -92,6 +100,8 @@ Servicio de snapshot contextual determinista para re-hidratar cualquier host/mod
 
 ### REQ-MEM-002.5
 
+**Precisiones AC-01 vigentes:** [ AC01-11.01 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
+
 Separación física y lógica estricta entre memoria de conocimiento y almacén efímero de sesiones/caché.
 
 - **Estado en develop.** Integrado · parcial. Sesiones separadas de `knowledge.sqlite`, pero `qap clean`/`ProjectReset` y `.qa/cache/` mezclan artefactos locales en el mismo árbol `.qa/`.
@@ -103,6 +113,8 @@ Separación física y lógica estricta entre memoria de conocimiento y almacén 
 
 ### REQ-MEM-003.1
 
+**Precisiones AC-01 vigentes:** [ AC01-01.01 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
+
 Registro único de contradicciones tipadas con estado de resolución y bloqueo de oráculo.
 
 - **Estado en develop.** Integrado · parcial. Detecta contradicciones entre reglas de negocio (`equal_authority_contradiction`), pero no existe tabla/flujo unificado para contradicciones entre observación y regla en todas las entidades.
@@ -111,6 +123,8 @@ Registro único de contradicciones tipadas con estado de resolución y bloqueo d
 - **Procedencia.** [Fila original de Neon](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/docs/qap-architecture/gemini-neon-etapa-3.md#L27) · [`packages/mcp/src/application/scoped-rule-resolver.ts:968-992`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/mcp/src/application/scoped-rule-resolver.ts#L968) · [`packages/mcp/src/application/app-service-store.ts:227-239`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/mcp/src/application/app-service-store.ts#L227).
 
 ### REQ-MEM-003.2
+
+**Precisiones AC-01 vigentes:** [ AC01-16.02 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
 
 Motor activo de propagación de `stale` por grafo de dependencias conectado al núcleo.
 
@@ -121,6 +135,8 @@ Motor activo de propagación de `stale` por grafo de dependencias conectado al n
 
 ### REQ-MEM-003.3
 
+**Precisiones AC-01 vigentes:** [ AC01-13.02, AC01-14.01, AC01-14.02, AC01-16.03 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
+
 Pipeline post-ejecución que alimenta firmas, flakiness y observaciones sin tocar requisitos.
 
 - **Estado en develop.** Requerido · ausente. Guarda intentos y resultados, pero `HistoryManager.recordExecution()` no se llama en producción y no existe aprendizaje automático de firmas de fallo, flakiness ni latencias hacia memoria.
@@ -129,6 +145,8 @@ Pipeline post-ejecución que alimenta firmas, flakiness y observaciones sin toca
 - **Procedencia.** [Fila original de Neon](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/docs/qap-architecture/gemini-neon-etapa-3.md#L29) · [`packages/knowledge/src/history/history-manager.ts:72`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/knowledge/src/history/history-manager.ts#L72) · [`packages/mcp/src/application/block3-execution-repo.ts`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/mcp/src/application/block3-execution-repo.ts).
 
 ### REQ-MEM-003.4
+
+**Precisiones AC-01 vigentes:** [ AC01-11.01, AC01-11.02, AC01-14.03 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
 
 Exportador/importador de paquetes portables versionados con filtro estricto anti-secretos.
 
@@ -149,6 +167,8 @@ Motor único de retención y borrado aislado por proyecto usado por MCP y CLI.
 - **Contravalidación AV-02.** Retención histórica y reserva por volumen sin poda por cuota de evidencia protegida. DE-01 abierta. [AR-25](cierre-av-01/dictamen-av02.md#ar-25).
 
 ### REQ-MEM-003.6
+
+**Precisiones AC-01 vigentes:** [ AC01-05.04, AC01-12.01 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
 
 Puerto de persistencia único con adaptador local (SQLite) y contrato listo para adaptador concurrente (PostgreSQL).
 
@@ -171,6 +191,8 @@ Bucle autónomo de lotes controlado por el orquestador hasta `READY` o presupues
 - **Procedencia.** [Fila original de Neon](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/docs/qap-architecture/gemini-neon-etapa-3.md#L38) · [`packages/mcp/src/handlers/discovery.handler.ts:632-668`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/mcp/src/handlers/discovery.handler.ts#L632) · [`packages/playwright-adapter/src/crawler/service.ts:119-145`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/playwright-adapter/src/crawler/service.ts#L119).
 
 ### REQ-DIS-001.2
+
+**Precisiones AC-01 vigentes:** [ AC01-01.01 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
 
 Modelo uniforme de frontera y cobertura para toda exploración (inicial y focalizada).
 
@@ -241,6 +263,8 @@ Decisiones relacionadas para las filas de esta familia: D05, D10, D11, D12. Traz
 
 ### REQ-DOC-001.1
 
+**Precisiones AC-01 vigentes:** [ AC01-01.01 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
+
 Pipeline de ingesta estructurada por adaptadores de formato con localizador (sección/página/versión). Incorporar los formatos de D10 y conservar tablas y localizadores de páginas, secciones, hojas y celdas.
 
 - **Estado en develop.** Integrado · parcial. Ingiere texto/Markdown en `ingested_documents` y extrae reglas vía regex de viñetas `- [RULE ...]`; `docPath` está bloqueado en MCP (`direct_document_path_unavailable`).
@@ -270,6 +294,8 @@ Motor de reconciliación bidireccional documento ↔ observación con los 4 esta
 
 ### REQ-DOC-001.4
 
+**Precisiones AC-01 vigentes:** [ AC01-01.01 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
+
 Regla transversal de autoridad documental aplicada a todo diseño de casos y oráculos.
 
 - **Estado en develop.** Integrado · parcial. Distingue `accredited` vs `unaccredited` y `confirmed_requirement` vs `ingested_doc`, bloqueando ambigüedades; falta cobertura uniforme fuera de `discovery_revisions`.
@@ -292,6 +318,8 @@ Protocolo limpio de solicitudes/propuestas estructuradas entre núcleo QAP y hos
 
 ### REQ-IA-001.2
 
+**Precisiones AC-01 vigentes:** [ AC01-17.01 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
+
 Modo `DETERMINISTIC` formal en el orquestador para repetición y regresión autónoma.
 
 - **Estado en develop.** Integrado · parcial. Ejecución Playwright no llama a modelos por paso; sin embargo, no existe un modo `DETERMINISTIC` unificado de campaña/regresión sin host.
@@ -300,6 +328,8 @@ Modo `DETERMINISTIC` formal en el orquestador para repetición y regresión aut�
 - **Procedencia.** [Fila original de Neon](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/docs/qap-architecture/gemini-neon-etapa-3.md#L61) · [`packages/playwright-runner/src/runner.ts:587-936`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/playwright-runner/src/runner.ts#L587).
 
 ### REQ-IA-001.3
+
+**Precisiones AC-01 vigentes:** [ AC01-16.05 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
 
 Validador único de propuestas estructuradas (escenarios, oráculos, diagnósticos, reparaciones).
 
@@ -379,6 +409,8 @@ Resolvedor DAG unificado multi-caso y multi-módulo con bloqueo ante ciclos.
 
 ### REQ-PLN-001.5
 
+**Precisiones AC-01 vigentes:** [ AC01-16.01 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
+
 Congelamiento inmutable de `ExecutionPlan` verificado por el runner en todo canal.
 
 - **Estado en develop.** Integrado · parcial. Verifica `checksum` y `cases_fingerprint` en MCP; ausente en CLI `qap test`.
@@ -387,6 +419,8 @@ Congelamiento inmutable de `ExecutionPlan` verificado por el runner en todo cana
 - **Procedencia.** [Fila original de Neon](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/docs/qap-architecture/gemini-neon-etapa-3.md#L75) · [`packages/mcp/src/handlers/plan.handler.ts:195-226,431-513`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/mcp/src/handlers/plan.handler.ts#L195).
 
 ### REQ-PLN-001.6
+
+**Precisiones AC-01 vigentes:** [ AC01-02.02 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
 
 Reevaluador de grafo de campaña tras fallo de prerrequisito o hallazgo crítico.
 
@@ -410,6 +444,8 @@ Elegibilidad automática basada en política y fuente acreditada (0 aprobaciones
 
 ### REQ-CAS-001.2
 
+**Precisiones AC-01 vigentes:** [ AC01-01.02 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
+
 Generación multi-técnica (positivos, negativos, BVA, estados, RBAC, cálculos) enlazada a oráculos acreditados.
 
 - **Estado en develop.** Integrado · incompatible con la garantía objetivo. CLI genera BVA y RBAC, pero `case-execution-policy.ts:5-8` **los bloquea incondicionalmente** como `blocked_missing_oracle`; MCP solo genera casos smoke/básicos.
@@ -418,6 +454,8 @@ Generación multi-técnica (positivos, negativos, BVA, estados, RBAC, cálculos)
 - **Procedencia.** [Fila original de Neon](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/docs/qap-architecture/gemini-neon-etapa-3.md#L83) · [`packages/knowledge/src/plan/bva-generator.ts:688`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/knowledge/src/plan/bva-generator.ts#L688) · [`packages/knowledge/src/plan/rbac-generator.ts:309`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/knowledge/src/plan/rbac-generator.ts#L309) · [`packages/playwright-runner/src/case-execution-policy.ts:5-8`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/playwright-runner/src/case-execution-policy.ts#L5).
 
 ### REQ-CAS-001.3
+
+**Precisiones AC-01 vigentes:** [ AC01-05.02, AC01-08.01, AC01-15.01, AC01-16.05 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
 
 Separación explícita `TestCaseIdentity` (funcional) vs `TestCaseRevision` (ejecutable + adaptador).
 
@@ -452,6 +490,8 @@ Decisiones relacionadas para las filas de esta familia: D06, D07, D11, D12, D17,
 
 ### REQ-ORA-001.1
 
+**Precisiones AC-01 vigentes:** [ AC01-06.02 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
+
 Taxonomía única de 6 veredictos (`PASS`, `FAIL`, `INDETERMINATE`, `BLOCKED`, `SKIPPED`, `ERROR`) en todo el sistema.
 
 - **Estado en develop.** Integrado · incompatible con la garantía objetivo. Taxonomías inconsistentes entre capas (`passed/failed/partial/error/not_run` vs `PASS/FAIL/technical_error/human_accepted`); **`cli/commands/test.ts:206-230` reporta `not_run` como `passed` (`exitCode=0`)**.
@@ -460,6 +500,8 @@ Taxonomía única de 6 veredictos (`PASS`, `FAIL`, `INDETERMINATE`, `BLOCKED`, `
 - **Procedencia.** [Fila original de Neon](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/docs/qap-architecture/gemini-neon-etapa-3.md#L92) · [`packages/cli/src/commands/test.ts:206-230`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/cli/src/commands/test.ts#L206) · [`packages/playwright-runner/src/runner.ts:204,312`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/playwright-runner/src/runner.ts#L204) · [`packages/mcp/src/application/app-service-store.ts:355`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/mcp/src/application/app-service-store.ts#L355).
 
 ### REQ-ORA-001.2
+
+**Precisiones AC-01 vigentes:** [ AC01-01.01, AC01-22.01, AC01-22.02 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
 
 **Integración AV-04.** Contrato de diseño enmendado, pendiente de decisión y pruebas. La acreditación se evalúa por afirmación y modo de fallo. El testigo N1 puede demostrar comportamiento funcional no persistente cuando el alcance y la regla lo permiten. N2/N3 requieren propiedades causales, con independencia de la receta de adquisición. [Rúbrica y criterios](cierre-av-01/enmiendas-av04.md#3--ar-09--testigo-y-nivel-por-afirmación).
 
@@ -472,6 +514,8 @@ Evaluador de oráculos independiente que rechace señales Nivel 0/1 como prueba 
 
 ### REQ-ORA-001.3
 
+**Precisiones AC-01 vigentes:** [ AC01-01.01, AC01-22.01 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
+
 Motor de testigos Nivel 1/2/3 (recarga en contexto limpio, consulta API/vista secundaria, conciliación).
 
 - **Estado en develop.** Requerido · ausente. No existen niveles de independencia de testigos ni verificación post-recarga/lectura secundaria obligatoria para operaciones mutativas.
@@ -481,6 +525,8 @@ Motor de testigos Nivel 1/2/3 (recarga en contexto limpio, consulta API/vista se
 
 ### REQ-ORA-001.4
 
+**Precisiones AC-01 vigentes:** [ AC01-01.01, AC01-20.03 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
+
 Evaluador tipado de reglas de negocio, precisión monetaria (decimal exacto), tolerancias y conciliaciones.
 
 - **Estado en develop.** Requerido · ausente. Solo soporta 8 aserciones DOM simples (`visible`, `contains`, `equals`, `count`, `attribute`, etc.); `RuleAssertType` declara `'text'` no soportado; cero soporte de cálculos decimales ni conciliaciones.
@@ -489,6 +535,8 @@ Evaluador tipado de reglas de negocio, precisión monetaria (decimal exacto), to
 - **Procedencia.** [Fila original de Neon](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/docs/qap-architecture/gemini-neon-etapa-3.md#L95) · [`packages/playwright-runner/src/actions/assert.ts:24-180`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/playwright-runner/src/actions/assert.ts#L24) · [`packages/mcp/src/application/scoped-rule-resolver.ts:14`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/mcp/src/application/scoped-rule-resolver.ts#L14).
 
 ### REQ-ORA-001.5
+
+**Precisiones AC-01 vigentes:** [ AC01-01.01, AC01-06.02, AC01-19.02, AC01-23.01 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
 
 Oráculo de no-mutación (snapshot de estado antes/después de intento denegado).
 
@@ -501,6 +549,8 @@ Oráculo de no-mutación (snapshot de estado antes/después de intento denegado)
 
 ### REQ-ORA-001.6
 
+**Precisiones AC-01 vigentes:** [ AC01-01.01, AC01-16.04, AC01-22.01, AC01-22.02 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
+
 Oráculo de convergencia asíncrona con ventana temporal y condición de estado final.
 
 - **Estado en develop.** Requerido · ausente. Solo ofrece espera fija o `waitForSelector`; no distingue convergencia eventual, estado intermedio atascado ni timeout técnico en procesos asíncronos.
@@ -509,6 +559,8 @@ Oráculo de convergencia asíncrona con ventana temporal y condición de estado 
 - **Procedencia.** [Fila original de Neon](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/docs/qap-architecture/gemini-neon-etapa-3.md#L97) · [`packages/playwright-runner/src/actions/wait-for.ts:7-22`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/playwright-runner/src/actions/wait-for.ts#L7).
 
 ### REQ-ORA-001.7
+
+**Precisiones AC-01 vigentes:** [ AC01-01.01, AC01-20.03 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
 
 Metadato `witness_independence_level` obligatorio en cada evaluación (configurable según `DP-04`).
 
@@ -532,6 +584,8 @@ Contexto limpio por caso por defecto; compartición explícita y trazada solo en
 
 ### REQ-RUN-001.2
 
+**Precisiones AC-01 vigentes:** [ AC01-16.01 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
+
 Verificación de huella de snapshot integrada en el propio motor Runner.
 
 - **Estado en develop.** Integrado · parcial. Ejecuta deterministamente sin IA; pero la verificación de integridad del snapshot vive solo en `TestHandler` (no en el runner ni en CLI).
@@ -552,6 +606,8 @@ Estructura tripartita obligatoria: `technical_status`, `functional_verdict`, `cl
 
 ### REQ-RUN-001.4
 
+**Precisiones AC-01 vigentes:** [ AC01-16.04 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
+
 Política de reintento por idempotencia + protocolo obligatorio de reconciliación previa en mutaciones.
 
 - **Estado en develop.** Integrado · incompatible con la garantía objetivo. Sin reintentos en Runner/MCP; CLI `--retries` reintenta ciegamente casos `failed` sin reconciliación de estado en mutaciones.
@@ -560,6 +616,8 @@ Política de reintento por idempotencia + protocolo obligatorio de reconciliaci�
 - **Procedencia.** [Fila original de Neon](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/docs/qap-architecture/gemini-neon-etapa-3.md#L107) · [`packages/cli/src/commands/test.ts:182-204`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/cli/src/commands/test.ts#L182) · [`packages/playwright-runner/src/runner.ts`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/playwright-runner/src/runner.ts).
 
 ### REQ-RUN-001.5
+
+**Precisiones AC-01 vigentes:** [ AC01-19.04 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
 
 Cancelación activa (`AbortController`) cableada a revocación + pool acotado de workers paralelos aislados.
 
@@ -587,6 +645,8 @@ Decisiones relacionadas para las filas de esta familia: D06, D07, D08, D09, D12.
 
 ### REQ-DAT-001.1
 
+**Precisiones AC-01 vigentes:** [ AC01-15.01, AC01-20.01 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
+
 Subsistema `TestDataManager` con sintetizadores, etiquetas de ejecución, caducidad y filtro anti-PII.
 
 - **Estado en develop.** Requerido · ausente. No existe generador/gestor de datasets sintéticos con ámbito, procedencia, caducidad ni protección anti-PII de producción.
@@ -595,6 +655,8 @@ Subsistema `TestDataManager` con sintetizadores, etiquetas de ejecución, caduci
 - **Procedencia.** [Fila original de Neon](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/docs/qap-architecture/gemini-neon-etapa-3.md#L115) · [`packages/playwright-runner/src/context/interpolator.ts:3-52`](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/packages/playwright-runner/src/context/interpolator.ts#L3).
 
 ### REQ-DAT-001.2
+
+**Precisiones AC-01 vigentes:** [ AC01-15.01, AC01-20.01, AC01-21.03, AC01-22.02 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
 
 Ejecutor de `DataPlan` con creación topológica y limpieza inversa idempotente. Incorporar descripción y ejecución autorizada de operaciones mediante UTCP/OpenAPI por el mismo puerto.
 
@@ -619,6 +681,8 @@ Motor de política por entorno que bloquee producción/no-autorizados (`SKIPPED_
 - **Contravalidación AV-02.** Autoridad y semántica acreditadas por destino, control de egress. DE-04 abierta. [AR-31](cierre-av-01/dictamen-av02.md#ar-31).
 
 ### REQ-DAT-001.4
+
+**Precisiones AC-01 vigentes:** [ AC01-20.01 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
 
 Verificador post-limpieza y estrategias configurables (`delete`, `compensate`, `confine_tenant`, según `DP-05`).
 
@@ -682,6 +746,8 @@ Decisiones relacionadas para las filas de esta familia: D05, D11, D12, D18, D19,
 
 ### REQ-REP-001.1
 
+**Precisiones AC-01 vigentes:** [ AC01-06.02, AC01-17.02 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
+
 Servicio único de evidencias e integridad consumido por MCP y CLI.
 
 - **Estado en develop.** Integrado · parcial. Captura screenshots, video, `trace.zip` sanitizado y `result_digest` SHA-256 en MCP; sin embargo `evidence-artifacts.ts` duplica DDL incompleto y CLI omite verificación de integridad.
@@ -692,6 +758,8 @@ Servicio único de evidencias e integridad consumido por MCP y CLI.
 - **Contravalidación AV-02.** Visor autenticado y de solo lectura, apertura confinada y reproducción revocable. [AR-24](cierre-av-01/dictamen-av02.md#ar-24).
 
 ### REQ-REP-001.2
+
+**Precisiones AC-01 vigentes:** [ AC01-11.02, AC01-12.06 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
 
 Repositorio único de reportes, comparativas entre ejecuciones e historial unificado.
 
@@ -704,6 +772,8 @@ Repositorio único de reportes, comparativas entre ejecuciones e historial unifi
 
 ### REQ-REP-001.3
 
+**Precisiones AC-01 vigentes:** [ AC01-01.01, AC01-13.01, AC01-13.02, AC01-14.01, AC01-14.02, AC01-14.03 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
+
 Subsistema `DefectManager` con taxonomía D-014 (`indeterminate`), deduplicación por firma y paquete reproducible.
 
 - **Estado en develop.** Requerido · ausente. **No existe ninguna entidad, tabla ni gestor de defectos** en todo el repositorio; `classifyError` usa regex simples con fallback ciego a `assertion_failed`.
@@ -714,6 +784,8 @@ Subsistema `DefectManager` con taxonomía D-014 (`indeterminate`), deduplicació
 - **Enmienda AV-01 6.** Conservar product_bug, environment_error, automation_error, data_error, auth_expired, flaky e indeterminate. Un HTTP 500 aislado no acredita product_bug. Probar que la evidencia causal ambigua produce indeterminate, preservando deduplicación y paquete reproducible. [adenda-final L131](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/adenda-final.md#L131) · [especificacion-entrega-1 L74](https://github.com/Hyouka73/QAMCP/blob/c1d1680e6531a5132456665ca6851b6cbf5ff528/docs/qap-architecture/cierre-av-01/fuentes-recuperadas/especificacion-entrega-1.md#L74).
 
 ### REQ-REP-001.4
+
+**Precisiones AC-01 vigentes:** [ AC01-13.01, AC01-14.01 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
 
 Máquina de estados de defecto integrada con modo `INVESTIGAR_BUG` y comparativa de intentos.
 
@@ -728,6 +800,8 @@ Decisiones relacionadas para las filas de esta familia: D03, D05, D12, D21. Traz
 
 ### REQ-REG-001.1
 
+**Precisiones AC-01 vigentes:** [ AC01-14.03, AC01-16.02 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
+
 Motor de detección de drift multi-señal + selector de suite de regresión por impacto y riesgo.
 
 - **Estado en develop.** Integrado · parcial. `GitAdapter` solo corre en CLI (`test.ts:3`) con `execSync` inseguro; `ImpactAnalyzer` está desconectado de MCP/CLI; sin detección automática de drift DOM/API/configuración.
@@ -739,6 +813,8 @@ Motor de detección de drift multi-señal + selector de suite de regresión por 
 
 ### REQ-REG-001.2
 
+**Precisiones AC-01 vigentes:** [ AC01-16.03, AC01-16.06 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
+
 Analizador estadístico de oscilación `PASS`/`FAIL` sobre intentos del mismo snapshot/versión.
 
 - **Estado en develop.** Requerido · ausente. No existe detección ni registro de `flakiness` en historial.
@@ -747,6 +823,8 @@ Analizador estadístico de oscilación `PASS`/`FAIL` sobre intentos del mismo sn
 - **Procedencia.** [Fila original de Neon](https://github.com/Hyouka73/QAMCP/blob/77a9c4f3769784df40a17d5d19bd7c83a45f0c89/docs/qap-architecture/gemini-neon-etapa-3.md#L144).
 
 ### REQ-REG-001.3
+
+**Precisiones AC-01 vigentes:** [ AC01-08.01, AC01-16.05 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
 
 Flujo de reparación acotada que crea `TestCaseRevision N+1` manteniendo inmutable la expectativa y el `FAIL` original.
 
@@ -761,6 +839,8 @@ Decisiones relacionadas para las filas de esta familia: D02, D07, D09, D12, D18,
 
 ### REQ-SEG-001.1
 
+**Precisiones AC-01 vigentes:** [ AC01-10.01, AC01-17.01, AC01-18.02 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
+
 Motor único de políticas deny-by-default aplicado a MCP, CLI y servidores auxiliares. D07 permite lecturas de producción solo con acreditación y extiende denegación por defecto a visor y conectores.
 
 - **Estado en develop.** Integrado · parcial. Implementado en MCP con doble persistencia (SQLite + archivos JSON) y auto-aprobación silenciosa en `silentBoundScope`; **completamente ausente en CLI**; el visor y el adaptador Git presentan brechas de confinamiento y validación.
@@ -774,6 +854,8 @@ Motor único de políticas deny-by-default aplicado a MCP, CLI y servidores auxi
 
 ### REQ-SEG-001.2
 
+**Precisiones AC-01 vigentes:** [ AC01-03.02, AC01-10.01, AC01-17.01, AC01-19.07 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
+
 Invariante de alcance en el motor central imposible de alterar desde prompts, DOM o redirecciones.
 
 - **Estado en develop.** Integrado · parcial. Aplica verificación de origen y política en MCP; sin protección equivalente en CLI ni `PlaywrightAdapter`.
@@ -784,6 +866,8 @@ Invariante de alcance en el motor central imposible de alterar desde prompts, DO
 - **Precisión AR-04.** Aplicar el [sobre de contexto](#req-mem-0021) y verificar aislamiento por perfil efectivo y replay regional.
 
 ### REQ-SEG-001.3
+
+**Precisiones AC-01 vigentes:** [ AC01-17.01 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
 
 Bus de eventos de revocación conectado a `AbortController` de Discovery y Runner activos.
 
@@ -798,6 +882,8 @@ Bus de eventos de revocación conectado a `AbortController` de Discovery y Runne
 
 ### REQ-SEG-002.1
 
+**Precisiones AC-01 vigentes:** [ AC01-17.01 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
+
 Canal de captura de secretos multiplataforma 100 % fuera del LLM/chat; eliminación de bypass (sujeto a `DP-03`). D20 resuelve la prohibición de credenciales en MCP, chat y prompts. El mecanismo fuera de banda sigue abierto.
 
 - **Estado en develop.** Integrado · incompatible con la garantía objetivo. **Contradicción crítica:** `host-composition.ts:390` activa `silentBoundScope: true` por defecto, habilitando `allowScopedCredentials` (`server.ts:744-756`) que expone contraseñas en texto plano en argumentos MCP; además diálogos GUI solo existen en Windows (`powershell.exe`).
@@ -808,6 +894,8 @@ Canal de captura de secretos multiplataforma 100 % fuera del LLM/chat; eliminaci
 - **Contravalidación AV-02.** Alta fuera de banda y KEK persistente sujeto a EXP-07. [AR-07](cierre-av-01/dictamen-av02.md#ar-07).
 
 ### REQ-SEG-002.2
+
+**Precisiones AC-01 vigentes:** [ AC01-18.02, AC01-19.07 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
 
 Prohibición uniforme de degradación a anónimo cuando el alcance requiere sesión autenticada.
 
@@ -823,6 +911,8 @@ Prohibición uniforme de degradación a anónimo cuando el alcance requiere sesi
 Decisiones relacionadas para las filas de esta familia: D02, D03, D08, D10, D13, D14, D20. Trazabilidad a G0/G1/G5/G6, E1/E2/E3/E7/E8. Los complementos de alcance figuran en las [ampliaciones](#ampliaciones-de-la-línea-base).
 
 ### REQ-INT-001.1
+
+**Precisiones AC-01 vigentes:** [ AC01-17.01, AC01-17.02 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
 
 Núcleo de aplicación único (`@qap/core`) con MCP, CLI y CI como adaptadores delgados.
 
@@ -851,6 +941,8 @@ Abstracción de almacenamiento/colas que permita despliegue self-hosted sin camb
 
 ### REQ-INT-001.4
 
+**Precisiones AC-01 vigentes:** [ AC01-18.01, AC01-18.02, AC01-21.01, AC01-23.01, AC01-24.01 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
+
 Sistema formal de registro de conectores/plugins opt-in (interfaz, documentos, bóveda, extensiones de dominio). Incluir el contrato común para conectores UTCP/OpenAPI, además de adaptadores documentales y de bóveda.
 
 - **Estado en develop.** Integrado · parcial. Declara puertos teóricos (`IReporter`, `IActionTargetSearch`), pero `@qap/mcp` acopla clases concretas (`AppServiceSqliteStore`, `BlackBoxCrawler`, `PlaywrightRunner`); `@playwright/mcp` figura en `package.json` sin uso.
@@ -861,6 +953,8 @@ Sistema formal de registro de conectores/plugins opt-in (interfaz, documentos, b
 ## Cinco requisitos nuevos en la línea base
 
 ### REQ-XINST-001
+
+**Precisiones AC-01 vigentes:** [ AC01-22.03 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
 
 Consultar otra instancia autorizada solo con identidad distinta y operaciones de lectura acreditadas en destino. Preservar procedencia, tenant, revisión y finalidad. Excluir sesiones, secretos y transferencias masivas de información sensible.
 
@@ -886,6 +980,8 @@ Probar internacionalización mediante idioma, locale, zona horaria, moneda y var
 
 ### REQ-QA-002
 
+**Precisiones AC-01 vigentes:** [ AC01-21.01, AC01-24.01 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
+
 Verificar el contrato de una API autorizada por observación de tráfico y llamada directa. Fijar versión, esquemas de solicitud y respuesta, código y tipo de contenido. Separar conformidad del contrato y verificación de efectos.
 
 - **Decisiones y alcance.** D07, D08, D12, D21. Capacidad de lanzamiento. Uso por caso opcional y autorizado.
@@ -895,6 +991,8 @@ Verificar el contrato de una API autorizada por observación de tráfico y llama
 - **Procedencia y trazabilidad.** [Evaluación independiente, sección B](insumos/evaluacion-independiente-requisitos.md#b-matriz-consolidada-de-requisitos) y [acta del propietario](acta-decisiones.md). G2/G3/G6, E4/E5/E8, EXP-05.
 
 ### REQ-QA-003
+
+**Precisiones AC-01 vigentes:** [ AC01-19.06 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
 
 Comprobar accesibilidad en estados críticos con motor y reglas versionados. Registrar huella, estado, cobertura, exclusiones y comprobaciones manuales pendientes.
 
@@ -954,6 +1052,8 @@ Validación funcional de reportes emitidos por el AUT
 
 ### REQ-RUN-002.1
 
+**Precisiones AC-01 vigentes:** [ AC01-19.05 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
+
 **Alias de origen.** CAND-RUN-001.
 
 Preferencias de ejecución y fidelidad del AUT
@@ -969,6 +1069,8 @@ Preferencias de ejecución y fidelidad del AUT
 - **Criterios independientes.** 1a, persistir por proyecto preferencias conversacionales de visualización, navegador, grabación autorizada y consumo. 1b, fidelidad no desactivable de CSS, JS, imágenes, fuentes e hidratación SPA autorizados, con resource_degradation_event al degradar.
 
 ### REQ-SEG-002.3
+
+**Precisiones AC-01 vigentes:** [ AC01-10.02, AC01-12.06 ](cierre-av-01/catalogo-delta-ac01.md). Complementan esta ficha sin sustituir su contrato anterior.
 
 **Alias de origen.** CAND-SEG-001.
 
@@ -995,6 +1097,8 @@ Las comprobaciones conocidas como HAR saneado, exportación a especificaciones, 
 
 
 ## Ampliación ratificada AC-01 · nuevas fichas
+
+Precisiones adicionales sobre políticas y ampliaciones de base (no fichas nuevas): POL-CAP-001: [AC01-10.02](cierre-av-01/catalogo-delta-ac01.md); POL-RET-001: [AC01-13.02](cierre-av-01/catalogo-delta-ac01.md); REQ-OPT-001: [AC01-16.06](cierre-av-01/catalogo-delta-ac01.md); REQ-OPT-002: [AC01-16.06](cierre-av-01/catalogo-delta-ac01.md).
 
 ### REQ-STR-001.1
 
