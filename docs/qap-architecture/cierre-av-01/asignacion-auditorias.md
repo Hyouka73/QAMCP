@@ -9,8 +9,8 @@ La asignación identifica el expediente responsable, las dependencias que se deb
 | AV-03 · Autonomía, memoria, persistencia e interoperabilidad MCP/CLI | [Aceptada en diseño enmendado con reservas](decision-orquestador-av03-encargo-av04.md). Pruebas pendientes. Tabla AR-52 aceptada en diseño AV-04. [Antecedente de Antigravity](informe-av03.md). | AR-05, AR-11–12, AR-15, AR-42, AR-45–46, AR-52 | AV-01: continuidad y alcance. AV-02: autoridad y sesión. AV-04: paridad y recuperación. AV-06/07: hosts, soporte y versión. AV-08: adopción. |
 | AV-04 · Veracidad funcional, oráculos, E2E, datos mutativos y recuperación | [Aceptada en diseño enmendado](decision-orquestador-av04-encargo-av05.md). Pruebas pendientes. | AR-08–10, AR-43, AR-53 | AV-02: política y procedencia. AV-03: ejecución soberana e invariantes de salida. AV-04 entrega [contratos AR-05/52](enmiendas-av04.md#8--integración-y-compuertas). AV-05: reportes y contratos. AV-08: falsos PASS, limpieza, cobertura y métricas. |
 | AV-05 · Documentos, reportes PDF/Excel, UTCP, OpenAPI y cross-instancia | [Aceptada en diseño enmendado con reservas](decision-orquestador-av05-encargo-av06.md). AR-20 mantiene bloqueo de selección e integración; pruebas pendientes. | AR-13, AR-17–18, AR-20, AR-22, AR-38, AR-48, AR-50 | AV-02: parsers y frontera de autoridad. AV-04: oráculos y datos. AV-06: portabilidad, recursos, accesibilidad y medios. AV-07: sandbox, versiones, licencias y distribución. AV-08: alcance por clase, corpus y autoridad empresarial. |
-| AV-06 · Navegadores, fidelidad visual, concurrencia, rendimiento y compatibilidad | [Informe de Codex publicado](informe-av06.md). Contravalidación de Neon pendiente. [Encargo](decision-orquestador-av05-encargo-av06.md). | AR-16, AR-29, AR-36–37, AR-39, AR-49 | AV-02: privacidad por modo y plataforma. AV-03: eficiencia y frontera persistente. AV-05: evidencia portable. AV-07: empaquetado. AV-08: capacidad acreditada. |
-| AV-07 · Reconstrucción selectiva, dependencias, licencias y migración | Asignada | AR-19, AR-21, AR-23, AR-26, AR-33–34, AR-41, AR-51, AR-54, AR-57 | AV-02: remediación y separación de autoridad. AV-03: interoperabilidad y escritor único. AV-04/05/06: contratos, dependencias y compuertas de componente. |
+| AV-06 · Navegadores, fidelidad visual, concurrencia, rendimiento y compatibilidad | [Informe de Codex publicado](informe-av06.md). [Aceptada en diseño enmendado con reservas](decision-orquestador-av06-encargo-av07.md). [Contravalidación ChatGPT High](contravalidacion-chatgpt-high-av06.md). Pruebas pendientes. | AR-16, AR-29, AR-36–37, AR-39, AR-49 | AV-02: privacidad por modo y plataforma. AV-03: eficiencia y frontera persistente. AV-05: evidencia portable. AV-07: empaquetado. AV-08: capacidad acreditada. |
+| AV-07 · Reconstrucción selectiva, dependencias, licencias y migración | [Encargada a Codex](decision-orquestador-av06-encargo-av07.md). | AR-19, AR-21, AR-23, AR-26, AR-33–34, AR-41, AR-51, AR-54, AR-57 | AV-02: remediación y separación de autoridad. AV-03: interoperabilidad y escritor único. AV-04/05/06: contratos, dependencias y compuertas de componente. |
 | AV-08 · Aceptación del producto, métricas, validación empresarial y lanzamiento | Asignada | AR-06, AR-30, AR-35, AR-44 | AV-01–AV-06: cobertura, procedencia, autorizaciones, veracidad y evidencias de producto. AV-07: distribución y migración. |
 
 El [registro maestro](registro-maestro.md#distribución-por-auditoría) contiene conteos, severidad, contravalidador y dependencias por registro. Los estados de intervención de esta matriz describen auditorías. Los estados de cada recomendación se documentan con evidencia y criterio de cierre en su propia fila.
@@ -21,9 +21,9 @@ El [registro maestro](registro-maestro.md#distribución-por-auditoría) contiene
 |---|---|---|
 | AV-04 | Neon | Codex |
 | AV-05 | Neon | Codex |
-| AV-06 | Codex | Neon |
-| AV-07 | Codex | Neon |
-| AV-08 | Orquestador | Neon y Codex |
+| AV-06 | Codex | ChatGPT High (sustitución temporal de Neon) |
+| AV-07 | Codex | ChatGPT High mientras Neon no esté disponible |
+| AV-08 | Orquestador | Codex y contravalidador temporal ChatGPT High (Neon si vuelve y propietario confirma) |
 
 Antigravity queda temporalmente fuera de la ejecución de auditorías; sus informes históricos y la compatibilidad MCP exigida se preservan. [Decisión y encargo AV-04](decision-orquestador-av03-encargo-av04.md).
 

@@ -795,6 +795,8 @@ En AV-06, Codex publicó el [informe principal](informe-av06.md), la [matriz](ma
 
 ### AR-16
 
+**Decisión de diseño AV-06.** CV06-01/02: identidad efectiva por celda, perfiles de observación restringida vs fiel y Playwright candidato; EXP-02/04/06c. [Contravalidación](contravalidacion-chatgpt-high-av06.md) · [Decisión](decision-orquestador-av06-encargo-av07.md). Estado principal y pruebas conservados.
+
 **Problema y cierre.** Separar preferencias conversacionales de fidelidad obligatoria. Certificar combinaciones soportadas, detectar degradación e impedir que sea silenciosa.
 
 **Fuente y localizador.** N DP-12, §2.4, §3, §6.B, §10.2; A §2.2, O-06; D14–D16. [DP-12](#alias-dp-12)
@@ -814,6 +816,8 @@ En AV-06, Codex publicó el [informe principal](informe-av06.md), la [matriz](ma
 **Riesgo residual.** Cobertura sujeta a plataforma, configuración, muestras y fidelidad en instalación real.
 
 ### AR-29
+
+**Decisión de diseño AV-06.** CV06-03: admisión transaccional, reservas diferenciadas, W=1 referencia/fallback, W>1 seleccionable acreditado y W=0 si no hay reserva. EXP-03 G3/G5, no previo al WBS. [Contravalidación](contravalidacion-chatgpt-high-av06.md) · [Decisión](decision-orquestador-av06-encargo-av07.md). Estado principal y pruebas conservados.
 
 **Problema y cierre.** Perfilar presión y RAM disponible, memoria privada/proporcional y colas. Adaptar concurrencia bajo aislamiento, dependencias y límites con recuperación y limpieza.
 
@@ -835,6 +839,8 @@ En AV-06, Codex publicó el [informe principal](informe-av06.md), la [matriz](ma
 
 ### AR-36
 
+**Decisión de diseño AV-06.** CV06-04: híbrido, denominadores, identidad semántica, testigos, checkpoint e invalidación conservadora; EXP-02 G2/E4. [Contravalidación](contravalidacion-chatgpt-high-av06.md) · [Decisión](decision-orquestador-av06-encargo-av07.md). Estado principal y pruebas conservados.
+
 **Problema y cierre.** Comparar extractores sobre misma SPA y ejecutar progresión persistente. Medir tablas, estados, localizadores, etiquetas, filtros, paginación y tokens sin perder comportamiento.
 
 **Fuente y localizador.** N EXP-02, §6.B; A §11.1 EXP-02; H-REV-05; Orq §6. [EXP-02](#alias-exp-02), [H07](#alias-h07), [H-REV-05](#alias-h-rev-05)
@@ -854,6 +860,8 @@ En AV-06, Codex publicó el [informe principal](informe-av06.md), la [matriz](ma
 **Riesgo residual.** Cobertura sujeta a plataforma, configuración, muestras y fidelidad en instalación real.
 
 ### AR-37
+
+**Decisión de diseño AV-06.** CV06-01/05: provisión por capacidad, manifiesto autenticado, doctor funcional, cache y promoción recuperable; AR-23, EXP-01a G0, EXP-04a G1, 04b G5. [Contravalidación](contravalidacion-chatgpt-high-av06.md) · [Decisión](decision-orquestador-av06-encargo-av07.md). Estado principal y pruebas conservados.
 
 **Problema y cierre.** Acreditar instalación bajo demanda con proxy/CA y publicación instalada. Comparar fidelidad y consumo de modos.
 
@@ -875,6 +883,8 @@ En AV-06, Codex publicó el [informe principal](informe-av06.md), la [matriz](ma
 
 ### AR-39
 
+**Decisión de diseño AV-06.** CV06-06/07: AR-27 C/A, supresión preventiva anterior a superficie sensible, custodia, portabilidad y accesibilidad por celda; EXP-06a/c, DE-02/05. [Contravalidación](contravalidacion-chatgpt-high-av06.md) · [Decisión](decision-orquestador-av06-encargo-av07.md). Estado principal y pruebas conservados.
+
 **Problema y cierre.** Acreditar media, despliegue offline portátil, accesibilidad y fallbacks bajo autorización. Verificar apertura tras traslado, teclado y ausencia de CDN.
 
 **Fuente y localizador.** N EXP-06, §10.2; A §11.1 EXP-06c; H-REV-04. [AS-04](#alias-as-04), [EXP-06](#alias-exp-06), [EXP-06c](#alias-exp-06c), [H08](#alias-h08), [H-REV-04](#alias-h-rev-04)
@@ -894,6 +904,8 @@ En AV-06, Codex publicó el [informe principal](informe-av06.md), la [matriz](ma
 **Riesgo residual.** Cobertura sujeta a plataforma, configuración, muestras y fidelidad en instalación real.
 
 ### AR-49
+
+**Decisión de diseño AV-06.** CV06-08: medición pareada contra baseline competente, obligaciones equivalentes, todos los intentos y telemetría comparable; EXP-01b/02/03, DE-03. [Contravalidación](contravalidacion-chatgpt-high-av06.md) · [Decisión](decision-orquestador-av06-encargo-av07.md). Estado principal y pruebas conservados.
 
 **Problema y cierre.** Medir tokens por tokenizer y compresión preservando procedencia, cobertura, permisos y continuidad. Acreditar costo por modalidad.
 
