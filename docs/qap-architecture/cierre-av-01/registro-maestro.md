@@ -1153,6 +1153,8 @@ En AV-07 se publica el [informe principal](informe-av07.md) sobre 45401c45f91b3c
 
 ### AR-06
 
+**Decisión de diseño AV-08.** CV08-01–07/12 y CC08-01–04/08: 103 entradas y subobligaciones por celda, precisión/recall, efectos, casos compuestos, incumplimiento conjunto, veto por afirmación y corpus independiente. DE-03 y pruebas pendientes. [Segunda contravalidación](segunda-contravalidacion-av08.md) · [Decisión](decision-orquestador-av08.md). Estado principal conservado.
+
 **Problema y cierre.** Ratificar corpus, custodio, denominadores y umbrales por app. Medir abstención y falsos FAIL. Aceptación obligatoria separada de generalización y con vetos.
 
 **Fuente y localizador.** N DP-02, DP-10, DE-03, §10.1–10.3, §13.5–6; A O-07, C-06, DE-03, §10.4; Orq §7. [DP-02](#alias-dp-02), [DP-10](#alias-dp-10), [O-07](#alias-o-07), [C-06](#alias-c-06), [DE-03](#alias-de-03), [H11](#alias-h11)
@@ -1170,6 +1172,8 @@ En AV-07 se publica el [informe principal](informe-av07.md) sobre 45401c45f91b3c
 **Riesgo residual.** La generalización y la autorización efectiva se limitan al corpus y alcance ratificados.
 
 ### AR-30
+
+**Decisión de diseño AV-08.** CV08-08/11/12 y CC08-05/08: G6.5 representativa después de G6 antes GA, permisos específicos, E2E coherente, evidencia de restauración/reconciliación; corte separado AR-41. BLOQUEANTE conservado. [Segunda contravalidación](segunda-contravalidacion-av08.md) · [Decisión](decision-orquestador-av08.md). Estado principal conservado.
 
 **Problema y cierre.** Condicionar lanzamiento a validación empresarial autorizada, con tenant, roles, operaciones, lectura y alcance ratificados.
 
@@ -1189,6 +1193,8 @@ En AV-07 se publica el [informe principal](informe-av07.md) sobre 45401c45f91b3c
 
 ### AR-35
 
+**Decisión de diseño AV-08.** CV08-09/12 y CC08-06/08: accesibilidad propia y capacidad AUT independientes, tráfico autorizado y reglas/estados/manuales. DE-05 y pruebas pendientes. [Segunda contravalidación](segunda-contravalidacion-av08.md) · [Decisión](decision-orquestador-av08.md). Estado principal conservado.
+
 **Problema y cierre.** Ratificar nivel por campaña/compuerta. Incluir regla versionada, cobertura, exclusiones y chequeos manuales pendientes.
 
 **Fuente y localizador.** N §2.4.4, DE-05; A §2.3, C-01, DE-05; Orq §7. [DE-05](#alias-de-05)
@@ -1206,6 +1212,8 @@ En AV-07 se publica el [informe principal](informe-av07.md) sobre 45401c45f91b3c
 **Riesgo residual.** La generalización y la autorización efectiva se limitan al corpus y alcance ratificados.
 
 ### AR-44
+
+**Decisión de diseño AV-08.** CV08-07/10/11 y CC08-03/07: historia no certifica producto, R2 segundo dominio sintético, V-17/18 sin definición localizada, vigencia/identidad/admisibilidad y conservación autorizada. [Segunda contravalidación](segunda-contravalidacion-av08.md) · [Decisión](decision-orquestador-av08.md). Estado principal conservado.
 
 **Problema y cierre.** Excluir F0 histórico y prototipos como pruebas de producto. Registrar reconstrucción, controles históricos y dependencias de autorización.
 
