@@ -14,7 +14,7 @@
 
 **AV-07.** [Encargo](decision-orquestador-av06-encargo-av07.md) · [Informe principal publicado](informe-av07.md) · [Reconstrucción](matriz-reconstruccion-av07.md) · [Persistencia y migración](persistencia-migracion-av07.md) · [Dependencias, licencias y distribución](dependencias-licencias-av07.md) · [Compuertas](compuertas-av07.md) · [Precedencia](precedencia-av07.md). [Aceptada en diseño con reservas](decision-orquestador-av07-av08.md), tras [contravalidación independiente de ChatGPT High](contravalidacion-chatgpt-high-av07.md). AR-41 conserva bloqueo de corte y pruebas pendientes.
 
-**AV-08.** [Propuesta principal del Orquestador](informe-orquestador-av08.md), pendiente de contravalidación por Codex y ChatGPT High, DE-01–05 y decisión. No autoriza implementación.
+**AV-08.** [Propuesta principal del Orquestador](informe-orquestador-av08.md). Codex High publicó el [dictamen independiente](dictamen-av08.md), las [12 enmiendas](enmiendas-av08.md), la [matriz de 92 elementos y 11 ampliaciones](matriz-aceptacion-av08.md) y el [inventario histórico](procedencia-av08.md). Segunda contravalidación de ChatGPT High, DE-01–05 y decisión del Orquestador pendientes. El alcance sigue siendo documental.
 
 ## Revisión del expediente
 
