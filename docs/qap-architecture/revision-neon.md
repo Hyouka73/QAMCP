@@ -14,6 +14,10 @@
 | 6 | [Plan maestro](plan-maestro.md), [revisión independiente](revision-independiente.md) e [insumos](insumos/README.md) | Plan previo de contratos, compuertas, migración y verificación. La propuesta donde discrepe queda subordinada al acta. Las investigaciones conservan su fecha, alcance y valor histórico. |
 | 7 | [Visión](../QAP-VISION-AUTONOMIA.md), [ciclo de conocimiento](../qap-knowledge-lifecycle.md), [requisitos vNext](../vnext/REQUISITOS_Y_DECISIONES.md) y [contrato operativo original](../vnext/REQUISITOS_QA_MVP_OPERATIVO.md) | Dirección del producto, contexto de evolución, requisitos operativos previos y garantías del contrato anterior. El objetivo de salida es el de D01/D21. |
 
+## Expediente vigente de auditorías específicas
+
+El [índice de auditorías y contravalidaciones](cierre-av-01/README.md) enlaza decisiones posteriores, registro maestro y el [expediente AV-07](cierre-av-01/informe-av07.md), pendiente de contravalidación y decisión. Este índice conserva su línea base histórica.
+
 ## Lectura de estados
 
 | Estado de evidencia | Ejemplos |

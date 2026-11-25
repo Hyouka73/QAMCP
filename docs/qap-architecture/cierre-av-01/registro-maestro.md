@@ -39,6 +39,8 @@ En AV-05, Codex verificó las afirmaciones de [Neon](informe-neon-av05.md) en el
 
 En AV-06, Codex publicó el [informe principal](informe-av06.md), la [matriz](matriz-av06.md) y los [protocolos](protocolos-av06.md) sobre la base `7ccb713fea6331ee571010b7a32b90ade43b98f6`. El dictamen propone diseño con reservas, pendiente de contravalidación de Gemini Neon y decisión del Orquestador. Cinco estados experimentales y un pendiente se conservan.
 
+En AV-07 se publica el [informe principal](informe-av07.md) sobre 45401c45f91b3cd4944f372491e3c3c9f12ec56d, con reconstrucción por módulo, mapa de escritores, inventario de dependencias y licencias, precedencia y DAG. Dictamen propuesto aprobable en diseño con reservas, pendiente de contravalidación independiente por ChatGPT High y decisión del Orquestador. Nueve registros pendientes y AR-41 bloqueante. Se mantienen los 57 estados, las condiciones aceptadas AV-01–06 y las decisiones DE-01–05 abiertas en los aspectos no ratificados.
+
 ## Expedientes y registros
 
 ## AV-01 · Integridad y cobertura de requisitos
@@ -945,6 +947,8 @@ En AV-06, Codex publicó el [informe principal](informe-av06.md), la [matriz](ma
 
 **Riesgo residual.** Riesgo de degradación o incompatibilidad al migrar, actualizar o distribuir.
 
+**Expediente AV-07.** [DAG de calificación y compuertas](compuertas-av07.md). EXP-01a/05a/06a y KEK preceden selección aplicable en G0; G3 usa plan de fixture y G6.5 conserva su propia autorización. Estado principal conservado.
+
 ### AR-21
 
 **Problema y cierre.** Inventariar resolución Playwright/MCP, tipos Node y paquetes duplicados. Elegir versiones compatibles con EXP-01 y plataforma.
@@ -962,6 +966,8 @@ En AV-06, Codex publicó el [informe principal](informe-av06.md), la [matriz](ma
 **Severidad.** Alta. **Estado.** PENDIENTE. **Fase.** Antes de seleccionar árbol de dependencias G0/G1.
 
 **Riesgo residual.** Riesgo de degradación o incompatibilidad al migrar, actualizar o distribuir.
+
+**Expediente AV-07.** [Identidades de dependencia y alpha](dependencias-licencias-av07.md#identidades-resueltas). Resoluciones y browsers.json cotejados. Selección por EXP-01a y paquete instalado, retiro de alpha condicionado al alcance. Estado principal conservado.
 
 ### AR-23
 
@@ -981,6 +987,8 @@ En AV-06, Codex publicó el [informe principal](informe-av06.md), la [matriz](ma
 
 **Riesgo residual.** Riesgo de degradación o incompatibilidad al migrar, actualizar o distribuir.
 
+**Expediente AV-07.** [Runtime y SQLite](dependencias-licencias-av07.md#runtime-y-sqlite). Node 24.22.3/builtin es candidato, con driver alternativo y doctor por variante. Estado principal conservado.
+
 ### AR-26
 
 **Problema y cierre.** Corregir procedencia de 93 identidades sumadas a 142 diagnósticos del JSON y distinguir 144 en Recovery/R2. Medir deuda vigente por paquete al autorizar G0.
@@ -998,6 +1006,8 @@ En AV-06, Codex publicó el [informe principal](informe-av06.md), la [matriz](ma
 **Severidad.** Media. **Estado.** PENDIENTE. **Fase.** Medición propuesta G0.
 
 **Riesgo residual.** Línea de deuda actual desconocida; una reducción aparente podría ampliar defectos.
+
+**Expediente AV-07.** [Línea base histórica y protocolo G0](compuertas-av07.md#baseline-de-deuda-ar-26). 93 identidades/142 ocurrencias verificadas; 144 de R2. Baseline de producto y cero regresiones pendientes. Estado principal conservado.
 
 ### AR-33
 
@@ -1017,6 +1027,8 @@ En AV-06, Codex publicó el [informe principal](informe-av06.md), la [matriz](ma
 
 **Riesgo residual.** Riesgo de degradación o incompatibilidad al migrar, actualizar o distribuir.
 
+**Expediente AV-07.** [Distribución, alcance y supervisor](dependencias-licencias-av07.md#distribución-y-principal-de-confianza). Candidato local versionado con capacidades bajo demanda. EXP-04a/b, E2/E3/E7. Estado principal conservado.
+
 ### AR-34
 
 **Problema y cierre.** Inventariar módulos reutilizables de transporte, saneamiento, alcance, linaje, almacenamiento, ciclos, hashes, build y reporter. Justificar conservar/corregir/sustituir por garantía.
@@ -1034,6 +1046,8 @@ En AV-06, Codex publicó el [informe principal](informe-av06.md), la [matriz](ma
 **Severidad.** Media. **Estado.** PENDIENTE. **Fase.** Antes de congelar estrategia de reconstrucción.
 
 **Riesgo residual.** Riesgo de degradación o incompatibilidad al migrar, actualizar o distribuir.
+
+**Expediente AV-07.** [Matriz de reconstrucción](matriz-reconstruccion-av07.md). Decisiones por mecanismo, tests y contrato. Remediaciones AR-24/40 siguen en G0. Estado principal conservado.
 
 ### AR-41
 
@@ -1053,6 +1067,8 @@ En AV-06, Codex publicó el [informe principal](informe-av06.md), la [matriz](ma
 
 **Riesgo residual.** Riesgo de degradación o incompatibilidad al migrar, actualizar o distribuir.
 
+**Expediente AV-07.** [Mapa de escritores y corte](persistencia-migracion-av07.md). Fencing eficaz, paridad semántica y rollback sin revivir grants ni perder escrituras. E2 G1/G5; corte real después de G6.5 y autorización. Estado principal conservado.
+
 ### AR-51
 
 **Problema y cierre.** Inventario legal y seguridad de las dependencias candidatas y artefactos empaquetados. Elección respaldada por capacidades, licencias y aislamiento.
@@ -1070,6 +1086,8 @@ En AV-06, Codex publicó el [informe principal](informe-av06.md), la [matriz](ma
 **Severidad.** Media. **Estado.** PENDIENTE. **Fase.** Antes de adoptar dependencias G0–G2.
 
 **Riesgo residual.** Riesgo de degradación o incompatibilidad al migrar, actualizar o distribuir.
+
+**Expediente AV-07.** [Inventario de admisibilidad](dependencias-licencias-av07.md#inventario-de-admisibilidad). Selección, SBOM de cada variante y revisión de redistribución pendientes. Estado principal conservado.
 
 ### AR-54
 
@@ -1089,6 +1107,8 @@ En AV-06, Codex publicó el [informe principal](informe-av06.md), la [matriz](ma
 
 **Riesgo residual.** Riesgo de degradación o incompatibilidad al migrar, actualizar o distribuir.
 
+**Expediente AV-07.** [Precedencia normativa](precedencia-av07.md). Trazabilidad a 92 elementos y 11 ampliaciones, tabla AR-52, captura, retención y retiro de rutas incompatibles. Estado principal conservado.
+
 ### AR-57
 
 **Problema y cierre.** Verificar inventario de paquetes, autoridades SQLite y contratos por entrada. Un recuento LOC no decide conservación.
@@ -1106,6 +1126,8 @@ En AV-06, Codex publicó el [informe principal](informe-av06.md), la [matriz](ma
 **Severidad.** Media. **Estado.** PENDIENTE. **Fase.** Antes de adoptar inventario y medidas de migración.
 
 **Riesgo residual.** Riesgo de degradación o incompatibilidad al migrar, actualizar o distribuir.
+
+**Expediente AV-07.** [Topología de responsabilidades](matriz-reconstruccion-av07.md#núcleo-objetivo-y-dependencias) y [cinco familias SQLite](persistencia-migracion-av07.md). E1/E2/E7 deben demostrar escritor único y paridad. Estado principal conservado.
 
 ## AV-08 · Aceptación del producto, métricas, validación empresarial y lanzamiento
 
