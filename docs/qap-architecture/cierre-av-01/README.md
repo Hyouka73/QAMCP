@@ -22,7 +22,7 @@
 
 **AC-01 · Evaluación multidisciplinaria de cobertura profesional de QA.** [Encargo de seis especialistas](encargo-ac01-evaluacion-multidisciplinaria-qa.md). Investigación de alcance propuesta por el propietario antes de congelar planificación; la resolución de aptitud de la línea base se conserva. No modifica requisitos ni DE, no WBS ni implementación.
 
-**AC-01 · Seis informes recibidos, 91 propuestas.** [Integración preliminar](integracion-preliminar-ac01.md) · [Encargo de contravalidación](encargo-contravalidacion-ac01.md). [QA-01](informe-ac01-qa01.md) · [QA-02](informe-ac01-qa02.md) · [QA-03](informe-ac01-qa03.md) · [QA-04](informe-ac01-qa04.md) · [QA-05](informe-ac01-qa05.md) · [QA-06](informe-ac01-qa06.md). Pendiente de evaluación y ratificación empresarial; no modifica el catálogo.
+**AC-01 · Seis informes recibidos, 91 propuestas.** [Integración preliminar](integracion-preliminar-ac01.md) · [Encargo de contravalidación](encargo-contravalidacion-ac01.md). [QA-01](informe-ac01-qa01.md) · [QA-02](informe-ac01-qa02.md) · [QA-03](informe-ac01-qa03.md) · [QA-04](informe-ac01-qa04.md) · [QA-05](informe-ac01-qa05.md) · [QA-06](informe-ac01-qa06.md). [Contravalidación recibida](contravalidacion-independiente-ac01.md) · [Resolución y opciones para el propietario](resolucion-orquestador-ac01.md). 91 IDs, 24 grupos delta candidatos; ratificación pendiente, no modifica el catálogo.
 
 ## Revisión del expediente
 
