@@ -20,6 +20,8 @@
 
 **Cierre arquitectónico.** [Dictamen 1](dictamen-final-revisor-1.md) · [Dictamen 2 — ChatGPT](dictamen-final-chatgpt-high.md) · [Resolución](resolucion-final-planificacion.md). Ambos favorables; 57 estados conservados. No certificación ni autorización operativa.
 
+**AC-01 · Evaluación multidisciplinaria de cobertura profesional de QA.** [Encargo de seis especialistas](encargo-ac01-evaluacion-multidisciplinaria-qa.md). Investigación de alcance propuesta por el propietario antes de congelar planificación; la resolución de aptitud de la línea base se conserva. No modifica requisitos ni DE, no WBS ni implementación.
+
 ## Revisión del expediente
 
 - [Dictamen independiente AV-01](dictamen-av01.md) y [catálogo vigente](../catalogo-requisitos.md).
