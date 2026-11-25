@@ -931,6 +931,8 @@ En AV-07 se publica el [informe principal](informe-av07.md) sobre 45401c45f91b3c
 
 ### AR-19
 
+**Decisión de diseño AV-07.** CV07-03: DAG de resultados, calificaciones tempranas G0, repeticiones G1/G5, G6/G6.5 separados; corpus y vectores históricos a AV-08. [Contravalidación](contravalidacion-chatgpt-high-av07.md) · [Decisión](decision-orquestador-av07-av08.md). Estado principal y pruebas conservados.
+
 **Problema y cierre.** Fijar dependencias de experimentos por contrato. Mantener exploración, interoperabilidad, custodia e ingesta en su orden de dependencia.
 
 **Fuente y localizador.** N DP-15, §9, §13.4; A C-08, §10.6, §11.1. [DP-15](#alias-dp-15), [C-08](#alias-c-08), [H11](#alias-h11)
@@ -950,6 +952,8 @@ En AV-07 se publica el [informe principal](informe-av07.md) sobre 45401c45f91b3c
 **Expediente AV-07.** [DAG de calificación y compuertas](compuertas-av07.md). EXP-01a/05a/06a y KEK preceden selección aplicable en G0; G3 usa plan de fixture y G6.5 conserva su propia autorización. Estado principal conservado.
 
 ### AR-21
+
+**Decisión de diseño AV-07.** CV07-04: candidatos PW/MCP y resolución efectiva por superficie; alpha sin bytes independientemente verificados, retirada condicionada; EXP-01a/04. [Contravalidación](contravalidacion-chatgpt-high-av07.md) · [Decisión](decision-orquestador-av07-av08.md). Estado principal y pruebas conservados.
 
 **Problema y cierre.** Inventariar resolución Playwright/MCP, tipos Node y paquetes duplicados. Elegir versiones compatibles con EXP-01 y plataforma.
 
@@ -971,6 +975,8 @@ En AV-07 se publica el [informe principal](informe-av07.md) sobre 45401c45f91b3c
 
 ### AR-23
 
+**Decisión de diseño AV-07.** CV07-04: Node/SQLite candidatos, doctor funcional, FTS y corrección WAL por rama, garantías durables; AR-12/EXP-04/E2. [Contravalidación](contravalidacion-chatgpt-high-av07.md) · [Decisión](decision-orquestador-av07-av08.md). Estado principal y pruebas conservados.
+
 **Problema y cierre.** Acreditar mínimo Node sin flags para driver seleccionado y alinear engines, target y tipos.
 
 **Fuente y localizador.** N HN-06, DP-07, §13.2; A HN-06, C-02, HA-02, §10.5. [HN-06](#alias-hn-06), [C-02](#alias-c-02)
@@ -990,6 +996,8 @@ En AV-07 se publica el [informe principal](informe-av07.md) sobre 45401c45f91b3c
 **Expediente AV-07.** [Runtime y SQLite](dependencias-licencias-av07.md#runtime-y-sqlite). Node 24.22.3/builtin es candidato, con driver alternativo y doctor por variante. Estado principal conservado.
 
 ### AR-26
+
+**Decisión de diseño AV-07.** CV07-07: baseline de diez paquetes G0, 93/142 histórico vs 144 otro árbol; no regresión por identidad y multiplicidad. [Contravalidación](contravalidacion-chatgpt-high-av07.md) · [Decisión](decision-orquestador-av07-av08.md). Estado principal y pruebas conservados.
 
 **Problema y cierre.** Corregir procedencia de 93 identidades sumadas a 142 diagnósticos del JSON y distinguir 144 en Recovery/R2. Medir deuda vigente por paquete al autorizar G0.
 
@@ -1011,6 +1019,8 @@ En AV-07 se publica el [informe principal](informe-av07.md) sobre 45401c45f91b3c
 
 ### AR-33
 
+**Decisión de diseño AV-07.** CV07-05: distribución modular candidata y fronteras por SO/sesión gráfica; bootstrap, rollback y EXP-04a/b. [Contravalidación](contravalidacion-chatgpt-high-av07.md) · [Decisión](decision-orquestador-av07-av08.md). Estado principal y pruebas conservados.
+
 **Problema y cierre.** Resolver dependencias privadas workspace en paquete público, licencia, engines, target y huella. Verificar distribución limpia.
 
 **Fuente y localizador.** N §6.B, EXP-04; A HA-02, §10.5, §11.2. [HA-02](#alias-ha-02)
@@ -1030,6 +1040,8 @@ En AV-07 se publica el [informe principal](informe-av07.md) sobre 45401c45f91b3c
 **Expediente AV-07.** [Distribución, alcance y supervisor](dependencias-licencias-av07.md#distribución-y-principal-de-confianza). Candidato local versionado con capacidades bajo demanda. EXP-04a/b, E2/E3/E7. Estado principal conservado.
 
 ### AR-34
+
+**Decisión de diseño AV-07.** CV07-01: diez paquetes; reconstrucción selectiva por obligación y garantía, pruebas históricas con procedencia. [Contravalidación](contravalidacion-chatgpt-high-av07.md) · [Decisión](decision-orquestador-av07-av08.md). Estado principal y pruebas conservados.
 
 **Problema y cierre.** Inventariar módulos reutilizables de transporte, saneamiento, alcance, linaje, almacenamiento, ciclos, hashes, build y reporter. Justificar conservar/corregir/sustituir por garantía.
 
@@ -1051,6 +1063,8 @@ En AV-07 se publica el [informe principal](informe-av07.md) sobre 45401c45f91b3c
 
 ### AR-41
 
+**Decisión de diseño AV-07.** CV07-02: máquina de corte durable, exclusión de almacenamiento y despacho, revocaciones y efectos tardíos, E2/G5; corte tras G6.5 y autorización. BLOQUEANTE conservado. [Contravalidación](contravalidacion-chatgpt-high-av07.md) · [Decisión](decision-orquestador-av07-av08.md). Estado principal y pruebas conservados.
+
 **Problema y cierre.** Evitar doble escritor. Migración en sombra, conservación de revisiones, ensayar rollback y excluir recreación por binario legado.
 
 **Fuente y localizador.** N §7; A §7–8, §11.2; H-REV-03; E MVP/Recovery. [H01](#alias-h01), [H04](#alias-h04), [H-REV-03](#alias-h-rev-03)
@@ -1070,6 +1084,8 @@ En AV-07 se publica el [informe principal](informe-av07.md) sobre 45401c45f91b3c
 **Expediente AV-07.** [Mapa de escritores y corte](persistencia-migracion-av07.md). Fencing eficaz, paridad semántica y rollback sin revivir grants ni perder escrituras. E2 G1/G5; corte real después de G6.5 y autorización. Estado principal conservado.
 
 ### AR-51
+
+**Decisión de diseño AV-07.** CV07-06: identidad/licencia/advisory/reachability/artefacto instalado separados; MIT/ISC requiere autorización, SBOM real y alternativas. [Contravalidación](contravalidacion-chatgpt-high-av07.md) · [Decisión](decision-orquestador-av07-av08.md). Estado principal y pruebas conservados.
 
 **Problema y cierre.** Inventario legal y seguridad de las dependencias candidatas y artefactos empaquetados. Elección respaldada por capacidades, licencias y aislamiento.
 
@@ -1091,6 +1107,8 @@ En AV-07 se publica el [informe principal](informe-av07.md) sobre 45401c45f91b3c
 
 ### AR-54
 
+**Decisión de diseño AV-07.** CV07-08: precedencia normativa y exactitud de IDs; corrección MEM-001.5 por MEM-003.6 en decisión, sin alterar catálogo. [Contravalidación](contravalidacion-chatgpt-high-av07.md) · [Decisión](decision-orquestador-av07-av08.md). Estado principal y pruebas conservados.
+
 **Problema y cierre.** Conciliar instrucciones arquitectónicas legacy con D01–D21, incluidos SQLite/JSON, bloqueos y retención. Evitar que definiciones de otra línea se tomen como catálogo.
 
 **Fuente y localizador.** N §7; A §7–8; H-REV-03/06; D02/D12/D19. Localizadores por sección en la fuente.
@@ -1110,6 +1128,8 @@ En AV-07 se publica el [informe principal](informe-av07.md) sobre 45401c45f91b3c
 **Expediente AV-07.** [Precedencia normativa](precedencia-av07.md). Trazabilidad a 92 elementos y 11 ampliaciones, tabla AR-52, captura, retención y retiro de rutas incompatibles. Estado principal conservado.
 
 ### AR-57
+
+**Decisión de diseño AV-07.** CV07-01: diez paquetes, seis clases SQLite en cinco familias incl. project-operations.sqlite, escritores por ruta, alcance y estado. [Contravalidación](contravalidacion-chatgpt-high-av07.md) · [Decisión](decision-orquestador-av07-av08.md). Estado principal y pruebas conservados.
 
 **Problema y cierre.** Verificar inventario de paquetes, autoridades SQLite y contratos por entrada. Un recuento LOC no decide conservación.
 

@@ -12,7 +12,9 @@
 
 **AV-06.** [Informe principal](informe-av06.md) publicado por Codex, [aceptado en diseño enmendado con reservas](decision-orquestador-av06-encargo-av07.md) tras [contravalidación de ChatGPT High](contravalidacion-chatgpt-high-av06.md). Validación experimental pendiente. [Matriz de compatibilidad](matriz-av06.md) · [Protocolos EXP-02/03/04 y suplementos EXP-01b/06c](protocolos-av06.md).
 
-**AV-07.** [Encargo](decision-orquestador-av06-encargo-av07.md) · [Informe principal publicado](informe-av07.md) · [Reconstrucción](matriz-reconstruccion-av07.md) · [Persistencia y migración](persistencia-migracion-av07.md) · [Dependencias, licencias y distribución](dependencias-licencias-av07.md) · [Compuertas](compuertas-av07.md) · [Precedencia](precedencia-av07.md). Dictamen propuesto; [encargo vinculante de contravalidación ChatGPT High](encargo-contravalidacion-av07.md) pendiente de resolución y decisión del Orquestador.
+**AV-07.** [Encargo](decision-orquestador-av06-encargo-av07.md) · [Informe principal publicado](informe-av07.md) · [Reconstrucción](matriz-reconstruccion-av07.md) · [Persistencia y migración](persistencia-migracion-av07.md) · [Dependencias, licencias y distribución](dependencias-licencias-av07.md) · [Compuertas](compuertas-av07.md) · [Precedencia](precedencia-av07.md). [Aceptada en diseño con reservas](decision-orquestador-av07-av08.md), tras [contravalidación independiente de ChatGPT High](contravalidacion-chatgpt-high-av07.md). AR-41 conserva bloqueo de corte y pruebas pendientes.
+
+**AV-08.** [Propuesta principal del Orquestador](informe-orquestador-av08.md), pendiente de contravalidación por Codex y ChatGPT High, DE-01–05 y decisión. No autoriza implementación.
 
 ## Revisión del expediente
 
