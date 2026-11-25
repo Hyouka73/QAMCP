@@ -6,6 +6,8 @@ N = [Neon](auditoria-neon.md). A = [Antigravity](auditoria-antigravity.md). Orq 
 
 Las funciones de revisión figuran en cada entrada. Las asignaciones nominativas vigentes constan en la [matriz de auditorías](asignacion-auditorias.md). Severidad crítica implica posible compromiso de veracidad, autoridad, privacidad o integridad. Alta implica brecha material de alcance o contrato. Media implica procedencia, precisión o decisión parcial. BLOQUEANTE bloquea el contrato, capacidad o compuerta indicada en la fila.
 
+**Vigencia posterior:** [Acta DE](acta-ratificacion-de.md), [especificación](../especificacion-consolidada.md) y [matriz consolidada](matriz-consolidada-ar.md). Menciones históricas de elección DE pendiente superadas por políticas A/B/B/A con B respaldo/B; condiciones técnicas, permisos, activación y pruebas pendientes. Las decisiones AV-01–08 resuelven reservas de decisión documental; estados principales conservados.
+
 ## Distribución por auditoría
 
 | Principal | Total | Crítica | Alta | Media | Registros | Contravalidador propuesto |

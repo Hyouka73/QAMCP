@@ -2,6 +2,8 @@
 
 Fuente primaria: encargo del propietario «QAP — Consolidación definitiva de requisitos, decisiones y antecedentes arquitectónicos», recibido para esta consolidación el 24 de noviembre de 2026, sección 5. Se incorpora el contenido de D01–D21 para que Gemini Neon lo pueda revisar desde Git. Las anotaciones de ratificación y concordancia son la lectura documental de esta etapa. DP remite al [registro de cuestiones abiertas](cuestiones-abiertas.md).
 
+**Acto posterior (25 de noviembre de 2026):** [DE-01–05 ratificadas](cierre-av-01/acta-ratificacion-de.md). Sustituye reservas históricas de política, sin cambiar D01–D21 ni condiciones de pruebas/permisos. [Especificación consolidada](especificacion-consolidada.md). Texto histórico preservado.
+
 ## D01 · Producto listo para uso real
 
 **Estado y naturaleza.** Requisito expreso de producto.
