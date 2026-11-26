@@ -48,4 +48,4 @@
 
 Los dos informes archivados conservan sus dictámenes `APROBABLE CON CORRECCIONES`. Sus afirmaciones técnicas y recomendaciones mantienen esa atribución. Los documentos de esta ronda registran los contrastes, no un acto del propietario.
 
-**PM-01 · Planificación autorizada.** [Acta de cierre tecnológico](acta-cierre-tecnologico.md). Plan maestro y WBS en elaboración; ninguna compuerta abierta; MIT/ISC pendiente.
+**PM-01 · Planificación autorizada.** [Acta de cierre tecnológico](acta-cierre-tecnologico.md). [Plan maestro candidato](plan-maestro-reconstruccion-et.md) · [WBS candidata](wbs-reconstruccion-et.md) · [Trazabilidad inicial](trazabilidad-wbs-et.md) · [Revisión independiente](encargo-revision-plan-wbs.md); pendientes de revisión y ratificación; ninguna compuerta abierta; MIT/ISC pendiente.
