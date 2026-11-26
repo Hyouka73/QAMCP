@@ -194,3 +194,5 @@ Base de encargos `38b6d5b0140c94d02677acf6a1f8ceb9f4d94029`, informes `4e474c420
 | AC01-24.01 | ET-07 | ET-01, ET-03, ET-06 | Literal |
 
 Las 15 referencias abreviadas de ET-02 (MEM-001.1–001.4, MEM-002.1–002.5, MEM-003.1–003.6) corresponden a los REQ-MEM exactos; comprobar su significado contra catálogo y contratos, no asumirlo por título. 57 AR no se reclasifican.
+
+El [dictamen original](contravalidacion-independiente-et.md) conserva el resultado del cotejo y su alcance. El [registro C1–C6](incorporacion-correcciones-et.md) vincula los contratos y pruebas de las correcciones. Los conteos, responsables, interfaces, alias y estados de esta base nominal conservan su alcance.
