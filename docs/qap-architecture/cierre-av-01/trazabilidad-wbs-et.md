@@ -1,311 +1,505 @@
-# TR-WBS-01 · Índice de trazabilidad de planificación
+# TR-WBS-01 · Trazabilidad normativa y probatoria
 
-Base 03a4a4ac3e29d9d85bd0102f0b04ae0825f24b8c. **Índice inicial, no cobertura semántica definitiva.** Fuente [responsables ET](matriz-responsables-et.md), [AV-08](matriz-aceptacion-av08.md), [AC-01](matriz-aceptacion-ac01.md), [delta](catalogo-delta-ac01.md), [AR](matriz-consolidada-ar.md), [TEC](registro-candidatos-et.md). Las salidas normativas se transcriben, los WP de área son propuesta inicial de coordinación. Debe asignarse subtarea concreta por obligación/celda y criterio en revisión independiente. No se cambia norma ni estado.
+Base normativa y fuentes íntegras en los [manifiestos AV](manifiesto-normativo-consolidado.md) y [AC](manifiesto-ac01.md). [Base UX de planificación](../diseno-ux/README.md) · [PM-01](plan-maestro-reconstruccion-et.md) · [WBS-01](wbs-reconstruccion-et.md).
+
+Cada fila identifica la subtarea responsable de integrar la obligación y, tras el punto y coma, cruces de construcción o prueba especialmente relevantes. Las salidas de la fuente gobiernan la aceptación por fase. Una subtarea principal de una fase posterior coordina la integración final y sus pruebas; las salidas anteriores se adjudican en las unidades del protocolo indicado. Los números E, fases y EXP son acumulativos donde aplica la fuente. El ET primario conserva la asignación histórica del expediente ET, diferente del dueño lógico de la entrega. Cada fila remite además a sus controles normativos o condiciones de calificación. Ninguna acción, criterio o variante se elimina por compactación.
 
 ## 123 entradas
-| ID | ET primario | WP candidatos por área | E AV-08 si existe | Salidas adicionales AC-01 |
-|---|---|---|---|---|
-| REQ-MEM-001.1 | ET-02 | G1-01,G2-03,G5-02 | E1/E2 | AC01-12.01: G1/E1/E2 |
-| REQ-MEM-001.2 | ET-02 | G1-01,G2-03,G5-02 | E1/E2 | AV-08 |
-| REQ-MEM-001.3 | ET-02 | G1-01,G2-03,G5-02 | E2 | AC01-05.02: G1/E2,G2/E4; AC01-08.01: G2/E4,G3/E5; AC01-12.01: G1/E1/E2 |
-| REQ-MEM-001.4 | ET-02 | G1-01,G2-03,G5-02 | E2/E4 | AC01-05.02: G1/E2,G2/E4; AC01-06.02: G1/E1,G3/E5/E6,G5/E7 |
-| REQ-MEM-002.1 | ET-02 | G1-01,G2-03,G5-02 | E2/E7 | AC01-16.01: G2/E4,G3/E5; AC01-22.03: G3/E5,G6/E8 |
-| REQ-MEM-002.2 | ET-02 | G1-01,G2-03,G5-02 | E1/E2/E7 | AV-08 |
-| REQ-MEM-002.3 | ET-02 | G1-01,G2-03,G5-02 | E2/E3 | AV-08 |
-| REQ-MEM-002.4 | ET-02 | G1-01,G2-03,G5-02 | E2/E3 | AV-08 |
-| REQ-MEM-002.5 | ET-02 | G1-01,G2-03,G5-02 | E2/E7 | AC01-11.01: G1/E2,G5/E7 |
-| REQ-MEM-003.1 | ET-02 | G1-01,G2-03,G5-02 | E2/E4 | AC01-01.01: G2/E4,G6/E8 |
-| REQ-MEM-003.2 | ET-02 | G1-01,G2-03,G5-02 | E2/E4 | AC01-16.02: G2/E4,G4 |
-| REQ-MEM-003.3 | ET-02 | G1-01,G2-03,G5-02 | E2/E5 | AC01-13.02: G3/E6,G5/E2/E6; AC01-14.01: G3/E5,G5/E7; AC01-14.02: G3/E5; AC01-16.03: G3/E5 |
-| REQ-MEM-003.4 | ET-02 | G1-01,G2-03,G5-02 | E2/E7 | AC01-11.01: G1/E2,G5/E7; AC01-11.02: G1/E2,G5/E6/E7; AC01-14.03: G5/E7 |
-| REQ-MEM-003.5 | ET-02 | G1-01,G2-03,G5-02 | E2/E6 | AV-08 |
-| REQ-MEM-003.6 | ET-02 | G1-01,G2-03,G5-02 | E1/E2/E7 | AC01-05.04: G0/EXP-08,G1/E1/E2,G5/E6/E7; AC01-12.01: G1/E1/E2 |
-| REQ-DIS-001.1 | ET-03 | G2-01,G3-01/03/06,G4-01 | E3/E4/E8 | AV-08 |
-| REQ-DIS-001.2 | ET-03 | G2-01,G3-01/03/06,G4-01 | E3/E4 | AC01-01.01: G2/E4,G6/E8 |
-| REQ-DIS-001.3 | ET-03 | G2-01,G3-01/03/06,G4-01 | E4/E8 | AV-08 |
-| REQ-DIS-001.4 | ET-03 | G2-01,G3-01/03/06,G4-01 | E4/E8 | AV-08 |
-| REQ-DIS-001.5 | ET-03 | G2-01,G3-01/03/06,G4-01 | E2/E4/E8 | AV-08 |
-| REQ-DIS-001.6 | ET-03 | G2-01,G3-01/03/06,G4-01 | E4 | AV-08 |
-| REQ-DIS-001.7 | ET-03 | G2-01,G3-01/03/06,G4-01 | E3/E4 | AV-08 |
-| REQ-DIS-001.8 | ET-03 | G2-01,G3-01/03/06,G4-01 | E3/E4 | AV-08 |
-| REQ-DOC-001.1 | ET-05 | G0-05,G2-02,G3-02/04/05 | E4/E8 | AC01-01.01: G2/E4,G6/E8 |
-| REQ-DOC-001.2 | ET-05 | G0-05,G2-02,G3-02/04/05 | E4/E8 | AV-08 |
-| REQ-DOC-001.3 | ET-05 | G0-05,G2-02,G3-02/04/05 | E4 | AV-08 |
-| REQ-DOC-001.4 | ET-05 | G0-05,G2-02,G3-02/04/05 | E4/E5 | AC01-01.01: G2/E4,G6/E8 |
-| REQ-IA-001.1 | ET-07 | G0-06/07,G1-03,G3-01,G4-02,G5-03 | E1/E3 | AV-08 |
-| REQ-IA-001.2 | ET-07 | G0-06/07,G1-03,G3-01,G4-02,G5-03 | E3/E5 | AC01-17.01: G1/E7/EXP-07,G5/E7 |
-| REQ-IA-001.3 | ET-07 | G0-06/07,G1-03,G3-01,G4-02,G5-03 | E1/E3/E4 | AC01-16.05: G2/E4,G3/E5 |
-| REQ-IA-001.4 | ET-07 | G0-06/07,G1-03,G3-01,G4-02,G5-03 | E3 | AV-08 |
-| REQ-IA-001.5 | ET-07 | G0-06/07,G1-03,G3-01,G4-02,G5-03 | E5/E7 | AV-08 |
-| REQ-IA-001.6 | ET-07 | G0-06/07,G1-03,G3-01,G4-02,G5-03 | E1/E3 | AV-08 |
-| REQ-PLN-001.1 | ET-01 | G0-02,G1-01/02,G3-01,G4-01 | E1/E4 | AV-08 |
-| REQ-PLN-001.2 | ET-01 | G0-02,G1-01/02,G3-01,G4-01 | E4 | AV-08 |
-| REQ-PLN-001.3 | ET-01 | G0-02,G1-01/02,G3-01,G4-01 | E4 | AV-08 |
-| REQ-PLN-001.4 | ET-01 | G0-02,G1-01/02,G3-01,G4-01 | E4/E5/E8 | AV-08 |
-| REQ-PLN-001.5 | ET-01 | G0-02,G1-01/02,G3-01,G4-01 | E1/E4/E7 | AC01-16.01: G2/E4,G3/E5 |
-| REQ-PLN-001.6 | ET-01 | G0-02,G1-01/02,G3-01,G4-01 | E3/E4/E5 | AC01-02.02: G2/E4,G4 |
-| REQ-CAS-001.1 | ET-01 | G0-02,G1-01/02,G3-01,G4-01 | E3/E4 | AV-08 |
-| REQ-CAS-001.2 | ET-01 | G0-02,G1-01/02,G3-01,G4-01 | E4/E5 | AC01-01.02: G2/E4 |
-| REQ-CAS-001.3 | ET-01 | G0-02,G1-01/02,G3-01,G4-01 | E4/E5 | AC01-05.02: G1/E2,G2/E4; AC01-08.01: G2/E4,G3/E5; AC01-15.01: G2/E4,G3/E5; AC01-16.05: G2/E4,G3/E5 |
-| REQ-CAS-001.4 | ET-01 | G0-02,G1-01/02,G3-01,G4-01 | E4/E5 | AV-08 |
-| REQ-CAS-001.5 | ET-01 | G0-02,G1-01/02,G3-01,G4-01 | E4/E5 | AV-08 |
-| REQ-ORA-001.1 | ET-05 | G0-05,G2-02,G3-02/04/05 | E5/E7 | AC01-06.02: G1/E1,G3/E5/E6,G5/E7 |
-| REQ-ORA-001.2 | ET-05 | G0-05,G2-02,G3-02/04/05 | E5/E8 | AC01-01.01: G2/E4,G6/E8; AC01-22.01: G3/E5,G6/E8; AC01-22.02: G3/E5,G6/E8 |
-| REQ-ORA-001.3 | ET-05 | G0-05,G2-02,G3-02/04/05 | E5/E8 | AC01-01.01: G2/E4,G6/E8; AC01-22.01: G3/E5,G6/E8 |
-| REQ-ORA-001.4 | ET-05 | G0-05,G2-02,G3-02/04/05 | E5/E8 | AC01-01.01: G2/E4,G6/E8; AC01-20.03: G2/E4,G3/E5 |
-| REQ-ORA-001.5 | ET-05 | G0-05,G2-02,G3-02/04/05 | E5/E8 | AC01-01.01: G2/E4,G6/E8; AC01-06.02: G1/E1,G3/E5/E6,G5/E7; AC01-19.02: G3/E5,G6/E8; AC01-23.01: G3/E5,G5/E7 |
-| REQ-ORA-001.6 | ET-05 | G0-05,G2-02,G3-02/04/05 | E5 | AC01-01.01: G2/E4,G6/E8; AC01-16.04: G3/E3/E5; AC01-22.01: G3/E5,G6/E8; AC01-22.02: G3/E5,G6/E8 |
-| REQ-ORA-001.7 | ET-05 | G0-05,G2-02,G3-02/04/05 | E5/E7 | AC01-01.01: G2/E4,G6/E8; AC01-20.03: G2/E4,G3/E5 |
-| REQ-RUN-001.1 | ET-03 | G2-01,G3-01/03/06,G4-01 | E3/E5 | AV-08 |
-| REQ-RUN-001.2 | ET-03 | G2-01,G3-01/03/06,G4-01 | E1/E5/E7 | AC01-16.01: G2/E4,G3/E5 |
-| REQ-RUN-001.3 | ET-03 | G2-01,G3-01/03/06,G4-01 | E5/E7 | AV-08 |
-| REQ-RUN-001.4 | ET-03 | G2-01,G3-01/03/06,G4-01 | E3/E5 | AC01-16.04: G3/E3/E5 |
-| REQ-RUN-001.5 | ET-03 | G2-01,G3-01/03/06,G4-01 | E3/E5/E7 | AC01-19.04: G3/E5,G6/E8 |
-| REQ-RUN-001.6 | ET-03 | G2-01,G3-01/03/06,G4-01 | E5/E6/E7 | AV-08 |
-| REQ-DAT-001.1 | ET-01 | G0-02,G1-01/02,G3-01,G4-01 | E5 | AC01-15.01: G2/E4,G3/E5; AC01-20.01: G2/E4,G3/E5 |
-| REQ-DAT-001.2 | ET-01 | G0-02,G1-01/02,G3-01,G4-01 | E5/E8 | AC01-15.01: G2/E4,G3/E5; AC01-20.01: G2/E4,G3/E5; AC01-21.03: G3/EXP-05b/E5,G5/E2; AC01-22.02: G3/E5,G6/E8 |
-| REQ-DAT-001.3 | ET-01 | G0-02,G1-01/02,G3-01,G4-01 | E2/E5/E8 | AV-08 |
-| REQ-DAT-001.4 | ET-01 | G0-02,G1-01/02,G3-01,G4-01 | E5 | AC01-20.01: G2/E4,G3/E5 |
-| REQ-CAM-001.1 | ET-01 | G0-02,G1-01/02,G3-01,G4-01 | E3/E4/E5/E8 | AV-08 |
-| REQ-CAM-001.2 | ET-01 | G0-02,G1-01/02,G3-01,G4-01 | E3/E5 | AV-08 |
-| REQ-CAM-001.3 | ET-01 | G0-02,G1-01/02,G3-01,G4-01 | E3/E5 | AV-08 |
-| REQ-CAM-001.4 | ET-01 | G0-02,G1-01/02,G3-01,G4-01 | E2/E3 | AV-08 |
-| REQ-CAM-001.5 | ET-01 | G0-02,G1-01/02,G3-01,G4-01 | E3/E4/E5 | AV-08 |
-| REQ-REP-001.1 | ET-05 | G0-05,G2-02,G3-02/04/05 | E5/E6/E7 | AC01-06.02: G1/E1,G3/E5/E6,G5/E7; AC01-17.02: G1/E1/E7,G5/E7 |
-| REQ-REP-001.2 | ET-05 | G0-05,G2-02,G3-02/04/05 | E6/E7 | AC01-11.02: G1/E2,G5/E6/E7; AC01-12.06: G3/E6,G5/E7 |
-| REQ-REP-001.3 | ET-05 | G0-05,G2-02,G3-02/04/05 | E5 | AC01-01.01: G2/E4,G6/E8; AC01-13.01: G3/E5/E6,G5/E7; AC01-13.02: G3/E6,G5/E2/E6; AC01-14.01: G3/E5,G5/E7; AC01-14.02: G3/E5; AC01-14.03: G5/E7 |
-| REQ-REP-001.4 | ET-05 | G0-05,G2-02,G3-02/04/05 | E5 | AC01-13.01: G3/E5/E6,G5/E7; AC01-14.01: G3/E5,G5/E7 |
-| REQ-REG-001.1 | ET-01 | G0-02,G1-01/02,G3-01,G4-01 | E4/E5 | AC01-14.03: G5/E7; AC01-16.02: G2/E4,G4 |
-| REQ-REG-001.2 | ET-01 | G0-02,G1-01/02,G3-01,G4-01 | E5 | AC01-16.03: G3/E5; AC01-16.06: G3/EXP-03,G5/E7 |
-| REQ-REG-001.3 | ET-01 | G0-02,G1-01/02,G3-01,G4-01 | E4/E5 | AC01-08.01: G2/E4,G3/E5; AC01-16.05: G2/E4,G3/E5 |
-| REQ-SEG-001.1 | ET-06 | G0-03/04/08,G1-06,G5-01/02/03 | E1/E2/E5/E7 | AC01-10.01: G1/E2,G5/E7; AC01-17.01: G1/E7/EXP-07,G5/E7; AC01-18.02: G1/E1,G3/E5/E6,G5/E7 |
-| REQ-SEG-001.2 | ET-06 | G0-03/04/08,G1-06,G5-01/02/03 | E2/E5 | AC01-03.02: G1/E2,G5/E7; AC01-10.01: G1/E2,G5/E7; AC01-17.01: G1/E7/EXP-07,G5/E7; AC01-19.07: G0/E1,G3/E6,G5/E7 |
-| REQ-SEG-001.3 | ET-06 | G0-03/04/08,G1-06,G5-01/02/03 | E2/E5/E6 | AC01-17.01: G1/E7/EXP-07,G5/E7 |
-| REQ-SEG-002.1 | ET-06 | G0-03/04/08,G1-06,G5-01/02/03 | E2/E6/E7 | AC01-17.01: G1/E7/EXP-07,G5/E7 |
-| REQ-SEG-002.2 | ET-06 | G0-03/04/08,G1-06,G5-01/02/03 | E2/E4/E5 | AC01-18.02: G1/E1,G3/E5/E6,G5/E7; AC01-19.07: G0/E1,G3/E6,G5/E7 |
-| REQ-INT-001.1 | ET-07 | G0-06/07,G1-03,G3-01,G4-02,G5-03 | E1/E7 | AC01-17.01: G1/E7/EXP-07,G5/E7; AC01-17.02: G1/E1/E7,G5/E7 |
-| REQ-INT-001.2 | ET-07 | G0-06/07,G1-03,G3-01,G4-02,G5-03 | E1/E7 | AV-08 |
-| REQ-INT-001.3 | ET-07 | G0-06/07,G1-03,G3-01,G4-02,G5-03 | E1/E2/E7 | AV-08 |
-| REQ-INT-001.4 | ET-07 | G0-06/07,G1-03,G3-01,G4-02,G5-03 | E1/E5/E7 | AC01-18.01: G1/E1,G3/E5,G5/E7; AC01-18.02: G1/E1,G3/E5/E6,G5/E7; AC01-21.01: G0/EXP-05a,G3/EXP-05b/E5; AC01-23.01: G3/E5,G5/E7; AC01-24.01: G5/E7 |
-| REQ-XINST-001 | ET-07 | G0-06/07,G1-03,G3-01,G4-02,G5-03 | E2/E4/E5/E8 | AC01-22.03: G3/E5,G6/E8 |
-| REQ-QA-001 | ET-03 | G2-01,G3-01/03/06,G4-01 | E4/E5/E8 | AV-08 |
-| REQ-QA-002 | ET-03 | G2-01,G3-01/03/06,G4-01 | E4/E5/E8 | AC01-21.01: G0/EXP-05a,G3/EXP-05b/E5; AC01-24.01: G5/E7 |
-| REQ-QA-003 | ET-03 | G2-01,G3-01/03/06,G4-01 | E6/E7/E8 | AC01-19.06: G3/E5/E6,G5/E7,G6/E8 |
-| REQ-AGT-001 | ET-07 | G0-06/07,G1-03,G3-01,G4-02,G5-03 | E3/E7/E8 | AV-08 |
-| REQ-AUTREP-001 | ET-05 | G0-05,G2-02,G3-02/04/05 | E4/E5/E8 | AV-08 |
-| REQ-RUN-002.1 | ET-03 | G2-01,G3-01/03/06,G4-01 | E4/E6/E7/E8 | AC01-19.05: G3/E5,G5/E7,G6/E8 |
-| REQ-SEG-002.3 | ET-06 | G0-03/04/08,G1-06,G5-01/02/03 | E2/E5/E6/E8 | AC01-10.02: G1/E2,G3/E6; AC01-12.06: G3/E6,G5/E7 |
-| POL-CAP-001 | ET-05 | G0-05,G2-02,G3-02/04/05 | E2/E5/E6/E8 | AC01-10.02: G1/E2,G3/E6 |
-| POL-RET-001 | ET-02 | G1-01,G2-03,G5-02 | E2/E6/E7 | AC01-13.02: G3/E6,G5/E2/E6 |
-| REQ-AGT-002 | ET-07 | G0-06/07,G1-03,G3-01,G4-02,G5-03 | E3/E7 | AV-08 |
-| REQ-ONB-001 | ET-01 | G0-02,G1-01/02,G3-01,G4-01 | E1/E6/E7 | AV-08 |
-| REQ-OPT-001 | ET-03 | G2-01,G3-01/03/06,G4-01 | E3/E5/E7/E8 | AC01-16.06: G3/EXP-03,G5/E7 |
-| REQ-OPT-002 | ET-03 | G2-01,G3-01/03/06,G4-01 | E2/E4 | AC01-16.06: G3/EXP-03,G5/E7 |
-| REQ-E2E-001 | ET-03 | G2-01,G3-01/03/06,G4-01 | E3/E4/E5/E8 | AV-08 |
-| UTCP/OpenAPI | ET-07 | G0-06/07,G1-03,G3-01,G4-02,G5-03 | E1/E4/E5 | AV-08 |
-| M1 | ET-01 | G0-02,G1-01/02,G3-01,G4-01 | E6/E7 | AV-08 |
-| M2 | ET-01 | G0-02,G1-01/02,G3-01,G4-01 | E6 | AV-08 |
-| M3 | ET-01 | G0-02,G1-01/02,G3-01,G4-01 | E6 | AV-08 |
-| M4 | ET-01 | G0-02,G1-01/02,G3-01,G4-01 | E6/E7 | AV-08 |
-| M5 | ET-01 | G0-02,G1-01/02,G3-01,G4-01 | E6/E8 | AV-08 |
-| REQ-STR-001.1 | ET-04 | G0-03/04,G1-04,G2-04,G3-06 | — (ver AC-01) | AC01-02.01: G2/E4,G4; AC01-02.02: G2/E4,G4 |
-| REQ-STR-001.2 | ET-04 | G0-03/04,G1-04,G2-04,G3-06 | — (ver AC-01) | AC01-01.03: G2/E4,G5/E7,G6/E8 |
-| REQ-STR-001.3 | ET-04 | G0-03/04,G1-04,G2-04,G3-06 | — (ver AC-01) | AC01-03.01: G3/E5,G5/E7; AC01-03.02: G1/E2,G5/E7 |
-| REQ-CAS-002.1 | ET-04 | G0-03/04,G1-04,G2-04,G3-06 | — (ver AC-01) | AC01-04.01: G1/E2,G4 |
-| REQ-CAS-002.2 | ET-04 | G0-03/04,G1-04,G2-04,G3-06 | — (ver AC-01) | AC01-04.02: G1/E2,G4 |
-| REQ-HUM-001.1 | ET-04 | G0-03/04,G1-04,G2-04,G3-06 | — (ver AC-01) | AC01-05.01: G1/E2/E7,G5/E7 |
-| REQ-HUM-001.2 | ET-04 | G0-03/04,G1-04,G2-04,G3-06 | — (ver AC-01) | AC01-05.03: G0/EXP-08,G1/E2/E7,G3/E6,G5/E7; AC01-05.04: G0/EXP-08,G1/E1/E2,G5/E6/E7; AC01-19.06: G3/E5/E6,G5/E7,G6/E8 |
-| REQ-HUM-001.3 | ET-04 | G0-03/04,G1-04,G2-04,G3-06 | — (ver AC-01) | AC01-06.01: G1/E1,G3/E3/E5 |
-| REQ-HUM-001.4 | ET-04 | G0-03/04,G1-04,G2-04,G3-06 | — (ver AC-01) | AC01-07.01: G1/E2,G3/E3/E5 |
-| REQ-CAM-002.1 | ET-04 | G0-03/04,G1-04,G2-04,G3-06 | — (ver AC-01) | AC01-09.01: G2/E4,G3/E3 |
-| REQ-REP-002.1 | ET-05 | G0-05,G2-02,G3-02/04/05 | — (ver AC-01) | AC01-12.02: G1/E2,G3/E6,G5/E7 |
-| REQ-REP-002.2 | ET-05 | G0-05,G2-02,G3-02/04/05 | — (ver AC-01) | AC01-12.03: G2/E4,G5/E7,G6/E8 |
-| REQ-REP-002.3 | ET-05 | G0-05,G2-02,G3-02/04/05 | — (ver AC-01) | AC01-12.04: G3/E6,G5/E7 |
-| REQ-REP-002.4 | ET-05 | G0-05,G2-02,G3-02/04/05 | — (ver AC-01) | AC01-12.05: G3/E6,G5/E7 |
-| REQ-REP-002.5 | ET-05 | G0-05,G2-02,G3-02/04/05 | — (ver AC-01) | AC01-12.07: G3/E6,G5/E6/E7; AC01-12.08: G3/E6,G5/E6/E7 |
-| REQ-CAS-002.3 | ET-04 | G0-03/04,G1-04,G2-04,G3-06 | — (ver AC-01) | AC01-15.02: G2/E4,G3/E5 |
-| REQ-QA-004.1 | ET-03 | G2-01,G3-01/03/06,G4-01 | — (ver AC-01) | AC01-19.01: G2/E4,G3/E5; AC01-19.02: G3/E5,G6/E8; AC01-19.04: G3/E5,G6/E8; AC01-19.05: G3/E5,G5/E7,G6/E8 |
-| REQ-QA-004.2 | ET-03 | G2-01,G3-01/03/06,G4-01 | — (ver AC-01) | AC01-19.03: G3/E5,G6/E8 |
-| REQ-DAT-002.1 | ET-01 | G0-02,G1-01/02,G3-01,G4-01 | — (ver AC-01) | AC01-20.02: G3/E5,G6/E8; AC01-20.03: G2/E4,G3/E5 |
-| REQ-DAT-002.2 | ET-01 | G0-02,G1-01/02,G3-01,G4-01 | — (ver AC-01) | AC01-21.02: G1/E1/E2,G3/EXP-05b/E5; AC01-21.03: G3/EXP-05b/E5,G5/E2 |
+
+| Entrada | ET primario original | Subtarea principal y cruces | Oráculo o criterio mínimo AV-08 | Precisiones y salidas AC-01 |
+| --- | --- | --- | --- | --- |
+| [REQ-MEM-001.1](../catalogo-requisitos.md#req-mem-0011) | ET-02 | G1-01.a | E1/E2 · Separar cuatro planos y rechazar entidad sin plano; consulta por plano desde los dos adaptadores. | AC01-12.01: G1/E1/E2 |
+| [REQ-MEM-001.2](../catalogo-requisitos.md#req-mem-0012) | ET-02 | G2-03.a | E1/E2 · Repetir observación en ambos canales y conservar su clase hasta acreditar fuente/autoridad. | AV-08 |
+| [REQ-MEM-001.3](../catalogo-requisitos.md#req-mem-0013) | ET-02 | G1-01.a | E2 · Revisar regla y caso, consultar revisiones anteriores y denegar modificación retrospectiva. | AC01-05.02: G1/E2,G2/E4; AC01-08.01: G2/E4,G3/E5; AC01-12.01: G1/E1/E2 |
+| [REQ-MEM-001.4](../catalogo-requisitos.md#req-mem-0014) | ET-02 | G2-03.a | E2/E4 · Introducir drift incompatible y comprobar revisión pendiente con edición manual y linaje intactos. | AC01-05.02: G1/E2,G2/E4; AC01-06.02: G1/E1,G3/E5/E6,G5/E7 |
+| [REQ-MEM-002.1](../catalogo-requisitos.md#req-mem-0021) | ET-02 | G1-01.a | E2/E7 · Dos ámbitos divergentes; validar aislamiento en consultas, llaves, FTS, reportes y exportación. | AC01-16.01: G2/E4,G3/E5; AC01-22.03: G3/E5,G6/E8 |
+| [REQ-MEM-002.2](../catalogo-requisitos.md#req-mem-0022) | ET-02 | G0-02.b | E1/E2/E7 · Denegar alcance incompleto, ambiguo o cruzado por ambos adaptadores antes de IO. | AV-08 |
+| [REQ-MEM-002.3](../catalogo-requisitos.md#req-mem-0023) | ET-02 | G1-02.a | E2/E3 · Cortar ejecutor y recuperar frontera, cola lista y razonamiento sin duplicación. | AV-08 |
+| [REQ-MEM-002.4](../catalogo-requisitos.md#req-mem-0024) | ET-02 | G4-02.a | E2/E3 · Reanudar por otro HOST con consulta autorizada de cobertura y próxima tarea; negar alcance revocado. | AV-08 |
+| [REQ-MEM-002.5](../catalogo-requisitos.md#req-mem-0025) | ET-02 | G2-03.c | E2/E7 · Exportar conocimiento con procedencia y sin secretos/sesiones; revocar sesión y conservar conocimiento. | AC01-11.01: G1/E2,G5/E7 |
+| [REQ-MEM-003.1](../catalogo-requisitos.md#req-mem-0031) | ET-02 | G2-03.a | E2/E4 · Sembrar conflicto de autoridad y verificar procedencia, estado y bloqueo del oráculo. | AC01-01.01: G2/E4,G6/E8 |
+| [REQ-MEM-003.2](../catalogo-requisitos.md#req-mem-0032) | ET-02 | G2-03.a | E2/E4 · Cambiar fuente, invalidar solo dependencias vigentes y preservar revisiones independientes. | AC01-16.02: G2/E4,G4 |
+| [REQ-MEM-003.3](../catalogo-requisitos.md#req-mem-0033) | ET-02 | G3-05.b | E2/E5 · Repetir firmas de fallo, enlazar intentos, detectar inestabilidad y conservar regla. | AC01-13.02: G3/E6,G5/E2/E6; AC01-14.01: G3/E5,G5/E7; AC01-14.02: G3/E5; AC01-16.03: G3/E5 |
+| [REQ-MEM-003.4](../catalogo-requisitos.md#req-mem-0034) | ET-02 | G2-03.c | E2/E7 · Conciliar entidades y revisiones tras export/import bajo alcance y hashes; excluir sesiones y secretos. | AC01-11.01: G1/E2,G5/E7; AC01-11.02: G1/E2,G5/E6/E7; AC01-14.03: G5/E7 |
+| [REQ-MEM-003.5](../catalogo-requisitos.md#req-mem-0035) | ET-02 | G2-03.a | E2/E6 · Comparar simulación/aplicación de poda con panel de candidatos y bytes, cero efectos de simulación y protección activa. | AV-08 |
+| [REQ-MEM-003.6](../catalogo-requisitos.md#req-mem-0036) | ET-02 | G1-01.a | E1/E2/E7 · Ejercer puerto único y adaptador SQLite sin dependencias SQL/driver/transporte en dominio; negar segundo escritor y cruce de alcance. Verificar extensión futura por contrato. | AC01-05.04: G0/EXP-08,G1/E1/E2,G5/E6/E7; AC01-12.01: G1/E1/E2 |
+| [REQ-DIS-001.1](../catalogo-requisitos.md#req-dis-0011) | ET-03 | G2-01.a | E3/E4/E8 · Ejercer intención y autorización inicial, continuar lotes autónomos y sellar READY o brechas con razones. | AV-08 |
+| [REQ-DIS-001.2](../catalogo-requisitos.md#req-dis-0012) | ET-03 | G2-01.a | E3/E4 · Cortar Discovery inicial y focalizado; reconciliar frontera, vistos y brechas en reanudación. | AC01-01.01: G2/E4,G6/E8 |
+| [REQ-DIS-001.3](../catalogo-requisitos.md#req-dis-0013) | ET-03 | G2-01.a | E4/E8 · Inventario independiente de controles, etiquetas, tablas, filtros, paginación y validaciones en SPA, incluidos estados de URL idéntica. | AV-08 |
+| [REQ-DIS-001.4](../catalogo-requisitos.md#req-dis-0014) | ET-03 | G2-01.a | E4/E8 · Probar hydration con lecturas acreditadas asociadas a vista/revisión y cero mutaciones en exploración. | AV-08 |
+| [REQ-DIS-001.5](../catalogo-requisitos.md#req-dis-0015) | ET-03 | G2-01.b; G3-01.d | E2/E4/E8 · Comparar dos roles/configuraciones y perfiles de igual rol con derechos distintos; distinguir 403 incierto de restricción de rol probada. | AV-08 |
+| [REQ-DIS-001.6](../catalogo-requisitos.md#req-dis-0016) | ET-03 | G2-03.b; G2-01.b, G4-01.b | E4 · Correlacionar navegación observada con grafo y denegar promoción de arista de negocio sin fuente acreditada. | AV-08 |
+| [REQ-DIS-001.7](../catalogo-requisitos.md#req-dis-0017) | ET-03 | G2-01.a | E3/E4 · Reanudar ámbito efectivo y reabrir solo el fragmento invalidado por drift. | AV-08 |
+| [REQ-DIS-001.8](../catalogo-requisitos.md#req-dis-0018) | ET-03 | G1-02.a; G2-01.a | E3/E4 · Terminar árbol del HOST con lotes listos; completar observación autorizada y conservar pausas por razonamiento. | AV-08 |
+| [REQ-DOC-001.1](../catalogo-requisitos.md#req-doc-0011) | ET-05 | G2-02.a | E4/E8 · Corpus D10 por formato y clase, con anotación independiente de estructura, texto, tablas, versión y localizadores. | AC01-01.01: G2/E4,G6/E8 |
+| [REQ-DOC-001.2](../catalogo-requisitos.md#req-doc-0012) | ET-05 | G2-02.a | E4/E8 · Sembrar páginas escaneadas, regiones ilegibles y omisiones; medir por unidad esperada/emitida e impedir uso de insumo insuficiente. | AV-08 |
+| [REQ-DOC-001.3](../catalogo-requisitos.md#req-doc-0013) | ET-05 | G2-03.c | E4 · Verificar los cuatro estados de conciliación, incluido documentado/no observado que sigue pendiente. | AV-08 |
+| [REQ-DOC-001.4](../catalogo-requisitos.md#req-doc-0014) | ET-05 | G2-03.c | E4/E5 · Probar vigencia, alcance y primacía de fuente acreditada; bloquear contradicción material de autoridad no resuelta. | AC01-01.01: G2/E4,G6/E8 |
+| [REQ-IA-001.1](../catalogo-requisitos.md#req-ia-0011) | ET-07 | G0-02.a | E1/E3 · Validar solicitud tipada y propuesta vigente; rechazar revisión vieja y cambios de autoridad. | AV-08 |
+| [REQ-IA-001.2](../catalogo-requisitos.md#req-ia-0012) | ET-07 | G4-02.a | E3/E5 · Ejecutar replay/regresión congelados con cero inferencia, linaje intacto y cuenta verificable. | AC01-17.01: G1/E7/EXP-07,G5/E7 |
+| [REQ-IA-001.3](../catalogo-requisitos.md#req-ia-0013) | ET-07 | G0-02.b | E1/E3/E4 · Denegar artefactos inválidos o sin autoridad en escenarios, diagnóstico, oráculos y reparaciones. | AC01-16.05: G2/E4,G3/E5 |
+| [REQ-IA-001.4](../catalogo-requisitos.md#req-ia-0014) | ET-07 | G4-02.a; G1-02.a | E3 · Desconectar HOST, drenar cola y reclamar razonamiento con otro HOST compatible sin repetir trabajo. | AV-08 |
+| [REQ-IA-001.5](../catalogo-requisitos.md#req-ia-0015) | ET-07 | G5-03.a | E5/E7 · Alterar un byte en copia controlada y comprobar rechazo uniforme en MCP y CLI. | AV-08 |
+| [REQ-IA-001.6](../catalogo-requisitos.md#req-ia-0016) | ET-07 | G4-01.a | E1/E3 · Dobles de contrato y funcionamiento instalado HOST y DETERMINISTIC sin servicio MANAGED ni proveedor adicional. | AV-08 |
+| [REQ-PLN-001.1](../catalogo-requisitos.md#req-pln-0011) | ET-01 | G4-01.a | E1/E4 · Vincular revisión de plan, ejecución, datos y caso con snapshot reproducible. | AV-08 |
+| [REQ-PLN-001.2](../catalogo-requisitos.md#req-pln-0012) | ET-01 | G4-01.b | E4 · Ejercer inventario parcial y mostrar ramas ejecutables y brechas sin inventar reglas. | AV-08 |
+| [REQ-PLN-001.3](../catalogo-requisitos.md#req-pln-0013) | ET-01 | G4-01.b; G4-01.a | E4 · Con presupuesto pareado reproducir prioridad por riesgo, impacto de drift e historial. | AV-08 |
+| [REQ-PLN-001.4](../catalogo-requisitos.md#req-pln-0014) | ET-01 | G3-01.a; G3-01.c, G4-01.a | E4/E5/E8 · Ejecutar tres módulos y dos identidades con variables tipadas y rechazar ciclo sin abrir navegador. | AV-08 |
+| [REQ-PLN-001.5](../catalogo-requisitos.md#req-pln-0015) | ET-01 | G0-02.b; G1-03.a | E1/E4/E7 · Rechazar cambio de revisión/huella/caducidad en ambos canales antes de efectos. | AC01-16.01: G2/E4,G3/E5 |
+| [REQ-PLN-001.6](../catalogo-requisitos.md#req-pln-0016) | ET-01 | G4-01.a | E3/E4/E5 · Bloquear dependientes ante fallo y conservar ramas independientes y sus hechos. | AC01-02.02: G2/E4,G4 |
+| [REQ-CAS-001.1](../catalogo-requisitos.md#req-cas-0011) | ET-01 | G4-01.a | E3/E4 · Ejecutar casos ordinarios elegibles automáticamente; declarar ámbito y causa de permisos/fuentes ausentes. | AV-08 |
+| [REQ-CAS-001.2](../catalogo-requisitos.md#req-cas-0012) | ET-01 | G2-04.a; G3-02.a | E4/E5 · Cubrir positivos, negativos, límites, estados, RBAC y cálculo con oráculos acreditados. | AC01-01.02: G2/E4 |
+| [REQ-CAS-001.3](../catalogo-requisitos.md#req-cas-0013) | ET-01 | G2-04.b | E4/E5 · Reparar localizador mediante revisión que preserve identidad, expectativa e intento. | AC01-05.02: G1/E2,G2/E4; AC01-08.01: G2/E4,G3/E5; AC01-15.01: G2/E4,G3/E5; AC01-16.05: G2/E4,G3/E5 |
+| [REQ-CAS-001.4](../catalogo-requisitos.md#req-cas-0014) | ET-01 | G2-04.b; G3-01.d | E4/E5 · Variantes por ámbito, autorización y aplicabilidad acreditada; indeterminar expectativa sin fuente y evitar PASS funcional. | AV-08 |
+| [REQ-CAS-001.5](../catalogo-requisitos.md#req-cas-0015) | ET-01 | G2-04.b | E4/E5 · Deduplicar equivalentes y marcar dependientes obsoletos al retirar regla, preservando intentos. | AV-08 |
+| [REQ-ORA-001.1](../catalogo-requisitos.md#req-ora-0011) | ET-05 | G0-02.a; G3-02.a, G5-03.a | E5/E7 · Reproducir seis veredictos, cuatro ejes, reducciones, fases, códigos y semántica equivalente MCP/CLI. | AC01-06.02: G1/E1,G3/E5/E6,G5/E7 |
+| [REQ-ORA-001.2](../catalogo-requisitos.md#req-ora-0012) | ET-05 | G3-02.a | E5/E8 · 201 seguido de rollback con testigo suficiente produce FAIL; testigo insuficiente sin PASS funcional. | AC01-01.01: G2/E4,G6/E8; AC01-22.01: G3/E5,G6/E8; AC01-22.02: G3/E5,G6/E8 |
+| [REQ-ORA-001.3](../catalogo-requisitos.md#req-ora-0013) | ET-05 | G3-02.a | E5/E8 · Recarga limpia, observaciones secundarias y conciliación con causalidad e independencia; rechazar canal de causa común. | AC01-01.01: G2/E4,G6/E8; AC01-22.01: G3/E5,G6/E8 |
+| [REQ-ORA-001.4](../catalogo-requisitos.md#req-ora-0014) | ET-05 | G3-02.a | E5/E8 · Conciliar centavo y redondeos por regla de negocio exacta, escala y tolerancia acreditadas. | AC01-01.01: G2/E4,G6/E8; AC01-20.03: G2/E4,G3/E5 |
+| [REQ-ORA-001.5](../catalogo-requisitos.md#req-ora-0015) | ET-05 | G3-02.a | E5/E8 · Comparar inicial/final de denegación y detectar efecto oculto con testigo independiente. | AC01-01.01: G2/E4,G6/E8; AC01-06.02: G1/E1,G3/E5/E6,G5/E7; AC01-19.02: G3/E5,G6/E8; AC01-23.01: G3/E5,G5/E7 |
+| [REQ-ORA-001.6](../catalogo-requisitos.md#req-ora-0016) | ET-05 | G3-01.b | E5 · Separar eventualidad, expiración contractual y error de adquisición, con reloj y presupuesto congelados. | AC01-01.01: G2/E4,G6/E8; AC01-16.04: G3/E3/E5; AC01-22.01: G3/E5,G6/E8; AC01-22.02: G3/E5,G6/E8 |
+| [REQ-ORA-001.7](../catalogo-requisitos.md#req-ora-0017) | ET-05 | G3-02.a | E5/E7 · Persistir por afirmación nivel, fuente, alcance, vigencia y dependencia incluso si hay conflicto o insuficiencia. | AC01-01.01: G2/E4,G6/E8; AC01-20.03: G2/E4,G3/E5 |
+| [REQ-RUN-001.1](../catalogo-requisitos.md#req-run-0011) | ET-03 | G3-01.a | E3/E5 · Aislar cookies/storage y permitir continuidad autorizada solo dentro del flujo e identidad acreditados. | AV-08 |
+| [REQ-RUN-001.2](../catalogo-requisitos.md#req-run-0012) | ET-03 | G0-02.b | E1/E5/E7 · Rechazar snapshot vencido, alterado o de otro contexto antes de iniciar navegador o efecto. | AC01-16.01: G2/E4,G3/E5 |
+| [REQ-RUN-001.3](../catalogo-requisitos.md#req-run-0013) | ET-03 | G3-02.a | E5/E7 · Mantener resultado técnico, veredicto, cleanup y evidencia separados ante 201/rollback y falla de limpieza. | AV-08 |
+| [REQ-RUN-001.4](../catalogo-requisitos.md#req-run-0014) | ET-03 | G1-02.a | E3/E5 · Interrupción entre despacho y respuesta, reconciliación durable y cero duplicación. | AC01-16.04: G3/E3/E5 |
+| [REQ-RUN-001.5](../catalogo-requisitos.md#req-run-0015) | ET-03 | G3-03.a; G0-04.a, G1-02.a | E3/E5/E7 · Revocar en vuelo, admitir según recursos/autoridad y conservar trabajo independiente. | AC01-19.04: G3/E5,G6/E8 |
+| [REQ-RUN-001.6](../catalogo-requisitos.md#req-run-0016) | ET-03 | G3-04.a | E5/E6/E7 · Cortar publicación, recuperar exactamente cada intento confirmado y detectar media ajena o alterada. | AV-08 |
+| [REQ-DAT-001.1](../catalogo-requisitos.md#req-dat-0011) | ET-01 | G3-01.a | E5 · Etiquetar sintéticos por intento y vencimiento, acreditar ausencia de PII no autorizada. | AC01-15.01: G2/E4,G3/E5; AC01-20.01: G2/E4,G3/E5 |
+| [REQ-DAT-001.2](../catalogo-requisitos.md#req-dat-0012) | ET-01 | G3-01.a | E5/E8 · Preparar DAG UI/conector, comprobar efecto/reconciliación y limpiar en orden inverso con trazabilidad. | AC01-15.01: G2/E4,G3/E5; AC01-20.01: G2/E4,G3/E5; AC01-21.03: G3/EXP-05b/E5,G5/E2; AC01-22.02: G3/E5,G6/E8 |
+| [REQ-DAT-001.3](../catalogo-requisitos.md#req-dat-0013) | ET-01 | G3-01.a; G0-07.a, G3-01.d | E2/E5/E8 · Denegar escritura en producción o fuera de QA, incluso aparente lectura; mantener lectura acreditada. | AV-08 |
+| [REQ-DAT-001.4](../catalogo-requisitos.md#req-dat-0014) | ET-01 | G3-01.b | E5 · Eliminar lo propio, ejecutar dos limpiezas idempotentes y preservar terceros; probar compensación/confinamiento autorizado por separado. | AC01-20.01: G2/E4,G3/E5 |
+| [REQ-CAM-001.1](../catalogo-requisitos.md#req-cam-0011) | ET-01 | G4-01.a; G1-04.b, G3-01.c | E3/E4/E5/E8 · Recorrido autónomo desde intención y autorización hasta aprendizaje/regresión con efecto y evidencia, sin editar código o infraestructura del AUT. | AV-08 |
+| [REQ-CAM-001.2](../catalogo-requisitos.md#req-cam-0012) | ET-01 | G4-01.a | E3/E5 · Bloqueo de rama por permiso o dependencia sin detener hermanas independientes. | AV-08 |
+| [REQ-CAM-001.3](../catalogo-requisitos.md#req-cam-0013) | ET-01 | G4-01.a | E3/E5 · Agotar presupuesto, materializar parcial, conservar obligaciones y punto reanudable con brechas. | AV-08 |
+| [REQ-CAM-001.4](../catalogo-requisitos.md#req-cam-0014) | ET-01 | G1-02.a | E2/E3 · Terminar árbol HOST y ejecutor por separado, reclamar lease/generación y rechazar segundo escritor. | AV-08 |
+| [REQ-CAM-001.5](../catalogo-requisitos.md#req-cam-0015) | ET-01 | G4-01.a; G2-04.b, G3-05.b | E3/E4/E5 · Cambiar exploración/regresión/investigación preservando campaña, revisiones y estado. | AV-08 |
+| [REQ-REP-001.1](../catalogo-requisitos.md#req-rep-0011) | ET-05 | G3-05.a; G3-04.a | E5/E6/E7 · Publicar por ambos canales manifiesto verificado y evidencia saneada por intento/paso/rol con disponibilidad independiente. | AC01-06.02: G1/E1,G3/E5/E6,G5/E7; AC01-17.02: G1/E1/E7,G5/E7 |
+| [REQ-REP-001.2](../catalogo-requisitos.md#req-rep-0012) | ET-05 | G3-05.a; G3-05.b | E6/E7 · Comparar ejecuciones tras poda, abrir export offline y conservar hashes, anclas, estados y veredictos. | AC01-11.02: G1/E2,G5/E6/E7; AC01-12.06: G3/E6,G5/E7 |
+| [REQ-REP-001.3](../catalogo-requisitos.md#req-rep-0013) | ET-05 | G3-05.b | E5 · Deduplicar firma por ámbito y producir paquete reproducible; distinguir error de entorno/datos/sesión/automatización y defecto probado. | AC01-01.01: G2/E4,G6/E8; AC01-13.01: G3/E5/E6,G5/E7; AC01-13.02: G3/E6,G5/E2/E6; AC01-14.01: G3/E5,G5/E7; AC01-14.02: G3/E5; AC01-14.03: G5/E7 |
+| [REQ-REP-001.4](../catalogo-requisitos.md#req-rep-0014) | ET-05 | G3-05.b | E5 · Reproducir, no reproducir, bloquear y verificar corrección mediante nuevos intentos, con fallo original conservado. | AC01-13.01: G3/E5/E6,G5/E7; AC01-14.01: G3/E5,G5/E7 |
+| [REQ-REG-001.1](../catalogo-requisitos.md#req-reg-0011) | ET-01 | G4-01.b | E4/E5 · Sembrar drift DOM/API/configuración y validar selección explicada por dependencia y riesgo. | AC01-14.03: G5/E7; AC01-16.02: G2/E4,G4 |
+| [REQ-REG-001.2](../catalogo-requisitos.md#req-reg-0012) | ET-01 | G3-05.b | E5 · Alternar resultados misma revisión/snapshot y detectar inestabilidad preservando serie. | AC01-16.03: G3/E5; AC01-16.06: G3/EXP-03,G5/E7 |
+| [REQ-REG-001.3](../catalogo-requisitos.md#req-reg-0013) | ET-01 | G2-04.b | E4/E5 · Reparar selector con revisión posterior, mismo oráculo y evidencia histórica intacta. | AC01-08.01: G2/E4,G3/E5; AC01-16.05: G2/E4,G3/E5 |
+| [REQ-SEG-001.1](../catalogo-requisitos.md#req-seg-0011) | ET-06 | G0-04.b; G0-02.b, G1-01.a, G5-03.a | E1/E2/E5/E7 · Denegación por defecto en canales/auxiliares; demostrar independencia ocho autoridades operativas y cuatro multimedia. | AC01-10.01: G1/E2,G5/E7; AC01-17.01: G1/E7/EXP-07,G5/E7; AC01-18.02: G1/E1,G3/E5/E6,G5/E7 |
+| [REQ-SEG-001.2](../catalogo-requisitos.md#req-seg-0012) | ET-06 | G0-02.b | E2/E5 · Cambiar origen/identidad/tenant durante operación y bloquear transición; probar redirección por semántica/autoridad efectiva. | AC01-03.02: G1/E2,G5/E7; AC01-10.01: G1/E2,G5/E7; AC01-17.01: G1/E7/EXP-07,G5/E7; AC01-19.07: G0/E1,G3/E6,G5/E7 |
+| [REQ-SEG-001.3](../catalogo-requisitos.md#req-seg-0013) | ET-06 | G0-04.a; G1-02.a, G3-04.a | E2/E5/E6 · Revocación desde otro proceso y en vuelo, persistente al reconectar y confinada al grant; reconciliar solo con autoridad propia. | AC01-17.01: G1/E7/EXP-07,G5/E7 |
+| [REQ-SEG-002.1](../catalogo-requisitos.md#req-seg-0021) | ET-06 | G0-04.a; G5-03.a | E2/E6/E7 · Alta usuario local y CI sin TTY con referencias opacas y canarios ausentes de canales, backups aplicables y artefactos. | AC01-17.01: G1/E7/EXP-07,G5/E7 |
+| [REQ-SEG-002.2](../catalogo-requisitos.md#req-seg-0022) | ET-06 | G2-01.a | E2/E4/E5 · Pérdida de sesión requerida detiene rama sin identidad sustituta ni fallback anónimo. | AC01-18.02: G1/E1,G3/E5/E6,G5/E7; AC01-19.07: G0/E1,G3/E6,G5/E7 |
+| [REQ-INT-001.1](../catalogo-requisitos.md#req-int-0011) | ET-07 | G5-03.a; G1-03.a | E1/E7 · Ejecutar snapshot equivalente por MCP/CLI con mismos permisos, memoria, casos, datos, veredictos, reportes y códigos previstos. | AC01-17.01: G1/E7/EXP-07,G5/E7; AC01-17.02: G1/E1/E7,G5/E7 |
+| [REQ-INT-001.2](../catalogo-requisitos.md#req-int-0012) | ET-07 | G5-01.b; G1-06.a | E1/E7 · Instalar paquete limpio en Windows/macOS/Linux, doctor, navegador a demanda y compuerta de tipos. | AV-08 |
+| [REQ-INT-001.3](../catalogo-requisitos.md#req-int-0013) | ET-07 | G1-01.a | E1/E2/E7 · Cambiar adaptador por puerto de contrato sin tocar dominio; comprobar extensibilidad a persistencia compartida diferida. | AV-08 |
+| [REQ-INT-001.4](../catalogo-requisitos.md#req-int-0014) | ET-07 | G0-07.a; G3-01.a | E1/E5/E7 · Registrar/revocar conectores, OpenAPI y UTCP autorizados y versiones incompatibles, con única autoridad. | AC01-18.01: G1/E1,G3/E5,G5/E7; AC01-18.02: G1/E1,G3/E5/E6,G5/E7; AC01-21.01: G0/EXP-05a,G3/EXP-05b/E5; AC01-23.01: G3/E5,G5/E7; AC01-24.01: G5/E7 |
+| [REQ-XINST-001](../catalogo-requisitos.md#req-xinst-001) | ET-07 | G3-01.d; G0-07.a, G2-01.b, G3-01.a | E2/E4/E5/E8 · Lectura cross-instancia por identidades separadas, testigo de cero efectos, mínimo transferido, procedencia y control de redirección/egress. | AC01-22.03: G3/E5,G6/E8 |
+| [REQ-QA-001](../catalogo-requisitos.md#req-qa-001) | ET-03 | G3-06.b; G1-04.d, G5-03.c | E4/E5/E8 · Locales y cambio de idioma en ejecución; traducción ausente/truncamiento, fecha/moneda/decimal/zona y replay sin inferencia. | AV-08 |
+| [REQ-QA-002](../catalogo-requisitos.md#req-qa-002) | ET-03 | G3-01.a | E4/E5/E8 · Validar contrato API sano/incompatible por operación/revisión. Verificar efecto con testigo suficiente cuando se ejerce, uso autorizado por caso. | AC01-21.01: G0/EXP-05a,G3/EXP-05b/E5; AC01-24.01: G5/E7 |
+| [REQ-QA-003](../catalogo-requisitos.md#req-qa-003) | ET-03 | G3-06.b | E6/E7/E8 · Separar capacidad AUT y producto QAP, estados dinámicos, controles sanos/mutantes y revisión manual bajo CV08-09. | AC01-19.06: G3/E5/E6,G5/E7,G6/E8 |
+| [REQ-AGT-001](../catalogo-requisitos.md#req-agt-001) | ET-07 | G4-02.b; G0-06.a, G4-02.b, G5-03.a | E3/E7/E8 · Cuatro HOST reales y otros clientes representativos, rutas, finalización autónoma, tokens y suites legítimas sin bloqueo. | AV-08 |
+| [REQ-AUTREP-001](../catalogo-requisitos.md#req-autrep-001) | ET-05 | G3-02.b; G2-02.a, G6-01.a | E4/E5/E8 · D11 por clase: flujos de filtros/fechas/agrupación, bytes de PDF/Excel, filas/celdas/multihoja/multipágina, tres planos, totales, discrepancias, abstención fundada. | AV-08 |
+| [REQ-RUN-002.1](../catalogo-requisitos.md#req-run-0021) | ET-03 | G2-01.a; G1-04.a, G1-06.b, G5-01.b | E4/E6/E7/E8 · 1a preferencias conversacionales persistentes por proyecto (modo, navegador, grabación y recursos). 1b paridad en modos visibles/headless de CSS/JS/imágenes/fuentes e hidratación; registrar degradación, sin opción de desactivar fidelidad. | AC01-19.05: G3/E5,G5/E7,G6/E8 |
+| [REQ-SEG-002.3](../catalogo-requisitos.md#req-seg-0023) | ET-06 | G3-04.a; G0-05.a, G3-04.b | E2/E5/E6/E8 · Separar captura, acceso, conservación y export. Renovar/revocar ≤30d, acreditar primera escritura y supresión previa; verificar export privado excepcional y denegación predeterminada. | AC01-10.02: G1/E2,G3/E6; AC01-12.06: G3/E6,G5/E7 |
+| [POL-CAP-001](../catalogo-requisitos.md#políticas-adicionales-de-captura-y-retención) | ET-05 | G3-04.a; G0-05.a, G3-04.b | E2/E5/E6/E8 · Ejercer tres modos, cuatro grants y transición revocada; demostrar custodia de temporales y supresión preventiva en matriz, acceso/export autorizados por política. | AC01-10.02: G1/E2,G3/E6 |
+| [POL-RET-001](../catalogo-requisitos.md#políticas-adicionales-de-captura-y-retención) | ET-02 | G2-03.a; G3-04.b, G5-02.a | E2/E6/E7 · Probar 90d detalle, resumen persistente, export/manual, archivo opcional, activos/fallos protegidos, eventos y plazos autorizados. Probar export sin traza física por todos los formatos exigidos. | AC01-13.02: G3/E6,G5/E2/E6 |
+| [REQ-AGT-002](../catalogo-requisitos.md#ampliaciones-de-la-línea-base) | ET-07 | G4-02.a | E3/E7 · Desde otro chat/HOST una consulta acotada recupera cobertura, permisos, IDs, próxima acción y omisiones; negar otro ámbito y medir tokens. | AV-08 |
+| [REQ-ONB-001](../catalogo-requisitos.md#ampliaciones-de-la-línea-base) | ET-01 | G1-06.a; G1-04.d, G5-03.c | E1/E6/E7 · Tres SO, instalación y doctor idempotentes sin depender del AUT, descarga gestionada, proxy/CA y fixture loopback con medios autorizados y cero procesos residuales. | AV-08 |
+| [REQ-OPT-001](../catalogo-requisitos.md#ampliaciones-de-la-línea-base) | ET-03 | G3-03.a; G5-03.b | E3/E5/E7/E8 · Probar W=1/2/4 y admisión según conflictos/presión/reserva; alternar tres, cuatro o más apps con límites y cero navegador o locks propios en reposo; medir hardware. | AC01-16.06: G3/EXP-03,G5/E7 |
+| [REQ-OPT-002](../catalogo-requisitos.md#ampliaciones-de-la-línea-base) | ET-03 | G4-02.b; G2-03.a | E2/E4 · Comparar bytes, tokens y cobertura al compactar contexto/snapshots; preservar procedencia, estado, omisiones y evidencia activa. Dry-run sin escribir ni retener handles. | AC01-16.06: G3/EXP-03,G5/E7 |
+| [REQ-E2E-001](../catalogo-requisitos.md#ampliaciones-de-la-línea-base) | ET-03 | G3-01.a; G3-01.c, G3-02.a, G6-01.a | E3/E4/E5/E8 · Tres módulos, dos roles, variables tipadas, efecto confirmado y corte; recuperar sin duplicación. Replay sin inferencia con evidencia por paso. | AV-08 |
+| [UTCP/OpenAPI](../catalogo-requisitos.md#ampliaciones-de-la-línea-base) | ET-07 | G3-01.a; G0-07.a, G3-01.c | E1/E4/E5 · Preparar prerrequisitos por ambas descripciones desde puerto común. Perder respuesta, reconciliar y limpiar con referencia acreditada inmutable. | AV-08 |
+| [M1](../catalogo-requisitos.md#ampliaciones-de-la-línea-base) | ET-01 | G1-05.a; G3-05.a | E6/E7 · Mismo DTO y IDs en visor HTTP, HTML MCP/CLI/flujo y resumen Markdown, controles accesibles, CSS/iconos/fuentes locales. | AV-08 |
+| [M2](../catalogo-requisitos.md#ampliaciones-de-la-línea-base) | ET-01 | G3-04.a | E6 · Export trasladado a ruta con espacios/acentos sin red ni server. PNG de viewport/elemento/página completa con escala/fallback, anclas y medios autorizados. | AV-08 |
+| [M3](../catalogo-requisitos.md#ampliaciones-de-la-línea-base) | ET-01 | G3-04.a | E6 · WebM auténtico con geometría y offsets por paso, hash y códec. Decodificar desde primer cuadro; canarios sensibles, revocación y descarte verificado tras reinicio. | AV-08 |
+| [M4](../catalogo-requisitos.md#ampliaciones-de-la-línea-base) | ET-01 | G3-04.a | E6/E7 · Acceso autenticado por catálogo, GET/HEAD, rango 206/416 y MIME, seek/fullscreen, revocación en reproducción, reinicio y export portátil. | AV-08 |
+| [M5](../catalogo-requisitos.md#ampliaciones-de-la-línea-base) | ET-01 | G5-03.b; G6-01.a | E6/E8 · Paquete y export trasladado en navegador real con baseline visual fijado, teclado, canarios y diagnóstico por evidencia faltante. | AV-08 |
+| [REQ-STR-001.1](../catalogo-requisitos.md#req-str-0011) | ET-04 | G2-04.a | [Matriz integrada](matriz-aceptacion-ac01.md) y cláusulas de la última columna | AC01-02.01: G2/E4,G4; AC01-02.02: G2/E4,G4 |
+| [REQ-STR-001.2](../catalogo-requisitos.md#req-str-0012) | ET-04 | G2-04.a | [Matriz integrada](matriz-aceptacion-ac01.md) y cláusulas de la última columna | AC01-01.03: G2/E4,G5/E7,G6/E8 |
+| [REQ-STR-001.3](../catalogo-requisitos.md#req-str-0013) | ET-04 | G3-05.a; G1-01.a | [Matriz integrada](matriz-aceptacion-ac01.md) y cláusulas de la última columna | AC01-03.01: G3/E5,G5/E7; AC01-03.02: G1/E2,G5/E7 |
+| [REQ-CAS-002.1](../catalogo-requisitos.md#req-cas-0021) | ET-04 | G2-04.b | [Matriz integrada](matriz-aceptacion-ac01.md) y cláusulas de la última columna | AC01-04.01: G1/E2,G4 |
+| [REQ-CAS-002.2](../catalogo-requisitos.md#req-cas-0022) | ET-04 | G2-04.b | [Matriz integrada](matriz-aceptacion-ac01.md) y cláusulas de la última columna | AC01-04.02: G1/E2,G4 |
+| [REQ-HUM-001.1](../catalogo-requisitos.md#req-hum-0011) | ET-04 | G1-04.a; G1-04.b, G1-06.b, G3-05.b, G5-03.a | [Matriz integrada](matriz-aceptacion-ac01.md) y cláusulas de la última columna | AC01-05.01: G1/E2/E7,G5/E7 |
+| [REQ-HUM-001.2](../catalogo-requisitos.md#req-hum-0012) | ET-04 | G1-04.b; G0-04.b, G3-06.b, G5-03.c | [Matriz integrada](matriz-aceptacion-ac01.md) y cláusulas de la última columna | AC01-05.03: G0/EXP-08,G1/E2/E7,G3/E6,G5/E7; AC01-05.04: G0/EXP-08,G1/E1/E2,G5/E6/E7; AC01-19.06: G3/E5/E6,G5/E7,G6/E8 |
+| [REQ-HUM-001.3](../catalogo-requisitos.md#req-hum-0013) | ET-04 | G3-01.c; G3-06.b | [Matriz integrada](matriz-aceptacion-ac01.md) y cláusulas de la última columna | AC01-06.01: G1/E1,G3/E3/E5 |
+| [REQ-HUM-001.4](../catalogo-requisitos.md#req-hum-0014) | ET-04 | G1-04.b; G1-04.b, G3-06.b | [Matriz integrada](matriz-aceptacion-ac01.md) y cláusulas de la última columna | AC01-07.01: G1/E2,G3/E3/E5 |
+| [REQ-CAM-002.1](../catalogo-requisitos.md#req-cam-0021) | ET-04 | G2-04.b | [Matriz integrada](matriz-aceptacion-ac01.md) y cláusulas de la última columna | AC01-09.01: G2/E4,G3/E3 |
+| [REQ-REP-002.1](../catalogo-requisitos.md#req-rep-0021) | ET-05 | G3-05.a | [Matriz integrada](matriz-aceptacion-ac01.md) y cláusulas de la última columna | AC01-12.02: G1/E2,G3/E6,G5/E7 |
+| [REQ-REP-002.2](../catalogo-requisitos.md#req-rep-0022) | ET-05 | G3-05.a | [Matriz integrada](matriz-aceptacion-ac01.md) y cláusulas de la última columna | AC01-12.03: G2/E4,G5/E7,G6/E8 |
+| [REQ-REP-002.3](../catalogo-requisitos.md#req-rep-0023) | ET-05 | G3-05.b | [Matriz integrada](matriz-aceptacion-ac01.md) y cláusulas de la última columna | AC01-12.04: G3/E6,G5/E7 |
+| [REQ-REP-002.4](../catalogo-requisitos.md#req-rep-0024) | ET-05 | G3-05.b | [Matriz integrada](matriz-aceptacion-ac01.md) y cláusulas de la última columna | AC01-12.05: G3/E6,G5/E7 |
+| [REQ-REP-002.5](../catalogo-requisitos.md#req-rep-0025) | ET-05 | G3-05.a | [Matriz integrada](matriz-aceptacion-ac01.md) y cláusulas de la última columna | AC01-12.07: G3/E6,G5/E6/E7; AC01-12.08: G3/E6,G5/E6/E7 |
+| [REQ-CAS-002.3](../catalogo-requisitos.md#req-cas-0023) | ET-04 | G4-01.a; G2-04.a, G3-01.c | [Matriz integrada](matriz-aceptacion-ac01.md) y cláusulas de la última columna | AC01-15.02: G2/E4,G3/E5 |
+| [REQ-QA-004.1](../catalogo-requisitos.md#req-qa-0041) | ET-03 | G3-05.c | [Matriz integrada](matriz-aceptacion-ac01.md) y cláusulas de la última columna | AC01-19.01: G2/E4,G3/E5; AC01-19.02: G3/E5,G6/E8; AC01-19.04: G3/E5,G6/E8; AC01-19.05: G3/E5,G5/E7,G6/E8 |
+| [REQ-QA-004.2](../catalogo-requisitos.md#req-qa-0042) | ET-03 | G3-06.a | [Matriz integrada](matriz-aceptacion-ac01.md) y cláusulas de la última columna | AC01-19.03: G3/E5,G6/E8 |
+| [REQ-DAT-002.1](../catalogo-requisitos.md#req-dat-0021) | ET-01 | G3-02.a; G2-04.a, G3-06.a | [Matriz integrada](matriz-aceptacion-ac01.md) y cláusulas de la última columna | AC01-20.02: G3/E5,G6/E8; AC01-20.03: G2/E4,G3/E5 |
+| [REQ-DAT-002.2](../catalogo-requisitos.md#req-dat-0022) | ET-01 | G3-01.b; G1-01.a, G5-02.a | [Matriz integrada](matriz-aceptacion-ac01.md) y cláusulas de la última columna | AC01-21.02: G1/E1/E2,G3/EXP-05b/E5; AC01-21.03: G3/EXP-05b/E5,G5/E2 |
 
 ## 65 cláusulas
-| ID | ET primario | WP candidatos por área | Salidas exactas del delta |
-|---|---|---|---|
-| AC01-01.01 | ET-04 | G0-03/04,G1-04,G2-04,G3-06 | G2/E4,G6/E8 |
-| AC01-01.02 | ET-04 | G0-03/04,G1-04,G2-04,G3-06 | G2/E4 |
-| AC01-01.03 | ET-04 | G0-03/04,G1-04,G2-04,G3-06 | G2/E4,G5/E7,G6/E8 |
-| AC01-02.01 | ET-04 | G0-03/04,G1-04,G2-04,G3-06 | G2/E4,G4 |
-| AC01-02.02 | ET-04 | G0-03/04,G1-04,G2-04,G3-06 | G2/E4,G4 |
-| AC01-03.01 | ET-04 | G0-03/04,G1-04,G2-04,G3-06 | G3/E5,G5/E7 |
-| AC01-03.02 | ET-04 | G0-03/04,G1-04,G2-04,G3-06 | G1/E2,G5/E7 |
-| AC01-04.01 | ET-04 | G0-03/04,G1-04,G2-04,G3-06 | G1/E2,G4 |
-| AC01-04.02 | ET-04 | G0-03/04,G1-04,G2-04,G3-06 | G1/E2,G4 |
-| AC01-05.01 | ET-04 | G0-03/04,G1-04,G2-04,G3-06 | G1/E2/E7,G5/E7 |
-| AC01-05.02 | ET-04 | G0-03/04,G1-04,G2-04,G3-06 | G1/E2,G2/E4 |
-| AC01-05.03 | ET-04 | G0-03/04,G1-04,G2-04,G3-06 | G0/EXP-08,G1/E2/E7,G3/E6,G5/E7 |
-| AC01-05.04 | ET-04 | G0-03/04,G1-04,G2-04,G3-06 | G0/EXP-08,G1/E1/E2,G5/E6/E7 |
-| AC01-06.01 | ET-04 | G0-03/04,G1-04,G2-04,G3-06 | G1/E1,G3/E3/E5 |
-| AC01-06.02 | ET-04 | G0-03/04,G1-04,G2-04,G3-06 | G1/E1,G3/E5/E6,G5/E7 |
-| AC01-07.01 | ET-03 | G2-01,G3-01/03/06,G4-01 | G1/E2,G3/E3/E5 |
-| AC01-08.01 | ET-01 | G0-02,G1-01/02,G3-01,G4-01 | G2/E4,G3/E5 |
-| AC01-09.01 | ET-04 | G0-03/04,G1-04,G2-04,G3-06 | G2/E4,G3/E3 |
-| AC01-10.01 | ET-06 | G0-03/04/08,G1-06,G5-01/02/03 | G1/E2,G5/E7 |
-| AC01-10.02 | ET-06 | G0-03/04/08,G1-06,G5-01/02/03 | G1/E2,G3/E6 |
-| AC01-11.01 | ET-07 | G0-06/07,G1-03,G3-01,G4-02,G5-03 | G1/E2,G5/E7 |
-| AC01-11.02 | ET-07 | G0-06/07,G1-03,G3-01,G4-02,G5-03 | G1/E2,G5/E6/E7 |
-| AC01-12.01 | ET-05 | G0-05,G2-02,G3-02/04/05 | G1/E1/E2 |
-| AC01-12.02 | ET-05 | G0-05,G2-02,G3-02/04/05 | G1/E2,G3/E6,G5/E7 |
-| AC01-12.03 | ET-05 | G0-05,G2-02,G3-02/04/05 | G2/E4,G5/E7,G6/E8 |
-| AC01-12.04 | ET-05 | G0-05,G2-02,G3-02/04/05 | G3/E6,G5/E7 |
-| AC01-12.05 | ET-05 | G0-05,G2-02,G3-02/04/05 | G3/E6,G5/E7 |
-| AC01-12.06 | ET-05 | G0-05,G2-02,G3-02/04/05 | G3/E6,G5/E7 |
-| AC01-12.07 | ET-05 | G0-05,G2-02,G3-02/04/05 | G3/E6,G5/E6/E7 |
-| AC01-12.08 | ET-05 | G0-05,G2-02,G3-02/04/05 | G3/E6,G5/E6/E7 |
-| AC01-13.01 | ET-02 | G1-01,G2-03,G5-02 | G3/E5/E6,G5/E7 |
-| AC01-13.02 | ET-02 | G1-01,G2-03,G5-02 | G3/E6,G5/E2/E6 |
-| AC01-14.01 | ET-02 | G1-01,G2-03,G5-02 | G3/E5,G5/E7 |
-| AC01-14.02 | ET-02 | G1-01,G2-03,G5-02 | G3/E5 |
-| AC01-14.03 | ET-02 | G1-01,G2-03,G5-02 | G5/E7 |
-| AC01-15.01 | ET-01 | G0-02,G1-01/02,G3-01,G4-01 | G2/E4,G3/E5 |
-| AC01-15.02 | ET-01 | G0-02,G1-01/02,G3-01,G4-01 | G2/E4,G3/E5 |
-| AC01-16.01 | ET-03 | G2-01,G3-01/03/06,G4-01 | G2/E4,G3/E5 |
-| AC01-16.02 | ET-03 | G2-01,G3-01/03/06,G4-01 | G2/E4,G4 |
-| AC01-16.03 | ET-03 | G2-01,G3-01/03/06,G4-01 | G3/E5 |
-| AC01-16.04 | ET-03 | G2-01,G3-01/03/06,G4-01 | G3/E3/E5 |
-| AC01-16.05 | ET-03 | G2-01,G3-01/03/06,G4-01 | G2/E4,G3/E5 |
-| AC01-16.06 | ET-03 | G2-01,G3-01/03/06,G4-01 | G3/EXP-03,G5/E7 |
-| AC01-17.01 | ET-07 | G0-06/07,G1-03,G3-01,G4-02,G5-03 | G1/E7/EXP-07,G5/E7 |
-| AC01-17.02 | ET-07 | G0-06/07,G1-03,G3-01,G4-02,G5-03 | G1/E1/E7,G5/E7 |
-| AC01-18.01 | ET-07 | G0-06/07,G1-03,G3-01,G4-02,G5-03 | G1/E1,G3/E5,G5/E7 |
-| AC01-18.02 | ET-07 | G0-06/07,G1-03,G3-01,G4-02,G5-03 | G1/E1,G3/E5/E6,G5/E7 |
-| AC01-19.01 | ET-03 | G2-01,G3-01/03/06,G4-01 | G2/E4,G3/E5 |
-| AC01-19.02 | ET-03 | G2-01,G3-01/03/06,G4-01 | G3/E5,G6/E8 |
-| AC01-19.03 | ET-03 | G2-01,G3-01/03/06,G4-01 | G3/E5,G6/E8 |
-| AC01-19.04 | ET-03 | G2-01,G3-01/03/06,G4-01 | G3/E5,G6/E8 |
-| AC01-19.05 | ET-03 | G2-01,G3-01/03/06,G4-01 | G3/E5,G5/E7,G6/E8 |
-| AC01-19.06 | ET-03 | G2-01,G3-01/03/06,G4-01 | G3/E5/E6,G5/E7,G6/E8 |
-| AC01-19.07 | ET-03 | G2-01,G3-01/03/06,G4-01 | G0/E1,G3/E6,G5/E7 |
-| AC01-20.01 | ET-02 | G1-01,G2-03,G5-02 | G2/E4,G3/E5 |
-| AC01-20.02 | ET-02 | G1-01,G2-03,G5-02 | G3/E5,G6/E8 |
-| AC01-20.03 | ET-02 | G1-01,G2-03,G5-02 | G2/E4,G3/E5 |
-| AC01-21.01 | ET-03 | G2-01,G3-01/03/06,G4-01 | G0/EXP-05a,G3/EXP-05b/E5 |
-| AC01-21.02 | ET-03 | G2-01,G3-01/03/06,G4-01 | G1/E1/E2,G3/EXP-05b/E5 |
-| AC01-21.03 | ET-03 | G2-01,G3-01/03/06,G4-01 | G3/EXP-05b/E5,G5/E2 |
-| AC01-22.01 | ET-03 | G2-01,G3-01/03/06,G4-01 | G3/E5,G6/E8 |
-| AC01-22.02 | ET-03 | G2-01,G3-01/03/06,G4-01 | G3/E5,G6/E8 |
-| AC01-22.03 | ET-03 | G2-01,G3-01/03/06,G4-01 | G3/E5,G6/E8 |
-| AC01-23.01 | ET-07 | G0-06/07,G1-03,G3-01,G4-02,G5-03 | G3/E5,G5/E7 |
-| AC01-24.01 | ET-07 | G0-06/07,G1-03,G3-01,G4-02,G5-03 | G5/E7 |
+
+Los enlaces remiten al grupo exacto del delta. Se aplican el propietario normativo, el positivo y el negativo completos del renglón de origen. La columna final reproduce las salidas textuales del delta.
+
+| Cláusula | ET primario original | Subtarea principal y cruces | Salidas normativas |
+| --- | --- | --- | --- |
+| [AC01-01.01](catalogo-delta-ac01.md#delta-ac01-01--base-de-pruebas-y-cobertura) | ET-04 | G2-04.a | G2/E4,G6/E8 |
+| [AC01-01.02](catalogo-delta-ac01.md#delta-ac01-01--base-de-pruebas-y-cobertura) | ET-04 | G2-04.a | G2/E4 |
+| [AC01-01.03](catalogo-delta-ac01.md#delta-ac01-01--base-de-pruebas-y-cobertura) | ET-04 | G2-04.a; G4-01.b, G5-03.a, G6-01.a | G2/E4,G5/E7,G6/E8 |
+| [AC01-02.01](catalogo-delta-ac01.md#delta-ac01-02--estrategia-y-riesgo) | ET-04 | G2-04.a; G4-01.a | G2/E4,G4 |
+| [AC01-02.02](catalogo-delta-ac01.md#delta-ac01-02--estrategia-y-riesgo) | ET-04 | G2-04.a; G4-01.a | G2/E4,G4 |
+| [AC01-03.01](catalogo-delta-ac01.md#delta-ac01-03--entrega-y-auditoría) | ET-04 | G3-05.a | G3/E5,G5/E7 |
+| [AC01-03.02](catalogo-delta-ac01.md#delta-ac01-03--entrega-y-auditoría) | ET-04 | G3-05.b; G1-01.a, G5-03.a | G1/E2,G5/E7 |
+| [AC01-04.01](catalogo-delta-ac01.md#delta-ac01-04--sets-y-asignación) | ET-04 | G2-04.b; G1-04.b, G4-01.a | G1/E2,G4 |
+| [AC01-04.02](catalogo-delta-ac01.md#delta-ac01-04--sets-y-asignación) | ET-04 | G2-04.b; G1-04.b, G4-01.a | G1/E2,G4 |
+| [AC01-05.01](catalogo-delta-ac01.md#delta-ac01-05--operación-sin-ia-e-interfaz) | ET-04 | G1-04.a; G1-04.b, G1-06.b, G5-03.a | G1/E2/E7,G5/E7 |
+| [AC01-05.02](catalogo-delta-ac01.md#delta-ac01-05--operación-sin-ia-e-interfaz) | ET-04 | G1-04.b | G1/E2,G2/E4 |
+| [AC01-05.03](catalogo-delta-ac01.md#delta-ac01-05--operación-sin-ia-e-interfaz) | ET-04 | G1-04.a; G0-04.b, G3-06.b, G5-03.c | G0/EXP-08,G1/E2/E7,G3/E6,G5/E7 |
+| [AC01-05.04](catalogo-delta-ac01.md#delta-ac01-05--operación-sin-ia-e-interfaz) | ET-04 | G0-04.b; G1-06.b, G3-04.a, G5-03.b | G0/EXP-08,G1/E1/E2,G5/E6/E7 |
+| [AC01-06.01](catalogo-delta-ac01.md#delta-ac01-06--manual-y-testigo) | ET-04 | G1-04.b; G3-06.b | G1/E1,G3/E3/E5 |
+| [AC01-06.02](catalogo-delta-ac01.md#delta-ac01-06--manual-y-testigo) | ET-04 | G1-04.b; G3-02.a, G3-04.a, G5-03.a | G1/E1,G3/E5/E6,G5/E7 |
+| [AC01-07.01](catalogo-delta-ac01.md#delta-ac01-07--híbrida) | ET-03 | G3-01.c; G1-04.b, G3-06.b | G1/E2,G3/E3/E5 |
+| [AC01-08.01](catalogo-delta-ac01.md#delta-ac01-08--identidad-de-casos) | ET-01 | G2-04.b; G3-01.c | G2/E4,G3/E5 |
+| [AC01-09.01](catalogo-delta-ac01.md#delta-ac01-09--exploración) | ET-04 | G2-04.b; G3-06.b | G2/E4,G3/E3 |
+| [AC01-10.01](catalogo-delta-ac01.md#delta-ac01-10--identidad-y-adjuntos) | ET-06 | G0-02.b; G1-04.b, G3-01.b | G1/E2,G5/E7 |
+| [AC01-10.02](catalogo-delta-ac01.md#delta-ac01-10--identidad-y-adjuntos) | ET-06 | G3-04.a; G1-04.b | G1/E2,G3/E6 |
+| [AC01-11.01](catalogo-delta-ac01.md#delta-ac01-11--intercambio) | ET-07 | G2-03.c; G1-06.b, G5-03.a | G1/E2,G5/E7 |
+| [AC01-11.02](catalogo-delta-ac01.md#delta-ac01-11--intercambio) | ET-07 | G2-03.c; G1-06.b | G1/E2,G5/E6/E7 |
+| [AC01-12.01](catalogo-delta-ac01.md#delta-ac01-12--consultaspublicacionesexport) | ET-05 | G1-01.a | G1/E1/E2 |
+| [AC01-12.02](catalogo-delta-ac01.md#delta-ac01-12--consultaspublicacionesexport) | ET-05 | G3-05.a; G1-01.a, G5-03.a | G1/E2,G3/E6,G5/E7 |
+| [AC01-12.03](catalogo-delta-ac01.md#delta-ac01-12--consultaspublicacionesexport) | ET-05 | G3-05.a; G2-04.a, G5-03.a, G6-01.a | G2/E4,G5/E7,G6/E8 |
+| [AC01-12.04](catalogo-delta-ac01.md#delta-ac01-12--consultaspublicacionesexport) | ET-05 | G3-05.a | G3/E6,G5/E7 |
+| [AC01-12.05](catalogo-delta-ac01.md#delta-ac01-12--consultaspublicacionesexport) | ET-05 | G3-05.a | G3/E6,G5/E7 |
+| [AC01-12.06](catalogo-delta-ac01.md#delta-ac01-12--consultaspublicacionesexport) | ET-05 | G3-05.a | G3/E6,G5/E7 |
+| [AC01-12.07](catalogo-delta-ac01.md#delta-ac01-12--consultaspublicacionesexport) | ET-05 | G3-05.a | G3/E6,G5/E6/E7 |
+| [AC01-12.08](catalogo-delta-ac01.md#delta-ac01-12--consultaspublicacionesexport) | ET-05 | G3-05.a | G3/E6,G5/E6/E7 |
+| [AC01-13.01](catalogo-delta-ac01.md#delta-ac01-13--recetas) | ET-02 | G3-05.b | G3/E5/E6,G5/E7 |
+| [AC01-13.02](catalogo-delta-ac01.md#delta-ac01-13--recetas) | ET-02 | G3-05.b; G2-03.a | G3/E6,G5/E2/E6 |
+| [AC01-14.01](catalogo-delta-ac01.md#delta-ac01-14--defectos) | ET-02 | G3-05.b | G3/E5,G5/E7 |
+| [AC01-14.02](catalogo-delta-ac01.md#delta-ac01-14--defectos) | ET-02 | G3-05.b | G3/E5 |
+| [AC01-14.03](catalogo-delta-ac01.md#delta-ac01-14--defectos) | ET-02 | G3-05.b | G5/E7 |
+| [AC01-15.01](catalogo-delta-ac01.md#delta-ac01-15--automatización-reusable) | ET-01 | G4-01.a; G2-04.a, G3-01.a | G2/E4,G3/E5 |
+| [AC01-15.02](catalogo-delta-ac01.md#delta-ac01-15--automatización-reusable) | ET-01 | G4-01.a; G2-04.a, G3-01.c | G2/E4,G3/E5 |
+| [AC01-16.01](catalogo-delta-ac01.md#delta-ac01-16--mantenibilidad) | ET-03 | G2-03.a; G3-01.d | G2/E4,G3/E5 |
+| [AC01-16.02](catalogo-delta-ac01.md#delta-ac01-16--mantenibilidad) | ET-03 | G4-01.b | G2/E4,G4 |
+| [AC01-16.03](catalogo-delta-ac01.md#delta-ac01-16--mantenibilidad) | ET-03 | G4-01.a | G3/E5 |
+| [AC01-16.04](catalogo-delta-ac01.md#delta-ac01-16--mantenibilidad) | ET-03 | G3-02.a; G2-01.a, G3-01.b | G3/E3/E5 |
+| [AC01-16.05](catalogo-delta-ac01.md#delta-ac01-16--mantenibilidad) | ET-03 | G2-04.b | G2/E4,G3/E5 |
+| [AC01-16.06](catalogo-delta-ac01.md#delta-ac01-16--mantenibilidad) | ET-03 | G3-05.a; G3-03.a, G5-03.b | G3/EXP-03,G5/E7 |
+| [AC01-17.01](catalogo-delta-ac01.md#delta-ac01-17--ci) | ET-07 | G1-03.a; G5-03.a | G1/E7/EXP-07,G5/E7 |
+| [AC01-17.02](catalogo-delta-ac01.md#delta-ac01-17--ci) | ET-07 | G5-03.a | G1/E1/E7,G5/E7 |
+| [AC01-18.01](catalogo-delta-ac01.md#delta-ac01-18--integraciones-externas) | ET-07 | G3-05.c | G1/E1,G3/E5,G5/E7 |
+| [AC01-18.02](catalogo-delta-ac01.md#delta-ac01-18--integraciones-externas) | ET-07 | G3-05.c | G1/E1,G3/E5/E6,G5/E7 |
+| [AC01-19.01](catalogo-delta-ac01.md#delta-ac01-19--calidad-no-funcional) | ET-03 | G3-06.a; G2-04.a | G2/E4,G3/E5 |
+| [AC01-19.02](catalogo-delta-ac01.md#delta-ac01-19--calidad-no-funcional) | ET-03 | G3-06.a | G3/E5,G6/E8 |
+| [AC01-19.03](catalogo-delta-ac01.md#delta-ac01-19--calidad-no-funcional) | ET-03 | G3-06.a | G3/E5,G6/E8 |
+| [AC01-19.04](catalogo-delta-ac01.md#delta-ac01-19--calidad-no-funcional) | ET-03 | G3-06.a | G3/E5,G6/E8 |
+| [AC01-19.05](catalogo-delta-ac01.md#delta-ac01-19--calidad-no-funcional) | ET-03 | G3-06.a | G3/E5,G5/E7,G6/E8 |
+| [AC01-19.06](catalogo-delta-ac01.md#delta-ac01-19--calidad-no-funcional) | ET-03 | G3-06.b; G5-03.c, G6-01.a | G3/E5/E6,G5/E7,G6/E8 |
+| [AC01-19.07](catalogo-delta-ac01.md#delta-ac01-19--calidad-no-funcional) | ET-03 | G3-06.a | G0/E1,G3/E6,G5/E7 |
+| [AC01-20.01](catalogo-delta-ac01.md#delta-ac01-20--datos) | ET-02 | G3-01.a; G2-04.a | G2/E4,G3/E5 |
+| [AC01-20.02](catalogo-delta-ac01.md#delta-ac01-20--datos) | ET-02 | G3-02.a | G3/E5,G6/E8 |
+| [AC01-20.03](catalogo-delta-ac01.md#delta-ac01-20--datos) | ET-02 | G3-01.b; G2-04.a | G2/E4,G3/E5 |
+| [AC01-21.01](catalogo-delta-ac01.md#delta-ac01-21--api-negativa-y-concurrencia) | ET-03 | G3-01.a; G0-07.a, G3-01.c | G0/EXP-05a,G3/EXP-05b/E5 |
+| [AC01-21.02](catalogo-delta-ac01.md#delta-ac01-21--api-negativa-y-concurrencia) | ET-03 | G3-01.b; G1-01.a | G1/E1/E2,G3/EXP-05b/E5 |
+| [AC01-21.03](catalogo-delta-ac01.md#delta-ac01-21--api-negativa-y-concurrencia) | ET-03 | G3-01.b; G5-02.a | G3/EXP-05b/E5,G5/E2 |
+| [AC01-22.01](catalogo-delta-ac01.md#delta-ac01-22--procesos-empresariales) | ET-03 | G3-01.b | G3/E5,G6/E8 |
+| [AC01-22.02](catalogo-delta-ac01.md#delta-ac01-22--procesos-empresariales) | ET-03 | G3-01.b | G3/E5,G6/E8 |
+| [AC01-22.03](catalogo-delta-ac01.md#delta-ac01-22--procesos-empresariales) | ET-03 | G3-01.d; G2-01.b, G6-01.a | G3/E5,G6/E8 |
+| [AC01-23.01](catalogo-delta-ac01.md#delta-ac01-23--dependencias) | ET-07 | G3-01.a | G3/E5,G5/E7 |
+| [AC01-24.01](catalogo-delta-ac01.md#delta-ac01-24--contratos-externos) | ET-07 | G3-05.c; G5-03.a | G5/E7 |
 
 ## 57 AR
-| ID | Estado fuente | WP propuesto |
-|---|---|---|
-| AR-01 | VALIDADA | P-02 |
-| AR-02 | VALIDADA | P-02 |
-| AR-03 | VALIDADA | P-02 |
-| AR-04 | VALIDADA | G0-02,G1-01 |
-| AR-55 | VALIDADA | P-02 |
-| AR-56 | VALIDADA | P-02 |
-| AR-07 | VALIDACIÓN EXPERIMENTAL PENDIENTE | G0-04,G1-04 |
-| AR-14 | VALIDACIÓN EXPERIMENTAL PENDIENTE | G0-04,G3-01 |
-| AR-24 | BLOQUEANTE | G0-03/04 |
-| AR-25 | VALIDACIÓN EXPERIMENTAL PENDIENTE | G2-03,G5-02 |
-| AR-27 | VALIDACIÓN EXPERIMENTAL PENDIENTE | G0-05,G3-04 |
-| AR-28 | VALIDACIÓN EXPERIMENTAL PENDIENTE | G0-04/05,G3-04 |
-| AR-31 | VALIDACIÓN EXPERIMENTAL PENDIENTE | G0-07,G3-01 |
-| AR-32 | VALIDACIÓN EXPERIMENTAL PENDIENTE | G0-04/05,G3-04 |
-| AR-40 | BLOQUEANTE | G0-03 |
-| AR-47 | VALIDACIÓN EXPERIMENTAL PENDIENTE | G0-04,G1-04,G3-01 |
-| AR-05 | PENDIENTE | G4-01 |
-| AR-11 | PENDIENTE | G0-02,G4-01 |
-| AR-12 | PENDIENTE | G1-01,G2-03 |
-| AR-15 | VALIDACIÓN EXPERIMENTAL PENDIENTE | G0-06,G1-03,G4-02,G5-03 |
-| AR-42 | VALIDACIÓN EXPERIMENTAL PENDIENTE | G1-02,G5-03 |
-| AR-45 | PENDIENTE | G0-02,G4-02 |
-| AR-46 | PENDIENTE | G2-03,G4-01 |
-| AR-52 | PENDIENTE | G0-02,G1-03,G5-03 |
-| AR-08 | BLOQUEANTE | G0-02,G3-02 |
-| AR-09 | BLOQUEANTE | G0-02,G3-02 |
-| AR-10 | PENDIENTE | G3-01 |
-| AR-43 | BLOQUEANTE | G3-01,G4-01 |
-| AR-53 | PENDIENTE | G3-01/02 |
-| AR-13 | PENDIENTE | G2-02 |
-| AR-17 | VALIDACIÓN EXPERIMENTAL PENDIENTE | G0-07,G3-01 |
-| AR-18 | PENDIENTE | G0-07,G3-01 |
-| AR-20 | BLOQUEANTE | G2-02,G3-02,G6-01 |
-| AR-22 | PENDIENTE | G0-07/08,G2-02 |
-| AR-38 | VALIDACIÓN EXPERIMENTAL PENDIENTE | G2-02,G3-02 |
-| AR-48 | PENDIENTE | G0-07,G3-01 |
-| AR-50 | PENDIENTE | G3-05,G5-03 |
-| AR-16 | VALIDACIÓN EXPERIMENTAL PENDIENTE | G2-01,G4-02 |
-| AR-29 | VALIDACIÓN EXPERIMENTAL PENDIENTE | G3-03,G5-03 |
-| AR-36 | VALIDACIÓN EXPERIMENTAL PENDIENTE | G2-01 |
-| AR-37 | VALIDACIÓN EXPERIMENTAL PENDIENTE | G1-06,G5-01 |
-| AR-39 | VALIDACIÓN EXPERIMENTAL PENDIENTE | G3-04/05,G5-03 |
-| AR-49 | PENDIENTE | G4-02,G5-03 |
-| AR-19 | PENDIENTE | P-02,G0-09 |
-| AR-21 | PENDIENTE | G0-01/06,G5-01 |
-| AR-23 | PENDIENTE | G0-01/08,G1-06 |
-| AR-26 | PENDIENTE | G0-01 |
-| AR-33 | PENDIENTE | G0-01,G5-01 |
-| AR-34 | PENDIENTE | G0-01 |
-| AR-41 | BLOQUEANTE | G5-02,CUT-01 |
-| AR-51 | PENDIENTE | G0-08,G5-01 |
-| AR-54 | PENDIENTE | P-02,G0-01 |
-| AR-57 | PENDIENTE | G0-01,G1-01 |
-| AR-06 | PENDIENTE | G5-04,G6-01 |
-| AR-30 | BLOQUEANTE | G65-01/02,GA-01 |
-| AR-35 | PENDIENTE | G3-06,G5-03,G6-01 |
-| AR-44 | PENDIENTE | G5-04,G6-01 |
+
+Se preserva el estado fuente. El enlace abre el registro correspondiente. [Matriz consolidada de evidencia y salida](matriz-consolidada-ar.md).
+
+| AR | Estado fuente | Subtarea principal y cruces |
+| --- | --- | --- |
+| [AR-01](registro-maestro.md#ar-01) | VALIDADA | P-02.a |
+| [AR-02](registro-maestro.md#ar-02) | VALIDADA | P-02.a |
+| [AR-03](registro-maestro.md#ar-03) | VALIDADA | P-02.a |
+| [AR-04](registro-maestro.md#ar-04) | VALIDADA | G0-02.b |
+| [AR-55](registro-maestro.md#ar-55) | VALIDADA | P-02.a |
+| [AR-56](registro-maestro.md#ar-56) | VALIDADA | P-02.a |
+| [AR-07](registro-maestro.md#ar-07) | VALIDACIÓN EXPERIMENTAL PENDIENTE | G0-04.a |
+| [AR-14](registro-maestro.md#ar-14) | VALIDACIÓN EXPERIMENTAL PENDIENTE | G0-02.b |
+| [AR-24](registro-maestro.md#ar-24) | BLOQUEANTE | G0-03.a; G0-04.b, G1-05.a, G3-04.a |
+| [AR-25](registro-maestro.md#ar-25) | VALIDACIÓN EXPERIMENTAL PENDIENTE | G2-03.a |
+| [AR-27](registro-maestro.md#ar-27) | VALIDACIÓN EXPERIMENTAL PENDIENTE | G0-05.a; G3-04.a, G5-03.b |
+| [AR-28](registro-maestro.md#ar-28) | VALIDACIÓN EXPERIMENTAL PENDIENTE | G0-04.b |
+| [AR-31](registro-maestro.md#ar-31) | VALIDACIÓN EXPERIMENTAL PENDIENTE | G0-07.a |
+| [AR-32](registro-maestro.md#ar-32) | VALIDACIÓN EXPERIMENTAL PENDIENTE | G3-04.a |
+| [AR-40](registro-maestro.md#ar-40) | BLOQUEANTE | G0-03.b; G0-09.a |
+| [AR-47](registro-maestro.md#ar-47) | VALIDACIÓN EXPERIMENTAL PENDIENTE | G2-01.a |
+| [AR-05](registro-maestro.md#ar-05) | PENDIENTE | G4-01.a |
+| [AR-11](registro-maestro.md#ar-11) | PENDIENTE | G4-01.a |
+| [AR-12](registro-maestro.md#ar-12) | PENDIENTE | G1-01.a |
+| [AR-15](registro-maestro.md#ar-15) | VALIDACIÓN EXPERIMENTAL PENDIENTE | G4-02.b; G0-06.a, G1-06.b, G5-03.a |
+| [AR-42](registro-maestro.md#ar-42) | VALIDACIÓN EXPERIMENTAL PENDIENTE | G1-02.a; G5-03.b |
+| [AR-45](registro-maestro.md#ar-45) | PENDIENTE | G5-03.c |
+| [AR-46](registro-maestro.md#ar-46) | PENDIENTE | G2-03.c |
+| [AR-52](registro-maestro.md#ar-52) | PENDIENTE | G0-02.a; G1-03.a, G5-03.a |
+| [AR-08](registro-maestro.md#ar-08) | BLOQUEANTE | G0-02.a; G3-02.a, G5-03.a, G6-01.a |
+| [AR-09](registro-maestro.md#ar-09) | BLOQUEANTE | G3-02.a; G0-02.a, G6-01.a |
+| [AR-10](registro-maestro.md#ar-10) | PENDIENTE | G3-01.b; G4-02.a |
+| [AR-43](registro-maestro.md#ar-43) | BLOQUEANTE | G3-01.a; G3-01.c, G3-02.a, G4-01.a, G6-01.a |
+| [AR-53](registro-maestro.md#ar-53) | PENDIENTE | G3-02.a |
+| [AR-13](registro-maestro.md#ar-13) | PENDIENTE | G2-02.a |
+| [AR-17](registro-maestro.md#ar-17) | VALIDACIÓN EXPERIMENTAL PENDIENTE | G0-07.a |
+| [AR-18](registro-maestro.md#ar-18) | PENDIENTE | G3-01.d |
+| [AR-20](registro-maestro.md#ar-20) | BLOQUEANTE | G2-02.a; G3-02.b, G6-01.a |
+| [AR-22](registro-maestro.md#ar-22) | PENDIENTE | G0-07.a |
+| [AR-38](registro-maestro.md#ar-38) | VALIDACIÓN EXPERIMENTAL PENDIENTE | G3-02.b |
+| [AR-48](registro-maestro.md#ar-48) | PENDIENTE | G3-01.a |
+| [AR-50](registro-maestro.md#ar-50) | PENDIENTE | G3-05.a |
+| [AR-16](registro-maestro.md#ar-16) | VALIDACIÓN EXPERIMENTAL PENDIENTE | G2-01.a |
+| [AR-29](registro-maestro.md#ar-29) | VALIDACIÓN EXPERIMENTAL PENDIENTE | G3-03.a |
+| [AR-36](registro-maestro.md#ar-36) | VALIDACIÓN EXPERIMENTAL PENDIENTE | G2-01.a |
+| [AR-37](registro-maestro.md#ar-37) | VALIDACIÓN EXPERIMENTAL PENDIENTE | G1-06.a |
+| [AR-39](registro-maestro.md#ar-39) | VALIDACIÓN EXPERIMENTAL PENDIENTE | G3-04.a |
+| [AR-49](registro-maestro.md#ar-49) | PENDIENTE | G4-02.b |
+| [AR-19](registro-maestro.md#ar-19) | PENDIENTE | P-02.a |
+| [AR-21](registro-maestro.md#ar-21) | PENDIENTE | G0-01.a |
+| [AR-23](registro-maestro.md#ar-23) | PENDIENTE | G0-08.a |
+| [AR-26](registro-maestro.md#ar-26) | PENDIENTE | G0-01.a |
+| [AR-33](registro-maestro.md#ar-33) | PENDIENTE | G5-01.a |
+| [AR-34](registro-maestro.md#ar-34) | PENDIENTE | G0-01.a |
+| [AR-41](registro-maestro.md#ar-41) | BLOQUEANTE | G5-02.a; CUT-01.a |
+| [AR-51](registro-maestro.md#ar-51) | PENDIENTE | G0-08.a; G5-01.a, GA-01.a |
+| [AR-54](registro-maestro.md#ar-54) | PENDIENTE | G0-01.a |
+| [AR-57](registro-maestro.md#ar-57) | PENDIENTE | G0-01.a |
+| [AR-06](registro-maestro.md#ar-06) | PENDIENTE | G6-01.a |
+| [AR-30](registro-maestro.md#ar-30) | BLOQUEANTE | G65-02.a; G65-01.a, GA-01.a |
+| [AR-35](registro-maestro.md#ar-35) | PENDIENTE | G3-06.b |
+| [AR-44](registro-maestro.md#ar-44) | PENDIENTE | G5-04.b |
 
 ## 22 TEC
-| ID | WP propuesto |
-|---|---|
-| TEC-01 | G0-01/08,G5-01 |
-| TEC-02 | G0-01/08,G5-01 |
-| TEC-03 | G0-02,G1-01/03 |
-| TEC-04 | G1-01,G2-03 |
-| TEC-05 | G2-03 |
-| TEC-06 | G2-01,G3-03 |
-| TEC-07 | G2-01,G3-01/03 |
-| TEC-08 | G0-04,G1-04 |
-| TEC-09 | G1-04,G3-06 |
-| TEC-10 | G2-02 |
-| TEC-11 | G2-02,G3-02 |
-| TEC-12 | G3-05 |
-| TEC-13 | G0-05,G3-04 |
-| TEC-14 | G0-05,G3-04 |
-| TEC-15 | G0-04,G1-02 |
-| TEC-16 | G0-04,G3-04 |
-| TEC-17 | G0-07,G3-01 |
-| TEC-18 | G1-06,G5-01/02 |
-| TEC-19 | G0-06,G1-03 |
-| TEC-20 | G0-07,G3-01 |
-| TEC-21 | G1-03,G5-03 |
-| TEC-22 | G3-03,G4-02,G5-03 |
+
+Fuente íntegra por ID en [registro de candidatos](registro-candidatos-et.md). La calificación, alternativa condicionada y condición de bloqueo de cada fila fuente forman parte de la aceptación.
+
+| ID | Subtarea principal y cruces |
+| --- | --- |
+| TEC-01 | G0-01.a |
+| TEC-02 | G0-08.a |
+| TEC-03 | G0-02.a |
+| TEC-04 | G1-01.a |
+| TEC-05 | G2-03.a |
+| TEC-06 | G2-01.a |
+| TEC-07 | G3-03.a |
+| TEC-08 | G0-04.b |
+| TEC-09 | G3-06.b |
+| TEC-10 | G2-02.a |
+| TEC-11 | G3-02.b |
+| TEC-12 | G3-05.a |
+| TEC-13 | G0-05.a |
+| TEC-14 | G3-04.a |
+| TEC-15 | G1-02.a |
+| TEC-16 | G0-04.a |
+| TEC-17 | G0-07.a |
+| TEC-18 | G5-01.b |
+| TEC-19 | G0-06.a |
+| TEC-20 | G0-07.a |
+| TEC-21 | G5-03.a |
+| TEC-22 | G4-02.b |
 
 ## 15 XET
-| ID | WP propuesto |
-|---|---|
-| XET-01 | G0-02,G1-01/02 |
-| XET-02 | G0-04,G1-04 |
-| XET-03 | G0-06,G1-06,G2-01,G5-01 |
-| XET-04 | G0-03/04,G1-04 |
-| XET-05 | G0-04/07,G3-01 |
-| XET-06 | G0-05,G3-04 |
-| XET-07 | G0-05,G3-03/04,G5-03 |
-| XET-08 | G1-01,G2-03 |
-| XET-09 | G2-02,G3-02/05 |
-| XET-10 | G0-07,G3-01 |
-| XET-11 | G1-02,G3-01 |
-| XET-12 | G1-03,G3-05,G5-03 |
-| XET-13 | G0-01/06,G1-03/06,G5-01 |
-| XET-14 | G2-03,G5-02 |
-| XET-15 | G0-08,G3-03,G5-01 |
 
-## C1–C6
-C1 G0-05/G3-04; C2 G1-01/02/G2-03/G5-02; C3 G0-03/04/G1-04/G3-06; C4 G2-02/G3-02/05; C5 G0-01/08/G1-06/G5-01/03; C6 G0-06/07/G1-03/G3-01/G4-02/G5-03. Cada una conserva reservas del expediente ET.
+Fuente íntegra por ID en [integración tecnológica](integracion-tecnologica-et.md). La calificación, alternativa condicionada y condición de bloqueo de cada fila fuente forman parte de la aceptación.
 
-## Límite
-Cardinalidad cotejada, no conformidad. Las asignaciones por ET no bastan para demostrar cobertura semántica; revisar cada obligación, criterio, subtarea, variante y precedencia. Mantener fuente incluso si el índice presenta discrepancia; elevar y corregir.
+| ID | Subtarea principal y cruces |
+| --- | --- |
+| XET-01 | G1-02.a |
+| XET-02 | G0-04.b |
+| XET-03 | G5-01.b |
+| XET-04 | G0-04.a |
+| XET-05 | G0-07.a |
+| XET-06 | G3-04.a |
+| XET-07 | G3-04.b |
+| XET-08 | G2-03.a |
+| XET-09 | G3-02.b |
+| XET-10 | G0-07.a |
+| XET-11 | G3-01.b |
+| XET-12 | G5-03.a; G1-03.a, G3-05.c |
+| XET-13 | G5-01.b |
+| XET-14 | G5-02.a |
+| XET-15 | G0-08.a; G3-03.a, G5-01.a |
+
+## Decisiones empresariales y C1–C6
+
+[Acta D](../acta-decisiones.md) · [Acta DE](acta-ratificacion-de.md) · [Acta AC-DE](acta-ratificacion-ac01.md) · [C1–C6, fuentes, reservas y compatibilidad](incorporacion-correcciones-et.md).
+
+| Decisión | Subtareas | Obligación conservada |
+| --- | --- | --- |
+| D01 | G4-01.a G5-05.a G6-02.a | Producto local profesional completo y autonomía acreditable |
+| D02 | G1-01.a G5-02.a | SQLite local, puerto futuro preparado |
+| D03 | G1-04.b G4-02.a | HOST y DETERMINISTIC, MANAGED diferido |
+| D04 | G4-01.a G6-01.a | Ciclo autónomo sin aprobación ordinaria |
+| D05 | G2-03.a G4-02.a | Knowledge, memoria y continuidad |
+| D06 | G3-01.a G3-01.c G3-02.a G6-01.a | E2E multirol/multimódulo con testigos |
+| D07 | G0-02.b G3-01.a | Efectos QA por operación y lectura acreditada fuera de QA |
+| D08 | G0-07.a G3-01.a G3-01.c | UTCP/OpenAPI y datos |
+| D09 | G3-01.d G6-01.a | Referencia autorizada inmutable |
+| D10 | G2-02.a G2-03.c | Ingesta, matrices por formato y clase |
+| D11 | G2-02.a G3-02.b G6-01.a | Reportes AUT por clase y tres planos |
+| D12 | G0-02.a G3-02.a G5-03.a | Oráculos, veredictos y veracidad |
+| D13 | G0-06.a G4-02.b G5-03.a | HOST reales y canales canónicos |
+| D14 | G1-06.a G5-01.b | Sistemas, motores y paquete NPM |
+| D15 | G2-01.a G5-01.b | Preferencias y fidelidad por modalidad |
+| D16 | G3-03.a G5-03.b | Recursos, aislamiento y concurrencia |
+| D17 | G1-04.d G3-06.b G5-03.c | Idiomas, formatos y replay |
+| D18 | G0-05.a G3-04.a | Multimedia auténtica y privada |
+| D19 | G2-03.a G3-04.b G5-02.a | Retención/poda y restauración |
+| D20 | G0-03.a G0-04.a G0-04.b G3-04.a | Secretos, sesión, autorización y visor |
+| D21 | G5-04.b G6-01.a G6-02.a | Aceptación integral independiente |
+| DE-01 A | G2-03.a G3-04.b G5-02.a | Retención inteligente |
+| DE-02 B | G0-05.a G3-04.a G5-03.b G65-01.a | Elegibilidad de captura privada con grants concretos |
+| DE-03 B | G5-05.a G6-01.a G6-02.a G65-02.a | Pisos, estratos y vetos |
+| DE-04 A, B respaldo | G65-01.a G65-02.a CUT-01.a GA-01.a | Piloto representativo, corte y GA separados |
+| DE-05 B | G3-06.b G5-03.c G6-01.a | Dos matrices de accesibilidad y estados críticos |
+| AC-DE-01 B | G0-04.b G1-04.a G1-04.b G3-06.b G5-03.c | Operación local integral sin IA |
+| AC-DE-02 A | G2-04.a G4-01.a | Estrategia, riesgo, cobertura, entrega/UAT |
+| AC-DE-03 B | G3-05.a G3-05.b G5-03.b | Consulta/publicación, recetas y D11 separado |
+| AC-DE-04 A | G3-05.c G4-01.a G5-03.a | Automatización reutilizable, CI e ingesta |
+| AC-DE-05 A | G3-06.a G3-06.b | Perfil acotado de no funcional |
+| AC-DE-06 A | G3-01.b G3-01.d G3-02.a G6-01.a | Calidad, configuraciones y efecto compuesto |
+| AC-DE-07 A | G3-05.a G4-02.a | Flujo IA sin MCP diferido, intercambio y operación sin IA preservados |
+| C1 | G0-05.a G3-04.a G3-04.b G5-03.b | Custodia y reproducción |
+| C2 | G1-01.a G1-01.b G1-02.a G2-03.a G5-02.a | Escritor, persistencia, recuperación y retiro |
+| C3 | G0-03.a G0-04.a G0-04.b G1-06.b G3-06.b | Frontera humana y secretos |
+| C4 | G2-02.a G3-02.b G3-05.a G5-03.b G6-01.a | Documentos, Excel y publicaciones |
+| C5 | G0-01.a G0-08.a G1-06.a G5-01.b G5-05.a | Admisibilidad y seis niveles |
+| C6 | G0-06.a G0-07.a G1-03.a G3-01.a G4-02.b G5-03.a | Interoperabilidad, CI y paridad |
+
+## E1–E8 y EXP-01–08
+
+Usar [DAG y protocolos AV-07](compuertas-av07.md), [E1–E8 históricos compatibles](../plan-maestro.md#e-compuertas-de-aceptación), [precisiones AV-08](enmiendas-av08.md), [fe EXP-06](protocolos-exp-06-ac.md) y [contratos AC-01](contratos-ac01.md), incluido EXP-08. E8 reevalúa lo aplicable de E1–E7; G6.5 tiene su propio manifiesto. Los candidatos ET se califican antes de fijarlos.
+
+| Evidencia | Unidades de producción o repetición | Familia |
+| --- | --- | --- |
+| E1 | G0-02.a G0-02.b G0-09.a G1-06.b | Contratos, DTO, matriz consumidor/versión, compilación y aciclicidad |
+| E2 | G1-01.a G1-01.b G1-06.b G5-02.a G5-03.b | Alcance, secretos, auditar efectos e histórico, corte ensayado |
+| E3 | G1-02.a G1-06.b G3-03.a G3-06.b G4-02.a G4-03.a | Autonomía, manual/híbrida, continuidad y presión |
+| E4 | G2-01.a G2-02.a G2-05.a G4-01.a G4-03.a | Discovery, ingesta, planificación y vigencia |
+| E5 | G3-01.a G3-01.b G3-02.a G3-02.b G3-07.a G5-03.b | Efecto, E2E, testigos, D11 y limpieza |
+| E6 | G1-05.a G1-06.b G3-04.a G3-05.a G3-06.b G5-03.b G6-01.a | Custodia, publicación, medios, accesibilidad y portabilidad |
+| E7 | G1-03.a G1-06.b G5-03.a G5-03.b G5-03.c | Paridad instalada, adaptadores, CI y distribución |
+| E8 | G5-04.a G5-04.b G6-01.a G6-02.a | Ciego, V-01–V-16, conformidad, generalización, adopción y eficiencia |
+| EXP-01a | G0-06.a G1-06.b G5-03.a | Probes, rutas, bytes y cuatro HOST por build/era |
+| EXP-01b | G4-02.b G5-03.a | Adopción, reapertura, tokens y paridad |
+| EXP-02 | G2-01.a | Fidelidad y comparación de Discovery |
+| EXP-03 | G3-03.a G3-04.b G5-03.b | Presión, coste completo y reserva cleanup |
+| EXP-04a | G1-06.a | Vertical NPM instalada |
+| EXP-04b | G5-01.b | Instalación completa por celda |
+| EXP-05a | G0-07.a | Factibilidad contratos/dialecto/broker |
+| EXP-05b | G3-01.a G3-01.b G3-02.a G3-07.a | Efectos, referencia, lote/async/compuesto y reconciliación con DAG fixture |
+| EXP-06a | G0-05.a G0-09.a | Prevención y primer byte antes de G1 |
+| EXP-06b | G2-02.a G3-02.b G6-01.a | D11 factibilidad, bytes integrados y ciego por clase |
+| EXP-06c | G3-04.a G3-04.b G5-03.b | Entrega protegida, medio utilizable y repetición instalada |
+| EXP-07 | G0-04.a G1-06.b | KEK, IPC, principales y CI |
+| EXP-08a | G0-04.b G0-09.a | Frontera previa a G1 |
+| EXP-08b | G1-06.b | Vertical humana instalada |
+| EXP-08c | G3-06.b G5-03.b G6-01.a G65-02.a | Integración, instalado y recorrido humano en contextos separados |
+
+## Integración UX
+
+Los IDs UX-P son de trazabilidad del diseño. Registros, alcance y positivos/negativos en [protocolo UX](aceptacion-ux-plan.md). [Expediente aceptado](../diseno-ux/README.md).
+
+| Familia UX | Subtareas | Recorrido o área |
+| --- | --- | --- |
+| UX-P01 | G1-04.a G1-04.b G3-05.b G4-01.a G5-03.c | Operación general sin expediente y sin código/IA |
+| UX-P02 | G2-03.b G4-01.b G5-03.c | Grafo empresarial e impacto |
+| UX-P03 | G2-01.b G3-01.d G5-03.c G6-01.a | Catálogo autorizado y diferencias entre instancias |
+| UX-P04 | G3-01.c G3-02.a G3-06.b G5-03.c | Flujo visual con verificaciones positivas y negativas |
+| UX-P05 | G1-04.c G3-05.b G5-03.c | Refinamiento, forense e histórico separado |
+| UX-P06 | G1-04.d G3-06.b G5-03.c | Onboarding, ayuda, localización y accesibilidad |
+| UX-P07 | G1-02.a G4-02.a G4-02.b G5-03.c | Continuidad y control de recursos/tokens |
+
+## Materialización de pruebas y variantes
+
+Antes de ejecutar cada evaluación, el dueño lógico descompone cada afirmación independientemente falsable mediante una ficha `fuente/ID → subobligación → condición → celda → subtarea → protocolo → evidencia → decisión`. La revisión independiente congela la lista y el nivel exigible. Guardar enlaces inversos de artefacto/intento/control a afirmación y fuente, con justificación por cada reutilización. Si hay varias salidas, registrar cada repetición con identidad propia, incluso cuando reutilice fixture. El índice documental fija familias. Versiones instaladas, permisos efectivos, fixtures y muestras quedan para sus manifiestos autorizados, conforme a CC08-01.
+
+| Familia de celdas | Separaciones mínimas además de los casos por ID | Resultado/oráculo |
+| --- | --- | --- |
+| Artefacto y consumo | Por Windows/macOS/Linux y CPU/libc/ABI aplicables; runtime, paquete/launcher, navegador/renderer/stock/patched, modos visible/headless, GUI/CI, cuatro HOST reales y clientes/versiones, CLI, MCP, CI, UI, visor y offline cuando exija la fuente. Aplicar los seis niveles C5 por artefacto | Instalación limpia y doctor, bytes efectivos, ejecutables, códigos y comportamiento observado. Browser del AUT separado del renderer y del visor |
+| Memoria y autoridad | Proyecto, entorno, instancia, tenant y perfil opaco, ámbito/revisión y separación de planos epistémicos. Alta, revocación y rechazo de bypass en GUI/CI y por entrada legacy. Ocho autoridades operativas, cuatro grants de medios y tres modos de captura independientes | Verdad de identidad efectiva, permisos antes de consultas/agregados y efecto, registros y canarios independientes |
+| Discovery y configuraciones | Builds/roles/derechos, rutas, estados y transiciones separados, observación y regla acreditada, configuración declarada/observada/efectiva, preferencias 1a y fidelidad 1b. Denominador autorizado por instancia, ámbito y corte | Inventario congelado anotado por custodio, evidencia de cero mutaciones, comparación solo con procedencia y transformación acreditadas |
+| Documentos D10/D11 | D10 por formato, clase, estructura, OCR, localizadores, versión y autoridad. D11 por PDF/Excel y clase vinculante, bytes emitidos, filas/celdas, defecto/controles sanos y los tres planos. Publicación QAP separada por formato/destinatario | Verdad documental independiente y regla contable acreditada. Registro TEC de matriz por clase; abstención no acredita AR-20 |
+| E2E, UTCP y OpenAPI | Positivo y negativo autorizado por operación, dialecto/versión, control QAP separado de payload negativo AUT, precondición, rol, destino, efecto, testigo y limpieza, ambos mecanismos. Operación manual/híbrida/preparada, referencias y unidad compuesta | Estado antes/después, correlación, ventana, concurrencia real y ausencia de efecto probado; separar recepción, ejecución, compensación, restauración y confinamiento |
+| Media M1–M5 y publicaciones | Individualizar las cinco ampliaciones, MIME/range/seek, capturas PNG por modo, WebM y cuadro inicial, superficie prohibida y ruta/export offline; conservar autorización y disponibilidad de evidencia por separado | Bytes, longitud/sello/generación, canarios, controles visuales, evidencia admitida y vigencia incluso tras reinicio/expurgo |
+| Semántica y recuperación | Cruces AR-52 por fase, veredicto, cuatro ejes, cleanup/evidencia, código nativo/observado, CI y JUnit; pérdida de HOST, ejecutor o respuesta en ventanas distintas, CAS y cambio de generación | Tabla canónica, journal y testigo causal. Repetición perdida o efecto incierto no se resuelve por reenvío o HTTP |
+| UX y accesibilidad | ES/EN y locales que defina el manifiesto, idioma AUT/QAP y cambio durante campaña, formato regional y códigos invariantes; dos matrices separadas AUT/QAP, estados críticos/ayuda, usuario nuevo/experto y alternativas a zoom/arrastre | Éxito por tarea y hechos comprendidos, revisión automática y humana, corpus y límites precongelados. La validación UX no sustituye E8 |
+
+Campos mínimos de cada ficha: revisión/huella, plataformas y consumidor, actor/autoridad/datos y clasificación, política de activación, universo/estrato, oráculo acreditado y nivel causal, positivo, negativo/mutante, resultado esperado según contrato, método de adquisición, testigo/revisor, presupuesto/cleanup, salida alternativa y veto. Estados de celda según fuente: conservar aplicabilidad, motivo y evidencia. Sin instancia/variante definida se registra indeterminación. N/A exige justificación anterior a evaluación. Cambios de permiso, identidad o dependencia obligan a comprobar validez y reabrir descendientes pertinentes. No se fusionan denominadores por reutilizar una prueba o por cruces ET.
+
+## Índice inverso por subtarea
+
+Incluye unidades de gobierno, adjudicación y preparación con sus salidas de referencia. Cada dictamen de fase consume además la totalidad de controles de los predecesores aplicables en la WBS.
+
+| Subtarea | Entradas, cláusulas, reservas y familias de evidencia |
+| --- | --- |
+| P-01.a | Actas y fuentes de precedencia |
+| P-02.a | AR-01, AR-02, AR-03, AR-55, AR-56, AR-19 |
+| P-02.b | RP-01 y acto de aprobación del plan |
+| G0-01.a | AR-21, AR-26, AR-34, AR-54, AR-57, TEC-01, C5 |
+| G0-08.a | AR-23, AR-51, TEC-02, XET-15, C5 |
+| G0-02.a | REQ-IA-001.1, REQ-ORA-001.1, AR-52, AR-08, AR-09, TEC-03, D12, E1 |
+| G0-02.b | REQ-MEM-002.2, REQ-IA-001.3, REQ-PLN-001.5, REQ-RUN-001.2, REQ-SEG-001.1, REQ-SEG-001.2, AC01-10.01, AR-04, AR-14, D07, E1 |
+| G0-03.a | AR-24, D20, C3 |
+| G0-03.b | AR-40 |
+| G0-04.a | REQ-RUN-001.5, REQ-SEG-001.3, REQ-SEG-002.1, AR-07, TEC-16, XET-04, D20, C3, EXP-07 |
+| G0-04.b | REQ-SEG-001.1, REQ-HUM-001.2, AC01-05.03, AC01-05.04, AR-24, AR-28, TEC-08, XET-02, D20, AC-DE-01 B, C3, EXP-08a |
+| G0-05.a | REQ-SEG-002.3, POL-CAP-001, AR-27, TEC-13, D18, DE-02 B, C1, EXP-06a |
+| G0-06.a | REQ-AGT-001, AR-15, TEC-19, D13, C6, EXP-01a |
+| G0-07.a | REQ-DAT-001.3, REQ-INT-001.4, REQ-XINST-001, UTCP/OpenAPI, AC01-21.01, AR-31, AR-17, AR-22, TEC-17, TEC-20, XET-05, XET-10, D08, C6, EXP-05a |
+| G0-09.a | AR-40, E1, EXP-06a, EXP-08a |
+| G1-01.a | REQ-MEM-001.1, REQ-MEM-001.3, REQ-MEM-002.1, REQ-MEM-003.6, REQ-SEG-001.1, REQ-INT-001.3, REQ-STR-001.3, REQ-DAT-002.2, AC01-03.02, AC01-12.01, AC01-12.02, AC01-21.02, AR-12, TEC-04, D02, C2, E2 |
+| G1-01.b | C2, E2 |
+| G1-02.a | REQ-MEM-002.3, REQ-DIS-001.8, REQ-IA-001.4, REQ-RUN-001.4, REQ-RUN-001.5, REQ-CAM-001.4, REQ-SEG-001.3, AR-42, TEC-15, XET-01, C2, E3, UX-P07 |
+| G1-03.a | REQ-PLN-001.5, REQ-INT-001.1, AC01-17.01, AR-52, XET-12, C6, E7 |
+| G1-04.a | REQ-RUN-002.1, REQ-HUM-001.1, AC01-05.01, AC01-05.03, AC-DE-01 B, UX-P01 |
+| G1-04.b | REQ-CAM-001.1, REQ-HUM-001.1, REQ-HUM-001.2, REQ-HUM-001.4, REQ-HUM-001.4, AC01-04.01, AC01-04.02, AC01-05.01, AC01-05.02, AC01-06.01, AC01-06.02, AC01-07.01, AC01-10.01, AC01-10.02, D03, AC-DE-01 B, UX-P01 |
+| G1-04.c | UX-P05 |
+| G1-04.d | REQ-QA-001, REQ-ONB-001, D17, UX-P06 |
+| G1-05.a | M1, AR-24, E6 |
+| G1-06.a | REQ-INT-001.2, REQ-ONB-001, AR-37, D14, C5, EXP-04a |
+| G1-06.b | REQ-RUN-002.1, REQ-HUM-001.1, AC01-05.01, AC01-05.04, AC01-11.01, AC01-11.02, AR-15, C3, E1, E2, E3, E6, E7, EXP-01a, EXP-07, EXP-08b |
+| G1-07.a | Adjudicación de G1 y matriz vertical |
+| G2-01.a | REQ-DIS-001.1, REQ-DIS-001.2, REQ-DIS-001.3, REQ-DIS-001.4, REQ-DIS-001.7, REQ-DIS-001.8, REQ-SEG-002.2, REQ-RUN-002.1, AC01-16.04, AR-47, AR-16, AR-36, TEC-06, D15, E4, EXP-02 |
+| G2-01.b | REQ-DIS-001.5, REQ-DIS-001.6, REQ-XINST-001, AC01-22.03, UX-P03 |
+| G2-02.a | REQ-DOC-001.1, REQ-DOC-001.2, REQ-AUTREP-001, AR-13, AR-20, TEC-10, D10, D11, C4, E4, EXP-06b |
+| G2-03.a | REQ-MEM-001.2, REQ-MEM-001.4, REQ-MEM-003.1, REQ-MEM-003.2, REQ-MEM-003.5, POL-RET-001, REQ-OPT-002, AC01-13.02, AC01-16.01, AR-25, TEC-05, XET-08, D05, D19, DE-01 A, C2 |
+| G2-03.b | REQ-DIS-001.6, UX-P02 |
+| G2-03.c | REQ-MEM-002.5, REQ-MEM-003.4, REQ-DOC-001.3, REQ-DOC-001.4, AC01-11.01, AC01-11.02, AR-46, D10 |
+| G2-04.a | REQ-CAS-001.2, REQ-STR-001.1, REQ-STR-001.2, REQ-CAS-002.3, REQ-DAT-002.1, AC01-01.01, AC01-01.02, AC01-01.03, AC01-02.01, AC01-02.02, AC01-12.03, AC01-15.01, AC01-15.02, AC01-19.01, AC01-20.01, AC01-20.03, AC-DE-02 A |
+| G2-04.b | REQ-CAS-001.3, REQ-CAS-001.4, REQ-CAS-001.5, REQ-CAM-001.5, REQ-REG-001.3, REQ-CAS-002.1, REQ-CAS-002.2, REQ-CAM-002.1, AC01-04.01, AC01-04.02, AC01-08.01, AC01-09.01, AC01-16.05 |
+| G2-05.a | E4 |
+| G3-01.a | REQ-PLN-001.4, REQ-RUN-001.1, REQ-DAT-001.1, REQ-DAT-001.2, REQ-DAT-001.3, REQ-INT-001.4, REQ-XINST-001, REQ-QA-002, REQ-E2E-001, UTCP/OpenAPI, AC01-15.01, AC01-20.01, AC01-21.01, AC01-23.01, AR-43, AR-48, D06, D07, D08, C6, E5, EXP-05b |
+| G3-01.b | REQ-ORA-001.6, REQ-DAT-001.4, REQ-DAT-002.2, AC01-10.01, AC01-16.04, AC01-20.03, AC01-21.02, AC01-21.03, AC01-22.01, AC01-22.02, AR-10, XET-11, AC-DE-06 A, E5, EXP-05b |
+| G3-01.c | REQ-PLN-001.4, REQ-CAM-001.1, REQ-E2E-001, UTCP/OpenAPI, REQ-HUM-001.3, REQ-CAS-002.3, AC01-07.01, AC01-08.01, AC01-15.02, AC01-21.01, AR-43, D06, D08, UX-P04 |
+| G3-01.d | REQ-DIS-001.5, REQ-CAS-001.4, REQ-DAT-001.3, REQ-XINST-001, AC01-16.01, AC01-22.03, AR-18, D09, AC-DE-06 A, UX-P03 |
+| G3-02.a | REQ-CAS-001.2, REQ-ORA-001.1, REQ-ORA-001.2, REQ-ORA-001.3, REQ-ORA-001.4, REQ-ORA-001.5, REQ-ORA-001.7, REQ-RUN-001.3, REQ-E2E-001, REQ-DAT-002.1, AC01-06.02, AC01-16.04, AC01-20.02, AR-08, AR-09, AR-43, AR-53, D06, D12, AC-DE-06 A, E5, EXP-05b, UX-P04 |
+| G3-02.b | REQ-AUTREP-001, AR-20, AR-38, TEC-11, XET-09, D11, C4, E5, EXP-06b |
+| G3-03.a | REQ-RUN-001.5, REQ-OPT-001, AC01-16.06, AR-29, TEC-07, XET-15, D16, E3, EXP-03 |
+| G3-04.a | REQ-RUN-001.6, REQ-REP-001.1, REQ-SEG-001.3, REQ-SEG-002.3, POL-CAP-001, M2, M3, M4, AC01-05.04, AC01-06.02, AC01-10.02, AR-24, AR-27, AR-32, AR-39, TEC-14, XET-06, D18, D20, DE-02 B, C1, E6, EXP-06c |
+| G3-04.b | REQ-SEG-002.3, POL-CAP-001, POL-RET-001, XET-07, D19, DE-01 A, C1, EXP-03, EXP-06c |
+| G3-05.a | REQ-REP-001.1, REQ-REP-001.2, M1, REQ-STR-001.3, REQ-REP-002.1, REQ-REP-002.2, REQ-REP-002.5, AC01-03.01, AC01-12.02, AC01-12.03, AC01-12.04, AC01-12.05, AC01-12.06, AC01-12.07, AC01-12.08, AC01-16.06, AR-50, TEC-12, AC-DE-03 B, AC-DE-07 A, C4, E6 |
+| G3-05.b | REQ-MEM-003.3, REQ-CAM-001.5, REQ-REP-001.2, REQ-REP-001.3, REQ-REP-001.4, REQ-REG-001.2, REQ-HUM-001.1, REQ-REP-002.3, REQ-REP-002.4, AC01-03.02, AC01-13.01, AC01-13.02, AC01-14.01, AC01-14.02, AC01-14.03, AC-DE-03 B, UX-P01, UX-P05 |
+| G3-05.c | REQ-QA-004.1, AC01-18.01, AC01-18.02, AC01-24.01, XET-12, AC-DE-04 A |
+| G3-06.a | REQ-QA-004.2, REQ-DAT-002.1, AC01-19.01, AC01-19.02, AC01-19.03, AC01-19.04, AC01-19.05, AC01-19.07, AC-DE-05 A |
+| G3-06.b | REQ-QA-001, REQ-QA-003, REQ-HUM-001.2, REQ-HUM-001.3, REQ-HUM-001.4, AC01-05.03, AC01-06.01, AC01-07.01, AC01-09.01, AC01-19.06, AR-35, TEC-09, D17, DE-05 B, AC-DE-01 B, AC-DE-05 A, C3, E3, E6, EXP-08c, UX-P04, UX-P06 |
+| G3-07.a | E5, EXP-05b |
+| G4-01.a | REQ-IA-001.6, REQ-PLN-001.1, REQ-PLN-001.3, REQ-PLN-001.4, REQ-PLN-001.6, REQ-CAS-001.1, REQ-CAM-001.1, REQ-CAM-001.2, REQ-CAM-001.3, REQ-CAM-001.5, REQ-CAS-002.3, AC01-02.01, AC01-02.02, AC01-04.01, AC01-04.02, AC01-15.01, AC01-15.02, AC01-16.03, AR-05, AR-11, AR-43, D01, D04, AC-DE-02 A, AC-DE-04 A, E4, UX-P01 |
+| G4-01.b | REQ-DIS-001.6, REQ-PLN-001.2, REQ-PLN-001.3, REQ-REG-001.1, AC01-01.03, AC01-16.02, UX-P02 |
+| G4-02.a | REQ-MEM-002.4, REQ-IA-001.2, REQ-IA-001.4, REQ-AGT-002, AR-10, D03, D05, AC-DE-07 A, E3, UX-P07 |
+| G4-02.b | REQ-AGT-001, REQ-AGT-001, REQ-OPT-002, AR-15, AR-49, TEC-22, D13, C6, EXP-01b, UX-P07 |
+| G4-03.a | E3, E4 |
+| G5-01.a | AR-33, AR-51, XET-15 |
+| G5-01.b | REQ-INT-001.2, REQ-RUN-002.1, TEC-18, XET-03, XET-13, D14, D15, C5, EXP-04b |
+| G5-02.a | POL-RET-001, REQ-DAT-002.2, AC01-21.03, AR-41, XET-14, D02, D19, DE-01 A, C2, E2 |
+| G5-03.a | REQ-IA-001.5, REQ-ORA-001.1, REQ-SEG-001.1, REQ-SEG-002.1, REQ-INT-001.1, REQ-AGT-001, REQ-HUM-001.1, AC01-01.03, AC01-03.02, AC01-05.01, AC01-06.02, AC01-11.01, AC01-12.02, AC01-12.03, AC01-17.01, AC01-17.02, AC01-24.01, AR-15, AR-52, AR-08, TEC-21, XET-12, D12, D13, AC-DE-04 A, C6, E7, EXP-01a, EXP-01b |
+| G5-03.b | REQ-OPT-001, M5, AC01-05.04, AC01-16.06, AR-27, AR-42, D16, DE-02 B, AC-DE-03 B, C1, C4, E2, E5, E6, E7, EXP-03, EXP-06c, EXP-08c |
+| G5-03.c | REQ-QA-001, REQ-ONB-001, REQ-HUM-001.2, AC01-05.03, AC01-19.06, AR-45, D17, DE-05 B, AC-DE-01 B, E7, UX-P01, UX-P02, UX-P03, UX-P04, UX-P05, UX-P06, UX-P07 |
+| G5-04.a | E8 |
+| G5-04.b | AR-44, D21, E8 |
+| G5-05.a | D01, DE-03 B, C5 |
+| G6-01.a | REQ-AUTREP-001, REQ-E2E-001, M5, AC01-01.03, AC01-12.03, AC01-19.06, AC01-22.03, AR-08, AR-09, AR-43, AR-20, AR-06, D04, D06, D09, D11, D21, DE-03 B, DE-05 B, AC-DE-06 A, C4, E6, E8, EXP-06b, EXP-08c, UX-P03 |
+| G6-02.a | D01, D21, DE-03 B, E8 |
+| G65-01.a | AR-30, DE-02 B, DE-04 A, B respaldo |
+| G65-02.a | AR-30, DE-03 B, DE-04 A, B respaldo, EXP-08c |
+| GA-01.a | AR-51, AR-30, DE-04 A, B respaldo |
+| CUT-01.a | AR-41, DE-04 A, B respaldo |
