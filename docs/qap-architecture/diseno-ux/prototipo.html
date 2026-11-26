@@ -1,0 +1,752 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'none'; form-action 'none'; base-uri 'none'"><title>QAP · Mesa visual de investigación</title><style>html,body{margin:0;background:#0e0d14}body{max-width:1680px;margin:auto;min-height:100vh}</style></head><body>
+<section id="qap-mesa-visual" lang="es" aria-label="QAP, exploración conceptual">
+  <style>
+    #qap-mesa-visual{color-scheme:dark;--shell:#14131b;--pane:#191821;--canvas:#121219;--lift:#211f2d;--line:#353243;--muted:#b4afc3;--ink:#f2eef7;--iris:#c6afff;--teal:#92e1ce;--gold:#f2cc88;--rose:#f5a5b7;--sky:#a6c7ff;color:var(--ink);background:var(--shell);font:14px/1.45 "Segoe UI",system-ui,sans-serif;box-sizing:border-box}
+    #qap-mesa-visual *{box-sizing:border-box}
+    #qap-mesa-visual [hidden]{display:none!important}
+    #qap-mesa-visual h1,#qap-mesa-visual h2,#qap-mesa-visual h3,#qap-mesa-visual p{margin:0}
+    #qap-mesa-visual button{color:inherit;background:none;border:0;font:inherit;text-align:left;cursor:pointer;border-radius:6px;padding:7px 9px}
+    #qap-mesa-visual button:hover{background:var(--lift)}
+    #qap-mesa-visual button:focus-visible,#qap-mesa-visual summary:focus-visible{outline:2px solid var(--iris);outline-offset:2px}
+    #qap-mesa-visual button[aria-pressed="true"]{background:#33294a;color:#f0e7ff}
+    #qap-mesa-visual button:disabled{opacity:.42;cursor:default}
+    #qap-mesa-visual .soft,#qap-mesa-visual small{color:var(--muted)}
+    #qap-mesa-visual small{font-size:12px}
+    #qap-mesa-visual .eyebrow{font-size:11px;letter-spacing:.105em;text-transform:uppercase;font-weight:650;color:var(--muted)}
+    #qap-mesa-visual .badge{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:20px;padding:3px 8px;font-size:11px;white-space:nowrap}
+    #qap-mesa-visual .top{display:flex;align-items:center;gap:14px;padding:12px 17px;min-height:58px;border-bottom:1px solid var(--line)}
+    #qap-mesa-visual .brand{font-weight:700;font-size:17px;letter-spacing:-.04em;white-space:nowrap}
+    #qap-mesa-visual .brand i{display:inline-grid;place-items:center;font-style:normal;background:#33294a;color:var(--iris);border-radius:7px;width:25px;height:25px;margin-right:5px}
+    #qap-mesa-visual .top .scope{border-left:1px solid var(--line);padding-left:14px}
+    #qap-mesa-visual .top .badge{margin-left:auto}
+    #qap-mesa-visual .workspace{display:grid;grid-template-columns:176px minmax(0,1fr) 232px;min-height:590px}
+    #qap-mesa-visual .rail{background:var(--pane);border-right:1px solid var(--line);padding:15px 11px}
+    #qap-mesa-visual .rail h2,#qap-mesa-visual .inspector .eyebrow{margin-bottom:12px}
+    #qap-mesa-visual .rail button{display:block;width:100%;margin-bottom:3px}
+    #qap-mesa-visual .rail .case{background:#2a2439;border:1px solid #4a3d61;color:#f2e8ff;padding:10px;margin:0 0 18px}
+    #qap-mesa-visual .rail strong,#qap-mesa-visual .rail small{display:block}
+    #qap-mesa-visual .rail strong{font-size:13px;font-weight:620}
+    #qap-mesa-visual .rail .history{margin-top:18px}
+    #qap-mesa-visual .rail .eyebrow{padding:0 8px}
+    #qap-mesa-visual .center{min-width:0;background:var(--canvas)}
+    #qap-mesa-visual .context{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:7px 12px;border-bottom:1px solid var(--line);min-height:43px}
+    #qap-mesa-visual .context .trail{flex:1;min-width:130px;overflow-wrap:anywhere;font-size:12px;color:var(--muted)}
+    #qap-mesa-visual .context button{padding:4px 7px}
+    #qap-mesa-visual .viewhead{padding:17px 15px 12px;display:grid;gap:4px}
+    #qap-mesa-visual .viewhead h1{font-size:23px;line-height:1.2;letter-spacing:-.045em;font-weight:650}
+    #qap-mesa-visual .viewhead p{font-size:12px;color:var(--muted)}
+    #qap-mesa-visual .views{display:flex;flex-wrap:wrap;gap:2px;padding:0 9px 6px;border-bottom:1px solid var(--line)}
+    #qap-mesa-visual .views button{font-size:12px;padding:5px 7px;white-space:nowrap}
+    #qap-mesa-visual .viewbody{min-width:0}
+    #qap-mesa-visual .viewbody .toolbar{display:flex;align-items:center;gap:5px;flex-wrap:wrap;padding:8px 12px}
+    #qap-mesa-visual .toolbar button{font-size:12px;padding:4px 7px;border:1px solid var(--line)}
+    #qap-mesa-visual .toolbar .inline-label{font-size:12px;color:var(--muted);margin-right:3px}
+    #qap-mesa-visual .diagram{height:332px;position:relative;margin:0 10px;border:1px solid var(--line);border-radius:9px;isolation:isolate;background:radial-gradient(#3b364b 1px,transparent 1.2px),#16141f;background-size:16px 16px}
+    #qap-mesa-visual .diagram.impact{background-color:#171721;background-image:radial-gradient(#373a50 1px,transparent 1.2px)}
+    #qap-mesa-visual .diagram.flow{background-color:#151b21;background-image:radial-gradient(#354343 1px,transparent 1.2px)}
+    #qap-mesa-visual .diagram canvas{width:100%;height:100%;position:absolute;inset:0;pointer-events:none;z-index:-1}
+    #qap-mesa-visual .node{position:absolute;transform:translate(-50%,-50%);display:grid;gap:3px;justify-items:center;text-align:center;width:max-content;max-width:25%;padding:0;z-index:1}
+    #qap-mesa-visual .node:hover{background:transparent;color:var(--iris)}
+    #qap-mesa-visual .node .node-mark{display:grid;place-items:center;width:36px;height:36px;border:1px solid #65567d;background:#292239;color:var(--iris);border-radius:50%;font-size:18px;line-height:1}
+    #qap-mesa-visual .node .node-label{display:block;font-size:12px;font-weight:620;line-height:1.12;padding:3px 5px;background:#171521e3;border-radius:4px;overflow-wrap:anywhere}
+    #qap-mesa-visual .node[aria-pressed="true"]{background:none;color:#fff}
+    #qap-mesa-visual .node[aria-pressed="true"] .node-mark{background:#453461;border-color:var(--iris);box-shadow:0 0 0 6px #ab85ef24}
+    #qap-mesa-visual .node[data-kind="observed"] .node-mark{border-style:dashed;color:var(--gold);border-color:#8a7149;background:#312820}
+    #qap-mesa-visual .node[data-kind="evidence"] .node-mark{border-radius:8px;color:var(--teal);border-color:#507e77;background:#203335}
+    #qap-mesa-visual .node[data-kind="group"] .node-mark{border-radius:8px;color:var(--sky);border-color:#536a8b;background:#242c43}
+    #qap-mesa-visual .node[data-kind="rule"] .node-mark{border-radius:11px}
+    #qap-mesa-visual .flow .node{border:1px solid #4e6567;border-radius:8px;padding:6px;width:20%;max-width:122px;min-height:54px;background:#202c33;justify-items:start;text-align:left}
+    #qap-mesa-visual .flow .node[aria-pressed="true"]{border-color:var(--teal);box-shadow:0 0 0 3px #92e1ce25}
+    #qap-mesa-visual .flow .node .node-mark{width:auto;height:auto;background:none;border:0;font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--teal)}
+    #qap-mesa-visual .flow .node .node-label{background:none;padding:0}
+    #qap-mesa-visual .flow .node::before,#qap-mesa-visual .flow .node::after{content:"";position:absolute;border:1px solid #a3b8bb;background:#283a41;border-radius:50%;width:6px;height:6px;top:calc(50% - 3px)}
+    #qap-mesa-visual .flow .node::before{left:-4px}
+    #qap-mesa-visual .flow .node::after{right:-4px}
+    #qap-mesa-visual .flow .node[data-kind="observed"]{border-style:dashed}
+    #qap-mesa-visual .legend{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:8px 12px;color:var(--muted);font-size:11px}
+    #qap-mesa-visual .legend i{display:inline-block;font-style:normal;color:var(--iris);margin-right:3px}
+    #qap-mesa-visual .legend span:last-child{margin-left:auto}
+    #qap-mesa-visual .viewbody details{padding:4px 12px 9px;color:var(--muted);font-size:12px}
+    #qap-mesa-visual summary{cursor:pointer;color:var(--iris)}
+    #qap-mesa-visual .viewbody ul{padding-left:18px}
+    #qap-mesa-visual .inspector{background:var(--pane);border-left:1px solid var(--line);padding:16px 13px;min-width:0}
+    #qap-mesa-visual .inspector h2{font-size:19px;line-height:1.18;letter-spacing:-.025em;margin:7px 0}
+    #qap-mesa-visual .inspector p{font-size:13px;overflow-wrap:anywhere}
+    #qap-mesa-visual .inspector dl{margin:13px 0;display:grid;gap:8px}
+    #qap-mesa-visual .inspector dt{color:var(--muted);font-size:11px;margin-bottom:2px}
+    #qap-mesa-visual .inspector dd{margin:0;overflow-wrap:anywhere;font-size:12px}
+    #qap-mesa-visual .inspector .actions{border-top:1px solid var(--line);padding-top:9px;display:grid;gap:5px}
+    #qap-mesa-visual .primary{background:#3b2e52;color:#f0e6ff;border:1px solid #594475}
+    #qap-mesa-visual .primary:hover{background:#4c386b}
+    #qap-mesa-visual .teal{color:var(--teal)}#qap-mesa-visual .gold{color:var(--gold)}#qap-mesa-visual .rose{color:var(--rose)}#qap-mesa-visual .sky{color:var(--sky)}
+    #qap-mesa-visual .tablewrap{overflow-x:auto;margin:4px 10px 12px;border:1px solid var(--line);border-radius:8px}
+    #qap-mesa-visual table{width:100%;border-collapse:collapse;font-size:12px;text-align:left;font-variant-numeric:tabular-nums}
+    #qap-mesa-visual th,#qap-mesa-visual td{padding:8px 7px;vertical-align:top;border-bottom:1px solid var(--line)}
+    #qap-mesa-visual thead{background:#262236;color:var(--muted)}
+    #qap-mesa-visual tr:last-child td,#qap-mesa-visual tbody tr:last-child th{border-bottom:0}
+    #qap-mesa-visual td small{display:block;font-size:11px}
+    #qap-mesa-visual .tablewrap button{font-size:12px;padding:4px 5px}
+    #qap-mesa-visual .tablewrap tr.selected{background:#2d2540}
+    #qap-mesa-visual .double{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:10px}
+    #qap-mesa-visual .context-box{min-width:0;border:1px solid var(--line);border-radius:7px;background:#201d2a;padding:9px}
+    #qap-mesa-visual .context-box strong,#qap-mesa-visual .context-box small{display:block}
+    #qap-mesa-visual .stratum{margin:10px;padding:9px;border-top:1px solid var(--line);display:grid;gap:6px}
+    #qap-mesa-visual .metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+    #qap-mesa-visual .metrics b{display:block;font-size:13px;font-variant-numeric:tabular-nums}
+    #qap-mesa-visual .health{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;margin:9px 10px;background:#241e2b;border:1px solid var(--line);border-radius:7px;padding:8px;font-size:11px}
+    #qap-mesa-visual .health strong{display:block;font-size:12px}
+    #qap-mesa-visual .chronograph{margin:8px 10px 12px;padding:8px 10px;background:#201b29;border:1px solid var(--line);border-radius:8px;display:grid;gap:5px}
+    #qap-mesa-visual .clock-line{display:grid;grid-template-columns:67px minmax(0,1fr);align-items:center;gap:8px}
+    #qap-mesa-visual .clock-track{height:29px;position:relative;background:repeating-linear-gradient(90deg,transparent 0,transparent calc(25% - 1px),#3e3449 calc(25% - 1px),#3e3449 25%);border-bottom:1px solid #484053;margin-inline:12px}
+    #qap-mesa-visual .clock-track button{position:absolute;padding:2px 4px;top:50%;transform:translate(-50%,-50%);height:24px;min-width:24px;text-align:center;border:1px solid #665777;background:#342945;line-height:1}
+    #qap-mesa-visual .clock-track button[aria-pressed="true"]{border-color:var(--iris);background:#4a3765}
+    #qap-mesa-visual .clock-track button.miss{border-color:#9c657b;color:var(--rose)}
+    #qap-mesa-visual .clock-track button.reference{border-color:#558273;color:var(--teal);background:#273938}
+    #qap-mesa-visual .clock-ticks{display:flex;justify-content:space-between;margin:0 12px;color:var(--muted);font-size:11px;font-variant-numeric:tabular-nums}
+    #qap-mesa-visual .scope button{padding:1px 5px}
+    #qap-mesa-visual .prefs{display:flex;gap:3px;margin-left:auto}
+    #qap-mesa-visual .top .prefs+.badge{margin-left:0}
+    #qap-mesa-visual .worklist{margin:0 12px 12px;border-top:1px solid var(--line)}
+    #qap-mesa-visual .worklist>button{display:grid;gap:3px;width:100%;padding:11px 9px;border-bottom:1px solid var(--line);border-radius:0}
+    #qap-mesa-visual .worklist strong{font-size:14px}
+    #qap-mesa-visual .field{display:grid;gap:4px;margin:0 12px 9px}
+    #qap-mesa-visual input,#qap-mesa-visual select,#qap-mesa-visual textarea{font:inherit;color:var(--ink);background:var(--pane);border:1px solid var(--line);border-radius:5px;min-width:0;max-width:100%;padding:7px}
+    #qap-mesa-visual input:focus-visible,#qap-mesa-visual textarea:focus-visible,#qap-mesa-visual select:focus-visible{outline:2px solid var(--iris);outline-offset:1px}
+    #qap-mesa-visual .workform{padding:10px 0}
+    #qap-mesa-visual .workform p,#qap-mesa-visual .workform h2{margin:0 12px 8px}
+    #qap-mesa-visual .workform h2{font-size:17px}
+    #qap-mesa-visual .notice{border-left:3px solid var(--gold);padding:8px;background:var(--lift);margin:8px 12px}
+    #qap-mesa-visual .notice p{margin:0}
+    #qap-mesa-visual .case-meta{color:var(--muted);font-size:12px}
+    #qap-mesa-visual .linkrow{display:flex;gap:5px;flex-wrap:wrap;margin:0 12px 9px}
+    #qap-mesa-visual .inline-status{margin-left:auto;color:var(--muted);font-size:11px}
+    #qap-mesa-visual .searchbox{display:flex;gap:5px;align-items:center;flex-wrap:wrap;padding:7px 12px;border-bottom:1px solid var(--line)}
+    #qap-mesa-visual .searchbox label{display:flex;gap:7px;align-items:center;flex:1}
+    #qap-mesa-visual .searchbox input{width:100%;font-size:12px}
+    #qap-mesa-visual [data-search-results]{margin:0 12px 8px}
+    #qap-mesa-visual [data-search-results] button{display:inline-grid;gap:1px;margin:3px 4px 0 0;border:1px solid var(--line)}
+    #qap-mesa-visual [data-search-results] p{margin:7px 0;font-size:12px}
+    #qap-mesa-visual .fieldset{border:0;margin:0;padding:0}
+    #qap-mesa-visual .legend button{padding:4px 7px}
+    #qap-mesa-visual[data-theme="light"]{color-scheme:light;--shell:#f3f0f7;--pane:#fcfaff;--canvas:#faf8fc;--lift:#eee8f4;--line:#c8bdcf;--muted:#5d536a;--ink:#241c30;--iris:#513a81;--teal:#1f6255;--gold:#785111;--rose:#972c46;--sky:#2e527b}
+    #qap-mesa-visual[data-theme="light"] :is(.case,.primary,button[aria-pressed="true"],.node[aria-pressed="true"] .node-mark,.tablewrap tr.selected,.tablewrap td.selected){color:var(--ink);background:#e9def7;border-color:#a58eb9}
+    #qap-mesa-visual[data-theme="light"] :is(.brand i,.context-box,.health,thead,.event,.chronograph,.historic){color:var(--ink);background:#f0ebf6}
+    #qap-mesa-visual[data-theme="light"] .historic dt{color:var(--muted)}
+    #qap-mesa-visual[data-theme="light"] .diagram{background:#f0eaf6;background-image:radial-gradient(#c6b8d7 1px,transparent 1.2px);background-size:16px 16px}
+    #qap-mesa-visual[data-theme="light"] .diagram.flow{background-color:#edf5f1}
+    #qap-mesa-visual[data-theme="light"] .node .node-label{background:#f9f5fbe9;color:var(--ink)}
+    #qap-mesa-visual[data-theme="light"] .node .node-mark{color:var(--ink);background:#e9def7}
+    #qap-mesa-visual[data-theme="light"] .flow .node{background:#e5f1eb;border-color:#729c8b}
+    #qap-mesa-visual[data-theme="light"] .flow .node .node-mark{background:none;color:var(--teal)}
+    #qap-mesa-visual[data-theme="light"] .clock-track button{color:var(--ink);background:#e4d6ef}
+    #qap-mesa-visual[data-theme="light"] .clock-track button.miss{color:var(--rose)}
+    #qap-mesa-visual[data-theme="light"] .clock-track{border-color:var(--line);background:repeating-linear-gradient(90deg,transparent 0,transparent calc(25% - 1px),var(--line) calc(25% - 1px),var(--line) 25%)}
+    #qap-mesa-visual .trace{display:grid;gap:6px;margin:7px 10px 12px}
+    #qap-mesa-visual .event{display:grid;grid-template-columns:67px 1fr;align-items:baseline;gap:5px;border-left:2px solid #77688a;background:#211e2b}
+    #qap-mesa-visual .event .time{font-variant-numeric:tabular-nums;color:var(--muted);font-size:11px}
+    #qap-mesa-visual .event small{display:block;font-size:11px}
+    #qap-mesa-visual .event.first{border-left-color:var(--rose)}
+    #qap-mesa-visual .historic{min-height:420px;padding:22px;background:#1a1d23}
+    #qap-mesa-visual .historic .topline{display:flex;gap:10px;align-items:center;flex-wrap:wrap;border-bottom:1px solid #505d6b;padding-bottom:14px;margin-bottom:16px}
+    #qap-mesa-visual .historic h1{font-size:23px;letter-spacing:-.04em}
+    #qap-mesa-visual .historic section{margin-top:15px;max-width:640px}
+    #qap-mesa-visual .historic dl{border-left:2px solid #70879e;padding-left:15px}
+    #qap-mesa-visual .historic dt{color:#bdc9d7}
+    #qap-mesa-visual .historic dd{margin:3px 0 12px}
+    #qap-mesa-visual .bottom{padding:6px 13px;border-top:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap;justify-content:space-between}
+    @media(min-width:1200px){#qap-mesa-visual .workspace{grid-template-columns:205px minmax(0,1fr) 270px;min-height:675px}#qap-mesa-visual .diagram{height:425px}#qap-mesa-visual .viewhead{padding-top:22px}}
+    #qap-mesa-visual .workspace:not(:has(.diagram)){min-height:510px}
+    @media(max-width:900px){#qap-mesa-visual .workspace{grid-template-columns:134px minmax(0,1fr) 192px}#qap-mesa-visual .rail{padding-inline:7px}#qap-mesa-visual .inspector{padding-inline:10px}}
+    @media(max-width:760px){#qap-mesa-visual .workspace{grid-template-columns:minmax(0,1fr) 194px}#qap-mesa-visual .rail{grid-column:1/-1;padding:6px 9px;display:flex;align-items:center;flex-wrap:wrap;gap:5px;border-right:0;border-bottom:1px solid var(--line)}#qap-mesa-visual .rail h2,#qap-mesa-visual .rail .history{display:none}#qap-mesa-visual .rail button,#qap-mesa-visual .rail .case{width:auto;margin:0;padding:5px 7px}#qap-mesa-visual .rail button small{display:none}}
+    @media(max-width:560px){#qap-mesa-visual .workspace{display:block}#qap-mesa-visual .inspector{border:0;border-top:1px solid var(--line)}#qap-mesa-visual .top{padding:8px 10px;gap:8px;flex-wrap:wrap}#qap-mesa-visual .top .scope{padding-left:8px}#qap-mesa-visual .top .badge{margin:0}#qap-mesa-visual .metrics,#qap-mesa-visual .health{grid-template-columns:repeat(2,minmax(0,1fr))}#qap-mesa-visual .diagram{height:288px}#qap-mesa-visual .legend span:last-child{margin-left:0}}
+    @media(max-width:390px){#qap-mesa-visual .diagram{display:flex;gap:6px;flex-wrap:wrap;align-content:start;padding:9px;height:auto}#qap-mesa-visual .diagram canvas{display:none}#qap-mesa-visual .diagram .node{position:static;transform:none;max-width:none;width:auto;display:flex;align-items:center;gap:5px;text-align:left;border:1px solid var(--line);padding:5px}#qap-mesa-visual .node .node-mark{width:22px;height:22px;font-size:12px}#qap-mesa-visual .flow .node .node-mark{width:auto}#qap-mesa-visual .flow .node::before,#qap-mesa-visual .flow .node::after{display:none}}
+  </style>
+  <div data-operational>
+    <header class="top">
+      <div class="brand"><i aria-hidden="true">⟐</i> QAP</div>
+      <div class="scope"><button type="button" data-action="project"><strong data-project-label>Faro Azul / Laboratorio Norte</strong> ▾</button></div>
+      <div class="prefs"><button type="button" data-action="theme" aria-pressed="false">Tema claro</button><button type="button" data-action="locale" aria-pressed="false" aria-label="Show interface controls in English">EN</button></div>
+      <span class="badge gold">Exploración · datos ficticios</span>
+    </header>
+    <div class="workspace">
+      <aside class="rail" aria-label="Investigación y entidades fijadas">
+        <h2 class="eyebrow">Investigación abierta</h2>
+        <button type="button" class="case" data-action="handoff"><strong>Alerta que no salió</strong><small>Retomar el expediente</small></button>
+        <button type="button" data-view="work"><strong>Mesa de trabajo</strong><small>Decidir y simular</small></button>
+        <h2 class="eyebrow">Entidades fijadas</h2>
+        <button type="button" data-jump="impact:cfg"><strong>◈ Umbral de alerta</strong><small>C-12 · configuración</small></button>
+        <button type="button" data-jump="flow:guard"><strong>⬡ Despacho térmico</strong><small>F-24 · flujo E2E</small></button>
+        <button type="button" data-jump="forensic:ev3"><strong>▣ Intento 042</strong><small>A-17 · evidencia</small></button>
+        <h2 class="eyebrow history">Publicación</h2>
+        <button type="button" data-action="historic"><strong>↗ Visor histórico</strong><small>Lectura de muestra</small></button>
+      </aside>
+      <div class="center">
+        <div class="context">
+          <button type="button" data-action="back" aria-label="Volver a la selección anterior">←</button>
+          <span class="trail" data-trail>Mapa de conocimiento</span>
+          <button type="button" data-action="show-search" aria-expanded="false">Buscar</button>
+          <button type="button" data-action="help">Guía</button>
+        </div>
+        <div class="searchbox" data-search-panel hidden><label>Entidad <input type="search" data-search placeholder="Nombre o ID" autocomplete="off"></label><button type="button" data-action="show-search" aria-label="Cerrar búsqueda">×</button><div data-search-results aria-live="polite"></div></div>
+        <div class="viewhead"><h1 data-heading>Conocimiento conectado</h1><p data-caption></p></div>
+        <nav class="views" aria-label="Representación de la investigación">
+          <button type="button" data-view="map">Mapa</button><button type="button" data-view="impact">Impacto</button><button type="button" data-view="flow">Flujo</button><button type="button" data-view="diff">Configuración</button><button type="button" data-view="matrix">Matriz</button><button type="button" data-view="forensic">Forense</button>
+        </nav>
+        <div class="viewbody" data-content></div>
+      </div>
+      <aside class="inspector" aria-label="Inspector de la selección" data-inspector aria-live="polite"></aside>
+    </div>
+    <footer class="bottom"><small>Expediente FA-06 · corte ficticio 26 nov 2026</small><small>Laboratorio · sin conexión al AUT</small></footer>
+  </div>
+  <article class="historic" data-publication hidden>
+    <div class="topline">
+      <span class="badge sky">QAP · Visor histórico</span><span class="badge">Solo lectura · muestra de frontera</span>
+      <button type="button" data-action="return">← Volver a la exploración</button>
+    </div>
+    <h1>Publicación del intento 042</h1><p class="soft">Faro Azul · corte de publicación ficticio 26 nov 2026 · rev. 1</p>
+    <section><dl>
+      <dt>Hecho publicado</dt><dd>La afirmación A-17 quedó <b class="rose">FAIL</b> en el alcance evaluado.</dd>
+      <dt>Disponibilidad del material</dt><dd>Constancia resumida disponible en esta muestra. La captura de ejemplo figura vencida.</dd>
+      <dt>Verificación actual</dt><dd>Requiere una revisión nueva en la superficie operacional con ámbito y fuentes admisibles.</dd>
+    </dl><p><small>Esta escena muestra la separación visual. La frontera efectiva AR-24 corresponde a superficies y autorizaciones independientes.</small></p></section>
+  </article>
+</section>
+<script>
+(() => {
+  const root = document.getElementById('qap-mesa-visual');
+  const find = selector => root.querySelector(selector);
+  const content = find('[data-content]');
+  const inspector = find('[data-inspector]');
+  const initial = { project:'faro', view:'map', subject:'dispatch', anchor:'dispatch', depth:1, hypotheses:false, branch:'all', matrix:'coverage', diffOnly:false, compare:false, filter:'all', matrixFilter:'all', grouped:false, mode:'manual', phase:'ready', grant:true, revision:'current', temp:'7', defect:false };
+  let state = {...initial};
+  const history = [];
+  let overlay = '';
+  let observation;
+  let historicTrigger;
+  let light=false;
+  let english=false;
+  let previousProject;
+  let tourStep=0;
+  const englishLabels={Mapa:'Map',Impacto:'Impact',Flujo:'Flow',Configuración:'Configuration',Matriz:'Matrix',Forense:'Forensics',Buscar:'Search',Guía:'Help','Tema claro':'Light theme','Tema oscuro':'Dark theme','1 salto':'1 hop','2 saltos':'2 hops','Centrar selección':'Center selection',Todas:'All','Diferencias y carencias':'Differences and gaps',Permisos:'Permissions',Cobertura:'Coverage',Cronología:'Timeline','Comparar 041 / 042':'Compare 041 / 042',Ambas:'Both','Con aviso':'With alert','Sin aviso':'Without alert','Incluir hipótesis':'Include hypotheses',Acreditada:'Accredited','Abrir tour opcional':'Open optional tour','Cerrar guía':'Close help','Solo lectura · muestra de frontera':'Read only · boundary sample','Leer conexiones en texto':'Read links as text','Leer eventos en texto':'Read events as text','Entidades fijadas':'Pinned entities','Investigación abierta':'Open investigation','Mesa de trabajo':'Work desk','Decidir y simular':'Decide and simulate','Retomar el expediente':'Resume case','Exploración · datos ficticios':'Exploration · fictional data','Ocultar sin relación':'Hide unrelated','Solo ruta':'Route only','Ver vecindario':'Show neighbors','Agrupar dominios':'Group domains','Ver entidades':'Show entities','Todos los estados':'All states','Solo brechas':'Gaps only'};
+  const englishTitles={map:'Connected knowledge',impact:'Trace impact',flow:'Thermal dispatch',diff:'Compare configuration',matrix:'Coverage and permissions',forensic:'Investigate run 042',work:'QA work desk',projects:'Projects and environments'};
+
+  const titles = {
+    map:['Conocimiento conectado','Dominios y entidades visibles alrededor de Despacho térmico.'],
+    impact:['Seguir el impacto','Del umbral efectivo a la regla, el flujo y las obligaciones.'],
+    flow:['Despacho térmico','F-24 · variante del caso en borrador · escenario de lectura y notificación.'],
+    diff:['Comparar configuración','Misma clave y unidad. Dos lecturas ficticias autorizadas por separado.'],
+    matrix:['Aplicar cobertura y permisos','Mismo expediente · seleccione una celda para abrir su justificación.'],
+    forensic:['Investigar el intento 042','A-17 · «La alerta se registra en 60 s» · regla R-17 rev. 5.'],
+    work:['Mesa de trabajo QA','Expediente FA-06 · prioridades explicables y recorridos simulados.'],
+    projects:['Proyectos y entornos','Elija un contexto ficticio. El proyecto vacío sirve para recorrer el inicio.']
+  };
+  const nodes = {
+    dispatch:['Despacho térmico','Proceso · F-24','⬡','group'],
+    reception:['Recepción','Dominio observado','◫','group'],
+    sensor:['Lectura térmica','Capacidad observada','○','observed'],
+    rules:['Política de alerta','Regla acreditada · R-17 rev. 5','◇','rule'],
+    cfg:['Umbral de alerta','Configuración · C-12','◈','rule'],
+    attempt:['Intento 042','Evidencia · A-17','▣','evidence'],
+    notifications:['Notificaciones','Dominio observado','◫','group'],
+    profiles:['Operador / Supervisor','Matriz · ámbito local','⊞','group'],
+    coverage:['Cobertura R-17','Obligaciones de muestra','⊞','evidence'],
+    test:['Alerta con 7 °C','Caso · T-24','◌','group'],
+    hypothesis:['Retardo de la cola','Hipótesis pendiente','?','observed'],
+    read:['Leer termómetro','UTCP · lectura','UTCP','group'],
+    guard:['¿Alcanza el umbral?','Condición · R-17','REGLA','rule'],
+    notify:['Solicitar alerta','Notificación · efecto','EFECTO','group'],
+    verify:['Verificar en 60 s','Testigo independiente','ORÁCULO','evidence'],
+    quiet:['Sin alerta esperada','Variante negativa','NEGATIVA','observed'],
+    clear:['Conciliar y limpiar','Cierre de datos','LIMPIEZA','evidence']
+  };
+  const details = {
+    dispatch:['Proceso observado','Despacho térmico','Al recibir una muestra, se evalúa si corresponde enviar una alerta al equipo de laboratorio.',[['Identidad','F-24 · rev. 3'],['Ámbito','Laboratorio Norte · rol Operador'],['Procedencia','Carta de exploración ficticia EX-06'],['Relación','R-17 rige la decisión de alertar']],[['Seguir qué cambia','impact:cfg'],['Abrir flujo','flow:guard']]],
+    reception:['Dominio observado','Recepción','Origen visible de las muestras del ejercicio.',[['Ámbito','Laboratorio Norte'],['Alcance','Observación de caja negra']],[['Volver al proceso','map:dispatch']]],
+    sensor:['Observación','Lectura térmica','La interfaz muestra una muestra controlada de 7 °C.',[['Procedencia','Sonda de muestra · lectura L-09'],['Alcance','El valor observado no acredita despacho.']],[['Ver paso de lectura','flow:read']]],
+    notifications:['Dominio observado','Notificaciones','La recepción de avisos y su confirmación se investigan como efectos separados.',[['Ámbito','Canal local de muestra']],[['Consultar testigo','forensic:ev3']]],
+    rules:['Regla acreditada','Política de alerta','En Norte, una muestra de 6 °C o más debe generar un aviso registrado dentro de 60 s.',[['Fuente','Manual ficticio §4.2 · rev. 5'],['Alcance','Recepción térmica · Laboratorio Norte']],[['Abrir la condición','flow:guard'],['Ver obligaciones','matrix:a17n']]],
+    cfg:['Configuración','Umbral de alerta','El valor aprobado para Norte es 6 °C. Una lectura ficticia acreditó 8 °C efectivos.',[['Hecho y corte','8 °C · constancia L-10 · rev. 2'],['Importante','La diferencia justifica investigar. La causa del fallo sigue abierta.']],[['Comparar las dos instancias','diff:cfg'],['Seguir al caso de límite','flow:guard']]],
+    attempt:['Resultado acreditado','Intento 042','La acción terminó técnicamente y el testigo acreditó que faltó el aviso en la ventana exigida.',[['Afirmación','A-17 · FAIL en su alcance'],['Fuente','Constancia ficticia W-42']],[['Examinar el intento','forensic:ev3']]],
+    profiles:['Contexto de perfiles','Operador / Supervisor','La expectativa de permiso y lo observado se comparan bajo el mismo ámbito.',[['Ámbito','Laboratorio Norte · muestras propias']],[['Comparar perfiles','matrix:approveop']]],
+    coverage:['Cobertura','Cobertura de R-17','Comparar obligaciones diseñadas, ejecutadas, acreditadas y conformes por contexto.',[['Universo','Cuatro obligaciones ficticias seleccionadas']],[['Abrir matriz','matrix:a17n']]],
+    test:['Caso vinculado','Alerta con 7 °C','La muestra queda entre el umbral esperado (6 °C) y el efectivo observado (8 °C). Es útil para discriminar el comportamiento.',[['Caso','T-24 · borrador de rev. 4'],['Pendiente','Aislar contra el contexto del intento 041']],[['Revisar el flujo','flow:guard'],['Ver primera divergencia','forensic:ev2']]],
+    hypothesis:['Hipótesis','Retardo de la cola','Una demora podría explicar parte de la observación. No hay un vínculo acreditado con el fallo.',[['Estado','Pendiente · fuera de la ruta acreditada']],[['Revisar tiempos','forensic:ev2']]],
+    read:['Paso UTCP · contrato ilustrativo','Leer termómetro','Consulta de la muestra preexistente. Se muestra como un paso tipado y gobernado por QAP.',[['Entrada','Referencia opaca a muestra de laboratorio'],['Salida','Temperatura decimal en °C'],['Efecto declarado','Solo lectura · destino de laboratorio'],['Autorización','A verificar por operación en el producto']],[['Ver condición siguiente','flow:guard']]],
+    guard:['Condición','¿Alcanza el umbral?','R-17 rev. 5 exige alertar desde 6 °C en Norte. Con la muestra ficticia de 7 °C se espera la rama de aviso.',[['Precondición','Muestra controlada · rol Operador'],['Datos','Temperatura 7 °C · margen 1 °C sobre el umbral aprobado'],['Variantes','7 °C → aviso; 5 °C → sin aviso']],[['Abrir evidencia del intento','forensic:ev3'],['Comparar con el efectivo','diff:cfg']]],
+    notify:['Paso con efecto','Solicitar alerta','El diseño contempla envío autorizado al canal ficticio de laboratorio.',[['Efecto esperado','Un aviso de laboratorio'],['Límite','Reconciliar un efecto incierto antes de reintentar']],[['Inspeccionar oráculo','flow:verify']]],
+    verify:['Oráculo','Verificar en 60 s','Comprobar el registro receptor independiente y su completitud durante la ventana.',[['Expectativa','Un aviso para la correlación de muestra'],['Testigo','Registro receptor ficticio W-42'],['Independencia','Origen separado del emisor y correlación acreditada en el ejemplo']],[['Abrir W-42','forensic:ev3']]],
+    quiet:['Variante negativa','Sin alerta esperada','Con una muestra de 5 °C, la regla espera ausencia de aviso dentro de la ventana.',[['Testigo','Registro receptor completo en la ventana']],[['Ver cobertura del negativo','matrix:a18n']]],
+    clear:['Limpieza','Conciliar y limpiar','Identificar efectos tardíos antes de cerrar. Los datos del ejercicio se retiran bajo la política correspondiente.',[['Prueba requerida','Sin residuo fuera de la política']],[['Ver limpieza del intento','forensic:ev4']]],
+    window:['Configuración','Ventana de registro','La regla acredita 60 s en ambas referencias ficticias.',[['Fuentes','Manual Norte §4.2 y manual Sur §2.1']],[['Ver el oráculo','flow:verify']]],
+    route:['Valores con suficiencia distinta','Canal receptor','Norte tiene lectura efectiva. Sur solo ofrece una declaración del canal.',[['Límite','Comparación efectiva incompleta']],[['Ver el testigo','forensic:ev3']]],
+    ev1:['Respuesta técnica','Solicitud aceptada','El canal de entrada recibió la solicitud. El efecto todavía se evalúa por separado.',[['Respuesta','Aceptada · +00 s']],[['Ver el efecto','forensic:ev2']]],
+    ev2:['Primera divergencia','Sin aviso al vencer la ventana','A los 60 s faltó el aviso exigido en el intento 042. En 041 se observó uno a los 18 s.',[['Esperado','1 aviso a los 60 s'],['Observado','0 avisos en la ventana'],['Comparabilidad','Cambió el build y el umbral efectivo. Causa sin aislar.']],[['Ver testigo del efecto','forensic:ev3'],['Comparar el umbral','diff:cfg']]],
+    ev3:['Testigo independiente','Constancia W-42','El testigo ficticio confirma que el registro receptor estuvo completo y no recibió un aviso con la correlación exigida durante la ventana.',[['Fuente','Registro receptor · muestra W-42'],['Suficiencia','Afirmación A-17 · ventana de 60 s'],['Disponibilidad','Constancia disponible en la muestra'],['Causa','El contraste no aísla build y configuración.']],[['Revisar la cobertura','matrix:a17n'],['Ver la regla','impact:rules']]],
+    ev4:['Limpieza','Fixture conciliado','La conciliación ficticia cerró la muestra y verificó el estado posterior.',[['Estado mostrado','Verificada · +68 s']],[['Ver el paso de limpieza','flow:clear']]]
+  };
+  const graph = {
+    map:{
+      positions:{ dispatch:[50,43], reception:[23,22], sensor:[18,62], rules:[73,24], cfg:[81,58], attempt:[50,81], notifications:[47,9], profiles:[13,88], coverage:[83,87] },
+      links:[['reception','dispatch','alimenta'],['sensor','dispatch','mide'],['rules','dispatch','rige'],['cfg','dispatch','condiciona'],['dispatch','attempt','vincula'],['dispatch','notifications','produce'],['sensor','profiles','según perfil'],['attempt','coverage','respalda']]
+    },
+    impact:{
+      positions:{cfg:[15,45],rules:[39,30],dispatch:[63,53],test:[85,30],attempt:[83,76],hypothesis:[16,80]},
+      links:[['cfg','rules','contextualiza'],['rules','dispatch','rige'],['dispatch','test','se verifica con'],['test','attempt','documenta'],['hypothesis','attempt','podría influir',true]]
+    },
+    flow:{
+      positions:{read:[14,35],guard:[38,35],notify:[64,19],verify:[86,19],quiet:[64,68],clear:[86,68]},
+      links:[['read','guard','lectura'],['guard','notify','≥ 6 °C',false,'yes'],['notify','verify','efecto',false,'yes'],['guard','quiet','< 6 °C',false,'no'],['verify','clear','conciliar',false,'yes'],['quiet','clear','conciliar',false,'no']]
+    }
+  };
+  const configRows = [
+    ['cfg','Umbral de alerta','8 °C','Efectivo · constancia Norte L-10','6 °C','Efectivo · constancia Sur L-02','−2 °C · Sur vs Norte'],
+    ['window','Ventana de registro','60 s','Acreditada · manual Norte','60 s','Acreditada · manual Sur','Sin diferencia'],
+    ['route','Canal receptor','Laboratorio α','Efectivo · constancia Norte','Laboratorio β','Declarado · sin constancia','Efectividad sin comparar']
+  ];
+  const coverageRows = [
+    ['A-17 · Avisar con 7 °C',['a17n','FAIL acreditado','W-42 · intento 042'],['a17s','PASS acreditado','W-40 · intento 040']],
+    ['A-18 · Sin aviso con 5 °C',['a18n','Sin testigo','Intento 043 · insuficiente'],['a18s','Falta diseño','Obligación pendiente']]
+  ];
+  const permissionRows = [
+    ['Leer muestra',['readop','Permitido','Lectura observada'],['readsu','Permitido','Lectura observada']],
+    ['Ajustar umbral',['approveop','Denegación esperada','HTTP 403 · efecto no acreditado'],['approvesu','Permitido con autorización','Sin observación']]
+  ];
+  const cells = {
+    a17n:['FAIL acreditado','Norte · A-17','La contradicción está acreditada y aporta a cobertura. No suma conformidad.','forensic:ev3'],
+    a17s:['PASS acreditado','Sur · A-17','El intento ficticio 040 acredita alcance equivalente para Sur y su conjunto de datos.','diff:cfg'],
+    a18n:['Sin testigo suficiente','Norte · A-18','La negativa se diseñó y ejecutó. Falta un registro receptor completo para concluir.','flow:quiet'],
+    a18s:['Falta diseño','Sur · A-18','La obligación está en el universo ficticio y carece de caso vinculado.','flow:quiet'],
+    readop:['Lectura observada','Operador · leer muestra','La regla permite leer; la interfaz devolvió el valor.','flow:read'],
+    readsu:['Lectura observada','Supervisor · leer muestra','La regla permite leer; la interfaz devolvió el valor.','flow:read'],
+    approveop:['Efecto indeterminado','Operador · ajustar umbral','El AUT respondió HTTP 403. No hay testigo admisible que confirme ausencia de efecto.','diff:cfg'],
+    approvesu:['Sin observación','Supervisor · ajustar umbral','El permiso esperado está condicionado a una autorización de operación. El caso sigue pendiente.','diff:cfg']
+  };
+  const events = [
+    ['ev1','+00 s','ACCIÓN · Solicitud aceptada','Recepción técnica registrada'],
+    ['ev2','+60 s','EFECTO · Vence la ventana sin aviso','Primera divergencia'],
+    ['ev3','+61 s','TESTIGO · Registro receptor independiente','W-42 · constancia disponible'],
+    ['ev4','+68 s','LIMPIEZA · Fixture conciliado','Efectos de muestra revisados']
+  ];
+  const defaults = {map:'dispatch',impact:'cfg',flow:'guard',diff:'cfg',matrix:'a17n',forensic:'ev3',work:'desk',projects:'projects'};
+  const subjectsInView = {
+    map:['dispatch','reception','sensor','rules','cfg','attempt','notifications','profiles','coverage'],
+    impact:['cfg','rules','dispatch','test','attempt','hypothesis'],
+    flow:['read','guard','notify','verify','quiet','clear'],
+    diff:['cfg','window','route'],
+    matrix:Object.keys(cells),forensic:events.map(event=>event[0]),work:['desk','case','sources','defect'],projects:['projects']
+  };
+  const related = {
+    map:{test:'dispatch',read:'sensor',guard:'rules',notify:'notifications',verify:'attempt',quiet:'rules',clear:'attempt',window:'cfg',route:'notifications',a17n:'coverage',a18n:'coverage',approveop:'profiles',ev1:'attempt',ev2:'attempt',ev3:'attempt',ev4:'attempt'},
+    impact:{sensor:'dispatch',read:'dispatch',guard:'rules',notify:'dispatch',verify:'attempt',window:'cfg',route:'cfg',a17n:'test',ev1:'attempt',ev2:'attempt',ev3:'attempt',ev4:'attempt'},
+    flow:{cfg:'guard',rules:'guard',dispatch:'guard',sensor:'read',notifications:'notify',test:'guard',attempt:'verify',route:'notify',window:'verify',a17n:'verify',a18n:'quiet',ev1:'notify',ev2:'verify',ev3:'verify',ev4:'clear'},
+    diff:{rules:'cfg',guard:'cfg',verify:'window',ev3:'route'},
+    matrix:{rules:'a17n',cfg:'a17n',test:'a17n',guard:'a17n',quiet:'a18n',profiles:'approveop',read:'readop',verify:'a17n',ev3:'a17n'},
+    forensic:{notify:'ev1',cfg:'ev2',rules:'ev2',test:'ev2',verify:'ev3',clear:'ev4',a17n:'ev3',attempt:'ev3'}
+  };
+
+  function go(next, remember = true) {
+    if (remember){
+      const {view,subject,anchor,depth,hypotheses,branch,matrix,diffOnly,compare,filter,matrixFilter,grouped}=state;
+      history.push({view,subject,anchor,depth,hypotheses,branch,matrix,diffOnly,compare,filter,matrixFilter,grouped});
+    }
+    if (history.length > 24) history.shift();
+    state = {...state, ...next};
+    overlay = '';
+    render();
+  }
+  function jump(view, subject) {
+    if (!find('[data-search-panel]').hidden) searchVisibility(false);
+    if (state.project==='empty' && view!=='projects') return go({view:'projects',subject:'projects'});
+    const selected = related[view]?.[subject] || subject;
+    const next = {view,subject:subjectsInView[view].includes(selected)?selected:defaults[view]};
+    if (view === 'map' && state.grouped && !['dispatch','reception','notifications','profiles','coverage',state.anchor].includes(next.subject)) next.grouped=false;
+    if (view === 'map' && !mapDistances().has(next.subject)) next.anchor = next.subject;
+    else if (view === 'map' && mapDistances().get(next.subject) > state.depth) next.depth = 2;
+    if (view === 'impact' && next.subject === 'hypothesis') next.hypotheses = true;
+    if (view === 'impact' && ['attempt','hypothesis'].includes(next.subject)) next.filter = 'all';
+    if (view === 'matrix') next.matrix = Object.keys(cells).slice(0,4).includes(next.subject)?'coverage':'permissions';
+    if (view === 'matrix' && ['a17n','a17s','readop','readsu'].includes(next.subject)) next.matrixFilter='all';
+    if (view === 'flow' && ((state.branch==='yes'&&next.subject==='quiet')||(state.branch==='no'&&['notify','verify'].includes(next.subject)))) next.branch='all';
+    if (view === 'diff' && next.subject === 'window') next.diffOnly=false;
+    go(next);
+  }
+  const searchable = [
+    ['F-24','Despacho térmico','map:dispatch'],['C-12','Umbral de alerta','impact:cfg'],['R-17','Política de alerta','impact:rules'],
+    ['T-24','Alerta con 7 °C','impact:test'],['A-17 / 042','Intento 042','forensic:ev3'],['W-42','Constancia del receptor','forensic:ev3'],
+    ['L-10','Lectura efectiva Norte','diff:cfg'],['A-18','Cobertura del negativo','matrix:a18n'],['UTCP','Leer termómetro','flow:read'],
+    ['D-07','Anomalía de aviso','work:defect'],['Manual','Documentos y oráculos','work:sources']
+  ];
+  function updateSearch(){
+    const q=find('[data-search]').value.trim().normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase();
+    const results=q&&state.project==='faro'?searchable.filter(([id,name])=>(id+' '+name).normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase().includes(q)):[];
+    find('[data-search-results]').innerHTML=results.length?results.map(([id,name,target])=>link(name+' · '+id,target)).join(''):q?'<p>Sin coincidencias visibles en este proyecto.</p>':'';
+  }
+  function searchVisibility(show){
+    find('[data-search-panel]').hidden=!show;
+    find('[data-action="show-search"]').setAttribute('aria-expanded',String(show));
+    if(show) find('[data-search]').focus();
+  }
+  const press = (action,label,on) => `<button type="button" data-action="${action}" aria-pressed="${on}">${label}</button>`;
+  const link = (label,target,primary=false) => `<button type="button" ${primary?'class="primary" ':''}data-jump="${target}">${label} <span aria-hidden="true">↗</span></button>`;
+  const toolbar = (label,buttons) => `<div class="toolbar"><span class="inline-label">${label}</span>${buttons}</div>`;
+  const table = (head,body,label) => `<div class="tablewrap"><table aria-label="${label}"><thead><tr>${head.map(x=>`<th scope="col">${x}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table></div>`;
+
+  function mapDistances(anchor=state.anchor) {
+    const distances = new Map([[anchor,0]]);
+    for (const [id,distance] of distances){
+      for (const [a,b] of graph.map.links){
+        const other = a===id?b:b===id?a:null;
+        if (other && !distances.has(other)) distances.set(other,distance+1);
+      }
+    }
+    return distances;
+  }
+
+  function diagramMarkup(view) {
+    const {positions,links} = graph[view];
+    const distances = view==='map'?mapDistances():null;
+    const visible = Object.keys(positions).filter(id => {
+      if (view==='map') return distances.get(id)<=state.depth&&(!state.grouped||id===state.anchor||['dispatch','reception','notifications','profiles','coverage'].includes(id));
+      if (view==='impact') return (state.hypotheses || id!=='hypothesis')&&(state.filter!=='route'||!['attempt','hypothesis'].includes(id));
+      return state.branch==='all' || (state.branch==='yes'?id!=='quiet':!['notify','verify'].includes(id));
+    });
+    const controls = {
+      map:toolbar('Vecindario',press('near','1 salto',state.depth===1)+press('far','2 saltos',state.depth===2)+'<button type="button" data-action="center" '+(state.anchor===state.subject?'disabled':'')+'>Centrar selección</button>'+press('group',state.grouped?'Ver entidades':'Agrupar dominios',state.grouped)),
+      impact:toolbar('Alcance de la ruta',press('facts','Acreditada',!state.hypotheses)+press('hypotheses','Incluir hipótesis',state.hypotheses)+press('route-only',state.filter==='route'?'Ver vecindario':'Solo ruta',state.filter==='route')),
+      flow:toolbar('Trayectoria',press('all','Ambas',state.branch==='all')+press('yes','Con aviso',state.branch==='yes')+press('no','Sin aviso',state.branch==='no'))
+    };
+    const locations = {...positions};
+    if (view==='map' && state.anchor!=='dispatch'){
+      locations[state.anchor]=[50,47];
+      const neighbors=visible.filter(id=>id!==state.anchor);
+      neighbors.forEach((id,i)=>{
+        const angle=2*Math.PI*i/neighbors.length-Math.PI/2;
+        locations[id]=[50+31*Math.cos(angle),47+32*Math.sin(angle)];
+      });
+    }
+    const buttons = visible.map(id=>{
+      const [name,type,mark,kind]=nodes[id];
+      return `<button type="button" class="node" style="left:${locations[id][0]}%;top:${locations[id][1]}%" data-select="${id}" data-kind="${kind}" aria-pressed="${state.subject===id}" aria-label="${name}, ${type}"><span class="node-mark" aria-hidden="true">${mark}</span><span class="node-label">${name}</span></button>`;
+    }).join('');
+    const routes = links.filter(([a,b])=>visible.includes(a)&&visible.includes(b)).map(([a,b,verb,dashed])=>`<li><button type="button" data-edge="${view}:${a}:${b}">${nodes[a][0]} → ${verb} → ${nodes[b][0]}${dashed?' (hipótesis)':''}</button></li>`).join('');
+    const labels = {
+      map:'<span><i>◇</i> Regla</span><span><i>○</i> Observación</span><span><i>▣</i> Evidencia</span>',
+      impact:'<span><i>━</i> Vínculo acreditado</span><span><i>┄</i> Hipótesis</span>',
+      flow:'<span><i>→</i> Secuencia del diseño</span><span>Ramas rotuladas por condición</span>'
+    };
+    return controls[view]+`<div class="diagram ${view}"><canvas aria-hidden="true"></canvas>${buttons}</div><div class="legend">${labels[view]}<span>${visible.length} entidades visibles</span></div><details ${overlay.startsWith('edge:')?'open':''}><summary>Leer conexiones en texto</summary><ul>${routes}</ul></details>`;
+  }
+
+  function diffMarkup() {
+    const rows = configRows.filter(row=>!state.diffOnly||row[0]!=='window').map(([id,key,a,as,b,bs,delta])=>`<tr class="${state.subject===id?'selected':''}"><th scope="row"><button type="button" data-select="${id}" aria-pressed="${state.subject===id}">${key}</button></th><td>${a}<small>${as}</small></td><td>${b}<small>${bs}</small></td><td class="gold">${delta}</td></tr>`).join('');
+    return '<div class="double"><div class="context-box"><small>A · ámbito investigado</small><strong>Laboratorio Norte</strong><small>Lectura local · corte 26 nov</small></div><div class="context-box"><small>B · referencia</small><strong>Laboratorio Sur</strong><small>Principal de lectura distinto</small></div></div>'+
+      toolbar('Filas',press('allrows','Todas',!state.diffOnly)+press('changes','Diferencias y carencias',state.diffOnly))+
+      table(['Clave','Norte','Sur','Diferencia'],rows,'Comparación de configuración');
+  }
+  function matrixMarkup(){
+    const coverage=state.matrix==='coverage';
+    const rows=(coverage?coverageRows:permissionRows).filter((row,index)=>state.matrixFilter!=='gaps'||index===1).map(([key,...entries])=>`<tr><th scope="row">${key}</th>${entries.map(([id,label,sub])=>`<td class="${state.subject===id?'selected':''}"><button type="button" data-select="${id}" aria-pressed="${state.subject===id}">${label}<small>${sub}</small></button></td>`).join('')}</tr>`).join('');
+    const metrics='<div class="stratum"><small>Universo fijo · 4 obligaciones ficticias</small><div class="metrics"><div><small>Diseñadas</small><b>3 / 4</b></div><div><small>Ejecutadas</small><b>3 / 4</b></div><div><small>Acreditadas</small><b>2 / 4</b></div><div><small>Conformes</small><b>1 / 4</b></div></div></div>';
+    return toolbar('Comparar',press('coverage','Cobertura',coverage)+press('permissions','Permisos',!coverage)+press('gaps',state.matrixFilter==='gaps'?'Todos los estados':'Solo brechas',state.matrixFilter==='gaps'))+table(coverage?['Obligación','Norte','Sur']:['Recurso / acción','Operador','Supervisor'],rows,coverage?'Cobertura por obligación e instancia':'Permisos por perfil')+(coverage?metrics:'');
+  }
+  function forensicMarkup(){
+    const health='<div class="health"><div>Técnico<strong>OK</strong></div><div>Funcional<strong class="rose">FAIL</strong></div><div>Limpieza<strong>Verificada</strong></div><div>Evidencia<strong>Disponible</strong></div></div>';
+    const trace=`<div class="trace">${events.map(([id,time,label,sub])=>`<button type="button" class="event ${id==='ev2'?'first':''}" data-select="${id}" aria-pressed="${state.subject===id}"><span class="time">${time}</span><span>${label}<small>${sub}</small></span></button>`).join('')}</div>`;
+    const comparison=table(['Afirmación A-17','041 · base','042 · actual'],
+      '<tr><th scope="row">Resultado</th><td>1 aviso · +18 s</td><td class="rose">0 avisos · +60 s</td></tr><tr><th scope="row">Umbral efectivo</th><td>6 °C</td><td>8 °C</td></tr><tr><th scope="row">Build ficticio</th><td>41</td><td>42</td></tr>',
+      'Comparación exacta de intentos');
+    const tracks=[['Acción',0,'ev1','+00 s · Solicitud aceptada','◇',''],['Efecto',60,'ev2','+60 s · Sin aviso','×','miss'],['Testigo',61,'ev3','+61 s · Constancia W-42','▣',''],['Limpieza',68,'ev4','+68 s · Fixture conciliado','✓','']];
+    if (state.compare) tracks.splice(1,0,['Base 041',18,'ev2','+18 s · Comparar el aviso de referencia con la divergencia','●','reference']);
+    const timeline='<div class="chronograph" aria-label="Escala desde la solicitud en segundos">'+tracks.map(([lane,second,id,label,mark,type])=>`<div class="clock-line"><small>${lane}</small><div class="clock-track"><button type="button" data-select="${id}" class="${type}" aria-label="${label}" aria-pressed="${state.subject===id}" style="left:${100*second/70}%">${mark}</button></div></div>`).join('')+'<div class="clock-line"><span></span><div class="clock-ticks"><span>0 s</span><span>35 s</span><span>70 s</span></div></div></div>';
+    return health+toolbar('Lectura',press('timeline','Cronología',!state.compare)+press('compare','Comparar 041 / 042',state.compare))+timeline+(state.compare?comparison:'')+'<details><summary>Leer eventos en texto</summary>'+trace+'</details>';
+  }
+
+  function projectMarkup(){
+    const active=state.project==='faro';
+    return '<div class="workform"><h2>'+ (active?'Elegir proyecto y entorno':'Primeros pasos')+'</h2><p class="case-meta">'+ (active?'El contexto de investigación delimita la lectura, la evidencia y las operaciones.':'Cuaderno vacío. Todavía no hay fuentes, roles ni autorizaciones.') +'</p><div class="worklist">'+
+      '<button type="button" data-action="open-faro"><strong>Faro Azul · Laboratorio Norte</strong><small>Operación de muestra · perfil Operador · ' +(active?'contexto actual':'restaurar expediente')+'</small></button>'+
+      '<button type="button" data-action="open-empty"><strong>Cuaderno de práctica · sin entorno</strong><small>Iniciar desde un estado vacío</small></button></div>'+
+      '<div class="linkrow"><button type="button" data-action="tour" class="primary">Abrir tour opcional</button></div></div>';
+  }
+  const phaseText = {
+    ready:'Preparado para revisar elegibilidad. Aún no hay intento de muestra.',
+    invalid:'Dato inválido para esta práctica. Introduzca 5 o 7 °C.',
+    conflict:'Conflicto de revisión: propuesta rev. 3 y caso vigente rev. 4. Revise la diferencia antes de continuar.',
+    blocked:'Impedimento de permiso antes de despacho. No se creó un resultado ni un efecto.',
+    manual:'Pausa para registrar observación humana. La observación sola no acredita el efecto.',
+    hybrid:'El paso preparado llegó a la pausa humana. El efecto sigue por conciliar.',
+    reconcile:'Hay un efecto de muestra por conciliar. No reintentar mientras la situación siga incierta.',
+    sealed:'La simulación se cerró como ejercicio. Consulte W-42, que pertenece al intento histórico ficticio 042.'
+  };
+  function workMarkup(){
+    if(state.subject==='desk'){
+      const alerts = [
+        ['Conciliar efecto pendiente',phaseText.reconcile,'work:case',state.phase==='reconcile'],
+        ['Revisar propuesta desactualizada',phaseText.conflict,'work:case',state.phase==='conflict'],
+        ['Investigar un resultado contradictorio','A-17 · FAIL acreditado · orden por contradicción vigente.','forensic:ev3',true],
+        ['Resolver brecha de testigo','A-18 Norte · ejecución sin prueba suficiente.','matrix:a18n',true],
+        ['Contrastar base de prueba','R-17 rev. 5 · manual y lectura efectiva delimitan el oráculo.','work:sources',true]];
+      return '<div class="workform"><h2>Siguiente decisión</h2><p class="case-meta">Corte de muestra FA-06 · bloqueo operativo, contradicción, brecha y revisión de fuente.</p><div class="worklist">'+alerts.filter(item=>item[3]).map(([label,reason,target])=>`<button type="button" data-jump="${target}"><strong>${label} ↗</strong><small>${reason}</small></button>`).join('')+'</div><div class="linkrow">'+link('Preparar caso','work:case',true)+link('Abrir defecto','work:defect')+'</div></div>';
+    }
+    if(state.subject==='sources'){
+      return '<div class="workform"><h2>Fuentes y oráculo</h2><div class="worklist"><button type="button" data-jump="impact:rules"><strong>Manual de laboratorio · §4.2 · rev. 5</strong><small>Regla de aviso y ventana · extracto ficticio</small></button><button type="button" data-jump="diff:cfg"><strong>Constancia efectiva L-10</strong><small>8 °C en Norte · contexto y corte registrados</small></button><button type="button" data-jump="flow:verify"><strong>Oráculo A-17 · registro receptor independiente</strong><small>Correlación exigida, ventana 60 s y completitud</small></button></div><div class="linkrow">'+link('Validar datos de muestra','work:case',true)+'</div></div>';
+    }
+    if(state.subject==='defect'){
+      return '<div class="workform"><h2>D-07 · Aviso no registrado</h2><p class="case-meta">Vínculo a A-17 / 042. Causa sin aislar. Captura de ejemplo vencida.</p><div class="notice"><p>'+ (state.defect?'Receta de muestra revisada. Próximo intento separado, pendiente de autorización.':'Receta de ejemplo disponible · Identidad F-24, entrada controlada y oráculo revisables.')+'</p></div><div class="linkrow"><button type="button" data-action="recipe" class="primary">Revisar receta de reproducción</button>'+link('Abrir evidencia','forensic:ev3')+ '</div></div>';
+    }
+    const modeOptions=[['manual','Manual guiada'],['hybrid','Híbrida con pausa humana'],['auto','Automatizada preparada externamente']];
+    const locked=['manual','hybrid','reconcile'].includes(state.phase);
+    const activeOptions=locked?'disabled':'';
+    return `<div class="workform"><h2>T-24 · Preparar variante del caso</h2><p class="case-meta">Norte · revisión vigente 4 · los resultados del expediente se conservan.</p>
+       <fieldset class="fieldset" ${activeOptions}><label class="field">Modalidad <select data-field="mode">${modeOptions.map(([id,label])=>`<option value="${id}" ${id===state.mode?'selected':''}>${label}</option>`).join('')}</select></label>
+       <label class="field">Muestra controlada, en °C <input type="number" data-field="temp" step="1" value="${state.temp}"></label>
+       <label class="field">Revisión base <select data-field="revision"><option value="current" ${state.revision==='current'?'selected':''}>Vigente · rev. 4</option><option value="stale" ${state.revision==='stale'?'selected':''}>Propuesta del agente · rev. 3</option></select></label>
+       <label class="field"><span><input type="checkbox" data-field="grant" ${state.grant?'checked':''}> Permiso ilustrativo disponible para el ejercicio</span></label></fieldset>
+       <div class="notice" role="status"><p>${phaseText[state.phase]}</p></div>
+       ${state.phase==='conflict'?table(['Atributo','Base/propuesta rev. 3','Vigente rev. 4'],'<tr><th scope="row">Oráculo</th><td>Vista de avisos del emisor</td><td>Registro receptor independiente</td></tr><tr><th scope="row">Ventana</th><td>Dato sin fijar</td><td>60 s · R-17 rev. 5</td></tr>','Revisiones del caso') : ''}
+       <div class="linkrow">
+       ${locked?'':'<button type="button" data-action="preflight" class="primary">Simular precondiciones e intento</button>'}
+       ${state.phase==='manual'||state.phase==='hybrid'?'<button type="button" data-action="observe" class="primary">Registrar observación ficticia</button>':''}
+       ${state.phase==='reconcile'?'<button type="button" data-action="reconcile" class="primary">Conciliar con constancia de muestra</button>':''}
+       ${state.phase==='conflict'?'<button type="button" data-action="refresh">Revisar y adoptar rev. 4 para el borrador</button>':''}
+       </div><div class="linkrow">${link('Ver flujo y oráculo','flow:guard')}${link('Abrir el intento histórico ficticio','forensic:ev3')}</div></div>`;
+  }
+
+  function inspectorMarkup(){
+    if (overlay==='tour'){
+      const steps=[['Encuentre una entidad','El mapa parte de un proceso y su vecindario. Lea el tipo y la procedencia en el inspector.'],['Siga una relación','Impacto muestra cómo el umbral se relaciona con la regla y una prueba. La hipótesis se explora por separado.'],['Compruebe el alcance','Forense diferencia respuesta técnica, efecto, testigo y limpieza. La evidencia acota cada conclusión.']];
+      return `<div class="eyebrow">Tour opcional · ${tourStep+1} de 3</div><h2>${steps[tourStep][0]}</h2><p>${steps[tourStep][1]}</p><div class="actions">${tourStep<2?'<button type="button" data-action="tour-next" class="primary">Continuar</button>':''}<button type="button" data-action="close-overlay">Cerrar tour</button></div>`;
+    }
+    if (overlay.startsWith('edge:')){
+      const [,view,from,to]=overlay.split(':');
+      const edge=graph[view].links.find(([a,b])=>a===from&&b===to);
+      const status=edge[3]?'Hipótesis pendiente':view==='flow'?'Dependencia de diseño':'Relación del expediente';
+      const source=edge[3]?'Nota de exploración ficticia. Sin corroboración.':view==='flow'?'Borrador T-24 · secuencia propuesta.':'Expediente FA-06 · referencias de los extremos.';
+      return `<div class="eyebrow">${status}</div><h2>${edge[2]}</h2><p>${nodes[from][0]} → ${nodes[to][0]}</p><dl><div><dt>Procedencia de muestra</dt><dd>${source}</dd></div></dl><div class="actions">${link('Inspeccionar el destino',view+':'+to,true)}</div>`;
+    }
+    if (overlay==='help') return '<div class="eyebrow">Guía contextual</div><h2>Siga una decisión</h2><p>Seleccione un nodo para ver qué se sabe y de dónde viene. Abra Impacto para seguir los vínculos que justifican una prueba.</p><dl><div><dt>Cómo volver</dt><dd>La flecha recupera la vista, el foco y los filtros anteriores.</dd></div></dl><div class="actions"><button type="button" class="primary" data-action="tour">Abrir tour opcional</button><button type="button" data-action="close-overlay">Cerrar guía</button></div>';
+    if (overlay==='handoff') return '<div class="eyebrow">Checkpoint ficticio</div><h2>Alerta que no salió</h2><p>Última revisión del expediente FA-06. El intento 042 tiene una contradicción acreditada. La causa sigue abierta.</p><dl><div><dt>Propuesta del agente anterior</dt><dd>Aislar el umbral efectivo del cambio de build. Pendiente de revisión humana.</dd></div><div><dt>Siguiente acción</dt><dd>Revisar la constancia W-42 y la comparación de contextos.</dd></div></dl><div class="actions">'+link('Retomar en W-42','forensic:ev3',true)+'<button type="button" data-action="close-overlay">Volver al detalle</button></div>';
+    if(state.view==='projects') return '<div class="eyebrow">Contexto</div><h2>'+ (state.project==='faro'?'Laboratorio Norte':'Sin entorno')+'</h2><p>'+ (state.project==='faro'?'Laboratorio Sur es una referencia ficticia de lectura separada, disponible solo en comparación.':'El trabajo comienza con fuente, ámbito y autorización. Abra la práctica Faro Azul para ver un expediente completo.')+'</p>';
+    if(state.view==='work') return '<div class="eyebrow">Operación de muestra</div><h2>'+({desk:'Expediente FA-06',case:'Foco de la prueba',sources:'Procedencia y suficiencia',defect:'Reproducción separada'}[state.subject])+'</h2><p>'+({desk:'Las prioridades se calculan con el mismo orden cada vez que se repite el estado.',case:'La simulación no ejecuta un AUT. Separa elegibilidad, observación y efecto.',sources:'Un documento acreditado establece la expectativa. Una fuente independiente comprueba el resultado.',defect:'Retomar la receta conserva el hecho histórico y plantea un intento nuevo.'}[state.subject])+'</p><div class="actions">'+link('Volver a la mesa','work:desk')+'</div>';
+    const cell=cells[state.subject];
+    const data=cell?[cell[0],cell[1],cell[2],[['Ámbito',state.matrix==='coverage'?'Universo de obligaciones de muestra':'Laboratorio Norte · recursos de muestra']],[['Abrir relación',cell[3]]]]:details[state.subject];
+    const [status,title,desc,facts,actions]=data;
+    const tone=status.includes('FAIL')||status==='Primera divergencia'?'rose':/Hipótesis|Sin |indeterminado|Falta/.test(status)?'gold':'teal';
+    return `<div class="eyebrow">Inspector de selección</div><span class="badge ${tone}">${status}</span><h2>${title}</h2><p>${desc}</p><dl>${facts.map(([key,value])=>`<div><dt>${key}</dt><dd>${value}</dd></div>`).join('')}</dl><div class="actions">${actions.map(([label,target],i)=>link(label,target,i===0)).join('')}${state.view==='forensic'?link('Investigar el defecto','work:defect')+'<button type="button" data-action="historic">Abrir publicación histórica ↗</button>':''}</div>`;
+  }
+
+  function render(){
+    const focusElement = root.contains(document.activeElement)?document.activeElement:null;
+    const focusKey = focusElement && ['edge','select','action','jump','view'].find(key=>focusElement.dataset[key]);
+    find('[data-heading]').textContent=english?englishTitles[state.view]:titles[state.view][0];
+    find('[data-caption]').textContent=state.view==='map'?'Dominios y entidades visibles alrededor de '+nodes[state.anchor][0]+'.':titles[state.view][1];
+    find('[data-trail]').textContent=state.project==='empty'?'Cuaderno de práctica':state.view==='projects'?'Proyectos y entornos':'FA-06 / '+(nodes[state.subject]?.[0]||details[state.subject]?.[1]||cells[state.subject]?.[1]||titles[state.view][0]);
+    find('[data-project-label]').textContent=state.project==='empty'?'Cuaderno de práctica / Sin entorno':'Faro Azul / Laboratorio Norte';
+    find('[data-action="theme"]').textContent=light?'Tema oscuro':'Tema claro';
+    find('[data-action="theme"]').setAttribute('aria-pressed',String(light));
+    find('[data-action="locale"]').textContent=english?'ES':'EN';
+    find('[data-action="locale"]').setAttribute('aria-label',english?'Mostrar los controles en español':'Show interface controls in English');
+    find('[data-action="locale"]').setAttribute('aria-pressed',String(english));
+    root.dataset.theme=light?'light':'dark';
+    root.dataset.locale=english?'en':'es';
+    find('[data-heading]').lang=english?'en':'es';
+    find('[data-action="back"]').disabled=history.length===0;
+    root.querySelectorAll('[data-view]').forEach(button=>button.setAttribute('aria-pressed',button.dataset.view===state.view));
+    root.querySelectorAll('.rail button').forEach(button=>button.hidden=state.project==='empty');
+    find('.views').hidden=state.project==='empty';
+    find('.bottom').hidden=state.project==='empty';
+    if (observation) observation.disconnect();
+    if (graph[state.view]) {
+      content.innerHTML=diagramMarkup(state.view);
+      const diagram=content.querySelector('.diagram');
+      draw(diagram,state.view);
+      observation=new ResizeObserver(()=>draw(diagram,state.view));
+      observation.observe(diagram);
+    } else {
+      content.innerHTML={diff:diffMarkup,matrix:matrixMarkup,forensic:forensicMarkup,work:workMarkup,projects:projectMarkup}[state.view]();
+    }
+    inspector.innerHTML=inspectorMarkup();
+    translateControls();
+    if (focusKey && !focusElement.isConnected) {
+      const replacement = Array.from(root.querySelectorAll('[data-'+focusKey+']')).find(button=>button.dataset[focusKey]===focusElement.dataset[focusKey]);
+      (replacement&&!replacement.disabled?replacement:inspector.querySelector('button')||find('[data-view="'+state.view+'"]'))?.focus({preventScroll:true});
+    }
+  }
+
+  const originals = new WeakMap();
+  function translateControls(){
+    const selectors='button, summary, .rail h2, .top>.badge, .historic .badge';
+    root.querySelectorAll(selectors).forEach(element=>{
+      const walker=document.createTreeWalker(element,NodeFilter.SHOW_TEXT);
+      for(let part=walker.nextNode();part;part=walker.nextNode()){
+        const current=part.nodeValue;
+        const original=originals.get(part)||current;
+        const translated=englishLabels[original.trim()];
+        if(!translated) continue;
+        originals.set(part,original);
+        part.nodeValue=english?original.replace(original.trim(),translated):original;
+      }
+    });
+  }
+
+  function draw(diagram,view){
+    const canvas=diagram.querySelector('canvas');
+    const bounds=diagram.getBoundingClientRect();
+    if (!bounds.width||!bounds.height||getComputedStyle(canvas).display==='none') return;
+    const dpi=Math.min(devicePixelRatio||1,2);
+    canvas.width=Math.round(bounds.width*dpi);
+    canvas.height=Math.round(bounds.height*dpi);
+    const ctx=canvas.getContext('2d');
+    ctx.scale(dpi,dpi);
+    const buttons = new Map([...diagram.querySelectorAll('button')].map(button=>[button.dataset.select,button]));
+    for (const [a,b,verb,dashed] of graph[view].links){
+      if (!buttons.has(a)||!buttons.has(b)) continue;
+      const origin=buttons.get(a),target=buttons.get(b);
+      const from=(view==='flow'?origin:origin.querySelector('.node-mark')).getBoundingClientRect();
+      const to=(view==='flow'?target:target.querySelector('.node-mark')).getBoundingClientRect();
+      let x1=from.left-bounds.left+from.width/2,y1=from.top-bounds.top+from.height/2;
+      let x2=to.left-bounds.left+to.width/2,y2=to.top-bounds.top+to.height/2;
+      const angle=Math.atan2(y2-y1,x2-x1);
+      const adjacent=a===state.subject||b===state.subject;
+      const tone=light?(dashed?'#785111':view==='flow'?'#397668':adjacent?'#62408e':'#776983'):(dashed?'#f2cc88':view==='flow'?(adjacent?'#92e1ce':'#789692'):(adjacent?'#c6afff':'#817394'));
+      const arrow=view!=='map';
+      let tipAngle=angle;
+      ctx.strokeStyle=tone;
+      ctx.fillStyle=tone;
+      ctx.lineWidth=adjacent?1.8:1.2;
+      ctx.setLineDash(dashed?[4,5]:[]);
+      ctx.beginPath();
+      if(view==='flow'){
+        if (Math.abs(x2-x1)<12){
+          y1+=from.height/2;
+          y2-=to.height/2+2;
+          ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);
+          tipAngle=Math.PI/2;
+        } else {
+          x1+=from.width/2;
+          x2-=to.width/2+3;
+          const mid=(x1+x2)/2;
+          ctx.moveTo(x1,y1);ctx.bezierCurveTo(mid,y1,mid,y2,x2,y2);
+          tipAngle=0;
+        }
+      } else {
+        x1+=Math.cos(angle)*18;y1+=Math.sin(angle)*18;
+        x2-=Math.cos(angle)*20;y2-=Math.sin(angle)*20;
+        ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);
+      }
+      ctx.stroke();
+      if (arrow){
+        ctx.setLineDash([]);
+        ctx.beginPath();ctx.moveTo(x2,y2);
+        ctx.lineTo(x2-7*Math.cos(tipAngle-.48),y2-7*Math.sin(tipAngle-.48));
+        ctx.lineTo(x2-7*Math.cos(tipAngle+.48),y2-7*Math.sin(tipAngle+.48));
+        ctx.closePath();ctx.fill();
+      }
+      if ((view==='impact'&&!dashed&&adjacent)||(view==='flow'&&a==='guard')){
+        ctx.font='11px Segoe UI, sans-serif';
+        const width=ctx.measureText(verb).width;
+        const mx=(x1+x2)/2,my=(y1+y2)/2-9;
+        if (width+8<Math.abs(x2-x1)+28) {
+          ctx.fillStyle=light?'#f5edf9':'#171721';ctx.fillRect(mx-width/2-3,my-10,width+6,14);
+          ctx.fillStyle=light?'#3e2c57':'#e4ddef';ctx.textAlign='center';ctx.fillText(verb,mx,my);
+        }
+      }
+    }
+  }
+
+  root.addEventListener('input',event=>{
+    if(event.target.matches('[data-search]')) updateSearch();
+    if(event.target.dataset.field==='temp') state.temp=event.target.value===''?'':String(event.target.valueAsNumber);
+  });
+  root.addEventListener('change',event=>{
+    const field=event.target.dataset.field;
+    if (field==='grant') state.grant=event.target.checked;
+    if (field==='mode'||field==='revision') state[field]=event.target.value;
+  });
+  root.addEventListener('keydown',event=>{
+    if(event.key==='Escape'&&!find('[data-search-panel]').hidden){searchVisibility(false);find('[data-action="show-search"]').focus();}
+  });
+  root.addEventListener('click',event=>{
+    const button=event.target.closest('button');
+    if (!button||!root.contains(button)) return;
+    if (button.dataset.view && button.dataset.view!==state.view) return jump(button.dataset.view,state.subject);
+    if (button.dataset.jump) {
+      const fromSearch=Boolean(button.closest('[data-search-panel]'));
+      if(fromSearch) searchVisibility(false);
+      jump(...button.dataset.jump.split(':'));
+      if(fromSearch) content.querySelector('[aria-pressed="true"]')?.focus();
+      return;
+    }
+    if (button.dataset.edge){overlay='edge:'+button.dataset.edge;render();return;}
+    if (button.dataset.select) return go({subject:button.dataset.select});
+    switch(button.dataset.action){
+      case 'back': if(history.length) go(history.pop(),false); break;
+      case 'theme': light=!light;render();break;
+      case 'locale': english=!english;render();break;
+      case 'show-search': searchVisibility(find('[data-search-panel]').hidden);updateSearch();break;
+      case 'project': jump('projects','projects');break;
+      case 'open-empty':
+        if(state.project!=='empty') previousProject={...state,view:'map',subject:'dispatch',anchor:'dispatch'};
+        history.length=0;searchVisibility(false);find('[data-search]').value='';
+        go({...initial,project:'empty',view:'projects',subject:'projects'},false);break;
+      case 'open-faro':
+        history.length=0;searchVisibility(false);find('[data-search]').value='';
+        go(state.project==='faro'?{view:'map',subject:'dispatch',anchor:'dispatch'}:previousProject||initial,false);break;
+      case 'near': go({depth:1,subject:mapDistances().get(state.subject)>1?state.anchor:state.subject}); break;
+      case 'far': go({depth:2}); break;
+      case 'center': go({anchor:state.subject}); break;
+      case 'group': go({grouped:!state.grouped,subject:state.grouped||['dispatch','reception','notifications','profiles','coverage',state.anchor].includes(state.subject)?state.subject:state.anchor});break;
+      case 'facts': go({hypotheses:false,subject:state.subject==='hypothesis'?'cfg':state.subject}); break;
+      case 'hypotheses': go({hypotheses:true,filter:'all'}); break;
+      case 'route-only': go({filter:state.filter==='route'?'all':'route',subject:['attempt','hypothesis'].includes(state.subject)?'cfg':state.subject});break;
+      case 'all': go({branch:'all'}); break;
+      case 'yes': go({branch:'yes',subject:state.subject==='quiet'?'guard':state.subject}); break;
+      case 'no': go({branch:'no',subject:['notify','verify'].includes(state.subject)?'guard':state.subject}); break;
+      case 'allrows': go({diffOnly:false}); break;
+      case 'changes': go({diffOnly:true,subject:state.subject==='window'?'cfg':state.subject}); break;
+      case 'coverage': jump('matrix','a17n'); break;
+      case 'permissions': jump('matrix','approveop'); break;
+      case 'gaps': go({matrixFilter:state.matrixFilter==='gaps'?'all':'gaps',subject:state.matrixFilter==='gaps'?state.subject:state.matrix==='coverage'?'a18n':'approveop'});break;
+      case 'timeline': go({compare:false}); break;
+      case 'compare': go({compare:true}); break;
+      case 'help': overlay='help'; render(); inspector.querySelector('button').focus(); break;
+      case 'handoff': overlay='handoff'; render(); inspector.querySelector('button').focus(); break;
+      case 'tour':
+        tourStep=0;
+        if(state.project==='faro') jump('map','dispatch');
+        overlay='tour';render();inspector.querySelector('button').focus();break;
+      case 'tour-next': {
+        tourStep=Math.min(2,tourStep+1);
+        if(state.project==='faro') jump(tourStep===1?'impact':'forensic',tourStep===1?'cfg':'ev3');
+        overlay='tour';render();inspector.querySelector('button').focus();break;
+      }
+      case 'close-overlay': {
+        const previous=overlay;
+        overlay='';render();(previous==='tour'?find('[data-action="help"]'):find('[data-action="'+previous+'"]'))?.focus();break;
+      }
+      case 'preflight':
+        go({phase:!['5','7'].includes(state.temp)?'invalid':state.revision==='stale'?'conflict':!state.grant?'blocked':state.mode==='auto'?'reconcile':state.mode},false);break;
+      case 'refresh': go({revision:'current',phase:'ready'},false);break;
+      case 'observe': go({phase:state.phase==='hybrid'?'reconcile':'sealed'},false);break;
+      case 'reconcile': go({phase:'sealed'},false);break;
+      case 'recipe': go({defect:true},false);break;
+      case 'historic':
+        historicTrigger=button;
+        find('[data-operational]').hidden=true;
+        find('[data-publication]').hidden=false;
+        find('[data-action="return"]').focus();
+        break;
+      case 'return':
+        find('[data-publication]').hidden=true;
+        find('[data-operational]').hidden=false;
+        render();
+        (historicTrigger?.isConnected?historicTrigger:inspector.querySelector('[data-action="historic"]')||find('[data-action="historic"]')).focus();
+        break;
+    }
+  });
+  render();
+})();
+</script>
+
+</body></html>
