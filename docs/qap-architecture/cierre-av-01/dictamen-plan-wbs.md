@@ -1,5 +1,7 @@
 # Dictamen de consistencia · PM-01, WBS-01 y TR-WBS-01
 
+> Antecedente de consistencia del autor para la versión 1.0. La versión 1.1 se rige por el [dictamen RP-01](dictamen-rp-01.md) y la [resolución y matriz de cierre](resolucion-rp-01.md). Las cifras y hallazgos de abajo corresponden a la base revisada.
+
 **Apto para revisión y ratificación documental, con reservas de calificación preservadas.** La versión 1.0 descompone los 44 paquetes en 71 subtareas. Define orden, salidas falsables, responsables lógicos y evidencias previstas hasta GA y el corte por proyecto. El plan queda listo para decisión documental. Los actos y pruebas de ejecución quedan pendientes.
 
 ## Insumos y alcance de revisión

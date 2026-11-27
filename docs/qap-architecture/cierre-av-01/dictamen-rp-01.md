@@ -1,0 +1,22 @@
+# RP-01 · Dictamen sobre la planificación 1.0
+
+**APTO CON CORRECCIONES CONCRETAS.** Base examinada: `bda9b6a6121562e182d2084cdb05201fae498384` en `develop`. Encargo: [RP-01](encargo-revision-plan-wbs.md). Base ET: `03a4a4ac3e29d9d85bd0102f0b04ae0825f24b8c`. Entregado al Orquestador Principal. Este documento registra el dictamen emitido sobre 1.0. La incorporación posterior se documenta en la [resolución y matriz de cierre](resolucion-rp-01.md).
+
+**Independencia.** La misma sesión que emitió RP-01 había contribuido a la autoría y publicación de los documentos 1.0. El informe aporta una revisión focalizada con rastro a fuentes. La independencia respecto de la autoría no está acreditada. Si se exige esa condición para ratificar el plan, debe cumplirla un revisor ajeno a su elaboración. La aceptación de las cuatro correcciones por el Orquestador y la comprobación documental de 1.1 no sustituyen esa revisión.
+
+## Hallazgos sobre 1.0
+
+| Hallazgo | Fuente y riesgo material | Corrección propuesta y prueba de cierre |
+| --- | --- | --- |
+| RP-C01 · identidad instalada G1 | C5, EXP-04a/01a/07/08b y E1/E2/E3/E6 inicial/E7. G1-06.a podía empaquetar con G1-04.b sin esperar G1-04.c/d. Al adjudicar G1 se podían combinar el artefacto instalado y recursos gráficos, ayuda o locales de otra compilación | Hacer G1-04.c/d entradas de G1-06.a. Un manifiesto verificable y sus identidades efectivas por variante enlazan empaquetado, pruebas y adjudicación. Presentar otro tarball/build/runtime con la misma versión debe impedir el cierre |
+| RP-C02 · congelación del candidato G5 | CV08-05, CC08-03 y precedencia G5→G6→G6.5→GA. G5-04.b podía sellar A mientras una repetición o UX corregía hacia B. La adjudicación carecía de una unión explícita por identidad | Fijar ID antes de validar. G5-04.b debe consumir ensayo, repeticiones y UX aceptados para ese candidato. Evaluar impacto, invalidar y repetir celdas y resellar tras corrección. Reserva limpia cuando se comprometa generalización según CV08-05. El sello de A con pruebas de B se rechaza en G5 y en los actos posteriores |
+| RP-C03 · trazabilidad semántica y temporal | AC01-11.01/.02, 17.02, 18.01/.02 y 12.04–.08, C6, AR-45, XET-05 y CC08-01. Una mención nominal podía diferir capacidades G1, dejar replay regional para G5, trasladar crédito CDP a otro motor o usar un solo informe como prueba de tres funciones | Producir y verificar intercambio portable/CSV y CI canónico bajo G1, además de contratos de ingesta externa E1 con integración/calificación posteriores aplicables. Acreditar contexto/replay AR-45 antes de G4, controles por motor en EXP-05a/06a/02 y evidencias separadas de consulta/publicación/render en G3 y G5. Cada ruta identifica productor, entrega, verificación y salida |
+| RP-C04 · operación humana | AC01-05.01/.03, AC-DE-01 B, EXP-08 y UX-P01/P07. La disyunción «manual o preparada» y observar cero inferencias podían omitir modalidades o mantener un HOST indispensable | Probar acumulativamente cada modalidad exigible, Senior→Executor y operación gráfica con HOST ausente/desconectado, sin credencial IA, expediente obligatorio, terminal ni edición de código. Separar UX-P07 con agente autorizado. Modalidad exigible omitida o recuperación que relance un efecto incierto no acreditan la celda |
+
+## Reservas trasladadas
+
+La atribución documental de obligaciones no acredita conformidad instalada. Se preservan E1–E8 y EXP-01–08, EXP-06a/08a antes de G1, admisibilidad AR-51 antes de adoptar, AR-20 por clase, reservas de SO/CPU y activos redistribuidos, permisos, testigos independientes, pisos y vetos. La validación de migración en G5 es un ensayo. El corte AR-41 sigue tras G6.5 y bajo autorización expresa de proyecto. Piloto y GA tienen actos separados. MIT/ISC continúa pendiente.
+
+La estimación futura puede basarse en entregables y celdas por variante, comparadores aceptables y supuestos explícitos. Separar esfuerzo activo, espera, capacidad de QA/custodio y reservas para corrección y limpieza. RP-01 no aporta cifras verificadas. Su alcance fue documental y focalizado.
+
+Fuentes: [manifiesto AV](manifiesto-normativo-consolidado.md) · [manifiesto AC-01](manifiesto-ac01.md) · [cláusulas](catalogo-delta-ac01.md) · [contratos AC-01](contratos-ac01.md) · [C1–C6](incorporacion-correcciones-et.md) · [ET/XET](integracion-tecnologica-et.md) · [AV-03](protocolos-av03.md) · [CV08](enmiendas-av08.md) · [CC08](segunda-contravalidacion-av08.md) · [precedencia](precedencia-av07.md).
